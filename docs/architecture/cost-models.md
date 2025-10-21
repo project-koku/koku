@@ -79,32 +79,16 @@ Cloud provider cost models support **only one feature**: applying a **markup or 
 
 ### How Markup Is Applied
 
-**File:** `koku/masu/database/aws_report_db_accessor.py`
-
-```python
-def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
-    """Set markup costs in the database."""
-    with schema_context(self.schema):
-        date_filters = {"usage_start__gte": start_date, "usage_start__lte": end_date}
-
-        for bill_id in bill_ids:
-            # Apply markup to AWS cost line items
-            AWSCostEntryLineItemDailySummary.objects.filter(
-                cost_entry_bill_id=bill_id,
-                **date_filters
-            ).update(
-                markup_cost=(F("unblended_cost") * markup),
-                markup_cost_blended=(F("blended_cost") * markup),
-                markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
-                markup_cost_amortized=(F("calculated_amortized_cost") * markup),
-            )
-```
+**Implementation:**
+- **AWS:** [`koku/masu/database/aws_report_db_accessor.py`](../../koku/masu/database/aws_report_db_accessor.py) - `populate_markup_cost()` method
+- **Azure:** [`koku/masu/database/azure_report_db_accessor.py`](../../koku/masu/database/azure_report_db_accessor.py) - `populate_markup_cost()` method
+- **GCP:** [`koku/masu/database/gcp_report_db_accessor.py`](../../koku/masu/database/gcp_report_db_accessor.py) - `populate_markup_cost()` method
 
 **Key Points:**
 - Markup is a decimal (e.g., `0.10` for 10%)
-- Applied to **all cost types**: unblended, blended, savings plan, amortized
+- Applied to **all cost types**: unblended, blended, savings plan, amortized (AWS); pretax_cost (Azure/GCP)
 - Stored in separate `markup_cost*` columns in the database
-- Same pattern used for Azure (`pretax_cost`) and GCP
+- Uses Django ORM `F()` expressions for database-level calculations: `markup_cost = F("cost_field") * markup`
 
 ### Database Impact
 
@@ -220,36 +204,12 @@ OpenShift cost models consist of **three main components**:
 
 **SQL Implementation:**
 
-**File:** `koku/masu/database/sql/openshift/cost_model/usage_costs.sql`
+See [`koku/masu/database/sql/openshift/cost_model/usage_costs.sql`](../../koku/masu/database/sql/openshift/cost_model/usage_costs.sql) for the complete SQL implementation.
 
-```sql
-INSERT INTO reporting_ocpusagelineitem_daily_summary (
-    cost_model_cpu_cost,
-    cost_model_memory_cost,
-    cost_model_volume_cost,
-    ...
-)
-SELECT
-    sum(coalesce(pod_usage_cpu_core_hours, 0)) * {{cpu_core_usage_per_hour}}
-        + sum(coalesce(pod_request_cpu_core_hours, 0)) * {{cpu_core_request_per_hour}}
-        + sum(coalesce(pod_effective_usage_cpu_core_hours, 0)) * {{cpu_core_effective_usage_per_hour}}
-        + sum(coalesce(pod_effective_usage_cpu_core_hours, 0)) * {{node_core_cost_per_hour}}
-        + sum(coalesce(pod_effective_usage_cpu_core_hours, 0)) * {{cluster_core_cost_per_hour}}
-        as cost_model_cpu_cost,
-
-    sum(coalesce(pod_usage_memory_gigabyte_hours, 0)) * {{memory_gb_usage_per_hour}}
-        + sum(coalesce(pod_request_memory_gigabyte_hours, 0)) * {{memory_gb_request_per_hour}}
-        + sum(coalesce(pod_effective_usage_memory_gigabyte_hours, 0)) * {{memory_gb_effective_usage_per_hour}}
-        as cost_model_memory_cost,
-
-    sum(coalesce(persistentvolumeclaim_usage_gigabyte_months, 0)) * {{storage_gb_usage_per_month}}
-        + sum(coalesce(volume_request_storage_gigabyte_months, 0)) * {{storage_gb_request_per_month}}
-        as cost_model_volume_cost
-FROM reporting_ocpusagelineitem_daily_summary
-WHERE usage_start >= '2025-01-01'
-  AND usage_start < '2025-02-01'
-GROUP BY usage_start, cluster_id, namespace, pod_labels;
-```
+**How it works:**
+- Multiplies usage metrics (pod_usage_cpu_core_hours, pod_request_cpu_core_hours, etc.) by their corresponding rates
+- Aggregates costs across CPU, memory, and volume dimensions
+- Stores results in `cost_model_cpu_cost`, `cost_model_memory_cost`, `cost_model_volume_cost` columns
 
 ### 2. Monthly Rates (Subscription-Based)
 
@@ -287,40 +247,13 @@ GROUP BY usage_start, cluster_id, namespace, pod_labels;
 
 **SQL Implementation:**
 
-**File:** `koku/masu/database/sql/openshift/cost_model/monthly_cost_cluster_and_node.sql`
+See [`koku/masu/database/sql/openshift/cost_model/monthly_cost_cluster_and_node.sql`](../../koku/masu/database/sql/openshift/cost_model/monthly_cost_cluster_and_node.sql) for the complete implementation.
 
-```sql
-INSERT INTO reporting_ocpusagelineitem_daily_summary (
-    cost_model_cpu_cost,
-    cost_model_memory_cost,
-    monthly_cost_type,
-    ...
-)
-SELECT
-    CASE
-        WHEN {{cost_type}} = 'Cluster' AND {{distribution}} = 'cpu'
-            THEN sum(pod_effective_usage_cpu_core_hours)
-                 / max(cluster_capacity_cpu_core_hours)
-                 * {{rate}}::decimal
-        WHEN {{cost_type}} = 'Node' AND {{distribution}} = 'cpu'
-            THEN sum(pod_effective_usage_cpu_core_hours)
-                 / max(node_capacity_cpu_core_hours)
-                 * {{rate}}::decimal
-        WHEN {{cost_type}} = 'Node_Core_Month' AND {{distribution}} = 'cpu'
-            THEN sum(pod_effective_usage_cpu_core_hours)
-                 / max(node_capacity_cpu_core_hours)
-                 * max(node_capacity_cpu_cores)
-                 * {{rate}}::decimal
-        ELSE 0
-    END AS cost_model_cpu_cost,
-
-    {{cost_type}} as monthly_cost_type
-FROM reporting_ocpusagelineitem_daily_summary
-WHERE usage_start >= '2025-01-01'
-  AND usage_start < '2025-02-01'
-  AND namespace IS NOT NULL
-GROUP BY usage_start, cluster_id, node, namespace, pod_labels;
-```
+**How it works:**
+- Calculates daily amortized costs from monthly rates
+- Distributes costs based on usage ratio (effective_usage / capacity)
+- Handles different monthly cost types: Cluster, Node, Node_Core_Month
+- Respects distribution setting (CPU vs Memory)
 
 **Database Queries by Monthly Cost Type:**
 
@@ -492,122 +425,26 @@ Tag-based rates support **two default mechanisms**:
 
 ### Code Implementation: SQL CASE Generation
 
-**File:** `koku/masu/processor/ocp/ocp_cost_model_cost_updater.py`
+**Implementation:** See [`koku/masu/processor/ocp/ocp_cost_model_cost_updater.py`](../../koku/masu/processor/ocp/ocp_cost_model_cost_updater.py)
 
-```python
-def _build_node_tag_cost_case_statements(
-    self, rate_dict, start_date, default_rate_dict={}, unallocated=False, node_core="", amortized=True
-):
-    """Given a tag key, value, and rate return a CASE SQL statement for tag-based pricing."""
-    case_dict = {}
+**Key Methods:**
+- `_build_node_tag_cost_case_statements()` - Generates CASE statements for pod label-based node costs
+- `_build_volume_tag_cost_case_statements()` - Generates CASE statements for volume label-based PVC costs
+- `_build_labels_case_statement()` - Normalizes labels for tag-based filtering
 
-    cpu_distribution_term = """
-        sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours)
-    """
-    memory_distribution_term = """
-        sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours)
-    """
-
-    for tag_key, tag_value_rates in rate_dict.items():
-        cpu_statement_list = ["CASE"]
-        memory_statement_list = ["CASE"]
-
-        for tag_value, rate_value in tag_value_rates.items():
-            label_condition = f"pod_labels->>'{tag_key}'='{tag_value}'"
-            rate = get_amortized_monthly_cost_model_rate(rate_value, start_date) if amortized else rate_value
-
-            cpu_statement_list.append(
-                f"""
-                    WHEN {label_condition}
-                        THEN {cpu_distribution_term} * {rate}::decimal
-                """
-            )
-            memory_statement_list.append(
-                f"""
-                    WHEN {label_condition}
-                        THEN {memory_distribution_term} * {rate}::decimal
-                """
-            )
-
-        # Add default rate
-        if default_rate_dict:
-            rate_value = default_rate_dict.get(tag_key, {}).get("default_value", 0)
-            rate = get_amortized_monthly_cost_model_rate(rate_value, start_date) if amortized else rate_value
-
-            cpu_statement_list.append(
-                f"ELSE {cpu_distribution_term} * {rate}::decimal"
-            )
-            memory_statement_list.append(
-                f"ELSE {memory_distribution_term} * {rate}::decimal"
-            )
-
-        cpu_statement_list.append("END as cost_model_cpu_cost")
-        memory_statement_list.append("END as cost_model_memory_cost")
-
-        if self._distribution == "cpu":
-            case_dict[tag_key] = (
-                "\n".join(cpu_statement_list),
-                "0::decimal as cost_model_memory_cost",
-                "0::decimal as cost_model_volume_cost",
-            )
-        elif self._distribution == "memory":
-            case_dict[tag_key] = (
-                "0::decimal as cost_model_cpu_cost",
-                "\n".join(memory_statement_list),
-                "0::decimal as cost_model_volume_cost",
-            )
-
-    return case_dict
-```
+**How it works:**
+- Dynamically generates SQL CASE statements from rate definitions
+- Matches pod/volume labels against tag_key and tag_value
+- Applies appropriate rate based on label match
+- Handles default rates for unmatched values
+- Respects distribution setting (CPU vs Memory)
 
 ### Generated SQL Example
 
-**Input Rate:**
-```json
-{
-  "env": {
-    "prod": 0.10,
-    "dev": 0.05,
-    "default_value": 0.03
-  }
-}
-```
+The cost updater dynamically generates SQL CASE statements and injects them into templates. See the SQL implementation in:
+- [`koku/masu/database/sql/openshift/cost_model/node_cost_by_tag.sql`](../../koku/masu/database/sql/openshift/cost_model/node_cost_by_tag.sql)
 
-**Generated SQL:**
-
-**File:** `koku/masu/database/sql/openshift/cost_model/node_cost_by_tag.sql`
-
-```sql
-INSERT INTO reporting_ocpusagelineitem_daily_summary (
-    cost_model_cpu_cost,
-    cost_model_memory_cost,
-    monthly_cost_type,
-    ...
-)
-SELECT
-    CASE
-        WHEN pod_labels->>'env' = 'prod' THEN
-            sum(pod_effective_usage_cpu_core_hours)
-            / max(node_capacity_cpu_core_hours)
-            * 0.10::decimal
-        WHEN pod_labels->>'env' = 'dev' THEN
-            sum(pod_effective_usage_cpu_core_hours)
-            / max(node_capacity_cpu_core_hours)
-            * 0.05::decimal
-        ELSE
-            sum(pod_effective_usage_cpu_core_hours)
-            / max(node_capacity_cpu_core_hours)
-            * 0.03::decimal
-    END as cost_model_cpu_cost,
-
-    0 as cost_model_memory_cost,
-    'Node' as monthly_cost_type
-FROM reporting_ocpusagelineitem_daily_summary
-WHERE usage_start >= '2025-01-01'
-  AND usage_start < '2025-02-01'
-  AND pod_labels ? 'env'  -- Only rows with 'env' label
-GROUP BY usage_start, cluster_id, node, namespace, pod_labels;
-```
+**Example:** For tag-based rate `{"env": {"prod": 0.10, "dev": 0.05, "default_value": 0.03}}`, the generated SQL matches pod_labels->>'env' against 'prod', 'dev', or applies the default rate.
 
 ### Tag-Based Rates for Storage (PVC)
 
@@ -631,60 +468,13 @@ GROUP BY usage_start, cluster_id, node, namespace, pod_labels;
 
 **SQL Implementation:**
 
-**File:** `koku/masu/database/sql/openshift/cost_model/monthly_cost_persistentvolumeclaim_by_tag.sql`
+See [`koku/masu/database/sql/openshift/cost_model/monthly_cost_persistentvolumeclaim_by_tag.sql`](../../koku/masu/database/sql/openshift/cost_model/monthly_cost_persistentvolumeclaim_by_tag.sql) for the complete implementation.
 
-```python
-def _build_volume_tag_cost_case_statements(self, rate_dict, start_date, default_rate_dict={}):
-    """Generate CASE statement for PVC tag-based pricing."""
-    case_dict = {}
-
-    for tag_key, tag_value_rates in rate_dict.items():
-        volume_statement_list = ["CASE"]
-
-        for tag_value, rate_value in tag_value_rates.items():
-            rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
-            volume_statement_list.append(
-                f"""
-                    WHEN volume_labels->>'{tag_key}'='{tag_value}'
-                        THEN {rate}::decimal / vc.pvc_count
-                """
-            )
-
-        if default_rate_dict:
-            rate_value = default_rate_dict.get(tag_key, {}).get("default_value", 0)
-            rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
-            volume_statement_list.append(f"ELSE {rate}::decimal / vc.pvc_count")
-
-        volume_statement_list.append("END as cost_model_volume_cost")
-
-        case_dict[tag_key] = (
-            "0::decimal as cost_model_cpu_cost",
-            "0::decimal as cost_model_memory_cost",
-            "\n".join(volume_statement_list),
-        )
-
-    return case_dict
-```
-
-**Generated SQL:**
-```sql
-INSERT INTO reporting_ocpusagelineitem_daily_summary (
-    cost_model_volume_cost,
-    monthly_cost_type,
-    ...
-)
-SELECT
-    CASE
-        WHEN volume_labels->>'storageclass' = 'gold' THEN 93::decimal / vc.pvc_count
-        WHEN volume_labels->>'storageclass' = 'silver' THEN 62::decimal / vc.pvc_count
-        WHEN volume_labels->>'storageclass' = 'bronze' THEN 31::decimal / vc.pvc_count
-        ELSE 31::decimal / vc.pvc_count  -- Default
-    END as cost_model_volume_cost
-FROM reporting_ocpusagelineitem_daily_summary
-WHERE volume_labels ? 'storageclass'
-  AND usage_start >= '2025-01-01'
-  AND usage_start < '2025-02-01';
-```
+**How it works:**
+- Matches volume_labels against storage class tag values
+- Divides monthly rate by PVC count for fair distribution
+- Applies amortization to convert monthly costs to daily costs
+- Handles default rates for unmatched storage classes
 
 ### Unallocated Costs for Tag-Based Rates
 
@@ -695,37 +485,11 @@ WHERE volume_labels ? 'storageclass'
 unallocated = node_capacity - pod_effective_usage
 ```
 
-**SQL for Unallocated Costs:**
-```sql
--- Unallocated costs assigned to "Worker unallocated" or "Platform unallocated" namespaces
-INSERT INTO reporting_ocpusagelineitem_daily_summary (
-    namespace,
-    cost_model_cpu_cost,
-    monthly_cost_type,
-    ...
-)
-SELECT
-    CASE max(nodes.node_role)
-        WHEN 'master' THEN 'Platform unallocated'
-        WHEN 'infra' THEN 'Platform unallocated'
-        WHEN 'worker' THEN 'Worker unallocated'
-    END as namespace,
+**Implementation:** See [`koku/masu/database/sql/openshift/cost_model/node_cost_by_tag.sql`](../../koku/masu/database/sql/openshift/cost_model/node_cost_by_tag.sql)
 
-    CASE
-        WHEN pod_labels->>'env' = 'prod' THEN
-            (max(node_capacity_cpu_core_hours) - sum(pod_effective_usage_cpu_core_hours))
-            / max(node_capacity_cpu_core_hours)
-            * 0.10::decimal
-        WHEN pod_labels->>'env' = 'dev' THEN
-            (max(node_capacity_cpu_core_hours) - sum(pod_effective_usage_cpu_core_hours))
-            / max(node_capacity_cpu_core_hours)
-            * 0.05::decimal
-    END as cost_model_cpu_cost,
-
-    'Node' as monthly_cost_type
-FROM reporting_ocpusagelineitem_daily_summary
-WHERE pod_labels ? 'env';
-```
+The SQL creates separate records for unallocated capacity, assigning costs to synthetic namespaces based on node role:
+- Worker nodes → "Worker unallocated" namespace
+- Master/Infra nodes → "Platform unallocated" namespace
 
 ---
 
@@ -765,72 +529,18 @@ Cost models support **two distribution strategies**:
 
 **Purpose:** Distribute unused worker node capacity to user projects.
 
-**File:** `koku/masu/database/sql/openshift/cost_model/distribute_cost/distribute_worker_cost.sql`
+**Implementation:** See [`koku/masu/database/sql/openshift/cost_model/distribute_cost/distribute_worker_cost.sql`](../../koku/masu/database/sql/openshift/cost_model/distribute_cost/distribute_worker_cost.sql)
 
 **Formula (CPU Distribution):**
 ```
 distributed_cost = (project_cpu_usage / total_user_project_cpu_usage) * worker_unallocated_cost
 ```
 
-**SQL Implementation:**
-```sql
-WITH worker_cost AS (
-    -- Calculate total worker unallocated cost
-    SELECT
-        usage_start,
-        cluster_id,
-        source_uuid,
-        SUM(
-            COALESCE(infrastructure_raw_cost, 0) +
-            COALESCE(infrastructure_markup_cost, 0) +
-            COALESCE(cost_model_cpu_cost, 0) +
-            COALESCE(cost_model_memory_cost, 0)
-        ) as worker_cost
-    FROM reporting_ocpusagelineitem_daily_summary
-    WHERE namespace = 'Worker unallocated'
-      AND usage_start >= '2025-01-01'
-      AND usage_start < '2025-02-01'
-    GROUP BY usage_start, cluster_id, source_uuid
-),
-user_project_sum AS (
-    -- Calculate total usage of all user projects
-    SELECT
-        usage_start,
-        cluster_id,
-        source_uuid,
-        SUM(pod_effective_usage_cpu_core_hours) as usage_cpu_sum,
-        SUM(pod_effective_usage_memory_gigabyte_hours) as usage_memory_sum
-    FROM reporting_ocpusagelineitem_daily_summary
-    WHERE namespace NOT IN ('Worker unallocated', 'Platform unallocated')
-      AND usage_start >= '2025-01-01'
-      AND usage_start < '2025-02-01'
-    GROUP BY usage_start, cluster_id, source_uuid
-)
-INSERT INTO reporting_ocpusagelineitem_daily_summary (
-    distributed_cost,
-    ...
-)
-SELECT
-    CASE
-        WHEN {{distribution}} = 'cpu' AND namespace != 'Worker unallocated' THEN
-            (sum(pod_effective_usage_cpu_core_hours) / max(usage_cpu_sum))
-            * max(worker_cost)::decimal
-        WHEN {{distribution}} = 'memory' AND namespace != 'Worker unallocated' THEN
-            (sum(pod_effective_usage_memory_gigabyte_hours) / max(usage_memory_sum))
-            * max(worker_cost)::decimal
-        WHEN namespace = 'Worker unallocated' THEN
-            -- Deduct from Worker unallocated to avoid double-counting
-            0 - SUM(
-                COALESCE(infrastructure_raw_cost, 0) +
-                COALESCE(cost_model_cpu_cost, 0) +
-                COALESCE(cost_model_memory_cost, 0)
-            )
-        ELSE 0
-    END AS distributed_cost
-FROM reporting_ocpusagelineitem_daily_summary
-JOIN worker_cost ON ...
-JOIN user_project_sum ON ...;
-```
+**How it works:**
+1. Calculate total worker unallocated cost
+2. Calculate total usage across all user projects (excluding unallocated/platform)
+3. Distribute to each project based on its usage ratio
+4. Deduct from "Worker unallocated" namespace to avoid double-counting
 
 **Example Calculation:**
 ```
@@ -848,52 +558,30 @@ Worker unallocated distributed cost: $0 - $100 = -$100  (deduct to avoid double-
 
 **Purpose:** Distribute control plane (master/infra node) costs to user projects.
 
-**File:** `koku/masu/database/sql/openshift/cost_model/distribute_cost/distribute_platform_cost.sql`
+**Implementation:** See [`koku/masu/database/sql/openshift/cost_model/distribute_cost/distribute_platform_cost.sql`](../../koku/masu/database/sql/openshift/cost_model/distribute_cost/distribute_platform_cost.sql)
 
 **Formula:**
 ```
 distributed_cost = (project_usage / total_non_platform_usage) * platform_cost
 ```
 
-**SQL Pattern:**
-```sql
-WITH platform_cost AS (
-    SELECT
-        usage_start,
-        cluster_id,
-        SUM(
-            COALESCE(infrastructure_raw_cost, 0) +
-            COALESCE(cost_model_cpu_cost, 0) +
-            COALESCE(cost_model_memory_cost, 0)
-        ) as platform_cost
-    FROM reporting_ocpusagelineitem_daily_summary
-    WHERE cost_category_id IS NOT NULL
-      AND category_name = 'Platform'
-    GROUP BY usage_start, cluster_id
-)
-SELECT
-    CASE
-        WHEN {{distribution}} = 'cpu' AND category_name != 'Platform' THEN
-            (sum(pod_effective_usage_cpu_core_hours) / max(usage_cpu_sum))
-            * max(platform_cost)::decimal
-        WHEN category_name = 'Platform' THEN
-            0 - SUM(COALESCE(infrastructure_raw_cost, 0) + ...)
-        ELSE 0
-    END AS distributed_cost
-FROM reporting_ocpusagelineitem_daily_summary;
-```
+**How it works:**
+1. Calculate total platform cost (master/infra nodes)
+2. Calculate total usage across non-platform projects
+3. Distribute to each project based on usage ratio
+4. Deduct from platform namespaces to avoid double-counting
 
 ### 3. Unattributed Storage Distribution
 
 **Purpose:** Distribute storage costs that aren't tied to specific PVCs.
 
-**File:** `koku/masu/database/sql/openshift/cost_model/distribute_cost/distribute_unattributed_storage_cost.sql`
+**Implementation:** See [`koku/masu/database/sql/openshift/cost_model/distribute_cost/distribute_unattributed_storage_cost.sql`](../../koku/masu/database/sql/openshift/cost_model/distribute_cost/distribute_unattributed_storage_cost.sql)
 
 ### 4. Unattributed Network Distribution
 
 **Purpose:** Distribute network costs that aren't tied to specific pods.
 
-**File:** `koku/masu/database/sql/openshift/cost_model/distribute_cost/distribute_unattributed_network_cost.sql`
+**Implementation:** See [`koku/masu/database/sql/openshift/cost_model/distribute_cost/distribute_unattributed_network_cost.sql`](../../koku/masu/database/sql/openshift/cost_model/distribute_cost/distribute_unattributed_network_cost.sql)
 
 ### Distribution in Action
 
@@ -968,40 +656,18 @@ CREATE TABLE cost_model_map (
 
 ### Django Models
 
-**File:** `koku/cost_models/models.py`
+See [`koku/cost_models/models.py`](../../koku/cost_models/models.py) for model definitions:
 
-```python
-class CostModel(models.Model):
-    """A collection of rates used to calculate cost against resource usage data."""
+**Key Models:**
+- `CostModel` - Stores cost model configuration (rates, markup, distribution)
+- `CostModelMap` - Links providers to cost models (many-to-many relationship)
+- `CostModelAudit` - Tracks cost model changes for auditing
 
-    uuid = models.UUIDField(primary_key=True, default=uuid4)
-    name = models.TextField()
-    description = models.TextField()
-    source_type = models.CharField(max_length=50, choices=Provider.PROVIDER_CHOICES)
-    created_timestamp = models.DateTimeField(auto_now_add=True)
-    updated_timestamp = models.DateTimeField(auto_now=True)
-    rates = JSONField(default=dict)
-    markup = JSONField(encoder=DjangoJSONEncoder, default=dict)
-    distribution = models.TextField(choices=DISTRIBUTION_CHOICES, default=DEFAULT_DISTRIBUTION)
-    distribution_info = JSONField(default=dict)
-    currency = models.TextField(default=KOKU_DEFAULT_CURRENCY)
-
-    class Meta:
-        db_table = "cost_model"
-        ordering = ["name"]
-
-
-class CostModelMap(models.Model):
-    """Map for provider and rate objects."""
-
-    provider_uuid = models.UUIDField(editable=False, unique=False, null=False)
-    cost_model = models.ForeignKey("CostModel", null=True, on_delete=models.CASCADE)
-
-    class Meta:
-        ordering = ["-id"]
-        unique_together = ("provider_uuid", "cost_model")
-        db_table = "cost_model_map"
-```
+**Key Fields:**
+- `rates` - JSONField containing tiered and tag-based rate definitions
+- `markup` - JSONField containing markup percentage and unit
+- `distribution` - Text field: "cpu" or "memory"
+- `distribution_info` - JSONField with additional distribution configuration
 
 ### Rates JSON Structure
 
@@ -1099,143 +765,41 @@ koku/
 
 ### Cost Model Updater
 
-**File:** `koku/masu/processor/ocp/ocp_cost_model_cost_updater.py`
+**Implementation:** See [`koku/masu/processor/ocp/ocp_cost_model_cost_updater.py`](../../koku/masu/processor/ocp/ocp_cost_model_cost_updater.py)
 
 **Class:** `OCPCostModelCostUpdater`
 
-**Key Methods:**
+**Orchestration Flow:**
+1. `_update_usage_costs()` - Apply tiered rates (CPU, memory, storage)
+2. `_update_monthly_cost()` - Apply monthly rates (node, cluster, PVC)
+3. `_update_tag_usage_costs()` - Apply tag-based usage rates
+4. `_update_monthly_tag_based_cost()` - Apply tag-based monthly rates
+5. `_update_markup_cost()` - Apply markup percentage
+6. `_distribute_costs()` - Distribute unallocated and platform costs
 
-```python
-class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
-    """Class to update OCP report summary data with charge information."""
-
-    def __init__(self, schema, provider):
-        """Initialize with schema and provider, load cost model."""
-        super().__init__(schema, provider, None)
-        self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
-
-        with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
-            self._cost_model = cost_model_accessor.cost_model
-            self._infra_rates = cost_model_accessor.infrastructure_rates
-            self._tag_infra_rates = cost_model_accessor.tag_infrastructure_rates
-            self._supplementary_rates = cost_model_accessor.supplementary_rates
-            self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
-            self._distribution = cost_model_accessor.distribution_info.get("distribution_type", "cpu")
-
-    def update_summary_cost_model_costs(self, start_date, end_date):
-        """Update OCP report summary with cost model cost calculations."""
-        # 1. Update usage-based costs
-        self._update_usage_costs(start_date, end_date)
-
-        # 2. Update monthly costs (cluster, node, PVC)
-        self._update_monthly_cost(start_date, end_date)
-
-        # 3. Update tag-based usage costs
-        self._update_tag_usage_costs(start_date, end_date)
-
-        # 4. Update tag-based monthly costs
-        self._update_monthly_tag_based_cost(start_date, end_date)
-
-        # 5. Apply markup
-        self._update_markup_cost(start_date, end_date)
-
-        # 6. Distribute costs
-        self._distribute_costs(start_date, end_date)
-
-    def _update_usage_costs(self, start_date, end_date):
-        """Populate usage-based cost model costs (CPU, memory, storage)."""
-        # Generate SQL parameters from rates
-        sql_params = self._sql_params.get_sql_params("usage_costs")
-
-        # Execute SQL template
-        sql = self._prepare_template("usage_costs.sql")
-        self._execute_sql(sql, sql_params)
-
-    def _update_monthly_cost(self, start_date, end_date):
-        """Populate monthly cost model costs (node, cluster, PVC)."""
-        # Execute for each monthly cost type
-        for cost_type in ["Node", "Cluster", "Node_Core_Month", "PVC"]:
-            sql_params = self._sql_params.get_sql_params(cost_type)
-            sql = self._prepare_template("monthly_cost.sql")
-            self._execute_sql(sql, sql_params)
-
-    def _update_tag_usage_costs(self, start_date, end_date):
-        """Update tag-based usage costs."""
-        # For each tag key with rates
-        for tag_key, tag_rates in self._tag_infra_rates.items():
-            # Generate CASE statements
-            case_statements = self._build_tag_cost_case_statements(tag_rates, start_date)
-
-            # Execute SQL with dynamic CASE statements
-            sql = self._prepare_template("tag_usage_costs.sql")
-            self._execute_sql(sql, {"tag_key": tag_key, "case_statements": case_statements})
-
-    def _update_monthly_tag_based_cost(self, start_date, end_date):
-        """Update tag-based monthly costs (node, PVC)."""
-        # Similar to _update_tag_usage_costs but for monthly rates
-        pass
-
-    def _build_tag_cost_case_statements(self, rate_dict, start_date, default_rate_dict={}):
-        """Generate SQL CASE statements for tag-based pricing."""
-        # Returns dictionary of {tag_key: (cpu_case, memory_case, volume_case)}
-        pass
-
-    def _distribute_costs(self, start_date, end_date):
-        """Distribute unallocated and platform costs."""
-        # Execute distribution SQL for worker, platform, storage, network
-        pass
-```
+**Key Responsibilities:**
+- Load cost model configuration from database
+- Generate SQL parameters from rate definitions
+- Render Jinja2 SQL templates with rate values
+- Execute SQL to populate cost columns
+- Handle both Infrastructure and Supplementary cost types
 
 ### Cost Model DB Accessor
 
-**File:** `koku/masu/database/cost_model_db_accessor.py`
+**Implementation:** See [`koku/masu/database/cost_model_db_accessor.py`](../../koku/masu/database/cost_model_db_accessor.py)
 
-```python
-class CostModelDBAccessor(ReportDBAccessorBase):
-    """Class to interact with cost model database tables."""
+**Class:** `CostModelDBAccessor`
 
-    def __init__(self, schema, provider_uuid):
-        """Initialize accessor with schema and provider."""
-        super().__init__(schema)
-        self._provider_uuid = provider_uuid
-        self._cost_model = self._get_cost_model()
+**Key Properties:**
+- `cost_model` - Returns the CostModel object for a provider
+- `infrastructure_rates` - Extracts Infrastructure tiered rates
+- `supplementary_rates` - Extracts Supplementary tiered rates
+- `tag_infrastructure_rates` - Extracts Infrastructure tag-based rates
+- `tag_supplementary_rates` - Extracts Supplementary tag-based rates
+- `markup` - Extracts markup percentage (converted to decimal)
+- `distribution_info` - Extracts distribution configuration
 
-    @property
-    def cost_model(self):
-        """Return the cost model object."""
-        return self._cost_model
-
-    @property
-    def infrastructure_rates(self):
-        """Extract infrastructure rates from cost model."""
-        return self._parse_rates("Infrastructure")
-
-    @property
-    def supplementary_rates(self):
-        """Extract supplementary rates from cost model."""
-        return self._parse_rates("Supplementary")
-
-    @property
-    def tag_infrastructure_rates(self):
-        """Extract tag-based infrastructure rates."""
-        return self._parse_tag_rates("Infrastructure")
-
-    @property
-    def tag_supplementary_rates(self):
-        """Extract tag-based supplementary rates."""
-        return self._parse_tag_rates("Supplementary")
-
-    @property
-    def markup(self):
-        """Extract markup percentage."""
-        markup_dict = self._cost_model.markup
-        return markup_dict.get("value", 0) / 100
-
-    @property
-    def distribution_info(self):
-        """Extract distribution configuration."""
-        return self._cost_model.distribution_info or {"distribution_type": "cpu"}
-```
+**Purpose:** Provides a clean interface for reading cost model configuration from the database and parsing the JSON rate structures.
 
 ---
 
@@ -1312,68 +876,31 @@ class CostModelDBAccessor(ReportDBAccessorBase):
 
 ### Celery Task Integration
 
+**Implementation:** See [`koku/masu/processor/tasks.py`](../../koku/masu/processor/tasks.py)
+
 **Task:** `update_summary_tables`
 
-**File:** `koku/masu/processor/tasks.py`
+**When Triggered:**
+- After data ingestion completes
+- When cost models are created or updated
+- During manual re-summarization requests
 
-```python
-@shared_task(name="update_summary_tables")
-def update_summary_tables(schema_name, provider_type, provider_uuid, start_date, end_date, queue_name=None):
-    """Update report summary tables with cost model costs."""
-
-    # For OCP providers
-    if provider_type == Provider.PROVIDER_OCP:
-        # Apply cost model
-        cost_updater = OCPCostModelCostUpdater(schema_name, provider_uuid)
-        cost_updater.update_summary_cost_model_costs(start_date, end_date)
-
-    # For cloud providers
-    elif provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP]:
-        # Apply markup
-        with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
-            markup = cost_model_accessor.markup
-            if markup:
-                accessor = get_db_accessor(provider_type, schema_name)
-                accessor.populate_markup_cost(provider_uuid, markup, start_date, end_date)
-```
+**What It Does:**
+- For OCP: Calls `OCPCostModelCostUpdater.update_summary_cost_model_costs()`
+- For Cloud Providers: Calls `populate_markup_cost()` if markup is configured
+- Processes date ranges in batches for performance
 
 ### SQL Template Rendering
 
-**Jinja2 Templates:**
+Cost model SQL files use **Jinja2 templating** for dynamic rate injection.
 
-Cost model SQL files use **Jinja2 templating** for dynamic rate injection:
+**Template Files:** See [`koku/masu/database/sql/openshift/cost_model/`](../../koku/masu/database/sql/openshift/cost_model/)
 
-```sql
--- Template: usage_costs.sql
-INSERT INTO reporting_ocpusagelineitem_daily_summary (
-    cost_model_cpu_cost,
-    ...
-)
-SELECT
-    sum(pod_usage_cpu_core_hours) * {{cpu_core_usage_per_hour}}
-        + sum(pod_request_cpu_core_hours) * {{cpu_core_request_per_hour}}
-        + sum(pod_effective_usage_cpu_core_hours) * {{cpu_core_effective_usage_per_hour}}
-        as cost_model_cpu_cost
-FROM reporting_ocpusagelineitem_daily_summary
-WHERE usage_start >= {{start_date}}
-  AND usage_start <= {{end_date}};
-```
-
-**Rendered SQL:**
-```sql
-INSERT INTO reporting_ocpusagelineitem_daily_summary (
-    cost_model_cpu_cost,
-    ...
-)
-SELECT
-    sum(pod_usage_cpu_core_hours) * 0.007
-        + sum(pod_request_cpu_core_hours) * 0.2
-        + sum(pod_effective_usage_cpu_core_hours) * 0.05
-        as cost_model_cpu_cost
-FROM reporting_ocpusagelineitem_daily_summary
-WHERE usage_start >= '2025-01-01'
-  AND usage_start <= '2025-01-31';
-```
+**How it works:**
+1. Cost model rates are loaded from the database (e.g., `cpu_core_usage_per_hour: 0.007`)
+2. Jinja2 renders SQL templates, replacing `{{cpu_core_usage_per_hour}}` with `0.007`
+3. Rendered SQL is executed to calculate costs
+4. Template variables include rates, dates, schema names, and dynamically generated CASE statements
 
 ---
 

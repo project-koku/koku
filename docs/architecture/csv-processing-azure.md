@@ -158,40 +158,13 @@ if self.ingress_reports:
 4. Store in: /tmp/{customer_name}/azure/{container}/{filename}
 ```
 
-**Azure Blob Service:**
-```python:181:212:koku/masu/external/downloader/azure/azure_service.py
-def download_file(
-    self,
-    key: str,
-    container_name: str,
-    destination: str = None,
-    suffix: str = AzureBlobExtension.csv.value,
-    ingress_reports: list[str] = None,
-) -> str:
-    """Download file from Azure Blob Storage."""
+**Implementation:** See [`koku/masu/external/downloader/azure/azure_service.py`](../../koku/masu/external/downloader/azure/azure_service.py) - `download_file()` method
 
-    if not ingress_reports:
-        cost_export = self.get_file_for_key(key, container_name)
-        key = cost_export.name
-
-    file_path = destination
-    if not destination:
-        temp_file = NamedTemporaryFile(delete=False, suffix=suffix)
-        temp_file.close()
-        file_path = temp_file.name
-
-    try:
-        blob_client = self._blob_service_client.get_blob_client(
-            container=container_name,
-            blob=key
-        )
-        with open(file_path, "wb") as blob_download:
-            blob_download.write(blob_client.download_blob().readall())
-    except AzureError as error:
-        raise AzureServiceError(f"Failed to download file. Error: {error}")
-
-    return file_path
-```
+**How it works:**
+- Get blob client from Azure Blob Storage
+- Download blob to local file
+- Return local file path
+- Handle Azure errors gracefully
 
 ---
 
@@ -208,72 +181,15 @@ def download_file(
   - Parallel processing
   - Efficient date-range queries
 
-**Processing Flow:**
-```python:78:165:koku/masu/external/downloader/azure/azure_report_downloader.py
-def create_daily_archives(...):
-    """Create daily CSVs from incoming report."""
+**Implementation:** See [`koku/masu/external/downloader/azure/azure_report_downloader.py`](../../koku/masu/external/downloader/azure/azure_report_downloader.py) - `create_daily_archives()` function
 
-    # Determine processing start date
-    process_date = get_processing_date(
-        s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
-    )
-
-    # Detect date column (Azure uses "Date" in modern exports)
-    time_interval = pd.read_csv(local_file, nrows=0).columns.intersection(
-        {"UsageDateTime", "Date", "date", "usagedatetime"}
-    )[0]
-
-    # Legacy check
-    if time_interval not in ["Date", "date"]:
-        msg = (
-            "Unsupported Azure report schema (legacy version) detected. "
-            "The report contains the 'UsageDateTime' column, which indicates an outdated format. "
-            "Please use a modern report schema (which uses the 'Date' column)."
-        )
-        LOG.warning(log_json(msg=msg, context=context))
-        return [], {}
-
-    # Read CSV in chunks
-    with pd.read_csv(
-        local_file,
-        chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,  # 200,000 rows
-        parse_dates=[time_interval],
-        dtype=pd.StringDtype(storage="pyarrow"),
-    ) as reader:
-        for i, data_frame in enumerate(reader):
-            if data_frame.empty:
-                continue
-
-            # Sort by date and filter to process_date forward
-            data_frame = data_frame.set_index(time_interval, drop=False).sort_index()
-            data_frame = data_frame.loc[process_date:end_date]
-
-            if data_frame.empty:
-                continue
-
-            # Extract unique dates
-            dates = data_frame[time_interval].unique()
-            batch_date_range.add(data_frame.index[0].strftime(DATE_FORMAT))
-            batch_date_range.add(data_frame.index[-1].strftime(DATE_FORMAT))
-
-            # Write daily files
-            for date in dates:
-                daily_data = data_frame.loc[[date]]
-                if daily_data.empty:
-                    continue
-
-                day_path = pd.to_datetime(date).strftime(DATE_FORMAT)
-                day_file = f"{day_path}_manifestid-{manifest_id}_basefile-{base_name}_batch-{i}.csv"
-                day_filepath = f"{directory}/{day_file}"
-
-                daily_data.to_csv(day_filepath, index=False, header=True)
-
-                # Upload to S3 immediately
-                copy_local_report_file_to_s3_bucket(
-                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
-                )
-                daily_file_names.append(day_filepath)
-```
+**How it works:**
+1. Determine processing start date using heuristics
+2. Detect date column (`Date` in modern exports, reject legacy `UsageDateTime`)
+3. Read CSV in chunks (200,000 rows via pandas)
+4. Sort by date and filter to process_date forward
+5. Extract unique dates and write separate daily CSV files
+6. Upload to S3 immediately (streaming upload)
 
 **Output Structure:**
 ```
@@ -286,81 +202,23 @@ org1234567/azure/csv/
 
 #### **2.2 Processing Date Logic**
 
-Azure doesn't have an invoice finalization date, so Koku uses heuristics:
+**Implementation:** See [`koku/masu/external/downloader/azure/azure_report_downloader.py`](../../koku/masu/external/downloader/azure/azure_report_downloader.py) - `get_processing_date()` function
 
-```python:43:75:koku/masu/external/downloader/azure/azure_report_downloader.py
-def get_processing_date(...):
-    """Determine what date to start processing from."""
-    dh = DateHelper()
+Azure doesn't have an invoice finalization date, so Koku uses heuristics to determine processing start date:
 
-    # Process everything if:
-    # 1. Previous year
-    # 2. Previous month (and not first day of month)
-    # 3. Initial setup (setup_complete=False)
-    # 4. Ingress reports (manually uploaded)
-    if (
-        start_date.year < dh.today.year and dh.today.day > 1
-        or start_date.month < dh.today.month and dh.today.day > 1
-        or not check_provider_setup_complete(provider_uuid)
-        or ingress_reports
-    ):
-        process_date = start_date
-        process_date = ReportManifestDBAccessor().set_manifest_daily_start_date(
-            manifest_id, process_date
-        )
-    else:
-        # Current month: check for existing data in S3
-        process_date = get_or_clear_daily_s3_by_date(
-            s3_csv_path, provider_uuid, start_date, end_date, manifest_id, context, tracing_id
-        )
+**Process entire month if:**
+1. Previous year (and not first day of current month)
+2. Previous month (and not first day of current month)
+3. Initial setup (`setup_complete=False`)
+4. Ingress reports (manually uploaded)
 
-    return process_date
-```
+**Otherwise:** Check for existing data in S3 and process incrementally
 
 #### **2.3 Column Requirements**
 
-**Required Columns:**
-```python:18:50:koku/masu/util/azure/common.py
-INGRESS_REQUIRED_COLUMNS = {
-    "additionalinfo",
-    "billingaccountid",
-    "billingaccountname",
-    "billingperiodenddate",
-    "billingperiodstartdate",
-    "consumedservice",
-    "costinbillingcurrency",
-    "date",
-    "effectiveprice",
-    "metercategory",
-    "meterid",
-    "metername",
-    "meterregion",
-    "metersubcategory",
-    "offerid",
-    "productname",
-    "publishername",
-    "publishertype",
-    "quantity",
-    "reservationid",
-    "reservationname",
-    "resourceid",
-    "resourcelocation",
-    "resourcename",
-    "servicefamily",
-    "serviceinfo1",
-    "serviceinfo2",
-    "subscriptionid",
-    "tags",
-    "unitofmeasure",
-    "unitprice",
-}
+**Implementation:** See [`koku/masu/util/azure/common.py`](../../koku/masu/util/azure/common.py) - `INGRESS_REQUIRED_COLUMNS`
 
-# Alternate column names (Azure schema variations)
-INGRESS_REQUIRED_ALT_COLUMNS = [
-    ["billingcurrencycode", "billingcurrency"],
-    ["resourcegroup", "resourcegroupname"]
-]
-```
+**Required Columns** - Core columns including billing account, date, cost, meter details, resource info, subscriptions, and tags. Also handles alternate column names for Azure schema variations (e.g., `billingcurrencycode` vs `billingcurrency`).
 
 ---
 
@@ -376,50 +234,13 @@ INGRESS_REQUIRED_ALT_COLUMNS = [
 - **Partitioning:** Efficient filtering by source/year/month
 - **Trino optimization:** Native Parquet support
 
-**Azure-Specific Processor:**
-```python:18:47:koku/masu/processor/azure/azure_report_parquet_processor.py
-class AzureReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
-        # Define Azure-specific column types
-        numeric_columns = [
-            "quantity",
-            "resourcerate",
-            "costinbillingcurrency",
-            "effectiveprice",
-            "unitprice",
-            "paygprice",
-        ]
+**Implementation:** See [`koku/masu/processor/azure/azure_report_parquet_processor.py`](../../koku/masu/processor/azure/azure_report_parquet_processor.py)
 
-        date_columns = [
-            "date",
-            "billingperiodstartdate",
-            "billingperiodenddate"
-        ]
-
-        boolean_columns = ["resource_id_matched"]
-
-        column_types = {
-            "numeric_columns": numeric_columns,
-            "date_columns": date_columns,
-            "boolean_columns": boolean_columns,
-        }
-
-        # Determine table name
-        if "openshift" in s3_path:
-            table_name = TRINO_OCP_ON_AZURE_DAILY_TABLE
-        else:
-            table_name = TRINO_LINE_ITEM_TABLE
-
-        super().__init__(
-            manifest_id=manifest_id,
-            account=account,
-            s3_path=s3_path,
-            provider_uuid=provider_uuid,
-            parquet_local_path=parquet_local_path,
-            column_types=column_types,
-            table_name=table_name,
-        )
-```
+**Azure-Specific Type Conversions:**
+- **Numeric columns:** quantity, cost, prices (→ DOUBLE in Trino)
+- **Date columns:** date, billing period dates (→ TIMESTAMP in Trino)
+- **Boolean columns:** resource_id_matched (→ BOOLEAN in Trino)
+- **Table selection:** Uses OCP-on-Azure table if OpenShift data, otherwise standard line item table
 
 #### **3.2 Parquet Schema Generation**
 
@@ -495,187 +316,43 @@ org1234567/azure/parquet/
 #### **4.1 Daily Summary Table Population**
 **File:** `azure_report_parquet_summary_updater.py`
 
+**Implementation:** See [`koku/masu/processor/azure/azure_report_parquet_summary_updater.py`](../../koku/masu/processor/azure/azure_report_parquet_summary_updater.py) - `update_summary_tables()` method
+
 **Process:**
-```python:40:104:koku/masu/processor/azure/azure_report_parquet_summary_updater.py
-def update_summary_tables(self, start_date, end_date, **kwargs):
-    """Populate the summary tables for reporting."""
-
-    # 1. Get cost model markup
-    with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
-        markup = cost_model_accessor.markup
-        markup_value = float(markup.get("value", 0)) / 100  # 10% = 0.10
-
-    # 2. Handle partitions for UI summary tables
-    with schema_context(self._schema):
-        self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
-
-    # 3. Get billing records
-    with AzureReportDBAccessor(self._schema) as accessor:
-        with schema_context(self._schema):
-            bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
-            bill_ids = [str(bill.id) for bill in bills]
-            current_bill_id = bills.first().id if bills else None
-
-        if current_bill_id is None:
-            LOG.info(log_json(msg="no bill was found, skipping summarization"))
-            return start_date, end_date
-
-        # 4. Process in 5-day chunks (TRINO_DATE_STEP)
-        for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
-            LOG.info(log_json(
-                msg="updating Azure report summary tables via Trino",
-                start_date=start,
-                end_date=end,
-            ))
-
-            # 4a. DELETE existing summary data for date range
-            filters = {"cost_entry_bill_id": current_bill_id}
-            accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                self._provider.uuid, start, end, filters
-            )
-
-            # 4b. INSERT new summary data via Trino
-            accessor.populate_line_item_daily_summary_table_trino(
-                start, end, self._provider.uuid, current_bill_id, markup_value
-            )
-
-            # 4c. Populate UI summary tables
-            accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
-
-        # 5. Populate tag summaries
-        accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
-
-        # 6. Apply tag mappings
-        accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
-
-        # 7. Update bill timestamps
-        for bill in bills:
-            if bill.summary_data_creation_datetime is None:
-                bill.summary_data_creation_datetime = timezone.now()
-            bill.summary_data_updated_datetime = timezone.now()
-            bill.save()
-
-    return start_date, end_date
-```
+1. Get cost model markup (if configured)
+2. Handle partitions for UI summary tables
+3. Get billing records
+4. Process in 5-day chunks (TRINO_DATE_STEP):
+   - DELETE existing summary data for date range
+   - INSERT new summary data via Trino query
+   - Populate UI summary tables
+5. Populate tag summaries
+6. Apply tag mappings
+7. Update bill timestamps
 
 #### **4.2 Trino SQL Query**
 **File:** `trino_sql/azure/reporting_azurecostentrylineitem_daily_summary.sql`
 
-**Query Structure:**
-```sql:21:98:koku/masu/database/trino_sql/azure/reporting_azurecostentrylineitem_daily_summary.sql
--- Step 1: CTE to aggregate raw Parquet data
-WITH cte_line_items AS (
-    SELECT
-        date(date) as usage_date,
-        INTEGER '{{bill_id}}' as cost_entry_bill_id,
+**Implementation:** See [`koku/masu/database/trino_sql/azure/reporting_azurecostentrylineitem_daily_summary.sql`](../../koku/masu/database/trino_sql/azure/reporting_azurecostentrylineitem_daily_summary.sql)
 
-        -- Subscription handling (use GUID if ID is empty)
-        coalesce(nullif(subscriptionid, ''), subscriptionguid) as subscription_guid,
-        coalesce(nullif(subscriptionname, ''), nullif(subscriptionid, ''), subscriptionguid) as subscription_name,
+**Query Operations:**
+1. **Aggregate raw Parquet data:**
+   - Group by date, subscription, location, service
+   - Handle subscription ID/GUID variations
+   - Extract instance type from JSON AdditionalInfo field
+   - Normalize unit of measure (extract multipliers like "100" from "100 Hours")
+   - Parse and filter tags
 
-        -- Location and service
-        resourcelocation as resource_location,
-        coalesce(nullif(servicename, ''), metercategory) as service_name,
+2. **Apply transformations:**
+   - Multiply usage by unit multiplier
+   - Normalize unit names ("Hours" → "Hrs", "GB/Month" → "GB-Mo")
+   - Filter tags to only enabled keys
+   - Apply markup costs (if configured)
 
-        -- Instance type from AdditionalInfo JSON
-        json_extract_scalar(json_parse(additionalinfo), '$.ServiceType') as instance_type,
-
-        -- Costs and usage
-        cast(quantity as DECIMAL(24,9)) as usage_quantity,
-        cast(costinbillingcurrency as DECIMAL(24,9)) as pretax_cost,
-        coalesce(nullif(billingcurrencycode, ''), billingcurrency) as currency,
-
-        -- Tags as JSON
-        json_parse(tags) as tags,
-
-        -- Resource tracking
-        resourceid as instance_id,
-        cast(source as UUID) as source_uuid,
-
-        -- Unit of measure normalization
-        CASE
-            WHEN regexp_like(split_part(unitofmeasure, ' ', 1), '^\d+(\.\d+)?$')
-                AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines')
-                AND NOT split_part(unitofmeasure, ' ', 2) = ''
-            THEN cast(split_part(unitofmeasure, ' ', 1) as INTEGER)
-            ELSE 1
-        END as multiplier,
-
-        CASE
-            WHEN split_part(unitofmeasure, ' ', 2) IN ('Hours', 'Hour')
-                THEN 'Hrs'
-            WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
-                THEN 'GB-Mo'
-            WHEN split_part(unitofmeasure, ' ', 2) != ''
-                AND split_part(unitofmeasure, ' ', 3) = ''
-            THEN split_part(unitofmeasure, ' ', 2)
-            ELSE unitofmeasure
-        END as unit_of_measure
-
-    FROM hive.{{schema}}.azure_line_items
-    WHERE source = '{{source_uuid}}'
-        AND year = '{{year}}'
-        AND month = '{{month}}'
-        AND date >= TIMESTAMP '{{start_date}}'
-        AND date < date_add('day', 1, TIMESTAMP '{{end_date}}')
-),
--- Get enabled tag keys from PostgreSQL
-cte_pg_enabled_keys as (
-    select array_agg(key order by key) as keys
-    from postgres.{{schema}}.reporting_enabledtagkeys
-    where enabled = true
-    and provider_type = 'Azure'
-)
--- Step 2: Aggregate and insert into PostgreSQL
-SELECT
-    uuid() as uuid,
-    li.usage_date AS usage_start,
-    li.usage_date AS usage_end,
-    li.cost_entry_bill_id,
-    li.subscription_guid,
-    li.resource_location,
-    li.service_name,
-    li.instance_type,
-
-    -- Azure meters usage in large blocks (e.g., "100 Hours")
-    -- Normalize to standard units and multiply usage
-    sum(li.pretax_cost) AS pretax_cost,
-    sum(li.usage_quantity * li.multiplier) AS usage_quantity,
-    max(li.unit_of_measure) as unit_of_measure,
-    max(li.currency) as currency,
-
-    -- Filter tags to only enabled keys
-    cast(
-        map_filter(
-            cast(li.tags as map(varchar, varchar)),
-            (k,v) -> contains(pek.keys, k)
-        ) as json
-    ) as tags,
-
-    -- Resource tracking
-    array_agg(DISTINCT li.instance_id) as instance_ids,
-    count(DISTINCT li.instance_id) as instance_count,
-
-    li.source_uuid,
-
-    -- Apply markup
-    sum(cast(li.pretax_cost * {{markup}} AS decimal(24,9))) as markup_cost,
-    li.subscription_name
-
-FROM cte_line_items AS li
-CROSS JOIN cte_pg_enabled_keys as pek
-
-GROUP BY
-    li.usage_date,
-    li.cost_entry_bill_id,
-    13, -- matches column num for tags map_filter
-    li.subscription_guid,
-    li.resource_location,
-    li.instance_type,
-    li.service_name,
-    li.source_uuid,
-    li.subscription_name
-```
+3. **Performance optimizations:**
+   - Partition pruning by year/month
+   - Column-level reads (Parquet)
+   - Chunked processing (5-day windows)
 
 **Azure-Specific Handling:**
 
@@ -710,81 +387,22 @@ GROUP BY
 #### **5.1 PostgreSQL Summary Table**
 **Table:** `reporting_azurecostentrylineitem_daily_summary`
 
-**Structure:**
-```python:112:156:koku/reporting/provider/azure/models.py
-class AzureCostEntryLineItemDailySummary(models.Model):
-    """Azure line item daily summary."""
+**Implementation:** See [`koku/reporting/provider/azure/models.py`](../../koku/reporting/provider/azure/models.py) - `AzureCostEntryLineItemDailySummary` model
 
-    class PartitionInfo:
-        partition_type = "RANGE"
-        partition_cols = ["usage_start"]
+**Key Fields:**
+- **Identifiers:** uuid, cost_entry_bill, subscription_guid, source_uuid
+- **Time:** usage_start, usage_end
+- **Resources:** instance_type, service_name, resource_location
+- **Usage:** usage_quantity, unit_of_measure
+- **Costs:** pretax_cost, markup_cost, currency
+- **Resource tracking:** instance_ids[], instance_count
+- **Metadata:** tags (JSONB)
 
-    uuid = models.UUIDField(primary_key=True)
-    cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
+**Partitioning:** Monthly RANGE partitions by `usage_start` (e.g., `_2025_01`, `_2025_02`)
 
-    # Subscription (account equivalent)
-    subscription_guid = models.TextField(null=False)
-    subscription_name = models.TextField(null=True)
-
-    # Resource details
-    instance_type = models.TextField(null=True)
-    service_name = models.TextField(null=True)
-    resource_location = models.TextField(null=True)
-
-    # Date range
-    usage_start = models.DateField(null=False)
-    usage_end = models.DateField(null=True)
-
-    # Usage metrics
-    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    unit_of_measure = models.TextField(null=True)
-
-    # Cost metrics
-    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    currency = models.TextField(null=True)
-
-    # Resource tracking
-    instance_ids = ArrayField(models.TextField(), null=True)
-    instance_count = models.IntegerField(null=True)
-
-    # Metadata
-    tags = JSONField(null=True)
-    source_uuid = models.UUIDField(unique=False, null=True)
-```
-
-#### **5.2 Table Partitioning**
-**Monthly partitions for efficient querying:**
-
-```sql
--- Automatic partition creation
-CREATE TABLE reporting_azurecostentrylineitem_daily_summary_2025_01
-    PARTITION OF reporting_azurecostentrylineitem_daily_summary
-    FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
-
-CREATE TABLE reporting_azurecostentrylineitem_daily_summary_2025_02
-    PARTITION OF reporting_azurecostentrylineitem_daily_summary
-    FOR VALUES FROM ('2025-02-01') TO ('2025-03-01');
-```
-
-**Benefits:**
-- Query only relevant month(s)
-- Efficient partition pruning
-- Easy data retention (drop old partitions)
-- Parallel index creation
-
-#### **5.3 Indexes**
-```python:127:136:koku/reporting/provider/azure/models.py
-indexes = [
-    models.Index(fields=["usage_start"], name="ix_azurecstentrydlysumm_start"),
-    models.Index(fields=["resource_location"], name="ix_azurecstentrydlysumm_svc"),
-    models.Index(fields=["subscription_guid"], name="ix_azurecstentrydlysumm_sub_id"),
-    models.Index(fields=["instance_type"], name="ix_azurecstentrydlysumm_instyp"),
-    models.Index(fields=["subscription_name"], name="ix_azurecstentrydlysumm_sub_na"),
-]
-# GIN functional index on service_name:
-# (upper(service_name) gin_trgm_ops) - for case-insensitive partial matching
-```
+**Indexes:**
+- usage_start, subscription_guid, resource_location, instance_type, subscription_name
+- GIN functional index on service_name for case-insensitive partial matching
 
 ---
 

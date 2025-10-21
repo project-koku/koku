@@ -16,59 +16,23 @@ Koku processes GCP billing data differently from AWS and Azure. Instead of downl
 - **Data Format:** Structured BigQuery table, not CSV files
 
 ### **Key BigQuery Columns (~50 columns)**
-```python
-GCP_COLUMN_LIST = [
-    # Billing account
-    "billing_account_id",
 
-    # Service details
-    "service.id",
-    "service.description",
-    "sku.id",
-    "sku.description",
+GCP extracts approximately 50 columns from BigQuery, including billing account, service details, project information, labels (JSON), location, cost, usage metrics, credits (JSON array), invoice month, and resource identifiers.
 
-    # Time range
-    "usage_start_time",
-    "usage_end_time",
-    "export_time",
+**Implementation:** See [`GCP_COLUMN_LIST`](../../koku/masu/util/gcp/common.py) in `koku/masu/util/gcp/common.py`
 
-    # Project details
-    "project.id",
-    "project.name",
-    "project.labels",           # JSON
-    "project.ancestry_numbers",
-
-    # Labels and metadata
-    "labels",                   # JSON - customer labels
-    "system_labels",            # JSON - GCP system labels
-
-    # Location
-    "location.location",
-    "location.country",
-    "location.region",
-    "location.zone",
-
-    # Cost columns
-    "cost",                     # Main cost field
-    "currency",
-    "currency_conversion_rate",
-    "credits",                  # JSON - array of credits
-
-    # Usage
-    "usage.amount",
-    "usage.unit",
-    "usage.amount_in_pricing_units",
-    "usage.pricing_unit",
-
-    # Invoice
-    "invoice.month",            # e.g., "202501" (YYYYMM format)
-    "cost_type",                # regular, tax, adjustment, rounding error
-
-    # Resource
-    "resource.name",
-    "resource.global_name",
-]
-```
+**Key Columns:**
+- `billing_account_id` - GCP billing account
+- `service.id`, `service.description` - Service details
+- `sku.id`, `sku.description` - SKU details
+- `usage_start_time`, `usage_end_time`, `export_time` - Timestamps
+- `project.id`, `project.name`, `project.labels` - Project info
+- `labels`, `system_labels` - JSON customer and system labels
+- `location.*` - Location hierarchy (location, country, region, zone)
+- `cost`, `currency`, `currency_conversion_rate` - Cost fields
+- `credits` - JSON array of credits
+- `invoice.month` - Critical for crossover data (YYYYMM format)
+- `cost_type` - regular, tax, adjustment, rounding_error
 
 ### **GCP vs AWS/Azure Differences**
 
@@ -94,33 +58,15 @@ GCP_COLUMN_LIST = [
 ### **Phase 1: BigQuery Discovery & Querying**
 
 #### **1.1 Scan Range Determination**
-**File:** `gcp_report_downloader.py:scan_start`, `scan_end`
 
-Unlike AWS/Azure (which process fixed monthly reports), GCP checks for **new/updated data daily**:
+Unlike AWS/Azure (which process fixed monthly reports), GCP checks for **new/updated data daily**.
 
-```python:184:200:koku/masu/external/downloader/gcp/gcp_report_downloader.py
-@cached_property
-def scan_start(self):
-    """The start partition date we check for data in BigQuery."""
-    dh = DateHelper()
-    provider = Provider.objects.filter(uuid=self._provider_uuid).first()
+**Implementation:** See [`scan_start`](../../koku/masu/external/downloader/gcp/gcp_report_downloader.py#L184-L200) and [`scan_end`](../../koku/masu/external/downloader/gcp/gcp_report_downloader.py#L202-L204) properties in `gcp_report_downloader.py`
 
-    if provider.setup_complete:
-        # Established provider: check last 10 days
-        scan_start = dh.today - relativedelta(days=10)
-    else:
-        # New provider: initial ingest (default: 2 months)
-        months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
-        scan_start = dh.today - relativedelta(months=months_delta)
-        scan_start = scan_start.replace(day=1)
-
-    return scan_start.date()
-
-@cached_property
-def scan_end(self):
-    """The end partition date we check for data in BigQuery."""
-    return DateHelper().today.date()
-```
+**Logic:**
+- **Established providers:** Check last 10 days for updates
+- **New providers:** Initial ingest of `INITIAL_INGEST_NUM_MONTHS` (default: 2 months)
+- **Scan end:** Always today's date
 
 **Why Different from AWS/Azure?**
 - BigQuery receives **continuous updates** (not monthly batch files)
@@ -129,45 +75,17 @@ def scan_end(self):
 - Credits and adjustments can appear days/weeks after original usage
 
 #### **1.2 Partition-to-Export Mapping**
-**File:** `gcp_report_downloader.py:bigquery_export_to_partition_mapping()`
 
 **The Problem:** How do we know if data for a specific date has changed since we last processed it?
 
-**The Solution:** Track the `export_time` for each partition date:
+**The Solution:** Track the `export_time` for each partition date.
 
-```python:238:270:koku/masu/external/downloader/gcp/gcp_report_downloader.py
-def bigquery_export_to_partition_mapping(self):
-    """
-    Grab the partition_date & max(export_time) from BigQuery.
+**Implementation:** See [`bigquery_export_to_partition_mapping()`](../../koku/masu/external/downloader/gcp/gcp_report_downloader.py#L238-L270) in `gcp_report_downloader.py`
 
-    Returns:
-        dict: {partition_date: export_time}
-        example: {"2022-05-19": "2022-05-19 19:40:16.385000 UTC"}
-    """
-    mapping = {}
-    try:
-        client = bigquery.Client()
-        export_partition_date_query = f"""
-            SELECT
-                DATE(_PARTITIONTIME) AS partition_date,
-                DATETIME(max(export_time))
-            FROM `{self.table_name}`
-            WHERE DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}'
-                AND '{self.scan_end}'
-            GROUP BY partition_date
-            ORDER BY partition_date
-        """
-        eq_result = client.query(export_partition_date_query).result()
-
-        for row in eq_result:
-            mapping[row[0]] = row[1].replace(tzinfo=settings.UTC)
-
-    except GoogleCloudError as err:
-        msg = "could not query table for partition date information"
-        raise GCPReportDownloaderError(msg) from err
-
-    return mapping
-```
+**Process:**
+1. Query BigQuery for `max(export_time)` per partition date
+2. Return mapping: `{partition_date: export_time}`
+3. Compare with stored export times to detect changes
 
 **Example Output:**
 ```python
@@ -179,39 +97,16 @@ def bigquery_export_to_partition_mapping(self):
 ```
 
 #### **1.3 Manifest Collection (Pseudo-Manifests)**
-**File:** `gcp_report_downloader.py:collect_new_manifests()`
 
-Since GCP doesn't have traditional manifest files, Koku creates **pseudo-manifests**:
+Since GCP doesn't have traditional manifest files, Koku creates **pseudo-manifests**.
 
-```python:272:300:koku/masu/external/downloader/gcp/gcp_report_downloader.py
-def collect_new_manifests(self, current_manifests, bigquery_mappings):
-    """
-    Generate a dict representing an analog to other providers' "manifest" files.
-    """
-    new_manifests = []
+**Implementation:** See [`collect_new_manifests()`](../../koku/masu/external/downloader/gcp/gcp_report_downloader.py#L272-L300) in `gcp_report_downloader.py`
 
-    for bigquery_pd, bigquery_et in bigquery_mappings.items():
-        manifest_export_time = current_manifests.get(bigquery_pd)
-
-        # Check if data changed since last processing
-        if (manifest_export_time and manifest_export_time != bigquery_et) or not manifest_export_time:
-            # New or updated data found!
-            bill_date = bigquery_pd.replace(day=1)
-            invoice_month = bill_date.strftime("%Y%m")  # "202501"
-            file_name = f"{invoice_month}_{bigquery_pd}"
-
-            manifest_metadata = {
-                "assembly_id": f"{bigquery_pd}|{bigquery_et}",
-                "bill_date": bill_date,
-                "files": [file_name],
-            }
-            new_manifests.append(manifest_metadata)
-
-    if not new_manifests:
-        LOG.info("no new manifests created")
-
-    return new_manifests
-```
+**Process:**
+1. Compare BigQuery `export_time` with stored manifest `export_time`
+2. If different (or missing), create a pseudo-manifest
+3. Each pseudo-manifest contains `assembly_id`, `bill_date`, and `files` list
+4. Triggers download/processing for that partition date
 
 **How It Works:**
 1. Query BigQuery for latest `export_time` per partition
@@ -227,95 +122,19 @@ Day 5: Koku detects export_time change → creates new manifest → reprocesses 
 ```
 
 #### **1.4 BigQuery Data Extraction**
-**File:** `gcp_report_downloader.py:download_file()`
 
-**"Downloading" from BigQuery = Executing SQL Query:**
+**"Downloading" from BigQuery = Executing SQL Query**
 
-```python:433:504:koku/masu/external/downloader/gcp/gcp_report_downloader.py
-def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
-    """
-    Download a file from GCP storage bucket.
+**Implementation:** See [`download_file()`](../../koku/masu/external/downloader/gcp/gcp_report_downloader.py#L433-L504) and [`build_query_select_statement()`](../../koku/masu/external/downloader/gcp/gcp_report_downloader.py#L423-L431) in `gcp_report_downloader.py`
 
-    For BigQuery exports: this executes a SQL query and writes results to CSV.
-    """
-    paths_list = []
-    directory_path = self._get_local_directory_path()
-    os.makedirs(directory_path, exist_ok=True)
-
-    if not self.ingress_reports:
-        try:
-            # Extract partition_date from filename
-            filename = os.path.splitext(key)[0]
-            partition_date = filename.split("_")[-1]  # "202501_2025-01-15" → "2025-01-15"
-
-            # Build SELECT query
-            query = f"""
-                SELECT {self.build_query_select_statement()}
-                FROM `{self.table_name}`
-                WHERE DATE(_PARTITIONTIME) = '{partition_date}'
-            """
-
-            client = bigquery.Client()
-            query_job = client.query(query).result()
-
-        except GoogleCloudError as err:
-            msg = "Could not query table for billing information."
-            raise GCPReportDownloaderError(msg) from err
-
-        try:
-            column_list = GCP_COLUMN_LIST.copy()
-            column_list.append("partition_date")
-
-            # Write results to CSV in batches
-            for i, rows in enumerate(batch(query_job, settings.PARQUET_PROCESSING_BATCH_SIZE)):
-                full_local_path = self._get_local_file_path(directory_path, partition_date, i)
-                msg = f"downloading subset of {partition_date} to {full_local_path}"
-                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-
-                with open(full_local_path, "w") as f:
-                    writer = csv.writer(f)
-                    writer.writerow(column_list)
-                    writer.writerows(rows)
-
-                paths_list.append(full_local_path)
-
-        except OSError as exc:
-            msg = "Could not create GCP billing data csv file."
-            raise GCPReportDownloaderError(msg) from exc
-
-    # Create daily archives
-    file_names, date_range = create_daily_archives(
-        self.tracing_id,
-        self.account,
-        self._provider_uuid,
-        paths_list,
-        manifest_id,
-        start_date,
-        self.context,
-        self.ingress_reports,
-    )
-
-    return key, None, DateHelper().today, file_names, date_range
-```
-
-**Query SELECT Statement Building:**
-```python:423:431:koku/masu/external/downloader/gcp/gcp_report_downloader.py
-def build_query_select_statement(self):
-    """Helper to build query select statement."""
-    columns_list = GCP_COLUMN_LIST.copy()
-
-    # Convert JSON columns to strings
-    columns_list = [
-        f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels", "credits")
-        else col
-        for col in columns_list
-    ]
-
-    # Add partition date
-    columns_list.append("DATE(_PARTITIONTIME) as partition_date")
-
-    return ",".join(columns_list)
-```
+**Process:**
+1. Extract partition date from filename key
+2. Build SELECT query with all columns from `GCP_COLUMN_LIST`
+3. Convert JSON columns (`labels`, `system_labels`, `credits`) to strings using `TO_JSON_STRING()`
+4. Query BigQuery: `SELECT ... FROM table WHERE DATE(_PARTITIONTIME) = 'date'`
+5. Process results in batches of `PARQUET_PROCESSING_BATCH_SIZE` (200,000 rows)
+6. Write each batch to local CSV file
+7. Call `create_daily_archives()` to split by invoice month and partition date
 
 **Batching:**
 - BigQuery can return millions of rows
@@ -328,7 +147,6 @@ def build_query_select_statement(self):
 ### **Phase 2: Daily Archive Creation**
 
 #### **2.1 CSV Splitting by Invoice Month & Partition Date**
-**File:** `gcp_report_downloader.py:create_daily_archives()`
 
 **GCP's Unique Challenge: Crossover Data**
 
@@ -337,89 +155,16 @@ def build_query_select_statement(self):
 - Example: January 31 usage might be in February's invoice due to processing delays
 - Or: Credit applied in March for January usage (appears in March invoice)
 
+**Implementation:** See [`create_daily_archives()`](../../koku/masu/external/downloader/gcp/gcp_report_downloader.py#L62-L139) in `gcp_report_downloader.py`
+
 **Processing Flow:**
-```python:62:139:koku/masu/external/downloader/gcp/gcp_report_downloader.py
-def create_daily_archives(...):
-    """
-    Create daily CSVs from incoming report and archive to S3.
-
-    GCP-specific: Must handle invoice.month crossover.
-    """
-    daily_file_names = []
-    date_range = {}
-
-    try:
-        for local_file_path in local_file_paths:
-            file_name = os.path.basename(local_file_path).split("/")[-1]
-            dh = DateHelper()
-            directory = os.path.dirname(local_file_path)
-
-            data_frame = pd_read_csv(local_file_path)
-            data_frame = add_label_columns(data_frame)  # Ensure labels columns exist
-
-            # Get unique usage days
-            unique_usage_days = pd.to_datetime(data_frame["usage_start_time"]).dt.date.unique()
-            days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
-            date_range = {"start": min(days), "end": max(days)}
-
-            # Group by invoice month (critical for crossover data)
-            for invoice_month in data_frame["invoice.month"].unique():
-                # Handle bad ingress reports with null invoice months
-                if pd.isna(invoice_month):
-                    continue
-
-                invoice_filter = data_frame["invoice.month"] == invoice_month
-                invoice_month_data = data_frame[invoice_filter]
-
-                # Further split by partition date
-                partition_dates = invoice_month_data.partition_date.unique()
-                for partition_date in partition_dates:
-                    partition_date_filter = invoice_month_data["partition_date"] == partition_date
-                    invoice_partition_data = invoice_month_data[partition_date_filter]
-
-                    # Determine S3 path based on invoice month (not usage date!)
-                    start_of_invoice = dh.invoice_month_start(invoice_month)
-                    s3_csv_path = get_path_prefix(
-                        account,
-                        Provider.PROVIDER_GCP,
-                        provider_uuid,
-                        start_of_invoice,  # Based on invoice month!
-                        Config.CSV_DATA_TYPE
-                    )
-
-                    day_file = f"{invoice_month}_{partition_date}_{file_name}"
-
-                    if ingress_reports:
-                        # Ingress flow: clear existing S3 files
-                        date_time = datetime.datetime.strptime(partition_date, "%Y-%m-%d")
-                        clear_s3_files(
-                            s3_csv_path, provider_uuid, date_time,
-                            "manifestid", manifest_id, context, tracing_id, invoice_month
-                        )
-                        partition_filename = ReportManifestDBAccessor().update_and_get_day_file(
-                            partition_date, manifest_id
-                        )
-                        day_file = f"{invoice_month}_{partition_filename}"
-
-                    day_filepath = f"{directory}/{day_file}"
-
-                    # Write CSV
-                    invoice_partition_data.to_csv(day_filepath, index=False, header=True)
-
-                    # Upload to S3
-                    copy_local_report_file_to_s3_bucket(
-                        tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
-                    )
-
-                    daily_file_names.append(day_filepath)
-
-    except Exception as e:
-        msg = f"unable to create daily archives from: {local_file_paths}. reason: {e}"
-        LOG.info(log_json(tracing_id, msg=msg, context=context))
-        raise CreateDailyArchivesError(msg)
-
-    return daily_file_names, date_range
-```
+1. Read CSV files from BigQuery query results
+2. Ensure label columns exist (may be missing)
+3. Group data by `invoice.month` (critical for crossover!)
+4. Further split by `partition_date` within each invoice month
+5. Determine S3 path based on `invoice_month` (not usage date!)
+6. Write CSV file: `{invoice_month}_{partition_date}_{batch}.csv`
+7. Upload to S3 under invoice month folder
 
 **Output Structure:**
 ```
@@ -441,153 +186,45 @@ org1234567/gcp/csv/
 - Enables proper cost attribution to correct billing period
 
 #### **2.2 Label Column Addition**
-**File:** `masu/util/gcp/common.py:add_label_columns()`
 
-GCP labels are optional - ensure columns always exist:
+GCP labels are optional - ensure columns always exist to prevent processing errors.
 
-```python:98:112:koku/masu/util/gcp/common.py
-def add_label_columns(data_frame):
-    """Add empty label columns if they don't exist."""
-    label_data = False
-    system_label_data = False
+**Implementation:** See [`add_label_columns()`](../../koku/masu/util/gcp/common.py#L98-L112) in `masu/util/gcp/common.py`
 
-    columns = list(data_frame)
-    for column in columns:
-        if "labels" == column:
-            label_data = True
-        if "system_labels" == column:
-            system_label_data = True
-
-    if not label_data:
-        data_frame["labels"] = ""
-    if not system_label_data:
-        data_frame["system_labels"] = ""
-
-    return data_frame
-```
+**Purpose:** Add empty `labels` and `system_labels` columns if they don't exist in the DataFrame.
 
 ---
 
 ### **Phase 3: Parquet Conversion**
 
 #### **3.1 CSV to Parquet Transformation**
-**File:** `gcp_report_parquet_processor.py`
 
-**GCP-Specific Processor:**
-```python:19:50:koku/masu/processor/gcp/gcp_report_parquet_processor.py
-class GCPReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
-        # Define GCP-specific column types
-        numeric_columns = [
-            "cost",
-            "currency_conversion_rate",
-            "usage_amount",
-            "usage_amount_in_pricing_units",
-            "credit_amount",
-            "daily_credits",
-        ]
+**Implementation:** See [`GCPReportParquetProcessor`](../../koku/masu/processor/gcp/gcp_report_parquet_processor.py#L19-L50) in `gcp_report_parquet_processor.py`
 
-        date_columns = [
-            "usage_start_time",
-            "usage_end_time",
-            "export_time",
-            "partition_time"
-        ]
-
-        boolean_columns = ["ocp_matched"]
-
-        # Determine table name based on path
-        if "openshift" in s3_path:
-            table_name = TRINO_OCP_ON_GCP_DAILY_TABLE
-        elif "daily" in s3_path:
-            table_name = TRINO_LINE_ITEM_DAILY_TABLE
-        else:
-            table_name = TRINO_LINE_ITEM_TABLE
-
-        column_types = {
-            "numeric_columns": numeric_columns,
-            "date_columns": date_columns,
-            "boolean_columns": boolean_columns,
-        }
-
-        super().__init__(
-            manifest_id=manifest_id,
-            account=account,
-            s3_path=s3_path,
-            provider_uuid=provider_uuid,
-            parquet_local_path=parquet_local_path,
-            column_types=column_types,
-            table_name=table_name,
-        )
-```
+**GCP-Specific Type Handling:**
+- **Numeric columns:** `cost`, `currency_conversion_rate`, `usage_amount`, `credit_amount`
+- **Date columns:** `usage_start_time`, `usage_end_time`, `export_time`, `partition_time`
+- **Boolean columns:** `ocp_matched` (for OpenShift correlation)
+- **Table selection:** Based on S3 path (line items vs. daily vs. OCP-on-GCP)
 
 #### **3.2 Trino Table Structure**
 
-```sql
-CREATE TABLE IF NOT EXISTS hive.org1234567.gcp_line_items (
-    -- Billing account
-    billing_account_id varchar,
+Trino reads Parquet files from S3 as an external table partitioned by `source`, `year`, and `month`.
 
-    -- Service details
-    service_id varchar,
-    service_description varchar,
-    sku_id varchar,
-    sku_description varchar,
+**Key Columns:**
+- **Billing & Project:** `billing_account_id`, `project_id`, `project_name`, `project_labels`, `project_ancestry_numbers`
+- **Service & SKU:** `service_id`, `service_description`, `sku_id`, `sku_description`
+- **Timestamps:** `usage_start_time`, `usage_end_time`, `export_time`
+- **Labels:** `labels`, `system_labels` (JSON strings)
+- **Location:** `location_location`, `location_country`, `location_region`, `location_zone`
+- **Cost:** `cost`, `currency`, `currency_conversion_rate`
+- **Usage:** `usage_amount`, `usage_unit`, `usage_amount_in_pricing_units`, `usage_pricing_unit`
+- **Credits:** `credits` (JSON array as string)
+- **Invoice:** `invoice_month` ("202501"), `cost_type` ("regular", "tax", "adjustment", "rounding_error")
+- **Resources:** `resource_name`, `resource_global_name`
+- **Partitions:** `partition_date`, `source`, `year`, `month`
 
-    -- Time
-    usage_start_time timestamp,
-    usage_end_time timestamp,
-    export_time timestamp,
-
-    -- Project
-    project_id varchar,
-    project_name varchar,
-    project_labels varchar,
-    project_ancestry_numbers varchar,
-
-    -- Labels (JSON strings)
-    labels varchar,
-    system_labels varchar,
-
-    -- Location
-    location_location varchar,
-    location_country varchar,
-    location_region varchar,
-    location_zone varchar,
-
-    -- Cost
-    cost double,
-    currency varchar,
-    currency_conversion_rate double,
-
-    -- Usage
-    usage_amount double,
-    usage_unit varchar,
-    usage_amount_in_pricing_units double,
-    usage_pricing_unit varchar,
-
-    -- Credits (JSON string - array)
-    credits varchar,
-
-    -- Invoice
-    invoice_month varchar,  -- "202501"
-    cost_type varchar,      -- "regular", "tax", "adjustment", "rounding_error"
-
-    -- Resource
-    resource_name varchar,
-    resource_global_name varchar,
-
-    -- Partition columns
-    partition_date varchar,
-    source varchar,
-    year varchar,
-    month varchar
-) WITH (
-    external_location = 's3a://koku-bucket/org1234567/gcp/parquet/',
-    format = 'PARQUET',
-    partitioned_by = ARRAY['source', 'year', 'month']
-)
-```
+**Partitioning:** `ARRAY['source', 'year', 'month']` enables efficient filtering and crossover data handling.
 
 **Partition Structure:**
 ```
@@ -607,46 +244,18 @@ org1234567/gcp/parquet/
 ### **Phase 4: Summarization with Trino SQL**
 
 #### **4.1 Invoice Month Date Range Discovery**
-**File:** `trino_sql/gcp/get_invoice_month_dates.sql`
 
 **The Challenge:** GCP invoices can contain data spanning multiple months due to crossover.
 
-**The Solution:** Dynamically determine date range from data:
+**The Solution:** Dynamically determine date range from data.
 
-```sql:1:30:koku/masu/database/trino_sql/gcp/get_invoice_month_dates.sql
-SELECT
-    min(usage_start_time),
-    max(usage_start_time)
-FROM hive.{{schema}}.gcp_line_items_daily
-WHERE
-    -- Extend start/end dates at month boundaries to catch crossover data
-    -- This catches both 2025-07-31 and 2025-09-01 with invoice 202508
-    usage_start_time >=
-    CASE
-        WHEN DAY(DATE({{start_date}})) = 1
-            THEN DATE({{start_date}}) - INTERVAL '3' DAY
-        ELSE DATE({{start_date}})
-    END
-    AND usage_start_time <=
-    CASE
-        WHEN LAST_DAY_OF_MONTH(DATE({{end_date}})) = DATE({{end_date}})
-            THEN DATE({{end_date}}) + INTERVAL '3' DAY
-        ELSE DATE({{end_date}})
-    END
-    AND invoice_month = {{invoice_month}}
-    AND source = {{source_uuid}}
-    AND (
-        -- Check multiple year/month partitions for crossover data
-        (year = CAST(EXTRACT(YEAR FROM DATE({{start_date}})) AS VARCHAR)
-         AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}})) AS VARCHAR), 2, '0'))
-        OR
-        (year = CAST(EXTRACT(YEAR FROM DATE({{end_date}})) AS VARCHAR)
-         AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{end_date}})) AS VARCHAR), 2, '0'))
-        OR
-        -- Previous and next months for crossover
-        ...
-    )
-```
+**Implementation:** See [`get_invoice_month_dates.sql`](../../koku/masu/database/trino_sql/gcp/get_invoice_month_dates.sql) in `trino_sql/gcp/`
+
+**Query Logic:**
+1. Find `min(usage_start_time)` and `max(usage_start_time)` for a specific invoice month
+2. Extend date range at month boundaries (±3 days) to catch crossover data
+3. Filter by `invoice_month` to get only data for that specific invoice
+4. Scan multiple year/month partitions (current, previous, next) to find all relevant data
 
 **Example:**
 ```python
@@ -659,210 +268,49 @@ WHERE
 ```
 
 #### **4.2 Daily Summary Table Population**
-**File:** `gcp_report_parquet_summary_updater.py:update_summary_tables()`
 
-```python:43:118:koku/masu/processor/gcp/gcp_report_parquet_summary_updater.py
-def update_summary_tables(self, start_date, end_date, **kwargs):
-    """Populate the summary tables for reporting."""
+**Implementation:** See [`update_summary_tables()`](../../koku/masu/processor/gcp/gcp_report_parquet_summary_updater.py#L43-L118) in `gcp_report_parquet_summary_updater.py`
 
-    start_date, end_date = self._get_sql_inputs(start_date, end_date)
-
-    # 1. Get cost model markup
-    with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
-        markup = cost_model_accessor.markup
-        markup_value = float(markup.get("value", 0)) / 100
-
-    # 2. Handle partitions for UI summary tables
-    with schema_context(self._schema):
-        self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
-
-    # 3. Get billing records
-    with GCPReportDBAccessor(self._schema) as accessor:
-        with schema_context(self._schema):
-            invoice_month = start_date.strftime("%Y%m")
-
-            # Dynamically lookup invoice period date range from Trino data
-            invoice_dates = accessor.fetch_invoice_month_dates(
-                start_date, end_date, invoice_month, self._provider.uuid
-            )
-            invoice_start, invoice_end = invoice_dates[0]
-
-            bills = accessor.bills_for_provider_uuid(
-                self._provider.uuid, invoice_month=invoice_month
-            )
-            bill_ids = [str(bill.id) for bill in bills]
-            current_bill_id = bills.first().id if bills else None
-
-            if current_bill_id is None:
-                LOG.info(log_json(msg="no bill was found, skipping summarization"))
-                return start_date, end_date
-
-            # 4. Process in 5-day chunks
-            for start, end in date_range_pair(invoice_start, invoice_end, step=settings.TRINO_DATE_STEP):
-                LOG.info(log_json(
-                    msg="updating GCP report summary tables from parquet",
-                    start_date=start,
-                    end_date=end,
-                    invoice_month=invoice_month,
-                    bill_id=current_bill_id,
-                ))
-
-                # 4a. DELETE existing summary data
-                filters = {"cost_entry_bill_id": current_bill_id}
-                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid, start, end, filters
-                )
-
-                # 4b. INSERT new summary data via Trino
-                accessor.populate_line_item_daily_summary_table_trino(
-                    start, end, self._provider.uuid, current_bill_id,
-                    markup_value, invoice_month
-                )
-
-                # 4c. Populate UI summary tables
-                accessor.populate_ui_summary_tables(
-                    start, end, self._provider.uuid, invoice_month
-                )
-
-                # 4d. Populate GCP topology (project hierarchy)
-                accessor.populate_gcp_topology_information_tables(
-                    self._provider, start_date, end_date, invoice_month
-                )
-
-        # 5. Populate tag summaries
-        accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
-
-        # 6. Apply tag mappings
-        accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
-
-        # 7. Update bill timestamps
-        for bill in bills:
-            if bill.summary_data_creation_datetime is None:
-                bill.summary_data_creation_datetime = timezone.now()
-            bill.summary_data_updated_datetime = timezone.now()
-            bill.save()
-
-    return start_date, end_date
-```
+**Process Flow:**
+1. **Get cost model markup** from database
+2. **Handle table partitions** for UI summary tables
+3. **Fetch invoice dates** using `get_invoice_month_dates.sql` to determine actual date range
+4. **Get billing records** for the invoice month
+5. **Process in chunks** (5-day increments via `TRINO_DATE_STEP`):
+   - **DELETE** existing summary data for date range
+   - **INSERT** new summary data via Trino SQL query
+   - **Populate UI summary tables** (cost summary, service summary)
+   - **Populate GCP topology** (project hierarchy)
+6. **Populate tag summaries** across all dates
+7. **Apply tag mappings** to daily summary
+8. **Update bill timestamps** with current processing time
 
 #### **4.3 Trino SQL Query**
-**File:** `trino_sql/gcp/reporting_gcpcostentrylineitem_daily_summary.sql`
 
-```sql:26:85:koku/masu/database/trino_sql/gcp/reporting_gcpcostentrylineitem_daily_summary.sql
--- Get enabled tag keys from PostgreSQL
-WITH cte_pg_enabled_keys AS (
-    SELECT array_agg(key ORDER BY key) as keys
-    FROM postgres.{{schema}}.reporting_enabledtagkeys
-    WHERE enabled = true
-      AND provider_type = 'GCP'
-)
-SELECT
-    uuid() as uuid,
-    INTEGER '{{bill_id}}' as cost_entry_bill_id,
+**Implementation:** See [`reporting_gcpcostentrylineitem_daily_summary.sql`](../../koku/masu/database/trino_sql/gcp/reporting_gcpcostentrylineitem_daily_summary.sql) in `trino_sql/gcp/`
 
-    -- Billing and project details
-    billing_account_id as account_id,
-    project_id,
-    max(project_name) as project_name,
-
-    -- Service and SKU
-    service_id,
-    max(service_description) as service_alias,
-    sku_id,
-    max(sku_description) as sku_alias,
-
-    -- Date (daily aggregation)
-    date(usage_start_time) as usage_start,
-    date(usage_start_time) as usage_end,
-
-    -- Location
-    nullif(location_region, '') as region,
-
-    -- Instance type from system_labels JSON
-    json_extract_scalar(json_parse(system_labels), '$["compute.googleapis.com/machine_spec"]') as instance_type,
-
-    -- Usage
-    max(usage_pricing_unit) as unit,
-    cast(sum(usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
-
-    -- Tags (filter to enabled keys only)
-    cast(
-        map_filter(
-            cast(json_parse(labels) as map(varchar, varchar)),
-            (k,v) -> contains(pek.keys, k)
-        ) as json
-    ) as tags,
-
-    -- Cost
-    max(currency) as currency,
-    cost_type as line_item_type,
-    cast(sum(cost) AS decimal(24,9)) as unblended_cost,
-    cast(sum(cost * {{markup}}) AS decimal(24,9)) as markup_cost,
-
-    -- Metadata
-    UUID '{{source_uuid}}' as source_uuid,
-    invoice_month,
-
-    -- Credits: Extract amount from JSON array and sum
-    sum(
-        ((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0') AS decimal(24,9))) * 1000000)
-        / 1000000
-    ) as credit_amount
-
-FROM hive.{{schema}}.{{table}}
-CROSS JOIN cte_pg_enabled_keys as pek
-
-WHERE source = '{{source_uuid}}'
-    -- Multi-partition scan to catch crossover data
-    AND (
-        (year = CAST(EXTRACT(YEAR FROM DATE({{start_date}})) AS VARCHAR)
-         AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}})) AS VARCHAR), 2, '0'))
-        OR
-        (year = CAST(EXTRACT(YEAR FROM DATE({{end_date}})) AS VARCHAR)
-         AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{end_date}})) AS VARCHAR), 2, '0'))
-        OR
-        (year = CAST(EXTRACT(YEAR FROM DATE({{start_date}}) - INTERVAL '1' MONTH) AS VARCHAR)
-         AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}}) - INTERVAL '1' MONTH) AS VARCHAR), 2, '0'))
-    )
-    AND invoice_month = '{{invoice_month}}'
-    AND usage_start_time >= TIMESTAMP '{{start_date}}'
-    AND usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date}}')
-
-GROUP BY
-    billing_account_id,
-    project_id,
-    service_id,
-    sku_id,
-    date(usage_start_time),
-    date(usage_end_time),
-    location_region,
-    json_extract_scalar(json_parse(system_labels), '$["compute.googleapis.com/machine_spec"]'),
-    16, -- matches column num for tags map_filter
-    cost_type,
-    invoice_month
-```
+**Query Structure:**
+1. **CTE for enabled tags:** Query PostgreSQL for enabled tag keys
+2. **SELECT aggregated data:**
+   - Billing account, project details
+   - Service and SKU information
+   - Daily date aggregation (`date(usage_start_time)`)
+   - Location (region)
+   - Instance type extracted from `system_labels` JSON
+   - Usage amount and unit
+   - Tags filtered to enabled keys only
+   - Cost with markup calculation
+   - Credits extracted from JSON array
+3. **WHERE clause:**
+   - Filter by `source_uuid` and `invoice_month`
+   - Scan multiple year/month partitions for crossover data
+   - Filter to date range
+4. **GROUP BY:** Daily aggregation by account, project, service, SKU, date, region, instance type, cost type
 
 **GCP-Specific Handling:**
 
-1. **Instance Type Extraction:**
-   ```sql
-   json_extract_scalar(
-       json_parse(system_labels),
-       '$["compute.googleapis.com/machine_spec"]'
-   ) as instance_type
-   ```
-
-2. **Credits Processing:**
-   ```sql
-   -- Credits is JSON array: [{"amount": -5.23, "name": "Committed use discount"}]
-   sum(
-       cast(
-           COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')
-           AS decimal(24,9)
-       ) * 1000000 / 1000000  -- Precision handling
-   ) as credit_amount
-   ```
-
+1. **Instance Type Extraction:** Parse `system_labels` JSON to extract `compute.googleapis.com/machine_spec` field
+2. **Credits Processing:** Extract amount from credits JSON array (`[{"amount": -5.23, "name": "..."}]`) and sum, with precision handling (multiply/divide by 1000000)
 3. **Multi-Partition Scan:**
    - Scans current month partition
    - Scans previous month partition (for late crossover data)
@@ -878,71 +326,36 @@ GROUP BY
 ### **Phase 5: Database Storage**
 
 #### **5.1 PostgreSQL Summary Table**
+
+**Implementation:** See [`GCPCostEntryLineItemDailySummary`](../../koku/reporting/provider/gcp/models.py#L57-L111) model in `reporting/provider/gcp/models.py`
+
 **Table:** `reporting_gcpcostentrylineitem_daily_summary`
 
-```python:57:111:koku/reporting/provider/gcp/models.py
-class GCPCostEntryLineItemDailySummary(models.Model):
-    """A daily aggregation of line items."""
+**Partitioning:** RANGE partitioned by `usage_start` date
 
-    class PartitionInfo:
-        partition_type = "RANGE"
-        partition_cols = ["usage_start"]
-
-    uuid = models.UUIDField(primary_key=True)
-    cost_entry_bill = models.ForeignKey(GCPCostEntryBill, on_delete=models.CASCADE)
-
-    # Billing and project
-    account_id = models.CharField(max_length=20)  # billing_account_id
-    project_id = models.CharField(max_length=256)
-    project_name = models.CharField(max_length=256)
-
-    # Service and SKU
-    service_id = models.CharField(max_length=256, null=True)
-    service_alias = models.CharField(max_length=256, null=True, blank=True)
-    sku_id = models.CharField(max_length=256, null=True)
-    sku_alias = models.CharField(max_length=256, null=True)
-
-    # Date range
-    usage_start = models.DateField(null=False)
-    usage_end = models.DateField(null=True)
-
-    # Location and instance
-    region = models.CharField(max_length=50, null=True)
-    instance_type = models.CharField(max_length=50, null=True)
-
-    # Usage metrics
-    unit = models.CharField(max_length=63, null=True)
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    # Cost metrics
-    line_item_type = models.CharField(max_length=256, null=True)  # cost_type
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    currency = models.CharField(max_length=10)
-
-    # Credits
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
-
-    # Invoice
-    invoice_month = models.CharField(max_length=256, null=True, blank=True)  # "202501"
-
-    # Metadata
-    tags = JSONField(null=True)
-    source_uuid = models.UUIDField(unique=False, null=True)
-```
+**Key Fields:**
+- **IDs:** `uuid` (PK), `cost_entry_bill` (FK)
+- **Billing:** `account_id` (billing_account_id)
+- **Project:** `project_id`, `project_name`
+- **Service:** `service_id`, `service_alias`, `sku_id`, `sku_alias`
+- **Dates:** `usage_start`, `usage_end`
+- **Location:** `region`, `instance_type`
+- **Usage:** `unit`, `usage_amount`
+- **Cost:** `line_item_type`, `unblended_cost`, `markup_cost`, `currency`
+- **Credits:** `credit_amount`
+- **Invoice:** `invoice_month` ("202501")
+- **Metadata:** `tags` (JSON), `source_uuid`
 
 #### **5.2 Indexes**
-```python:75:83:koku/reporting/provider/gcp/models.py
-indexes = [
-    models.Index(fields=["usage_start"], name="gcp_summary_usage_start_idx"),
-    models.Index(fields=["instance_type"], name="gcp_summary_instance_type_idx"),
-    GinIndex(fields=["tags"], name="gcp_tags_idx"),
-    models.Index(fields=["project_id"], name="gcp_summary_project_id_idx"),
-    models.Index(fields=["project_name"], name="gcp_summary_project_name_idx"),
-    models.Index(fields=["service_id"], name="gcp_summary_service_id_idx"),
-    models.Index(fields=["service_alias"], name="gcp_summary_service_alias_idx"),
-]
-```
+
+**Implementation:** See [model indexes](../../koku/reporting/provider/gcp/models.py#L75-L83)
+
+**Indexes created:**
+- `usage_start` - Date range queries
+- `instance_type` - Instance filtering
+- `tags` - GIN index for JSON tag queries
+- `project_id`, `project_name` - Project filtering
+- `service_id`, `service_alias` - Service filtering
 
 ---
 
@@ -1114,71 +527,30 @@ Scenario 3: Invoice corrections
 ```
 
 **Solution:**
-```python
-# 1. Group by invoice_month during CSV splitting
-for invoice_month in data_frame["invoice.month"].unique():
-    invoice_filter = data_frame["invoice.month"] == invoice_month
-    invoice_month_data = data_frame[invoice_filter]
-    # ... process each invoice month separately
-
-# 2. Store in S3 paths by invoice month
-start_of_invoice = dh.invoice_month_start(invoice_month)
-s3_csv_path = get_path_prefix(account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, ...)
-
-# 3. Query extends date range at month boundaries
-SELECT min(usage_start), max(usage_start)
-WHERE invoice_month = '202501'
--- Returns: 2024-12-29 to 2025-02-03 (crossover included!)
-
-# 4. Trino scans multiple partitions
-WHERE (year='2024' AND month='12')
-   OR (year='2025' AND month='01')
-   OR (year='2025' AND month='02')
-AND invoice_month = '202501'  # Filter to specific invoice
-```
+1. **Group by invoice_month during CSV splitting** - Process data separately for each invoice month
+2. **Store in S3 paths by invoice month** - Organize files under the invoice month folder, not usage date
+3. **Query extends date range at month boundaries** - Find actual min/max dates for an invoice month (e.g., invoice 202501 might span 2024-12-29 to 2025-02-03)
+4. **Trino scans multiple partitions** - Check year/month partitions for previous, current, and next months while filtering to specific invoice_month
 
 ### **Challenge 2: No Traditional Manifest Files**
 
 **Problem:** BigQuery doesn't provide manifest files listing available data
 
 **Solution: Pseudo-Manifests based on export_time**
-```python
-# Track when each partition was last exported
-bigquery_mappings = {
-    date(2025, 1, 18): datetime(2025, 1, 19, 2, 30),  # export_time
-    date(2025, 1, 19): datetime(2025, 1, 20, 2, 15),
-}
-
-# Compare with stored export_times
-current_manifests = {
-    date(2025, 1, 18): datetime(2025, 1, 19, 2, 30),  # Matches
-    date(2025, 1, 19): datetime(2025, 1, 19, 2, 10),  # Different! Data changed
-}
-
-# Create manifest for changed partition
-if bigquery_et != manifest_export_time:
-    new_manifest = {
-        "assembly_id": f"{partition_date}|{bigquery_et}",
-        "bill_date": partition_date.replace(day=1),
-        "files": [f"{invoice_month}_{partition_date}"]
-    }
-```
+- Track when each partition was last exported (query BigQuery for max export_time per partition)
+- Compare with stored export_times in Koku database
+- If different, create a pseudo-manifest with `assembly_id`, `bill_date`, and `files` list
+- This triggers reprocessing of changed partitions
 
 ### **Challenge 3: BigQuery Query Performance**
 
 **Problem:** Scanning entire table is expensive and slow
 
 **Solution: Partition Pruning**
-```sql
--- BAD: Full table scan (expensive!)
-SELECT * FROM `project.dataset.billing_export`
-WHERE usage_start_time >= '2025-01-15'
 
--- GOOD: Partition pruning (10-100x faster!)
-SELECT * FROM `project.dataset.billing_export`
-WHERE DATE(_PARTITIONTIME) = '2025-01-15'
-  AND usage_start_time >= '2025-01-15'
-```
+Always filter by `DATE(_PARTITIONTIME)` in BigQuery queries to enable partition pruning.
+
+**Example:** `WHERE DATE(_PARTITIONTIME) = '2025-01-15' AND usage_start_time >= '2025-01-15'`
 
 **Benefits:**
 - Only scans 1 day's partition instead of entire table
@@ -1198,17 +570,8 @@ WHERE DATE(_PARTITIONTIME) = '2025-01-15'
 ```
 
 **Solution:**
-```sql
--- Extract and sum credits from JSON
-sum(
-    cast(
-        COALESCE(
-            json_extract_scalar(json_parse(credits), '$["amount"]'),
-            '0'
-        ) AS decimal(24,9)
-    ) * 1000000 / 1000000  -- Precision handling for decimal
-) as credit_amount
-```
+
+Extract credit amount from JSON array using `json_extract_scalar(json_parse(credits), '$["amount"]')`, cast to decimal, and sum. The multiply/divide by 1000000 pattern is used for Trino decimal precision handling.
 
 **Why Multiply/Divide by 1000000?**
 - Trino decimal precision handling
@@ -1228,12 +591,8 @@ sum(
 ```
 
 **Solution:**
-```sql
-json_extract_scalar(
-    json_parse(system_labels),
-    '$["compute.googleapis.com/machine_spec"]'
-) as instance_type
-```
+
+Extract instance type using `json_extract_scalar(json_parse(system_labels), '$["compute.googleapis.com/machine_spec"]')`
 
 ### **Challenge 6: Multiple Year/Month Partitions for Single Invoice**
 
@@ -1248,16 +607,8 @@ Invoice 202501 (January 2025) contains:
 ```
 
 **Solution:**
-```sql
-WHERE (
-    (year = '2024' AND month = '12')  # Previous month crossover
-    OR
-    (year = '2025' AND month = '01')  # Current invoice month
-    OR
-    (year = '2025' AND month = '02')  # Next month crossover
-)
-AND invoice_month = '202501'  # Still filter to specific invoice!
-```
+
+Query multiple year/month partitions (previous, current, next) while filtering by `invoice_month` to capture all crossover data for a specific invoice.
 
 ---
 
@@ -1265,39 +616,11 @@ AND invoice_month = '202501'  # Still filter to specific invoice!
 
 ### **Common Issues**
 
-1. **BigQuery Authentication Errors**
-   ```python
-   except GoogleCloudError as err:
-       msg = "Could not query table for billing information."
-       raise GCPReportDownloaderError(msg) from err
-   ```
-
-2. **Table Not Found**
-   ```python
-   # Validate table exists during provider setup
-   GCPProvider().cost_usage_source_is_reachable(credentials, data_source)
-   ```
-
-3. **Null Invoice Months**
-   ```python
-   # Skip bad ingress reports with null invoice months
-   if pd.isna(invoice_month):
-       continue
-   ```
-
-4. **Empty Query Results**
-   ```python
-   if not bigquery_mappings:
-       LOG.info("no new data found in BigQuery")
-       return []
-   ```
-
-5. **CSV Write Errors**
-   ```python
-   except OSError as exc:
-       msg = "Could not create GCP billing data csv file."
-       raise GCPReportDownloaderError(msg) from exc
-   ```
+1. **BigQuery Authentication Errors** - Catch `GoogleCloudError` and raise `GCPReportDownloaderError`
+2. **Table Not Found** - Validate table exists during provider setup via `GCPProvider().cost_usage_source_is_reachable()`
+3. **Null Invoice Months** - Skip bad ingress reports with `pd.isna(invoice_month)` check
+4. **Empty Query Results** - Check if `bigquery_mappings` is empty and log appropriately
+5. **CSV Write Errors** - Catch `OSError` during file writing and raise `GCPReportDownloaderError`
 
 ### **Recovery Mechanisms**
 

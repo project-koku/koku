@@ -175,102 +175,58 @@ report_period_start,report_period_end,interval_start,interval_end,namespace,pod,
 
 #### **Step 1: Consume Kafka Message**
 
-```python
-def listen_for_messages_loop():
-    """Consume messages from platform.upload.announce topic."""
-    kafka_conf = {
-        "group.id": "hccm-group",
-        "queued.max.messages.kbytes": 1024,
-        "enable.auto.commit": False,
-        "max.poll.interval.ms": 1080000,  # 18 minutes
-    }
-    consumer = get_consumer(kafka_conf)
-    consumer.subscribe([UPLOAD_TOPIC])  # "platform.upload.announce"
+**Implementation:** See [`listen_for_messages_loop()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
 
-    for _ in itertools.count():
-        msg = consumer.poll(timeout=1.0)
-        if msg and not msg.error():
-            listen_for_messages(msg, consumer)
-```
+**Kafka Configuration:**
+- Consumer group: `hccm-group`
+- Topic: `platform.upload.announce` (`UPLOAD_TOPIC`)
+- Max poll interval: 18 minutes
+- Auto-commit: Disabled (manual commit after processing)
 
 **Kafka Message Format:**
-```json
-{
-  "request_id": "abc123-def456-ghi789",
-  "account": "1234567",
-  "org_id": "7654321",
-  "category": "hccm",
-  "url": "https://insights-quarantine.s3.amazonaws.com/...",
-  "b64_identity": "eyJpZGVudGl0eSI6IHsuLi59fQ==",
-  "timestamp": "2025-01-15T12:34:56.789Z",
-  "size": 1234567
-}
-```
+
+JSON message containing:
+- `request_id` - Unique request identifier
+- `account`, `org_id` - Tenant identifiers
+- `category` - Must be "hccm" for cost management
+- `url` - S3 URL to download tar.gz from quarantine bucket
+- `b64_identity` - Base64-encoded identity header
+- `timestamp` - Upload timestamp
+- `size` - File size in bytes
 
 #### **Step 2: Download Tar.gz from Quarantine Bucket**
 
-```python
-def download_payload(request_id, url, context):
-    """Download the payload from ingress to temporary location."""
-    temp_dir = tempfile.mkdtemp(dir=Config.DATA_DIR)
+**Implementation:** See [`download_payload()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
 
-    try:
-        download_response = requests.get(url)
-        download_response.raise_for_status()
-    except requests.exceptions.HTTPError as err:
-        shutil.rmtree(temp_dir)
-        raise KafkaMsgHandlerError(f"Unable to download file. Error: {str(err)}")
-
-    sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
-    temp_file = Path(temp_dir, sanitized_request_id).with_suffix(".tar.gz")
-    temp_file.write_bytes(download_response.content)
-
-    return temp_file
-```
+**Process:**
+1. Create temporary directory in `Config.DATA_DIR`
+2. Download file from quarantine S3 URL via HTTP GET
+3. Sanitize request_id (alphanumeric only)
+4. Write tar.gz to temporary file
+5. Return file path for extraction
 
 #### **Step 3: Extract Tar.gz and Parse Manifest**
 
-```python
-def extract_payload_contents(request_id, tarball_path, context):
-    """Extract the payload contents into a temporary location."""
-    try:
-        mytar = TarFile.open(tarball_path, mode="r:gz")
-        mytar.extractall(path=tarball_path.parent)
-        files = mytar.getnames()
-        manifest_path = [manifest for manifest in files if "manifest.json" in manifest]
-    except (ReadError, EOFError, OSError) as error:
-        shutil.rmtree(tarball_path.parent)
-        raise KafkaMsgHandlerError("Extraction failure.")
+**Implementation:** See [`extract_payload_contents()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
 
-    if not manifest_path:
-        raise KafkaMsgHandlerError("No manifest found in payload.")
-
-    return manifest_path[0]
-```
+**Process:**
+1. Open tar.gz file in read mode
+2. Extract all contents to temporary directory
+3. Search for `manifest.json` in extracted files
+4. Raise error if no manifest found
+5. Return manifest path
 
 **Manifest Structure:**
-```json
-{
-  "uuid": "abc123-def456-ghi789",
-  "cluster_id": "12345678-90ab-cdef-1234-567890abcdef",
-  "date": "2025-01-15T12:00:00.000Z",
-  "start": "2025-01-15T12:00:00.000Z",
-  "files": [
-    "pod_usage_2025-01-15.csv",
-    "storage_usage_2025-01-15.csv",
-    "node_labels_2025-01-15.csv",
-    "namespace_labels_2025-01-15.csv"
-  ],
-  "certified": true,
-  "operator_version": "4.1.0",
-  "daily_reports": true,
-  "cr_status": {
-    "clusterVersion": "4.15",
-    "upload": {"upload": true},
-    "authentication": {"type": "token"}
-  }
-}
-```
+
+JSON file containing:
+- `uuid` - Manifest unique identifier
+- `cluster_id` - OpenShift cluster UUID
+- `date`, `start` - Report date and start time
+- `files` - Array of CSV filenames (pod_usage, storage_usage, node_labels, namespace_labels, vm_usage)
+- `certified` - Whether cluster is certified OpenShift
+- `operator_version` - cost-mgmt-metrics-operator version (e.g., "4.1.0")
+- `daily_reports` - Boolean indicating if operator sends daily or cumulative reports
+- `cr_status` - Cluster metadata (version, upload config, authentication type)
 
 ---
 
@@ -282,114 +238,47 @@ OpenShift reports can contain **multiple days** of data. Koku splits them into *
 
 #### **Step 1: Detect Report Type**
 
-```python
-def detect_type(file_path):
-    """Detect OCP report type from CSV columns."""
-    df = pd.read_csv(file_path, nrows=1)
-    columns = set(df.columns)
+**Implementation:** See [`detect_type()`](../../koku/masu/util/ocp/common.py) in `masu/util/ocp/common.py`
 
-    if columns.intersection(CPU_MEM_USAGE_COLUMNS) == CPU_MEM_USAGE_COLUMNS:
-        return OCPReportTypes.CPU_MEM_USAGE, "pod_usage"
-    elif columns.intersection(STORAGE_COLUMNS) == STORAGE_COLUMNS:
-        return OCPReportTypes.STORAGE, "storage_usage"
-    elif "node_labels" in columns:
-        return OCPReportTypes.NODE_LABELS, "node_labels"
-    elif "namespace_labels" in columns:
-        return OCPReportTypes.NAMESPACE_LABELS, "namespace_labels"
-    elif "vm_uptime_total_seconds" in columns:
-        return OCPReportTypes.VM_USAGE, "vm_usage"
-
-    return OCPReportTypes.UNKNOWN, "unknown"
-```
+**Process:**
+1. Read first row of CSV to get column names
+2. Match column sets against known report types:
+   - `CPU_MEM_USAGE_COLUMNS` → `pod_usage`
+   - `STORAGE_COLUMNS` → `storage_usage`
+   - `node_labels` column → `node_labels`
+   - `namespace_labels` column → `namespace_labels`
+   - `vm_uptime_total_seconds` column → `vm_usage`
+3. Return report type enum and string name
 
 #### **Step 2: Split by Daily Interval**
 
-```python
-def divide_csv_daily(file_path, manifest_id, hour_dict):
-    """Split local file into daily content."""
-    data_frame = pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"))
+**Implementation:** See [`divide_csv_daily()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
 
-    report_type, _ = utils.detect_type(file_path)
-
-    # Group by day from interval_start column
-    unique_times = data_frame.interval_start.unique()
-    days = list({cur_dt[:10] for cur_dt in unique_times})  # Extract YYYY-MM-DD
-
-    daily_data_frames = [
-        {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day}
-        for cur_day in days
-    ]
-
-    daily_files = []
-    for daily_data in daily_data_frames:
-        day = daily_data["date"]
-        df = daily_data["data_frame"]
-
-        # Create unique filename with counter to avoid collisions
-        file_prefix = f"{report_type}.{day}.{manifest_id}"
-        with transaction.atomic():
-            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
-            if not manifest.report_tracker.get(file_prefix):
-                manifest.report_tracker[file_prefix] = 0
-            counter = manifest.report_tracker[file_prefix]
-            manifest.report_tracker[file_prefix] = counter + 1
-            manifest.save(update_fields=["report_tracker"])
-
-        day_file = f"{file_prefix}.{counter}.csv"
-        day_filepath = file_path.parent.joinpath(day_file)
-        df.to_csv(day_filepath, index=False, header=True)
-
-        daily_files.append({
-            "filepath": day_filepath,
-            "date": datetime.strptime(day, "%Y-%m-%d"),
-            "num_hours": len(df.interval_start.unique())
-        })
-
-    return daily_files
-```
+**Process:**
+1. Read CSV with pandas (pyarrow backend for performance)
+2. Detect report type from columns
+3. Extract unique days from `interval_start` column (YYYY-MM-DD)
+4. Group DataFrame by day
+5. For each day:
+   - Create filename: `{report_type}.{day}.{manifest_id}.{counter}.csv`
+   - Use database transaction to track file counter (prevents collisions)
+   - Write daily DataFrame to CSV
+   - Track filepath, date, and number of hours
+6. Return list of daily file metadata
 
 #### **Step 3: Upload Daily CSVs to S3/MinIO**
 
-```python
-def create_daily_archives(payload_info, filepath, context):
-    """Create daily CSVs from incoming report and archive to S3."""
-    manifest = payload_info.manifest
-    cur_manifest = CostUsageReportManifest.objects.get(id=manifest.manifest_id)
+**Implementation:** See [`create_daily_archives()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
 
-    # Check if operator sends daily reports or if we need to split
-    if cur_manifest.operator_version and not cur_manifest.operator_daily_reports:
-        # Old operators: additive reports, cannot be split
-        daily_files = [{"filepath": filepath, "date": manifest.date, "num_hours": 0}]
-    else:
-        # New operators or metering: split by day
-        daily_files = divide_csv_daily(filepath, manifest.manifest_id, manifest.hours_per_day)
-
-    daily_file_names = {}
-    for daily_file in daily_files:
-        # Push to S3/MinIO
-        s3_csv_path = get_path_prefix(
-            payload_info.trino_schema,
-            payload_info.provider_type,
-            payload_info.provider_uuid,
-            daily_file.get("date"),
-            Config.CSV_DATA_TYPE,
-        )
-        filepath = daily_file.get("filepath")
-        copy_local_report_file_to_s3_bucket(
-            payload_info.request_id,
-            s3_csv_path,
-            filepath,
-            filepath.name,
-            manifest.manifest_id,
-            context,
-        )
-        daily_file_names[filepath] = {
-            "meta_reportdatestart": str(daily_file["date"].date()),
-            "meta_reportnumhours": str(daily_file["num_hours"])
-        }
-
-    return daily_file_names
-```
+**Process:**
+1. Check operator version and daily_reports flag
+2. **Old operators (cumulative reports):** Don't split, use file as-is
+3. **New operators (daily reports):** Split CSV by day using `divide_csv_daily()`
+4. For each daily file:
+   - Generate S3 path: `{schema}/openshift/csv/{date}/`
+   - Upload to S3/MinIO bucket
+   - Track metadata (report date, number of hours)
+5. Return dictionary mapping filepaths to metadata
 
 **S3/MinIO Path Structure:**
 ```
@@ -410,118 +299,45 @@ org1234567/openshift/csv/
 
 #### **Data Type Definitions**
 
-```python
-class OCPReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
-        # Select appropriate Trino table based on report type
-        if "daily" in s3_path:
-            ocp_table_name = TRINO_LINE_ITEM_TABLE_DAILY_MAP[report_type]
-            # e.g., "openshift_pod_usage_line_items_daily"
-        else:
-            ocp_table_name = TRINO_LINE_ITEM_TABLE_MAP[report_type]
-            # e.g., "openshift_pod_usage_line_items"
+**Implementation:** See [`OCPReportParquetProcessor`](../../koku/masu/processor/ocp/ocp_report_parquet_processor.py) in `ocp_report_parquet_processor.py`
 
-        # Define numeric columns for proper type conversion
-        numeric_columns = [
-            "pod_usage_cpu_core_seconds",
-            "pod_request_cpu_core_seconds",
-            "pod_effective_usage_cpu_core_seconds",
-            "pod_limit_cpu_core_seconds",
-            "pod_usage_memory_byte_seconds",
-            "pod_request_memory_byte_seconds",
-            "pod_effective_usage_memory_byte_seconds",
-            "pod_limit_memory_byte_seconds",
-            "node_capacity_cpu_cores",
-            "node_capacity_cpu_core_seconds",
-            "node_capacity_memory_bytes",
-            "node_capacity_memory_byte_seconds",
-            "persistentvolumeclaim_usage_byte_seconds",
-            "volume_request_storage_byte_seconds",
-            "persistentvolumeclaim_capacity_byte_seconds",
-            "persistentvolumeclaim_capacity_bytes",
-            # VM metrics
-            "vm_uptime_total_seconds",
-            "vm_cpu_limit_cores",
-            "vm_cpu_limit_core_seconds",
-            "vm_cpu_usage_total_seconds",
-            "vm_memory_limit_bytes",
-            "vm_memory_usage_byte_seconds",
-            "vm_disk_allocated_size_byte_seconds",
-        ]
-
-        date_columns = ["report_period_start", "report_period_end", "interval_start", "interval_end"]
-
-        column_types = {
-            "numeric_columns": numeric_columns,
-            "date_columns": date_columns,
-            "boolean_columns": []
-        }
-
-        super().__init__(
-            manifest_id=manifest_id,
-            account=account,
-            s3_path=s3_path,
-            provider_uuid=provider_uuid,
-            parquet_local_path=parquet_local_path,
-            column_types=column_types,
-            table_name=ocp_table_name,
-        )
-```
+**OCP-Specific Type Handling:**
+- **Numeric columns:** CPU/memory usage, requests, limits, effective usage, node capacity, storage metrics, VM metrics
+- **Date columns:** `report_period_start`, `report_period_end`, `interval_start`, `interval_end`
+- **Table selection:** Based on report type and path (daily vs non-daily)
+  - Pod usage → `openshift_pod_usage_line_items_daily`
+  - Storage → `openshift_storage_usage_line_items_daily`
+  - Node labels → `openshift_node_labels_line_items_daily`
+  - Namespace labels → `openshift_namespace_labels_line_items_daily`
+  - VM usage → `openshift_vm_usage_line_items_daily`
 
 #### **Calculate Effective Usage**
 
-Unlike cloud providers, OCP must calculate **effective usage** (min of usage and request):
+Unlike cloud providers, OCP must calculate **effective usage** (min of usage and request).
 
-```python
-# In CSV preprocessing (utils.py)
-def calculate_effective_usage(df):
-    """Calculate effective usage as min(usage, request)."""
-    if "pod_usage_cpu_core_seconds" in df.columns and "pod_request_cpu_core_seconds" in df.columns:
-        df["pod_effective_usage_cpu_core_seconds"] = df[
-            ["pod_usage_cpu_core_seconds", "pod_request_cpu_core_seconds"]
-        ].min(axis=1, numeric_only=True)
+**Implementation:** See [`calculate_effective_usage()`](../../koku/masu/util/ocp/common.py) in `masu/util/ocp/common.py`
 
-    if "pod_usage_memory_byte_seconds" in df.columns and "pod_request_memory_byte_seconds" in df.columns:
-        df["pod_effective_usage_memory_byte_seconds"] = df[
-            ["pod_usage_memory_byte_seconds", "pod_request_memory_byte_seconds"]
-        ].min(axis=1, numeric_only=True)
-
-    return df
-```
+**Logic:**
+- **CPU effective usage** = `min(pod_usage_cpu_core_seconds, pod_request_cpu_core_seconds)`
+- **Memory effective usage** = `min(pod_usage_memory_byte_seconds, pod_request_memory_byte_seconds)`
+- Prevents charging for unused requested resources
+- Calculated during CSV preprocessing before Parquet conversion
 
 #### **Create Bill Record**
 
-```python
-def create_bill(self, bill_date):
-    """Create bill postgres entry (OCPUsageReportPeriod)."""
-    if isinstance(bill_date, str):
-        bill_date = ciso8601.parse_datetime(bill_date)
+**Implementation:** See [`create_bill()`](../../koku/masu/processor/ocp/ocp_report_parquet_processor.py) in `ocp_report_parquet_processor.py`
 
-    report_date_range = month_date_range(bill_date)
-    start_date, end_date = report_date_range.split("-")
-
-    report_period_start = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
-    report_period_end = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=settings.UTC)
-    # Make end date first of next month
-    report_period_end = report_period_end + datetime.timedelta(days=1)
-
-    provider = self._get_provider()
-    cluster_id = utils.get_cluster_id_from_provider(provider.uuid)
-    cluster_alias = utils.get_cluster_alias_from_cluster_id(cluster_id)
-
-    with schema_context(self._schema_name):
-        bill, _ = OCPUsageReportPeriod.objects.get_or_create(
-            cluster_id=cluster_id,
-            report_period_start=report_period_start,
-            report_period_end=report_period_end,
-            provider_id=provider.uuid,
-        )
-        if bill.cluster_alias != cluster_alias:
-            bill.cluster_alias = cluster_alias
-            bill.save(update_fields=["cluster_alias"])
-
-    return bill
-```
+**Process:**
+1. Parse bill_date to datetime if string
+2. Calculate month date range (first to last day of month)
+3. Set report_period_end to first of next month
+4. Get cluster_id and cluster_alias from provider
+5. Create or update `OCPUsageReportPeriod` record with:
+   - `cluster_id`
+   - `report_period_start`, `report_period_end`
+   - `provider_id`
+   - `cluster_alias`
+6. Return bill object
 
 **Parquet Output Structure:**
 ```
@@ -549,328 +365,47 @@ org1234567/openshift/parquet/
 
 #### **Orchestration**
 
-```python
-def update_summary_tables(self, start_date, end_date, **kwargs):
-    """Populate the summary tables for reporting."""
-    start_date, end_date = self._get_sql_inputs(start_date, end_date)
-    start_date, end_date = self._check_parquet_date_range(start_date, end_date)
+**Implementation:** See [`update_summary_tables()`](../../koku/masu/processor/ocp/ocp_report_parquet_summary_updater.py) in `ocp_report_parquet_summary_updater.py`
 
-    with schema_context(self._schema):
-        self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
-
-    with OCPReportDBAccessor(self._schema) as accessor:
-        with schema_context(self._schema):
-            report_period = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
-            if not report_period:
-                LOG.warning("No report period found")
-                return start_date, end_date
-            report_period_id = report_period.id
-
-        # Populate cluster information tables (for cluster-level metadata)
-        accessor.populate_openshift_cluster_information_tables(
-            self._provider, self._cluster_id, self._cluster_alias, start_date, end_date
-        )
-
-        # Process in date ranges
-        for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
-            # Delete existing summary data (excluding infrastructure costs from OCP-on-cloud matching)
-            accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
-                self._provider.uuid, report_period_id, start, end
-            )
-
-            # Populate daily summary table via Trino
-            accessor.populate_line_item_daily_summary_table_trino(
-                start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid
-            )
-
-            # Populate UI summary tables
-            accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
-
-        # Populate label summary tables
-        accessor.populate_pod_label_summary_table([report_period_id], start_date, end_date)
-        accessor.populate_volume_label_summary_table([report_period_id], start_date, end_date)
-
-        # Apply tag mappings
-        accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, [report_period_id])
-
-        # Update report period timestamps
-        if report_period.summary_data_creation_datetime is None:
-            report_period.summary_data_creation_datetime = timezone.now()
-        report_period.summary_data_updated_datetime = timezone.now()
-        report_period.save()
-
-        # Check for cloud infrastructure (triggers OCP-on-AWS/Azure/GCP processing)
-        self.check_cluster_infrastructure(start_date, end_date)
-
-    return start_date, end_date
-```
+**Process Flow:**
+1. **Normalize dates** and check Parquet date range
+2. **Handle table partitions** for UI summary tables
+3. **Get report period** for the provider and date
+4. **Populate cluster information** (cluster-level metadata)
+5. **Process in date chunks** (`TRINO_DATE_STEP`):
+   - **DELETE** existing summary data (preserves infrastructure costs)
+   - **INSERT** new data via Trino SQL (joins all 5 report types)
+   - **Populate UI summary tables** (cost, pod, volume summaries)
+6. **Populate label summary tables** (pod and volume labels)
+7. **Apply tag mappings** to daily summary
+8. **Update report period timestamps**
+9. **Check for cloud infrastructure** (triggers OCP-on-Cloud matching)
 
 #### **Trino SQL: Multi-Report Aggregation**
 
-The Trino SQL joins **all 5 report types** to create a unified daily summary:
+The Trino SQL joins **all 5 report types** to create a unified daily summary.
 
-```sql
--- reporting_ocpusagelineitem_daily_summary.sql
-WITH cte_pg_enabled_keys AS (
-    -- Get enabled tag keys from PostgreSQL
-    SELECT array['vm_kubevirt_io_name'] || array_agg(key ORDER BY key) AS keys
-    FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
-    WHERE enabled = TRUE AND provider_type = 'OCP'
-),
+**Implementation:** See [`reporting_ocpusagelineitem_daily_summary.sql`](../../koku/masu/database/trino_sql/openshift/reporting_ocpusagelineitem_daily_summary.sql) in `trino_sql/openshift/`
 
-cte_ocp_node_label_line_item_daily AS (
-    -- Get node labels (filtered by enabled keys)
-    SELECT date(nli.interval_start) AS usage_start,
-        nli.node,
-        CAST(
-            map_filter(
-                CAST(json_parse(nli.node_labels) AS map(varchar, varchar)),
-                (k, v) -> contains(pek.keys, k)
-            ) AS json
-        ) AS node_labels
-    FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items_daily AS nli
-    CROSS JOIN cte_pg_enabled_keys AS pek
-    WHERE nli.source = {{source}}
-      AND nli.year = {{year}}
-      AND nli.month = {{month}}
-      AND nli.interval_start >= {{start_date}}
-      AND nli.interval_start < date_add('day', 1, {{end_date}})
-    GROUP BY date(nli.interval_start), nli.node, 3
-),
+**Query Structure:**
 
-cte_ocp_namespace_label_line_item_daily AS (
-    -- Get namespace labels (filtered by enabled keys)
-    SELECT date(nli.interval_start) AS usage_start,
-        nli.namespace,
-        CAST(
-            map_filter(
-                CAST(json_parse(nli.namespace_labels) AS map(varchar, varchar)),
-                (k, v) -> contains(pek.keys, k)
-            ) AS json
-        ) AS namespace_labels
-    FROM hive.{{schema | sqlsafe}}.openshift_namespace_labels_line_items_daily AS nli
-    CROSS JOIN cte_pg_enabled_keys AS pek
-    WHERE nli.source = {{source}}
-      AND nli.year = {{year}}
-      AND nli.month = {{month}}
-      AND nli.interval_start >= {{start_date}}
-      AND nli.interval_start < date_add('day', 1, {{end_date}})
-    GROUP BY date(nli.interval_start), nli.namespace, 3
-),
+**CTEs (Common Table Expressions):**
+1. **`cte_pg_enabled_keys`** - Get enabled tag keys from PostgreSQL
+2. **`cte_ocp_node_label_line_item_daily`** - Get node labels, filtered by enabled keys using `map_filter`
+3. **`cte_ocp_namespace_label_line_item_daily`** - Get namespace labels, filtered by enabled keys
+4. **`cte_ocp_node_capacity`** - Daily sum of node CPU and memory capacity from pod usage reports
+5. **`cte_ocp_cluster_capacity`** - Daily sum of cluster-wide capacity
+6. **`cte_ocp_pod_usage`** - Aggregate pod CPU and memory usage by day, convert seconds → hours, bytes → GB
+7. **`cte_ocp_storage_usage`** - Aggregate storage usage by day, convert to gigabyte-months
 
-cte_ocp_node_capacity AS (
-    -- Daily sum of node CPU and memory capacity
-    SELECT date(nc.interval_start) AS usage_start,
-        nc.node,
-        SUM(nc.node_capacity_cpu_core_seconds) AS node_capacity_cpu_core_seconds,
-        SUM(nc.node_capacity_memory_byte_seconds) AS node_capacity_memory_byte_seconds
-    FROM (
-        -- Get capacity from pod usage reports
-        SELECT li.interval_start, li.node,
-            li.node_capacity_cpu_core_seconds,
-            li.node_capacity_memory_byte_seconds
-        FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS li
-        WHERE li.source = {{source}}
-          AND li.year = {{year}}
-          AND li.month = {{month}}
-          AND li.interval_start >= {{start_date}}
-          AND li.interval_start < date_add('day', 1, {{end_date}})
-        GROUP BY li.interval_start, li.node,
-            li.node_capacity_cpu_core_seconds,
-            li.node_capacity_memory_byte_seconds
-    ) AS nc
-    GROUP BY date(nc.interval_start), nc.node
-),
-
-cte_ocp_cluster_capacity AS (
-    -- Daily sum of cluster-wide capacity
-    SELECT date(nc.interval_start) AS usage_start,
-        SUM(nc.node_capacity_cpu_core_seconds) AS cluster_capacity_cpu_core_seconds,
-        SUM(nc.node_capacity_memory_byte_seconds) AS cluster_capacity_memory_byte_seconds
-    FROM (
-        SELECT li.interval_start, li.node,
-            li.node_capacity_cpu_core_seconds,
-            li.node_capacity_memory_byte_seconds
-        FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS li
-        WHERE li.source = {{source}}
-          AND li.year = {{year}}
-          AND li.month = {{month}}
-          AND li.interval_start >= {{start_date}}
-          AND li.interval_start < date_add('day', 1, {{end_date}})
-        GROUP BY li.interval_start, li.node,
-            li.node_capacity_cpu_core_seconds,
-            li.node_capacity_memory_byte_seconds
-    ) AS nc
-    GROUP BY date(nc.interval_start)
-),
-
-cte_ocp_pod_usage AS (
-    -- Aggregate pod CPU and memory usage by day
-    SELECT date(li.interval_start) AS usage_start,
-        li.namespace,
-        li.node,
-        li.pod,
-        li.resource_id,
-        CAST(json_parse(li.pod_labels) AS json) AS pod_labels,
-        SUM(li.pod_usage_cpu_core_seconds) / 3600.0 AS pod_usage_cpu_core_hours,
-        SUM(li.pod_request_cpu_core_seconds) / 3600.0 AS pod_request_cpu_core_hours,
-        SUM(li.pod_effective_usage_cpu_core_seconds) / 3600.0 AS pod_effective_usage_cpu_core_hours,
-        SUM(li.pod_limit_cpu_core_seconds) / 3600.0 AS pod_limit_cpu_core_hours,
-        SUM(li.pod_usage_memory_byte_seconds) / 3600.0 / 1073741824.0 AS pod_usage_memory_gigabyte_hours,
-        SUM(li.pod_request_memory_byte_seconds) / 3600.0 / 1073741824.0 AS pod_request_memory_gigabyte_hours,
-        SUM(li.pod_effective_usage_memory_byte_seconds) / 3600.0 / 1073741824.0 AS pod_effective_usage_memory_gigabyte_hours,
-        SUM(li.pod_limit_memory_byte_seconds) / 3600.0 / 1073741824.0 AS pod_limit_memory_gigabyte_hours
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS li
-    WHERE li.source = {{source}}
-      AND li.year = {{year}}
-      AND li.month = {{month}}
-      AND li.interval_start >= {{start_date}}
-      AND li.interval_start < date_add('day', 1, {{end_date}})
-    GROUP BY date(li.interval_start), li.namespace, li.node, li.pod, li.resource_id, 6
-),
-
-cte_ocp_storage_usage AS (
-    -- Aggregate storage usage by day
-    SELECT date(li.interval_start) AS usage_start,
-        li.namespace,
-        li.node,
-        li.persistentvolumeclaim,
-        li.persistentvolume,
-        li.storageclass,
-        li.csi_volume_handle,
-        CAST(json_parse(li.persistentvolume_labels) AS json) AS persistentvolume_labels,
-        CAST(json_parse(li.persistentvolumeclaim_labels) AS json) AS persistentvolumeclaim_labels,
-        MAX(li.persistentvolumeclaim_capacity_bytes) / 1073741824.0 AS persistentvolumeclaim_capacity_gigabyte,
-        SUM(li.persistentvolumeclaim_capacity_byte_seconds) / 3600.0 / 1073741824.0 / 730.0 AS persistentvolumeclaim_capacity_gigabyte_months,
-        SUM(li.volume_request_storage_byte_seconds) / 3600.0 / 1073741824.0 / 730.0 AS volume_request_storage_gigabyte_months,
-        SUM(li.persistentvolumeclaim_usage_byte_seconds) / 3600.0 / 1073741824.0 / 730.0 AS persistentvolumeclaim_usage_gigabyte_months
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily AS li
-    WHERE li.source = {{source}}
-      AND li.year = {{year}}
-      AND li.month = {{month}}
-      AND li.interval_start >= {{start_date}}
-      AND li.interval_start < date_add('day', 1, {{end_date}})
-    GROUP BY date(li.interval_start), li.namespace, li.node,
-        li.persistentvolumeclaim, li.persistentvolume, li.storageclass,
-        li.csi_volume_handle, 8, 9
-)
-
--- Main INSERT: Join all CTEs to create unified daily summary
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
-    uuid, report_period_id, cluster_id, cluster_alias,
-    data_source, usage_start, usage_end,
-    namespace, node, resource_id,
-    pod_labels,
-    pod_usage_cpu_core_hours, pod_request_cpu_core_hours,
-    pod_effective_usage_cpu_core_hours, pod_limit_cpu_core_hours,
-    pod_usage_memory_gigabyte_hours, pod_request_memory_gigabyte_hours,
-    pod_effective_usage_memory_gigabyte_hours, pod_limit_memory_gigabyte_hours,
-    node_capacity_cpu_cores, node_capacity_cpu_core_hours,
-    node_capacity_memory_gigabytes, node_capacity_memory_gigabyte_hours,
-    cluster_capacity_cpu_core_hours, cluster_capacity_memory_gigabyte_hours,
-    persistentvolumeclaim, persistentvolume, storageclass,
-    volume_labels,
-    persistentvolumeclaim_capacity_gigabyte,
-    persistentvolumeclaim_capacity_gigabyte_months,
-    volume_request_storage_gigabyte_months,
-    persistentvolumeclaim_usage_gigabyte_months,
-    source_uuid, csi_volume_handle,
-    source, year, month, day
-)
-SELECT CAST(uuid() AS varchar) AS uuid,
-    {{report_period_id}} AS report_period_id,
-    {{cluster_id}} AS cluster_id,
-    {{cluster_alias}} AS cluster_alias,
-
-    -- Determine data_source (Pod or Storage)
-    CASE
-        WHEN pu.pod IS NOT NULL THEN 'Pod'
-        WHEN su.persistentvolumeclaim IS NOT NULL THEN 'Storage'
-    END AS data_source,
-
-    COALESCE(pu.usage_start, su.usage_start) AS usage_start,
-    COALESCE(pu.usage_start, su.usage_start) AS usage_end,
-
-    COALESCE(pu.namespace, su.namespace) AS namespace,
-    COALESCE(pu.node, su.node) AS node,
-    pu.resource_id,
-
-    -- Merge pod labels with node labels and namespace labels
-    CAST(
-        map_concat(
-            map_concat(
-                COALESCE(CAST(pu.pod_labels AS map(varchar, varchar)), map()),
-                COALESCE(CAST(nl.node_labels AS map(varchar, varchar)), map())
-            ),
-            COALESCE(CAST(nsl.namespace_labels AS map(varchar, varchar)), map())
-        ) AS json
-    ) AS pod_labels,
-
-    -- Pod metrics
-    pu.pod_usage_cpu_core_hours,
-    pu.pod_request_cpu_core_hours,
-    pu.pod_effective_usage_cpu_core_hours,
-    pu.pod_limit_cpu_core_hours,
-    pu.pod_usage_memory_gigabyte_hours,
-    pu.pod_request_memory_gigabyte_hours,
-    pu.pod_effective_usage_memory_gigabyte_hours,
-    pu.pod_limit_memory_gigabyte_hours,
-
-    -- Node capacity
-    nc.node_capacity_cpu_cores / 24.0 AS node_capacity_cpu_cores,
-    nc.node_capacity_cpu_core_seconds / 3600.0 AS node_capacity_cpu_core_hours,
-    nc.node_capacity_memory_bytes / 1073741824.0 AS node_capacity_memory_gigabytes,
-    nc.node_capacity_memory_byte_seconds / 3600.0 / 1073741824.0 AS node_capacity_memory_gigabyte_hours,
-
-    -- Cluster capacity
-    cc.cluster_capacity_cpu_core_seconds / 3600.0 AS cluster_capacity_cpu_core_hours,
-    cc.cluster_capacity_memory_byte_seconds / 3600.0 / 1073741824.0 AS cluster_capacity_memory_gigabyte_hours,
-
-    -- Storage metrics
-    su.persistentvolumeclaim,
-    su.persistentvolume,
-    su.storageclass,
-
-    -- Merge volume labels
-    CAST(
-        map_concat(
-            COALESCE(CAST(su.persistentvolume_labels AS map(varchar, varchar)), map()),
-            COALESCE(CAST(su.persistentvolumeclaim_labels AS map(varchar, varchar)), map())
-        ) AS json
-    ) AS volume_labels,
-
-    su.persistentvolumeclaim_capacity_gigabyte,
-    su.persistentvolumeclaim_capacity_gigabyte_months,
-    su.volume_request_storage_gigabyte_months,
-    su.persistentvolumeclaim_usage_gigabyte_months,
-
-    {{source}} AS source_uuid,
-    su.csi_volume_handle,
-
-    -- Partitioning columns
-    {{source}} AS source,
-    {{year}} AS year,
-    {{month}} AS month,
-    CAST(substr(CAST(COALESCE(pu.usage_start, su.usage_start) AS varchar), 9, 2) AS varchar) AS day
-
-FROM cte_ocp_pod_usage AS pu
-FULL OUTER JOIN cte_ocp_storage_usage AS su
-    ON pu.usage_start = su.usage_start
-    AND pu.namespace = su.namespace
-    AND pu.node = su.node
-LEFT JOIN cte_ocp_node_label_line_item_daily AS nl
-    ON COALESCE(pu.usage_start, su.usage_start) = nl.usage_start
-    AND COALESCE(pu.node, su.node) = nl.node
-LEFT JOIN cte_ocp_namespace_label_line_item_daily AS nsl
-    ON COALESCE(pu.usage_start, su.usage_start) = nsl.usage_start
-    AND COALESCE(pu.namespace, su.namespace) = nsl.namespace
-LEFT JOIN cte_ocp_node_capacity AS nc
-    ON COALESCE(pu.usage_start, su.usage_start) = nc.usage_start
-    AND COALESCE(pu.node, su.node) = nc.node
-LEFT JOIN cte_ocp_cluster_capacity AS cc
-    ON COALESCE(pu.usage_start, su.usage_start) = cc.usage_start
-;
-```
+**Main INSERT Query:**
+- **FULL OUTER JOIN** pod usage with storage usage (on date, namespace, node)
+- **LEFT JOIN** node labels and namespace labels
+- **LEFT JOIN** node capacity and cluster capacity
+- **Merge labels** using `map_concat` (pod + node + namespace labels)
+- **Determine data_source:** 'Pod' if pod data exists, 'Storage' if PVC exists
+- **Convert units:** seconds → hours, bytes → gigabytes
+- **Partitioning:** By source, year, month, day
 
 **Key Features:**
 1. **Multi-source Join:** Combines pod, storage, node labels, namespace labels
@@ -927,87 +462,28 @@ Cost models consist of **infrastructure rates** and **supplementary rates**:
 
 #### **Cost Calculation SQL Generation**
 
-The cost updater generates **dynamic SQL CASE statements** for tag-based pricing:
+The cost updater generates **dynamic SQL CASE statements** for tag-based pricing.
 
-```python
-def _build_node_tag_cost_case_statements(self, rate_dict, start_date, default_rate_dict={}, unallocated=False):
-    """Generate CASE SQL for tag-based monthly costs."""
-    cpu_distribution_term = """
-        sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours)
-    """
-    memory_distribution_term = """
-        sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours)
-    """
+**Implementation:** See [`_build_node_tag_cost_case_statements()`](../../koku/masu/processor/ocp/ocp_cost_model_cost_updater.py) in `ocp_cost_model_cost_updater.py`
 
-    case_dict = {}
-    for tag_key, tag_value_rates in rate_dict.items():
-        cpu_statement_list = ["CASE"]
-        memory_statement_list = ["CASE"]
-
-        for tag_value, rate_value in tag_value_rates.items():
-            label_condition = f"pod_labels->>'{tag_key}'='{tag_value}'"
-            rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
-
-            cpu_statement_list.append(f"""
-                WHEN {label_condition}
-                    THEN {cpu_distribution_term} * {rate}::decimal
-            """)
-            memory_statement_list.append(f"""
-                WHEN {label_condition}
-                    THEN {memory_distribution_term} * {rate}::decimal
-            """)
-
-        # Default rate for tags with the key but no matching value
-        if default_rate_dict:
-            rate_value = default_rate_dict.get(tag_key, {}).get("default_value", 0)
-            rate = get_amortized_monthly_cost_model_rate(rate_value, start_date)
-            cpu_statement_list.append(f"""
-                ELSE {cpu_distribution_term} * {rate}::decimal
-            """)
-            memory_statement_list.append(f"""
-                ELSE {memory_distribution_term} * {rate}::decimal
-            """)
-
-        cpu_statement_list.append("END as cost_model_cpu_cost")
-        memory_statement_list.append("END as cost_model_memory_cost")
-
-        case_dict[tag_key] = (
-            "\n".join(cpu_statement_list),
-            "\n".join(memory_statement_list),
-            "0::decimal as cost_model_volume_cost"
-        )
-
-    return case_dict
-```
+**Process:**
+1. Define distribution terms (CPU usage ratio, memory usage ratio)
+2. For each tag key and its value rates:
+   - Build CASE statement for CPU cost allocation
+   - Build CASE statement for memory cost allocation
+   - Match `pod_labels->>'tag_key'` to rate values
+   - Apply default rate for unmatched values (if configured)
+3. Return dictionary of SQL CASE statements per tag key
+4. Statements calculate: `usage_ratio * amortized_monthly_rate`
 
 **Generated SQL Example:**
-```sql
--- Populate monthly cost for tag: env=prod/dev
-UPDATE reporting_ocpusagelineitem_daily_summary AS lids
-SET
-    monthly_cost_type = 'Tag',
-    cost_model_cpu_cost = CASE
-        WHEN pod_labels->>'env' = 'prod' THEN
-            sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) * 0.10::decimal
-        WHEN pod_labels->>'env' = 'dev' THEN
-            sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) * 0.05::decimal
-        ELSE
-            sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) * 0.03::decimal
-    END,
-    cost_model_memory_cost = CASE
-        WHEN pod_labels->>'env' = 'prod' THEN
-            sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * 0.10::decimal
-        WHEN pod_labels->>'env' = 'dev' THEN
-            sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * 0.05::decimal
-        ELSE
-            sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * 0.03::decimal
-    END
-WHERE usage_start >= '2025-01-01'
-  AND usage_start < '2025-02-01'
-  AND report_period_id = 12345
-  AND pod_labels ? 'env'
-;
-```
+
+The generated SQL updates the daily summary table with dynamically calculated costs based on label values:
+- Sets `monthly_cost_type = 'Tag'`
+- Calculates `cost_model_cpu_cost` using CASE statement matching label values to rates
+- Calculates `cost_model_memory_cost` similarly
+- Formula: `(effective_usage / node_capacity) * monthly_rate`
+- Filters by date range, report period, and presence of the label key
 
 #### **Cost Distribution**
 
@@ -1018,20 +494,12 @@ Cost models support **3 distribution types**:
 3. **PVC Distribution**: Allocate storage costs
 
 **SQL for Cost Distribution:**
-```sql
--- Distribute unallocated CPU costs to namespaces
-UPDATE reporting_ocpusagelineitem_daily_summary
-SET infrastructure_project_cpu_core_hours = (
-    pod_effective_usage_cpu_core_hours / node_capacity_cpu_core_hours
-) * (
-    SELECT sum(infrastructure_usage_cost::numeric->>'cpu')
-    FROM reporting_ocpusagelineitem_daily_summary
-    WHERE usage_start = '2025-01-15'
-      AND monthly_cost_type IS NULL  -- Unallocated
-)
-WHERE usage_start = '2025-01-15'
-  AND monthly_cost_type = 'Node';
-```
+
+Cost distribution allocates unallocated costs (platform overhead) to namespaces based on their usage ratios. The SQL:
+1. Calculates usage ratio: `(pod_effective_usage / node_capacity)`
+2. Multiplies by total unallocated infrastructure cost
+3. Updates namespace-level infrastructure costs
+4. Applies to records with `monthly_cost_type = 'Node'`
 
 ---
 
@@ -1043,27 +511,13 @@ When an OpenShift cluster runs on cloud infrastructure, Koku **matches OCP nodes
 
 #### **Infrastructure Mapping Discovery**
 
-```python
-def check_cluster_infrastructure(self, start_date, end_date):
-    """Check if OCP cluster is running on cloud infrastructure."""
-    updater_base = OCPCloudUpdaterBase(self._schema, self._provider, self._manifest)
+**Implementation:** See [`check_cluster_infrastructure()`](../../koku/masu/processor/ocp/ocp_report_parquet_summary_updater.py) in `ocp_report_parquet_summary_updater.py`
 
-    # Try to get infrastructure map from provider relationships
-    if infra_map := updater_base.get_infra_map_from_providers():
-        for ocp_source, infra_tuple in infra_map.items():
-            LOG.info(
-                f"OCP cluster {ocp_source} is running on cloud infrastructure: "
-                f"provider_uuid={infra_tuple[0]}, provider_type={infra_tuple[1]}"
-            )
-            # Trigger OCP-on-Cloud processing
-            trigger_ocp_cloud_summary(ocp_source, infra_tuple[0], infra_tuple[1], start_date, end_date)
-
-    # If no relationship, try to infer from resource_id matching
-    elif infra_map := updater_base._generate_ocp_infra_map_from_sql_trino(start_date, end_date):
-        for ocp_source, infra_tuple in infra_map.items():
-            LOG.info(f"Inferred OCP-on-Cloud from resource_id matching")
-            trigger_ocp_cloud_summary(ocp_source, infra_tuple[0], infra_tuple[1], start_date, end_date)
-```
+**Process:**
+1. **Try explicit relationships first:** Check if provider relationships define OCP-on-Cloud connection
+2. **Fallback to resource_id matching:** Query Trino to match `resource_id` between OCP and cloud providers
+3. **Trigger OCP-Cloud processing:** Call summary updater for AWS/Azure/GCP with matched provider info
+4. **Log mapping:** Record infrastructure type and provider UUID
 
 #### **Resource ID Matching**
 
@@ -1082,85 +536,40 @@ i-0abcd1234efgh5678,123456789012,1.234
 ```
 
 **Trino SQL for Matching:**
-```sql
--- reporting_ocpinfrastructure_provider_map.sql
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpinfrastructure_provider_map
-SELECT DISTINCT
-    ocp.source_uuid AS ocp_uuid,
-    aws.source_uuid AS infra_uuid,
-    'AWS' AS infra_type
-FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
-INNER JOIN hive.{{schema | sqlsafe}}.aws_line_items AS aws
-    ON ocp.resource_id = aws.lineitem_resourceid
-WHERE ocp.year = {{year}}
-  AND ocp.month = {{month}}
-  AND ocp.resource_id IS NOT NULL
-  AND aws.year = {{year}}
-  AND aws.month = {{month}}
-;
-```
+
+**Implementation:** See [`reporting_ocpinfrastructure_provider_map.sql`](../../koku/masu/database/trino_sql/) for each cloud provider
+
+**Query Logic:**
+- INNER JOIN OCP pod usage with cloud provider line items
+- Match on `ocp.resource_id = cloud.resource_identifier`
+  - AWS: `lineitem_resourceid` (e.g., `i-0abcd1234efgh5678`)
+  - Azure: `instanceid` (Azure VM resource ID)
+  - GCP: `resource_name` (GCP instance name)
+- Filter by year/month partitions and non-null resource_id
+- INSERT DISTINCT mappings into infrastructure provider map table
 
 #### **Cost Allocation to Namespaces**
 
 Once matched, **cloud costs are allocated to OCP namespaces** based on usage:
 
 **Trino SQL for OCP-on-AWS Cost Allocation:**
-```sql
--- reporting_ocpawscostlineitem_project_daily_summary_p.sql
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p
-SELECT
-    uuid() AS uuid,
-    ocp.report_period_id,
-    aws.cost_entry_bill_id,
-    ocp.cluster_id,
-    ocp.cluster_alias,
-    ocp.namespace AS namespace,
-    ocp.node,
-    ocp.resource_id,
-    ocp.usage_start,
-    ocp.usage_end,
 
-    -- AWS cost fields
-    aws.product_code,
-    aws.product_family,
-    aws.instance_type,
-    aws.region,
-    aws.availability_zone,
+**Implementation:** See [`reporting_ocpawscostlineitem_project_daily_summary_p.sql`](../../koku/masu/database/trino_sql/aws/openshift/) in `trino_sql/aws/openshift/`
 
-    -- Allocate AWS cost to namespace based on CPU usage ratio
-    (ocp.pod_effective_usage_cpu_core_hours / ocp.node_capacity_cpu_core_hours)
-        * aws.unblended_cost AS pod_cost,
-
-    -- Usage fields
-    ocp.pod_usage_cpu_core_hours,
-    ocp.pod_request_cpu_core_hours,
-    ocp.pod_effective_usage_cpu_core_hours,
-    ocp.pod_usage_memory_gigabyte_hours,
-    ocp.pod_request_memory_gigabyte_hours,
-    ocp.pod_effective_usage_memory_gigabyte_hours,
-
-    -- Labels
-    ocp.pod_labels,
-    aws.tags,
-
-    -- Partitioning
-    cast(year(ocp.usage_start) AS varchar) AS year,
-    cast(month(ocp.usage_start) AS varchar) AS month
-
-FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
-INNER JOIN hive.{{schema | sqlsafe}}.aws_line_items AS aws
-    ON ocp.resource_id = aws.lineitem_resourceid
-    AND date(ocp.usage_start) = date(aws.lineitem_usagestartdate)
-WHERE ocp.source = {{ocp_source_uuid}}
-  AND aws.source = {{aws_source_uuid}}
-  AND ocp.year = {{year}}
-  AND ocp.month = {{month}}
-  AND ocp.usage_start >= {{start_date}}
-  AND ocp.usage_start < date_add('day', 1, {{end_date}})
-  AND ocp.data_source = 'Pod'
-  AND ocp.resource_id IS NOT NULL
-;
-```
+**Query Logic:**
+1. **JOIN** OCP daily summary with AWS line items
+   - Match on `resource_id` and date
+2. **Calculate cost allocation:**
+   - Formula: `(pod_effective_usage_cpu_core_hours / node_capacity_cpu_core_hours) * aws_unblended_cost`
+   - Proportional share based on CPU usage ratio
+3. **Include fields:**
+   - OCP: namespace, node, pod metrics, pod_labels
+   - AWS: product_code, instance_type, region, tags
+4. **Filter:**
+   - Both sources must match
+   - Only 'Pod' data source
+   - Non-null resource_id
+5. **INSERT** into `reporting_ocpawscostlineitem_project_daily_summary_p` (partitioned by year/month)
 
 **Result:** Each namespace gets a **proportional share** of the underlying cloud instance cost.
 
@@ -1214,56 +623,22 @@ For faster API queries, Koku maintains pre-aggregated summary tables:
 10. **`reporting_ocp_vm_summary_p`** - VM usage (for OpenShift Virtualization)
 
 **Example UI Summary SQL:**
-```sql
--- reporting_ocp_cost_summary_by_project_p.sql
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p
-SELECT
-    cast(uuid() AS varchar) AS uuid,
-    usage_start,
-    usage_start AS usage_end,
-    cluster_id,
-    cluster_alias,
-    namespace,
-    data_source,
 
-    -- Aggregated usage
-    sum(pod_usage_cpu_core_hours) AS pod_usage_cpu_core_hours,
-    sum(pod_request_cpu_core_hours) AS pod_request_cpu_core_hours,
-    sum(pod_effective_usage_cpu_core_hours) AS pod_effective_usage_cpu_core_hours,
-    sum(pod_limit_cpu_core_hours) AS pod_limit_cpu_core_hours,
+**Implementation:** See [`reporting_ocp_cost_summary_by_project_p.sql`](../../koku/masu/database/trino_sql/openshift/) and related UI summary SQL files
 
-    sum(pod_usage_memory_gigabyte_hours) AS pod_usage_memory_gigabyte_hours,
-    sum(pod_request_memory_gigabyte_hours) AS pod_request_memory_gigabyte_hours,
-    sum(pod_effective_usage_memory_gigabyte_hours) AS pod_effective_usage_memory_gigabyte_hours,
-    sum(pod_limit_memory_gigabyte_hours) AS pod_limit_memory_gigabyte_hours,
+**Query Pattern:**
+- **SELECT** aggregated metrics from daily summary table
+- **GROUP BY** relevant dimensions (cluster, namespace, date, data_source)
+- **SUM** usage metrics (CPU hours, memory hours, storage months)
+- **MAX** capacity metrics (node and cluster capacity)
+- **SUM** cost metrics (infrastructure costs, cost model costs)
+- **INSERT** into pre-aggregated UI summary table (partitioned by year/month)
 
-    max(node_capacity_cpu_core_hours) AS node_capacity_cpu_core_hours,
-    max(node_capacity_memory_gigabyte_hours) AS node_capacity_memory_gigabyte_hours,
-    max(cluster_capacity_cpu_core_hours) AS cluster_capacity_cpu_core_hours,
-    max(cluster_capacity_memory_gigabyte_hours) AS cluster_capacity_memory_gigabyte_hours,
-
-    sum(persistentvolumeclaim_capacity_gigabyte_months) AS persistentvolumeclaim_capacity_gigabyte_months,
-    sum(persistentvolumeclaim_usage_gigabyte_months) AS persistentvolumeclaim_usage_gigabyte_months,
-
-    -- Aggregated costs
-    sum(coalesce(infrastructure_raw_cost, 0)) AS infrastructure_raw_cost,
-    sum(coalesce(infrastructure_project_raw_cost, 0)) AS infrastructure_project_raw_cost,
-    sum(coalesce(cost_model_cpu_cost, 0)) AS cost_model_cpu_cost,
-    sum(coalesce(cost_model_memory_cost, 0)) AS cost_model_memory_cost,
-    sum(coalesce(cost_model_volume_cost, 0)) AS cost_model_volume_cost,
-
-    source_uuid,
-    cast(year(usage_start) AS varchar) AS year,
-    lpad(cast(month(usage_start) AS varchar), 2, '0') AS month
-
-FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-WHERE usage_start >= {{start_date}}
-  AND usage_start < date_add('day', 1, {{end_date}})
-  AND source_uuid = {{source_uuid}}
-GROUP BY
-    usage_start, cluster_id, cluster_alias, namespace, data_source, source_uuid, year, month
-;
-```
+This pattern is repeated for different aggregation levels:
+- By cluster
+- By node
+- By project (namespace)
+- By data source
 
 ---
 
@@ -1311,37 +686,26 @@ GROUP BY
 **Challenge:** OCP clusters can have **thousands** of labels. Querying all labels is slow.
 
 **Solution:**
-- **Enabled Tag Keys:** User selects which labels to track
-- **Trino Filtering:** `map_filter` to keep only enabled keys
-  ```sql
-  map_filter(
-      cast(json_parse(pod_labels) as map(varchar, varchar)),
-      (k, v) -> contains(enabled_keys, k)
-  )
-  ```
-- **GIN Indexes:** PostgreSQL GIN indexes on JSONB labels for fast queries
+- **Enabled Tag Keys:** User selects which labels to track via API/UI
+- **Trino Filtering:** Use `map_filter` to keep only enabled keys during summarization
+  - Convert JSON labels to map
+  - Filter keys using `contains(enabled_keys, k)`
+  - Only selected labels are stored in summary tables
+- **GIN Indexes:** PostgreSQL GIN indexes on JSONB label columns for fast queries
 
 ### **6. Operator Version Compatibility**
 
 **Challenge:** Different operator versions send different report formats.
 
 **Solution:**
-- **Column Detection:** Dynamically detect columns and add missing ones
-  ```python
-  STORAGE_NEWV_COLUMNS_AND_TYPES = {
-      "node": pd.StringDtype(storage="pyarrow"),
-      "csi_driver": pd.StringDtype(storage="pyarrow"),
-      "csi_volume_handle": pd.StringDtype(storage="pyarrow"),
-  }
+- **Column Detection:** Dynamically detect columns and add missing ones with appropriate data types
+  - Define expected columns with types (e.g., `node`, `csi_driver`, `csi_volume_handle`)
+  - Check if columns exist in DataFrame
+  - Add missing columns as empty Series with correct dtype
+- **Operator Version Tracking:** Store `operator_version` in manifest for compatibility checks
+- **Daily Report Detection:** Use `operator_daily_reports` flag to handle old operators that send cumulative reports
 
-  def add_new_columns(df):
-      for col, dtype in STORAGE_NEWV_COLUMNS_AND_TYPES.items():
-          if col not in df.columns:
-              df[col] = pd.Series(dtype=dtype)
-      return df
-  ```
-- **Operator Version Tracking:** Store `operator_version` in manifest
-- **Daily Report Detection:** Handle old operators that send cumulative reports
+**Implementation:** See column detection in [`ocp_report_parquet_processor.py`](../../koku/masu/processor/ocp/ocp_report_parquet_processor.py)
 
 ### **7. Infrastructure Matching Race Condition**
 
@@ -1524,40 +888,17 @@ GROUP BY
 
 ### **Test Data Generation**
 
-```python
-def create_test_ocp_report(cluster_id, start_date, num_pods=10, num_hours=24):
-    """Generate test OCP pod usage CSV."""
-    data = []
-    for hour in range(num_hours):
-        timestamp = start_date + timedelta(hours=hour)
-        for pod_num in range(num_pods):
-            data.append({
-                "report_period_start": start_date.strftime("%Y-%m-%d"),
-                "report_period_end": (start_date + timedelta(days=30)).strftime("%Y-%m-%d"),
-                "interval_start": timestamp.isoformat() + "Z",
-                "interval_end": (timestamp + timedelta(hours=1)).isoformat() + "Z",
-                "namespace": f"namespace-{pod_num % 3}",
-                "pod": f"pod-{pod_num}",
-                "node": f"node-{pod_num % 5}",
-                "resource_id": f"i-{pod_num:012d}",
-                "pod_usage_cpu_core_seconds": random.uniform(1000, 3000),
-                "pod_request_cpu_core_seconds": 3600,
-                "pod_limit_cpu_core_seconds": 7200,
-                "pod_usage_memory_byte_seconds": random.uniform(1e10, 3e10),
-                "pod_request_memory_byte_seconds": 2.68e10,
-                "pod_limit_memory_byte_seconds": 5.37e10,
-                "node_capacity_cpu_cores": 8,
-                "node_capacity_cpu_core_seconds": 28800,
-                "node_capacity_memory_bytes": 32212254720,
-                "node_capacity_memory_byte_seconds": 115964116992000,
-                "pod_labels": json.dumps({"app": f"app-{pod_num % 2}", "env": "prod"}),
-                "node_role": "worker"
-            })
+For testing OCP processing, generate synthetic CSV reports with realistic data:
 
-    df = pd.DataFrame(data)
-    df.to_csv(f"pod_usage_{start_date.strftime('%Y-%m-%d')}.csv", index=False)
-    return df
-```
+**Structure:**
+- Create hourly intervals for specified date range
+- Generate multiple pods across namespaces and nodes
+- Include CPU/memory usage, requests, limits
+- Add node capacity metrics
+- Include JSON labels for testing label processing
+- Set node roles and resource IDs
+
+**Output:** CSV file with proper OCP report structure for testing pipeline
 
 ### **Key Test Scenarios**
 

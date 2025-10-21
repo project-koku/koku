@@ -225,55 +225,30 @@ BaseSerializer (base validation logic)
 
 ### Serializer Composition
 
-Each provider's query parameter serializer composes the four sub-serializers:
-
-```python
-class AWSQueryParamSerializer(ReportQueryParamSerializer):
-    """Serializer for AWS query parameters."""
-
-    GROUP_BY_SERIALIZER = AWSGroupBySerializer
-    ORDER_BY_SERIALIZER = AWSOrderBySerializer
-    FILTER_SERIALIZER = AWSFilterSerializer
-    EXCLUDE_SERIALIZER = AWSExcludeSerializer
-
-    # Provider-specific fields
-    delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
-    cost_type = serializers.ChoiceField(choices=AWS_COST_TYPE_CHOICES, required=False)
-```
+Each provider's query parameter serializer (e.g., [`AWSQueryParamSerializer`](../../koku/api/report/aws/serializers.py)) composes the four sub-serializers:
+- `GROUP_BY_SERIALIZER` - Handles group_by parameters
+- `ORDER_BY_SERIALIZER` - Handles order_by parameters
+- `FILTER_SERIALIZER` - Handles filter parameters
+- `EXCLUDE_SERIALIZER` - Handles exclude parameters
+- Provider-specific fields (e.g., `delta`, `cost_type` for AWS)
 
 ### Key Serializer Features
 
 #### 1. Dynamic Field Support
 
-Serializers support dynamic tag and AWS category fields:
-
-```python
-class AWSFilterSerializer(BaseFilterSerializer):
-    _opfields = ("account", "service", "region", "az", "product_family", "org_unit_id")
-    _aws_category = True  # Enable AWS category dynamic fields
-
-    # Static fields
-    account = StringOrListField(child=serializers.CharField(), required=False)
-    service = StringOrListField(child=serializers.CharField(), required=False)
-
-    # Dynamic fields are added at runtime:
-    # - tag:app
-    # - tag:environment
-    # - aws_category:project
-```
+Serializers (e.g., [`AWSFilterSerializer`](../../koku/api/report/aws/serializers.py)) support dynamic tag and AWS category fields:
+- Static fields defined in the class (e.g., `account`, `service`, `region`)
+- Dynamic fields added at runtime based on enabled tags and categories
+- Configured via `_opfields` tuple and `_aws_category` flag
+- Dynamic field examples: `tag:app`, `tag:environment`, `aws_category:project`
 
 #### 2. Operator Prefixes
 
-Serializers support operator prefixes for advanced filtering:
-
-```python
-_opfields = ("account", "service", "region")
-
-# Generates fields:
-# - account, and:account, or:account, exact:account
-# - service, and:service, or:service, exact:service
-# - region, and:region, or:region, exact:region
-```
+Serializers support operator prefixes for advanced filtering. Fields listed in `_opfields` automatically generate variants:
+- Base field (e.g., `account`)
+- `and:field` - Intersection operator
+- `or:field` - Union operator
+- `exact:field` - Exact match (no partial matching)
 
 Example API usage:
 ```
@@ -290,19 +265,10 @@ Example API usage:
 - start_date and end_date cannot be used with time_scope_value/time_scope_units
 - order_by requires matching group_by (in most cases)
 
-**Provider-Specific Validations** (in provider serializers):
-```python
-# AWS example
-def validate_group_by(self, value):
-    """Validate AWS-specific group_by rules."""
-    # Org unit validation
-    group_by_params = self.initial_data.get("group_by", {})
-    org_unit_group_keys = ["org_unit_id", "or:org_unit_id"]
-
-    # Cannot mix org_unit_id and or:org_unit_id
-    # Only valid for costs endpoint
-    # Cannot use wildcard with org_unit_id
-```
+**Provider-Specific Validations**: Provider serializers implement custom validation methods (e.g., [`AWSGroupBySerializer.validate_group_by()`](../../koku/api/report/aws/serializers.py)) that enforce provider-specific rules such as:
+- Org unit validation rules (cannot mix `org_unit_id` and `or:org_unit_id`)
+- Endpoint-specific restrictions (e.g., certain fields only valid for costs endpoint)
+- Wildcard usage restrictions
 
 ---
 
@@ -310,131 +276,45 @@ def validate_group_by(self, value):
 
 ### Provider Map Structure
 
-A provider map is a data structure that defines how API parameters map to database operations.
-
-```python
-class AWSProviderMap(ProviderMap):
-    def __init__(self, provider, report_type, schema_name, cost_type, markup_cost="markup_cost"):
-        self._mapping = [
-            {
-                "provider": Provider.PROVIDER_AWS,
-                "alias": "account_alias__account_alias",
-                "annotations": {
-                    "account": "usage_account_id",      # API param -> DB field
-                    "service": "product_code",
-                    "az": "availability_zone",
-                },
-                "filters": {
-                    "account": [
-                        {"field": "account_alias__account_alias", "operation": "icontains"},
-                        {"field": "usage_account_id", "operation": "icontains"},
-                    ],
-                    "service": {"field": "product_code", "operation": "icontains"},
-                },
-                "group_by_options": ["service", "account", "region", "az"],
-                "tag_column": "tags",
-                "aws_category_column": "cost_category",
-                "report_type": {
-                    "costs": {...},
-                    "instance_type": {...},
-                    "storage": {...},
-                },
-                "tables": {"query": AWSCostEntryLineItemDailySummary},
-            }
-        ]
-```
+A provider map ([`AWSProviderMap`](../../koku/api/report/aws/provider_map.py), [`AzureProviderMap`](../../koku/api/report/azure/provider_map.py), etc.) defines how API parameters map to database operations through a `_mapping` dictionary containing:
+- **annotations**: Maps API parameter names to database field names (e.g., `account` → `usage_account_id`)
+- **filters**: Defines filter operations and field mappings for each parameter
+- **group_by_options**: Lists valid group_by fields for the provider
+- **tag_column** / **aws_category_column**: Specifies JSON columns for tags and categories
+- **report_type**: Configuration for each report type (costs, instance_type, storage, etc.)
+- **tables**: Database models to query
 
 ### Report Type Configurations
 
-Each report type within a provider map has its own configuration:
-
-```python
-"report_type": {
-    "costs": {
-        "aggregates": {
-            # Django aggregation functions
-            "cost_total": Sum(F("unblended_cost") + F("markup_cost")),
-            "cost_raw": Sum("unblended_cost"),
-            "cost_markup": Sum("markup_cost"),
-        },
-        "annotations": {
-            # Per-row annotations
-            "cost_units": Coalesce("currency_code", Value("USD")),
-            "account": F("usage_account_id"),
-        },
-        "filter": [
-            # Static filters for this report type
-        ],
-        "cost_units_key": "currency_code",
-        "cost_units_fallback": "USD",
-        "sum_columns": ["cost_total", "infra_total", "sup_total"],
-        "default_ordering": {"cost_total": "desc"},
-    }
-}
-```
+Each report type within a provider map has its own configuration (see [provider_map.py files](../../koku/api/report/)) containing:
+- **aggregates**: Django ORM aggregation functions (e.g., `Sum`, `Max`, `Avg`) for query-level aggregations
+- **annotations**: Per-row field annotations using Django F() expressions and functions
+- **filter**: Static filters applied to all queries for this report type
+- **cost_units_key** / **cost_units_fallback**: Currency configuration
+- **sum_columns**: Columns that should be summed in responses
+- **default_ordering**: Default sort order for results
 
 ### View Selection
 
-Provider maps include a `views` dictionary that selects optimized database views based on group_by parameters:
-
-```python
-self.views = {
-    "costs": {
-        "default": AWSCostSummaryP,                           # No group_by
-        ("account",): AWSCostSummaryByAccountP,              # group_by[account]
-        ("region",): AWSCostSummaryByRegionP,                # group_by[region]
-        ("account", "region"): AWSCostSummaryByRegionP,      # group_by[account][region]
-        ("service",): AWSCostSummaryByServiceP,              # group_by[service]
-    }
-}
-```
+Provider maps include a `views` dictionary ([see provider_map.py files](../../koku/api/report/)) that selects optimized database views based on group_by parameters.
 
 **How it works**:
 1. Query handler determines which parameters are in group_by
 2. Creates a tuple of sorted group_by keys: `("account", "service")`
 3. Looks up that tuple in the views dictionary
-4. Uses the corresponding database view for optimal performance
+4. Uses the corresponding optimized database view/table for better query performance
+
+Examples: `default` view for no grouping, `AWSCostSummaryByAccountP` for `group_by[account]`, etc.
 
 ### Filter Composition
 
-Provider maps support complex filter definitions:
-
-```python
-"filters": {
-    "account": [
-        {
-            "field": "account_alias__account_alias",
-            "operation": "icontains",
-            "composition_key": "account_filter"
-        },
-        {
-            "field": "usage_account_id",
-            "operation": "icontains",
-            "composition_key": "account_filter"
-        },
-    ]
-}
-```
-
-This creates an **OR** filter: `(account_alias__icontains=X) | (usage_account_id__icontains=X)`
+Provider maps support complex filter definitions where a single API parameter can map to multiple database fields. Filters sharing the same `composition_key` are combined with OR logic, allowing searches across multiple fields (e.g., searching "account" can match either `account_alias__account_alias` OR `usage_account_id`).
 
 ### Aggregations and Annotations
 
-**Aggregates**: Applied to the entire queryset (GROUP BY level)
-```python
-"aggregates": {
-    "cost_total": Sum(F("unblended_cost") + F("markup_cost")),
-    "usage": Sum("usage_amount"),
-}
-```
+**Aggregates**: Applied to the entire queryset at the GROUP BY level using Django ORM functions like `Sum()`, `Max()`, `Avg()`. Example: summing `unblended_cost` and `markup_cost` for total cost.
 
-**Annotations**: Applied per-row before grouping
-```python
-"annotations": {
-    "cost_units": Coalesce("currency_code", Value("USD")),
-    "date": TruncDay("usage_start"),
-}
-```
+**Annotations**: Applied per-row before grouping using Django F() expressions and functions like `Coalesce()`, `TruncDay()`, etc. Example: normalizing currency codes or truncating dates.
 
 ---
 
@@ -456,98 +336,20 @@ QueryHandler (base query logic)
 
 ### Query Handler Initialization
 
-```python
-class AWSReportQueryHandler(ReportQueryHandler):
-    provider = Provider.PROVIDER_AWS
-
-    def __init__(self, parameters):
-        # Initialize provider map
-        kwargs = {
-            "provider": self.provider,
-            "report_type": parameters.report_type,
-            "schema_name": parameters.tenant.schema_name,
-            "cost_type": parameters.cost_type,
-        }
-        self._mapper = AWSProviderMap(**kwargs)
-
-        # Set group_by options from provider map
-        self.group_by_options = self._mapper.provider_map.get("group_by_options")
-
-        # Call parent
-        super().__init__(parameters)
-```
+Query handlers ([`AWSReportQueryHandler`](../../koku/api/report/aws/query_handler.py), etc.) initialize by:
+1. Creating a provider map instance with request parameters (provider, report_type, schema_name, cost_type)
+2. Extracting group_by options from the provider map
+3. Calling parent `ReportQueryHandler` initialization
 
 ### Query Building Process
 
-1. **Determine Query Table**
-   ```python
-   query_table = self._mapper.query_table  # From provider map
-   ```
+The query handler builds Django ORM queries through several steps (see [`ReportQueryHandler`](../../koku/api/report/query_handler.py)):
 
-2. **Build Annotations**
-   ```python
-   @property
-   def annotations(self):
-       annotations = {
-           "date": self.date_trunc("usage_start"),
-           "currency_annotation": Value(self.currency),
-       }
-       # Add group_by fields
-       for param in group_by_params:
-           if db_field := fields.get(param):
-               annotations[param] = F(db_field)
-       # Add tag annotations
-       for tag_db_name, _, original_tag in self._tag_group_by:
-           annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
-       return annotations
-   ```
-
-3. **Build Filters**
-   ```python
-   def _get_filter(self, delta=False):
-       filters = QueryFilterCollection()
-
-       # Time range filters
-       filters.add(field="usage_start__gte", value=start_date)
-       filters.add(field="usage_start__lte", value=end_date)
-
-       # User-provided filters
-       for key, value in self.parameters.get("filter", {}).items():
-           filter_config = self._mapper.filters.get(key)
-           filters.add(field=filter_config["field"],
-                      operation=filter_config["operation"],
-                      value=value)
-
-       return filters
-   ```
-
-4. **Apply Group By**
-   ```python
-   def _get_group_by(self):
-       group_by = []
-       for param in self.parameters.get("group_by", {}).keys():
-           if db_field := self._mapper.annotations.get(param):
-               group_by.append(db_field)
-       return group_by
-   ```
-
-5. **Execute Query**
-   ```python
-   def execute_query(self):
-       query = self.query_table.objects.filter(
-           self._get_filter()
-       ).annotate(
-           **self.annotations
-       ).values(
-           *self._get_group_by()
-       ).annotate(
-           **self._mapper.aggregates
-       ).order_by(
-           self.order
-       )
-
-       return self._format_query_response(query)
-   ```
+1. **Determine Query Table**: Selects the appropriate database model/view from the provider map
+2. **Build Annotations**: Creates field annotations for dates, currency, group_by fields, and tags using Django F() expressions
+3. **Build Filters**: Constructs QueryFilterCollection with time range and user-provided filters from the provider map
+4. **Apply Group By**: Extracts group_by fields from parameters and maps them to database fields
+5. **Execute Query**: Chains Django ORM operations (filter → annotate → values → annotate → order_by) and formats the response
 
 ### Response Formatting
 
@@ -597,91 +399,30 @@ Query handlers transform Django QuerySet results into API response format:
 
 ### View Structure
 
-```python
-class AWSView(ReportView):
-    """AWS Base View."""
-    permission_classes = [AwsAccessPermission | AWSOUAccessPermission]
-    provider = Provider.PROVIDER_AWS
-    serializer = AWSQueryParamSerializer
-    query_handler = AWSReportQueryHandler
-    tag_providers = [Provider.PROVIDER_AWS]
-
-
-class AWSCostView(AWSView):
-    """Get cost data."""
-    report = "costs"
-
-
-class AWSInstanceTypeView(AWSView):
-    """Get instance type data."""
-    report = "instance_type"
-
-
-class AWSStorageView(AWSView):
-    """Get storage data."""
-    report = "storage"
-```
+Views ([`AWSView`](../../koku/api/report/aws/view.py), etc.) inherit from `ReportView` and configure:
+- **permission_classes**: Access control (e.g., `AwsAccessPermission`)
+- **provider**: Provider constant (e.g., `Provider.PROVIDER_AWS`)
+- **serializer**: Query parameter serializer class
+- **query_handler**: Query handler class
+- **tag_providers**: List of provider types for tag queries
+- **report**: Report type string (e.g., "costs", "instance_type", "storage")
 
 ### ReportView Base Class
 
-The `ReportView` base class provides common functionality:
-
-```python
-class ReportView(APIView):
-    def get(self, request, **kwargs):
-        # 1. Parse and validate parameters
-        params = QueryParameters(request=request, caller=self, **kwargs)
-
-        # 2. Create query handler
-        handler = self.query_handler(params)
-
-        # 3. Execute query
-        output = handler.execute_query()
-
-        # 4. Apply pagination
-        paginator = get_paginator(params, handler.max_rank)
-        paginated_result = paginator.paginate_queryset(output, request)
-
-        # 5. Return response
-        return paginator.get_paginated_response(paginated_result)
-```
+The [`ReportView`](../../koku/api/report/view.py) base class provides common GET request handling:
+1. Parse and validate parameters using `QueryParameters` and the configured serializer
+2. Create query handler instance with validated parameters
+3. Execute query via `handler.execute_query()`
+4. Apply pagination to results
+5. Return paginated response
 
 ### URL Configuration
 
-Views are registered in `koku/api/urls.py`:
-
-```python
-urlpatterns = [
-    path(
-        "reports/aws/costs/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS,
-                  cache=CacheEnum.api,
-                  key_prefix=AWS_CACHE_PREFIX)(
-            AWSCostView.as_view()
-        ),
-        name="reports-aws-costs",
-    ),
-    path(
-        "reports/aws/instance-types/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS,
-                  cache=CacheEnum.api,
-                  key_prefix=AWS_CACHE_PREFIX)(
-            AWSInstanceTypeView.as_view()
-        ),
-        name="reports-aws-instance-type",
-    ),
-]
-```
+Views are registered in [`koku/api/urls.py`](../../koku/api/urls.py) using Django's `path()` function. Each endpoint is wrapped with caching middleware (`cache_page()`) for performance, using provider-specific cache prefixes.
 
 ### Permissions
 
-Each view specifies permission classes:
-
-```python
-permission_classes = [AwsAccessPermission | AWSOUAccessPermission]
-```
-
-Permissions are checked before view execution and control:
+Each view specifies permission classes (e.g., `AwsAccessPermission | AWSOUAccessPermission`) that are checked before view execution to control:
 - Which providers a user can access
 - Which accounts/projects/subscriptions are visible
 - Whether specific features are enabled
@@ -698,169 +439,73 @@ Let's trace a sample request through the system:
 
 #### Step 1: URL Routing
 
-```python
-# urls.py matches: "reports/aws/costs/"
-# Calls: AWSCostView.as_view()
-```
+Django URLs router matches `"reports/aws/costs/"` and routes to `AWSCostView.as_view()`
 
 #### Step 2: View Processing
 
-```python
-# AWSCostView inherits from AWSView:
-# - provider = Provider.PROVIDER_AWS
-# - report = "costs"
-# - serializer = AWSQueryParamSerializer
-# - query_handler = AWSReportQueryHandler
-```
+`AWSCostView` inherits configuration from `AWSView`:
+- provider = Provider.PROVIDER_AWS
+- report = "costs"
+- serializer = AWSQueryParamSerializer
+- query_handler = AWSReportQueryHandler
 
 #### Step 3: Parameter Extraction
 
-```python
-# QueryParameters extracts:
-params = {
-    "group_by": {"account": "*"},
-    "filter": {"region": "us-east-1"},
-    "order_by": {"cost_total": "desc"},
-    "report_type": "costs",  # from view
-    "provider": "AWS",       # from view
-}
-```
+`QueryParameters` extracts and structures request parameters:
+- group_by: {"account": "*"}
+- filter: {"region": "us-east-1"}
+- order_by: {"cost_total": "desc"}
+- report_type: "costs" (from view)
+- provider: "AWS" (from view)
 
 #### Step 4: Serializer Validation
 
-```python
-# AWSQueryParamSerializer validates:
-serializer = AWSQueryParamSerializer(data=params)
-serializer.is_valid(raise_exception=True)
-
-# Validates via:
-# - AWSFilterSerializer (region field)
-# - AWSGroupBySerializer (account field)
-# - AWSOrderBySerializer (cost_total field)
-
-# Returns validated data
-```
+`AWSQueryParamSerializer` validates the parameters using nested serializers:
+- `AWSFilterSerializer` validates the region filter
+- `AWSGroupBySerializer` validates the account group_by
+- `AWSOrderBySerializer` validates the cost_total ordering
+- Returns validated data or raises validation errors
 
 #### Step 5: Query Handler Initialization
 
-```python
-handler = AWSReportQueryHandler(params)
-
-# Initializes:
-# - AWSProviderMap(provider="AWS", report_type="costs", ...)
-# - Determines query_table from provider map
-# - Sets up group_by_options, annotations, filters
-```
+`AWSReportQueryHandler` initializes with validated parameters:
+- Creates `AWSProviderMap` instance with provider, report_type, schema, and cost_type
+- Determines query table/view from provider map
+- Sets up group_by options, annotations, and filters
 
 #### Step 6: Provider Map Lookup
 
-```python
-# Provider map returns for report_type="costs":
-{
-    "aggregates": {
-        "cost_total": Sum(F("unblended_cost") + F("markup_cost")),
-        ...
-    },
-    "annotations": {
-        "account": F("usage_account_id"),
-        "date": TruncMonth("usage_start"),
-        ...
-    },
-    "filters": {
-        "region": {"field": "region", "operation": "icontains"},
-    },
-    "sum_columns": ["cost_total"],
-    "default_ordering": {"cost_total": "desc"},
-}
-
-# View selection for group_by=(account,):
-query_table = AWSCostSummaryByAccountP
-```
+Provider map returns configuration for report_type="costs":
+- **Aggregates**: Cost calculations (sum of unblended + markup)
+- **Annotations**: Field mappings (account → usage_account_id, date truncation)
+- **Filters**: Region filter configuration with "icontains" operation
+- **View selection**: Selects `AWSCostSummaryByAccountP` for group_by=(account,)
 
 #### Step 7: Query Building
 
-```python
-# handler.execute_query() builds:
-query = AWSCostSummaryByAccountP.objects.filter(
-    usage_start__gte=start_date,
-    usage_start__lte=end_date,
-    region__icontains="us-east-1"
-).annotate(
-    date=TruncMonth("usage_start"),
-    account=F("usage_account_id"),
-    currency_annotation=Value("USD")
-).values(
-    "date",
-    "account"
-).annotate(
-    cost_total=Sum(F("unblended_cost") + F("markup_cost")),
-    cost_raw=Sum("unblended_cost"),
-    cost_markup=Sum("markup_cost")
-).order_by(
-    "-cost_total"
-)
-```
+`handler.execute_query()` builds Django ORM query chain:
+1. Filter by date range and region (icontains match)
+2. Annotate with date (month truncation), account, currency
+3. Group by date and account using `.values()`
+4. Aggregate costs (total, raw, markup)
+5. Order by cost_total descending
 
 #### Step 8: Query Execution
 
-```python
-# Django ORM executes SQL:
-SELECT
-    DATE_TRUNC('month', usage_start) AS date,
-    usage_account_id AS account,
-    SUM(unblended_cost + markup_cost) AS cost_total,
-    SUM(unblended_cost) AS cost_raw,
-    SUM(markup_cost) AS cost_markup
-FROM reporting_awscostsummarybyaccountp
-WHERE usage_start >= '2025-01-01'
-  AND usage_start <= '2025-01-31'
-  AND region ILIKE '%us-east-1%'
-GROUP BY DATE_TRUNC('month', usage_start), usage_account_id
-ORDER BY cost_total DESC;
-```
+Django ORM translates to SQL:
+- SELECT with DATE_TRUNC, SUM aggregations
+- FROM appropriate summary table
+- WHERE clauses for date range and region (ILIKE)
+- GROUP BY date and account
+- ORDER BY cost_total DESC
 
 #### Step 9: Response Formatting
 
-```python
-# handler._format_query_response() transforms QuerySet to:
-{
-    "data": [
-        {
-            "date": "2025-01",
-            "accounts": [
-                {
-                    "account": "123456789012",
-                    "values": [{
-                        "date": "2025-01",
-                        "cost": {
-                            "total": {"value": 5000.00, "units": "USD"},
-                            "raw": {"value": 4000.00, "units": "USD"},
-                            "markup": {"value": 1000.00, "units": "USD"}
-                        }
-                    }]
-                }
-            ]
-        }
-    ],
-    "meta": {
-        "count": 1,
-        "filter": {"region": "us-east-1"},
-        "group_by": {"account": "*"},
-        "order_by": {"cost_total": "desc"}
-    }
-}
-```
+`handler._format_query_response()` transforms QuerySet into nested API response structure with date-based grouping, account arrays, and cost breakdowns (total, raw, markup) with units.
 
 #### Step 10: Pagination and Response
 
-```python
-# ReportView applies pagination:
-paginator = get_paginator(params, max_rank=1)
-paginated_result = paginator.paginate_queryset(output, request)
-
-# Returns HTTP response with pagination links
-return paginator.get_paginated_response(paginated_result)
-```
+`ReportView` applies pagination using `get_paginator()`, paginates the queryset, and returns HTTP response with pagination links (first, next, previous, last).
 
 ---
 
@@ -970,152 +615,48 @@ return paginator.get_paginated_response(paginated_result)
 
 ### Step 1: Define the Data Model
 
-Ensure your database models are in place:
-```python
-# reporting/provider/aws/models.py
-class AWSNewReportSummary(models.Model):
-    usage_start = models.DateField()
-    usage_account_id = models.CharField()
-    custom_field = models.DecimalField()
-    cost = models.DecimalField()
-    # ... other fields
-```
+Ensure your database models are in place in [`reporting/provider/aws/models.py`](../../koku/reporting/provider/aws/models.py) with required fields (usage_start, account fields, custom metrics, cost fields).
 
 ### Step 2: Create Serializers
 
-```python
-# koku/api/report/aws/serializers.py
-
-class AWSNewReportFilterSerializer(BaseFilterSerializer):
-    """Filter serializer for new report."""
-    _opfields = ("custom_field",)
-    custom_field = StringOrListField(child=serializers.CharField(), required=False)
-
-
-class AWSNewReportGroupBySerializer(GroupSerializer):
-    """Group by serializer for new report."""
-    _opfields = ("custom_field",)
-    custom_field = StringOrListField(child=serializers.CharField(), required=False)
-
-
-class AWSNewReportQueryParamSerializer(AWSQueryParamSerializer):
-    """Query parameter serializer for new report."""
-    FILTER_SERIALIZER = AWSNewReportFilterSerializer
-    GROUP_BY_SERIALIZER = AWSNewReportGroupBySerializer
-```
+Create filter, group_by, and query parameter serializers in [`serializers.py`](../../koku/api/report/aws/serializers.py):
+- Extend `BaseFilterSerializer` and `GroupSerializer` for your custom fields
+- Set `_opfields` tuple for operator support
+- Create top-level serializer extending `AWSQueryParamSerializer`
+- Reference your filter and group_by serializers
 
 ### Step 3: Update Provider Map
 
-```python
-# koku/api/report/aws/provider_map.py
-
-class AWSProviderMap(ProviderMap):
-    def __init__(self, ...):
-        self._mapping = [
-            {
-                "provider": Provider.PROVIDER_AWS,
-                "report_type": {
-                    # ... existing report types ...
-
-                    "new_report": {
-                        "aggregates": {
-                            "cost_total": Sum("cost"),
-                            "custom_total": Sum("custom_field"),
-                        },
-                        "annotations": {
-                            "account": F("usage_account_id"),
-                            "custom": F("custom_field"),
-                            "cost_units": Value("USD"),
-                        },
-                        "filter": [],
-                        "group_by": [],
-                        "cost_units_key": "currency_code",
-                        "sum_columns": ["cost_total", "custom_total"],
-                        "default_ordering": {"cost_total": "desc"},
-                        "tables": {"query": AWSNewReportSummary},
-                    },
-                },
-            }
-        ]
-
-        # Add view selection
-        self.views = {
-            # ... existing views ...
-            "new_report": {
-                "default": AWSNewReportSummary,
-                ("custom_field",): AWSNewReportByCustomFieldSummary,
-            },
-        }
-```
+Update [`provider_map.py`](../../koku/api/report/aws/provider_map.py) to add new report type configuration:
+- Add report type key to `report_type` dictionary
+- Define aggregates (Sum, Max, etc. for your metrics)
+- Define annotations (field mappings)
+- Specify sum_columns and default_ordering
+- Add view selection mapping in `self.views`
 
 ### Step 4: Create Query Handler (if needed)
 
-Most reports can use the existing `AWSReportQueryHandler`. Create a custom one only if you need special logic:
-
-```python
-# koku/api/report/aws/query_handler.py
-
-class AWSNewReportQueryHandler(AWSReportQueryHandler):
-    """Query handler for new report type."""
-
-    def execute_query(self):
-        """Custom query execution if needed."""
-        # Add custom logic here
-        return super().execute_query()
-```
+Most reports can use the existing `AWSReportQueryHandler`. Create a custom one in [`query_handler.py`](../../koku/api/report/aws/query_handler.py) only if you need special logic.
 
 ### Step 5: Create View
 
-```python
-# koku/api/report/aws/view.py
-
-class AWSNewReportView(AWSView):
-    """Get new report data."""
-    report = "new_report"
-    serializer = AWSNewReportQueryParamSerializer  # if custom
-    query_handler = AWSNewReportQueryHandler  # if custom
-```
+Create view class in [`view.py`](../../koku/api/report/aws/view.py):
+- Extend `AWSView` (or appropriate provider base)
+- Set `report` attribute to your report type string
+- Optionally override `serializer` and `query_handler` if custom
 
 ### Step 6: Register URL
 
-```python
-# koku/api/urls.py
-
-urlpatterns = [
-    # ... existing patterns ...
-    path(
-        "reports/aws/new-report/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS,
-            cache=CacheEnum.api,
-            key_prefix=AWS_CACHE_PREFIX
-        )(AWSNewReportView.as_view()),
-        name="reports-aws-new-report",
-    ),
-]
-```
+Add URL pattern to [`koku/api/urls.py`](../../koku/api/urls.py) using Django's `path()` function, wrapping the view with `cache_page()` for caching.
 
 ### Step 7: Add Tests
 
-```python
-# koku/api/report/test/aws/test_views.py
-
-class AWSNewReportViewTest(IamTestCase):
-    """Test AWS new report view."""
-
-    def test_execute_query_default(self):
-        """Test default query."""
-        url = reverse("reports-aws-new-report")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
-
-    def test_execute_query_with_group_by(self):
-        """Test query with group_by."""
-        url = reverse("reports-aws-new-report")
-        url += "?group_by[custom_field]=*"
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
-```
+Create test class in [`koku/api/report/test/aws/test_views.py`](../../koku/api/report/test/aws/test_views.py):
+- Extend `IamTestCase` for authentication setup
+- Test default query (no parameters)
+- Test with group_by, filters, ordering
+- Verify response structure and status codes
+- Test error cases and edge conditions
 
 ### Step 8: Update OpenAPI Spec
 

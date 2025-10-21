@@ -75,57 +75,29 @@ costCategory                    # JSON string of cost categories
 }
 ```
 
-**Code Reference:**
-```python:438:454:koku/masu/external/downloader/aws/aws_report_downloader.py
-if not key.endswith(".json"):
-    file_names, date_range = create_daily_archives(
-        self.tracing_id,
-        self.account,
-        self._provider_uuid,
-        full_file_path,
-        s3_filename,
-        manifest_id,
-        start_date,
-        self.context,
-        self.ingress_reports,
-    )
-```
+**Implementation:** See [`koku/masu/external/downloader/aws/aws_report_downloader.py`](../../koku/masu/external/downloader/aws/aws_report_downloader.py) - `get_manifest_context_for_date()` method
 
 #### **1.2 File Download**
-**File:** `aws_report_downloader.py:download_file()`
 
-```python
-# Key operations:
+**Implementation:** See [`koku/masu/external/downloader/aws/aws_report_downloader.py`](../../koku/masu/external/downloader/aws/aws_report_downloader.py) - `download_file()` and `_check_size()` methods
+
+**Key operations:**
 1. Check disk space availability (including decompressed size)
-2. Download .csv.gz from S3 to local temp storage
+2. Download `.csv.gz` from S3 to local temp storage
 3. Validate file via S3 ETag (skip if already downloaded)
-4. Store in: /tmp/{customer_name}/aws/{bucket}/{filename}
-```
+4. Store in: `/tmp/{customer_name}/aws/{bucket}/{filename}`
 
-**Disk Space Calculation:**
-```python:227:274:koku/masu/external/downloader/aws/aws_report_downloader.py
-def _check_size(self, s3key, check_inflate=False):
-    # Get compressed size
-    s3fileobj = self.s3_client.get_object(Bucket=self.bucket, Key=s3key)
-    size = int(s3fileobj.get("ContentLength", -1))
-
-    free_space = shutil.disk_usage(self.download_path)[2]
-
-    # For .gz files, read last 4 bytes to get uncompressed size
-    if ext == ".gz" and check_inflate:
-        resp = self.s3_client.get_object(
-            Bucket=self.bucket, Key=s3key,
-            Range=f"bytes={size - 4}-{size}"
-        )
-        isize = struct.unpack("<I", resp["Body"].read(4))[0]
-```
+**Disk Space Check:**
+- Reads last 4 bytes of gzip file to get uncompressed size
+- Compares against available disk space before downloading
 
 ---
 
 ### **Phase 2: Daily Archive Creation**
 
 #### **2.1 CSV Splitting by Date**
-**File:** `aws_report_downloader.py:create_daily_archives()`
+
+**Implementation:** See [`koku/masu/external/downloader/aws/aws_report_downloader.py`](../../koku/masu/external/downloader/aws/aws_report_downloader.py) - `create_daily_archives()` function
 
 **Why Split?**
 - AWS CUR contains data for entire month (30-31 days)
@@ -135,36 +107,12 @@ def _check_size(self, s3key, check_inflate=False):
   - Parallel processing
   - Efficient date-range queries
 
-**Processing Flow:**
-```python:124:169:koku/masu/external/downloader/aws/aws_report_downloader.py
-# Read CSV in chunks using pandas
-with pd.read_csv(
-    local_file,
-    chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,  # 200,000 rows
-    usecols=lambda x: x in use_cols,  # Only needed columns
-    dtype=pd.StringDtype(storage="pyarrow"),  # PyArrow backend
-) as reader:
-    for i, data_frame in enumerate(reader):
-        # Extract unique dates from identity/TimeInterval column
-        intervals = data_frame[time_interval].unique()
-
-        for interval in intervals:
-            date = interval.split("T")[0]  # Extract YYYY-MM-DD
-            csv_date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
-
-            # Filter to process_date forward (incremental processing)
-            if csv_date >= process_date and csv_date <= end_date:
-                dates.add(date)
-
-        # Write daily files
-        for date in dates:
-            daily_data = data_frame[data_frame[time_interval].str.match(date)]
-            day_file = f"{date}_manifestid-{manifest_id}_basefile-{base_name}_batch-{i}.csv"
-            daily_data.to_csv(day_filepath, index=False, header=True)
-
-            # Upload to S3 immediately
-            copy_local_report_file_to_s3_bucket(...)
-```
+**How It Works:**
+1. Read CSV in chunks (200,000 rows via pandas)
+2. Extract dates from `identity/TimeInterval` column
+3. Filter rows by date
+4. Write separate daily CSV files
+5. Upload to S3 immediately (streaming upload)
 
 **Output Structure:**
 ```
@@ -176,26 +124,10 @@ org1234567/aws/csv/
 ```
 
 #### **2.2 Column Selection & Optimization**
-**File:** `masu/util/aws/common.py`
 
-```python:35:147:koku/masu/util/aws/common.py
-RECOMMENDED_COLUMNS = {
-    "bill/BillingEntity",
-    "bill/BillType",
-    "bill/PayerAccountId",
-    # ... 80+ columns
-}
+**Implementation:** See [`koku/masu/util/aws/common.py`](../../koku/masu/util/aws/common.py) - `RECOMMENDED_COLUMNS` and `OPTIONAL_COLS`
 
-OPTIONAL_COLS = {
-    "product/physicalCores",
-    "product/instanceType",
-    "product/vcpu",
-    "product/memory",
-    "product/operatingSystem",
-}
-```
-
-**Column Detection Logic:**
+**How It Works:**
 - Check first row of CSV for column format (slash vs underscore)
 - AWS uses two formats:
   - `bill/PayerAccountId` (older format)
@@ -217,100 +149,35 @@ OPTIONAL_COLS = {
 - **Partitioning:** Efficient filtering by source/year/month
 - **Trino optimization:** Native Parquet support
 
-**Conversion Process:**
-```python:519:576:koku/masu/processor/parquet/parquet_report_processor.py
-# Read CSV column headers first
-col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
+**Implementation:** See [`koku/masu/processor/parquet/parquet_report_processor.py`](../../koku/masu/processor/parquet/parquet_report_processor.py) - `convert_csv_to_parquet()` method
 
-# Get data type converters (e.g., parse dates, convert decimals)
-csv_converters, kwargs = self.post_processor.get_column_converters(col_names, kwargs)
-
-# Process CSV in chunks
-with pd.read_csv(
-    csv_filename,
-    converters=csv_converters,
-    chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,  # 200k rows
-    **kwargs
-) as reader:
-    for i, data_frame in enumerate(reader):
-        parquet_filename = f"{base_name}_{i}.parquet"
-
-        # Apply transformations (dates, numerics, normalization)
-        data_frame, daily_frames = self.post_processor.process_dataframe(
-            data_frame, parquet_base_filename
-        )
-
-        # Write parquet with specific settings
-        data_frame.to_parquet(
-            file_path,
-            allow_truncated_timestamps=True,
-            coerce_timestamps="ms",
-            index=False
-        )
-
-        # Upload to S3 with metadata
-        copy_data_to_s3_bucket(
-            self.tracing_id, s3_path, file_name, fin,
-            metadata={"ManifestId": str(self.manifest_id)}
-        )
-```
+**How It Works:**
+1. Read CSV column headers
+2. Get data type converters (dates, decimals, etc.)
+3. Process CSV in chunks (200k rows)
+4. Apply transformations per chunk
+5. Write Parquet files with timestamp coercion
+6. Upload to S3 with manifest metadata
 
 #### **3.2 Data Type Handling**
-**File:** `aws_report_parquet_processor.py`
 
-```python:20:45:koku/masu/processor/aws/aws_report_parquet_processor.py
-numeric_columns = [
-    "lineitem_normalizationfactor",
-    "lineitem_normalizedusageamount",
-    "lineitem_usageamount",
-    "lineitem_unblendedcost",
-    "lineitem_unblendedrate",
-    "lineitem_blendedcost",
-    "lineitem_blendedrate",
-    "savingsplan_savingsplaneffectivecost",
-    "pricing_publicondemandrate",
-    "pricing_publicondemandcost",
-]
+**Implementation:** See [`koku/masu/processor/aws/aws_report_parquet_processor.py`](../../koku/masu/processor/aws/aws_report_parquet_processor.py)
 
-date_columns = [
-    "lineitem_usagestartdate",
-    "lineitem_usageenddate",
-    "bill_billingperiodstartdate",
-    "bill_billingperiodenddate",
-]
-
-boolean_columns = ["resource_id_matched"]
-```
-
-**Parquet Schema Generation:**
-- Numeric → `DOUBLE` (Trino)
-- Date → `TIMESTAMP` (Trino)
-- Boolean → `BOOLEAN` (Trino)
+**Type Conversions:**
+- Numeric columns (costs, usage amounts) → `DOUBLE` (Trino)
+- Date columns (usage dates, billing periods) → `TIMESTAMP` (Trino)
+- Boolean columns (resource_id_matched) → `BOOLEAN` (Trino)
 - Everything else → `VARCHAR` (Trino)
 
 #### **3.3 Trino Table Creation**
-**File:** `report_parquet_processor_base.py`
 
-```python
-CREATE TABLE IF NOT EXISTS hive.org1234567.aws_line_items_daily (
-    lineitem_usagestartdate timestamp,
-    lineitem_usageenddate timestamp,
-    lineitem_usageaccountid varchar,
-    lineitem_productcode varchar,
-    lineitem_usageamount double,
-    lineitem_unblendedcost double,
-    resourcetags varchar,
-    costcategory varchar,
-    -- ... 100+ columns
-    source varchar,
-    year varchar,
-    month varchar
-) WITH (
-    external_location = 's3a://koku-bucket/org1234567/aws/parquet/',
-    format = 'PARQUET',
-    partitioned_by = ARRAY['source', 'year', 'month']
-)
-```
+**Implementation:** See [`koku/masu/processor/parquet/report_parquet_processor_base.py`](../../koku/masu/processor/parquet/report_parquet_processor_base.py)
+
+**Table Configuration:**
+- External table pointing to S3 Parquet files
+- Partitioned by `source`, `year`, `month` for efficient querying
+- Column types match Parquet schema
+- Format: `PARQUET`
 
 **Partition Structure in S3:**
 ```
@@ -332,214 +199,61 @@ org1234567/aws/parquet/
 #### **4.1 Daily Summary Table Population**
 **File:** `aws_report_parquet_summary_updater.py`
 
+**Implementation:** See [`koku/masu/processor/aws/aws_report_parquet_summary_updater.py`](../../koku/masu/processor/aws/aws_report_parquet_summary_updater.py) - `update_summary_tables()` method
+
 **Process:**
-```python:48:142:koku/masu/processor/aws/aws_report_parquet_summary_updater.py
-def update_summary_tables(self, start_date, end_date, **kwargs):
-    # 1. Get cost model markup
-    markup = cost_model_accessor.markup
-    markup_value = float(markup.get("value", 0)) / 100  # 10% = 0.10
-
-    # 2. Find existing billing records
-    bills = accessor.bills_for_provider_uuid(provider_uuid, start_date)
-    bill_id = bills.first().id
-
-    # 3. Process in 5-day chunks (TRINO_DATE_STEP)
-    for start, end in date_range_pair(start_date, end_date, step=5):
-        # 3a. DELETE existing summary data for date range
-        accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-            provider_uuid, start, end, filters={"cost_entry_bill_id": bill_id}
-        )
-
-        # 3b. INSERT new summary data via Trino
-        accessor.populate_line_item_daily_summary_table_trino(
-            start, end, provider_uuid, bill_id, markup_value
-        )
-
-        # 3c. Populate UI summary tables (costs by service, region, etc.)
-        accessor.populate_ui_summary_tables(start, end, provider_uuid)
-
-    # 4. Populate tag and category summaries
-    accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
-    accessor.populate_category_summary_table(bill_ids, start_date, end_date)
-
-    # 5. Apply tag mappings (for custom tag groupings)
-    accessor.update_line_item_daily_summary_with_tag_mapping(
-        start_date, end_date, bill_ids
-    )
-```
+1. Get cost model markup (if configured)
+2. Find existing billing records
+3. Process in 5-day chunks (TRINO_DATE_STEP):
+   - DELETE existing summary data for date range
+   - INSERT new summary data via Trino query
+   - Populate UI summary tables (costs by service, region, etc.)
+4. Populate tag and category summaries
+5. Apply tag mappings (for custom tag groupings)
 
 #### **4.2 Trino SQL Query**
-**File:** `trino_sql/aws/reporting_awscostentrylineitem_daily_summary.sql`
 
-**Query Structure:**
-```sql:82:157:koku/masu/database/trino_sql/aws/reporting_awscostentrylineitem_daily_summary.sql
--- Step 1: Aggregate raw Parquet data by day
-SELECT
-    date(lineitem_usagestartdate) as usage_start,
-    lineitem_usageaccountid as usage_account_id,
-    lineitem_productcode as product_code,
-    product_region as region,
-    product_instancetype as instance_type,
-    resourcetags as tags,
+**Implementation:** See [`koku/masu/database/trino_sql/aws/reporting_awscostentrylineitem_daily_summary.sql`](../../koku/masu/database/trino_sql/aws/reporting_awscostentrylineitem_daily_summary.sql)
 
-    -- Aggregate usage
-    sum(CASE
-        WHEN lineitem_lineitemtype='SavingsPlanNegation' THEN 0.0
-        ELSE lineitem_usageamount
-    END) as usage_amount,
+**Query Operations:**
+1. **Aggregate raw Parquet data:**
+   - Group by date, account, product, region, tags
+   - Sum usage amounts and costs (unblended, blended, savings plan)
+   - Calculate amortized costs (handles Savings Plans logic)
+   - Track distinct resource IDs
 
-    -- Aggregate costs
-    sum(lineitem_unblendedcost) as unblended_cost,
-    sum(lineitem_blendedcost) as blended_cost,
-    sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
+2. **Apply transformations:**
+   - Filter tags to only enabled keys using `map_filter()`
+   - Apply markup costs (if configured)
+   - Join account aliases and organizational units
 
-    -- Calculate amortized cost (handles Savings Plans)
-    sum(CASE
-        WHEN lineitem_lineitemtype IN (
-            'SavingsPlanCoveredUsage', 'SavingsPlanNegation',
-            'SavingsPlanUpfrontFee', 'SavingsPlanRecurringFee'
-        ) THEN savingsplan_savingsplaneffectivecost
-        ELSE lineitem_unblendedcost
-    END) as calculated_amortized_cost,
-
-    -- Resource tracking
-    array_agg(DISTINCT lineitem_resourceid) as resource_ids,
-    count(DISTINCT lineitem_resourceid) as resource_count
-
-FROM hive.org1234567.aws_line_items_daily
-WHERE source = 'abc-123-provider-uuid'
-    AND year = '2025'
-    AND month = '01'
-    AND lineitem_usagestartdate >= TIMESTAMP '2025-01-01'
-    AND lineitem_usagestartdate < TIMESTAMP '2025-01-06'
-
-GROUP BY
-    date(lineitem_usagestartdate),
-    lineitem_usageaccountid,
-    lineitem_productcode,
-    product_region,
-    resourcetags,
-    product_instancetype,
-    pricing_unit
-```
-
-**Step 2: Apply transformations and insert into PostgreSQL:**
-```sql:37:81:koku/masu/database/trino_sql/aws/reporting_awscostentrylineitem_daily_summary.sql
--- Filter tags to only enabled keys
-map_filter(
-    cast(json_parse(tags) as map(varchar, varchar)),
-    (k,v) -> contains(enabled_keys, k)
-) as tags,
-
--- Apply markup costs
-cast(unblended_cost * 0.10 AS decimal(24,9)) as markup_cost,
-cast(blended_cost * 0.10 AS decimal(33,15)) as markup_cost_blended,
-
--- Join account aliases
-LEFT JOIN postgres.org1234567.reporting_awsaccountalias AS aa
-    ON usage_account_id = aa.account_id
-
--- Join organizational units
-LEFT JOIN postgres.org1234567.reporting_awsorganizationalunit AS ou
-    ON aa.id = ou.account_alias_id
-```
-
-**Performance Optimizations:**
-- Partition pruning: `WHERE year = '2025' AND month = '01'`
-- Only enabled tags extracted (map_filter)
-- Distinct resource IDs tracked efficiently (array_agg)
-- Chunked processing (5-day windows)
+3. **Performance optimizations:**
+   - Partition pruning: `WHERE year = '2025' AND month = '01'`
+   - Column-level reads (Parquet columnar format)
+   - Chunked processing (5-day windows)
 
 ---
 
 ### **Phase 5: Database Storage**
 
 #### **5.1 PostgreSQL Summary Table**
+
 **Table:** `reporting_awscostentrylineitem_daily_summary`
 
-**Structure:**
-```sql
-CREATE TABLE reporting_awscostentrylineitem_daily_summary (
-    id BIGSERIAL PRIMARY KEY,
-    uuid UUID UNIQUE,
-    cost_entry_bill_id INTEGER,
-    usage_start DATE,
-    usage_end DATE,
-    usage_account_id VARCHAR(50),
-    product_code VARCHAR,
-    product_family VARCHAR,
-    region VARCHAR,
-    availability_zone VARCHAR(50),
-    instance_type VARCHAR,
+**Key Fields:**
+- **Identifiers:** uuid, cost_entry_bill_id, usage_account_id, source_uuid
+- **Time:** usage_start, usage_end
+- **Resources:** product_code, region, availability_zone, instance_type
+- **Usage:** usage_amount, resource_count, resource_ids[]
+- **Costs:** unblended_cost, blended_cost, savingsplan_effective_cost, calculated_amortized_cost
+- **Markup:** markup_cost (all cost types)
+- **Metadata:** tags (JSONB), cost_category (JSONB), account_alias_id, organizational_unit_id
 
-    -- Usage metrics
-    usage_amount NUMERIC(24,9),
-    normalization_factor NUMERIC,
-    normalized_usage_amount NUMERIC(24,9),
-    resource_count INTEGER,
-    resource_ids TEXT[],
+**Partitioning:** Monthly partitions by `usage_start` date (e.g., `_2025_01`, `_2025_02`)
 
-    -- Cost metrics
-    unblended_cost NUMERIC(24,9),
-    unblended_rate NUMERIC(24,9),
-    blended_cost NUMERIC(24,9),
-    blended_rate NUMERIC(24,9),
-    savingsplan_effective_cost NUMERIC(24,9),
-    calculated_amortized_cost NUMERIC(33,9),
-    public_on_demand_cost NUMERIC(24,9),
-
-    -- Markup costs
-    markup_cost NUMERIC(24,9),
-    markup_cost_blended NUMERIC(33,15),
-    markup_cost_savingsplan NUMERIC(33,15),
-    markup_cost_amortized NUMERIC(33,9),
-
-    -- Metadata
-    tags JSONB,
-    cost_category JSONB,
-    account_alias_id INTEGER,
-    organizational_unit_id INTEGER,
-    source_uuid UUID
-) PARTITION BY RANGE (usage_start);
-```
-
-#### **5.2 Table Partitioning**
-**Monthly partitions for efficient querying:**
-
-```sql
--- Automatic partition creation
-CREATE TABLE reporting_awscostentrylineitem_daily_summary_2025_01
-    PARTITION OF reporting_awscostentrylineitem_daily_summary
-    FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
-
-CREATE TABLE reporting_awscostentrylineitem_daily_summary_2025_02
-    PARTITION OF reporting_awscostentrylineitem_daily_summary
-    FOR VALUES FROM ('2025-02-01') TO ('2025-03-01');
-```
-
-**Benefits:**
-- Query only relevant month(s)
-- Efficient partition pruning
-- Easy data retention (drop old partitions)
-- Parallel index creation
-
-#### **5.3 Indexes**
-```sql
-CREATE INDEX idx_aws_usage_start
-    ON reporting_awscostentrylineitem_daily_summary (usage_start);
-
-CREATE INDEX idx_aws_source_uuid
-    ON reporting_awscostentrylineitem_daily_summary (source_uuid);
-
-CREATE INDEX idx_aws_account_id
-    ON reporting_awscostentrylineitem_daily_summary (usage_account_id);
-
-CREATE INDEX idx_aws_product_code
-    ON reporting_awscostentrylineitem_daily_summary (product_code);
-
-CREATE INDEX idx_aws_tags
-    ON reporting_awscostentrylineitem_daily_summary USING GIN (tags);
-```
+**Indexes:**
+- usage_start, source_uuid, usage_account_id, product_code
+- GIN index on tags (JSONB)
 
 ---
 
@@ -655,45 +369,18 @@ CREATE INDEX idx_aws_tags
 
 ### **Memory Management**
 
-```python
-# Chunked processing prevents OOM
-PARQUET_PROCESSING_BATCH_SIZE = 200,000 rows  # ~100MB in memory
-
-# Example: 10M row file
-# Traditional: Load 10M rows × 150 columns = 15GB RAM ❌
-# Chunked: Load 200k rows × 150 columns = 300MB RAM ✅
-```
+**Chunked processing prevents OOM:**
+- `PARQUET_PROCESSING_BATCH_SIZE = 200,000` rows (~100MB in memory)
+- Traditional approach: Load 10M rows × 150 columns = 15GB RAM ❌
+- Chunked approach: Load 200k rows × 150 columns = 300MB RAM ✅
 
 ### **Optimization Strategies**
 
-1. **Incremental Processing**
-   - Only process dates >= `process_date`
-   - Skip reprocessing completed data
-   - Handle invoice corrections automatically
-
-2. **Parallel Execution**
-   - Multiple files processed simultaneously
-   - Celery workers scale horizontally
-   - Trino distributes query across workers
-
-3. **Smart Column Selection**
-   ```python
-   # Only load needed columns (saves 50%+ memory)
-   usecols=lambda x: x in RECOMMENDED_COLUMNS
-   ```
-
-4. **Partition Pruning**
-   ```sql
-   -- Trino only scans relevant partitions
-   WHERE year = '2025' AND month = '01'
-   -- Skips scanning 11 other months
-   ```
-
-5. **Tag Filtering**
-   ```sql
-   -- Only store enabled tags (reduces JSON size)
-   map_filter(tags, (k,v) -> contains(enabled_keys, k))
-   ```
+1. **Incremental Processing** - Only process dates >= `process_date`, skip reprocessing completed data
+2. **Parallel Execution** - Multiple files processed simultaneously, Celery workers scale horizontally
+3. **Smart Column Selection** - Only load needed columns with `usecols` (saves 50%+ memory)
+4. **Partition Pruning** - Trino scans only relevant partitions (`WHERE year = '2025' AND month = '01'`)
+5. **Tag Filtering** - Only store enabled tags using `map_filter()` to reduce JSON size
 
 ---
 
@@ -701,37 +388,11 @@ PARQUET_PROCESSING_BATCH_SIZE = 200,000 rows  # ~100MB in memory
 
 ### **Common Issues**
 
-1. **Disk Space Exhaustion**
-   ```python
-   # Check before download
-   if not self._check_size(s3key, check_inflate=True):
-       raise AWSReportDownloaderError("Insufficient disk space")
-   ```
-
-2. **Empty Files**
-   ```python
-   # Skip empty dataframes
-   if data_frame.empty:
-       continue
-   ```
-
-3. **Malformed CSV**
-   ```python
-   # Handle bad lines gracefully
-   pd.read_csv(file, on_bad_lines="warn")
-   ```
-
-4. **S3 Access Denied**
-   ```python
-   except ClientError as ex:
-       if ex.response["Error"]["Code"] == "AccessDenied":
-           raise AWSReportDownloaderNoFileError(...)
-   ```
-
-5. **Trino Query Timeout**
-   - Process in 5-day chunks (`TRINO_DATE_STEP`)
-   - Retry with exponential backoff
-   - Monitor query queue depth
+1. **Disk Space Exhaustion** - Check before download using `_check_size()` method
+2. **Empty Files** - Skip empty dataframes during processing
+3. **Malformed CSV** - Handle bad lines gracefully with `on_bad_lines="warn"`
+4. **S3 Access Denied** - Raise `AWSReportDownloaderNoFileError` on AccessDenied errors
+5. **Trino Query Timeout** - Process in 5-day chunks (`TRINO_DATE_STEP`), retry with exponential backoff
 
 ### **Recovery Mechanisms**
 
