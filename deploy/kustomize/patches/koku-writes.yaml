@@ -2,6 +2,9 @@
   path: /objects/0/spec/deployments/-
   value:
     name: api-writes
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
     replicas: ${{KOKU_WRITES_REPLICAS}}
     webServices:
       public:
@@ -9,6 +12,9 @@
       private:
         enabled: false
     podSpec:
+      metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
       image: ${IMAGE}:${IMAGE_TAG}
       initContainers:
         - command:
@@ -151,27 +157,27 @@
           cpu: ${CPU_REQUEST_KOKU_WRITES}
           memory: ${MEMORY_REQUEST_KOKU_WRITES}
       volumeMounts:
-      - name: gcp-credentials
-        mountPath: /etc/gcp
-        readOnly: true
-      - name: tmp-data
-        mountPath: ${TMP_DIR}
+        - name: gcp-credentials
+          mountPath: /etc/gcp
+          readOnly: true
+        - name: tmp-data
+          mountPath: ${TMP_DIR}
       volumes:
-      - name: tmp-data
-        emptyDir: {}
-      - name: gcp-credentials
-        secret:
-          secretName: koku-gcp
-          items:
-            - key: gcp-credentials
-              path: gcp-credentials.json
+        - name: tmp-data
+          emptyDir: {}
+        - name: gcp-credentials
+          secret:
+            secretName: koku-gcp
+            items:
+              - key: gcp-credentials
+                path: gcp-credentials.json
 - op: add
   path: /parameters/-
   value:
     displayName: Minimum replicas
     name: KOKU_WRITES_REPLICAS
     required: true
-    value: '3'
+    value: "3"
 - op: add
   path: /parameters/-
   value:
