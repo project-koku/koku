@@ -363,18 +363,18 @@ org1234567/gcp/parquet/
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  GCP BigQuery Table (Customer Project)                     │
+│  GCP BigQuery Table (Customer Project)                      │
 │  project.dataset.billing_export                             │
 │  ├── Partitioned by _PARTITIONTIME                          │
 │  ├── Continuous updates (hourly/daily)                      │
-│  ├── Columns: service, project, cost, credits, labels...   │
+│  ├── Columns: service, project, cost, credits, labels...    │
 │  └── invoice.month determines billing period                │
 └────────────────┬────────────────────────────────────────────┘
                  │ 1. Query partition metadata
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  MASU Download Worker (BigQuery Client)                    │
-│  ├── Query: SELECT DATE(_PARTITIONTIME), MAX(export_time)  │
+│  MASU Download Worker (BigQuery Client)                     │
+│  ├── Query: SELECT DATE(_PARTITIONTIME), MAX(export_time)   │
 │  ├── Compare with stored export_times in DB                 │
 │  ├── Detect new/updated partitions                          │
 │  └── Create pseudo-manifests for changed partitions         │
@@ -389,18 +389,18 @@ org1234567/gcp/parquet/
 │  WHERE DATE(_PARTITIONTIME) = '2025-01-15'                  │
 │  ├── Process in batches (200k rows)                         │
 │  ├── Write to CSV files locally                             │
-│  └── Files: 202501_2025-01-15_0.csv, _1.csv, _2.csv...     │
+│  └── Files: 202501_2025-01-15_0.csv, _1.csv, _2.csv...      │
 └────────────────┬────────────────────────────────────────────┘
                  │ 3. Split by invoice month & partition date
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  CSV Daily Archives (MinIO/S3)                             │
+│  CSV Daily Archives (MinIO/S3)                              │
 │  org1234567/gcp/csv/                                        │
 │  ├── 202501_2025-01-01_batch_0.csv                          │
 │  ├── 202501_2025-01-15_batch_0.csv                          │
 │  ├── 202501_2025-01-15_batch_1.csv                          │
-│  ├── 202502_2025-02-01_batch_0.csv ← Crossover data!       │
-│  └── 202501_2024-12-31_batch_0.csv ← Credit from prev month│
+│  ├── 202502_2025-02-01_batch_0.csv ← Crossover data!        │
+│  └── 202501_2024-12-31_batch_0.csv ← Credit from prev month │
 └────────────────┬────────────────────────────────────────────┘
                  │ 4. Convert to Parquet
                  ▼
@@ -429,9 +429,9 @@ org1234567/gcp/parquet/
 ┌─────────────────────────────────────────────────────────────┐
 │  Trino Query Engine                                         │
 │  ├── Step 1: Determine invoice month date range             │
-│  │   SELECT min(usage_start), max(usage_start)             │
+│  │   SELECT min(usage_start), max(usage_start)              │
 │  │   WHERE invoice_month = '202501'                         │
-│  │   Result: 2024-12-30 to 2025-02-02 (crossover!)         │
+│  │   Result: 2024-12-30 to 2025-02-02 (crossover!)          │
 │  ├── Step 2: Scan multiple partitions for crossover data    │
 │  │   WHERE year IN ('2024', '2025')                         │
 │  │   AND month IN ('12', '01', '02')                        │
@@ -450,7 +450,7 @@ org1234567/gcp/parquet/
 │  org1234567 schema                                          │
 │  ├── reporting_gcpcostentrylineitem_daily_summary           │
 │  │   ├── 2025_01 partition                                  │
-│  │   │   - Includes crossover data (Dec 30, Feb 1-2)       │
+│  │   │   - Includes crossover data (Dec 30, Feb 1-2)        │
 │  │   │   - All attributed to invoice 202501                 │
 │  │   │   - Credits properly aggregated                      │
 │  │   └── 2025_02 partition                                  │

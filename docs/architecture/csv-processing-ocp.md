@@ -41,16 +41,16 @@ This architecture document provides a comprehensive deep-dive into how Koku proc
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  Customer OpenShift Cluster                                       │
+│  Customer OpenShift Cluster                                      │
 │  ┌─────────────────────────────────────────────────────────────┐ │
-│  │  Prometheus                                                  │ │
+│  │  Prometheus                                                 │ │
 │  │  - Collects pod CPU/memory usage                            │ │
 │  │  - Collects storage (PVC) usage                             │ │
 │  │  - Collects node capacity metrics                           │ │
 │  │  - Stores metrics with labels                               │ │
 │  └────────────────┬────────────────────────────────────────────┘ │
-│                   │ PromQL queries                                │
-│                   ▼                                                │
+│                   │ PromQL queries                               │
+│                   ▼                                              │
 │  ┌─────────────────────────────────────────────────────────────┐ │
 │  │  cost-mgmt-metrics-operator                                 │ │
 │  │  - Queries Prometheus for usage metrics                     │ │
@@ -58,8 +58,8 @@ This architecture document provides a comprehensive deep-dive into how Koku proc
 │  │  - Creates manifest.json with cluster info                  │ │
 │  │  - Packages as tar.gz                                       │ │
 │  │  - Uploads to Red Hat Ingress Service                       │ │
-│  └────────────────┬────────────────────────────────────────────┘ │
-└────────────────────┼────────────────────────────────────────────┘
+│  └─────────────────┬───────────────────────────────────────────┘ │
+└────────────────────┼─────────────────────────────────────────────┘
                      │ HTTPS POST (tar.gz upload)
                      ▼
 ┌──────────────────────────────────────────────────────────────────┐

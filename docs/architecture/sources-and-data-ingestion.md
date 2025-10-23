@@ -55,9 +55,9 @@ Within Koku, **Sources** refers to:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    Platform Sources Service (External)                   │
+│                    Platform Sources Service (External)                  │
 │  - User creates source via UI or API                                    │
-│  - Stores authentication and billing configuration                       │
+│  - Stores authentication and billing configuration                      │
 │  - Emits Kafka events                                                   │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │
@@ -66,7 +66,7 @@ Within Koku, **Sources** refers to:
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         Sources Listener                                 │
+│                         Sources Listener                                │
 │                  (koku/sources/kafka_listener.py)                       │
 │  - Consumes Kafka messages                                              │
 │  - Filters for Cost Management events                                   │
@@ -75,7 +75,7 @@ Within Koku, **Sources** refers to:
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    Message Processors                                    │
+│                    Message Processors                                   │
 │             (koku/sources/kafka_message_processor.py)                   │
 │  - ApplicationMsgProcessor (Application.create, update, destroy)        │
 │  - AuthenticationMsgProcessor (Authentication.create, update)           │
@@ -84,7 +84,7 @@ Within Koku, **Sources** refers to:
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                      Sources Storage                                     │
+│                      Sources Storage                                    │
 │                    (koku/sources/storage.py)                            │
 │  - Saves source details to api_sources table                            │
 │  - Checks if source is ready for provider creation                      │
@@ -93,8 +93,8 @@ Within Koku, **Sources** refers to:
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                     Process Queue                                        │
-│               (In-memory priority queue)                                 │
+│                     Process Queue                                       │
+│               (In-memory priority queue)                                │
 │  - Holds pending operations                                             │
 │  - Orders by priority and timestamp                                     │
 │  - Retries on failure                                                   │
@@ -102,7 +102,7 @@ Within Koku, **Sources** refers to:
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│            Sources Provider Coordinator                                  │
+│            Sources Provider Coordinator                                 │
 │        (koku/sources/sources_provider_coordinator.py)                   │
 │  - Creates Koku Provider from Source                                    │
 │  - Updates existing Provider                                            │
@@ -111,7 +111,7 @@ Within Koku, **Sources** refers to:
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                     Provider Builder                                     │
+│                     Provider Builder                                    │
 │              (koku/api/provider/provider_builder.py)                    │
 │  - Builds Provider object from Source                                   │
 │  - Validates credentials and billing configuration                      │
@@ -121,8 +121,8 @@ Within Koku, **Sources** refers to:
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                        Provider Created                                  │
-│                   (api_provider table)                                   │
+│                        Provider Created                                 │
+│                   (api_provider table)                                  │
 │  - Provider record saved                                                │
 │  - setup_complete = False (initial state)                               │
 │  - polling_timestamp = None                                             │
@@ -130,7 +130,7 @@ Within Koku, **Sources** refers to:
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                   Data Ingestion Begins                                  │
+│                   Data Ingestion Begins                                 │
 │         Orchestrator polls for new providers                            │
 │         Downloads and processes cost/usage data                         │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -432,23 +432,23 @@ This happens in the manifest completion logic when the provider is marked as hav
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         Source Creation                                  │
-│  1. User creates source in Platform Sources                            │
+│                         Source Creation                                 │
+│  1. User creates source in Platform Sources                             │
 │  2. Platform emits Application.create event                             │
-│  3. Platform emits Authentication.create event (except OCP in app)     │
+│  3. Platform emits Authentication.create event (except OCP in app)      │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    Koku Receives Events                                  │
-│  1. Sources Listener filters for Cost Management events                │
-│  2. Message processors save details to api_sources table               │
-│  3. Storage checks if source is ready for provider creation            │
+│                    Koku Receives Events                                 │
+│  1. Sources Listener filters for Cost Management events                 │
+│  2. Message processors save details to api_sources table                │
+│  3. Storage checks if source is ready for provider creation             │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                  Provider Creation (when ready)                          │
+│                  Provider Creation (when ready)                         │
 │  1. Process queue executes create operation                             │
 │  2. Provider Builder creates Koku Provider                              │
 │  3. Provider saved with setup_complete=False                            │
@@ -456,7 +456,7 @@ This happens in the manifest completion logic when the provider is marked as hav
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    Initial Data Ingestion                                │
+│                    Initial Data Ingestion                               │
 │  1. Orchestrator polls for new providers                                │
 │  2. Downloads last N months of cost/usage data                          │
 │  3. Processes and summarizes data                                       │
@@ -465,7 +465,7 @@ This happens in the manifest completion logic when the provider is marked as hav
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    Ongoing Operations                                    │
+│                    Ongoing Operations                                   │
 │  - Daily/hourly polling for new data                                    │
 │  - Process updates when source settings change                          │
 │  - Handle pause/unpause events                                          │
@@ -473,7 +473,7 @@ This happens in the manifest completion logic when the provider is marked as hav
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                      Source Deletion                                     │
+│                      Source Deletion                                    │
 │  1. User deletes source in Platform Sources                             │
 │  2. Platform emits Application.destroy event                            │
 │  3. Koku queues provider deletion                                       │
