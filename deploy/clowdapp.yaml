@@ -17,7 +17,11 @@ objects:
     - rbac
     - sources-api
     deployments:
-    - name: api-reads
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: api-reads
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -138,6 +142,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -194,7 +202,11 @@ objects:
           enabled: false
         public:
           enabled: true
-    - name: api-writes
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: api-writes
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -320,6 +332,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -358,7 +374,11 @@ objects:
           enabled: false
         public:
           enabled: true
-    - name: clowder-api
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-api
       podSpec:
         command:
         - nginx
@@ -390,6 +410,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -421,7 +445,11 @@ objects:
         public:
           apiPath: cost-management
           enabled: true
-    - name: clowder-listener
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-listener
       podSpec:
         command:
         - /bin/bash
@@ -515,6 +543,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -4877,7 +4909,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-subs-extraction
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-subs-extraction
       podSpec:
         command:
         - /bin/bash
@@ -4998,6 +5034,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -5041,7 +5081,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-subs-transmission
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-subs-transmission
       podSpec:
         command:
         - /bin/bash
@@ -5160,6 +5204,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
