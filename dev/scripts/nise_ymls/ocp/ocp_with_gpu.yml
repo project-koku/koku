@@ -1,0 +1,81 @@
+---
+# Example OCP static data file with GPU workloads
+# Use this for local testing of GPU cost reporting in Koku
+generators:
+  - OCPGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      nodes:
+        - node:
+          node_name: gpu-node-1
+          node_labels: label_instance-type:gpu|label_kubernetes_io_arch:amd64|label_nvidia_com_gpu:true
+          cpu_cores: 32
+          memory_gig: 256
+          namespaces:
+            ai-training:
+              namespace_labels: team:ml-ops|environment:production
+              pods:
+                - pod:
+                  pod_name: ml-training-large
+                  cpu_request: 16
+                  mem_request_gig: 128
+                  cpu_limit: 24
+                  mem_limit_gig: 192
+                  pod_seconds: 86400
+                  labels: label_application:pytorch|label_workload:training|label_gpu-type:h100
+                  gpus:
+                    - gpu_model: H100
+                      gpu_memory_capacity_mib: 81920
+                    - gpu_model: H100
+                      gpu_memory_capacity_mib: 81920
+                    - gpu_model: H100
+                      gpu_memory_capacity_mib: 81920
+                    - gpu_model: H100
+                      gpu_memory_capacity_mib: 81920
+                - pod:
+                  pod_name: ml-inference
+                  cpu_request: 4
+                  mem_request_gig: 32
+                  cpu_limit: 8
+                  mem_limit_gig: 64
+                  pod_seconds: 86400
+                  labels: label_application:tensorflow|label_workload:inference|label_gpu-type:a100
+                  gpus:
+                    - gpu_model: A100
+                      gpu_memory_capacity_mib: 40960
+            data-science:
+              namespace_labels: team:data-science|environment:development
+              pods:
+                - pod:
+                  pod_name: jupyter-notebook
+                  cpu_request: 2
+                  mem_request_gig: 16
+                  cpu_limit: 4
+                  mem_limit_gig: 32
+                  pod_seconds: 43200
+                  labels: label_application:jupyter|label_workload:notebook|label_gpu-type:t4
+                  gpus:
+                    - gpu_model: Tesla T4
+                      gpu_memory_capacity_mib: 15360
+        - node:
+          node_name: gpu-node-2
+          node_labels: label_instance-type:gpu|label_kubernetes_io_arch:amd64|label_nvidia_com_gpu:true
+          cpu_cores: 16
+          memory_gig: 128
+          namespaces:
+            ai-research:
+              namespace_labels: team:research|environment:staging
+              pods:
+                - pod:
+                  pod_name: research-workload-1
+                  cpu_request: 8
+                  mem_request_gig: 64
+                  cpu_limit: 12
+                  mem_limit_gig: 96
+                  pod_seconds: 86400
+                  labels: label_application:custom-model|label_workload:training|label_gpu-type:a100
+                  gpus:
+                    - gpu_model: A100
+                      gpu_memory_capacity_mib: 40960
+                    - gpu_model: A100
+                      gpu_memory_capacity_mib: 40960
