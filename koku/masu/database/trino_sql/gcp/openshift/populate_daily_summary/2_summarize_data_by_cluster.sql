@@ -705,8 +705,8 @@ SELECT pds.row_uuid,
     matched_tag,
     {{cloud_provider_uuid}} as source,
     {{ocp_provider_uuid}} as ocp_source,
-    cast(year(usage_start) as varchar) as year,
-    cast(month(usage_start) as varchar) as month,
+    pds.year as year,
+    pds.month as month,
     cast(day(usage_start) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp as pds
 JOIN cte_rankings as r
