@@ -2,6 +2,9 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-worker-subs-extraction
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
     replicas: ${{WORKER_SUBS_EXTRACTION_REPLICAS}}
     webServices:
       public:
@@ -9,6 +12,9 @@
       private:
         enabled: false
     podSpec:
+      metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
       image: ${IMAGE}:${IMAGE_TAG}
       command:
         - /bin/bash
@@ -148,24 +154,24 @@
           cpu: ${CPU_REQUEST_WORKER_SUBS_EXTRACTION}
           memory: ${MEMORY_REQUEST_WORKER_SUBS_EXTRACTION}
       volumeMounts:
-      - mountPath: /var/tmp/masu/
-        name: koku-worker-data
-      - name: gcp-credentials
-        mountPath: /etc/gcp
-        readOnly: true
-      - name: tmp-data
-        mountPath: ${TMP_DIR}
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - name: gcp-credentials
+          mountPath: /etc/gcp
+          readOnly: true
+        - name: tmp-data
+          mountPath: ${TMP_DIR}
       volumes:
-      - name: tmp-data
-        emptyDir: {}
-      - name: koku-worker-data
-        emptyDir: {}
-      - name: gcp-credentials
-        secret:
-          secretName: koku-gcp
-          items:
-            - key: gcp-credentials
-              path: gcp-credentials.json
+        - name: tmp-data
+          emptyDir: {}
+        - name: koku-worker-data
+          emptyDir: {}
+        - name: gcp-credentials
+          secret:
+            secretName: koku-gcp
+            items:
+              - key: gcp-credentials
+                path: gcp-credentials.json
 
 - op: add
   path: /parameters/-
