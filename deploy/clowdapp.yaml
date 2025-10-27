@@ -109,8 +109,6 @@ objects:
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -294,8 +292,6 @@ objects:
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -675,8 +671,6 @@ objects:
               resource: limits.cpu
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: DATE_OVERRIDE
@@ -5651,10 +5645,6 @@ parameters:
   name: VALIDATION_RANGE
   required: true
   value: "5"
-- description: Flag to use account enhanced prometheus metricsworker
-  displayName: Account Enhanced Metrics
-  name: ACCOUNT_ENHANCED_METRICS
-  value: "False"
 - description: Flag to enable/disable caching
   displayName: cached views
   name: CACHED_VIEWS_DISABLED
