@@ -266,18 +266,16 @@ superuser:
 clowdapp: kustomize
 	$(KUSTOMIZE) build deploy/kustomize > deploy/clowdapp.yaml
 
+LOCAL_KUSTOMIZE = $(TESTINGDIR)/kustomize
+KUSTOMIZE = $(or $(wildcard $(LOCAL_KUSTOMIZE)),$(shell which kustomize 2>/dev/null))
+.PHONY: kustomize
 kustomize:
-ifeq (, $(shell which kustomize))
-	@{ \
-	set -e ;\
-	curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash;\
-	mv kustomize $(TESTINGDIR);\
-	}
-KUSTOMIZE=$(TESTINGDIR)/kustomize
-else
-KUSTOMIZE=$(shell which kustomize)
+ifeq ($(KUSTOMIZE),)
+	@echo "Installing kustomize to $(LOCAL_KUSTOMIZE)..."
+	@curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+	@mv kustomize $(LOCAL_KUSTOMIZE)
+KUSTOMIZE = $(LOCAL_KUSTOMIZE)
 endif
-
 ###############################
 ### Docker compose Commands ###
 ###############################
