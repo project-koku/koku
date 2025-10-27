@@ -876,17 +876,15 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
     def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
         """Populate the cluster, node, PVC, and project tables for the cluster."""
-        cluster = self.populate_cluster_table(provider, cluster_id, cluster_alias)
+        cluster_table = self.populate_cluster_table(provider, cluster_id, cluster_alias)
 
         nodes = self.get_nodes_trino(str(provider.uuid), start_date, end_date)
         pvcs = self.get_pvcs_trino(str(provider.uuid), start_date, end_date)
         projects = self.get_projects_trino(str(provider.uuid), start_date, end_date)
 
-        # pvcs = self.match_node_to_pvc(pvcs, projects)
-
-        self.populate_node_table(cluster, nodes)
-        self.populate_pvc_table(cluster, pvcs)
-        self.populate_project_table(cluster, projects)
+        self.populate_node_table(cluster_table, nodes)
+        self.populate_pvc_table(cluster_table, pvcs)
+        self.populate_project_table(cluster_table, projects)
 
     def populate_cluster_table(self, provider, cluster_id, cluster_alias):
         """Get or create an entry in the OCP cluster table."""
@@ -925,21 +923,21 @@ GROUP BY partitions.year, partitions.month, partitions.source
         )
         return cluster
 
-    def populate_node_table(self, cluster, nodes):
+    def populate_node_table(self, cluster_table, nodes):
         """Get or create an entry in the OCP node table."""
 
         LOG.info(
             log_json(
                 msg="populating reporting_ocp_nodes table",
                 schema=self.schema,
-                cluster_id=cluster.cluster_id,
-                cluster_alias=cluster.cluster_alias,
+                cluster_id=cluster_table.cluster_id,
+                cluster_alias=cluster_table.cluster_alias,
             )
         )
 
         for node in nodes:
             tmp_node = OCPNode.objects.filter(
-                node=node[0], resource_id=node[1], node_capacity_cpu_cores=node[2], cluster=cluster
+                node=node[0], resource_id=node[1], node_capacity_cpu_cores=node[2], cluster=cluster_table
             ).first()
             if not tmp_node:
                 OCPNode.objects.create(
@@ -948,7 +946,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
                     node_capacity_cpu_cores=node[2],
                     node_role=node[3],
                     architecture=node[4],
-                    cluster=cluster,
+                    cluster=cluster_table,
                 )
                 continue
 
@@ -957,21 +955,21 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 tmp_node.architecture = node[4]
                 tmp_node.save(update_fields=["node_role", "architecture"])
 
-    def populate_pvc_table(self, cluster, pvcs):
+    def populate_pvc_table(self, cluster_table, pvcs):
         """Get or create an entry in the OCP cluster table."""
 
         LOG.info(
             log_json(
                 msg="populating reporting_ocp_pvcs table",
                 schema=self.schema,
-                cluster_id=cluster.cluster_id,
-                cluster_alias=cluster.cluster_alias,
+                cluster_id=cluster_table.cluster_id,
+                cluster_alias=cluster_table.cluster_alias,
             )
         )
 
         for pvc in pvcs:
             ocppvc = OCPPVC.objects.filter(
-                persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster
+                persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster_table
             ).first()
             if ocppvc:
                 if not ocppvc.csi_volume_handle:
@@ -985,26 +983,26 @@ GROUP BY partitions.year, partitions.month, partitions.source
                         persistent_volume=pvc[0],
                         persistent_volume_claim=pvc[1],
                         csi_volume_handle=pvc[2],
-                        cluster=cluster,
+                        cluster=cluster_table,
                     )
 
                 except IntegrityError as e:
                     LOG.warning(log_json(msg="IntegrityError raised when creating pvc", pvc=pvc), exc_info=e)
 
-    def populate_project_table(self, cluster, projects):
+    def populate_project_table(self, cluster_table, projects):
         """Get or create an entry in the OCP cluster table."""
 
         LOG.info(
             log_json(
                 msg="populating reporting_ocp_projects table",
                 schema=self.schema,
-                cluster_id=cluster.cluster_id,
-                cluster_alias=cluster.cluster_alias,
+                cluster_id=cluster_table.cluster_id,
+                cluster_alias=cluster_table.cluster_alias,
             )
         )
 
         for project in projects:
-            OCPProject.objects.get_or_create(project=project, cluster=cluster)
+            OCPProject.objects.get_or_create(project=project, cluster=cluster_table)
 
     def get_nodes_trino(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
@@ -1075,27 +1073,27 @@ GROUP BY partitions.year, partitions.month, partitions.source
         """Return the cluster entry for a provider UUID."""
         return OCPCluster.objects.filter(provider_id=provider_uuid).first()
 
-    def get_nodes_for_cluster(self, cluster_id):
+    def get_nodes_for_cluster(self, cluster_pk):
         """Get all nodes for an OCP cluster."""
         nodes = (
-            OCPNode.objects.filter(cluster_id=cluster_id).exclude(node__exact="").values_list("node", "resource_id")
+            OCPNode.objects.filter(cluster_id=cluster_pk).exclude(node__exact="").values_list("node", "resource_id")
         )
         nodes = [(node[0], node[1]) for node in nodes]
         return nodes
 
-    def get_pvcs_for_cluster(self, cluster_id):
+    def get_pvcs_for_cluster(self, cluster_pk):
         """Get all nodes for an OCP cluster."""
         pvcs = (
-            OCPPVC.objects.filter(cluster_id=cluster_id)
+            OCPPVC.objects.filter(cluster_id=cluster_pk)
             .exclude(persistent_volume__exact="")
             .values_list("persistent_volume", "persistent_volume_claim", "csi_volume_handle")
         )
         pvcs = [(pvc[0], pvc[1], pvc[2]) for pvc in pvcs]
         return pvcs
 
-    def get_projects_for_cluster(self, cluster_id):
+    def get_projects_for_cluster(self, cluster_pk):
         """Get all nodes for an OCP cluster."""
-        projects = OCPProject.objects.filter(cluster_id=cluster_id).values_list("project")
+        projects = OCPProject.objects.filter(cluster_id=cluster_pk).values_list("project")
         projects = [project[0] for project in projects]
         return projects
 
@@ -1103,14 +1101,14 @@ GROUP BY partitions.year, partitions.month, partitions.source
         """Return a dictionary with 1 or more Clusters topology."""
         topology_list = []
         for provider_uuid in provider_uuids:
-            cluster = self.get_cluster_for_provider(provider_uuid)
-            nodes_tuple = self.get_nodes_for_cluster(cluster.uuid)
-            pvc_tuple = self.get_pvcs_for_cluster(cluster.uuid)
-            project_tuple = self.get_projects_for_cluster(cluster.uuid)
+            cluster_table = self.get_cluster_for_provider(provider_uuid)
+            nodes_tuple = self.get_nodes_for_cluster(cluster_table.uuid)
+            pvc_tuple = self.get_pvcs_for_cluster(cluster_table.uuid)
+            project_tuple = self.get_projects_for_cluster(cluster_table.uuid)
             topology_list.append(
                 {
-                    "cluster_id": cluster.cluster_id,
-                    "cluster_alias": cluster.cluster_alias,
+                    "cluster_id": cluster_table.cluster_id,
+                    "cluster_alias": cluster_table.cluster_alias,
                     "provider_uuid": provider_uuid,
                     "nodes": [node[0] for node in nodes_tuple],
                     "resource_ids": [node[1] for node in nodes_tuple],
