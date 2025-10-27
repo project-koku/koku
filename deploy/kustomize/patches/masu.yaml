@@ -96,8 +96,6 @@
               resource: limits.cpu
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: DATE_OVERRIDE
