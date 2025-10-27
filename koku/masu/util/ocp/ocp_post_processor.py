@@ -127,6 +127,8 @@ class OCPPostProcessor:
             "vm_memory_request_byte_seconds": safe_float,
             "vm_memory_usage_byte_seconds": safe_float,
             "vm_disk_allocated_size_byte_seconds": safe_float,
+            "gpu_memory_capacity_mib": safe_float,
+            "gpu_pod_uptime": safe_float,
             "pod_labels": process_openshift_labels_to_json,
             "persistentvolume_labels": process_openshift_labels_to_json,
             "persistentvolumeclaim_labels": process_openshift_labels_to_json,

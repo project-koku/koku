@@ -46,6 +46,7 @@ class OCPReportTypes(Enum):
     NODE_LABELS = 3
     NAMESPACE_LABELS = 4
     VM_USAGE = 5
+    GPU_USAGE = 6
 
 
 OPERATOR_VERSIONS = {
@@ -288,6 +289,32 @@ VM_AGG = {
     "vm_disk_allocated_size_byte_seconds": ["sum"],
 }
 
+GPU_USAGE_COLUMNS = {
+    "report_period_start",
+    "report_period_end",
+    "interval_start",
+    "interval_end",
+    "node",
+    "namespace",
+    "pod",
+    "gpu_uuid",
+    "gpu_model_name",
+    "gpu_vendor_name",
+    "gpu_memory_capacity_mib",
+    "gpu_pod_uptime",
+}
+
+GPU_GROUP_BY = ["node", "namespace", "pod", "gpu_uuid"]
+
+GPU_AGG = {
+    "report_period_start": ["max"],
+    "report_period_end": ["max"],
+    "gpu_model_name": ["max"],
+    "gpu_vendor_name": ["max"],
+    "gpu_memory_capacity_mib": ["max"],
+    "gpu_pod_uptime": ["sum"],
+}
+
 # new_required_columns are columns that appear in new operator reports.
 # today, we cannot guarantee that all reports received will contain all
 # of these new columns, so this field is used to add the necessary columns
@@ -329,6 +356,13 @@ OCP_REPORT_TYPES = {
         "enum": OCPReportTypes.VM_USAGE,
         "group_by": VM_GROUP_BY,
         "agg": VM_AGG,
+        "new_required_columns": {},
+    },
+    "gpu_usage": {
+        "columns": GPU_USAGE_COLUMNS,
+        "enum": OCPReportTypes.GPU_USAGE,
+        "group_by": GPU_GROUP_BY,
+        "agg": GPU_AGG,
         "new_required_columns": {},
     },
 }
