@@ -464,10 +464,6 @@ parameters:
   required: true
   value: "5"
 
-- description: Flag to use account enhanced prometheus metricsworker
-  displayName: Account Enhanced Metrics
-  name: ACCOUNT_ENHANCED_METRICS
-  value: "False"
 - description: Flag to enable/disable caching
   displayName: cached views
   name: CACHED_VIEWS_DISABLED
