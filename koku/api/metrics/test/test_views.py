@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.metrics import constants as metric_constants
 from api.metrics.constants import get_cost_model_metrics_map
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.models import Provider
@@ -157,7 +158,6 @@ class CostModelMetricsMapViewTest(IamTestCase):
 
     def test_gpu_cost_metric_exists(self):
         """Test that GPU cost model metric is available in the metrics endpoint."""
-        from api.metrics import constants as metric_constants
 
         # Verify constant exists
         self.assertEqual(metric_constants.OCP_GPU_MONTH, "gpu_cost_per_month")
