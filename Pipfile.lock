@@ -3435,12 +3435,12 @@
         },
         "koku-nise": {
             "hashes": [
-                "sha256:5320d860cef1b2da05d3d6a05812fccf2c1201f8dc6db19e892b3137573dde25",
-                "sha256:740ca5d8ee679c286998d75792f95932379e72e8c21329b389ae50a74f6a1001"
+                "sha256:62e2258c4e6930eb8a43d3582d12b3083fde00f9728841269e559495cae2beba",
+                "sha256:76ca6e5874e20e31c46c58e1dfcb23f581126458230a3c4bf4953917bd539001"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.11'",
-            "version": "==5.2.1"
+            "version": "==5.3.1"
         },
         "kombu": {
             "hashes": [
