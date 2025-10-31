@@ -97,3 +97,34 @@ class OCPReportProcessorParquetTest(MasuTestCase):
                 provider=self.ocp_provider_uuid,
             )
             self.assertIsNotNone(report_period.first())
+
+    def test_gpu_report_type_table_name(self):
+        """Test the GPU report type generates correct table names."""
+        report_type = "gpu_usage"
+        s3_path = "/s3/path"
+
+        processor = OCPReportParquetProcessor(
+            self.manifest_id, self.account, s3_path, self.provider_uuid, self.local_parquet, report_type
+        )
+        self.assertEqual(processor._table_name, TRINO_LINE_ITEM_TABLE_MAP[report_type])
+        self.assertEqual(processor._table_name, "openshift_gpu_usage_line_items")
+
+        # Test daily table name
+        s3_path_daily = "/s3/path/daily"
+        processor_daily = OCPReportParquetProcessor(
+            self.manifest_id, self.account, s3_path_daily, self.provider_uuid, self.local_parquet, report_type
+        )
+        self.assertEqual(processor_daily._table_name, TRINO_LINE_ITEM_TABLE_DAILY_MAP[report_type])
+        self.assertEqual(processor_daily._table_name, "openshift_gpu_usage_line_items_daily")
+
+    def test_gpu_report_numeric_columns(self):
+        """Test that GPU numeric columns are included in the processor."""
+        report_type = "gpu_usage"
+        processor = OCPReportParquetProcessor(
+            self.manifest_id, self.account, self.s3_path, self.provider_uuid, self.local_parquet, report_type
+        )
+
+        # Check that GPU-specific numeric columns are in the column_types
+        numeric_columns = processor._column_types["numeric_columns"]
+        self.assertIn("gpu_memory_capacity_mib", numeric_columns)
+        self.assertIn("gpu_pod_uptime", numeric_columns)

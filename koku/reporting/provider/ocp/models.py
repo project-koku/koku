@@ -17,6 +17,7 @@ TRINO_LINE_ITEM_TABLE_MAP = {
     "node_labels": "openshift_node_labels_line_items",
     "namespace_labels": "openshift_namespace_labels_line_items",
     "vm_usage": "openshift_vm_usage_line_items",
+    "gpu_usage": "openshift_gpu_usage_line_items",
 }
 
 TRINO_LINE_ITEM_TABLE_DAILY_MAP = {
@@ -25,6 +26,7 @@ TRINO_LINE_ITEM_TABLE_DAILY_MAP = {
     "node_labels": "openshift_node_labels_line_items_daily",
     "namespace_labels": "openshift_namespace_labels_line_items_daily",
     "vm_usage": "openshift_vm_usage_line_items_daily",
+    "gpu_usage": "openshift_gpu_usage_line_items_daily",
 }
 
 VIEWS = (

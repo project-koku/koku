@@ -21,6 +21,13 @@ generators:
                   mem_limit_gig: 4
                   pod_seconds: 3600
                   labels: label_application:OpenCart|label_stage:Production|label_group:Marketing|label_dashed-key-on-prem:dashed-value|label_vm_kubevirt_io_name:exclude_A||label_exclude:A
+                  gpus:
+                    - gpu:
+                      gpu_model: "Tesla T4"
+                      gpu_memory_capacity_mib: 15360
+                    - gpu:
+                      gpu_model: "Tesla T4"
+                      gpu_memory_capacity_mib: 15360
               volumes:
                 - volume:
                   volume_name: pvc-volume_1
@@ -80,6 +87,10 @@ generators:
                   mem_limit_gig: 4
                   pod_seconds: 3600
                   labels: label_application:Candlepin|label_stage:Development|label_group:Marketing|label_vm_kubevirt_io_name:exclude_B||label_exclude:B
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 40960
               volumes:
                 - volume:
                   volume_name: pvc-volume_3
@@ -180,6 +191,19 @@ generators:
                   mem_limit_gig: 4
                   pod_seconds: 3600
                   labels: label_application:CMSapp|label_stage:Production|label_group:Marketing|label_vm_kubevirt_io_name:fedora|label_excluded:fedora
+                  gpus:
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
               volumes:
                 - volume:
                   volume_name: pvc-volume_7
@@ -230,6 +254,10 @@ generators:
                   mem_limit_gig: 4
                   pod_seconds: 3600
                   labels: label_application:Wordpress|label_stage:Production|label_group:Marketing
+                  gpus:
+                    - gpu:
+                      gpu_model: "Tesla T4"
+                      gpu_memory_capacity_mib: 15360
               volumes:
                 - volume:
                   volume_name: pvc-volume_9
