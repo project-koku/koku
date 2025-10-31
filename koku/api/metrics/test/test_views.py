@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.metrics import constants as metric_constants
 from api.metrics.constants import get_cost_model_metrics_map
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.models import Provider
@@ -154,3 +155,36 @@ class CostModelMetricsMapViewTest(IamTestCase):
         client = APIClient()
         data = client.get(url + "?limit=&offset=" + str(offset), **self.headers).data["data"]
         self.assertEqual([], data)
+
+    def test_gpu_cost_metric_exists(self):
+        """Test that GPU cost model metric is available in the metrics endpoint."""
+
+        # Verify constant exists
+        self.assertEqual(metric_constants.OCP_GPU_MONTH, "gpu_cost_per_month")
+
+        # Verify it's in the choices
+        self.assertIn(metric_constants.OCP_GPU_MONTH, metric_constants.METRIC_CHOICES)
+
+        # Verify it's in the monthly rates
+        self.assertIn(metric_constants.OCP_GPU_MONTH, metric_constants.COST_MODEL_MONTHLY_RATES)
+
+        # Verify it's in the metric map
+        self.assertIn("gpu_cost_per_month", metric_constants.COST_MODEL_METRIC_MAP)
+        gpu_metric = metric_constants.COST_MODEL_METRIC_MAP["gpu_cost_per_month"]
+        self.assertEqual(gpu_metric["label_metric"], "GPU")
+        self.assertEqual(gpu_metric["label_measurement_unit"], "gpu-month")
+        self.assertEqual(gpu_metric["default_cost_type"], "Infrastructure")
+        self.assertEqual(gpu_metric["source_type"], "OCP")
+
+        # Verify it appears in the API endpoint
+        url = reverse("metrics")
+        client = APIClient()
+        params = {"source_type": Provider.PROVIDER_OCP}
+        url = url + "?" + urlencode(params, quote_via=quote_plus) + "&limit=50"
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.data.get("data", [])
+        gpu_metrics = [m for m in data if m.get("metric") == "gpu_cost_per_month"]
+        self.assertEqual(len(gpu_metrics), 1)
+        self.assertEqual(gpu_metrics[0]["label_metric"], "GPU")
