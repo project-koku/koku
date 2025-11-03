@@ -152,14 +152,6 @@ def is_feature_cost_4403_ec2_compute_cost_enabled(account):  # pragma: no cover
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
 
 
-def is_feature_cost_20_openshift_vms_enabled(account):  # pragma: no cover
-    """Should Openshift vms cost be enabled."""
-    unleash_flag = "cost-management.backend.feature_cost_20_openshift_vms"
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
-
-
 def is_customer_cost_model_large(account):  # pragma: no cover
     """Flag the customer as having a large amount of data for cost model updates."""
     account = convert_account(account)
