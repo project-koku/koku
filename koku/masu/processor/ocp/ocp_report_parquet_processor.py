@@ -61,6 +61,8 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             "vm_memory_request_byte_seconds",
             "vm_memory_usage_byte_seconds",
             "vm_disk_allocated_size_byte_seconds",
+            "gpu_memory_capacity_mib",
+            "gpu_pod_uptime",
         ]
         date_columns = ["report_period_start", "report_period_end", "interval_start", "interval_end"]
         column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}
