@@ -21,6 +21,7 @@ LOG = logging.getLogger(__name__)
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
+OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
 
 
 def is_feature_flag_enabled_by_account(account, feature_flag, dev_fallback=False):  # pragma: no cover
@@ -171,3 +172,10 @@ def is_status_api_update_enabled(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_status_api_update_enabled", context)
+
+
+def is_ocp_gpu_cost_model_enabled(account):  # pragma: no cover
+    """Flag to enable GPU cost model calculation for OpenShift."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(OCP_GPU_COST_MODEL_UNLEASH_FLAG, context, fallback_development_true)
