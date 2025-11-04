@@ -14,8 +14,8 @@ create table {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} AS
         AND li.usage_start <= {{end_date}}
         AND value IS NOT NULL
         AND li.pod_labels ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_enabledtagkeys WHERE enabled=true AND provider_type='OCP')
-        AND li.infrastructure_project_raw_cost IS NULL
-        AND li.infrastructure_raw_cost IS NULL
+        AND COALESCE(li.infrastructure_project_raw_cost, 0) = 0
+        AND COALESCE(li.infrastructure_raw_cost, 0) = 0
     GROUP BY key, value, li.report_period_id, li.namespace, li.node
 ;
 
