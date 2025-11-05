@@ -434,9 +434,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
             infrastructure_markup_cost=(
                 (Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))) * markup
             ),
-            infrastructure_project_markup_cost=(
-                (Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))) * markup
-            ),
         )
 
     def populate_distributed_cost_sql(self, start_date, end_date, provider_uuid, distribution_info):

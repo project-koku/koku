@@ -50,7 +50,6 @@ WITH cte_volume_count AS (
     WHERE lids.persistentvolumeclaim IS NOT NULL
         AND lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
-        AND lids.infrastructure_monthly_cost_json IS NULL
     GROUP BY lids.usage_start, lids.cluster_id, lids.namespace
 )
 SELECT uuid_generate_v4(),

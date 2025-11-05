@@ -18,11 +18,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cost_category_id,
     source_uuid,
     infrastructure_raw_cost,
-    infrastructure_project_raw_cost,
     infrastructure_data_in_gigabytes,
     infrastructure_data_out_gigabytes,
-    infrastructure_usage_cost,
-    supplementary_usage_cost,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,
     pod_limit_cpu_core_hours,
@@ -70,11 +67,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
             + coalesce(ocp_gcp.markup_cost, 0)
             + coalesce(ocp_gcp.credit_amount, 0)
         ) AS infrastructure_raw_cost,
-        sum(
-            coalesce(ocp_gcp.unblended_cost ,0)
-            + coalesce(ocp_gcp.markup_cost, 0)
-            + coalesce(ocp_gcp.credit_amount, 0)
-        ) AS infrastructure_project_raw_cost,
         CASE
             WHEN upper(data_transfer_direction) = 'IN' THEN sum(infrastructure_data_in_gigabytes)
             ELSE NULL
@@ -83,8 +75,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
             WHEN upper(data_transfer_direction) = 'OUT' THEN sum(infrastructure_data_out_gigabytes)
             ELSE NULL
         END as infrastructure_data_out_gigabytes,
-        '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost,
-        '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as supplementary_usage_cost,
         0 as pod_usage_cpu_core_hours,
         0 as pod_request_cpu_core_hours,
         0 as pod_limit_cpu_core_hours,

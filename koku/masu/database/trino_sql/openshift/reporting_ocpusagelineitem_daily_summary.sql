@@ -83,7 +83,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     volume_request_storage_gigabyte_months,
     persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
-    infrastructure_usage_cost,
     csi_volume_handle,
     cost_category_id,
     source,
@@ -250,7 +249,6 @@ SELECT null as uuid,
     NULL as volume_request_storage_gigabyte_months,
     NULL as persistentvolumeclaim_usage_gigabyte_months,
     pua.source_uuid,
-    '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
     NULL as csi_volume_handle,
     pua.cost_category_id,
     {{source}} as source,
@@ -374,7 +372,6 @@ SELECT null as uuid,
         ) *
         power(2, -30)) as persistentvolumeclaim_usage_gigabyte_months,
     sua.source_uuid,
-    '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
     sua.csi_volume_handle,
     sua.cost_category_id,
     {{source}} as source,
@@ -616,7 +613,6 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     volume_request_storage_gigabyte_months,
     persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
-    infrastructure_usage_cost,
     cost_category_id
 )
 SELECT uuid(),
@@ -657,7 +653,6 @@ SELECT uuid(),
     volume_request_storage_gigabyte_months,
     persistentvolumeclaim_usage_gigabyte_months,
     cast(source_uuid as UUID),
-    json_parse(infrastructure_usage_cost),
     cost_category_id
 FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE lids.source = {{source}}

@@ -61,7 +61,6 @@ WITH cte_volume_count AS (
         AND lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
         AND lids.volume_labels ? {{tag_key}}
-        AND lids.infrastructure_monthly_cost_json IS NULL
     GROUP BY lids.usage_start, lids.cluster_id, lids.namespace
 ),
 cte_filtered_data AS (
@@ -116,7 +115,6 @@ cte_filtered_data AS (
         AND lids.persistentvolumeclaim IS NOT NULL
         AND lids.data_source = 'Storage'
         AND lids.volume_labels ? {{tag_key}}
-        AND lids.infrastructure_monthly_cost_json IS NULL
         AND monthly_cost_type IS NULL
         AND (
             lids.cost_model_rate_type IS NULL

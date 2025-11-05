@@ -18,9 +18,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     all_labels,
     source_uuid,
     infrastructure_raw_cost,
-    infrastructure_project_raw_cost,
-    infrastructure_usage_cost,
-    supplementary_usage_cost,
     infrastructure_data_in_gigabytes,
     infrastructure_data_out_gigabytes,
     pod_usage_cpu_core_hours,
@@ -65,10 +62,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         END as volume_labels,
         ocp_aws.pod_labels as all_labels,
         rp.provider_id as source_uuid,
-        sum(calculated_amortized_cost + markup_cost_amortized) AS infrastructure_raw_cost,
-        sum(calculated_amortized_cost + markup_cost_amortized) AS infrastructure_project_raw_cost,
-        '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost,
-        '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as supplementary_usage_cost,
+        sum(
+            coalesce(ocp_aws.calculated_amortized_cost, 0)
+            + coalesce(ocp_aws.markup_cost_amortized, 0)
+        ) AS infrastructure_raw_cost,
         CASE
             WHEN upper(data_transfer_direction) = 'IN' THEN sum(infrastructure_data_in_gigabytes)
             ELSE NULL
