@@ -607,6 +607,11 @@ TRINO_PORT = ENVIRONMENT.get_value("TRINO_PORT", default=None)
 TRINO_DATE_STEP = ENVIRONMENT.int("TRINO_DATE_STEP", default=5)
 TRINO_S3A_OR_S3 = ENVIRONMENT.get_value("TRINO_S3A_OR_S3", default="s3a")
 
+# OCP Pipeline Selection
+# Set to True to use PostgreSQL-based pipeline (on-prem)
+# Set to False to use Trino-based pipeline (SaaS default)
+OCP_POSTGRES_PIPELINE = ENVIRONMENT.bool("OCP_POSTGRES_PIPELINE", default=False)
+
 # Time to wait between cold storage retrieval for data export. Default is 3 hours
 COLD_STORAGE_RETRIVAL_WAIT_TIME = ENVIRONMENT.int("COLD_STORAGE_RETRIVAL_WAIT_TIME", default=10800)
 

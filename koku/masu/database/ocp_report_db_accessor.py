@@ -12,6 +12,7 @@ import uuid
 from uuid import uuid4
 
 from dateutil.parser import parse
+from django.db import connection
 from django.db import IntegrityError
 from django.db.models import DecimalField
 from django.db.models import F
@@ -1303,3 +1304,166 @@ GROUP BY partitions.year, partitions.month, partitions.source
                         final_sql_params,
                         operation="INSERT",
                     )
+
+    # ==================== PostgreSQL Pipeline Methods ====================
+
+    def get_enabled_tags(self):
+        """Get enabled tag keys for OCP provider.
+
+        Returns:
+            QuerySet: Enabled tag keys for OCP
+        """
+        from reporting.provider.all.models import EnabledTagKeys
+
+        return EnabledTagKeys.objects.filter(provider_type="OCP", enabled=True)
+
+    def populate_daily_summary_from_staging(
+        self, start_date, end_date, report_period_id, cluster_id, cluster_alias, source_uuid
+    ):
+        """Populate daily summary table from staging tables using PostgreSQL.
+
+        This method calls a PostgreSQL stored function that aggregates data from
+        staging tables into the daily summary table. This is an alternative to
+        the Trino-based aggregation for on-premises deployments.
+
+        Args:
+            start_date (date): Start date for aggregation
+            end_date (date): End date for aggregation
+            report_period_id (int): Report period ID
+            cluster_id (str): Cluster UUID
+            cluster_alias (str): Cluster display name
+            source_uuid (UUID): Provider UUID
+
+        Returns:
+            dict: Statistics about the operation (rows_inserted, rows_deleted)
+        """
+        sql = pkgutil.get_data("masu.database", "sql/openshift/populate_daily_summary_from_staging.sql")
+        sql = sql.decode("utf-8")
+
+        sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_id": report_period_id,
+            "cluster_id": cluster_id,
+            "cluster_alias": cluster_alias,
+            "source_uuid": str(source_uuid),
+        }
+
+        LOG.info(
+            log_json(
+                msg="calling populate_daily_summary_from_staging",
+                context=self.extract_context_from_sql_params(sql_params),
+                pipeline="postgres",
+            )
+        )
+
+        # Prepare SQL with Jinja2 template
+        prepared_sql, bind_params = self.prepare_query(sql, sql_params)
+
+        # Execute the stored function
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(prepared_sql, bind_params)
+            result = cursor.fetchone()
+
+        if result:
+            rows_inserted, rows_deleted = result
+            LOG.info(
+                log_json(
+                    msg="populate_daily_summary_from_staging completed",
+                    rows_inserted=rows_inserted,
+                    rows_deleted=rows_deleted,
+                    context=self.extract_context_from_sql_params(sql_params),
+                    pipeline="postgres",
+                )
+            )
+            return {"rows_inserted": rows_inserted, "rows_deleted": rows_deleted}
+
+        return {"rows_inserted": 0, "rows_deleted": 0}
+
+    def cleanup_staging_tables(self, retention_days=7):
+        """Clean up old staging data that has been processed.
+
+        Drops old partitions from staging tables based on retention policy.
+
+        Args:
+            retention_days (int): Number of days to retain processed data (default: 7)
+
+        Returns:
+            list: List of dropped partition names
+        """
+        from datetime import date
+        from datetime import timedelta
+
+        cutoff_date = date.today() - timedelta(days=retention_days)
+        cutoff_str = cutoff_date.strftime("%Y_%m")
+
+        staging_table_prefixes = [
+            "reporting_ocpusagelineitem_pod_staging",
+            "reporting_ocpusagelineitem_storage_staging",
+            "reporting_ocpusagelineitem_node_labels_staging",
+            "reporting_ocpusagelineitem_namespace_labels_staging",
+            "reporting_ocpusagelineitem_vm_staging",
+        ]
+
+        dropped_partitions = []
+
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+
+            for table_prefix in staging_table_prefixes:
+                # Find old partitions for this table
+                cursor.execute(
+                    """
+                    SELECT tablename FROM pg_tables
+                    WHERE schemaname = %s
+                      AND tablename LIKE %s
+                      AND tablename < %s
+                    """,
+                    [self.schema, f"{table_prefix}_%", f"{table_prefix}_{cutoff_str}"],
+                )
+
+                for (table_name,) in cursor.fetchall():
+                    try:
+                        cursor.execute(f"DROP TABLE IF EXISTS {self.schema}.{table_name}")
+                        dropped_partitions.append(table_name)
+                        LOG.info(
+                            log_json(
+                                msg="dropped old staging partition",
+                                schema=self.schema,
+                                table=table_name,
+                                pipeline="postgres",
+                            )
+                        )
+                    except Exception as e:
+                        LOG.error(
+                            log_json(
+                                msg="error dropping staging partition",
+                                schema=self.schema,
+                                table=table_name,
+                                error=str(e),
+                                pipeline="postgres",
+                            )
+                        )
+
+        if dropped_partitions:
+            LOG.info(
+                log_json(
+                    msg="staging table cleanup completed",
+                    schema=self.schema,
+                    partitions_dropped=len(dropped_partitions),
+                    pipeline="postgres",
+                )
+            )
+        else:
+            LOG.info(
+                log_json(
+                    msg="no old staging partitions to clean up",
+                    schema=self.schema,
+                    cutoff_date=str(cutoff_date),
+                    pipeline="postgres",
+                )
+            )
+
+        return dropped_partitions
