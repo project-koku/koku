@@ -17,7 +17,11 @@ objects:
     - rbac
     - sources-api
     deployments:
-    - name: api-reads
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: api-reads
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -105,8 +109,6 @@ objects:
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -138,6 +140,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -194,7 +200,11 @@ objects:
           enabled: false
         public:
           enabled: true
-    - name: api-writes
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: api-writes
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -282,8 +292,6 @@ objects:
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -320,6 +328,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -358,7 +370,11 @@ objects:
           enabled: false
         public:
           enabled: true
-    - name: clowder-api
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-api
       podSpec:
         command:
         - nginx
@@ -390,6 +406,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -421,7 +441,11 @@ objects:
         public:
           apiPath: cost-management
           enabled: true
-    - name: clowder-listener
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-listener
       podSpec:
         command:
         - /bin/bash
@@ -515,6 +539,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -643,8 +671,6 @@ objects:
               resource: limits.cpu
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: DATE_OVERRIDE
@@ -4877,7 +4903,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-subs-extraction
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-subs-extraction
       podSpec:
         command:
         - /bin/bash
@@ -4998,6 +5028,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -5041,7 +5075,11 @@ objects:
           enabled: false
         public:
           enabled: false
-    - name: clowder-worker-subs-transmission
+    - metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+            1 pod at times for cost saving purposes
+      name: clowder-worker-subs-transmission
       podSpec:
         command:
         - /bin/bash
@@ -5160,6 +5198,10 @@ objects:
           periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
+        metadata:
+          annotations:
+            ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
+              1 pod at times for cost saving purposes
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -5603,10 +5645,6 @@ parameters:
   name: VALIDATION_RANGE
   required: true
   value: "5"
-- description: Flag to use account enhanced prometheus metricsworker
-  displayName: Account Enhanced Metrics
-  name: ACCOUNT_ENHANCED_METRICS
-  value: "False"
 - description: Flag to enable/disable caching
   displayName: cached views
   name: CACHED_VIEWS_DISABLED

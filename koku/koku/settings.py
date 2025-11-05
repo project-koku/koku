@@ -108,14 +108,10 @@ TENANT_APPS = ("reporting", "cost_models")
 TENANT_MULTIPROCESSING_MAX_PROCESSES = ENVIRONMENT.int("TENANT_MULTIPROCESSING_MAX_PROCESSES", default=2)
 TENANT_MULTIPROCESSING_CHUNKS = ENVIRONMENT.int("TENANT_MULTIPROCESSING_CHUNKS", default=2)
 
-ACCOUNT_ENHANCED_METRICS = ENVIRONMENT.bool("ACCOUNT_ENHANCED_METRICS", default=False)
 
 PROMETHEUS_BEFORE_MIDDLEWARE = "django_prometheus.middleware.PrometheusBeforeMiddleware"
 PROMETHEUS_AFTER_MIDDLEWARE = "django_prometheus.middleware.PrometheusAfterMiddleware"
 
-if ACCOUNT_ENHANCED_METRICS:
-    PROMETHEUS_BEFORE_MIDDLEWARE = "koku.middleware.AccountEnhancedMetricsBeforeMiddleware"
-    PROMETHEUS_AFTER_MIDDLEWARE = "koku.middleware.AccountEnhancedMetricsAfterMiddleware"
 
 ### Middleware setup
 MIDDLEWARE = [
