@@ -3,6 +3,9 @@ import django.db.models.deletion
 from django.db import migrations
 from django.db import models
 
+from koku.database import set_pg_extended_mode
+from koku.database import unset_pg_extended_mode
+
 
 class Migration(migrations.Migration):
 
@@ -28,6 +31,7 @@ class Migration(migrations.Migration):
                 null=True,
             ),
         ),
+        migrations.RunPython(code=set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
         migrations.CreateModel(
             name="OCPGpuSummaryP",
             fields=[
@@ -80,4 +84,5 @@ class Migration(migrations.Migration):
                 ],
             },
         ),
+        migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
     ]
