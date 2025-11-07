@@ -1288,8 +1288,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
             },
             metric_constants.OCP_GPU_MONTH: {
                 "log_msg": "populating monthly GPU tag based costs",
-                "file_path": "sql/openshift/cost_model/monthly_cost_gpu.sql",
-                "metric_params": monthly_params,
+                "file_path": "trino_sql/openshift/cost_model/monthly_cost_gpu.sql",
+                "metric_params": {**monthly_params, **cluster_params},
             },
             metric_constants.OCP_PROJECT_MONTH: {
                 "log_msg": "populating monthly project tag costs",
