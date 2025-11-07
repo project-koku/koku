@@ -172,10 +172,3 @@ def is_status_api_update_enabled(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_status_api_update_enabled", context)
-
-
-def is_ocp_gpu_cost_model_enabled(account):  # pragma: no cover
-    """Flag to enable GPU cost model calculation for OpenShift."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(OCP_GPU_COST_MODEL_UNLEASH_FLAG, context, fallback_development_true)

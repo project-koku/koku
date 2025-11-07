@@ -29,7 +29,8 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_ocp_gpu_cost_model_enabled
+from masu.processor import is_feature_flag_enabled_by_account
+from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.util.common import filter_dictionary
 from masu.util.common import trino_table_exists
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -149,6 +150,25 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = pkgutil.get_data("masu.database", f"sql/openshift/ui_summary/{VM_UI_SUMMARY_TABLE}.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(VM_UI_SUMMARY_TABLE, sql, sql_params, operation="DELETE/INSERT")
+
+    def _populate_gpu_summary_tables(self, sql_params):
+        """
+        Populates the GPU summary table from Trino.
+        This runs during initial ingestion to populate gpu_summary_p with usage data (without costs).
+        """
+        if not self.schema_exists_trino():
+            return
+        gpu_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP.get("gpu_usage")
+        if not gpu_table or not trino_table_exists(self.schema, gpu_table):
+            return
+
+        start_date = DateHelper().parse_to_date(sql_params["start_date"])
+        sql_params["year"] = start_date.strftime("%Y")
+        sql_params["month"] = start_date.strftime("%m")
+
+        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocp_gpu_summary_p.sql")
+        sql = sql.decode("utf-8")
+        self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
         """Maps child keys to parent key.
@@ -1291,8 +1311,12 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 continue
 
             # Check Unleash flag for GPU cost model
-            if name == metric_constants.OCP_GPU_MONTH and not is_ocp_gpu_cost_model_enabled(self.schema):
-                continue
+            if name == metric_constants.OCP_GPU_MONTH:
+                if not is_feature_flag_enabled_by_account(
+                    self.schema, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True
+                ):
+                    LOG.info(f"GPU cost model disabled by feature flag for account {self.schema}")
+                    continue
 
             param_list = metric_to_tag_params_map.get(name)
             if not param_list:

@@ -1261,10 +1261,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             mock_psql.assert_called()
 
-    @patch("masu.database.ocp_report_db_accessor.is_ocp_gpu_cost_model_enabled", return_value=False)
+    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_account", return_value=False)
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
-    def test_gpu_cost_model_disabled_by_unleash(self, mock_psql, mock_trino_exists, mock_unleash):
+    def test_gpu_cost_model_disabled_by_unleash(self, mock_psql, mock_trino_exists, mock_feature_flag):
         """Test that GPU cost model is skipped when Unleash flag is disabled."""
         test_mapping = {
             metric_constants.OCP_GPU_MONTH: [
