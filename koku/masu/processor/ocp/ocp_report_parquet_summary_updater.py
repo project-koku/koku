@@ -132,18 +132,6 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 )
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
 
-                # Populate GPU summary table from Trino (usage data without costs)
-                sql_params = {
-                    "start_date": start,
-                    "end_date": end,
-                    "schema": self._schema,
-                    "source_uuid": self._provider.uuid,
-                    "report_period_id": report_period_id,
-                    "cluster_id": self._cluster_id,
-                    "cluster_alias": self._cluster_alias,
-                }
-                accessor._populate_gpu_summary_tables(sql_params)
-
             # This will process POD and STORAGE together
             LOG.info(
                 log_json(

@@ -19,59 +19,88 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     monthly_cost_type,
     cost_category_id
 )
-SELECT uuid_generate_v4(),
-    {{report_period_id}},
+SELECT
+    cast(uuid() as varchar) as uuid,
+    {{report_period_id}} as report_period_id,
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
     'GPU' as data_source,
-    gpu.usage_start,
-    gpu.usage_end,
+    date(gpu.interval_start) as usage_start,
+    date(gpu.interval_start) as usage_end,
     gpu.namespace,
     gpu.node,
     gpu.gpu_uuid as resource_id,
-    jsonb_build_object(
-        'gpu-model', gpu.gpu_model_name,
-        'gpu-vendor', gpu.gpu_vendor_name
-    ) as pod_labels,
-    jsonb_build_object(
-        'gpu-model', gpu.gpu_model_name,
-        'gpu-vendor', gpu.gpu_vendor_name
-    ) as all_labels,
-    gpu.source_uuid,
+    json_format(cast(map(
+        ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'pod-name'],
+        ARRAY[
+            gpu.gpu_model_name,
+            gpu.gpu_vendor_name,
+            CAST(gpu.gpu_memory_capacity_mib AS varchar),
+            gpu.pod
+        ]
+    ) as json)) as pod_labels,
+    json_format(cast(map(
+        ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'pod-name'],
+        ARRAY[
+            gpu.gpu_model_name,
+            gpu.gpu_vendor_name,
+            CAST(gpu.gpu_memory_capacity_mib AS varchar),
+            gpu.pod
+        ]
+    ) as json)) as all_labels,
+    CAST(gpu.source AS varchar) as source_uuid,
     {{rate_type}} AS cost_model_rate_type,
-    -- GPU cost calculation: (rate / amortized_denominator) * gpu_count * (uptime in days)
+    -- GPU cost calculation: (rate / days_in_month) * (uptime_seconds / 86400)
+    -- Formula: daily_rate * uptime_as_fraction_of_day
     {%- if rate is defined %}
-    (CAST({{rate}} AS decimal) / CAST({{amortized_denominator}} as decimal)) * gpu.gpu_count * (gpu.gpu_pod_uptime / 86400.0),
+    (CAST({{rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0),
     {%- elif value_rates is defined %}
     CASE
         {%- for value, value_rate in value_rates.items() %}
-        WHEN gpu.gpu_model_name = {{ value }}
-        THEN (CAST({{ value_rate }} AS decimal) / CAST({{amortized_denominator}} as decimal)) * gpu.gpu_count * (gpu.gpu_pod_uptime / 86400.0)
+        {%- if value.startswith('{') %}
+        {%- set rate_spec = value | from_json %}
+        -- JSON format: {"model": "A100", "vendor": "NVIDIA"}
+        WHEN gpu.gpu_model_name = '{{rate_spec.model}}' AND gpu.gpu_vendor_name = '{{rate_spec.vendor}}'
+        THEN (CAST({{value_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0)
+        {%- else %}
+        -- Simple format: just model name (backward compatible)
+        WHEN gpu.gpu_model_name = {{value}}
+        THEN (CAST({{value_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0)
+        {%- endif %}
         {%- endfor %}
         {%- if default_rate is defined %}
-        ELSE (CAST({{ default_rate }} AS decimal) / CAST({{amortized_denominator}} as decimal)) * gpu.gpu_count * (gpu.gpu_pod_uptime / 86400.0)
+        ELSE (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0)
         {%- endif %}
     END,
     {%- elif default_rate is defined %}
-    CAST({{ default_rate }} AS decimal) / CAST({{amortized_denominator}} as decimal)) * gpu.gpu_count * (gpu.gpu_pod_uptime / 86400.0),
+    (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0),
     {%- else %}
-    CAST(0 as decimal),
+    CAST(0 AS decimal(24,9)),
     {%- endif %}
-    0 as cost_model_memory_cost,
-    0 as cost_model_volume_cost,
+    CAST(0 AS decimal(24,9)) as cost_model_memory_cost,
+    CAST(0 AS decimal(24,9)) as cost_model_volume_cost,
     'Tag' as monthly_cost_type,
-    gpu.cost_category_id
+    cat_ns.cost_category_id
 FROM hive.{{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily AS gpu
-WHERE gpu.usage_start >= DATE({{start_date}})
-  AND gpu.usage_start <= DATE({{end_date}})
-  AND gpu.report_period_id = {{report_period_id}}
-  AND gpu.gpu_model_name IS NOT NULL
-  AND gpu.month = {{month}}
+LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
+    ON gpu.namespace LIKE cat_ns.namespace
+WHERE date(gpu.interval_start) >= DATE({{start_date}})
+  AND date(gpu.interval_start) <= DATE({{end_date}})
+  AND gpu.source = {{source}}
   AND gpu.year = {{year}}
+  AND gpu.month = {{month}}
+  AND gpu.gpu_model_name IS NOT NULL
+  AND gpu.gpu_vendor_name IS NOT NULL
   {%- if value_rates is defined %}
   AND (
       {%- for value, value_rate in value_rates.items() %}
-      {%- if not loop.first %} OR {%- endif %} gpu.gpu_model_name = {{value}}
+      {%- if not loop.first %} OR {%- endif %}
+      {%- if value.startswith('{') %}
+      {%- set rate_spec = value | from_json %}
+      (gpu.gpu_model_name = '{{rate_spec.model}}' AND gpu.gpu_vendor_name = '{{rate_spec.vendor}}')
+      {%- else %}
+      gpu.gpu_model_name = {{value}}
+      {%- endif %}
       {%- endfor %}
   )
   {%- endif %}

@@ -1238,8 +1238,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_psql.assert_called()
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
-    def test_monthly_populate_gpu_tag_based_costs(self, mock_psql, mock_trino_exists):
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_monthly_populate_gpu_tag_based_costs(self, mock_trino_exec, mock_trino_exists):
         """Test monthly population of GPU tag based costs."""
         test_mapping = {
             metric_constants.OCP_GPU_MONTH: [
@@ -1259,12 +1259,12 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 test_mapping,
                 {"cluster_id": "test", "cluster_alias": "test"},
             )
-            mock_psql.assert_called()
+            mock_trino_exec.assert_called()
 
     @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_account", return_value=False)
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
-    def test_gpu_cost_model_disabled_by_unleash(self, mock_psql, mock_trino_exists, mock_feature_flag):
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_gpu_cost_model_disabled_by_unleash(self, mock_trino_exec, mock_trino_exists, mock_feature_flag):
         """Test that GPU cost model is skipped when Unleash flag is disabled."""
         test_mapping = {
             metric_constants.OCP_GPU_MONTH: [
@@ -1284,4 +1284,4 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 {"cluster_id": "test", "cluster_alias": "test"},
             )
             # Should not call SQL execution when flag is disabled
-            mock_psql.assert_not_called()
+            mock_trino_exec.assert_not_called()
