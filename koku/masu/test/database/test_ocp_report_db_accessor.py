@@ -1241,14 +1241,27 @@ class OCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_monthly_populate_gpu_tag_based_costs(self, mock_trino_exec, mock_trino_exists):
         """Test monthly population of GPU tag based costs."""
+        # Each GPU model is a separate entry with its vendor rates
         test_mapping = {
             metric_constants.OCP_GPU_MONTH: [
                 {
                     "rate_type": "Infrastructure",
-                    "tag_key": "gpu_model",
-                    "value_rates": {"Tesla T4": 1000, "A100": 2500},
+                    "tag_key": "Tesla T4",
+                    "value_rates": {"nvidia_com_gpu": 1000},
+                    "default_rate": 1000,
+                },
+                {
+                    "rate_type": "Infrastructure",
+                    "tag_key": "A100",
+                    "value_rates": {"nvidia_com_gpu": 2500},
+                    "default_rate": 2500,
+                },
+                {
+                    "rate_type": "Infrastructure",
+                    "tag_key": "H100",
+                    "value_rates": {"nvidia_com_gpu": 5000},
                     "default_rate": 5000,
-                }
+                },
             ]
         }
         with self.accessor as acc:
@@ -1266,12 +1279,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_gpu_cost_model_disabled_by_unleash(self, mock_trino_exec, mock_trino_exists, mock_feature_flag):
         """Test that GPU cost model is skipped when Unleash flag is disabled."""
+        # Tag key is the GPU model name, value_rates contains vendor rates
         test_mapping = {
             metric_constants.OCP_GPU_MONTH: [
                 {
                     "rate_type": "Infrastructure",
-                    "tag_key": "gpu_model",
-                    "value_rates": {"Tesla T4": 1000},
+                    "tag_key": "Tesla T4",
+                    "value_rates": {"nvidia_com_gpu": 1000},
+                    "default_rate": 1000,
                 }
             ]
         }
