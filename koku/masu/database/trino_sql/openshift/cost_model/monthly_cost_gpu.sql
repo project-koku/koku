@@ -51,21 +51,21 @@ SELECT
     -- GPU cost calculation: (rate / days_in_month) * (uptime_seconds / 86400)
     -- Formula: daily_rate * uptime_as_fraction_of_day
     {%- if rate is defined %}
-    CAST((CAST({{rate}} AS decimal(33,15)) / CAST({{amortized_denominator}} AS decimal(33,15))) * (gpu.gpu_pod_uptime / 86400.0) AS decimal(33,15)),
+    (CAST({{rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0),
     {%- elif value_rates is defined %}
-    CAST(CASE
+    CASE
         {%- for value, value_rate in value_rates.items() %}
         WHEN gpu.gpu_vendor_name = '{{value | sqlsafe}}'
-        THEN (CAST({{value_rate}} AS decimal(33,15)) / CAST({{amortized_denominator}} AS decimal(33,15))) * (gpu.gpu_pod_uptime / 86400.0)
+        THEN (CAST({{value_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0)
         {%- endfor %}
         {%- if default_rate is defined %}
-        ELSE (CAST({{default_rate}} AS decimal(33,15)) / CAST({{amortized_denominator}} AS decimal(33,15))) * (gpu.gpu_pod_uptime / 86400.0)
+        ELSE (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0)
         {%- endif %}
-    END AS decimal(33,15)),
+    END,
     {%- elif default_rate is defined %}
-    CAST((CAST({{default_rate}} AS decimal(33,15)) / CAST({{amortized_denominator}} AS decimal(33,15))) * (gpu.gpu_pod_uptime / 86400.0) AS decimal(33,15)),
+    (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0),
     {%- else %}
-    CAST(0 AS decimal(33,15)),
+    0,
     {%- endif %}
     CAST('Tag' AS varchar) as monthly_cost_type,
     cat_ns.cost_category_id
