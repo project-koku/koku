@@ -1296,7 +1296,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 if not is_feature_flag_enabled_by_account(
                     self.schema, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True
                 ):
-                    LOG.info(f"GPU cost model disabled by feature flag for account {self.schema}")
                     continue
 
             param_list = metric_to_tag_params_map.get(name)

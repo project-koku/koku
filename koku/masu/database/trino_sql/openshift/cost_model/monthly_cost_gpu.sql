@@ -28,7 +28,7 @@ SELECT
     CAST(gpu.namespace AS varchar(253)) as namespace,
     CAST(gpu.node AS varchar(253)) as node,
     CAST(gpu.gpu_uuid AS varchar(253)) as resource_id,
-    CAST(json_format(cast(map(
+    cast(map(
         ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'pod-name'],
         ARRAY[
             gpu.gpu_model_name,
@@ -36,8 +36,8 @@ SELECT
             CAST(gpu.gpu_memory_capacity_mib AS varchar),
             gpu.pod
         ]
-    ) as json)) AS json) as pod_labels,
-    CAST(json_format(cast(map(
+    ) as json) as pod_labels,
+    cast(map(
         ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'pod-name'],
         ARRAY[
             gpu.gpu_model_name,
@@ -45,7 +45,7 @@ SELECT
             CAST(gpu.gpu_memory_capacity_mib AS varchar),
             gpu.pod
         ]
-    ) as json)) AS json) as all_labels,
+    ) as json) as all_labels,
     CAST(gpu.source AS uuid) as source_uuid,
     CAST({{rate_type}} AS varchar) AS cost_model_rate_type,
     -- GPU cost calculation: (rate / days_in_month) * (uptime_seconds / 86400)
@@ -55,7 +55,7 @@ SELECT
     {%- elif value_rates is defined %}
     CASE
         {%- for value, value_rate in value_rates.items() %}
-        WHEN gpu.gpu_vendor_name = '{{value | sqlsafe}}'
+        WHEN gpu.gpu_model_name = '{{value | sqlsafe}}'
         THEN (CAST({{value_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0)
         {%- endfor %}
         {%- if default_rate is defined %}
@@ -77,12 +77,12 @@ WHERE date(gpu.interval_start) >= DATE({{start_date}})
   AND gpu.source = {{source_uuid}}
   AND gpu.year = {{year}}
   AND gpu.month = {{month}}
-  AND gpu.gpu_model_name = '{{tag_key | sqlsafe}}'
+  AND gpu.gpu_vendor_name = '{{tag_key | sqlsafe}}'
   {%- if value_rates is defined %}
   AND (
       {%- for value, value_rate in value_rates.items() %}
       {%- if not loop.first %} OR {%- endif %}
-      gpu.gpu_vendor_name = '{{value | sqlsafe}}'
+      gpu.gpu_model_name = '{{value | sqlsafe}}'
       {%- endfor %}
   )
   {%- endif %}

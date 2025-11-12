@@ -300,49 +300,27 @@
                 "name": "gpu_cost_per_month"
             },
             "tag_rates": {
-                "tag_key": "Tesla T4",
+                "tag_key": "nvidia_com_gpu",
                 "tag_values": [
                     {
                         "unit": "USD",
                         "value": 1000,
-                        "default": true,
-                        "tag_value": "nvidia_com_gpu",
+                        "default": false,
+                        "tag_value": "Tesla T4",
                         "description": "NVIDIA Tesla T4"
-                    }
-                ]
-            },
-            "cost_type": "Infrastructure"
-        },
-        {
-            "metric": {
-                "name": "gpu_cost_per_month"
-            },
-            "tag_rates": {
-                "tag_key": "A100",
-                "tag_values": [
+                    },
                     {
                         "unit": "USD",
                         "value": 2500,
-                        "default": true,
-                        "tag_value": "nvidia_com_gpu",
+                        "default": false,
+                        "tag_value": "A100",
                         "description": "NVIDIA A100"
-                    }
-                ]
-            },
-            "cost_type": "Infrastructure"
-        },
-        {
-            "metric": {
-                "name": "gpu_cost_per_month"
-            },
-            "tag_rates": {
-                "tag_key": "H100",
-                "tag_values": [
+                    },
                     {
                         "unit": "USD",
                         "value": 5000,
                         "default": true,
-                        "tag_value": "nvidia_com_gpu",
+                        "tag_value": "H100",
                         "description": "NVIDIA H100"
                     }
                 ]
