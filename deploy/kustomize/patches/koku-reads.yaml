@@ -1,7 +1,10 @@
-- op: replace  # only koku is replace, all other services are appended to this one
+- op: replace # only koku is replace, all other services are appended to this one
   path: /objects/0/spec/deployments/0
   value:
     name: api-reads
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
     replicas: ${{KOKU_READS_REPLICAS}}
     webServices:
       public:
@@ -9,6 +12,9 @@
       private:
         enabled: false
     podSpec:
+      metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
       image: ${IMAGE}:${IMAGE_TAG}
       env:
         - name: CLOWDER_ENABLED
@@ -96,8 +102,6 @@
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
-        - name: ACCOUNT_ENHANCED_METRICS
-          value: ${ACCOUNT_ENHANCED_METRICS}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -146,38 +150,38 @@
           cpu: ${CPU_REQUEST_KOKU_READS}
           memory: ${MEMORY_REQUEST_KOKU_READS}
       volumeMounts:
-      - name: gcp-credentials
-        mountPath: /etc/gcp
-        readOnly: true
-      - name: tmp-data
-        mountPath: ${TMP_DIR}
-      - mountPath: /etc/db/readreplica
-        name: koku-read-only-db
-        readOnly: true
+        - name: gcp-credentials
+          mountPath: /etc/gcp
+          readOnly: true
+        - name: tmp-data
+          mountPath: ${TMP_DIR}
+        - mountPath: /etc/db/readreplica
+          name: koku-read-only-db
+          readOnly: true
       volumes:
-      - name: tmp-data
-        emptyDir: {}
-      - name: gcp-credentials
-        secret:
-          secretName: koku-gcp
-          items:
-            - key: gcp-credentials
-              path: gcp-credentials.json
-      - name: koku-read-only-db
-        secret:
-          items:
-          - key: db.host
-            path: db_host
-          - key: db.name
-            path: db_name
-          - key: db.password
-            path: db_password
-          - key: db.port
-            path: db_port
-          - key: db.user
-            path: db_user
-          secretName: ${KOKU_READ_ONLY_DB}
-          optional: true
+        - name: tmp-data
+          emptyDir: {}
+        - name: gcp-credentials
+          secret:
+            secretName: koku-gcp
+            items:
+              - key: gcp-credentials
+                path: gcp-credentials.json
+        - name: koku-read-only-db
+          secret:
+            items:
+              - key: db.host
+                path: db_host
+              - key: db.name
+                path: db_name
+              - key: db.password
+                path: db_password
+              - key: db.port
+                path: db_port
+              - key: db.user
+                path: db_user
+            secretName: ${KOKU_READ_ONLY_DB}
+            optional: true
 - op: add
   path: /parameters/-
   value:
@@ -190,7 +194,7 @@
     displayName: Minimum replicas
     name: KOKU_READS_REPLICAS
     required: true
-    value: '3'
+    value: "3"
 - op: add
   path: /parameters/-
   value:
@@ -232,7 +236,7 @@
     displayName: Determine whether the reads API uses the read replica
     name: USE_READREPLICA
     required: true
-    value: 'false'
+    value: "false"
 - op: add
   path: /parameters/-
   value:

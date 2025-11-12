@@ -2,6 +2,9 @@
   path: /objects/0/spec/deployments/-
   value:
     name: clowder-listener
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
     replicas: ${{LISTENER_REPLICAS}}
     webServices:
       public:
@@ -9,6 +12,9 @@
       private:
         enabled: false
     podSpec:
+      metadata:
+        annotations:
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
       image: ${IMAGE}:${IMAGE_TAG}
       command:
         - /bin/bash
@@ -119,24 +125,24 @@
           cpu: ${CPU_REQUEST_LISTENER}
           memory: ${MEMORY_REQUEST_LISTENER}
       volumeMounts:
-      - name: koku-listener-data
-        mountPath: /var/tmp/masu/
-      - name: gcp-credentials
-        mountPath: /etc/gcp
-        readOnly: true
-      - name: tmp-data
-        mountPath: ${TMP_DIR}
+        - name: koku-listener-data
+          mountPath: /var/tmp/masu/
+        - name: gcp-credentials
+          mountPath: /etc/gcp
+          readOnly: true
+        - name: tmp-data
+          mountPath: ${TMP_DIR}
       volumes:
-      - name: tmp-data
-        emptyDir: {}
-      - name: koku-listener-data
-        emptyDir: {}
-      - name: gcp-credentials
-        secret:
-          secretName: koku-gcp
-          items:
-            - key: gcp-credentials
-              path: gcp-credentials.json
+        - name: tmp-data
+          emptyDir: {}
+        - name: koku-listener-data
+          emptyDir: {}
+        - name: gcp-credentials
+          secret:
+            secretName: koku-gcp
+            items:
+              - key: gcp-credentials
+                path: gcp-credentials.json
 
 - op: add
   path: /parameters/-
@@ -144,7 +150,7 @@
     displayName: Minimum replicas
     name: LISTENER_REPLICAS
     required: true
-    value: '2'
+    value: "2"
 - op: add
   path: /parameters/-
   value:

@@ -18,10 +18,8 @@ from django.core.exceptions import PermissionDenied
 from django.db.utils import IntegrityError
 from django.db.utils import OperationalError
 from django.http import JsonResponse
-from django.test.utils import modify_settings
 from django.test.utils import override_settings
 from django.urls import reverse
-from django_prometheus.testutils import save_registry
 from faker import Faker
 from requests.exceptions import ConnectionError
 from rest_framework import status
@@ -34,7 +32,6 @@ from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from koku import middleware as MD
 from koku.cache import CacheEnum
-from koku.middleware import EXTENDED_METRICS
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
@@ -544,29 +541,3 @@ class RequestTimingMiddlewareTest(IamTestCase):
                 if "response_time" in msg:
                     logged = True
             self.assertTrue(logged)
-
-
-class AccountEnhancedMiddlewareTest(IamTestCase):
-    """Test middleware to add account info to Prometheus API metrics."""
-
-    @modify_settings(
-        MIDDLEWARE={
-            "append": "koku.middleware.AccountEnhancedMetricsAfterMiddleware",
-            "prepend": "koku.middleware.AccountEnhancedMetricsBeforeMiddleware",
-            "remove": [
-                "django_prometheus.middleware.PrometheusBeforeMiddleware",
-                "django_prometheus.middleware.PrometheusAfterMiddleware",
-            ],
-        }
-    )
-    def test_label_metric(self):
-        """Test that the metric comes back with the account label."""
-
-        url = reverse("reports-openshift-costs")
-        client = APIClient()
-        client.get(url, **self.headers)
-
-        registry = save_registry()
-        for metric in registry:
-            if metric.name in EXTENDED_METRICS:
-                self.assertIn("account", metric.samples[0].labels)

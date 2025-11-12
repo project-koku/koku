@@ -1,0 +1,229 @@
+# Koku Project Cursor Rules
+
+## General Python Standards
+
+### Code Style
+- Use Python 3.11+ features when appropriate
+- Follow PEP 8 style guidelines
+- Use Black formatting (line length 119 characters as seen in ruff.toml)
+- Use type hints for function parameters and return types
+- Use f-strings for string formatting
+- Use tuple unpacking for multiple context managers: `with (patch(...), patch(...)):`
+
+### Import Organization
+- Standard library imports first
+- Third-party imports second
+- Local application imports last
+- Use absolute imports from project root (e.g., `from masu.external.kafka_msg_handler import ...`)
+- Group related imports and separate with blank lines
+
+### Variable and Function Naming
+- Use descriptive variable names
+- Use snake_case for variables and functions
+- Use UPPER_CASE for constants
+- Prefix private methods with underscore
+
+## Django Patterns
+
+### Model Usage
+- Use Django ORM methods appropriately
+- Handle timezone-aware datetime objects
+- Use select_related() and prefetch_related() for performance
+- Use get_or_create() pattern when appropriate
+
+### Database Operations
+- Use transactions when performing multiple related database operations
+- Handle database exceptions gracefully
+- Use bulk operations for large datasets
+
+## Testing Standards
+
+### Test Organization
+- Place tests in `test/` subdirectories alongside the code being tested
+- Name test files with `test_` prefix
+- Group related tests in test classes
+- Use descriptive test method names that explain what is being tested
+
+### Test Structure
+- Use Django's TestCase for database-related tests
+- Use unittest.mock.patch for mocking external dependencies
+- Use tuple unpacking for multiple patches: `with (patch(...), patch(...)):`
+- Create test matrices for testing multiple scenarios
+- Use subTest() for testing multiple scenarios in a single test method
+
+### Test Data
+- Use model_bakery (baker.make()) for creating test data
+- Create realistic test data that matches production patterns
+- Use temporary directories for file operations in tests
+- Clean up test artifacts (files, directories) after tests
+
+### Assertions
+- Use descriptive assertion messages
+- Test both positive and negative cases
+- Verify mocks were called correctly with assert_called_once(), assert_called_with()
+- Test edge cases and error conditions
+
+### Running Tests
+- Run tests with: `pipenv run tox -- path.to.file`
+- Run specific test methods with: `pipenv run tox -- path.to.file::Class::method`
+- Use coverage reporting to ensure adequate test coverage
+
+## Error Handling
+
+### Exception Patterns
+- Create custom exception classes in dedicated modules (e.g., `exceptions.py`)
+- Use specific exception types rather than generic Exception
+- Include helpful error messages with context
+- Log exceptions with appropriate log levels
+
+### Logging
+- Use structured logging with log_json() utility
+- Include tracing_id for request correlation
+- Log at appropriate levels (DEBUG, INFO, WARNING, ERROR)
+- Include relevant context in log messages
+
+## Code Organization
+
+### File Structure
+- Follow Django app structure with models, views, serializers, etc.
+- Group related functionality in modules
+- Use `__init__.py` files to expose public APIs
+- Keep files focused and reasonably sized (< 1000 lines when possible)
+
+### Class Design
+- Use composition over inheritance where appropriate
+- Keep classes focused on single responsibility
+- Use class methods and static methods appropriately
+- Document complex classes and methods
+
+## Performance Considerations
+
+### Database Optimization
+- Use select_related() for foreign key relationships
+- Use prefetch_related() for many-to-many relationships
+- Avoid N+1 query problems
+- Use database functions when appropriate
+
+### Memory Management
+- Use generators for large datasets
+- Process files in chunks rather than loading entirely into memory
+- Use context managers for resource management
+- Clean up temporary files and resources
+
+## Security Practices
+
+### Input Validation
+- Validate all user inputs
+- Use Django forms and serializers for validation
+- Sanitize file paths and names
+- Check file sizes and types before processing
+
+### Data Handling
+- Use parameterized queries (Django ORM handles this)
+- Validate file uploads thoroughly
+- Handle sensitive data appropriately
+- Use proper authentication and authorization
+
+## API Design
+
+### Serializers
+- Use Django REST Framework serializers
+- Validate input data properly
+- Handle nested relationships appropriately
+- Provide clear error messages for validation failures
+
+### Views
+- Use appropriate HTTP status codes
+- Handle exceptions gracefully
+- Use pagination for large datasets
+- Document API endpoints clearly
+
+## Celery Tasks
+
+### Task Design
+- Keep tasks idempotent when possible
+- Handle task failures gracefully
+- Use appropriate retry strategies
+- Log task progress and completion
+
+### Queue Management
+- Use appropriate queues for different task types
+- Monitor queue health and performance
+- Handle task timeouts appropriately
+
+## File Processing
+
+### Large Files
+- Process files in streaming mode when possible
+- Use temporary directories for file operations
+- Validate file formats before processing
+- Handle empty files gracefully
+
+### Data Processing
+- Use pandas for data manipulation when appropriate
+- Handle CSV parsing errors gracefully
+- Validate data integrity during processing
+- Use appropriate data types for columns
+
+## Documentation
+
+### Code Comments
+- Document complex business logic
+- Explain non-obvious code patterns
+- Include examples for complex functions
+- Keep comments up to date with code changes
+
+### Docstrings
+- Use docstrings for all public functions and classes
+- Follow Google or NumPy docstring conventions
+- Include parameter types and return types
+- Provide usage examples for complex functions
+
+### Architecture Documentation
+- **When making significant code changes, check if architecture docs need updates**
+- Architecture docs are in `docs/architecture/` directory
+- **IMPORTANT:** Docs should LINK to code, not duplicate it
+  - Use relative links: `[function_name](../../path/to/file.py#L123-L145)`
+  - Avoid large code blocks that will become stale
+  - Pseudocode blocks can be used
+  - Explain concepts and flow, reference implementation details
+- Update docs when:
+  - Adding new major features or workflows
+  - Changing data flow or processing pipelines
+  - Modifying API endpoints or serializers
+  - Changing Kafka message handling
+  - Updating Celery tasks or their behavior
+  - Altering cost model logic
+  - Changing database schema or queries
+
+### Key Architecture Docs to Consider:
+- `docs/architecture/celery-tasks.md` - Celery task inventory and scheduling
+- `docs/architecture/sources-and-data-ingestion.md` - Sources system and data flow
+- `docs/architecture/api-serializers-provider-maps.md` - API architecture
+- `docs/architecture/api-settings-endpoints.md` - Settings API endpoints
+- `docs/architecture/cost-models.md` - Cost model system
+- `docs/architecture/csv-processing-aws.md` - AWS data processing
+- `docs/architecture/csv-processing-azure.md` - Azure data processing
+- `docs/architecture/csv-processing-gcp.md` - GCP data processing
+- `docs/architecture/csv-processing-ocp.md` - OpenShift data processing
+
+### Documentation Review Checklist:
+1. Does the code change affect a documented workflow?
+2. Are there new functions/classes that should be linked from docs?
+3. Have any file paths or function names changed that are referenced in docs?
+4. Does the change add new concepts that should be explained?
+5. Are diagrams still accurate after the change?
+
+## Git and Version Control
+
+### Commit Messages
+- Use descriptive commit messages
+- Reference issue numbers when appropriate
+- Keep commits focused on single changes
+- Use conventional commit format when possible
+
+### Branch Management
+- Use feature branches for development
+- Keep branches focused on single features
+- Rebase before merging to maintain clean history
+- Delete merged branches promptly

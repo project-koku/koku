@@ -46,9 +46,11 @@ class OCPReportTypes(Enum):
     NODE_LABELS = 3
     NAMESPACE_LABELS = 4
     VM_USAGE = 5
+    GPU_USAGE = 6
 
 
 OPERATOR_VERSIONS = {
+    "d0bc2c257b15ad2f6d73b4e77badbd9706d1a694": "costmanagement-metrics-operator:4.2.0",
     "c7361974c47522d07a4810fdada6be4f39ecd75d": "costmanagement-metrics-operator:4.1.0",
     "e53f9db7c6e7f995b6aa6100a580dae74162ac3c": "costmanagement-metrics-operator:4.0.0",
     "8e957a5b174639642809df0317b39593532d6fb7": "costmanagement-metrics-operator:3.3.2",
@@ -70,6 +72,7 @@ OPERATOR_VERSIONS = {
     "084bca2e1c48caab18c237453c17ceef61747fe2": "costmanagement-metrics-operator:1.1.3",
     "6f10d07e3af3ea4f073d4ffda9019d8855f52e7f": "costmanagement-metrics-operator:1.1.0",
     "fd764dcd7e9b993025f3e05f7cd674bb32fad3be": "costmanagement-metrics-operator:1.0.0",
+    "d973ee0dcaa457040a619340c1e781a6e7be547f": "koku-metrics-operator:v4.2.0",
     "0f4d67606199148fd2ea04392d00a32d1387be84": "koku-metrics-operator:v4.1.0",
     "0dbe2ce263a19e05935023c46d20692213fdef90": "koku-metrics-operator:v4.0.0",
     "1dd2f05c51daa7487ea53b1f3f4894316b1759e1": "koku-metrics-operator:v3.3.2",
@@ -288,6 +291,32 @@ VM_AGG = {
     "vm_disk_allocated_size_byte_seconds": ["sum"],
 }
 
+GPU_USAGE_COLUMNS = {
+    "report_period_start",
+    "report_period_end",
+    "interval_start",
+    "interval_end",
+    "node",
+    "namespace",
+    "pod",
+    "gpu_uuid",
+    "gpu_model_name",
+    "gpu_vendor_name",
+    "gpu_memory_capacity_mib",
+    "gpu_pod_uptime",
+}
+
+GPU_GROUP_BY = ["node", "namespace", "pod", "gpu_uuid"]
+
+GPU_AGG = {
+    "report_period_start": ["max"],
+    "report_period_end": ["max"],
+    "gpu_model_name": ["max"],
+    "gpu_vendor_name": ["max"],
+    "gpu_memory_capacity_mib": ["max"],
+    "gpu_pod_uptime": ["sum"],
+}
+
 # new_required_columns are columns that appear in new operator reports.
 # today, we cannot guarantee that all reports received will contain all
 # of these new columns, so this field is used to add the necessary columns
@@ -329,6 +358,13 @@ OCP_REPORT_TYPES = {
         "enum": OCPReportTypes.VM_USAGE,
         "group_by": VM_GROUP_BY,
         "agg": VM_AGG,
+        "new_required_columns": {},
+    },
+    "gpu_usage": {
+        "columns": GPU_USAGE_COLUMNS,
+        "enum": OCPReportTypes.GPU_USAGE,
+        "group_by": GPU_GROUP_BY,
+        "agg": GPU_AGG,
         "new_required_columns": {},
     },
 }
