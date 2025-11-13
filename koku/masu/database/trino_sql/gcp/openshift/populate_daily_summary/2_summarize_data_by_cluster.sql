@@ -791,8 +791,8 @@ SELECT gcp.row_uuid as row_uuid,
     max(gcp.labels) as tags,
     {{cloud_provider_uuid}} as source,
     {{ocp_provider_uuid}} as ocp_source,
-    cast(year(max(gcp.usage_start)) as varchar) as year,
-    cast(month(max(gcp.usage_start)) as varchar) as month,
+    max(gcp.year) as year,
+    max(gcp.month) as month,
     cast(day(max(gcp.usage_start)) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
