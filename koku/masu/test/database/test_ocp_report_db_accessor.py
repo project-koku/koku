@@ -1236,3 +1236,55 @@ class OCPReportDBAccessorTest(MasuTestCase):
             with self.assertRaises(Exception):
                 acc._populate_virtualization_ui_summary_table({"start_date": "1970-01-01"})
             mock_psql.assert_called()
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_monthly_populate_gpu_tag_based_costs(self, mock_trino_exec, mock_trino_exists):
+        """Test monthly population of GPU tag based costs."""
+        # Tag key is the GPU vendor, value_rates contains model-specific rates
+        test_mapping = {
+            metric_constants.OCP_GPU_MONTH: [
+                {
+                    "rate_type": "Infrastructure",
+                    "tag_key": "nvidia_com_gpu",
+                    "value_rates": {"Tesla T4": 1000, "A100": 2500, "H100": 5000},
+                    "default_rate": 5000,
+                },
+            ]
+        }
+        with self.accessor as acc:
+            acc.populate_tag_based_costs(
+                self.start_date,
+                self.dh.this_month_end,
+                self.ocp_provider_uuid,
+                test_mapping,
+                {"cluster_id": "test", "cluster_alias": "test"},
+            )
+            mock_trino_exec.assert_called()
+
+    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_account", return_value=False)
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_gpu_cost_model_disabled_by_unleash(self, mock_trino_exec, mock_trino_exists, mock_feature_flag):
+        """Test that GPU cost model is skipped when Unleash flag is disabled."""
+        # Tag key is the GPU vendor, value_rates contains model-specific rates
+        test_mapping = {
+            metric_constants.OCP_GPU_MONTH: [
+                {
+                    "rate_type": "Infrastructure",
+                    "tag_key": "nvidia_com_gpu",
+                    "value_rates": {"Tesla T4": 1000},
+                    "default_rate": 1000,
+                }
+            ]
+        }
+        with self.accessor as acc:
+            acc.populate_tag_based_costs(
+                self.start_date,
+                self.dh.this_month_end,
+                self.ocp_provider_uuid,
+                test_mapping,
+                {"cluster_id": "test", "cluster_alias": "test"},
+            )
+            # Should not call SQL execution when flag is disabled
+            mock_trino_exec.assert_not_called()
