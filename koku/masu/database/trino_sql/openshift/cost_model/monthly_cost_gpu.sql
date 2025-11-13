@@ -28,12 +28,11 @@ SELECT
     gpu.node as node,
     gpu.gpu_uuid as resource_id,
     cast(map(
-        ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'pod-name'],
+        ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib'],
         ARRAY[
             gpu.gpu_model_name,
             gpu.gpu_vendor_name,
-            CAST(gpu.gpu_memory_capacity_mib AS varchar),
-            gpu.pod
+            CAST(gpu.gpu_memory_capacity_mib AS varchar)
         ]
     ) as json) as all_labels,
     CAST(gpu.source AS uuid) as source_uuid,
