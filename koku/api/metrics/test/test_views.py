@@ -156,35 +156,35 @@ class CostModelMetricsMapViewTest(IamTestCase):
         data = client.get(url + "?limit=&offset=" + str(offset), **self.headers).data["data"]
         self.assertEqual([], data)
 
-    def test_gpu_cost_metric_exists(self):
-        """Test that GPU cost model metric is available in the metrics endpoint."""
-
+    def test_gpu_cost_metric_structure(self):
+        """Test that GPU cost model metric has correct structure."""
         # Verify constant exists
         self.assertEqual(metric_constants.OCP_GPU_MONTH, "gpu_cost_per_month")
 
         # Verify it's in the choices
         self.assertIn(metric_constants.OCP_GPU_MONTH, metric_constants.METRIC_CHOICES)
 
-        # Verify it's in the monthly rates
-        self.assertIn(metric_constants.OCP_GPU_MONTH, metric_constants.COST_MODEL_MONTHLY_RATES)
+        # Verify it's NOT in monthly rates
+        self.assertNotIn(metric_constants.OCP_GPU_MONTH, metric_constants.COST_MODEL_MONTHLY_RATES)
 
-        # Verify it's in the metric map
-        self.assertIn("gpu_cost_per_month", metric_constants.COST_MODEL_METRIC_MAP)
-        gpu_metric = metric_constants.COST_MODEL_METRIC_MAP["gpu_cost_per_month"]
+        # Verify it's in the UNLEASH_METRICS_GPU
+        self.assertIn("gpu_cost_per_month", metric_constants.UNLEASH_METRICS_GPU)
+        gpu_metric = metric_constants.UNLEASH_METRICS_GPU["gpu_cost_per_month"]
         self.assertEqual(gpu_metric["label_metric"], "GPU")
         self.assertEqual(gpu_metric["label_measurement_unit"], "gpu-month")
         self.assertEqual(gpu_metric["default_cost_type"], "Infrastructure")
         self.assertEqual(gpu_metric["source_type"], "OCP")
 
-        # Verify it appears in the API endpoint
-        url = reverse("metrics")
-        client = APIClient()
-        params = {"source_type": Provider.PROVIDER_OCP}
-        url = url + "?" + urlencode(params, quote_via=quote_plus) + "&limit=50"
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    @patch("api.metrics.constants.is_feature_flag_enabled_by_account", return_value=False)
+    def test_gpu_metric_hidden_when_flag_disabled(self, mock_unleash):
+        """Test GPU metric is not available when Unleash flag is disabled."""
+        metrics = get_cost_model_metrics_map(account=self.schema_name)
+        self.assertNotIn("gpu_cost_per_month", metrics)
 
-        data = response.data.get("data", [])
-        gpu_metrics = [m for m in data if m.get("metric") == "gpu_cost_per_month"]
-        self.assertEqual(len(gpu_metrics), 1)
-        self.assertEqual(gpu_metrics[0]["label_metric"], "GPU")
+    @patch("api.metrics.constants.is_feature_flag_enabled_by_account", return_value=True)
+    def test_gpu_metric_visible_when_flag_enabled(self, mock_unleash):
+        """Test GPU metric is available when Unleash flag is enabled."""
+        metrics = get_cost_model_metrics_map(account=self.schema_name)
+        self.assertIn("gpu_cost_per_month", metrics)
+        gpu_metric = metrics["gpu_cost_per_month"]
+        self.assertEqual(gpu_metric["label_metric"], "GPU")
