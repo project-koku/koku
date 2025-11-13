@@ -11,6 +11,10 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
 from api.report.ocp.serializers import OCPExcludeSerializer
 from api.report.ocp.serializers import OCPFilterSerializer
+from api.report.ocp.serializers import OCPGpuFilterSerializer
+from api.report.ocp.serializers import OCPGpuGroupBySerializer
+from api.report.ocp.serializers import OCPGpuOrderBySerializer
+from api.report.ocp.serializers import OCPGpuQueryParamSerializer
 from api.report.ocp.serializers import OCPGroupBySerializer
 from api.report.ocp.serializers import OCPInventoryQueryParamSerializer
 from api.report.ocp.serializers import OCPOrderBySerializer
@@ -646,3 +650,97 @@ class OCPCostQueryParamSerializerTest(IamTestCase):
                     serializer = OCPInventoryQueryParamSerializer(data=param, context=self.ctx_w_path)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
+
+
+class OCPGpuGroupBySerializerTest(TestCase):
+    """Tests for the GPU group_by serializer."""
+
+    def test_gpu_group_by_params_valid_fields(self):
+        """Test parse of GPU group_by params with valid fields."""
+        group_by_params = {
+            "cluster": ["cluster1"],
+            "node": ["node1"],
+            "project": ["project1"],
+            "vendor": ["nvidia_com_gpu"],
+            "model": ["Tesla T4"],
+        }
+        serializer = OCPGpuGroupBySerializer(data=group_by_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_gpu_group_by_params_invalid_fields(self):
+        """Test parse of GPU group_by params with invalid fields."""
+        group_by_params = {"invalid_field": ["value"]}
+        serializer = OCPGpuGroupBySerializer(data=group_by_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+
+class OCPGpuFilterSerializerTest(TestCase):
+    """Tests for the GPU filter serializer."""
+
+    def test_gpu_filter_params_valid_fields(self):
+        """Test parse of GPU filter params with valid fields."""
+        filter_params = {
+            "cluster": ["cluster1"],
+            "node": ["node1"],
+            "project": ["project1"],
+            "vendor": ["nvidia_com_gpu"],
+            "model": ["Tesla T4"],
+        }
+        serializer = OCPGpuFilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_gpu_filter_params_invalid_fields(self):
+        """Test parse of GPU filter params with invalid fields."""
+        filter_params = {"invalid_field": ["value"]}
+        serializer = OCPGpuFilterSerializer(data=filter_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+
+class OCPGpuOrderBySerializerTest(TestCase):
+    """Tests for the GPU order_by serializer."""
+
+    def test_gpu_order_by_params_valid_fields(self):
+        """Test parse of GPU order_by params with valid fields."""
+        valid_fields = ["cluster", "node", "project", "vendor", "model", "gpu_cost", "cost"]
+        for field in valid_fields:
+            serializer = OCPGpuOrderBySerializer(data={field: "asc"})
+            self.assertTrue(serializer.is_valid(), f"Field {field} should be valid")
+
+    def test_gpu_order_by_params_invalid_fields(self):
+        """Test that uptime and gpu_count are NOT valid."""
+        invalid_params = [{"uptime": "asc"}, {"gpu_count": "desc"}, {"invalid_field": "asc"}]
+        for param in invalid_params:
+            serializer = OCPGpuOrderBySerializer(data=param)
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
+        # Verify fields are not in _opfields
+        self.assertNotIn("uptime", OCPGpuOrderBySerializer._opfields)
+        self.assertNotIn("gpu_count", OCPGpuOrderBySerializer._opfields)
+
+
+class OCPGpuQueryParamSerializerTest(IamTestCase):
+    """Tests for the GPU query parameter serializer."""
+
+    def test_gpu_query_params_valid(self):
+        """Test GPU query params with valid input."""
+        query_params = {
+            "filter": {"vendor": ["nvidia_com_gpu"], "model": ["Tesla T4"]},
+            "group_by": {"cluster": ["*"]},
+            "order_by": {"cost": "desc"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+        serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())
+
+    def test_gpu_query_params_combined(self):
+        """Test GPU query params with combined filter, group_by, and order_by."""
+        query_params = {
+            "filter": {"vendor": ["nvidia_com_gpu"], "node": ["node1", "node2"]},
+            "group_by": {"project": ["*"]},
+            "order_by": {"cost": "desc"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+        serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())

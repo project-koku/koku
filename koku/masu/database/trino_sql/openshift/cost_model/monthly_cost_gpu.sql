@@ -9,6 +9,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     namespace,
     node,
     resource_id,
+    pod_labels,
     all_labels,
     source_uuid,
     cost_model_rate_type,
@@ -19,24 +20,34 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
 SELECT
     uuid() as uuid,
     {{report_period_id}} as report_period_id,
-    {{cluster_id}} as cluster_id,
-    {{cluster_alias}} as cluster_alias,
-    'GPU' as data_source,
+    CAST({{cluster_id}} AS varchar(50)) as cluster_id,
+    CAST({{cluster_alias}} AS varchar(256)) as cluster_alias,
+    CAST('GPU' AS varchar(64)) as data_source,
     date(gpu.interval_start) as usage_start,
     date(gpu.interval_start) as usage_end,
-    gpu.namespace as namespace,
-    gpu.node as node,
-    gpu.gpu_uuid as resource_id,
+    CAST(gpu.namespace AS varchar(253)) as namespace,
+    CAST(gpu.node AS varchar(253)) as node,
+    CAST(gpu.gpu_uuid AS varchar(253)) as resource_id,
     cast(map(
-        ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib'],
+        ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'pod-name'],
         ARRAY[
             gpu.gpu_model_name,
             gpu.gpu_vendor_name,
-            CAST(gpu.gpu_memory_capacity_mib AS varchar)
+            CAST(gpu.gpu_memory_capacity_mib AS varchar),
+            gpu.pod
+        ]
+    ) as json) as pod_labels,
+    cast(map(
+        ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'pod-name'],
+        ARRAY[
+            gpu.gpu_model_name,
+            gpu.gpu_vendor_name,
+            CAST(gpu.gpu_memory_capacity_mib AS varchar),
+            gpu.pod
         ]
     ) as json) as all_labels,
     CAST(gpu.source AS uuid) as source_uuid,
-    {{rate_type}} AS cost_model_rate_type,
+    CAST({{rate_type}} AS varchar) AS cost_model_rate_type,
     -- GPU cost calculation: (rate / days_in_month) * (uptime_seconds / 86400)
     -- Formula: daily_rate * uptime_as_fraction_of_day
     {%- if rate is defined %}
@@ -56,7 +67,7 @@ SELECT
     {%- else %}
     0,
     {%- endif %}
-    'Tag' AS monthly_cost_type,
+    CAST('Tag' AS varchar) as monthly_cost_type,
     cat_ns.cost_category_id
 FROM hive.{{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily AS gpu
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns

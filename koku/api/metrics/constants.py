@@ -99,6 +99,7 @@ COST_MODEL_MONTHLY_RATES = (
     OCP_CLUSTER_MONTH,
     OCP_PVC_MONTH,
     OCP_VM_MONTH,
+    OCP_GPU_MONTH,
 )
 
 DISTRIBUTION_CHOICES = ((MEM, MEM), (CPU, CPU))
@@ -269,6 +270,14 @@ COST_MODEL_METRIC_MAP = {
         "label_metric": "Virtual Machine",
         "label_measurement": "Count",
         "label_measurement_unit": "core-hour",
+        "default_cost_type": "Infrastructure",
+    },
+    "gpu_cost_per_month": {
+        "source_type": "OCP",
+        "metric": "gpu_cost_per_month",
+        "label_metric": "GPU",
+        "label_measurement": "Count",
+        "label_measurement_unit": "gpu-month",
         "default_cost_type": "Infrastructure",
     },
 }

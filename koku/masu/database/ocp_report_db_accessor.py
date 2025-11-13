@@ -1184,6 +1184,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 AND usage_start <= '{end_date}'::date
                 AND report_period_id = {report_period_id}
                 AND (infrastructure_raw_cost IS NULL OR infrastructure_raw_cost = 0)
+                AND (cost_model_gpu_cost IS NULL OR cost_model_gpu_cost = 0)
         """
 
         self._prepare_and_execute_raw_sql_query(table_name, sql)
