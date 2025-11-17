@@ -640,12 +640,28 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_proje
     month,
     day
 )
-WITH cte_rankings AS (
+WITH cte_cluster_counts AS (
+    -- Count distinct clusters matching each GCP resource for tag-matched resources
+    SELECT gcp.row_uuid,
+        count(DISTINCT gcp.ocp_source) as cluster_count
+    FROM hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp AS gcp
+    WHERE gcp.source = {{cloud_provider_uuid}}
+        AND gcp.year = {{year}}
+        AND gcp.month = {{month}}
+        AND gcp.resource_id_matched = FALSE
+        AND gcp.matched_tag IS NOT NULL
+        AND gcp.matched_tag != ''
+    GROUP BY gcp.row_uuid
+),
+cte_rankings AS (
     SELECT pds.row_uuid,
-        count(*) as row_uuid_count
+        count(*) as row_uuid_count,
+        COALESCE(ccc.cluster_count, 1) as cluster_count
     FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
+    LEFT JOIN cte_cluster_counts AS ccc
+        ON pds.row_uuid = ccc.row_uuid
     WHERE pds.ocp_source = {{ocp_provider_uuid}} AND year = {{year}} AND month = {{month}}
-    GROUP BY row_uuid
+    GROUP BY pds.row_uuid, ccc.cluster_count
 )
 SELECT pds.row_uuid,
     cluster_id,
@@ -670,19 +686,29 @@ SELECT pds.row_uuid,
     sku_alias,
     region,
     unit,
-    usage_amount / r.row_uuid_count as usage_amount,
+    -- For tag-matched resources, split cost across clusters; for resource_id-matched, only split within cluster
+    CASE WHEN pds.resource_id_matched = FALSE
+        THEN usage_amount / (r.row_uuid_count * r.cluster_count)
+        ELSE usage_amount / r.row_uuid_count
+    END as usage_amount,
     currency,
     invoice_month,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * credit_amount
+        WHEN resource_id_matched = FALSE
+        THEN credit_amount / (r.row_uuid_count * r.cluster_count)
         ELSE credit_amount / r.row_uuid_count
     END as credit_amount,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost
+        WHEN resource_id_matched = FALSE
+        THEN unblended_cost / (r.row_uuid_count * r.cluster_count)
         ELSE unblended_cost / r.row_uuid_count
     END as unblended_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
+        WHEN resource_id_matched = FALSE
+        THEN unblended_cost / (r.row_uuid_count * r.cluster_count) * cast({{markup}} as decimal(24,9))
         ELSE unblended_cost / r.row_uuid_count * cast({{markup}} as decimal(24,9))
     END as markup_cost,
     node_capacity_cpu_core_hours,
