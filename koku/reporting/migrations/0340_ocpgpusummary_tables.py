@@ -1,4 +1,4 @@
-# Generated manually for GPU UI summary tables and cost_model_gpu_cost field
+# Generated manually for GPU UI summary tables
 from django.db import migrations
 from django.db import models
 
@@ -6,16 +6,10 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0338_ocpnode_architecture"),
+        ("reporting", "0339_ocpusagelineitemdailysummary_cost_model_gpu_cost"),
     ]
 
     operations = [
-        # Add cost_model_gpu_cost field to daily_summary
-        migrations.AddField(
-            model_name="ocpusagelineitemdailysummary",
-            name="cost_model_gpu_cost",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
         # Create OCPGpuSummaryP table
         migrations.CreateModel(
             name="OCPGpuSummaryP",
