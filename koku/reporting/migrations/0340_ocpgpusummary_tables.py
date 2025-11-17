@@ -2,6 +2,9 @@
 from django.db import migrations
 from django.db import models
 
+from koku.database import set_pg_extended_mode
+from koku.database import unset_pg_extended_mode
+
 
 class Migration(migrations.Migration):
 
@@ -10,6 +13,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(code=set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
         # Create OCPGpuSummaryP table
         migrations.CreateModel(
             name="OCPGpuSummaryP",
