@@ -1322,4 +1322,3 @@ class OCPReportDBAccessorGPUUITest:
         # Verify DELETE/INSERT operation is used (follows populate_ui_summary_tables pattern)
         for operation in operations:
             assert operation == "DELETE/INSERT"
->>>>>>> afd9736a (feat: add GPU report endpoint and cost model)

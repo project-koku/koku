@@ -130,7 +130,6 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 accessor.populate_line_item_daily_summary_table_trino(
                     start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid
                 )
-
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
 
             # This will process POD and STORAGE together
