@@ -831,69 +831,33 @@ class OCPProviderMap(ProviderMap):
                         "tag_column": "pod_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.__cost_model_gpu_cost(cost_model_rate_type="Supplementary")
-                            + self.__cost_model_cpu_cost(cost_model_rate_type="Supplementary")
-                            + self.__cost_model_memory_cost(cost_model_rate_type="Supplementary")
-                            + self.__cost_model_volume_cost(cost_model_rate_type="Supplementary"),
+                            "sup_usage": self.__cost_model_gpu_cost(cost_model_rate_type="Supplementary"),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.__cost_model_gpu_cost(cost_model_rate_type="Supplementary")
-                            + self.__cost_model_cpu_cost(cost_model_rate_type="Supplementary")
-                            + self.__cost_model_memory_cost(cost_model_rate_type="Supplementary")
-                            + self.__cost_model_volume_cost(cost_model_rate_type="Supplementary"),
+                            "sup_total": self.__cost_model_gpu_cost(cost_model_rate_type="Supplementary"),
                             "infra_raw": Sum(Value(0, output_field=DecimalField())),
-                            "infra_usage": self.__cost_model_gpu_cost(cost_model_rate_type="Infrastructure")
-                            + self.__cost_model_cpu_cost(cost_model_rate_type="Infrastructure")
-                            + self.__cost_model_memory_cost(cost_model_rate_type="Infrastructure")
-                            + self.__cost_model_volume_cost(cost_model_rate_type="Infrastructure"),
+                            "infra_usage": self.__cost_model_gpu_cost(cost_model_rate_type="Infrastructure"),
                             "infra_markup": Sum(Value(0, output_field=DecimalField())),
-                            "infra_total": self.__cost_model_gpu_cost(cost_model_rate_type="Infrastructure")
-                            + self.__cost_model_cpu_cost(cost_model_rate_type="Infrastructure")
-                            + self.__cost_model_memory_cost(cost_model_rate_type="Infrastructure")
-                            + self.__cost_model_volume_cost(cost_model_rate_type="Infrastructure"),
+                            "infra_total": self.__cost_model_gpu_cost(cost_model_rate_type="Infrastructure"),
                             "cost_raw": Sum(Value(0, output_field=DecimalField())),
-                            "cost_usage": self.__cost_model_gpu_cost()
-                            + self.__cost_model_cpu_cost()
-                            + self.__cost_model_memory_cost()
-                            + self.__cost_model_volume_cost(),
+                            "cost_usage": self.__cost_model_gpu_cost(),
                             "cost_markup": Sum(Value(0, output_field=DecimalField())),
-                            "cost_total": self.__cost_model_gpu_cost()
-                            + self.__cost_model_cpu_cost()
-                            + self.__cost_model_memory_cost()
-                            + self.__cost_model_volume_cost(),
+                            "cost_total": self.__cost_model_gpu_cost(),
                         },
                         "default_ordering": {"cost_total": "desc"},
                         "capacity_aggregate": {},
                         "annotations": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.__cost_model_gpu_cost(cost_model_rate_type="Supplementary")
-                            + self.__cost_model_cpu_cost(cost_model_rate_type="Supplementary")
-                            + self.__cost_model_memory_cost(cost_model_rate_type="Supplementary")
-                            + self.__cost_model_volume_cost(cost_model_rate_type="Supplementary"),
+                            "sup_usage": self.__cost_model_gpu_cost(cost_model_rate_type="Supplementary"),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.__cost_model_gpu_cost(cost_model_rate_type="Supplementary")
-                            + self.__cost_model_cpu_cost(cost_model_rate_type="Supplementary")
-                            + self.__cost_model_memory_cost(cost_model_rate_type="Supplementary")
-                            + self.__cost_model_volume_cost(cost_model_rate_type="Supplementary"),
+                            "sup_total": self.__cost_model_gpu_cost(cost_model_rate_type="Supplementary"),
                             "infra_raw": Sum(Value(0, output_field=DecimalField())),
-                            "infra_usage": self.__cost_model_gpu_cost(cost_model_rate_type="Infrastructure")
-                            + self.__cost_model_cpu_cost(cost_model_rate_type="Infrastructure")
-                            + self.__cost_model_memory_cost(cost_model_rate_type="Infrastructure")
-                            + self.__cost_model_volume_cost(cost_model_rate_type="Infrastructure"),
+                            "infra_usage": self.__cost_model_gpu_cost(cost_model_rate_type="Infrastructure"),
                             "infra_markup": Sum(Value(0, output_field=DecimalField())),
-                            "infra_total": self.__cost_model_gpu_cost(cost_model_rate_type="Infrastructure")
-                            + self.__cost_model_cpu_cost(cost_model_rate_type="Infrastructure")
-                            + self.__cost_model_memory_cost(cost_model_rate_type="Infrastructure")
-                            + self.__cost_model_volume_cost(cost_model_rate_type="Infrastructure"),
+                            "infra_total": self.__cost_model_gpu_cost(cost_model_rate_type="Infrastructure"),
                             "cost_raw": Sum(Value(0, output_field=DecimalField())),
-                            "cost_usage": self.__cost_model_gpu_cost()
-                            + self.__cost_model_cpu_cost()
-                            + self.__cost_model_memory_cost()
-                            + self.__cost_model_volume_cost(),
+                            "cost_usage": self.__cost_model_gpu_cost(),
                             "cost_markup": Sum(Value(0, output_field=DecimalField())),
-                            "cost_total": self.__cost_model_gpu_cost()
-                            + self.__cost_model_cpu_cost()
-                            + self.__cost_model_memory_cost()
-                            + self.__cost_model_volume_cost(),
+                            "cost_total": self.__cost_model_gpu_cost(),
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
