@@ -6,13 +6,13 @@
 import logging
 
 import pyarrow.parquet as pq
-import trino
+from koku.reportdb_accessor import get_report_db_accessor
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django_tenants.utils import schema_context
-from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
 from trino.exceptions import TrinoUserError
+from django.db import ProgrammingError, Error
 
 from api.common import log_json
 from api.models import Provider
@@ -56,24 +56,23 @@ class ReportParquetProcessorBase:
     def _execute_trino_sql(self, sql, schema_name: str):  # pragma: no cover
         """Execute Trino SQL."""
         rows = []
-        try:
-            with trino.dbapi.connect(
-                host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="admin", catalog="hive", schema=schema_name
-            ) as conn:
-                cur = conn.cursor()
+        with get_report_db_accessor().connect(
+            host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="admin", catalog="hive", schema=schema_name
+        ) as conn:
+            cur = conn.cursor()
+            try:
                 cur.execute(sql)
                 rows = cur.fetchall()
                 LOG.debug(f"_execute_trino_sql rows: {str(rows)}. Type: {type(rows)}")
-        except TrinoUserError as err:
-            LOG.warning(err)
-        except TrinoExternalError as err:
-            if err.error_name in ("HIVE_METASTORE_ERROR", "HIVE_FILESYSTEM_ERROR", "JDBC_ERROR"):
+            except ProgrammingError as err:
                 LOG.warning(err)
-            else:
+            except TrinoQueryError as err:
+                if err.error_name in ("HIVE_METASTORE_ERROR", "HIVE_FILESYSTEM_ERROR", "JDBC_ERROR"):
+                    LOG.warning(err)
+                else:
+                    LOG.error(err)
+            except Error as err: # TrinoQueryError is the equivalent of Error in Django
                 LOG.error(err)
-        except TrinoQueryError as err:
-            LOG.error(err)
-
         return rows
 
     def _get_provider(self):
