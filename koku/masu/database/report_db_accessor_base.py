@@ -287,6 +287,11 @@ class ReportDBAccessorBase:
                         continue
                     else:
                         raise err
+                except OperationalError as err:
+                    if i < (retries - 1):
+                        continue
+                    else:
+                        raise err
 
     def find_openshift_keys_expected_values(self, sql_metadata: SummarySqlMetadata) -> Any:
         """

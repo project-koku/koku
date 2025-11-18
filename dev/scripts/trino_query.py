@@ -1,6 +1,7 @@
 import os
 import sys
 
+from koku.koku.koku.reportdb_accessor import get_report_db_accessor
 import pyarrow.parquet as pq
 import trino
 
@@ -49,7 +50,7 @@ for idx, col in enumerate(parquet_columns):
 
 sql += f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET')"
 
-conn = trino.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema="default")
+conn = get_report_db_accessor().connect(host="localhost", port=8080, user="admin", catalog="hive", schema="default")
 cur = conn.cursor()
 print("Creating Schema:")
 schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {schema}"
@@ -58,7 +59,7 @@ cur.execute(schema_create_sql)
 rows = cur.fetchall()
 conn.close()
 
-schema_conn = trino.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema=schema)
+schema_conn = get_report_db_accessor()(host="localhost", port=8080, user="admin", catalog="hive", schema=schema)
 schema_cur = conn.cursor()
 print("Trino table create SQL:")
 print(sql)
@@ -73,7 +74,7 @@ for row in rows:
 schema_conn.close()
 
 print("\nPostgres DB AWS Summary Data Query Example:")
-postgres_conn = trino.dbapi.connect(host="localhost", port=8080, user="admin", catalog="postgres", schema=schema)
+postgres_conn = get_report_db_accessor()(host="localhost", port=8080, user="admin", catalog="postgres", schema=schema)
 postgres_cur = postgres_conn.cursor()
 
 postgres_cur.execute("SELECT * FROM reporting_awscostentrylineitem_daily_summary LIMIT 3")

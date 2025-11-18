@@ -6,7 +6,7 @@
 import logging
 
 import requests
-import trino
+from koku.reportdb_accessor import get_report_db_accessor
 from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -50,7 +50,7 @@ def trino_query(request):
         msg = f"Running Trino query: {query}"
         LOG.info(msg)
 
-        with trino.dbapi.connect(
+        with get_report_db_accessor().connect(
             host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="readonly", catalog="hive", schema=schema_name
         ) as conn:
             cur = conn.cursor()
