@@ -43,12 +43,6 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "report_period",
-                    models.ForeignKey(
-                        null=True, on_delete=models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
-                    ),
-                ),
-                (
                     "source_uuid",
                     models.ForeignKey(
                         db_column="source_uuid",
@@ -89,12 +83,6 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "report_period",
-                    models.ForeignKey(
-                        null=True, on_delete=models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
-                    ),
-                ),
-                (
                     "source_uuid",
                     models.ForeignKey(
                         db_column="source_uuid",
@@ -132,12 +120,6 @@ class Migration(migrations.Migration):
                     "cost_category",
                     models.ForeignKey(
                         null=True, on_delete=models.deletion.CASCADE, to="reporting.openshiftcostcategory"
-                    ),
-                ),
-                (
-                    "report_period",
-                    models.ForeignKey(
-                        null=True, on_delete=models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
                     ),
                 ),
                 (

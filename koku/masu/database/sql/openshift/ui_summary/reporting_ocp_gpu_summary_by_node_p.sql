@@ -22,8 +22,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_gpu_summary_by_node_p (
     cost_model_cpu_cost,
     cost_model_memory_cost,
     cost_model_volume_cost,
-    cost_model_rate_type,
-    report_period_id
+    cost_model_rate_type
 )
     SELECT uuid_generate_v4() as id,
         cluster_id,
@@ -42,8 +41,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_gpu_summary_by_node_p (
         sum(cost_model_cpu_cost) as cost_model_cpu_cost,
         sum(cost_model_memory_cost) as cost_model_memory_cost,
         sum(cost_model_volume_cost) as cost_model_volume_cost,
-        max(cost_model_rate_type) as cost_model_rate_type,
-        report_period_id
+        max(cost_model_rate_type) as cost_model_rate_type
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE data_source = 'GPU'
         AND usage_start >= {{start_date}}::date
@@ -54,6 +52,5 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_gpu_summary_by_node_p (
         node,
         usage_start,
         source_uuid,
-        cost_category_id,
-        report_period_id
+        cost_category_id
 ;

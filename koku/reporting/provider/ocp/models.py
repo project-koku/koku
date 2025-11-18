@@ -985,7 +985,6 @@ class OCPGpuSummaryP(models.Model):
         ]
 
     id = models.UUIDField(primary_key=True)
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.TextField()
     cluster_alias = models.TextField(null=True)
     namespace = models.CharField(max_length=253, null=True)
@@ -1037,7 +1036,6 @@ class OCPGpuSummaryByProjectP(models.Model):
         ]
 
     id = models.UUIDField(primary_key=True)
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.TextField()
     cluster_alias = models.TextField(null=True)
     namespace = models.CharField(max_length=253, null=True)
@@ -1087,7 +1085,6 @@ class OCPGpuSummaryByNodeP(models.Model):
         ]
 
     id = models.UUIDField(primary_key=True)
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.TextField()
     cluster_alias = models.TextField(null=True)
     node = models.CharField(max_length=253, null=True)
