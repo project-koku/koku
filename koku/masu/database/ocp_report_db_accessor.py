@@ -1233,7 +1233,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
         maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)
         return minim, maxim
 
-    def populate_tag_based_costs(self, start_date, end_date, provider_uuid, metric_to_tag_params_map, cluster_params):
+    def populate_tag_based_costs(  # noqa: C901
+        self, start_date, end_date, provider_uuid, metric_to_tag_params_map, cluster_params
+    ):
         """Populate the tag based costs.
 
         This method populates the daily summary table with tag-based costs for
@@ -1245,7 +1247,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         monthly_params = {"amortized_denominator": DateHelper().days_in_month(start_date), "cost_type": "Tag"}
         vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
+        gpu_table_exists = trino_table_exists(self.schema, "openshift_gpu_usage_line_items_daily")
         requires_vm_table = [metric_constants.OCP_VM_CORE_HOUR, metric_constants.OCP_VM_CORE_MONTH]
+        requires_gpu_table = [metric_constants.OCP_GPU_MONTH]
 
         metric_metadata = {
             metric_constants.OCP_VM_HOUR: {
@@ -1289,6 +1293,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         for name, metadata in metric_metadata.items():
             if name in requires_vm_table and not vm_table_exists:
+                continue
+
+            if name in requires_gpu_table and not gpu_table_exists:
                 continue
 
             # Check Unleash flag for GPU cost model
