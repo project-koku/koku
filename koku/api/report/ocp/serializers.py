@@ -365,7 +365,7 @@ class OCPGpuFilterSerializer(BaseFilterSerializer):
 class OCPGpuOrderBySerializer(OrderSerializer):
     """Serializer for handling GPU query parameter order_by."""
 
-    _opfields = ("cluster", "node", "project", "vendor", "model", "date", "gpu_cost", "cost")
+    _opfields = ("cluster", "node", "project", "vendor", "model", "date")
 
     cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
@@ -373,8 +373,6 @@ class OCPGpuOrderBySerializer(OrderSerializer):
     vendor = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     model = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
-    gpu_cost = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    cost = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
 class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
