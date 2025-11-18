@@ -830,8 +830,6 @@ class OCPProviderMap(ProviderMap):
                         "group_by_options": ["cluster", "project", "node", "vendor", "model"],
                         "tag_column": "pod_labels",
                         "aggregates": {
-                            "usage": Sum(Value(0, output_field=DecimalField())),
-                            "count": Sum(Value(0, output_field=DecimalField())),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": self.__cost_model_gpu_cost(cost_model_rate_type="Supplementary")
                             + self.__cost_model_cpu_cost(cost_model_rate_type="Supplementary")
@@ -866,8 +864,6 @@ class OCPProviderMap(ProviderMap):
                         "default_ordering": {"cost_total": "desc"},
                         "capacity_aggregate": {},
                         "annotations": {
-                            "usage": Sum(Value(0, output_field=DecimalField())),
-                            "count": Sum(Value(0, output_field=DecimalField())),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": self.__cost_model_gpu_cost(cost_model_rate_type="Supplementary")
                             + self.__cost_model_cpu_cost(cost_model_rate_type="Supplementary")
@@ -906,16 +902,10 @@ class OCPProviderMap(ProviderMap):
                             "vendor": F("gpu_vendor_name"),
                             "model": F("gpu_model_name"),
                         },
-                        "delta_key": {
-                            "usage": Sum(Value(0, output_field=DecimalField())),
-                        },
+                        "delta_key": {},
                         "filter": [],
                         "cost_units_key": "raw_currency",
-                        "usage_units_key": "GPU-Seconds",
-                        "count_units_key": "GPU",
                         "sum_columns": [
-                            "usage",
-                            "count",
                             "cost_total",
                             "sup_total",
                             "infra_total",
