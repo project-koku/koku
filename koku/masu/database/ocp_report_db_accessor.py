@@ -414,7 +414,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         try:
             self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
         except TrinoStatementExecError as trino_exc:
-            if trino_exc.error_name == "ALREADY_EXISTS":
+            if trino_exc.error_name == "ALREADY_EXISTS": # For Postgres and ONPREM we should try handling existing records in query
                 LOG.warning(
                     log_json(
                         ctx=self.extract_context_from_sql_params(sql_params),
