@@ -532,6 +532,7 @@ cte_rankings AS (
     FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
     LEFT JOIN cte_cluster_counts AS ccc
         ON pds.row_uuid = ccc.row_uuid
+    WHERE pds.ocp_source = {{ocp_provider_uuid}} AND year = {{year}} AND month = {{month}}
     GROUP BY pds.row_uuid, ccc.cluster_count
 )
 SELECT pds.row_uuid,
