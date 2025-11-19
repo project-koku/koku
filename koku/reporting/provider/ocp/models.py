@@ -200,6 +200,7 @@ class OCPUsageLineItemDailySummary(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    gpu_uptime_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
     monthly_cost_type = models.TextField(null=True, choices=MONTHLY_COST_TYPES)
@@ -997,6 +998,8 @@ class OCPGpuSummaryP(models.Model):
     gpu_vendor_name = models.CharField(max_length=128, null=True)
     gpu_model_name = models.CharField(max_length=128, null=True)
     gpu_memory_capacity_mib = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    gpu_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    gpu_count = models.IntegerField(null=True)
 
     # Cost fields - aggregated from cost_model_gpu_cost in daily_summary
     gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -1046,6 +1049,8 @@ class OCPGpuSummaryByProjectP(models.Model):
     gpu_vendor_name = models.CharField(max_length=128, null=True)
     gpu_model_name = models.CharField(max_length=128, null=True)
     gpu_memory_capacity_mib = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    gpu_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    gpu_count = models.IntegerField(null=True)
 
     # Cost fields
     gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -1095,6 +1100,8 @@ class OCPGpuSummaryByNodeP(models.Model):
     gpu_vendor_name = models.CharField(max_length=128, null=True)
     gpu_model_name = models.CharField(max_length=128, null=True)
     gpu_memory_capacity_mib = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    gpu_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    gpu_count = models.IntegerField(null=True)
 
     # Cost fields
     gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)

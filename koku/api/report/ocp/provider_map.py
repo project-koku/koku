@@ -10,6 +10,7 @@ from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import IntegerField
 from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Sum
@@ -865,6 +866,11 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "vendor": F("gpu_vendor_name"),
                             "model": F("gpu_model_name"),
+                            "memory": Sum(
+                                Coalesce(F("gpu_memory_capacity_mib"), Value(0, output_field=DecimalField()))
+                            ),
+                            "gpu_hours": Sum(Coalesce(F("gpu_hours"), Value(0, output_field=DecimalField()))),
+                            "gpu_count": Sum(Coalesce(F("gpu_count"), Value(0, output_field=IntegerField()))),
                         },
                         "delta_key": {},
                         "filter": [],

@@ -703,21 +703,34 @@ class OCPGpuOrderBySerializerTest(TestCase):
 
     def test_gpu_order_by_params_valid_fields(self):
         """Test parse of GPU order_by params with valid fields."""
-        valid_fields = ["cluster", "node", "project", "vendor", "model", "gpu_cost", "cost"]
+        valid_fields = [
+            "cluster",
+            "node",
+            "project",
+            "vendor",
+            "model",
+            "gpu_cost",
+            "cost",
+            "memory",
+            "gpu_hours",
+            "gpu_count",
+        ]
         for field in valid_fields:
             serializer = OCPGpuOrderBySerializer(data={field: "asc"})
             self.assertTrue(serializer.is_valid(), f"Field {field} should be valid")
 
     def test_gpu_order_by_params_invalid_fields(self):
-        """Test that uptime and gpu_count are NOT valid."""
-        invalid_params = [{"uptime": "asc"}, {"gpu_count": "desc"}, {"invalid_field": "asc"}]
+        """Test that uptime is NOT valid."""
+        invalid_params = [{"uptime": "asc"}, {"invalid_field": "asc"}, {"usage": "desc"}]
         for param in invalid_params:
             serializer = OCPGpuOrderBySerializer(data=param)
             with self.assertRaises(serializers.ValidationError):
                 serializer.is_valid(raise_exception=True)
-        # Verify fields are not in _opfields
+        # Verify uptime is not in _opfields
         self.assertNotIn("uptime", OCPGpuOrderBySerializer._opfields)
-        self.assertNotIn("gpu_count", OCPGpuOrderBySerializer._opfields)
+        self.assertNotIn("usage", OCPGpuOrderBySerializer._opfields)
+        # Verify gpu_count IS in _opfields (now supported)
+        self.assertIn("gpu_count", OCPGpuOrderBySerializer._opfields)
 
 
 class OCPGpuQueryParamSerializerTest(IamTestCase):
@@ -733,6 +746,24 @@ class OCPGpuQueryParamSerializerTest(IamTestCase):
         self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
         serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
+
+    def test_gpu_order_by_allowlist_fields(self):
+        """Test that memory, gpu_hours, and gpu_count are in order_by_allowlist."""
+        self.assertIn("memory", OCPGpuQueryParamSerializer.order_by_allowlist)
+        self.assertIn("gpu_hours", OCPGpuQueryParamSerializer.order_by_allowlist)
+        self.assertIn("gpu_count", OCPGpuQueryParamSerializer.order_by_allowlist)
+
+    def test_gpu_query_params_order_by_new_fields(self):
+        """Test GPU query params with new order_by fields (memory, gpu_hours, gpu_count)."""
+        for field in ["memory", "gpu_hours", "gpu_count"]:
+            query_params = {
+                "filter": {"vendor": ["nvidia_com_gpu"]},
+                "group_by": {"model": ["*"]},
+                "order_by": {field: "desc"},
+            }
+            self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+            serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+            self.assertTrue(serializer.is_valid(), f"order_by with {field} should be valid")
 
     def test_gpu_query_params_combined(self):
         """Test GPU query params with combined filter, group_by, and order_by."""

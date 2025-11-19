@@ -29,6 +29,8 @@ class Migration(migrations.Migration):
                 ("gpu_vendor_name", models.CharField(max_length=128, null=True)),
                 ("gpu_model_name", models.CharField(max_length=128, null=True)),
                 ("gpu_memory_capacity_mib", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                ("gpu_hours", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                ("gpu_count", models.IntegerField(null=True)),
                 ("gpu_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("unallocated_gpu_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("raw_currency", models.TextField(null=True)),
@@ -69,6 +71,8 @@ class Migration(migrations.Migration):
                 ("gpu_vendor_name", models.CharField(max_length=128, null=True)),
                 ("gpu_model_name", models.CharField(max_length=128, null=True)),
                 ("gpu_memory_capacity_mib", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                ("gpu_hours", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                ("gpu_count", models.IntegerField(null=True)),
                 ("gpu_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("unallocated_gpu_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("raw_currency", models.TextField(null=True)),
@@ -109,6 +113,8 @@ class Migration(migrations.Migration):
                 ("gpu_vendor_name", models.CharField(max_length=128, null=True)),
                 ("gpu_model_name", models.CharField(max_length=128, null=True)),
                 ("gpu_memory_capacity_mib", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                ("gpu_hours", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                ("gpu_count", models.IntegerField(null=True)),
                 ("gpu_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("unallocated_gpu_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("raw_currency", models.TextField(null=True)),
@@ -203,4 +209,11 @@ class Migration(migrations.Migration):
             model_name="ocpgpusummarybynodep",
             index=models.Index(fields=["gpu_model_name"], name="ocpgpunode_model_idx"),
         ),
+        # Add gpu_uptime_hours field to OCPUsageLineItemDailySummary
+        migrations.AddField(
+            model_name="ocpusagelineitemdailysummary",
+            name="gpu_uptime_hours",
+            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        ),
+        migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
     ]
