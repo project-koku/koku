@@ -317,6 +317,7 @@ class OCPNetworkSummaryP(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     data_source = models.CharField(max_length=64, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_data_in_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -357,6 +358,7 @@ class OCPNetworkSummaryByNodeP(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     data_source = models.CharField(max_length=64, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_data_in_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -398,6 +400,7 @@ class OCPNetworkSummaryByProjectP(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     data_source = models.CharField(max_length=64, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_data_in_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -456,6 +459,7 @@ class OCPVirtualMachineSummaryP(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
@@ -585,6 +589,7 @@ class OCPCostSummaryP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -632,6 +637,7 @@ class OCPCostSummaryByProjectP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -678,6 +684,7 @@ class OCPCostSummaryByNodeP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -733,6 +740,7 @@ class OCPPodSummaryP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -792,6 +800,7 @@ class OCPPodSummaryByProjectP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -855,6 +864,7 @@ class OCPPodSummaryByNodeP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -905,6 +915,7 @@ class OCPVolumeSummaryP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
@@ -959,6 +970,7 @@ class OCPVolumeSummaryByProjectP(models.Model):
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
 
