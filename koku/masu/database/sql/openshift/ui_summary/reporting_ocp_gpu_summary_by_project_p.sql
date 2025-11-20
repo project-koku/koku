@@ -35,7 +35,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_gpu_summary_by_project_p (
         max(all_labels->>'gpu-vendor') as gpu_vendor_name,
         max(all_labels->>'gpu-model') as gpu_model_name,
         max((all_labels->>'gpu-memory-mib')::numeric) as gpu_memory_capacity_mib,
-        sum(gpu_uptime_hours) as gpu_hours,
+        sum((all_labels->>'gpu-uptime-hours')::numeric) as gpu_hours,
         count(DISTINCT resource_id) as gpu_count,
         sum(cost_model_gpu_cost) as gpu_cost,
         NULL as unallocated_gpu_cost,

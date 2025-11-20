@@ -200,7 +200,6 @@ class OCPUsageLineItemDailySummary(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    gpu_uptime_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
     monthly_cost_type = models.TextField(null=True, choices=MONTHLY_COST_TYPES)

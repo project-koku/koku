@@ -720,13 +720,13 @@ class OCPGpuOrderBySerializerTest(TestCase):
             self.assertTrue(serializer.is_valid(), f"Field {field} should be valid")
 
     def test_gpu_order_by_params_invalid_fields(self):
-        """Test that uptime is NOT valid."""
+        """Test that uptime and usage are NOT valid."""
         invalid_params = [{"uptime": "asc"}, {"invalid_field": "asc"}, {"usage": "desc"}]
         for param in invalid_params:
             serializer = OCPGpuOrderBySerializer(data=param)
             with self.assertRaises(serializers.ValidationError):
                 serializer.is_valid(raise_exception=True)
-        # Verify uptime is not in _opfields
+        # Verify invalid fields are not in _opfields
         self.assertNotIn("uptime", OCPGpuOrderBySerializer._opfields)
         self.assertNotIn("usage", OCPGpuOrderBySerializer._opfields)
         # Verify gpu_count IS in _opfields (now supported)
