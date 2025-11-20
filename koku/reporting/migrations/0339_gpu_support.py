@@ -1,4 +1,4 @@
-# Generated manually for GPU UI summary tables
+# Generated manually - GPU support for OCP
 from django.db import migrations
 from django.db import models
 
@@ -9,11 +9,17 @@ from koku.database import unset_pg_extended_mode
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0339_ocpusagelineitemdailysummary_cost_model_gpu_cost"),
+        ("reporting", "0338_ocpnode_architecture"),
     ]
 
     operations = [
         migrations.RunPython(code=set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
+        # Add cost_model_gpu_cost field to OCPUsageLineItemDailySummary
+        migrations.AddField(
+            model_name="ocpusagelineitemdailysummary",
+            name="cost_model_gpu_cost",
+            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        ),
         # Create OCPGpuSummaryP table
         migrations.CreateModel(
             name="OCPGpuSummaryP",
@@ -208,12 +214,6 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="ocpgpusummarybynodep",
             index=models.Index(fields=["gpu_model_name"], name="ocpgpunode_model_idx"),
-        ),
-        # Add gpu_uptime_hours field to OCPUsageLineItemDailySummary
-        migrations.AddField(
-            model_name="ocpusagelineitemdailysummary",
-            name="gpu_uptime_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
         ),
         migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
     ]
