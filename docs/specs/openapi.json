@@ -2005,6 +2005,78 @@
                 ]
             }
         },
+        "/reports/openshift/gpu/": {
+            "get": {
+                "tags": [
+                    "OpenShift Reports"
+                ],
+                "summary": "Query to obtain OpenShift GPU usage information",
+                "operationId": "getOpenShiftGpuReports",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftGpu"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftGpu"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            }
+        },
         "/reports/openshift/resources/virtual-machines/": {
             "get": {
                 "tags": [
@@ -11013,6 +11085,94 @@
                                                         },
                                                         "total": {
                                                             "value": 55.0,
+                                                            "units": "USD"
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "ReportOpenShiftGpu": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Report"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "example": [
+                                        {
+                                            "date": "2024-01",
+                                            "values": [
+                                                {
+                                                    "date": "2024-01",
+                                                    "cluster": "my-ocp-cluster",
+                                                    "vendor": "nvidia.com/gpu",
+                                                    "model": "Tesla-T4",
+                                                    "memory": {
+                                                        "value": 15360.0,
+                                                        "units": "MiB"
+                                                    },
+                                                    "gpu_hours": {
+                                                        "value": 744.0,
+                                                        "units": "hours"
+                                                    },
+                                                    "gpu_count": {
+                                                        "value": 4,
+                                                        "units": "GPUs"
+                                                    },
+                                                    "infrastructure": {
+                                                        "raw": {
+                                                            "value": 500.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "markup": {
+                                                            "value": 0.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "total": {
+                                                            "value": 500.0,
+                                                            "units": "USD"
+                                                        }
+                                                    },
+                                                    "supplementary": {
+                                                        "raw": {
+                                                            "value": 100.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "markup": {
+                                                            "value": 0.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "total": {
+                                                            "value": 100.0,
+                                                            "units": "USD"
+                                                        }
+                                                    },
+                                                    "cost": {
+                                                        "raw": {
+                                                            "value": 600.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "markup": {
+                                                            "value": 0.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "total": {
+                                                            "value": 600.0,
                                                             "units": "USD"
                                                         }
                                                     }
