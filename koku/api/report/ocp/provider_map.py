@@ -868,6 +868,7 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "vendor": F("gpu_vendor_name"),
                             "model": F("gpu_model_name"),
+                            "node": Max(F("node")),
                             "memory": Max(
                                 Coalesce(F("gpu_memory_capacity_mib"), Value(0, output_field=DecimalField()))
                             ),
