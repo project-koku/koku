@@ -926,7 +926,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     report_period_id=report_period_id,
                 )
                 .exclude(cost_model_rate_type="platform_distributed")
-                .exclude(data_source="GPU")
                 .count()
             )
             # the distributed cost is being added so the initial count is no longer zero.
@@ -957,16 +956,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
             report_period = acc.report_periods_for_provider_uuid(provider_uuid, start_date)
 
             report_period_id = report_period.id
-            initial_non_raw_count = (
-                OCPUsageLineItemDailySummary.objects.filter(
-                    Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
-                    report_period_id=report_period_id,
-                )
-                .exclude(
-                    data_source="GPU"
-                )  # Exclude GPU data which has cost_model_gpu_cost but no infrastructure_raw_cost
-                .count()
-            )
+            initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
             initial_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,
@@ -976,16 +969,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 provider_uuid, report_period_id, start_date, end_date
             )
 
-            new_non_raw_count = (
-                OCPUsageLineItemDailySummary.objects.filter(
-                    Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
-                    report_period_id=report_period_id,
-                )
-                .exclude(
-                    data_source="GPU"
-                )  # Exclude GPU data which has cost_model_gpu_cost but no infrastructure_raw_cost
-                .count()
-            )
+            new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
             new_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,

@@ -473,7 +473,6 @@ class OCPReportViewTest(IamTestCase):
             )
             num_nodes = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
-                .exclude(data_source="GPU")
                 .aggregate(Count("node", distinct=True))
                 .get("node__count")
             )
