@@ -6,7 +6,7 @@ generators:
       nodes:
         - node:
           node_name: compute_1
-          node_labels: label_instance-type:medium|label_kubernetes_io_arch:amd64
+          node_labels: label_instance-type:medium|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:2|nvidia_com_gpu_product:Tesla_T4|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -73,7 +73,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_2
-          node_labels: label_instance-type:small|label_kubernetes_io_arch:arm64
+          node_labels: label_instance-type:small|label_kubernetes_io_arch:arm64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:A100|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -85,7 +85,7 @@ generators:
                   mem_request_gig: 2
                   cpu_limit: 1
                   mem_limit_gig: 4
-                  pod_seconds: 3600
+                  pod_seconds: 3000
                   labels: label_application:Candlepin|label_stage:Development|label_group:Marketing|label_vm_kubevirt_io_name:exclude_B||label_exclude:B
                   gpus:
                     - gpu:
@@ -177,7 +177,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_4
-          node_labels: label_instance-type:large|label_kubernetes_io_arch:amd64
+          node_labels: label_instance-type:large|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:4|nvidia_com_gpu_product:H100|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -189,7 +189,7 @@ generators:
                   mem_request_gig: 2
                   cpu_limit: 1
                   mem_limit_gig: 4
-                  pod_seconds: 3600
+                  pod_seconds: 1800
                   labels: label_application:CMSapp|label_stage:Production|label_group:Marketing|label_vm_kubevirt_io_name:fedora|label_excluded:fedora
                   gpus:
                     - gpu:
@@ -240,7 +240,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_5
-          node_labels: label_instance-type:xlarge|label_kubernetes_io_arch:amd64
+          node_labels: label_instance-type:xlarge|label_kubernetes_io_arch:amd64||nvidia_com_gpu_count:1|nvidia_com_gpu_product:Tesla_T4|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1
           cpu_cores: 4
           memory_gig: 16
           namespaces:
