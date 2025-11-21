@@ -9,17 +9,12 @@ from koku.database import unset_pg_extended_mode
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0338_ocpnode_architecture"),
+        ("reporting", "0339_ocpusagelineitemdailysummary_cost_model_gpu_cost"),
     ]
 
     operations = [
         migrations.RunPython(code=set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
-        # Add cost_model_gpu_cost field to OCPUsageLineItemDailySummary
-        migrations.AddField(
-            model_name="ocpusagelineitemdailysummary",
-            name="cost_model_gpu_cost",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
+        # Note: cost_model_gpu_cost field is added by migration 0339
         # Create OCPGpuSummaryP table
         migrations.CreateModel(
             name="OCPGpuSummaryP",
