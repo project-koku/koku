@@ -13,6 +13,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     source_uuid,
     cost_model_rate_type,
     cost_model_gpu_cost,
+    gpu_uptime_hours,
     monthly_cost_type,
     cost_category_id
 )
@@ -56,6 +57,7 @@ SELECT
     {%- else %}
     0,
     {%- endif %}
+    gpu.gpu_pod_uptime / 3600.0 as gpu_uptime_hours,
     'Tag' AS monthly_cost_type,
     cat_ns.cost_category_id
 FROM hive.{{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily AS gpu

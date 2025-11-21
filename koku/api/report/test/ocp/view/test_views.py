@@ -1913,3 +1913,81 @@ class OCPReportViewTest(IamTestCase):
                 url = url + "?" + urlencode(param, quote_via=quote_plus)
                 response = APIClient().get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_gpu_endpoint_exists(self):
+        """Test that GPU endpoint returns 200."""
+        url = reverse("reports-openshift-gpu")
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_gpu_endpoint_group_by_cluster(self):
+        """Test GPU endpoint with group_by cluster."""
+        url = reverse("reports-openshift-gpu")
+        params = {"group_by[cluster]": "*"}
+        url = f"{url}?{urlencode(params)}"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_gpu_endpoint_group_by_vendor(self):
+        """Test GPU endpoint with group_by vendor."""
+        url = reverse("reports-openshift-gpu")
+        params = {"group_by[vendor]": "*"}
+        url = f"{url}?{urlencode(params)}"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Verify vendor field is present in response
+        data = response.data
+        if data.get("data") and len(data["data"]) > 0:
+            first_value = data["data"][0].get("values", [])
+            if first_value:
+                self.assertIn("vendor", first_value[0])
+
+    def test_gpu_endpoint_group_by_model(self):
+        """Test GPU endpoint with group_by model."""
+        url = reverse("reports-openshift-gpu")
+        params = {"group_by[model]": "*"}
+        url = f"{url}?{urlencode(params)}"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Verify model field is present in response
+        data = response.data
+        if data.get("data") and len(data["data"]) > 0:
+            first_value = data["data"][0].get("values", [])
+            if first_value:
+                self.assertIn("model", first_value[0])
+
+    def test_gpu_endpoint_filter_vendor(self):
+        """Test GPU endpoint with vendor filter."""
+        url = reverse("reports-openshift-gpu")
+        params = {"filter[vendor]": "nvidia"}
+        url = f"{url}?{urlencode(params)}"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_gpu_endpoint_filter_model(self):
+        """Test GPU endpoint with model filter."""
+        url = reverse("reports-openshift-gpu")
+        params = {"filter[model]": "Tesla T4"}
+        url = f"{url}?{urlencode(params)}"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @patch("api.query_handler.TruncDayString")
+    def test_gpu_endpoint_includes_cost_fields(self, mock_trunc):
+        """Test that GPU endpoint response includes cost fields."""
+        mock_trunc.return_value = TruncDayString("usage_start")
+        url = reverse("reports-openshift-gpu")
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Verify response structure includes cost-related aggregates
+        data = response.data
+        self.assertIsNotNone(data.get("data"))
+
+        # Check if meta/aggregates section exists and includes cost fields
+        if data.get("meta", {}).get("aggregates"):
+            aggregates = data["meta"]["aggregates"]
+            # Cost fields should be present (may be 0 if no cost model configured)
+            expected_cost_fields = ["gpu_cost", "cost_total"]
+            for field in expected_cost_fields:
+                self.assertIn(field, aggregates, f"{field} should be in aggregates")
