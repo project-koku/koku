@@ -1212,6 +1212,9 @@ class ReportQueryHandler(QueryHandler):
             "storage_class",
             "request_cpu",
             "request_memory",
+            "memory",
+            "gpu_hours",
+            "gpu_count",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
@@ -1238,25 +1241,11 @@ class ReportQueryHandler(QueryHandler):
                 for line_data in sorted_data:
                     if not line_data.get(field):
                         line_data[field] = f"No-{field}"
-                # Check if field is string-like or numeric for proper sorting
-                sample_value = next((entry.get(field) for entry in sorted_data if entry.get(field)), None)
-                if sample_value and isinstance(sample_value, (int, float, Decimal)):
-                    # Numeric field: sort by numeric value
-                    sorted_data = sorted(
-                        sorted_data,
-                        key=lambda entry: (entry[field] is None, entry[field] or 0),
-                        reverse=reverse,
-                    )
-                else:
-                    # String field: sort with case-insensitive comparison
-                    sorted_data = sorted(
-                        sorted_data,
-                        key=lambda entry: (
-                            bool(re.match(r"other*", str(entry[field]).lower())),
-                            str(entry[field]).lower(),
-                        ),
-                        reverse=reverse,
-                    )
+                sorted_data = sorted(
+                    sorted_data,
+                    key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
+                    reverse=reverse,
+                )
 
         return sorted_data
 
