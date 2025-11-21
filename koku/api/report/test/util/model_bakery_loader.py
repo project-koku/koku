@@ -403,6 +403,33 @@ class ModelBakeryDataLoader(DataLoader):
                         infrastructure_raw_cost=infra_raw_cost,
                         infrastructure_project_raw_cost=project_infra_raw_cost,
                     )
+                    # GPU data_source - create multiple GPUs with different models
+                    gpu_models = [
+                        {"model": "Tesla T4", "memory": "15360"},
+                        {"model": "A100", "memory": "40960"},
+                        {"model": "Tesla T4", "memory": "15360"},  # 2nd T4 for count tests
+                    ]
+                    for gpu_idx, gpu_config in enumerate(gpu_models):
+                        from uuid import uuid4
+
+                        baker.make_recipe(
+                            "api.report.test.util.ocp_usage_gpu",
+                            report_period=report_period,
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_id,
+                            usage_start=start_date + timedelta(i),
+                            usage_end=start_date + timedelta(i),
+                            source_uuid=provider.uuid,
+                            resource_id=f"GPU-{uuid4()}",  # Unique GPU UUID
+                            all_labels={
+                                "gpu-model": gpu_config["model"],
+                                "gpu-vendor": "nvidia_com_gpu",
+                                "gpu-memory-mib": gpu_config["memory"],
+                                "gpu-uptime-hours": str(random.uniform(1.0, 23.5)),
+                                "pod-name": f"gpu_pod_{gpu_idx}",
+                            },
+                            cost_model_gpu_cost=random.uniform(10.0, 100.0),
+                        )
                     if on_cloud:
                         # Network data comes from the cloud bill
                         baker.make_recipe(
