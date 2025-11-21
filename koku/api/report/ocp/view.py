@@ -7,6 +7,7 @@ from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.models import Provider
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
+from api.report.ocp.serializers import OCPGpuQueryParamSerializer
 from api.report.ocp.serializers import OCPInventoryQueryParamSerializer
 from api.report.ocp.serializers import OCPVirtualMachinesQueryParamSerializer
 from api.report.view import ReportView
@@ -60,3 +61,10 @@ class OCPReportVirtualMachinesView(OCPView):
     serializer = OCPVirtualMachinesQueryParamSerializer
     only_monthly_resolution = True
     monthly_pagination_key = "vm_names"
+
+
+class OCPGpuView(OCPView):
+    """Get OpenShift GPU usage data."""
+
+    report = "gpu"
+    serializer = OCPGpuQueryParamSerializer

@@ -8,6 +8,7 @@ import pkgutil
 import random
 import uuid
 from collections import defaultdict
+from datetime import date
 from datetime import datetime
 from unittest.mock import call
 from unittest.mock import Mock
@@ -925,6 +926,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     report_period_id=report_period_id,
                 )
                 .exclude(cost_model_rate_type="platform_distributed")
+                .exclude(data_source="GPU")
                 .count()
             )
             # the distributed cost is being added so the initial count is no longer zero.
@@ -937,10 +939,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 provider_uuid, report_period_id, start_date, end_date
             )
 
-            new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
-                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
-                report_period_id=report_period_id,
-            ).count()
+            new_non_raw_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                    report_period_id=report_period_id,
+                )
+                .exclude(data_source="GPU")
+                .count()
+            )
             new_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,
@@ -955,10 +961,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
             report_period = acc.report_periods_for_provider_uuid(provider_uuid, start_date)
 
             report_period_id = report_period.id
-            initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
-                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
-                report_period_id=report_period_id,
-            ).count()
+            initial_non_raw_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                    report_period_id=report_period_id,
+                )
+                .exclude(data_source="GPU")
+                .count()
+            )
             initial_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,
@@ -968,10 +978,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 provider_uuid, report_period_id, start_date, end_date
             )
 
-            new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
-                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
-                report_period_id=report_period_id,
-            ).count()
+            new_non_raw_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                    report_period_id=report_period_id,
+                )
+                .exclude(data_source="GPU")
+                .count()
+            )
             new_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,
@@ -1288,3 +1302,36 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             # Should not call SQL execution when flag is disabled
             mock_trino_exec.assert_not_called()
+
+
+class OCPReportDBAccessorGPUUITest:
+    """Test Cases for GPU UI summary table population (independent from setUp dependencies)."""
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test__populate_gpu_ui_summary_tables(self, mock_execute):
+        """Test that GPU UI summary tables are populated with cost data from main GPU table."""
+        sql_params = {
+            "start_date": date(2025, 1, 1),
+            "end_date": date(2025, 1, 31),
+            "source_uuid": uuid.uuid4(),
+            "schema": "org1234567",
+        }
+
+        # Create accessor with a mock schema (no DB interaction needed)
+        accessor = OCPReportDBAccessor("org1234567")
+        accessor._populate_gpu_ui_summary_tables(sql_params)
+
+        # Should be called twice (by_project + by_node)
+        assert mock_execute.call_count == 2
+
+        # Verify correct table names and operation
+        call_args_list = mock_execute.call_args_list
+        table_names = [call[0][0] for call in call_args_list]
+        operations = [call[1].get("operation") for call in call_args_list]
+
+        assert "reporting_ocp_gpu_summary_by_project_p" in table_names
+        assert "reporting_ocp_gpu_summary_by_node_p" in table_names
+
+        # Verify DELETE/INSERT operation is used (follows populate_ui_summary_tables pattern)
+        for operation in operations:
+            assert operation == "DELETE/INSERT"
