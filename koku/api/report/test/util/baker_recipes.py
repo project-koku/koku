@@ -132,26 +132,6 @@ ocp_usage_storage = Recipe(  # Storage data_source
     _quantity=OCP_CONSTANTS.length,
 )
 
-ocp_usage_gpu = Recipe(  # GPU data_source
-    "OCPUsageLineItemDailySummary",
-    data_source="GPU",
-    node=cycle(f"gpu_node_{i}" for i in range(OCP_CONSTANTS.length - 1)),
-    namespace=cycle(OCP_CONSTANTS["namespaces"]),
-    # resource_id will be GPU UUID, set dynamically in loader
-    # all_labels must contain: gpu-model, gpu-vendor, gpu-memory-mib, gpu-uptime-hours, pod-name
-    cost_model_gpu_cost=cycle(decimal_yielder()),
-    raw_currency="USD",
-    cost_model_rate_type="Tag",
-    node_capacity_cpu_cores=cycle(decimal_yielder()),
-    node_capacity_cpu_core_hours=cycle(decimal_yielder()),
-    node_capacity_memory_gigabytes=cycle(decimal_yielder()),
-    node_capacity_memory_gigabyte_hours=cycle(decimal_yielder()),
-    cluster_capacity_cpu_core_hours=cycle(decimal_yielder()),
-    cluster_capacity_memory_gigabyte_hours=cycle(decimal_yielder()),
-    _fill_optional=False,
-    _quantity=OCP_CONSTANTS.length,
-)
-
 ocp_usage_network_in = Recipe(  # Inbound network flow
     "OCPUsageLineItemDailySummary",
     data_source="Pod",
