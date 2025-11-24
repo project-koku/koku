@@ -1738,7 +1738,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
             # Get a model from database
             models = list(OCPGpuSummaryP.objects.values_list("gpu_model_name", flat=True).distinct())
 
-            if models:
                 test_model = models[0]
 
                 # Test with uppercase
