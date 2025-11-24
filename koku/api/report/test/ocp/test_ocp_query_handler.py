@@ -1781,6 +1781,5 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         # Should return valid structure but with zero cost
         self.assertIn("meta", data)
-        if "total" in data["meta"]:
             total_cost = data["meta"]["total"].get("cost", {}).get("total", {}).get("value", 0)
             self.assertEqual(total_cost, 0.0, "Non-existent model should return zero cost")
