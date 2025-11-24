@@ -1666,7 +1666,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         # Verify data structure has grouped values
         self.assertIn("data", data)
-        if len(data["data"]) > 0:
             first_entry = data["data"][0]
             self.assertIn("date", first_entry)
             if "values" in first_entry and len(first_entry["values"]) > 0:
