@@ -1544,7 +1544,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 OCPGpuSummaryP.objects.values_list("gpu_model_name", flat=True).distinct().order_by("gpu_model_name")
             )
 
-            if len(models) >= 2:
                 # Test filtering by first model
                 test_model = models[0]
 
