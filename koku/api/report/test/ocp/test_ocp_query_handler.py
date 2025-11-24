@@ -1763,7 +1763,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 data2 = response2.data
 
                 # Verify that total costs are the same (case doesn't matter)
-                if "meta" in data1 and "meta" in data2:
                     total1 = data1["meta"].get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
                     total2 = data2["meta"].get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
                     self.assertEqual(total1, total2, "Case insensitive filter should return same results")
