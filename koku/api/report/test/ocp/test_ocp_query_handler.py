@@ -1600,7 +1600,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 OCPGpuSummaryP.objects.values_list("gpu_model_name", flat=True).distinct().order_by("gpu_model_name")
             )
 
-            if len(models) >= 2:
                 model1 = models[0]
                 model2 = models[1]
 
