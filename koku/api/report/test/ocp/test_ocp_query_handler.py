@@ -1574,7 +1574,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 OCPGpuSummaryP.objects.values_list("gpu_vendor_name", flat=True).distinct().order_by("gpu_vendor_name")
             )
 
-            if vendors:
                 test_vendor = vendors[0]
 
                 url = reverse("reports-openshift-gpu")
