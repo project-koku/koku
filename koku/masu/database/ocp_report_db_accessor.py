@@ -316,18 +316,18 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             LOG.info("Could not find table.")
             return False
         sql = f"""
-SELECT partitions.year, partitions.month, partitions.source
-FROM (
-    SELECT year as year,
-        month as month,
-        day as day,
-        cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date) as partition_date,
-        {source_column} as source
-    FROM  "{table}$partitions"
-) as partitions
-WHERE partitions.partition_date < DATE '{date_str}'
-GROUP BY partitions.year, partitions.month, partitions.source
-"""
+            SELECT partitions.year, partitions.month, partitions.source
+            FROM (
+                SELECT year as year,
+                    month as month,
+                    day as day,
+                    cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date) as partition_date,
+                    {source_column} as source
+                FROM  "{table}$partitions"
+            ) as partitions
+            WHERE partitions.partition_date < DATE '{date_str}'
+            GROUP BY partitions.year, partitions.month, partitions.source
+        """
         return self._execute_trino_raw_sql_query(sql, log_ref="finding expired partitions")
 
     def populate_line_item_daily_summary_table_trino(
@@ -458,6 +458,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             metric_constants.WORKER_UNALLOCATED: ("distribute_worker_cost.sql", False),
             metric_constants.STORAGE_UNATTRIBUTED: ("distribute_unattributed_storage_cost.sql", True),
             metric_constants.NETWORK_UNATTRIBUTED: ("distribute_unattributed_network_cost.sql", True),
+            metric_constants.GPU_UNALLOCATED: ("distribute_unallocated_gpu_cost.sql", True),
         }
 
         distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)

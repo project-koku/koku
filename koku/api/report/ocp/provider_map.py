@@ -236,11 +236,13 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_network_cost
-                            + self.distributed_unattributed_storage_cost,
+                            + self.distributed_unattributed_storage_cost
+                            + self.distributed_unallocated_gpu_cost,
                             "cost_platform_distributed": self.distributed_platform_cost,
                             "cost_worker_unallocated_distributed": self.distributed_worker_cost,
                             "cost_network_unattributed_distributed": self.distributed_unattributed_network_cost,
                             "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
+                            "cost_gpu_unallocated_distributed": self.distributed_unallocated_gpu_cost,
                         },
                         "default_ordering": {"cost_total": "desc"},
                         "annotations": {
@@ -264,11 +266,13 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
-                            + self.distributed_unattributed_network_cost,
+                            + self.distributed_unattributed_network_cost
+                            + self.distributed_unallocated_gpu_cost,
                             "cost_platform_distributed": self.distributed_platform_cost,
                             "cost_worker_unallocated_distributed": self.distributed_worker_cost,
                             "cost_network_unattributed_distributed": self.distributed_unattributed_network_cost,
                             "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
+                            "cost_gpu_unallocated_distributed": self.distributed_unallocated_gpu_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
@@ -286,7 +290,8 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
-                            + self.distributed_unattributed_network_cost,
+                            + self.distributed_unattributed_network_cost
+                            + self.distributed_unallocated_gpu_cost,
                         },
                         "filter": [{}],
                         "cost_units_key": "raw_currency",
@@ -315,7 +320,8 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
-                            + self.distributed_unattributed_network_cost,
+                            + self.distributed_unattributed_network_cost
+                            + self.distributed_unallocated_gpu_cost,
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
@@ -356,7 +362,8 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
-                            + self.distributed_unattributed_network_cost,
+                            + self.distributed_unattributed_network_cost
+                            + self.distributed_unallocated_gpu_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage_units": Value("Core-Hours", output_field=CharField()),
@@ -379,7 +386,8 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
-                            + self.distributed_unattributed_network_cost,
+                            + self.distributed_unattributed_network_cost
+                            + self.distributed_unallocated_gpu_cost,
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
                         "conditionals": {
@@ -434,7 +442,8 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
-                            + self.distributed_unattributed_network_cost,
+                            + self.distributed_unattributed_network_cost
+                            + self.distributed_unallocated_gpu_cost,
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
@@ -477,7 +486,8 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
-                            + self.distributed_unattributed_network_cost,
+                            + self.distributed_unattributed_network_cost
+                            + self.distributed_unallocated_gpu_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
@@ -504,7 +514,8 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
-                            + self.distributed_unattributed_network_cost,
+                            + self.distributed_unattributed_network_cost
+                            + self.distributed_unallocated_gpu_cost,
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
                         "conditionals": {
@@ -837,11 +848,13 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_network_cost
-                            + self.distributed_unattributed_storage_cost,
+                            + self.distributed_unattributed_storage_cost
+                            + self.distributed_unallocated_gpu_cost,
                             "cost_platform_distributed": self.distributed_platform_cost,
                             "cost_worker_unallocated_distributed": self.distributed_worker_cost,
                             "cost_network_unattributed_distributed": self.distributed_unattributed_network_cost,
                             "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
+                            "cost_gpu_unallocated_distributed": self.distributed_unallocated_gpu_cost,
                         },
                         "capacity_aggregate": {},
                         "annotations": {
@@ -876,11 +889,13 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_network_cost
-                            + self.distributed_unattributed_storage_cost,
+                            + self.distributed_unattributed_storage_cost
+                            + self.distributed_unallocated_gpu_cost,
                             "cost_platform_distributed": self.distributed_platform_cost,
                             "cost_worker_unallocated_distributed": self.distributed_worker_cost,
                             "cost_network_unattributed_distributed": self.distributed_unattributed_network_cost,
                             "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
+                            "cost_gpu_unallocated_distributed": self.distributed_unallocated_gpu_cost,
                             "cluster": Max(Coalesce("cluster_alias", "cluster_id")),
                             "node": Max(F("node")),
                             "project": Max("namespace"),
@@ -909,7 +924,8 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
-                            + self.distributed_unattributed_network_cost,
+                            + self.distributed_unattributed_network_cost
+                            + self.distributed_unallocated_gpu_cost,
                         },
                         "filter": [],
                         "default_ordering": {"cost_total": "desc"},
@@ -1075,3 +1091,8 @@ class OCPProviderMap(ProviderMap):
     def distributed_worker_cost(self):
         """Worker unallocated distributed cost"""
         return self.__cost_model_distributed_cost("worker_distributed", "exchange_rate")
+
+    @cached_property
+    def distributed_unallocated_gpu_cost(self):
+        """The unattributed GPU cost needs to have the infra exchange rate applied to it."""
+        return self.__cost_model_distributed_cost("unallocated_gpu", "infra_exchange_rate")
