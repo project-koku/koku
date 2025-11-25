@@ -458,8 +458,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             metric_constants.WORKER_UNALLOCATED: ("distribute_worker_cost.sql", False),
             metric_constants.STORAGE_UNATTRIBUTED: ("distribute_unattributed_storage_cost.sql", True),
             metric_constants.NETWORK_UNATTRIBUTED: ("distribute_unattributed_network_cost.sql", True),
-            metric_constants.GPU_UNALLOCATED: ("distribute_unallocated_gpu_cost.sql", True),
         }
+        # metric_constants.GPU_UNALLOCATED: ("distribute_unallocated_gpu_cost.sql", False),
 
         distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
         table_name = self._table_map["line_item_daily_summary"]
