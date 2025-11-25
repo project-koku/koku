@@ -97,14 +97,14 @@ WITH cte_unutilized_uptime_hours AS (
     select
         node_ut.node,
         -- count(node_ut.interval_start) * max(CAST(json_extract_scalar(node_labels, '$.nvidia_com_gpu_count') as DECIMAL(33, 15))) as node_uptime_hours,
-        -- max(gpu.aggegrated_pod_uptime) as pod_uptime,
-        count(node_ut.interval_start) * max(CAST(json_extract_scalar(node_labels, '$.nvidia_com_gpu_count') as DECIMAL(33, 15))) - max(gpu.aggegrated_pod_uptime) as untilized_uptime,
+        -- max(gpu.aggregated_pod_uptime) as pod_uptime,
+        count(node_ut.interval_start) * max(CAST(json_extract_scalar(node_labels, '$.nvidia_com_gpu_count') as DECIMAL(33, 15))) - coalesce(max(gpu.aggregated_pod_uptime), 0) as untilized_uptime,
         json_extract_scalar(node_ut.node_labels, '$.nvidia_com_gpu_product') as model,
         DATE(node_ut.interval_start) as interval_date
     from openshift_node_labels_line_items as node_ut
     LEFT JOIN (
         SELECT
-            sum(gpu.gpu_pod_uptime) / 3600 as aggegrated_pod_uptime,
+            sum(gpu.gpu_pod_uptime) / 3600 as aggregated_pod_uptime,
             gpu.node,
             DATE(gpu.interval_start) as interval_date
         from openshift_gpu_usage_line_items_daily as gpu
