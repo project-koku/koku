@@ -33,6 +33,7 @@ from masu.processor import is_feature_flag_enabled_by_account
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.util.common import filter_dictionary
 from masu.util.common import trino_table_exists
+from masu.util.ocp.common import DistributionConfig
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
@@ -452,21 +453,32 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             provider_uuid (str): The str of the provider UUID
         """
 
-        # Storage & Network unattributed are distributed even if there is no cost model
-        distribute_without_cost_model = [metric_constants.STORAGE_UNATTRIBUTED, metric_constants.NETWORK_UNATTRIBUTED]
-
-        postgresql_sql_path = "sql/openshift/cost_model/distribute_cost/"
-        trino_sql_path = "trino_sql/openshift/cost_model/distribute_cost/"
-
-        key_to_file_mapping = {
-            metric_constants.PLATFORM_COST: f"{postgresql_sql_path}distribute_platform_cost.sql",
-            metric_constants.WORKER_UNALLOCATED: f"{postgresql_sql_path}distribute_worker_cost.sql",
-            metric_constants.STORAGE_UNATTRIBUTED: f"{postgresql_sql_path}distribute_unattributed_storage_cost.sql",
-            metric_constants.NETWORK_UNATTRIBUTED: f"{postgresql_sql_path}distribute_unattributed_network_cost.sql",
-            metric_constants.GPU_UNALLOCATED: f"{trino_sql_path}distribute_unallocated_gpu_cost.sql",
+        distribution_configs = {
+            metric_constants.PLATFORM_COST: DistributionConfig(
+                sql_file="distribute_platform_cost.sql",
+                cost_model_rate_type="platform_distributed",
+            ),
+            metric_constants.WORKER_UNALLOCATED: DistributionConfig(
+                sql_file="distribute_worker_cost.sql",
+                cost_model_rate_type="worker_distributed",
+            ),
+            metric_constants.STORAGE_UNATTRIBUTED: DistributionConfig(
+                sql_file="distribute_unattributed_storage_cost.sql",
+                cost_model_rate_type="unattributed_storage",
+                distribute_by_default=True,  # Distributed without cost model
+            ),
+            metric_constants.NETWORK_UNATTRIBUTED: DistributionConfig(
+                sql_file="distribute_unattributed_network_cost.sql",
+                cost_model_rate_type="unattributed_network",
+                distribute_by_default=True,  # Distributed without cost model
+            ),
+            metric_constants.GPU_UNALLOCATED: DistributionConfig(
+                sql_file="distribute_unallocated_gpu_cost.sql",
+                cost_model_rate_type="gpu_distributed",
+                query_type="trino",
+            ),
         }
 
-        distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
@@ -476,35 +488,42 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             return
 
         report_period_id = report_period.id
-
-        for cost_model_key, sql_file in key_to_file_mapping.items():
-            distribute_default = bool(cost_model_key in distribute_without_cost_model)
-            populate = distribution_info.get(cost_model_key, distribute_default)
-            if populate:
-                log_msg = f"distributing {cost_model_key}"
-            else:
-                # if populate is false we only execute the delete sql.
-                log_msg = f"removing {cost_model_key} distribution"
+        for cost_model_key, config in distribution_configs.items():
             sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
                 "schema": self.schema,
                 "report_period_id": report_period_id,
-                "distribution": distribution,
                 "source_uuid": provider_uuid,
-                "populate": populate,
+                "cost_model_rate_type": config.cost_model_rate_type,
             }
-
-            sql = pkgutil.get_data("masu.database", sql_file)
+            self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
+            populate = distribution_info.get(cost_model_key, config.distribute_by_default)
+            if not populate:
+                continue
+            sql_params["distribution"] = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
+            sql = pkgutil.get_data("masu.database", config.get_full_path())
             sql = sql.decode("utf-8")
+            log_msg = f"distributing {cost_model_key}"
             LOG.info(log_json(msg=log_msg, context=sql_params))
-            if "trino_sql/" in sql_file:
+            if config.is_trino:
+                # Need to delete
                 start_date_parsed = DateHelper().parse_to_date(sql_params["start_date"])
                 sql_params["year"] = start_date_parsed.strftime("%Y")
                 sql_params["month"] = start_date_parsed.strftime("%m")
                 self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
             else:
                 self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
+
+    def _delete_monthly_cost_model_rate_type_data(self, sql_params, cost_model_key):
+        delete_sql = pkgutil.get_data(
+            "masu.database", "sql/openshift/cost_model/delete_monthly_cost_model_rate_type.sql"
+        )
+        delete_sql = delete_sql.decode("utf-8")
+        LOG.info(log_json(msg=f"removing {cost_model_key} distribution", context=sql_params))
+        self._prepare_and_execute_raw_sql_query(
+            self._table_map["line_item_daily_summary"], delete_sql, sql_params, operation="DELETE"
+        )
 
     def _delete_monthly_cost_model_data(self, sql_params, ctx):
         delete_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/delete_monthly_cost.sql")

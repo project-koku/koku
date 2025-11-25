@@ -14,6 +14,7 @@ from math import ceil
 from pathlib import Path
 from typing import Annotated
 from typing import Any
+from typing import Literal
 from typing import Self
 
 import pandas as pd
@@ -23,6 +24,7 @@ from pydantic import AfterValidator
 from pydantic import BaseModel
 from pydantic import BeforeValidator
 from pydantic import ConfigDict
+from pydantic import Field
 from pydantic import field_validator
 from pydantic import model_validator
 from pydantic import UUID4
@@ -638,3 +640,53 @@ def get_latest_operator_version():
         if latest_version_num is None or Version(version_num) > Version(latest_version_num):
             latest_version_num = version_num
     return latest_version_num
+
+
+class DistributionConfig(BaseModel):
+    """Configuration for cost distribution SQL execution.
+
+    Consolidates all metadata needed to execute a distribution:
+    - SQL file path
+    - Whether to distribute by default (without cost model)
+    - Cost model rate type for deletion
+    - Query engine type (PostgreSQL vs Trino)
+    """
+
+    sql_file: str = Field(..., description="SQL file name (without path)")
+    cost_model_rate_type: str = Field(..., description="Rate type identifier for cost model")
+    distribute_by_default: bool = Field(
+        default=False, description="Whether to distribute when no cost model is present"
+    )
+    query_type: Literal["postgresql", "trino"] = Field(
+        default="postgresql", description="Query engine to use for execution"
+    )
+
+    class Config:
+        frozen = True  # Immutable
+
+    @field_validator("sql_file")
+    @classmethod
+    def validate_sql_file(cls, v: str) -> str:
+        """Ensure SQL file has .sql extension."""
+        if not v.endswith(".sql"):
+            raise ValueError(f"SQL file must end with .sql, got: {v}")
+        return v
+
+    @property
+    def is_trino(self) -> bool:
+        """Check if this is a Trino query."""
+        return self.query_type == "trino"
+
+    @property
+    def is_postgresql(self) -> bool:
+        """Check if this is a PostgreSQL query."""
+        return self.query_type == "postgresql"
+
+    def get_full_path(self) -> str:
+        """Get full path to SQL file relative to masu.database."""
+        base_path = (
+            "trino_sql/openshift/cost_model/distribute_cost/"
+            if self.is_trino
+            else "sql/openshift/cost_model/distribute_cost/"
+        )
+        return f"{base_path}{self.sql_file}"

@@ -1,11 +1,3 @@
-DELETE FROM postgresql.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-WHERE lids.usage_start >= {{start_date}}::date
-    AND lids.usage_start <= {{end_date}}::date
-    AND lids.report_period_id = {{report_period_id}}
-    AND lids.cost_model_rate_type = 'unallocated_gpu'
-;
-
-{% if populate %}
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
@@ -79,5 +71,4 @@ SELECT
     max(raw_currency) as raw_currency
 FROM xyz
 WHERE filtered.namespace IS NOT NULL
-GROUP BY filtered.usage_start, filtered.node, filtered.namespace, filtered.cluster_id, filtered.cost_category_id, filtered.data_source
-{% endif %}
+GROUP BY filtered.usage_start, filtered.node, filtered.namespace, filtered.cluster_id, filtered.cost_category_id, filtered.data_source;
