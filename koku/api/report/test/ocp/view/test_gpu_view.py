@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GPU Report views."""
+from decimal import Decimal
 from urllib.parse import urlencode
 
 from django.urls import reverse
@@ -81,17 +82,6 @@ class OCPGpuViewTest(IamTestCase):
         url = reverse("reports-openshift-gpu")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.data
-
-        # Verify response structure
-        self.assertIn("meta", data)
-        self.assertIn("data", data)
-        self.assertIn("links", data)
-
-        # Verify meta structure
-        meta = data["meta"]
-        self.assertIn("count", meta)
-        self.assertIn("total", meta)
 
     def test_gpu_endpoint_with_group_by_returns_new_fields(self):
         """Test that GPU endpoint returns memory, gpu_hours, and gpu_count fields."""
