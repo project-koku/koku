@@ -6,7 +6,7 @@ generators:
       nodes:
         - node:
           node_name: compute_1
-          node_labels: label_instance-type:medium|label_kubernetes_io_arch:amd64
+          node_labels: label_instance-type:medium|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:2|nvidia_com_gpu_product:Tesla_T4|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -20,7 +20,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:OpenCart|label_stage:Production|label_group:Marketing|label_dashed-key-on-prem:dashed-value|label_vm_kubevirt_io_name:exclude_A||label_exclude:A
+                  labels: label_application:OpenCart|label_stage:Production|label_group:Marketing|label_dashed-key-on-prem:dashed-value|label_vm_kubevirt_io_name:exclude_A|label_exclude:A
                   gpus:
                     - gpu:
                       gpu_model: "Tesla T4"
@@ -73,7 +73,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_2
-          node_labels: label_instance-type:small|label_kubernetes_io_arch:arm64
+          node_labels: label_instance-type:small|label_kubernetes_io_arch:arm64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:A100|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -85,8 +85,8 @@ generators:
                   mem_request_gig: 2
                   cpu_limit: 1
                   mem_limit_gig: 4
-                  pod_seconds: 3600
-                  labels: label_application:Candlepin|label_stage:Development|label_group:Marketing|label_vm_kubevirt_io_name:exclude_B||label_exclude:B
+                  pod_seconds: 3000
+                  labels: label_application:Candlepin|label_stage:Development|label_group:Marketing|label_vm_kubevirt_io_name:exclude_B|label_exclude:B
                   gpus:
                     - gpu:
                       gpu_model: "A100"
@@ -112,7 +112,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:Candlepin|label_stage:Production|label_group:Sales|label_vm_kubevirt_io_name:exclude_C||label_exclude:C
+                  labels: label_application:Candlepin|label_stage:Production|label_group:Sales|label_vm_kubevirt_io_name:exclude_C|label_exclude:C
               volumes:
                 - volume:
                   volume_name: pvc-volume_4
@@ -140,7 +140,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:Cygwin|label_stage:Production|label_group:Marketing|label_vm_kubevirt_io_name:sushi||label_excluded:sushi
+                  labels: label_application:Cygwin|label_stage:Production|label_group:Marketing|label_vm_kubevirt_io_name:sushi|label_excluded:sushi
               volumes:
                 - volume:
                   volume_name: pvc-volume_5
@@ -177,7 +177,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_4
-          node_labels: label_instance-type:large|label_kubernetes_io_arch:amd64
+          node_labels: label_instance-type:large|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:4|nvidia_com_gpu_product:H100|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -189,7 +189,7 @@ generators:
                   mem_request_gig: 2
                   cpu_limit: 1
                   mem_limit_gig: 4
-                  pod_seconds: 3600
+                  pod_seconds: 1800
                   labels: label_application:CMSapp|label_stage:Production|label_group:Marketing|label_vm_kubevirt_io_name:fedora|label_excluded:fedora
                   gpus:
                     - gpu:
@@ -225,7 +225,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:Atomic|label_stage:Test|label_group:Support|label_vm_kubevirt_io_name:exclude_D||label_exclude:D
+                  labels: label_application:Atomic|label_stage:Test|label_group:Support|label_vm_kubevirt_io_name:exclude_D|label_exclude:D
               volumes:
                 - volume:
                   volume_name: pvc-volume_8
@@ -240,7 +240,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_5
-          node_labels: label_instance-type:xlarge|label_kubernetes_io_arch:amd64
+          node_labels: label_instance-type:xlarge|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:Tesla_T4|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1
           cpu_cores: 4
           memory_gig: 16
           namespaces:
