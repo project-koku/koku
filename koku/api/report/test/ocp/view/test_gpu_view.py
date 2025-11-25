@@ -71,8 +71,10 @@ class OCPGpuViewTest(IamTestCase):
         url = url + "?" + urlencode(query_params, doseq=True)
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("data", response.data)
-        self.assertIn("meta", response.data)
+        gpu_values = response.data["data"][0]["nodes"][0]["values"][0]
+        self.assertGreater(len(gpu_values), 0, "GPU endpoint should return actual data")
+        self.assertEqual(gpu_values["vendor"], "nvidia_com_gpu", "GPU vendor should be nvidia_com_gpu")
+        self.assertIsInstance(gpu_values["memory"]["value"], Decimal, "GPU memory should be numeric")
 
     def test_gpu_endpoint_response_structure(self):
         """Test that GPU endpoint returns proper response structure with new fields."""
