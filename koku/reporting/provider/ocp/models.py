@@ -987,7 +987,6 @@ class OCPGpuSummaryP(models.Model):
     cluster_alias = models.TextField(null=True)
     namespace = models.CharField(max_length=253, null=True)
     node = models.CharField(max_length=253, null=True)
-    pod = models.CharField(max_length=253, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
 

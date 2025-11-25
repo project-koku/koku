@@ -24,7 +24,6 @@ class Migration(migrations.Migration):
                 ("cluster_alias", models.TextField(null=True)),
                 ("namespace", models.CharField(max_length=253, null=True)),
                 ("node", models.CharField(max_length=253, null=True)),
-                ("pod", models.CharField(max_length=253, null=True)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("vendor_name", models.CharField(max_length=128, null=True)),
