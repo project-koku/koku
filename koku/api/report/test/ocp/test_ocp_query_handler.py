@@ -1541,7 +1541,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             # Get distinct models from database
             models = list(
-                OCPGpuSummaryP.objects.values_list("gpu_model_name", flat=True).distinct().order_by("gpu_model_name")
+                OCPGpuSummaryP.objects.values_list("model_name", flat=True).distinct().order_by("model_name")
             )
             # Test filtering by first model
             test_model = models[0]
@@ -1570,7 +1570,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             # Get distinct vendors from database
             vendors = list(
-                OCPGpuSummaryP.objects.values_list("gpu_vendor_name", flat=True).distinct().order_by("gpu_vendor_name")
+                OCPGpuSummaryP.objects.values_list("vendor_name", flat=True).distinct().order_by("vendor_name")
             )
             test_vendor = vendors[0]
 
@@ -1594,7 +1594,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             # Get distinct models from database
             models = list(
-                OCPGpuSummaryP.objects.values_list("gpu_model_name", flat=True).distinct().order_by("gpu_model_name")
+                OCPGpuSummaryP.objects.values_list("model_name", flat=True).distinct().order_by("model_name")
             )
             model1 = models[0]
             model2 = models[1]
@@ -1708,7 +1708,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             # Get a model to filter by
             models = list(
-                OCPGpuSummaryP.objects.values_list("gpu_model_name", flat=True).distinct().order_by("gpu_model_name")
+                OCPGpuSummaryP.objects.values_list("model_name", flat=True).distinct().order_by("model_name")
             )
             test_model = models[0]
 
@@ -1732,7 +1732,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test that GPU filters are case insensitive."""
         with tenant_context(self.tenant):
             # Get a model from database
-            models = list(OCPGpuSummaryP.objects.values_list("gpu_model_name", flat=True).distinct())
+            models = list(OCPGpuSummaryP.objects.values_list("model_name", flat=True).distinct())
             test_model = models[0]
 
         # Test with uppercase

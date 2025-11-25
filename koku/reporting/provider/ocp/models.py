@@ -56,8 +56,6 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_network_summary_by_node_p",
     "reporting_ocp_network_summary_by_project_p",
     "reporting_ocp_gpu_summary_p",
-    "reporting_ocp_gpu_summary_by_node_p",
-    "reporting_ocp_gpu_summary_by_project_p",
 )
 
 # Note the reporting_ocp_vm_summary_p is populated separately.
@@ -980,8 +978,8 @@ class OCPGpuSummaryP(models.Model):
             models.Index(fields=["cluster_id"], name="ocpgpusumm_cluster_idx"),
             models.Index(fields=["namespace"], name="ocpgpusumm_namespace_idx"),
             models.Index(fields=["node"], name="ocpgpusumm_node_idx"),
-            models.Index(fields=["gpu_vendor_name"], name="ocpgpusumm_vendor_idx"),
-            models.Index(fields=["gpu_model_name"], name="ocpgpusumm_model_idx"),
+            models.Index(fields=["vendor_name"], name="ocpgpusumm_vendor_idx"),
+            models.Index(fields=["model_name"], name="ocpgpusumm_model_idx"),
         ]
 
     id = models.UUIDField(primary_key=True)
@@ -994,117 +992,14 @@ class OCPGpuSummaryP(models.Model):
     usage_end = models.DateField(null=False)
 
     # GPU specific fields
-    gpu_vendor_name = models.CharField(max_length=128, null=True)
-    gpu_model_name = models.CharField(max_length=128, null=True)
-    gpu_memory_capacity_mib = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    gpu_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    vendor_name = models.CharField(max_length=128, null=True)
+    model_name = models.CharField(max_length=128, null=True)
+    memory_capacity_mib = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_usage_gpu_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     gpu_count = models.IntegerField(null=True)
 
     # Cost fields - aggregated from cost_model_gpu_cost in daily_summary
-    gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    unallocated_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
-    # Metadata
-    source_uuid = models.ForeignKey(
-        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
-    raw_currency = models.TextField(null=True)
-
-    # Simplified Cost Model Cost terms
-    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    cost_model_rate_type = models.TextField(null=True)
-
-
-class OCPGpuSummaryByProjectP(models.Model):
-    """A summarized view of OCP GPU costs aggregated by project."""
-
-    class PartitionInfo:
-        partition_type = "RANGE"
-        partition_cols = ["usage_start"]
-
-    class Meta:
-        """Meta for OCPGpuSummaryByProjectP."""
-
-        db_table = "reporting_ocp_gpu_summary_by_project_p"
-        indexes = [
-            models.Index(fields=["usage_start"], name="ocpgpuproj_usage_start"),
-            models.Index(fields=["cluster_id"], name="ocpgpuproj_cluster_idx"),
-            models.Index(fields=["namespace"], name="ocpgpuproj_namespace_idx"),
-            models.Index(fields=["gpu_vendor_name"], name="ocpgpuproj_vendor_idx"),
-            models.Index(fields=["gpu_model_name"], name="ocpgpuproj_model_idx"),
-        ]
-
-    id = models.UUIDField(primary_key=True)
-    cluster_id = models.TextField()
-    cluster_alias = models.TextField(null=True)
-    namespace = models.CharField(max_length=253, null=True)
-    usage_start = models.DateField(null=False)
-    usage_end = models.DateField(null=False)
-
-    # GPU aggregated fields
-    gpu_vendor_name = models.CharField(max_length=128, null=True)
-    gpu_model_name = models.CharField(max_length=128, null=True)
-    gpu_memory_capacity_mib = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    gpu_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    gpu_count = models.IntegerField(null=True)
-
-    # Cost fields
-    gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    unallocated_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
-    # Metadata
-    source_uuid = models.ForeignKey(
-        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
-    raw_currency = models.TextField(null=True)
-
-    # Simplified Cost Model Cost terms
-    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    cost_model_rate_type = models.TextField(null=True)
-
-
-class OCPGpuSummaryByNodeP(models.Model):
-    """A summarized view of OCP GPU costs aggregated by node."""
-
-    class PartitionInfo:
-        partition_type = "RANGE"
-        partition_cols = ["usage_start"]
-
-    class Meta:
-        """Meta for OCPGpuSummaryByNodeP."""
-
-        db_table = "reporting_ocp_gpu_summary_by_node_p"
-        indexes = [
-            models.Index(fields=["usage_start"], name="ocpgpunode_usage_start"),
-            models.Index(fields=["cluster_id"], name="ocpgpunode_cluster_idx"),
-            models.Index(fields=["node"], name="ocpgpunode_node_idx"),
-            models.Index(fields=["gpu_vendor_name"], name="ocpgpunode_vendor_idx"),
-            models.Index(fields=["gpu_model_name"], name="ocpgpunode_model_idx"),
-        ]
-
-    id = models.UUIDField(primary_key=True)
-    cluster_id = models.TextField()
-    cluster_alias = models.TextField(null=True)
-    node = models.CharField(max_length=253, null=True)
-    usage_start = models.DateField(null=False)
-    usage_end = models.DateField(null=False)
-
-    # GPU aggregated fields
-    gpu_vendor_name = models.CharField(max_length=128, null=True)
-    gpu_model_name = models.CharField(max_length=128, null=True)
-    gpu_memory_capacity_mib = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    gpu_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    gpu_count = models.IntegerField(null=True)
-
-    # Cost fields
-    gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    unallocated_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Metadata
     source_uuid = models.ForeignKey(
