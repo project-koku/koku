@@ -4,6 +4,7 @@
 #
 """Test the GPU Report views."""
 from decimal import Decimal
+from unittest.mock import patch
 from urllib.parse import urlencode
 
 from django.urls import reverse
@@ -127,3 +128,19 @@ class OCPGpuViewTest(IamTestCase):
                 status.HTTP_200_OK,
                 f"order_by[{field}] without group_by should succeed (in allowlist)",
             )
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_account", return_value=False)
+    def test_gpu_endpoint_blocked_when_unleash_flag_disabled(self, mock_unleash):
+        """Test that GPU endpoint returns 403 when Unleash flag is disabled."""
+        url = reverse("reports-openshift-gpu")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        mock_unleash.assert_called_once()
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_account", return_value=True)
+    def test_gpu_endpoint_accessible_when_unleash_flag_enabled(self, mock_unleash):
+        """Test that GPU endpoint is accessible when Unleash flag is enabled."""
+        url = reverse("reports-openshift-gpu")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_unleash.assert_called_once()
