@@ -102,15 +102,11 @@ class OCPGpuViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data
 
-        # If there's data with values, verify new fields exist
-        if data.get("data") and len(data["data"]) > 0:
-            values = data["data"][0].get("values", [])
-            if len(values) > 0:
-                value = values[0]
-                # Verify new fields are present
-                self.assertIn("memory", value, "memory field should be present in response")
-                self.assertIn("gpu_hours", value, "gpu_hours field should be present in response")
-                self.assertIn("gpu_count", value, "gpu_count field should be present in response")
+        values = data["data"][0].get("values", [])
+        # Verify new fields are present
+        self.assertIn("memory", values[0], "memory field should be present in response")
+        self.assertIn("gpu_hours", values[0], "gpu_hours field should be present in response")
+        self.assertIn("gpu_count", values[0], "gpu_count field should be present in response")
 
     def test_gpu_endpoint_order_by_memory(self):
         """Test that ordering by memory succeeds."""
