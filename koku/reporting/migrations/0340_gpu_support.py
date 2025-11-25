@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
                 ("vendor_name", models.CharField(max_length=128, null=True)),
                 ("model_name", models.CharField(max_length=128, null=True)),
                 ("memory_capacity_mib", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
-                ("pod_usage_gpu_hours", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                ("gpu_uptime_hours", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("gpu_count", models.IntegerField(null=True)),
                 ("cost_model_gpu_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("raw_currency", models.TextField(null=True)),
