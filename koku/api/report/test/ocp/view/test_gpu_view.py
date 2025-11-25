@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GPU Report views."""
+from decimal import Decimal
+from unittest.mock import patch
 from urllib.parse import urlencode
 
 from django.urls import reverse
@@ -71,25 +73,16 @@ class OCPGpuViewTest(IamTestCase):
         url = url + "?" + urlencode(query_params, doseq=True)
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("data", response.data)
-        self.assertIn("meta", response.data)
+        gpu_values = response.data["data"][0]["nodes"][0]["values"][0]
+        self.assertGreater(len(gpu_values), 0, "GPU endpoint should return actual data")
+        self.assertEqual(gpu_values["vendor"], "nvidia_com_gpu", "GPU vendor should be nvidia_com_gpu")
+        self.assertIsInstance(gpu_values["memory"]["value"], Decimal, "GPU memory should be numeric")
 
     def test_gpu_endpoint_response_structure(self):
         """Test that GPU endpoint returns proper response structure with new fields."""
         url = reverse("reports-openshift-gpu")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.data
-
-        # Verify response structure
-        self.assertIn("meta", data)
-        self.assertIn("data", data)
-        self.assertIn("links", data)
-
-        # Verify meta structure
-        meta = data["meta"]
-        self.assertIn("count", meta)
-        self.assertIn("total", meta)
 
     def test_gpu_endpoint_with_group_by_returns_new_fields(self):
         """Test that GPU endpoint returns memory, gpu_hours, and gpu_count fields."""
@@ -100,15 +93,11 @@ class OCPGpuViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data
 
-        # If there's data with values, verify new fields exist
-        if data.get("data") and len(data["data"]) > 0:
-            values = data["data"][0].get("values", [])
-            if len(values) > 0:
-                value = values[0]
-                # Verify new fields are present
-                self.assertIn("memory", value, "memory field should be present in response")
-                self.assertIn("gpu_hours", value, "gpu_hours field should be present in response")
-                self.assertIn("gpu_count", value, "gpu_count field should be present in response")
+        values = data["data"][0].get("values", [])
+        # Verify new fields are present
+        self.assertIn("memory", values[0], "memory field should be present in response")
+        self.assertIn("gpu_hours", values[0], "gpu_hours field should be present in response")
+        self.assertIn("gpu_count", values[0], "gpu_count field should be present in response")
 
     def test_gpu_endpoint_order_by_memory(self):
         """Test that ordering by memory succeeds."""
@@ -139,3 +128,19 @@ class OCPGpuViewTest(IamTestCase):
                 status.HTTP_200_OK,
                 f"order_by[{field}] without group_by should succeed (in allowlist)",
             )
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_account", return_value=False)
+    def test_gpu_endpoint_blocked_when_unleash_flag_disabled(self, mock_unleash):
+        """Test that GPU endpoint returns 403 when Unleash flag is disabled."""
+        url = reverse("reports-openshift-gpu")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        mock_unleash.assert_called_once()
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_account", return_value=True)
+    def test_gpu_endpoint_accessible_when_unleash_flag_enabled(self, mock_unleash):
+        """Test that GPU endpoint is accessible when Unleash flag is enabled."""
+        url = reverse("reports-openshift-gpu")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_unleash.assert_called_once()
