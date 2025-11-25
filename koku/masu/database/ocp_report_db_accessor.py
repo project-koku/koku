@@ -452,14 +452,19 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             provider_uuid (str): The str of the provider UUID
         """
 
-        # The boolean determines if this distribution should run if there is no cost model
+        # Storage & Network unattributed are distributed even if there is no cost model
+        distribute_without_cost_model = [metric_constants.STORAGE_UNATTRIBUTED, metric_constants.NETWORK_UNATTRIBUTED]
+
+        postgresql_sql_path = "sql/openshift/cost_model/distribute_cost/"
+        trino_sql_path = "trino_sql/openshift/cost_model/distribute_cost/"
+
         key_to_file_mapping = {
-            metric_constants.PLATFORM_COST: ("distribute_platform_cost.sql", False),
-            metric_constants.WORKER_UNALLOCATED: ("distribute_worker_cost.sql", False),
-            metric_constants.STORAGE_UNATTRIBUTED: ("distribute_unattributed_storage_cost.sql", True),
-            metric_constants.NETWORK_UNATTRIBUTED: ("distribute_unattributed_network_cost.sql", True),
+            metric_constants.PLATFORM_COST: f"{postgresql_sql_path}distribute_platform_cost.sql",
+            metric_constants.WORKER_UNALLOCATED: f"{postgresql_sql_path}distribute_worker_cost.sql",
+            metric_constants.STORAGE_UNATTRIBUTED: f"{postgresql_sql_path}distribute_unattributed_storage_cost.sql",
+            metric_constants.NETWORK_UNATTRIBUTED: f"{postgresql_sql_path}distribute_unattributed_network_cost.sql",
+            metric_constants.GPU_UNALLOCATED: f"{trino_sql_path}distribute_unallocated_gpu_cost.sql",
         }
-        # metric_constants.GPU_UNALLOCATED: ("distribute_unallocated_gpu_cost.sql", False),
 
         distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
         table_name = self._table_map["line_item_daily_summary"]
@@ -472,8 +477,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         report_period_id = report_period.id
 
-        for cost_model_key, file_and_default in key_to_file_mapping.items():
-            sql_file, distribute_default = file_and_default
+        for cost_model_key, sql_file in key_to_file_mapping.items():
+            distribute_default = bool(cost_model_key in distribute_without_cost_model)
             populate = distribution_info.get(cost_model_key, distribute_default)
             if populate:
                 log_msg = f"distributing {cost_model_key}"
@@ -490,10 +495,16 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "populate": populate,
             }
 
-            sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/distribute_cost/{sql_file}")
+            sql = pkgutil.get_data("masu.database", sql_file)
             sql = sql.decode("utf-8")
             LOG.info(log_json(msg=log_msg, context=sql_params))
-            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
+            if "trino_sql/" in sql_file:
+                start_date_parsed = DateHelper().parse_to_date(sql_params["start_date"])
+                sql_params["year"] = start_date_parsed.strftime("%Y")
+                sql_params["month"] = start_date_parsed.strftime("%m")
+                self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+            else:
+                self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
 
     def _delete_monthly_cost_model_data(self, sql_params, ctx):
         delete_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/delete_monthly_cost.sql")
