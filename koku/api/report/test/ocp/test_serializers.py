@@ -709,7 +709,7 @@ class OCPGpuOrderBySerializerTest(TestCase):
             "project",
             "vendor",
             "model",
-            "gpu_cost",
+            "cost_model_gpu_cost",
             "cost",
             "memory",
             "gpu_hours",
