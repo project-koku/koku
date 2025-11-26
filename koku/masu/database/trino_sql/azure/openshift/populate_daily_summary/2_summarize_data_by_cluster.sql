@@ -512,11 +512,27 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_pro
     month,
     day
 )
-WITH cte_rankings AS (
+WITH cte_cluster_counts AS (
+    -- Count distinct clusters matching each Azure resource for tag-matched resources
+    SELECT azure.row_uuid,
+        count(DISTINCT azure.ocp_source) as cluster_count
+    FROM hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp AS azure
+    WHERE azure.source = {{cloud_provider_uuid}}
+        AND azure.year = {{year}}
+        AND azure.month = {{month}}
+        AND azure.resource_id_matched = FALSE
+        AND azure.matched_tag IS NOT NULL
+        AND azure.matched_tag != ''
+    GROUP BY azure.row_uuid
+),
+cte_rankings AS (
     SELECT pds.row_uuid,
-        count(*) as row_uuid_count
+        count(*) as row_uuid_count,
+        COALESCE(ccc.cluster_count, 1) as cluster_count
     FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
-    GROUP BY row_uuid
+    LEFT JOIN cte_cluster_counts AS ccc
+        ON pds.row_uuid = ccc.row_uuid
+    GROUP BY pds.row_uuid, ccc.cluster_count
 )
 SELECT pds.row_uuid,
     cluster_id,
@@ -537,14 +553,22 @@ SELECT pds.row_uuid,
     subscription_name,
     resource_location,
     unit_of_measure,
-    usage_quantity / r.row_uuid_count as usage_quantity,
+    -- For tag-matched resources, split cost across clusters; for resource_id-matched, only split within cluster
+    CASE WHEN pds.resource_id_matched = FALSE
+        THEN usage_quantity / (r.row_uuid_count * r.cluster_count)
+        ELSE usage_quantity / r.row_uuid_count
+    END as usage_quantity,
     currency,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost
+        WHEN resource_id_matched = FALSE
+        THEN pretax_cost / (r.row_uuid_count * r.cluster_count)
         ELSE pretax_cost / r.row_uuid_count
     END as pretax_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost * cast({{markup}} as decimal(24,9))
+        WHEN resource_id_matched = FALSE
+        THEN pretax_cost / (r.row_uuid_count * r.cluster_count) * cast({{markup}} as decimal(24,9))
         ELSE pretax_cost / r.row_uuid_count * cast({{markup}} as decimal(24,9))
     END as markup_cost,
     CASE WHEN pds.pod_labels IS NOT NULL
