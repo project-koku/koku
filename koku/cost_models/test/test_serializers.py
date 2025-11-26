@@ -852,6 +852,7 @@ class CostModelSerializerTest(IamTestCase):
             # Add in default options
             valid_distrib_obj[metric_constants.NETWORK_UNATTRIBUTED] = False
             valid_distrib_obj[metric_constants.STORAGE_UNATTRIBUTED] = False
+            valid_distrib_obj[metric_constants.GPU_UNALLOCATED] = False
             self.assertEqual(instance.distribution_info, valid_distrib_obj)
 
     def test_invalid_distribution_info_keys(self):

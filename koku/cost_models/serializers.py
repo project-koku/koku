@@ -82,7 +82,7 @@ class DistributionSerializer(BaseSerializer):
     )
     gpu_unallocated = serializers.BooleanField(
         required=False,
-        default=metric_constants.PLATFORM_COST_DEFAULT,
+        default=metric_constants.GPU_UNALLOCATED_DEFAULT,
     )
 
 
