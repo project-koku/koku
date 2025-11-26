@@ -134,9 +134,13 @@ class OCPProviderMap(ProviderMap):
                     ),
                     default=Value(0, output_field=DecimalField()),
                 )
+                * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
         else:
-            return Sum(Coalesce(F("cost_model_gpu_cost"), Value(0, output_field=DecimalField())))
+            return Sum(
+                Coalesce(F("cost_model_gpu_cost"), Value(0, output_field=DecimalField()))
+                * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
+            )
 
     def __cost_model_distributed_cost(self, cost_model_rate_type, exchange_rate_column):
         return Sum(
