@@ -21,9 +21,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_gpu_summary_p (
     source_uuid,
     cost_category_id,
     raw_currency,
-    cost_model_cpu_cost,
-    cost_model_memory_cost,
-    cost_model_volume_cost,
     cost_model_rate_type
 )
     SELECT uuid_generate_v4() as id,
@@ -33,8 +30,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_gpu_summary_p (
         node,
         usage_start,
         usage_start as usage_end,
-        max(all_labels->>'gpu-vendor') as vendor_name,
-        max(all_labels->>'gpu-model') as model_name,
+        all_labels->>'gpu-vendor' as vendor_name,
+        all_labels->>'gpu-model' as model_name,
         max((all_labels->>'gpu-memory-mib')::numeric) as memory_capacity_mib,
         sum((all_labels->>'gpu-uptime-hours')::numeric) as gpu_uptime_hours,
         count(DISTINCT resource_id) as gpu_count,
@@ -42,9 +39,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_gpu_summary_p (
         source_uuid,
         cost_category_id,
         max(raw_currency) as raw_currency,
-        sum(cost_model_cpu_cost) as cost_model_cpu_cost,
-        sum(cost_model_memory_cost) as cost_model_memory_cost,
-        sum(cost_model_volume_cost) as cost_model_volume_cost,
         max(cost_model_rate_type) as cost_model_rate_type
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE data_source = 'GPU'
@@ -54,6 +48,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_gpu_summary_p (
     GROUP BY cluster_id,
         cluster_alias,
         namespace,
+        vendor_name,
+        model_name,
         node,
         resource_id,
         usage_start,

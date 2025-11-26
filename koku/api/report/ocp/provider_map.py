@@ -831,7 +831,7 @@ class OCPProviderMap(ProviderMap):
                     "gpu": {
                         "tables": {"query": OCPGpuSummaryP},
                         "group_by_options": ["cluster", "project", "node", "vendor", "model"],
-                        "tag_column": "pod_labels",
+                        "tag_column": "all_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": self.__cost_model_gpu_cost(cost_model_rate_type="Supplementary"),
@@ -866,12 +866,12 @@ class OCPProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
-                            "vendor": Max(F("vendor_name")),
-                            "model": Max(F("model_name")),
+                            "vendor": ArrayAgg(F("vendor_name"), distinct=True),
+                            "model": ArrayAgg(F("model_name"), distinct=True),
                             "memory": Max(Coalesce(F("memory_capacity_mib"), Value(0, output_field=DecimalField()))),
                             "memory_units": Value("MiB", output_field=CharField()),
                             "gpu_hours": Sum(Coalesce(F("gpu_uptime_hours"), Value(0, output_field=DecimalField()))),
-                            "gpu_hours_units": Value("hours", output_field=CharField()),
+                            "gpu_hours_units": Value("Hrs", output_field=CharField()),
                             "gpu_count": Sum(Coalesce(F("gpu_count"), Value(0, output_field=IntegerField()))),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
                         },
@@ -1058,19 +1058,6 @@ class OCPProviderMap(ProviderMap):
             },
             "gpu": {
                 "default": OCPGpuSummaryP,
-                ("cluster",): OCPGpuSummaryP,
-                ("node",): OCPGpuSummaryP,
-                ("project",): OCPGpuSummaryP,
-                ("cluster", "node"): OCPGpuSummaryP,
-                ("cluster", "project"): OCPGpuSummaryP,
-                ("vendor",): OCPGpuSummaryP,
-                ("model",): OCPGpuSummaryP,
-                ("cluster", "vendor"): OCPGpuSummaryP,
-                ("cluster", "model"): OCPGpuSummaryP,
-                ("node", "vendor"): OCPGpuSummaryP,
-                ("node", "model"): OCPGpuSummaryP,
-                ("project", "vendor"): OCPGpuSummaryP,
-                ("project", "model"): OCPGpuSummaryP,
             },
         }
         super().__init__(provider, report_type, schema_name)
