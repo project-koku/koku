@@ -862,8 +862,8 @@ class OCPProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
-                            "vendor": F("vendor_name"),
-                            "model": F("model_name"),
+                            "vendor": Max(F("vendor_name")),
+                            "model": Max(F("model_name")),
                             "memory": Max(Coalesce(F("memory_capacity_mib"), Value(0, output_field=DecimalField()))),
                             "memory_units": Value("MiB", output_field=CharField()),
                             "gpu_hours": Sum(Coalesce(F("gpu_uptime_hours"), Value(0, output_field=DecimalField()))),
