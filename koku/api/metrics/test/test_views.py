@@ -202,3 +202,18 @@ class CostModelMetricsMapViewTest(IamTestCase):
 
         # Verify unleash was called
         self.assertTrue(mock_unleash.called)
+
+    @patch("api.metrics.constants.is_feature_flag_enabled_by_account")
+    def test_metrics_endpoint_with_user_missing_customer(self, mock_unleash):
+        """Test /metrics/ when request.user doesn't have customer attribute."""
+        mock_unleash.return_value = False
+        url = reverse("metrics")
+        client = APIClient()
+
+        # Patch hasattr to simulate user without customer
+        with patch("api.metrics.views.hasattr") as mock_hasattr:
+            mock_hasattr.side_effect = [True, False]
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            # Unleash should be called with account=None
+            mock_unleash.assert_called()
