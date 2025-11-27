@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Metrics views."""
+from unittest.mock import Mock
 from unittest.mock import patch
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
@@ -10,11 +11,13 @@ from urllib.parse import urlencode
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+from rest_framework.test import APIRequestFactory
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
 from api.metrics.constants import get_cost_model_metrics_map
 from api.metrics.constants import SOURCE_TYPE_MAP
+from api.metrics.views import metrics
 from api.models import Provider
 
 
@@ -189,13 +192,36 @@ class CostModelMetricsMapViewTest(IamTestCase):
         gpu_metric = metrics["gpu_cost_per_month"]
         self.assertEqual(gpu_metric["label_metric"], "GPU")
 
-    @patch("api.metrics.constants.is_feature_flag_enabled_by_account", return_value=True)
-    def test_metrics_endpoint_with_account_extraction(self, mock_unleash):
-        """Test /metrics/ endpoint extracts account from authenticated user."""
+    @patch("api.metrics.constants.is_feature_flag_enabled_by_account")
+    def test_metrics_endpoint_passes_account_from_request(self, mock_unleash):
+        """Test that /metrics/ endpoint passes account from request.user to get_cost_model_metrics_map."""
+        mock_unleash.return_value = True
         url = reverse("metrics")
         client = APIClient()
-        response = client.get(url, **self.headers)
 
+        # Call endpoint with authenticated user (from IamTestCase)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # Verify unleash was called (proves account extraction code ran)
-        mock_unleash.assert_called()
+
+        # Verify unleash was called with the account from user
+        self.assertTrue(mock_unleash.called)
+        # First call should have account from request.user.customer.schema_name
+        first_call_account = mock_unleash.call_args_list[0][0][0]
+        # With authenticated user, account should not be None
+        self.assertIsNotNone(first_call_account)
+
+    @patch("api.metrics.constants.is_feature_flag_enabled_by_account")
+    def test_metrics_endpoint_with_user_without_customer_attribute(self, mock_unleash):
+        """Test /metrics/ when user object doesn't have customer (edge case coverage)."""
+        mock_unleash.return_value = False
+
+        # Create a request with user that doesn't have customer attribute
+        factory = APIRequestFactory()
+        request = factory.get("/api/cost-management/v1/metrics/")
+        request.user = Mock(spec=["username"])  # User without customer attribute
+
+        # Call the view directly
+        response = metrics(request)
+
+        # Should work (account will be None, but that's OK)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
