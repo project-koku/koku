@@ -23,7 +23,7 @@ LOG = logging.getLogger(__name__)
 
 
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
+    def __init__(self, manifest_id, account, s3_path, provider_uuid, report_type, start_date):
         if "daily" in s3_path:
             ocp_table_name = TRINO_LINE_ITEM_TABLE_DAILY_MAP[report_type]
         else:
@@ -71,9 +71,9 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             account=account,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
-            parquet_local_path=parquet_local_path,
             column_types=column_types,
             table_name=ocp_table_name,
+            start_date=start_date,
         )
 
     @property
