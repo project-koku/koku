@@ -33,8 +33,10 @@ def metrics(request):
     serializer.is_valid(raise_exception=True)
     # Get account from request user for feature flag evaluation
     account = None
-    if hasattr(request, "user") and hasattr(request.user, "customer") and request.user.customer:
+    try:
         account = request.user.customer.schema_name
+    except AttributeError:
+        pass
     cost_model_metric_map_copy = list(metric_constants.get_cost_model_metrics_map(account=account).values())
     if source_type:
         # Filter on source type

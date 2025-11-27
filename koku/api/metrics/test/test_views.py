@@ -191,7 +191,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
 
     @patch("api.metrics.constants.is_feature_flag_enabled_by_account")
     def test_metrics_endpoint_extracts_account_from_user(self, mock_unleash):
-        """Test that /metrics/ endpoint extracts account from request.user"""
+        """Test /metrics/ endpoint extracts account successfully"""
         mock_unleash.return_value = True
         url = reverse("metrics")
         client = APIClient()
@@ -204,16 +204,20 @@ class CostModelMetricsMapViewTest(IamTestCase):
         self.assertTrue(mock_unleash.called)
 
     @patch("api.metrics.constants.is_feature_flag_enabled_by_account")
-    def test_metrics_endpoint_with_user_missing_customer(self, mock_unleash):
-        """Test /metrics/ when request.user doesn't have customer attribute."""
+    def test_metrics_endpoint_with_no_customer_attribute(self, mock_unleash):
+        """Test /metrics/ when accessing user.customer.schema_name raises AttributeError."""
+        from unittest.mock import PropertyMock
+
         mock_unleash.return_value = False
         url = reverse("metrics")
         client = APIClient()
 
-        # Patch hasattr to simulate user without customer
-        with patch("api.metrics.views.hasattr") as mock_hasattr:
-            mock_hasattr.side_effect = [True, False]
+        # Make request.user.customer raise AttributeError when accessed
+        with (patch.object(type(self.request.user), "customer", new_callable=PropertyMock) as mock_customer,):
+            mock_customer.side_effect = AttributeError("No customer")
+
             response = client.get(url, **self.headers)
+            # Should handle gracefully with account=None
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            # Unleash should be called with account=None
+            # Verify unleash was called with None
             mock_unleash.assert_called()
