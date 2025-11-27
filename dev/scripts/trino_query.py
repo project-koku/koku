@@ -1,9 +1,8 @@
 import os
 import sys
 
-from koku.koku.koku.reportdb_accessor import get_report_db_accessor
+from koku.reportdb_accessor import get_report_db_accessor
 import pyarrow.parquet as pq
-import trino
 
 
 parquet_dir = sys.argv[1]
@@ -50,35 +49,30 @@ for idx, col in enumerate(parquet_columns):
 
 sql += f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET')"
 
-conn = get_report_db_accessor().connect(host="localhost", port=8080, user="admin", catalog="hive", schema="default")
-cur = conn.cursor()
-print("Creating Schema:")
-schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {schema}"
-print(schema_create_sql)
-cur.execute(schema_create_sql)
-rows = cur.fetchall()
-conn.close()
+with get_report_db_accessor().connect(host="localhost", port=8080, user="admin", catalog="hive", schema="default") as conn:
+    with conn.cursor() as cur:
+        print("Creating Schema:")
+        schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {schema}"
+        print(schema_create_sql)
+        cur.execute(schema_create_sql)
+        rows = cur.fetchall()
 
-schema_conn = get_report_db_accessor()(host="localhost", port=8080, user="admin", catalog="hive", schema=schema)
-schema_cur = conn.cursor()
-print("Trino table create SQL:")
-print(sql)
-schema_cur.execute(sql)
-rows = schema_cur.fetchall()
-
-print("\nTrino Line Item Example Query:")
-schema_cur.execute(f"SELECT * FROM {table_name} LIMIT 3")
-rows = schema_cur.fetchall()
-for row in rows:
-    print(row)
-schema_conn.close()
+with get_report_db_accessor().connect(host="localhost", port=8080, user="admin", catalog="hive", schema=schema) as schema_conn:
+    with schema_conn.cursor() as schema_cur:
+        print("Trino table create SQL:")
+        print(sql)
+        schema_cur.execute(sql)
+        rows = schema_cur.fetchall()
+        print("\nTrino Line Item Example Query:")
+        schema_cur.execute(f"SELECT * FROM {table_name} LIMIT 3")
+        rows = schema_cur.fetchall()
+        for row in rows:
+            print(row)
 
 print("\nPostgres DB AWS Summary Data Query Example:")
-postgres_conn = get_report_db_accessor()(host="localhost", port=8080, user="admin", catalog="postgres", schema=schema)
-postgres_cur = postgres_conn.cursor()
-
-postgres_cur.execute("SELECT * FROM reporting_awscostentrylineitem_daily_summary LIMIT 3")
-rows = postgres_cur.fetchall()
-for row in rows:
-    print(row)
-postgres_conn.close()
+with get_report_db_accessor().connect(host="localhost", port=8080, user="admin", catalog="postgres", schema=schema) as postgres_conn:
+    with postgres_conn.cursor() as postgres_cur:
+        postgres_cur.execute("SELECT * FROM reporting_awscostentrylineitem_daily_summary LIMIT 3")
+        rows = postgres_cur.fetchall()
+        for row in rows:
+            print(row)
