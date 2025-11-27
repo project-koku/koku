@@ -188,3 +188,14 @@ class CostModelMetricsMapViewTest(IamTestCase):
         self.assertIn("gpu_cost_per_month", metrics)
         gpu_metric = metrics["gpu_cost_per_month"]
         self.assertEqual(gpu_metric["label_metric"], "GPU")
+
+    @patch("api.metrics.constants.is_feature_flag_enabled_by_account", return_value=True)
+    def test_metrics_endpoint_with_account_extraction(self, mock_unleash):
+        """Test /metrics/ endpoint extracts account from authenticated user."""
+        url = reverse("metrics")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Verify unleash was called (proves account extraction code ran)
+        mock_unleash.assert_called()
