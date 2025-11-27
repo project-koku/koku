@@ -305,9 +305,9 @@ def run_trino_sql(sql, schema=None) -> list[list[int] | None]:
         wait = (min(2**n, 12) + secrets.randbelow(1000) / 1000) or 0.5
         try:
             with trino_db.connect(schema=schema) as conn:
-                cur = conn.cursor()
-                cur.execute(sql)
-                return cur.fetchall()
+                with conn.cursor() as cur:
+                    cur.execute(sql)
+                    return cur.fetchall()
         except TrinoExternalError as err:
             if err.error_name == "HIVE_METASTORE_ERROR" and n < (retries):
                 LOG.warning(

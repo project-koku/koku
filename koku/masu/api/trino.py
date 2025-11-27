@@ -53,16 +53,16 @@ def trino_query(request):
         with get_report_db_accessor().connect(
             host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="readonly", catalog="hive", schema=schema_name
         ) as conn:
-            cur = conn.cursor()
-            cur.execute(query)
-            cols = [des[0] for des in cur.description]
-            rows = cur.fetchall()
-            results = []
-            for row in rows:
-                result = {}
-                for i, value in enumerate(row):
-                    result[cols[i]] = value
-                results.append(result)
+            with conn.cursor() as cur:
+                cur.execute(query)
+                cols = [des[0] for des in cur.description]
+                rows = cur.fetchall()
+                results = []
+                for row in rows:
+                    result = {}
+                    for i, value in enumerate(row):
+                        result[cols[i]] = value
+                    results.append(result)
 
         return Response(results)
 

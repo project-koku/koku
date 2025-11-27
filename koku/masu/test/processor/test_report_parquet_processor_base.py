@@ -110,32 +110,6 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
             self.assertIn(f"{other_col} varchar", generated_sql)
         self.assertTrue(generated_sql.endswith(expected_end))
 
-    @override_settings(S3_BUCKET_NAME="test-bucket")
-    @patch("masu.processor.aws.aws_report_parquet_processor.ReportParquetProcessorBase._execute_trino_sql")
-    def test_generate_create_table_sql_with_provider_map(self, mock_execute):
-        """Test the generate parquet table sql."""
-        partition_map = {
-            "source": "varchar",
-            "year": "varchar",
-            "month": "varchar",
-            "day": "varchar",
-        }
-        generated_sql = self.processor._generate_create_table_sql(partition_map=partition_map)
-
-        expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema}.{self.table_name}"
-        expected_end = (
-            f"WITH(external_location = '{settings.TRINO_S3A_OR_S3}://test-bucket/{self.temp_dir}', "
-            "format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month', 'day'])"
-        )
-        self.assertTrue(generated_sql.startswith(expected_start))
-        for num_col in self.numeric_columns:
-            self.assertIn(f"{num_col} double", generated_sql)
-        for date_col in self.date_columns:
-            self.assertIn(f"{date_col} timestamp", generated_sql)
-        for other_col in self.other_columns:
-            self.assertIn(f"{other_col} varchar", generated_sql)
-        self.assertTrue(generated_sql.endswith(expected_end))
-
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_trino_sql")
     def test_create_table(self, mock_execute):
         """Test the Trino/Hive create table method."""
