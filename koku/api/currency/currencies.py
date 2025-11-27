@@ -104,9 +104,9 @@ CURRENCIES = [
     },
     {
         "code": "SAR",
-        "name": "Saudi Arabia Riyal",
+        "name": "Saudi Riyal",
         "symbol": "ر.س",
-        "description": "SAR (ر.س) - Saudi Arabia Riyal",
+        "description": "SAR (ر.س) - Saudi Riyal",
     },
     {
         "code": "SEK",
