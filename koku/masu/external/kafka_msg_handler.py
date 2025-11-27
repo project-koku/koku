@@ -716,6 +716,7 @@ def listen_for_messages_loop():
         "queued.max.messages.kbytes": 1024,
         "enable.auto.commit": False,
         "max.poll.interval.ms": 1080000,  # 18 minutes
+        "auto.offset.reset": "earliest", # Process from the earliest non commited message (don't miss data on pod restart)
     }
     consumer = get_consumer(kafka_conf)
     consumer.subscribe([UPLOAD_TOPIC])
