@@ -31,7 +31,13 @@ def metrics(request):
     source_type = request.query_params.get("source_type")
     serializer = QueryParamsSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
-    cost_model_metric_map_copy = list(metric_constants.get_cost_model_metrics_map().values())
+    # Get account from request user for feature flag evaluation
+    account = None
+    try:
+        account = request.user.customer.schema_name
+    except AttributeError:
+        pass
+    cost_model_metric_map_copy = list(metric_constants.get_cost_model_metrics_map(account=account).values())
     if source_type:
         # Filter on source type
         cost_model_metric_map_copy = list(
