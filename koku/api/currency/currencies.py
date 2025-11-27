@@ -8,9 +8,9 @@
 CURRENCIES = [
     {
         "code": "AED",
-        "name": "Arab Emirates Dirham",
+        "name": "United Arab Emirates Dirham",
         "symbol": "د.إ",
-        "description": "AED (د.إ) - Arab Emirates Dirham",
+        "description": "AED (د.إ) - United Arab Emirates Dirham",
     },
     {
         "code": "AUD",
