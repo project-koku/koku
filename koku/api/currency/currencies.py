@@ -9,8 +9,8 @@ CURRENCIES = [
     {
         "code": "AED",
         "name": "United Arab Emirates Dirham",
-        "symbol": "د.إ",
-        "description": "AED (د.إ) - United Arab Emirates Dirham",
+        "symbol": "\u062f.\u0625",
+        "description": "AED (\u062f.\u0625) - United Arab Emirates Dirham",
     },
     {
         "code": "AUD",
@@ -105,8 +105,8 @@ CURRENCIES = [
     {
         "code": "SAR",
         "name": "Saudi Riyal",
-        "symbol": "ر.س",
-        "description": "SAR (ر.س) - Saudi Riyal",
+        "symbol": "\u0631.\u0633",
+        "description": "SAR (\u0631.\u0633) - Saudi Riyal",
     },
     {
         "code": "SEK",
