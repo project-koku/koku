@@ -124,6 +124,7 @@
         requests:
           cpu: ${CPU_REQUEST_LISTENER}
           memory: ${MEMORY_REQUEST_LISTENER}
+      terminationGracePeriodSeconds: 3600
       volumeMounts:
         - name: koku-listener-data
           mountPath: /var/tmp/masu/
