@@ -31,7 +31,10 @@ SELECT
         ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'gpu-uptime-hours'],
         ARRAY[
             gpu.gpu_model_name,
-            gpu.gpu_vendor_name,
+            CASE
+                WHEN gpu.gpu_vendor_name = 'nvidia_com_gpu' THEN 'nvidia'
+                ELSE gpu.gpu_vendor_name
+            END,
             CAST(gpu.gpu_memory_capacity_mib AS varchar),
             CAST(gpu.gpu_pod_uptime / 3600.0 AS varchar)
         ]
