@@ -80,6 +80,10 @@ class DistributionSerializer(BaseSerializer):
         required=False,
         default=metric_constants.STORAGE_UNATTRIBUTED_DEFAULT,
     )
+    gpu_unallocated = serializers.BooleanField(
+        required=False,
+        default=metric_constants.GPU_UNALLOCATED_DEFAULT,
+    )
 
 
 class TieredRateSerializer(serializers.Serializer):
