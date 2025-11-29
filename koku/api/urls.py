@@ -75,6 +75,7 @@ from api.views import OCPGCPCostView
 from api.views import OCPGCPInstanceTypeView
 from api.views import OCPGCPStorageView
 from api.views import OCPGCPTagView
+from api.views import OCPGpuView
 from api.views import OCPMemoryView
 from api.views import OCPNetworkView
 from api.views import OCPNodesView
@@ -318,6 +319,13 @@ urlpatterns = [
             OCPNetworkView.as_view()
         ),
         name="reports-openshift-network",
+    ),
+    path(
+        "reports/openshift/gpu/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_CACHE_PREFIX)(
+            OCPGpuView.as_view()
+        ),
+        name="reports-openshift-gpu",
     ),
     path(
         "reports/openshift/infrastructures/all/costs/",
