@@ -775,3 +775,25 @@ class OCPGpuQueryParamSerializerTest(IamTestCase):
         self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
         serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
+
+    def test_gpu_order_by_dimensional_fields_in_allowlist(self):
+        """Test that fields are in order_by_allowlist."""
+        dimensional_fields = ["cluster", "node", "project", "vendor", "model"]
+        for field in dimensional_fields:
+            self.assertIn(
+                field,
+                OCPGpuQueryParamSerializer.order_by_allowlist,
+                f"Field {field} should be in order_by_allowlist",
+            )
+
+    def test_gpu_order_by_dimensional_fields_without_group_by(self):
+        """Test that fields can be used in order_by without matching group_by."""
+        dimensional_fields = ["cluster", "node", "project", "vendor", "model"]
+        for field in dimensional_fields:
+            query_params = {
+                "filter": {"time_scope_value": "-1", "time_scope_units": "month"},
+                "order_by": {field: "asc"},
+            }
+            self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+            serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+            self.assertTrue(serializer.is_valid(), f"order_by[{field}] should be valid without group_by[{field}]")
