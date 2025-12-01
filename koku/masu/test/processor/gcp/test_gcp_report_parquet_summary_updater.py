@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCPReportParquetSummaryUpdater."""
-from datetime import timedelta
-from unittest.mock import patch
-from datetime import datetime
 import unittest
+from datetime import datetime
+from datetime import timedelta
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from django.conf import settings
 from django_tenants.utils import schema_context
@@ -116,12 +116,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch("masu.processor.gcp.gcp_report_parquet_summary_updater.schema_context")
     @patch("masu.processor.gcp.gcp_report_parquet_summary_updater.date_range_pair")
     def test_update_summary_tables_with_null_trino_dates_fallback(
-        self, 
-        mock_date_range, 
-        mock_schema_context, 
-        mock_cost_accessor, 
-        mock_gcp_accessor, 
-        mock_handle_partitions
+        self, mock_date_range, mock_schema_context, mock_cost_accessor, mock_gcp_accessor, mock_handle_partitions
     ):
         """
         Test that when Trino returns [[None, None]], we fallback to original dates (AI written).
@@ -146,19 +141,10 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
 
         mock_gcp_instance.fetch_invoice_month_dates.assert_called_once()
         
-        mock_date_range.assert_called_with(
-            start_date, 
-            end_date, 
-            step=unittest.mock.ANY
-        )
+        mock_date_range.assert_called_with(start_date, end_date, step=unittest.mock.ANY)
 
         mock_gcp_instance.populate_line_item_daily_summary_table_trino.assert_called_with(
-            start_date, 
-            end_date, 
-            self.gcp_provider.uuid, 
-            100, 
-            0.1, 
-            "202512"
+            start_date, end_date, self.gcp_provider.uuid, 100, 0.1, "202512"
         )
 
     def test_determine_if_full_summary_update_needed_false(self):
