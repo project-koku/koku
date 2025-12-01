@@ -130,7 +130,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         mock_gcp_instance = mock_gcp_accessor.return_value.__enter__.return_value
 
         mock_gcp_instance.fetch_invoice_month_dates.return_value = [[None, None]]
-        
+
         mock_bill = MagicMock()
         mock_bill.id = 100
         mock_gcp_instance.bills_for_provider_uuid.return_value.first.return_value = mock_bill
