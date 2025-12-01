@@ -1031,10 +1031,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             self.assertIsNone(result)
 
+    @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_distributed_cost_sql_called(self, mock_trino_execute, mock_sql_execute, mock_data_get):
+    def test_populate_distributed_cost_sql_called(
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
+    ):
         """Test that the platform distribution is called."""
 
         def get_pkgutil_values(file):
@@ -1078,10 +1081,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
             )
             expected_calls = [
-                call(masu_database, "sql/openshift/cost_model/distribute_worker_cost.sql"),
-                call(masu_database, "sql/openshift/cost_model/distribute_platform_cost.sql"),
-                call(masu_database, "sql/openshift/cost_model/distribute_unattributed_storage_cost.sql"),
-                call(masu_database, "sql/openshift/cost_model/distribute_unattributed_network_cost.sql"),
+                call(masu_database, "sql/openshift/cost_model/distribute_cost/distribute_worker_cost.sql"),
+                call(masu_database, "sql/openshift/cost_model/distribute_cost/distribute_platform_cost.sql"),
+                call(
+                    masu_database, "sql/openshift/cost_model/distribute_cost/distribute_unattributed_storage_cost.sql"
+                ),
+                call(
+                    masu_database, "sql/openshift/cost_model/distribute_cost/distribute_unattributed_network_cost.sql"
+                ),
                 call(
                     masu_database,
                     "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",

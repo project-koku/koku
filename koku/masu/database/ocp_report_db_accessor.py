@@ -507,7 +507,17 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql = sql.decode("utf-8")
             log_msg = f"distributing {cost_model_key}"
             LOG.info(log_json(msg=log_msg, context=sql_params))
-            if config.is_trino and config.table_exists(self.schema):
+
+            # Execute using appropriate query engine
+            if config.is_trino:
+                # Check if required table exists before executing Trino query
+                if config.has_table_requirement and not config.table_exists(self.schema):
+                    msg = (
+                        f"Skipping {cost_model_key} distribution - "
+                        f"required table '{config.required_table}' does not exist"
+                    )
+                    LOG.info(log_json(msg=msg, context={"schema": self.schema, "cost_model_key": cost_model_key}))
+                    continue
                 start_date_parsed = DateHelper().parse_to_date(sql_params["start_date"])
                 sql_params["year"] = start_date_parsed.strftime("%Y")
                 sql_params["month"] = start_date_parsed.strftime("%m")
