@@ -70,7 +70,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 invoice_start, invoice_end = invoice_dates[0]
                 if not invoice_dates or not invoice_dates[0][0]:
                     LOG.info(
-                        f"No dates found for invoice_month {invoice_month}. Failing back to original dates {start_date, end_date}."
+                        f"No dates for {invoice_month}. Falling back to original {start_date, end_date}."
                     )
                     invoice_start, invoice_end = start_date, end_date
                 bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month=invoice_month)
