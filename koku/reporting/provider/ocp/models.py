@@ -994,7 +994,6 @@ class OCPGpuSummaryP(models.Model):
     vendor_name = models.CharField(max_length=128, null=True)
     model_name = models.CharField(max_length=128, null=True)
     memory_capacity_mib = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    gpu_uptime_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     gpu_count = models.IntegerField(null=True)
 
     # Cost fields - aggregated from cost_model_gpu_cost in daily_summary

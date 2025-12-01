@@ -870,8 +870,6 @@ class OCPProviderMap(ProviderMap):
                             "model": F("model_name"),
                             "memory": Max(Coalesce(F("memory_capacity_mib"), Value(0, output_field=DecimalField()))),
                             "memory_units": Value("MiB", output_field=CharField()),
-                            "gpu_hours": Sum(Coalesce(F("gpu_uptime_hours"), Value(0, output_field=DecimalField()))),
-                            "gpu_hours_units": Value("Hrs", output_field=CharField()),
                             "gpu_count": Max(Coalesce(F("gpu_count"), Value(0, output_field=IntegerField()))),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
                         },

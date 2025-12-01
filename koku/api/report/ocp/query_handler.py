@@ -106,7 +106,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
         ocp_pack_definitions["usage"]["keys"].extend(["data_transfer_in", "data_transfer_out"])
         ocp_pack_definitions["gpu_memory"] = {"keys": ["memory"], "units": "memory_units"}
-        ocp_pack_definitions["gpu_hours"] = {"keys": ["gpu_hours"], "units": "gpu_hours_units"}
         ocp_pack_definitions["gpu_count"] = {"keys": ["gpu_count"], "units": "gpu_count_units"}
 
         # super() needs to be called after _mapper and _limit is set
