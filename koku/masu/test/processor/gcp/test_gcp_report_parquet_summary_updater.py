@@ -123,24 +123,24 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         """
         start_date = datetime(2025, 12, 1)
         end_date = datetime(2025, 12, 2)
-        
+
         mock_cost_instance = mock_cost_accessor.return_value.__enter__.return_value
         mock_cost_instance.markup = {"value": 10}
 
         mock_gcp_instance = mock_gcp_accessor.return_value.__enter__.return_value
-        
+
         mock_gcp_instance.fetch_invoice_month_dates.return_value = [[None, None]]
         
         mock_bill = MagicMock()
         mock_bill.id = 100
         mock_gcp_instance.bills_for_provider_uuid.return_value.first.return_value = mock_bill
-        
+
         mock_date_range.return_value = [(start_date, end_date)]
 
         self.updater.update_summary_tables(start_date, end_date)
 
         mock_gcp_instance.fetch_invoice_month_dates.assert_called_once()
-        
+
         mock_date_range.assert_called_with(start_date, end_date, step=unittest.mock.ANY)
 
         mock_gcp_instance.populate_line_item_daily_summary_table_trino.assert_called_with(
