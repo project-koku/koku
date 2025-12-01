@@ -44,6 +44,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_gpu_summary_p (
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
         AND cost_model_rate_type != 'gpu_distributed'
+        AND namespace != 'GPU unallocated'
     GROUP BY cluster_id,
         cluster_alias,
         namespace,
