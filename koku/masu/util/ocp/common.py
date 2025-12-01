@@ -35,6 +35,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from api.provider.models import Sources
 from api.utils import DateHelper as dh
+from masu.util.common import trino_table_exists
 
 LOG = logging.getLogger(__name__)
 
@@ -650,6 +651,7 @@ class DistributionConfig(BaseModel):
     - Whether to distribute by default (without cost model)
     - Cost model rate type for deletion
     - Query engine type (PostgreSQL vs Trino)
+    - Optional required table for Trino queries
     """
 
     sql_file: str = Field(..., description="SQL file name (without path)")
@@ -659,6 +661,10 @@ class DistributionConfig(BaseModel):
     )
     query_type: Literal["postgresql", "trino"] = Field(
         default="postgresql", description="Query engine to use for execution"
+    )
+    required_table: str | None = Field(
+        default=None,
+        description="Optional Trino table name that must exist before running query. Only valid for Trino queries.",
     )
 
     class Config:
@@ -672,6 +678,16 @@ class DistributionConfig(BaseModel):
             raise ValueError(f"SQL file must end with .sql, got: {v}")
         return v
 
+    @model_validator(mode="after")
+    def validate_required_table(self) -> "DistributionConfig":
+        """Ensure required_table is only specified for Trino queries."""
+        if self.required_table is not None and self.query_type != "trino":
+            raise ValueError(
+                f"required_table can only be specified for Trino queries. "
+                f"Got query_type='{self.query_type}' with required_table='{self.required_table}'"
+            )
+        return self
+
     @property
     def is_trino(self) -> bool:
         """Check if this is a Trino query."""
@@ -682,6 +698,11 @@ class DistributionConfig(BaseModel):
         """Check if this is a PostgreSQL query."""
         return self.query_type == "postgresql"
 
+    @property
+    def has_table_requirement(self) -> bool:
+        """Check if this distribution requires a specific table to exist."""
+        return self.required_table is not None
+
     def get_full_path(self) -> str:
         """Get full path to SQL file relative to masu.database."""
         base_path = (
@@ -690,3 +711,17 @@ class DistributionConfig(BaseModel):
             else "sql/openshift/cost_model/distribute_cost/"
         )
         return f"{base_path}{self.sql_file}"
+
+    def table_exists(self, schema: str) -> bool:
+        """Check if the required table exists in the given schema.
+
+        Args:
+            schema: The schema name to check for table existence
+
+        Returns:
+            True if no required_table is specified or if the table exists.
+            False if required_table is specified but doesn't exist.
+        """
+        if not self.has_table_requirement:
+            return True
+        return trino_table_exists(schema, self.required_table)

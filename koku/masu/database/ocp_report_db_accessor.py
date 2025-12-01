@@ -476,6 +476,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 sql_file="distribute_unallocated_gpu_cost.sql",
                 cost_model_rate_type="gpu_distributed",
                 query_type="trino",
+                required_table="openshift_gpu_usage_line_items_daily",
             ),
         }
 
@@ -506,8 +507,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql = sql.decode("utf-8")
             log_msg = f"distributing {cost_model_key}"
             LOG.info(log_json(msg=log_msg, context=sql_params))
-            if config.is_trino:
-                # Need to delete
+            if config.is_trino and config.table_exists(self.schema):
                 start_date_parsed = DateHelper().parse_to_date(sql_params["start_date"])
                 sql_params["year"] = start_date_parsed.strftime("%Y")
                 sql_params["month"] = start_date_parsed.strftime("%m")

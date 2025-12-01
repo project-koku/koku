@@ -33,26 +33,13 @@ namespace_usage_information as (
         gpu_usage.node,
         sum(gpu_pod_uptime) as pod_usage_uptime,
         DATE(interval_start) as usage_start
-    FROM openshift_gpu_usage_line_items_daily as gpu_usage
-    INNER JOIN unattributed_gpu_cost AS ungpu
-        ON ungpu.node = gpu_usage.node
-    WHERE source = {{source_uuid}}
-      AND year = {{year}}
-      AND month = {{month}}
-    group by gpu_model_name, gpu_usage.node, namespace, DATE(interval_start)
-),
-node_usage_information as (
-    SELECT gpu_model_name,
-        ungpu.node,
-        sum(gpu_pod_uptime) as node_gpu_pod_uptime,
-        DATE(interval_start) AS usage_start
     FROM hive.{{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu_usage
     INNER JOIN unattributed_gpu_cost AS ungpu
         ON ungpu.node = gpu_usage.node
     WHERE source = {{source_uuid}}
       AND year = {{year}}
       AND month = {{month}}
-    group by gpu_model_name, ungpu.node, DATE(interval_start)
+    group by gpu_model_name, gpu_usage.node, namespace, DATE(interval_start)
 )
 SELECT
     uuid(),
