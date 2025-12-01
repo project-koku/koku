@@ -5,6 +5,9 @@
 """Test the GCPReportParquetSummaryUpdater."""
 from datetime import timedelta
 from unittest.mock import patch
+from datetime import datetime
+import unittest
+from unittest.mock import MagicMock
 
 from django.conf import settings
 from django_tenants.utils import schema_context
@@ -106,6 +109,57 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
+
+    @patch.object(GCPReportParquetSummaryUpdater, "_handle_partitions")
+    @patch("masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor")
+    @patch("masu.processor.gcp.gcp_report_parquet_summary_updater.CostModelDBAccessor")
+    @patch("masu.processor.gcp.gcp_report_parquet_summary_updater.schema_context")
+    @patch("masu.processor.gcp.gcp_report_parquet_summary_updater.date_range_pair")
+    def test_update_summary_tables_with_null_trino_dates_fallback(
+        self, 
+        mock_date_range, 
+        mock_schema_context, 
+        mock_cost_accessor, 
+        mock_gcp_accessor, 
+        mock_handle_partitions
+    ):
+        """
+        Test that when Trino returns [[None, None]], we fallback to original dates (AI written).
+        """
+        start_date = datetime(2025, 12, 1)
+        end_date = datetime(2025, 12, 2)
+        
+        mock_cost_instance = mock_cost_accessor.return_value.__enter__.return_value
+        mock_cost_instance.markup = {"value": 10}
+
+        mock_gcp_instance = mock_gcp_accessor.return_value.__enter__.return_value
+        
+        mock_gcp_instance.fetch_invoice_month_dates.return_value = [[None, None]]
+        
+        mock_bill = MagicMock()
+        mock_bill.id = 100
+        mock_gcp_instance.bills_for_provider_uuid.return_value.first.return_value = mock_bill
+        
+        mock_date_range.return_value = [(start_date, end_date)]
+
+        self.updater.update_summary_tables(start_date, end_date)
+
+        mock_gcp_instance.fetch_invoice_month_dates.assert_called_once()
+        
+        mock_date_range.assert_called_with(
+            start_date, 
+            end_date, 
+            step=unittest.mock.ANY
+        )
+
+        mock_gcp_instance.populate_line_item_daily_summary_table_trino.assert_called_with(
+            start_date, 
+            end_date, 
+            self.gcp_provider.uuid, 
+            100, 
+            0.1, 
+            "202512"
+        )
 
     def test_determine_if_full_summary_update_needed_false(self):
         """
