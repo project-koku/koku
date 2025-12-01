@@ -241,7 +241,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_proje
     node_capacity_memory_gigabyte_hours,
     volume_labels,
     tags,
-    cost_category_id,
     resource_id_matched,
     source,
     ocp_source,
@@ -323,7 +322,6 @@ SELECT cast(uuid() as varchar) as row_uuid,
     max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
     ocp.volume_labels,
     max(gcp.labels) as tags,
-    max(ocp.cost_category_id) as cost_category_id,
     TRUE as resource_id_matched,
     {{cloud_provider_uuid}} as source,
     {{ocp_provider_uuid}} as ocp_source,
@@ -705,8 +703,8 @@ SELECT pds.row_uuid,
     matched_tag,
     {{cloud_provider_uuid}} as source,
     {{ocp_provider_uuid}} as ocp_source,
-    cast(year(usage_start) as varchar) as year,
-    cast(month(usage_start) as varchar) as month,
+    pds.year as year,
+    pds.month as month,
     cast(day(usage_start) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp as pds
 JOIN cte_rankings as r
@@ -791,8 +789,8 @@ SELECT gcp.row_uuid as row_uuid,
     max(gcp.labels) as tags,
     {{cloud_provider_uuid}} as source,
     {{ocp_provider_uuid}} as ocp_source,
-    cast(year(max(gcp.usage_start)) as varchar) as year,
-    cast(month(max(gcp.usage_start)) as varchar) as month,
+    max(gcp.year) as year,
+    max(gcp.month) as month,
     cast(day(max(gcp.usage_start)) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp

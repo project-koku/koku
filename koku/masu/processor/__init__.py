@@ -21,6 +21,7 @@ LOG = logging.getLogger(__name__)
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
+OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
 
 
 def is_feature_flag_enabled_by_account(account, feature_flag, dev_fallback=False):  # pragma: no cover

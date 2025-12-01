@@ -680,8 +680,8 @@ SELECT pds.row_uuid,
     pds.matched_tag,
     {{cloud_provider_uuid}} as source,
     {{ocp_provider_uuid}} as ocp_source,
-    cast(year(usage_start) as varchar) as year,
-    cast(month(usage_start) as varchar) as month,
+    pds.year as year,
+    pds.month as month,
     cast(day(usage_start) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
 JOIN cte_rankings as r
@@ -766,8 +766,8 @@ SELECT
     max(aws.tags) as tags,
     max({{cloud_provider_uuid}}) AS source,
     max({{ocp_provider_uuid}}) AS ocp_source,
-    max(cast(year(aws.usage_start) AS varchar)) AS year,
-    max(cast(month(aws.usage_start) AS varchar)) AS month,
+    max(aws.year) as year,
+    max(aws.month) as month,
     max(cast(day(aws.usage_start) AS varchar)) AS day
 FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
 JOIN hive.{{schema | sqlsafe}}.managed_aws_openshift_daily_temp AS aws

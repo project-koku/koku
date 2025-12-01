@@ -29,6 +29,8 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor import is_feature_flag_enabled_by_account
+from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.util.common import filter_dictionary
 from masu.util.common import trino_table_exists
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -1231,7 +1233,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
         maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)
         return minim, maxim
 
-    def populate_tag_based_costs(self, start_date, end_date, provider_uuid, metric_to_tag_params_map, cluster_params):
+    def populate_tag_based_costs(  # noqa: C901
+        self, start_date, end_date, provider_uuid, metric_to_tag_params_map, cluster_params
+    ):
         """Populate the tag based costs.
 
         This method populates the daily summary table with tag-based costs for
@@ -1243,7 +1247,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         monthly_params = {"amortized_denominator": DateHelper().days_in_month(start_date), "cost_type": "Tag"}
         vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
+        gpu_table_exists = trino_table_exists(self.schema, "openshift_gpu_usage_line_items_daily")
         requires_vm_table = [metric_constants.OCP_VM_CORE_HOUR, metric_constants.OCP_VM_CORE_MONTH]
+        requires_gpu_table = [metric_constants.OCP_GPU_MONTH]
 
         metric_metadata = {
             metric_constants.OCP_VM_HOUR: {
@@ -1265,6 +1271,11 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 "log_msg": "populating hourly VM Core based costs",
                 "file_path": "trino_sql/openshift/cost_model/hourly_vm_core_tag_based.sql",
             },
+            metric_constants.OCP_GPU_MONTH: {
+                "log_msg": "populating monthly GPU tag based costs",
+                "file_path": "trino_sql/openshift/cost_model/monthly_cost_gpu.sql",
+                "metric_params": {**monthly_params, **cluster_params},
+            },
             metric_constants.OCP_PROJECT_MONTH: {
                 "log_msg": "populating monthly project tag costs",
                 "file_path": "trino_sql/openshift/cost_model/monthly_project_tag_based.sql",
@@ -1283,6 +1294,17 @@ GROUP BY partitions.year, partitions.month, partitions.source
         for name, metadata in metric_metadata.items():
             if name in requires_vm_table and not vm_table_exists:
                 continue
+
+            if name in requires_gpu_table and not gpu_table_exists:
+                continue
+
+            # Check Unleash flag for GPU cost model
+            if name == metric_constants.OCP_GPU_MONTH:
+                if not is_feature_flag_enabled_by_account(
+                    self.schema, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True
+                ):
+                    continue
+
             param_list = metric_to_tag_params_map.get(name)
             if not param_list:
                 continue

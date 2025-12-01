@@ -7,6 +7,7 @@ import random
 from decimal import Decimal
 from itertools import combinations
 from itertools import product
+from unittest.mock import patch
 from uuid import uuid4
 
 import faker
@@ -388,13 +389,16 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_get_metric_display_data_openshift(self):
         """Test the display data helper function for OpenShift metrics."""
-        serializer = CostModelSerializer(data=None)
+        # Mock Unleash flag to include GPU metrics
+        with patch("api.metrics.constants.is_feature_flag_enabled_by_account", return_value=True):
+            serializer = CostModelSerializer(data=None, context=self.request_context)
 
-        for metric_choice in metric_constants.METRIC_CHOICES:
-            response = serializer._get_metric_display_data(Provider.PROVIDER_OCP, metric_choice)
-            self.assertIsNotNone(response.get("label_measurement_unit"))
-            self.assertIsNotNone(response.get("label_measurement"))
-            self.assertIsNotNone(response.get("label_metric"))
+            for metric_choice in metric_constants.METRIC_CHOICES:
+                response = serializer._get_metric_display_data(Provider.PROVIDER_OCP, metric_choice)
+                self.assertIsNotNone(response, f"Metric {metric_choice} not found in metric_map")
+                self.assertIsNotNone(response.get("label_measurement_unit"))
+                self.assertIsNotNone(response.get("label_measurement"))
+                self.assertIsNotNone(response.get("label_metric"))
 
     def test_validate_rates_allows_duplicate_metric(self):
         """Check that duplicate rate types for a metric are rejected."""

@@ -6,6 +6,8 @@
 import copy
 
 from api.models import Provider
+from masu.processor import is_feature_flag_enabled_by_account
+from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 
 """Model for our cost model metric map."""
 OCP_METRIC_CPU_CORE_USAGE_HOUR = "cpu_core_usage_per_hour"
@@ -28,6 +30,7 @@ OCP_VM_HOUR = "vm_cost_per_hour"
 OCP_VM_CORE_MONTH = "vm_core_cost_per_month"
 OCP_VM_CORE_HOUR = "vm_core_cost_per_hour"
 OCP_PROJECT_MONTH = "project_per_month"
+OCP_GPU_MONTH = "gpu_cost_per_month"
 
 CPU = "cpu"
 MEM = "memory"
@@ -59,6 +62,7 @@ METRIC_CHOICES = (
     OCP_PROJECT_MONTH,
     OCP_VM_CORE_MONTH,
     OCP_VM_CORE_HOUR,
+    OCP_GPU_MONTH,
 )
 
 COST_TYPE_CHOICES = (
@@ -269,9 +273,25 @@ COST_MODEL_METRIC_MAP = {
     },
 }
 
+UNLEASH_METRICS_GPU = {
+    "gpu_cost_per_month": {
+        "source_type": "OCP",
+        "metric": "gpu_cost_per_month",
+        "label_metric": "GPU",
+        "label_measurement": "Count",
+        "label_measurement_unit": "gpu-month",
+        "default_cost_type": "Infrastructure",
+    },
+}
 
-def get_cost_model_metrics_map():
+
+def get_cost_model_metrics_map(account=None):
     map_copy = copy.deepcopy(COST_MODEL_METRIC_MAP)
+
+    # Check GPU unleash flag
+    if is_feature_flag_enabled_by_account(account, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True):
+        map_copy |= copy.deepcopy(UNLEASH_METRICS_GPU)
+
     return map_copy
 
 
