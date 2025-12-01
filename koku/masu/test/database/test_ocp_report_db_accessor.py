@@ -1259,7 +1259,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             metric_constants.OCP_GPU_MONTH: [
                 {
                     "rate_type": "Infrastructure",
-                    "tag_key": "nvidia_com_gpu",
+                    "tag_key": "nvidia",
                     "value_rates": {"Tesla T4": 1000, "A100": 2500, "H100": 5000},
                     "default_rate": 5000,
                 },
@@ -1285,7 +1285,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             metric_constants.OCP_GPU_MONTH: [
                 {
                     "rate_type": "Infrastructure",
-                    "tag_key": "nvidia_com_gpu",
+                    "tag_key": "nvidia",
                     "value_rates": {"Tesla T4": 1000},
                     "default_rate": 1000,
                 }

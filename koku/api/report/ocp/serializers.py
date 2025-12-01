@@ -402,11 +402,6 @@ class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling GPU query parameters."""
 
     order_by_allowlist = (
-        "cluster",
-        "node",
-        "project",
-        "vendor",
-        "model",
         "cost_total",
         "infra_total",
         "sup_total",

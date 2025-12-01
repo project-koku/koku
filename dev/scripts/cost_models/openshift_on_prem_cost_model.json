@@ -300,7 +300,7 @@
                 "name": "gpu_cost_per_month"
             },
             "tag_rates": {
-                "tag_key": "nvidia_com_gpu",
+                "tag_key": "nvidia",
                 "tag_values": [
                     {
                         "unit": "USD",
