@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                 ("usage_end", models.DateField()),
                 ("vendor_name", models.CharField(max_length=128, null=True)),
                 ("model_name", models.CharField(max_length=128, null=True)),
-                ("memory_capacity_mib", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                ("memory_capacity_gb", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("gpu_count", models.IntegerField(null=True)),
                 ("cost_model_gpu_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("raw_currency", models.TextField(null=True)),
