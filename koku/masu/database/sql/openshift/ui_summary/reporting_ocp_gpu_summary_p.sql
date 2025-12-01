@@ -51,7 +51,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_gpu_summary_p (
         vendor_name,
         model_name,
         node,
-        resource_id,
         usage_start,
         source_uuid,
         cost_category_id
