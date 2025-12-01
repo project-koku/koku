@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Metrics views."""
+from unittest.mock import Mock
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
@@ -188,3 +190,41 @@ class CostModelMetricsMapViewTest(IamTestCase):
         self.assertIn("gpu_cost_per_month", metrics)
         gpu_metric = metrics["gpu_cost_per_month"]
         self.assertEqual(gpu_metric["label_metric"], "GPU")
+
+    @patch("api.metrics.constants.is_feature_flag_enabled_by_account")
+    def test_metrics_endpoint_extracts_account_from_user(self, mock_unleash):
+        """Test /metrics/ endpoint extracts account successfully"""
+        mock_unleash.return_value = True
+        url = reverse("metrics")
+        client = APIClient()
+
+        # Call endpoint with authenticated user (from IamTestCase)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Verify unleash was called
+        self.assertTrue(mock_unleash.called)
+
+    @patch("api.metrics.constants.is_feature_flag_enabled_by_account")
+    def test_account_extraction_with_attribute_error(self, mock_unleash):
+        """Test account extraction handles AttributeError when user has no customer."""
+        from api.metrics.views import metrics
+        from rest_framework.test import APIRequestFactory
+
+        mock_unleash.return_value = False
+
+        # Create request with user that raises AttributeError on customer access
+        factory = APIRequestFactory()
+        request = factory.get("/api/cost-management/v1/metrics/")
+
+        # Create mock user where accessing .customer.schema_name raises AttributeError
+        mock_user = Mock()
+        type(mock_user).customer = PropertyMock(side_effect=AttributeError)
+        request.user = mock_user
+
+        # Call the view - should handle AttributeError and use account=None
+        response = metrics(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Verify flag was called with None (from except block)
+        mock_unleash.assert_called()

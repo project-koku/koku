@@ -288,7 +288,8 @@ UNLEASH_METRICS_GPU = {
 def get_cost_model_metrics_map(account=None):
     map_copy = copy.deepcopy(COST_MODEL_METRIC_MAP)
 
-    if account and is_feature_flag_enabled_by_account(account, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True):
+    # Check GPU unleash flag
+    if is_feature_flag_enabled_by_account(account, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True):
         map_copy |= copy.deepcopy(UNLEASH_METRICS_GPU)
 
     return map_copy
