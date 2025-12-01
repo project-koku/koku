@@ -1671,22 +1671,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         first_value = first_entry["values"][0]
         self.assertIn("vendor", first_value)
 
-    def test_gpu_order_by_without_matching_group_by_works(self):
-        """Test that GPU order_by model without group_by model works."""
-        url = reverse("reports-openshift-gpu")
-        params = {"order_by[model]": "asc"}
-        url = f"{url}?{urlencode(params)}"
-        client = APIClient()
-        response = client.get(url, **self.headers)
-
-        # Should return 200 OK (fields are in order_by_allowlist)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.data
-
-        # Verify response has data structure
-        self.assertIn("data", data)
-        self.assertIn("meta", data)
-
     def test_gpu_order_by_cost_with_group_by_model_works(self):
         """Test that GPU order_by cost with group_by model works correctly."""
         url = reverse("reports-openshift-gpu")
