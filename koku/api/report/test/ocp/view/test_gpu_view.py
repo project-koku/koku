@@ -75,7 +75,7 @@ class OCPGpuViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         gpu_values = response.data["data"][0]["nodes"][0]["values"][0]
         self.assertGreater(len(gpu_values), 0, "GPU endpoint should return actual data")
-        self.assertEqual(gpu_values["vendor"], "nvidia_com_gpu", "GPU vendor should be nvidia_com_gpu")
+        self.assertEqual(gpu_values["vendor"], "nvidia", "GPU vendor should be nvidia")
         self.assertIsInstance(gpu_values["memory"]["value"], Decimal, "GPU memory should be numeric")
 
     def test_gpu_endpoint_response_structure(self):
@@ -85,7 +85,7 @@ class OCPGpuViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_gpu_endpoint_with_group_by_returns_new_fields(self):
-        """Test that GPU endpoint returns memory, gpu_hours, and gpu_count fields."""
+        """Test that GPU endpoint returns memory, and gpu_count fields."""
         url = reverse("reports-openshift-gpu")
         query_params = {"group_by[model]": "*"}
         url = url + "?" + urlencode(query_params, doseq=True)
@@ -96,7 +96,6 @@ class OCPGpuViewTest(IamTestCase):
         values = data["data"][0].get("values", [])
         # Verify new fields are present
         self.assertIn("memory", values[0], "memory field should be present in response")
-        self.assertIn("gpu_hours", values[0], "gpu_hours field should be present in response")
         self.assertIn("gpu_count", values[0], "gpu_count field should be present in response")
 
     def test_gpu_endpoint_order_by_memory(self):
@@ -107,18 +106,10 @@ class OCPGpuViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_gpu_endpoint_order_by_gpu_hours(self):
-        """Test that ordering by gpu_hours succeeds."""
-        url = reverse("reports-openshift-gpu")
-        query_params = {"group_by[vendor]": "*", "order_by[gpu_hours]": "desc"}
-        url = url + "?" + urlencode(query_params, doseq=True)
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
     def test_gpu_endpoint_order_by_without_group_by(self):
         """Test that ordering by new fields works without group_by (allowlist)."""
         # These fields are in order_by_allowlist, so should work without group_by
-        for field in ["memory", "gpu_hours", "gpu_count"]:
+        for field in ["memory", "gpu_count"]:
             url = reverse("reports-openshift-gpu")
             query_params = {f"order_by[{field}]": "desc"}
             url = url + "?" + urlencode(query_params, doseq=True)

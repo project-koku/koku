@@ -136,9 +136,13 @@ class OCPProviderMap(ProviderMap):
                     ),
                     default=Value(0, output_field=DecimalField()),
                 )
+                * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
         else:
-            return Sum(Coalesce(F("cost_model_gpu_cost"), Value(0, output_field=DecimalField())))
+            return Sum(
+                Coalesce(F("cost_model_gpu_cost"), Value(0, output_field=DecimalField()))
+                * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
+            )
 
     def __cost_model_distributed_cost(self, cost_model_rate_type, exchange_rate_column):
         return Sum(
@@ -829,7 +833,7 @@ class OCPProviderMap(ProviderMap):
                     "gpu": {
                         "tables": {"query": OCPGpuSummaryP},
                         "group_by_options": ["cluster", "project", "node", "vendor", "model"],
-                        "tag_column": "pod_labels",
+                        "tag_column": "all_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": self.__cost_model_gpu_cost(cost_model_rate_type="Supplementary"),
@@ -866,11 +870,9 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "vendor": F("vendor_name"),
                             "model": F("model_name"),
-                            "memory": Max(Coalesce(F("memory_capacity_mib"), Value(0, output_field=DecimalField()))),
-                            "memory_units": Value("MiB", output_field=CharField()),
-                            "gpu_hours": Sum(Coalesce(F("gpu_uptime_hours"), Value(0, output_field=DecimalField()))),
-                            "gpu_hours_units": Value("hours", output_field=CharField()),
-                            "gpu_count": Sum(Coalesce(F("gpu_count"), Value(0, output_field=IntegerField()))),
+                            "memory": Max(Coalesce(F("memory_capacity_gb"), Value(0, output_field=DecimalField()))),
+                            "memory_units": Value("GB", output_field=CharField()),
+                            "gpu_count": Max(Coalesce(F("gpu_count"), Value(0, output_field=IntegerField()))),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
                         },
                         "delta_key": {},
@@ -1056,19 +1058,6 @@ class OCPProviderMap(ProviderMap):
             },
             "gpu": {
                 "default": OCPGpuSummaryP,
-                ("cluster",): OCPGpuSummaryP,
-                ("node",): OCPGpuSummaryP,
-                ("project",): OCPGpuSummaryP,
-                ("cluster", "node"): OCPGpuSummaryP,
-                ("cluster", "project"): OCPGpuSummaryP,
-                ("vendor",): OCPGpuSummaryP,
-                ("model",): OCPGpuSummaryP,
-                ("cluster", "vendor"): OCPGpuSummaryP,
-                ("cluster", "model"): OCPGpuSummaryP,
-                ("node", "vendor"): OCPGpuSummaryP,
-                ("node", "model"): OCPGpuSummaryP,
-                ("project", "vendor"): OCPGpuSummaryP,
-                ("project", "model"): OCPGpuSummaryP,
             },
         }
         super().__init__(provider, report_type, schema_name)

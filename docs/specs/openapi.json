@@ -11126,10 +11126,6 @@
                                                         "value": 15360.0,
                                                         "units": "MiB"
                                                     },
-                                                    "gpu_hours": {
-                                                        "value": 744.0,
-                                                        "units": "hours"
-                                                    },
                                                     "gpu_count": {
                                                         "value": 4,
                                                         "units": "GPUs"
