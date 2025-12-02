@@ -336,3 +336,79 @@ class OCPVirtualMachinesQueryParamSerializer(OCPQueryParamSerializer):
     # Not valid for this endpoint.
     start_date = None
     end_date = None
+
+
+class OCPGpuGroupBySerializer(GroupSerializer):
+    """Serializer for handling GPU query parameter group_by."""
+
+    _opfields = ("cluster", "node", "project", "vendor", "model")
+
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    vendor = StringOrListField(child=serializers.CharField(), required=False)
+    model = StringOrListField(child=serializers.CharField(), required=False)
+
+
+class OCPGpuFilterSerializer(BaseFilterSerializer):
+    """Serializer for handling GPU query parameter filter."""
+
+    _opfields = ("cluster", "node", "project", "vendor", "model")
+
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    vendor = StringOrListField(child=serializers.CharField(), required=False)
+    model = StringOrListField(child=serializers.CharField(), required=False)
+
+
+class OCPGpuOrderBySerializer(OrderSerializer):
+    """Serializer for handling GPU query parameter order_by."""
+
+    _opfields = (
+        "cluster",
+        "node",
+        "project",
+        "vendor",
+        "model",
+        "date",
+        "cost",
+        "cost_model_gpu_cost",
+        "memory",
+        "gpu_count",
+    )
+    _op_mapping = {
+        "cost": "cost_total",
+        "infrastructure": "infra_total",
+        "supplementary": "sup_total",
+        "cost_model_gpu_cost": "cost_total",
+    }
+
+    cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    vendor = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    model = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    date = serializers.DateField(required=False)
+    cost_model_gpu_cost = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    memory = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    gpu_count = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    cost_total = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    infra_total = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    sup_total = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+
+
+class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
+    """Serializer for handling GPU query parameters."""
+
+    order_by_allowlist = (
+        "cost_total",
+        "infra_total",
+        "sup_total",
+        "memory",
+        "gpu_count",
+    )
+
+    GROUP_BY_SERIALIZER = OCPGpuGroupBySerializer
+    FILTER_SERIALIZER = OCPGpuFilterSerializer
+    ORDER_BY_SERIALIZER = OCPGpuOrderBySerializer
