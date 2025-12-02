@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0340_gpu_support"),
+        ("reporting", "0340_ocpgpusummaryp"),
     ]
 
     operations = [
