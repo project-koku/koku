@@ -5,6 +5,15 @@
     "source_uuids": [
         "PROVIDER_UUID"
     ],
+    "distribution": "cpu",
+    "distribution_info": {
+        "distribution_type": "cpu",
+        "platform_cost": true,
+        "worker_cost": true,
+        "network_unattributed": true,
+        "storage_unattributed": true,
+        "gpu_unallocated": true
+    },
     "rates": [
         {
             "metric": {
@@ -300,7 +309,7 @@
                 "name": "gpu_cost_per_month"
             },
             "tag_rates": {
-                "tag_key": "nvidia_com_gpu",
+                "tag_key": "nvidia",
                 "tag_values": [
                     {
                         "unit": "USD",

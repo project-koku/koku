@@ -196,6 +196,9 @@ class OCPPostProcessor:
             unique_labels = data_frame[column].unique()
             for label in unique_labels:
                 label_key_set.update(json.loads(label).keys())
+        gpu_column = "gpu_vendor_name"
+        if gpu_column in data_frame.columns:
+            data_frame[gpu_column] = data_frame[gpu_column].replace("nvidia_com_gpu", "nvidia")
         self.enabled_tag_keys.update(label_key_set)
         return data_frame, self._generate_daily_data(data_frame)
 
