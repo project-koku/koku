@@ -107,7 +107,7 @@ WITH cte_unutilized_uptime_hours AS (
             sum(gpu.gpu_pod_uptime) / 3600 as aggregated_pod_uptime,
             gpu.node,
             DATE(gpu.interval_start) as interval_date
-        from openshift_gpu_usage_line_items_daily as gpu
+        from hive.{{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu
             WHERE gpu.source = {{source_uuid}}
             AND gpu.year = {{year}}
             AND gpu.month = {{month}}

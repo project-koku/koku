@@ -169,3 +169,94 @@ class OCPUtilTests(MasuTestCase):
                     mock_csv.return_value.columns = test
                     result, _ = utils.detect_type("")
                     self.assertEqual(result, expected)
+
+
+class DistributionConfigTest(MasuTestCase):
+    """Test the DistributionConfig class (AI generated tests)."""
+
+    def test_is_trino(self):
+        """Test is_trino property."""
+        config = utils.DistributionConfig(
+            sql_file="test.sql", cost_model_rate_type="test", query_type="trino", required_table="test_table"
+        )
+        self.assertTrue(config.is_trino)
+        self.assertFalse(config.is_postgresql)
+
+    def test_is_postgresql(self):
+        """Test is_postgresql property."""
+        config = utils.DistributionConfig(
+            sql_file="test.sql",
+            cost_model_rate_type="test",
+            query_type="postgresql",
+        )
+        self.assertTrue(config.is_postgresql)
+        self.assertFalse(config.is_trino)
+
+    def test_has_table_requirement(self):
+        """Test has_table_requirement property."""
+        config = utils.DistributionConfig(
+            sql_file="test.sql", cost_model_rate_type="test", query_type="trino", required_table="test_table"
+        )
+        self.assertTrue(config.has_table_requirement)
+
+        config = utils.DistributionConfig(
+            sql_file="test.sql",
+            cost_model_rate_type="test",
+            query_type="trino",
+        )
+        self.assertFalse(config.has_table_requirement)
+
+    def test_validate_required_table(self):
+        """Test validate_required_table validator."""
+        with self.assertRaises(ValidationError):
+            utils.DistributionConfig(
+                sql_file="test.sql", cost_model_rate_type="test", query_type="postgresql", required_table="test_table"
+            )
+
+    def test_validate_sql_file(self):
+        """Test validate_sql_file validator."""
+        with self.assertRaises(ValidationError):
+            utils.DistributionConfig(
+                sql_file="test.txt",
+                cost_model_rate_type="test",
+            )
+
+    def test_get_full_path(self):
+        """Test get_full_path method."""
+        # Test trino path
+        config = utils.DistributionConfig(
+            sql_file="test.sql", cost_model_rate_type="test", query_type="trino", required_table="test_table"
+        )
+        self.assertEqual(config.get_full_path(), "trino_sql/openshift/cost_model/distribute_cost/test.sql")
+
+        # Test postgres path
+        config = utils.DistributionConfig(
+            sql_file="test.sql",
+            cost_model_rate_type="test",
+            query_type="postgresql",
+        )
+        self.assertEqual(config.get_full_path(), "sql/openshift/cost_model/distribute_cost/test.sql")
+
+    @patch("masu.util.ocp.common.trino_table_exists")
+    def test_table_exists(self, mock_table_exists):
+        """Test table_exists method."""
+        mock_table_exists.return_value = True
+        config = utils.DistributionConfig(
+            sql_file="test.sql", cost_model_rate_type="test", query_type="trino", required_table="test_table"
+        )
+        self.assertTrue(config.table_exists(self.schema))
+        mock_table_exists.assert_called_once_with(self.schema, "test_table")
+
+        mock_table_exists.return_value = False
+        self.assertFalse(config.table_exists(self.schema))
+
+    @patch("masu.util.ocp.common.trino_table_exists")
+    def test_table_exists_no_requirement(self, mock_table_exists):
+        """Test table_exists method when no table is required."""
+        config = utils.DistributionConfig(
+            sql_file="test.sql",
+            cost_model_rate_type="test",
+            query_type="trino",
+        )
+        self.assertTrue(config.table_exists(self.schema))
+        mock_table_exists.assert_not_called()
