@@ -121,6 +121,7 @@ scripts/aws_pricing/
 .vscode/
 .idea/
 *.code-workspace
+.claude/
 
 # Mac OSX
 .DS_Store

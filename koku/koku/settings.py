@@ -54,6 +54,8 @@ SECRET_KEY = ENVIRONMENT.get_value(
 # Default value: False
 DEBUG = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 
+ONPREM = ENVIRONMENT.bool("ONPREM", default=False)
+
 # Allow org admins to bypass RBAC permission checks
 ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)
 
@@ -165,6 +167,7 @@ UNLEASH_PREFIX = "https" if str(UNLEASH_PORT) == "443" else "http"
 UNLEASH_URL = f"{UNLEASH_PREFIX}://{UNLEASH_HOST}:{UNLEASH_PORT}/api"
 UNLEASH_TOKEN = CONFIGURATOR.get_feature_flag_token()
 UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.join(BASE_DIR, "..", ".unleash"))
+DISABLE_UNLEASH = ENVIRONMENT.bool("DISABLE_UNLEASH", default=False)
 
 # Set max group by options
 MAX_GROUP_BY = ENVIRONMENT.int("MAX_GROUP_BY_OVERRIDE", default=3)
