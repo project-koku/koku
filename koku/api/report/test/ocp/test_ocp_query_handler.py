@@ -18,8 +18,11 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import Max
 from django.db.models import Sum
 from django.db.models.expressions import OrderBy
+from django.urls import reverse
 from django_tenants.utils import tenant_context
+from rest_framework import status
 from rest_framework.exceptions import ValidationError
+from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilterCollection
@@ -37,6 +40,7 @@ from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import OCPCostSummaryByProjectP
 from reporting.models import OCPUsageLineItemDailySummary
+from reporting.provider.ocp.models import OCPGpuSummaryP
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
@@ -1531,3 +1535,229 @@ class OCPReportQueryHandlerTest(IamTestCase):
             with self.subTest(params=item):
                 result = handler.format_tags(item.get("test_tags"))
                 self.assertEqual(result, item.get("expected_output"))
+
+    def test_gpu_filter_by_model_filters_correctly(self):
+        """Test that GPU model filter actually filters data correctly."""
+        with tenant_context(self.tenant):
+            # Get distinct models from database
+            models = list(
+                OCPGpuSummaryP.objects.values_list("model_name", flat=True).distinct().order_by("model_name")
+            )
+            # Test filtering by first model
+            test_model = models[0]
+
+        url = reverse("reports-openshift-gpu")
+        params = {"filter[model]": test_model}
+        url = f"{url}?{urlencode(params)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+
+        # Verify that response includes the filter in meta
+        self.assertIn("meta", data)
+        self.assertIn("filter", data["meta"])
+        self.assertIn("model", data["meta"]["filter"])
+        self.assertEqual(data["meta"]["filter"]["model"], [test_model])
+
+        # Verify data is present (not empty)
+        self.assertIn("data", data)
+        self.assertGreater(len(data["data"]), 0)
+
+    def test_gpu_filter_by_vendor_filters_correctly(self):
+        """Test that GPU vendor filter actually filters data correctly."""
+        with tenant_context(self.tenant):
+            # Get distinct vendors from database
+            vendors = list(
+                OCPGpuSummaryP.objects.values_list("vendor_name", flat=True).distinct().order_by("vendor_name")
+            )
+            test_vendor = vendors[0]
+
+        url = reverse("reports-openshift-gpu")
+        params = {"filter[vendor]": test_vendor}
+        url = f"{url}?{urlencode(params)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+
+        # Verify that response includes the filter in meta
+        self.assertIn("meta", data)
+        self.assertIn("filter", data["meta"])
+        self.assertIn("vendor", data["meta"]["filter"])
+        self.assertEqual(data["meta"]["filter"]["vendor"], [test_vendor])
+
+    def test_gpu_multiple_model_filters_use_or_logic(self):
+        """Test that multiple GPU model filter values use OR logic."""
+        with tenant_context(self.tenant):
+            # Get distinct models from database
+            models = list(
+                OCPGpuSummaryP.objects.values_list("model_name", flat=True).distinct().order_by("model_name")
+            )
+            model1 = models[0]
+            model2 = models[1]
+
+        # Query with multiple models
+        url = reverse("reports-openshift-gpu")
+        params = [("filter[model]", model1), ("filter[model]", model2)]
+        url = f"{url}?{urlencode(params)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+
+        # Verify both models are in the filter
+        self.assertIn("meta", data)
+        self.assertIn("filter", data["meta"])
+        self.assertIn("model", data["meta"]["filter"])
+        filter_models = data["meta"]["filter"]["model"]
+        self.assertIn(model1, filter_models)
+        self.assertIn(model2, filter_models)
+
+    def test_gpu_group_by_model_returns_grouped_data(self):
+        """Test that GPU group_by model returns data grouped by model."""
+        url = reverse("reports-openshift-gpu")
+        params = {"group_by[model]": "*"}
+        url = f"{url}?{urlencode(params)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+
+        # Verify group_by is in meta
+        self.assertIn("meta", data)
+        self.assertIn("group_by", data["meta"])
+        self.assertIn("model", data["meta"]["group_by"])
+
+        # Verify data structure has grouped values
+        self.assertIn("data", data)
+        self.assertGreater(len(data["data"]), 0)
+        # Check that data has proper structure with models
+        first_entry = data["data"][0]
+        self.assertIn("date", first_entry)
+        # Values should exist and have model information
+        self.assertIn("values", first_entry)
+        self.assertGreater(len(first_entry["values"]), 0)
+        first_value = first_entry["values"][0]
+        self.assertIn("model", first_value)
+
+    def test_gpu_group_by_vendor_returns_grouped_data(self):
+        """Test that GPU group_by vendor returns data grouped by vendor."""
+        url = reverse("reports-openshift-gpu")
+        params = {"group_by[vendor]": "*"}
+        url = f"{url}?{urlencode(params)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+
+        # Verify group_by is in meta
+        self.assertIn("meta", data)
+        self.assertIn("group_by", data["meta"])
+        self.assertIn("vendor", data["meta"]["group_by"])
+
+        # Verify data structure has grouped values
+        self.assertIn("data", data)
+        self.assertGreater(len(data["data"]), 0)
+        first_entry = data["data"][0]
+        self.assertIn("date", first_entry)
+        self.assertIn("values", first_entry)
+        self.assertGreater(len(first_entry["values"]), 0)
+        first_value = first_entry["values"][0]
+        self.assertIn("vendor", first_value)
+
+    def test_gpu_order_by_cost_with_group_by_model_works(self):
+        """Test that GPU order_by cost with group_by model works correctly."""
+        url = reverse("reports-openshift-gpu")
+        params = {"group_by[model]": "*", "order_by[cost]": "desc"}
+        url = f"{url}?{urlencode(params)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+
+        # Verify both group_by and order_by are in meta
+        self.assertIn("meta", data)
+        self.assertIn("group_by", data["meta"])
+        self.assertIn("order_by", data["meta"])
+        self.assertIn("model", data["meta"]["group_by"])
+
+    def test_gpu_filter_and_group_by_combination(self):
+        """Test that GPU filter and group_by work together correctly."""
+        with tenant_context(self.tenant):
+            # Get a model to filter by
+            models = list(
+                OCPGpuSummaryP.objects.values_list("model_name", flat=True).distinct().order_by("model_name")
+            )
+            test_model = models[0]
+
+        url = reverse("reports-openshift-gpu")
+        params = {"filter[model]": test_model, "group_by[node]": "*"}
+        url = f"{url}?{urlencode(params)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+
+        # Verify both filter and group_by are applied
+        self.assertIn("meta", data)
+        self.assertIn("filter", data["meta"])
+        self.assertIn("group_by", data["meta"])
+        self.assertEqual(data["meta"]["filter"]["model"], [test_model])
+        self.assertIn("node", data["meta"]["group_by"])
+
+    def test_gpu_filter_case_insensitive(self):
+        """Test that GPU filters are case insensitive."""
+        with tenant_context(self.tenant):
+            # Get a model from database
+            models = list(OCPGpuSummaryP.objects.values_list("model_name", flat=True).distinct())
+            test_model = models[0]
+
+        # Test with uppercase
+        url1 = reverse("reports-openshift-gpu")
+        params1 = {"filter[model]": test_model.upper()}
+        url1 = f"{url1}?{urlencode(params1)}"
+        client = APIClient()
+        response1 = client.get(url1, **self.headers)
+
+        # Test with lowercase
+        url2 = reverse("reports-openshift-gpu")
+        params2 = {"filter[model]": test_model.lower()}
+        url2 = f"{url2}?{urlencode(params2)}"
+        response2 = client.get(url2, **self.headers)
+
+        # Both should return 200 OK
+        self.assertEqual(response1.status_code, status.HTTP_200_OK)
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+
+        # Both should return data (case insensitive search should work)
+        data1 = response1.data
+        data2 = response2.data
+
+        # Verify that total costs are the same (case doesn't matter)
+        total1 = data1["meta"].get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
+        total2 = data2["meta"].get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
+        self.assertEqual(total1, total2, "Case insensitive filter should return same results")
+
+    def test_gpu_invalid_filter_value_returns_empty(self):
+        """Test that GPU filtering by non-existent value returns empty results."""
+        url = reverse("reports-openshift-gpu")
+        params = {"filter[model]": "NONEXISTENT_MODEL_XYZ_123"}
+        url = f"{url}?{urlencode(params)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+
+        # Should return valid structure but with zero cost
+        self.assertIn("meta", data)
+        total_cost = data["meta"].get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
+        self.assertEqual(total_cost, 0.0, "Non-existent model should return zero cost")

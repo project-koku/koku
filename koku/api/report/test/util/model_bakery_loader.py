@@ -24,6 +24,7 @@ from api.provider.models import ProviderBillingSource
 from api.report.test.util.common import populate_ocp_topology
 from api.report.test.util.common import update_cost_category
 from api.report.test.util.constants import AWS_COST_CATEGORIES
+from api.report.test.util.constants import OCP_CONSTANTS
 from api.report.test.util.constants import OCP_ON_PREM_COST_MODEL
 from api.report.test.util.data_loader import DataLoader
 from api.report.test.util.unit_test_report_db_accessor import ReportDBAccessor
@@ -403,6 +404,20 @@ class ModelBakeryDataLoader(DataLoader):
                         infrastructure_raw_cost=infra_raw_cost,
                         infrastructure_project_raw_cost=project_infra_raw_cost,
                     )
+                    # GPU data_source - create multiple GPUs with different models
+                    for gpu_idx in range(OCP_CONSTANTS.length):
+                        gpu_labels = OCP_CONSTANTS["gpu_labels"][gpu_idx % len(OCP_CONSTANTS["gpu_labels"])]
+                        baker.make_recipe(
+                            "api.report.test.util.ocp_usage_gpu",
+                            report_period=report_period,
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_id,
+                            usage_start=start_date + timedelta(i),
+                            usage_end=start_date + timedelta(i),
+                            source_uuid=provider.uuid,
+                            all_labels=gpu_labels,
+                            resource_id=f"GPU-{gpu_idx:08d}-{i}",
+                        )
                     if on_cloud:
                         # Network data comes from the cloud bill
                         baker.make_recipe(
@@ -449,7 +464,7 @@ class ModelBakeryDataLoader(DataLoader):
                     report_period_ids, self.first_start_date, self.last_end_date, provider.uuid
                 )
             with OCPReportDBAccessor(self.schema) as accessor:
-                accessor.populate_ui_summary_tables(self.dh.last_month_start, self.last_end_date, provider.uuid)
+                accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
 
         populate_ocp_topology(self.schema, provider, cluster_id)
 
