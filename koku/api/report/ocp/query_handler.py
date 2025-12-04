@@ -255,8 +255,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_order_by = ["-date", self.order]
 
             report_annotations = self.report_annotations
-            if self._report_type == "gpu":
-                exclude_fields = set(group_by_value) & {"vendor", "model"}
+            if hasattr(self, "group_by_alias"):
+                exclude_fields = set(group_by_value) & set(self.group_by_alias.keys())
                 if exclude_fields:
                     report_annotations = {k: v for k, v in report_annotations.items() if k not in exclude_fields}
 
