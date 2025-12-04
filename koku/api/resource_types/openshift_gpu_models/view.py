@@ -4,8 +4,9 @@
 #
 """View for Openshift GPU Models."""
 from django.db.models import F
-from reporting.provider.ocp.models import OCPGpuSummaryP
+
 from api.resource_types.view import OCPGpuResourceTypesView
+from reporting.provider.ocp.models import OCPGpuSummaryP
 
 
 class OCPGpuModelsView(OCPGpuResourceTypesView):
