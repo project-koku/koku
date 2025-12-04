@@ -129,8 +129,6 @@ class ResourceTypeView(APIView):
 class ResourceTypesGenericListView(generics.ListAPIView):
     """API generic list view for resource types."""
 
-    error_message = {}
-    query_filter_keys = []
     ordering = ["value"]
     search_fields = ["value"]
     supported_query_params = ["search", "limit"]
@@ -142,7 +140,7 @@ class ResourceTypesGenericListView(generics.ListAPIView):
         """Check if the user has admin access."""
         return settings.ENHANCED_ORG_ADMIN and request.user.admin
 
-    def filter_by_access(self, subset_map, request):
+    def filter_by_access(self, subset_map, request, queryset):
         """
         Filter the queryset by the user's access rights.
         subset_map: A dictionary mapping the access key to the model field.
@@ -152,7 +150,8 @@ class ResourceTypesGenericListView(generics.ListAPIView):
             for access_key, model_field in subset_map.items():
                 access_list = request.user.access.get(access_key, {}).get("read", [])
                 if access_list and access_list[0] != "*":
-                    self.queryset = self.queryset.filter(**{model_field: access_list})
+                    queryset = queryset.filter(**{model_field: access_list})
+        return queryset
 
 
 class OCPGpuResourceTypesView(ResourceTypesGenericListView):
@@ -168,21 +167,23 @@ class OCPGpuResourceTypesView(ResourceTypesGenericListView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Openshift GPU vendors, displays values related to the users access
-        query_filter_map = {}
         self.supported_query_params.extend(self.query_filter_keys)
+        query_filter_map = {}
+        error_message = {}
 
         # check for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
                 if key not in self.supported_query_params:
-                    self.error_message[key] = [{"Unsupported parameter"}]
-                    return Response(self.error_message, status=status.HTTP_400_BAD_REQUEST)
+                    error_message[key] = [{"Unsupported parameter"}]
+                    return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
                 if key in self.query_filter_keys:
                     query_filter_map[f"{key}__icontains"] = self.request.query_params.get(key)
 
-        self.queryset = self.queryset.filter(**query_filter_map)
+        queryset = self.queryset.filter(**query_filter_map)
 
         if not self.has_admin_access(request):
-            self.filter_by_access(self.access_map, request)
+            queryset = self.filter_by_access(self.access_map, request, queryset)
 
+        self.queryset = queryset
         return super().list(request)
