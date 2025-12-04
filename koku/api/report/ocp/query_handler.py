@@ -56,7 +56,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self._mapper = mapper_class(
             provider=self.provider, report_type=self._report_type, schema_name=parameters.tenant.schema_name
         )
-        self.group_by_options = self._mapper.provider_map.get("group_by_options")
+        self.group_by_options = self._mapper.report_type_map.get("group_by_options") or self._mapper.provider_map.get(
+            "group_by_options"
+        )
+        if self._report_type == "gpu":
+            self.group_by_alias = {"vendor": "vendor_name", "model": "model_name"}
 
         # We need to overwrite the default pack definitions with these
         # Order of the keys matters in how we see it in the views.
@@ -147,6 +151,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 )
         for tag_db_name, _, original_tag in self._tag_group_by:
             annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
+
+        if self._report_type == "gpu":
+            annotations["vendor"] = F("vendor_name")
+            annotations["model"] = F("model_name")
 
         return annotations
 
@@ -245,7 +253,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date", self.order]
-            query_data = query.values(*query_group_by).annotate(**self.report_annotations)
+
+            report_annotations = self.report_annotations
+            if self._report_type == "gpu":
+                exclude_fields = set(group_by_value) & {"vendor", "model"}
+                if exclude_fields:
+                    report_annotations = {k: v for k, v in report_annotations.items() if k not in exclude_fields}
+
+            query_data = query.values(*query_group_by).annotate(**report_annotations)
 
             if is_grouped_by_project(self.parameters):
                 query_data = self._project_classification_annotation(query_data)

@@ -93,7 +93,11 @@ class OCPGpuViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data
 
-        values = data["data"][0].get("values", [])
+        # With group_by[model], structure is: data[0]["models"][0]["values"][0]
+        models = data["data"][0].get("models", [])
+        self.assertGreater(len(models), 0, "Should have model groups when grouping by model")
+        values = models[0].get("values", [])
+        self.assertGreater(len(values), 0, "Should have values in model group")
         # Verify new fields are present
         self.assertIn("memory", values[0], "memory field should be present in response")
         self.assertIn("gpu_count", values[0], "gpu_count field should be present in response")
