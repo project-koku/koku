@@ -78,6 +78,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "cost_worker_unallocated_distributed": {"key": "worker_unallocated_distributed", "group": "cost"},
             "cost_network_unattributed_distributed": {"key": "network_unattributed_distributed", "group": "cost"},
             "cost_storage_unattributed_distributed": {"key": "storage_unattributed_distributed", "group": "cost"},
+            "cost_gpu_unallocated_distributed": {"key": "gpu_unallocated_distributed", "group": "cost"},
             "cost_total_distributed": {"key": "distributed", "group": "cost"},
             "cost_total": {"key": "total", "group": "cost"},
         }
@@ -105,6 +106,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "units": "usage_units",
         }
         ocp_pack_definitions["usage"]["keys"].extend(["data_transfer_in", "data_transfer_out"])
+        ocp_pack_definitions["gpu_memory"] = {"keys": ["memory"], "units": "memory_units"}
+        ocp_pack_definitions["gpu_count"] = {"keys": ["gpu_count"], "units": "gpu_count_units"}
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)

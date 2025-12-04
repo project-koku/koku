@@ -925,6 +925,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     report_period_id=report_period_id,
                 )
                 .exclude(cost_model_rate_type="platform_distributed")
+                .exclude(data_source="GPU")
                 .count()
             )
             # the distributed cost is being added so the initial count is no longer zero.
@@ -937,10 +938,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 provider_uuid, report_period_id, start_date, end_date
             )
 
-            new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
-                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
-                report_period_id=report_period_id,
-            ).count()
+            new_non_raw_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                    report_period_id=report_period_id,
+                )
+                .exclude(data_source="GPU")
+                .count()
+            )
             new_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,
@@ -955,10 +960,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
             report_period = acc.report_periods_for_provider_uuid(provider_uuid, start_date)
 
             report_period_id = report_period.id
-            initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
-                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
-                report_period_id=report_period_id,
-            ).count()
+            initial_non_raw_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                    report_period_id=report_period_id,
+                )
+                .exclude(data_source="GPU")
+                .count()
+            )
             initial_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,
@@ -968,10 +977,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 provider_uuid, report_period_id, start_date, end_date
             )
 
-            new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
-                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
-                report_period_id=report_period_id,
-            ).count()
+            new_non_raw_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                    report_period_id=report_period_id,
+                )
+                .exclude(data_source="GPU")
+                .count()
+            )
             new_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,
@@ -1031,9 +1044,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             self.assertIsNone(result)
 
+    @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
-    def test_populate_distributed_cost_sql_called(self, mock_sql_execute, mock_data_get):
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_distributed_cost_sql_called(
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
+    ):
         """Test that the platform distribution is called."""
 
         def get_pkgutil_values(file):
@@ -1055,10 +1072,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
             "populate": True,
         }
         side_effect = [
-            [get_pkgutil_values("distribute_worker_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
             [get_pkgutil_values("distribute_platform_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_worker_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
             [get_pkgutil_values("distribute_unattributed_storage_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
             [get_pkgutil_values("distribute_unattributed_network_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
         ]
         mock_jinja = Mock()
         mock_jinja.side_effect = side_effect
@@ -1066,18 +1088,30 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with self.accessor as acc:
             acc.prepare_query = mock_jinja
             acc.populate_distributed_cost_sql(
-                start_date, end_date, self.ocp_test_provider_uuid, {"worker_cost": True, "platform_cost": True}
+                start_date,
+                end_date,
+                self.ocp_test_provider_uuid,
+                {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
             )
             expected_calls = [
-                call(masu_database, "sql/openshift/cost_model/distribute_worker_cost.sql"),
-                call(masu_database, "sql/openshift/cost_model/distribute_platform_cost.sql"),
-                call(masu_database, "sql/openshift/cost_model/distribute_unattributed_storage_cost.sql"),
-                call(masu_database, "sql/openshift/cost_model/distribute_unattributed_network_cost.sql"),
+                call(masu_database, "sql/openshift/cost_model/distribute_cost/distribute_worker_cost.sql"),
+                call(masu_database, "sql/openshift/cost_model/distribute_cost/distribute_platform_cost.sql"),
+                call(
+                    masu_database, "sql/openshift/cost_model/distribute_cost/distribute_unattributed_storage_cost.sql"
+                ),
+                call(
+                    masu_database, "sql/openshift/cost_model/distribute_cost/distribute_unattributed_network_cost.sql"
+                ),
+                call(
+                    masu_database,
+                    "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
+                ),
             ]
             for expected_call in expected_calls:
                 self.assertIn(expected_call, mock_data_get.call_args_list)
             mock_sql_execute.assert_called()
-            self.assertEqual(len(mock_sql_execute.call_args_list), 4)
+            self.assertEqual(len(mock_sql_execute.call_args_list), 9)
+            mock_trino_execute.assert_called()
 
     def test_update_line_item_daily_summary_with_tag_mapping(self):
         """
@@ -1246,7 +1280,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             metric_constants.OCP_GPU_MONTH: [
                 {
                     "rate_type": "Infrastructure",
-                    "tag_key": "nvidia_com_gpu",
+                    "tag_key": "nvidia",
                     "value_rates": {"Tesla T4": 1000, "A100": 2500, "H100": 5000},
                     "default_rate": 5000,
                 },
@@ -1272,7 +1306,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             metric_constants.OCP_GPU_MONTH: [
                 {
                     "rate_type": "Infrastructure",
-                    "tag_key": "nvidia_com_gpu",
+                    "tag_key": "nvidia",
                     "value_rates": {"Tesla T4": 1000},
                     "default_rate": 1000,
                 }
@@ -1288,3 +1322,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             # Should not call SQL execution when flag is disabled
             mock_trino_exec.assert_not_called()
+
+
+class OCPReportDBAccessorGPUUITest:
+    """Test Cases for GPU UI summary table population (independent from setUp dependencies)."""
