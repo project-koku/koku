@@ -2,7 +2,7 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""View for Openshift projects."""
+"""View for Openshift virtual machines."""
 from django.conf import settings
 from django.db.models import F
 from django.db.models import Q

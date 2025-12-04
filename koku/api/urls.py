@@ -75,6 +75,8 @@ from api.views import OCPGCPCostView
 from api.views import OCPGCPInstanceTypeView
 from api.views import OCPGCPStorageView
 from api.views import OCPGCPTagView
+from api.views import OCPGpuModelsView
+from api.views import OCPGpuVendorsView
 from api.views import OCPGpuView
 from api.views import OCPMemoryView
 from api.views import OCPNetworkView
@@ -471,6 +473,8 @@ urlpatterns = [
         OCPVirtualMachinesView.as_view(),
         name="openshift-virtual-machines",
     ),
+    path("resource-types/openshift-gpu-vendors/", OCPGpuVendorsView.as_view(), name="openshift-gpu-vendors"),
+    path("resource-types/openshift-gpu-models/", OCPGpuModelsView.as_view(), name="openshift-gpu-models"),
     path("resource-types/openshift-nodes/", OCPNodesView.as_view(), name="openshift-nodes"),
     path("resource-types/cost-models/", CostModelResourceTypesView.as_view(), name="cost-models"),
     path("forecasts/aws/costs/", AWSCostForecastView.as_view(), name="aws-cost-forecasts"),
