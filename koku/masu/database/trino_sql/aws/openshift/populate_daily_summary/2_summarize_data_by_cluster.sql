@@ -602,16 +602,37 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_proje
 )
 WITH cte_cluster_counts AS (
     -- Count distinct clusters matching each AWS resource for tag-matched resources
-    SELECT aws.row_uuid,
-        count(DISTINCT aws.ocp_source) as cluster_count
-    FROM hive.{{schema | sqlsafe}}.managed_aws_openshift_daily_temp AS aws
-    WHERE aws.source = {{cloud_provider_uuid}}
-        AND aws.year = {{year}}
-        AND aws.month = {{month}}
-        AND aws.resource_id_matched = FALSE
-        AND aws.matched_tag IS NOT NULL
-        AND aws.matched_tag != ''
-    GROUP BY aws.row_uuid
+    -- This must query source OCP data to get accurate count across all OCP sources,
+    -- not just the temp table which only contains data for the current OCP source.
+    -- We use the temp table to get tags/matched_tag, but join to ALL OCP sources to count matches.
+    SELECT aws_temp.row_uuid,
+        count(DISTINCT ocp.source) as cluster_count
+    FROM hive.{{schema | sqlsafe}}.managed_aws_openshift_daily_temp AS aws_temp
+    JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+        ON aws_temp.usage_start = ocp.usage_start
+            AND (
+                json_query(aws_temp.tags, 'strict $.openshift_project' OMIT QUOTES) = ocp.namespace
+                OR json_query(aws_temp.tags, 'strict $.openshift_node' OMIT QUOTES) = ocp.node
+                OR json_query(aws_temp.tags, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_alias
+                OR json_query(aws_temp.tags, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_id
+                OR (aws_temp.matched_tag != '' AND any_match(split(aws_temp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
+                OR (aws_temp.matched_tag != '' AND any_match(split(aws_temp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
+            )
+        AND ocp.namespace != 'Worker unallocated'
+        AND ocp.namespace != 'Platform unallocated'
+        AND ocp.namespace != 'Storage unattributed'
+        AND ocp.namespace != 'Network unattributed'
+    WHERE aws_temp.source = {{cloud_provider_uuid}}
+        AND aws_temp.year = {{year}}
+        AND aws_temp.month = {{month}}
+        AND aws_temp.resource_id_matched = FALSE
+        AND aws_temp.matched_tag IS NOT NULL
+        AND aws_temp.matched_tag != ''
+        AND ocp.year = {{year}}
+        AND lpad(ocp.month, 2, '0') = {{month}}
+        AND ocp.day IN {{days | inclause}}
+        -- Don't filter by ocp.source here - we want to count ALL matching OCP sources
+    GROUP BY aws_temp.row_uuid
 ),
 cte_rankings AS (
     SELECT pds.row_uuid,
