@@ -3857,6 +3857,76 @@
                 }
             }
         },
+        "/resource-types/openshift-gpu-models/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Openshift GPU Models For RBAC",
+                "operationId": "listResourcesOpenShiftGpuModels",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/openshift-gpu-vendors/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Openshift GPU Vendors For RBAC",
+                "operationId": "listResourcesOpenShiftGpuVendors",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/cost-models/": {
             "get": {
                 "tags": [

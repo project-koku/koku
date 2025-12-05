@@ -64,6 +64,8 @@ from api.resource_types.gcp_projects.view import GCPProjectsView
 from api.resource_types.gcp_regions.view import GCPRegionView
 from api.resource_types.gcp_services.view import GCPServiceView
 from api.resource_types.openshift_clusters.view import OCPClustersView
+from api.resource_types.openshift_gpus.view import OCPGpuModelsView
+from api.resource_types.openshift_gpus.view import OCPGpuVendorsView
 from api.resource_types.openshift_nodes.view import OCPNodesView
 from api.resource_types.openshift_projects.view import OCPProjectsView
 from api.resource_types.openshift_virtual_machines.view import OCPVirtualMachinesView

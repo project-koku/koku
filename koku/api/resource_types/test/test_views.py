@@ -336,3 +336,126 @@ class ResourceTypesViewTest(IamTestCase):
         json_result = response.json()
         self.assertIsNotNone(json_result.get("data"))
         self.assertIsInstance(json_result.get("data"), list)
+
+
+class OCPGpuResourceTypesViewTest(IamTestCase):
+    """Tests for OCP GPU resource types views (vendors and models). AI Generated Cursor Code."""
+
+    ENDPOINTS_OCP_GPU = ["openshift-gpu-vendors", "openshift-gpu-models"]
+
+    def setUp(self):
+        """Set up the test case."""
+        super().setUp()
+        self.client = APIClient()
+        self.factory = RequestFactory()
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}, "openshift.project": {"read": ["*"]}})
+    def test_ocp_gpu_endpoints_view(self):
+        """Test endpoint runs with wildcard access."""
+        for endpoint in self.ENDPOINTS_OCP_GPU:
+            with self.subTest(endpoint=endpoint):
+                url = reverse(endpoint)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                json_result = response.json()
+                self.assertIsNotNone(json_result.get("data"))
+                self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}, "openshift.project": {"read": ["*"]}})
+    def test_ocp_gpu_endpoints_search(self):
+        """Test search/type-ahead functionality for GPU endpoints."""
+        for endpoint in self.ENDPOINTS_OCP_GPU:
+            with self.subTest(endpoint=endpoint):
+                qs = "?search=test"
+                url = reverse(endpoint) + qs
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                json_result = response.json()
+                self.assertIsNotNone(json_result.get("data"))
+                self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}, "openshift.project": {"read": ["*"]}})
+    def test_ocp_gpu_endpoints_incorrect_query(self):
+        """Test invalid query parameter handling for GPU endpoints."""
+        for endpoint in self.ENDPOINTS_OCP_GPU:
+            with self.subTest(endpoint=endpoint):
+                qs = "?foo="
+                url = reverse(endpoint) + qs
+                expected = "{'Unsupported parameter'}"
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                result = str(response.data.get("foo")[0])
+                self.assertEqual(result, expected)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}, "openshift.project": {"read": ["*"]}})
+    def test_ocp_gpu_endpoints_filter_by_namespace(self):
+        """Test filtering by namespace query parameter."""
+        for endpoint in self.ENDPOINTS_OCP_GPU:
+            with self.subTest(endpoint=endpoint):
+                qs = "?namespace=test-namespace"
+                url = reverse(endpoint) + qs
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                json_result = response.json()
+                self.assertIsNotNone(json_result.get("data"))
+                self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}, "openshift.project": {"read": ["*"]}})
+    def test_ocp_gpu_endpoints_filter_by_cluster_id(self):
+        """Test filtering by cluster_id query parameter."""
+        for endpoint in self.ENDPOINTS_OCP_GPU:
+            with self.subTest(endpoint=endpoint):
+                qs = "?cluster_id=test-cluster"
+                url = reverse(endpoint) + qs
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                json_result = response.json()
+                self.assertIsNotNone(json_result.get("data"))
+                self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["1234"]}, "openshift.project": {"read": ["1234"]}})
+    def test_ocp_gpu_endpoints_rbac_specific_access_returns_empty(self):
+        """Test that specific RBAC permissions return empty list when no matching data."""
+        for endpoint in self.ENDPOINTS_OCP_GPU:
+            with self.subTest(endpoint=endpoint):
+                url = reverse(endpoint)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                json_result = response.json()
+                self.assertIsNotNone(json_result.get("data"))
+                self.assertIsInstance(json_result.get("data"), list)
+                self.assertEqual(json_result.get("data"), [])
+
+    @RbacPermissions({"openshift.project": {"read": ["*"]}})
+    def test_ocp_gpu_vendors_with_project_access_view(self):
+        """Test GPU vendors endpoint runs with project access."""
+        url = reverse("openshift-gpu-vendors")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
+    def test_ocp_gpu_models_with_cluster_access_view(self):
+        """Test GPU models endpoint runs with cluster access."""
+        url = reverse("openshift-gpu-models")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions(
+        {
+            "openshift.not.cluster": {"read": ["1234"]},
+            "openshift.not.project": {"read": ["1234"]},
+        }
+    )
+    def test_wrong_rbacpermissions_ocp_gpu_returns_403(self):
+        """Test that GPU endpoints return 403 with wrong permissions."""
+        for endpoint in self.ENDPOINTS_OCP_GPU:
+            with self.subTest(endpoint=endpoint):
+                url = reverse(endpoint)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

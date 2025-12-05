@@ -3,15 +3,24 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Resource Types."""
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from django_tenants.utils import tenant_context
+from rest_framework import filters
+from rest_framework import generics
+from rest_framework import status
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ResourceTypePaginator
+from api.common.pagination import ResourceTypeViewPaginator
+from api.common.permissions.openshift_access import OpenShiftAccessPermission
+from api.common.permissions.openshift_access import OpenShiftProjectPermission
 from api.query_params import get_tenant
+from api.resource_types.serializers import ResourceTypeSerializer
 from cost_models.models import CostModel
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.aws.models import AWSOrganizationalUnit
@@ -115,3 +124,67 @@ class ResourceTypeView(APIView):
             paginator = ResourceTypePaginator(data, request)
 
             return paginator.get_paginated_response(data)
+
+
+class ResourceTypesGenericListView(generics.ListAPIView):
+    """API generic list view for resource types."""
+
+    ordering = ["value"]
+    search_fields = ["value"]
+    supported_query_params = ["search", "limit"]
+    serializer_class = ResourceTypeSerializer
+    pagination_class = ResourceTypeViewPaginator
+    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
+
+    def has_admin_access(self, request):
+        """Check if the user has admin access."""
+        return settings.ENHANCED_ORG_ADMIN and request.user.admin
+
+    def filter_by_access(self, subset_map, request, queryset):
+        """
+        Filter the queryset by the user's access rights.
+        subset_map: A dictionary mapping the access key to the model field.
+                    Example: {"openshift.project": "namespace__in"}
+        """
+        if request.user.access:
+            for access_key, model_field in subset_map.items():
+                access_list = request.user.access.get(access_key, {}).get("read", [])
+                if access_list and access_list[0] != "*":
+                    queryset = queryset.filter(**{model_field: access_list})
+        return queryset
+
+
+class OCPGpuResourceTypesView(ResourceTypesGenericListView):
+    """API GET list view for Openshift GPU resource types."""
+
+    access_map = {
+        "openshift.cluster": "cluster_id__in",
+        "openshift.project": "namespace__in",
+    }
+    query_filter_keys = ["cluster_id", "cluster_alias", "namespace", "node"]
+    permission_classes = [OpenShiftProjectPermission | OpenShiftAccessPermission]
+
+    @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
+    def list(self, request):
+        # Reads the users values for Openshift GPU vendors, displays values related to the users access
+        print(self.query_filter_keys)
+        self.supported_query_params.extend(self.query_filter_keys)
+        query_filter_map = {}
+        error_message = {}
+
+        # check for only supported query_params
+        if self.request.query_params:
+            for key in self.request.query_params:
+                if key not in self.supported_query_params:
+                    error_message[key] = [{"Unsupported parameter"}]
+                    return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+                if key in self.query_filter_keys:
+                    query_filter_map[f"{key}__icontains"] = self.request.query_params.get(key)
+
+        queryset = self.queryset.filter(**query_filter_map)
+
+        if not self.has_admin_access(request):
+            queryset = self.filter_by_access(self.access_map, request, queryset)
+
+        self.queryset = queryset
+        return super().list(request)
