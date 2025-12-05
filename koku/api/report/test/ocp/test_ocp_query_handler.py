@@ -1946,3 +1946,40 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                 expected_by_node[key],
                                 f"GPU count mismatch for {vendor}/{model}/{node}",
                             )
+
+    def test_calculate_unique_gpu_count_by_project_and_node(self):
+        """Test _calculate_unique_gpu_count with both project AND node group_by."""
+        with tenant_context(self.tenant):
+            unique_combos = list(
+                OCPGpuSummaryP.objects.values("namespace", "node", "vendor_name", "model_name").annotate(
+                    location_gpu_count=Max("gpu_count")
+                )
+            )
+
+            if not unique_combos:
+                self.skipTest("No GPU data available for testing")
+
+            # Calculate expected totals per (vendor, model, namespace, node)
+            expected = {}
+            for combo in unique_combos:
+                vendor = combo["vendor_name"]
+                model = combo["model_name"]
+                namespace = combo["namespace"]
+                node = combo["node"]
+                count = combo["location_gpu_count"] or 0
+                key = (vendor, model, namespace, node)
+                expected[key] = expected.get(key, 0) + count
+
+            # Test via API with group_by project AND node (without model)
+            url = reverse("reports-openshift-gpu")
+            params = {
+                "group_by[project]": "*",
+                "group_by[node]": "*",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+            }
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
