@@ -50,7 +50,8 @@ class OCPProviderMap(ProviderMap):
                         cost_model_rate_type=cost_model_rate_type,
                         then=Coalesce(F("cost_model_cpu_cost"), Value(0, output_field=DecimalField()))
                         + Coalesce(F("cost_model_memory_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("cost_model_volume_cost"), Value(0, output_field=DecimalField())),
+                        + Coalesce(F("cost_model_volume_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("cost_model_gpu_cost"), Value(0, output_field=DecimalField())),
                     ),
                     default=Value(0, output_field=DecimalField()),
                 )
@@ -62,6 +63,7 @@ class OCPProviderMap(ProviderMap):
                     Coalesce(F("cost_model_cpu_cost"), Value(0, output_field=DecimalField()))
                     + Coalesce(F("cost_model_memory_cost"), Value(0, output_field=DecimalField()))
                     + Coalesce(F("cost_model_volume_cost"), Value(0, output_field=DecimalField()))
+                    + Coalesce(F("cost_model_gpu_cost"), Value(0, output_field=DecimalField()))
                 )
                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
