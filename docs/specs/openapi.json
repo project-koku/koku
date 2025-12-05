@@ -6334,10 +6334,15 @@
                 "name": "delta",
                 "required": false,
                 "in": "query",
-                "description": "Option to include delta values in the report. This shows the increase/decrease of cost or usage metrics between current and last month",
+                "description": "Option to include overhead costs in the report.",
                 "schema": {
                     "type": "string",
-                    "example": "cost"
+                    "default": "distributed_cost",
+                    "example": "cost",
+                    "enum": [
+                        "cost",
+                        "distributed_cost"
+                    ]
                 }
             },
             "QueryEndDate": {
@@ -9159,7 +9164,7 @@
                     -30
                 ],
                 "example": -10,
-                "description": "The time scope to apply to the report. Default time scope is '-10', meaning the last 10 days. Last 30 days would be '-30'. '-10' and '-30' are only valid when used with 'day' time_scope_units.'-1' is used for current month, '-2' is used for last month when time_scope_units is 'month' otherwise invalid."
+                "description": "The time scope to apply to the report. Default time scope is '-10', meaning the last 10 days. Last 30 days would be '-30'. '-10' and '-30' are only valid when used with 'day' time_scope_units.'-1' is used for current month to date, '-2' is used for the previous month when time_scope_units is 'month' otherwise invalid."
             },
             "ReportResourceScope": {
                 "type": "string",

@@ -49,7 +49,7 @@ do the following:
 
 3.  (Fedora only) Install libraries for building wheels on Linux:
 
-        dnf install openssl-devel libpq-devel postgresql golang-sigs-k8s-kustomize
+        dnf install openssl-devel libpq-devel postgresql kustomize
 
 4.  (macOS only) Also add the following to your `.env` or shell profile:
 
