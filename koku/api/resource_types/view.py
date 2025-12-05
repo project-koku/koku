@@ -167,6 +167,7 @@ class OCPGpuResourceTypesView(ResourceTypesGenericListView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Openshift GPU vendors, displays values related to the users access
+        print(self.query_filter_keys)
         self.supported_query_params.extend(self.query_filter_keys)
         query_filter_map = {}
         error_message = {}
