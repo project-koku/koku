@@ -1458,9 +1458,6 @@ class ReportQueryHandler(QueryHandler):
 
         skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
 
-        aggs = {
-            col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
-        }
         others_data_frame = data_frame[data_frame["rank"] > self._limit]
         other_count = len(others_data_frame[group_by].drop_duplicates())
 
@@ -1470,6 +1467,13 @@ class ReportQueryHandler(QueryHandler):
             drop_columns.append("clusters")
 
         others_data_frame = others_data_frame.drop(columns=drop_columns, errors="ignore")
+
+        # Build aggs after drop to only include columns that exist in the DataFrame
+        aggs = {
+            col: ["max"] if "units" in col else ["sum"]
+            for col in self.report_annotations
+            if col not in skip_columns and col in others_data_frame.columns
+        }
         others_data_frame = others_data_frame.groupby(groups, dropna=True).agg(aggs, axis=1)
         columns = others_data_frame.columns.droplevel(1)
         others_data_frame.columns = columns
