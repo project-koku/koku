@@ -1914,3 +1914,42 @@ class OCPReportViewTest(IamTestCase):
                 url = url + "?" + urlencode(param, quote_via=quote_plus)
                 response = APIClient().get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_costs_endpoint_includes_gpu_costs_in_total(self):
+        """Test that GPU costs are included in costs endpoint total calculation."""
+        test_project = "gpu-cost-test-project"
+        gpu_cost = Decimal("100.00")
+        cpu_cost = Decimal("50.00")
+        memory_cost = Decimal("25.00")
+        expected_total = gpu_cost + cpu_cost + memory_cost
+
+        # Create data with multiple cost components including GPU
+        with tenant_context(self.tenant):
+            self.baker.make(
+                "OCPUsageLineItemDailySummary",
+                usage_start=self.dh.this_month_start.date(),
+                namespace=test_project,
+                cost_model_gpu_cost=gpu_cost,
+                cost_model_cpu_cost=cpu_cost,
+                cost_model_memory_cost=memory_cost,
+                raw_currency="USD",
+            )
+
+        # Query costs endpoint
+        url = reverse("reports-openshift-costs")
+        params = {
+            "filter[project]": test_project,
+            "filter[time_scope_units]": "month",
+            "filter[time_scope_value]": "-1",
+            "filter[resolution]": "monthly",
+        }
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = APIClient().get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+
+        # Verify the total includes all cost components (CPU + Memory + GPU)
+        total_cost = data.get("meta", {}).get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
+        self.assertIsNotNone(total_cost)
+        self.assertAlmostEqual(Decimal(str(total_cost)), expected_total, places=2)
