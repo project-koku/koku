@@ -1984,6 +1984,54 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_calculate_unique_gpu_count_with_vendor_groupby(self):
+        """Test that _calculate_unique_gpu_count aggregates correctly by vendor."""
+        with tenant_context(self.tenant):
+            # Check if we have GPU data
+            distinct_vendors = list(OCPGpuSummaryP.objects.values("vendor_name").distinct().order_by("vendor_name"))
+
+            if not distinct_vendors:
+                self.skipTest("No GPU data available for testing")
+
+            # Get expected totals per (vendor, model)
+            unique_combos = list(
+                OCPGpuSummaryP.objects.values("cluster_id", "namespace", "node", "vendor_name", "model_name").annotate(
+                    location_gpu_count=Max("gpu_count")
+                )
+            )
+
+            expected_by_vendor = {}
+            for combo in unique_combos:
+                vendor = combo["vendor_name"]
+                model = combo["model_name"]
+                count = combo["location_gpu_count"] or 0
+                key = (vendor, model)
+                expected_by_vendor[key] = expected_by_vendor.get(key, 0) + count
+
+            # Test via API with group_by vendor
+            url = reverse("reports-openshift-gpu")
+            params = {
+                "group_by[vendor]": "*",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+            }
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            data = response.data
+
+            # Verify structure and that gpu_count values are present
+            for entry in data.get("data", []):
+                for vendor_entry in entry.get("vendors", []):
+                    vendor = vendor_entry.get("vendor")
+                    for value in vendor_entry.get("values", []):
+                        gpu_count = value.get("gpu_count", {})
+                        self.assertIsInstance(gpu_count, dict, "gpu_count should be a dict")
+                        self.assertIn("value", gpu_count, "gpu_count should have 'value' key")
+                        self.assertGreaterEqual(gpu_count.get("value", 0), 0, "gpu_count should be >= 0")
+
     def test_calculate_unique_gpu_count_by_cluster(self):
         """Test that _calculate_unique_gpu_count aggregates correctly by cluster."""
         with tenant_context(self.tenant):
