@@ -1770,3 +1770,179 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIn("meta", data)
         total_cost = data["meta"].get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
         self.assertEqual(total_cost, 0.0, "Non-existent model should return zero cost")
+
+    def test_calculate_unique_gpu_count_empty_data(self):
+        """Test that _calculate_unique_gpu_count returns empty list for empty input."""
+        # Test via API with a filter that returns no results
+        url = reverse("reports-openshift-gpu")
+        params = {"filter[model]": "NONEXISTENT_MODEL_FOR_EMPTY_TEST_XYZ"}
+        url = f"{url}?{urlencode(params)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+
+        # With no matching data, gpu_count should be 0
+        total_gpu_count = data["meta"].get("total", {}).get("gpu_count", {}).get("value", 0)
+        self.assertEqual(total_gpu_count, 0)
+
+    def test_calculate_unique_gpu_count_by_model(self):
+        """Test that _calculate_unique_gpu_count aggregates correctly by model."""
+        with tenant_context(self.tenant):
+            # Get unique combinations from database
+            unique_combos = list(
+                OCPGpuSummaryP.objects.values("namespace", "node", "vendor_name", "model_name")
+                .annotate(location_gpu_count=Max("gpu_count"))
+                .order_by("model_name")
+            )
+
+            if not unique_combos:
+                self.skipTest("No GPU data available for testing")
+
+            # Calculate expected totals per model
+            expected_by_model = {}
+            for combo in unique_combos:
+                model = combo["model_name"]
+                count = combo["location_gpu_count"] or 0
+                vendor = combo["vendor_name"]
+                key = (vendor, model)
+                expected_by_model[key] = expected_by_model.get(key, 0) + count
+
+            # Test via API
+            url = reverse("reports-openshift-gpu")
+            params = {"group_by[model]": "*", "filter[time_scope_value]": "-1", "filter[time_scope_units]": "month"}
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            data = response.data
+
+            # Verify gpu_count values match expected
+            for entry in data.get("data", []):
+                for value in entry.get("values", []):
+                    model = value.get("model")
+                    vendor = value.get("vendor")
+                    gpu_count = value.get("gpu_count", {})
+                    if isinstance(gpu_count, dict):
+                        gpu_count = gpu_count.get("value", 0)
+                    key = (vendor, model)
+                    if key in expected_by_model:
+                        self.assertEqual(
+                            gpu_count,
+                            expected_by_model[key],
+                            f"GPU count mismatch for {vendor}/{model}",
+                        )
+
+    def test_calculate_unique_gpu_count_by_project(self):
+        """Test that _calculate_unique_gpu_count aggregates correctly by project."""
+        with tenant_context(self.tenant):
+            # Get unique combinations from database
+            unique_combos = list(
+                OCPGpuSummaryP.objects.values("namespace", "node", "vendor_name", "model_name")
+                .annotate(location_gpu_count=Max("gpu_count"))
+                .order_by("namespace")
+            )
+
+            if not unique_combos:
+                self.skipTest("No GPU data available for testing")
+
+            # Calculate expected totals per (vendor, model, namespace)
+            expected_by_project = {}
+            for combo in unique_combos:
+                namespace = combo["namespace"]
+                vendor = combo["vendor_name"]
+                model = combo["model_name"]
+                count = combo["location_gpu_count"] or 0
+                key = (vendor, model, namespace)
+                expected_by_project[key] = expected_by_project.get(key, 0) + count
+
+            # Test via API with group_by project
+            url = reverse("reports-openshift-gpu")
+            params = {
+                "group_by[model]": "*",
+                "group_by[project]": "*",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+            }
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            data = response.data
+
+            # Verify gpu_count values in nested structure
+            for entry in data.get("data", []):
+                for project_entry in entry.get("projects", []):
+                    project = project_entry.get("project")
+                    for value in project_entry.get("values", []):
+                        model = value.get("model")
+                        vendor = value.get("vendor")
+                        gpu_count = value.get("gpu_count", {})
+                        if isinstance(gpu_count, dict):
+                            gpu_count = gpu_count.get("value", 0)
+                        key = (vendor, model, project)
+                        if key in expected_by_project:
+                            self.assertEqual(
+                                gpu_count,
+                                expected_by_project[key],
+                                f"GPU count mismatch for {vendor}/{model}/{project}",
+                            )
+
+    def test_calculate_unique_gpu_count_by_node(self):
+        """Test that _calculate_unique_gpu_count aggregates correctly by node."""
+        with tenant_context(self.tenant):
+            # Get unique combinations from database
+            unique_combos = list(
+                OCPGpuSummaryP.objects.values("namespace", "node", "vendor_name", "model_name")
+                .annotate(location_gpu_count=Max("gpu_count"))
+                .order_by("node")
+            )
+
+            if not unique_combos:
+                self.skipTest("No GPU data available for testing")
+
+            # Calculate expected totals per (vendor, model, node)
+            expected_by_node = {}
+            for combo in unique_combos:
+                node = combo["node"]
+                vendor = combo["vendor_name"]
+                model = combo["model_name"]
+                count = combo["location_gpu_count"] or 0
+                key = (vendor, model, node)
+                expected_by_node[key] = expected_by_node.get(key, 0) + count
+
+            # Test via API with group_by node
+            url = reverse("reports-openshift-gpu")
+            params = {
+                "group_by[model]": "*",
+                "group_by[node]": "*",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+            }
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            data = response.data
+
+            # Verify gpu_count values in nested structure
+            for entry in data.get("data", []):
+                for node_entry in entry.get("nodes", []):
+                    node = node_entry.get("node")
+                    for value in node_entry.get("values", []):
+                        model = value.get("model")
+                        vendor = value.get("vendor")
+                        gpu_count = value.get("gpu_count", {})
+                        if isinstance(gpu_count, dict):
+                            gpu_count = gpu_count.get("value", 0)
+                        key = (vendor, model, node)
+                        if key in expected_by_node:
+                            self.assertEqual(
+                                gpu_count,
+                                expected_by_node[key],
+                                f"GPU count mismatch for {vendor}/{model}/{node}",
+                            )
