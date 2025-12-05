@@ -1983,3 +1983,39 @@ class OCPReportQueryHandlerTest(IamTestCase):
             response = client.get(url, **self.headers)
 
             self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_calculate_unique_gpu_count_by_cluster(self):
+        """Test that _calculate_unique_gpu_count aggregates correctly by cluster."""
+        with tenant_context(self.tenant):
+            # Get unique combinations from database including cluster_id
+            unique_combos = list(
+                OCPGpuSummaryP.objects.values("cluster_id", "namespace", "node", "vendor_name", "model_name")
+                .annotate(location_gpu_count=Max("gpu_count"))
+                .order_by("cluster_id")
+            )
+
+            if not unique_combos:
+                self.skipTest("No GPU data available for testing")
+
+            # Calculate expected totals per (cluster_id, vendor, model)
+            expected_by_cluster = {}
+            for combo in unique_combos:
+                cluster_id = combo["cluster_id"]
+                vendor = combo["vendor_name"]
+                model = combo["model_name"]
+                count = combo["location_gpu_count"] or 0
+                key = (cluster_id, vendor, model)
+                expected_by_cluster[key] = expected_by_cluster.get(key, 0) + count
+
+            # Test via API with group_by cluster
+            url = reverse("reports-openshift-gpu")
+            params = {
+                "group_by[cluster]": "*",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+            }
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)

@@ -327,7 +327,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return self._format_query_response()
 
     def _calculate_unique_gpu_count(self, query_data, group_by_value):  # noqa: C901
-        """Calculate unique gpu_count for GPU reports.
+        """Calculate unique gpu_count summing distinct hardware allocations.
+
+        This function correctly counts unique GPUs by:
+        1. Fetching inventory at the lowest level (cluster, namespace, node, model, vendor)
+        2. Using Max(gpu_count) to deduplicate time-series data
+        3. Aggregating based on the user's group_by fields plus mandatory model/vendor
 
         Args:
             query_data: The query results (list of dicts)
@@ -340,54 +345,89 @@ class OCPReportQueryHandler(ReportQueryHandler):
         if not query_data:
             return query_data
 
+        mandatory_keys = ["model", "vendor"]
+        distinct_keys = set(group_by_value) | set(mandatory_keys)
+        field_map = {
+            "project": "namespace",
+            "cluster": "cluster_id",
+            "node": "node",
+            "model": "model_name",
+            "vendor": "vendor_name",
+        }
+
         base_query = self.query_table.objects.filter(self.query_filter)
         if self.query_exclusions:
             base_query = base_query.exclude(self.query_exclusions)
 
-        base_fields = ["namespace", "node", "vendor_name", "model_name"]
+        inventory_fields = ["cluster_id", "namespace", "node", "model_name", "vendor_name"]
 
-        unique_combinations = base_query.values(*base_fields).annotate(location_gpu_count=Max("gpu_count"))
+        for field in group_by_value:
+            db_col = field_map.get(field, field)
+            if db_col not in inventory_fields:
+                inventory_fields.append(db_col)
 
-        has_project_groupby = "project" in group_by_value
-        has_node_groupby = "node" in group_by_value
+        unique_inventory = base_query.values(*inventory_fields).annotate(physical_count=Max("gpu_count"))
 
         gpu_count_lookup = {}
-        for row in unique_combinations:
-            vendor = row.get("vendor_name")
-            model = row.get("model_name")
-            namespace = row.get("namespace")
-            node = row.get("node")
-            gpu_count = row.get("location_gpu_count") or 0
 
-            # Build the key based on active group_by
-            if has_project_groupby and has_node_groupby:
-                key = (vendor, model, namespace, node)
-            elif has_project_groupby:
-                key = (vendor, model, namespace)
-            elif has_node_groupby:
-                key = (vendor, model, node)
-            else:
-                key = (vendor, model)
+        for row in unique_inventory:
+            key_parts = []
+            for field in sorted(distinct_keys):
+                db_col = field_map.get(field, field)
+                key_parts.append(row.get(db_col))
 
-            gpu_count_lookup[key] = gpu_count_lookup.get(key, 0) + gpu_count
+            key = tuple(key_parts)
+
+            current_count = row.get("physical_count") or 0
+            gpu_count_lookup[key] = gpu_count_lookup.get(key, 0) + current_count
+
+        # Track which keys we've assigned to regular rows
+        assigned_keys = set()
 
         for row in query_data:
-            vendor = row.get("vendor") or row.get("vendor_name")
-            model = row.get("model") or row.get("model_name")
-            project = row.get("project") or row.get("namespace")
-            node = row.get("node")
+            # Check if this is an "Others" row (from filter[limit])
+            # "Others" rows have group_by fields set to "Others" or "Other"
+            is_others_row = False
+            for field in group_by_value:
+                val = row.get(field)
+                if val in ("Others", "Other"):
+                    is_others_row = True
+                    break
 
-            if has_project_groupby and has_node_groupby:
-                key = (vendor, model, project, node)
-            elif has_project_groupby:
-                key = (vendor, model, project)
-            elif has_node_groupby:
-                key = (vendor, model, node)
-            else:
-                key = (vendor, model)
+            if is_others_row:
+                continue  # We'll handle "Others" rows in a second pass
+
+            key_parts = []
+
+            for field in sorted(distinct_keys):
+                val = row.get(field)
+
+                if val is None:
+                    db_col = field_map.get(field, field)
+                    val = row.get(db_col)
+
+                # Convert list to single value (handles "Others" rows after fix-group-by-and-limit-bug merge)
+                if isinstance(val, list):
+                    val = val[0] if len(val) > 0 else None
+
+                key_parts.append(val)
+
+            key = tuple(key_parts)
 
             if key in gpu_count_lookup:
                 row["gpu_count"] = gpu_count_lookup[key]
+                assigned_keys.add(key)
+
+        # Second pass: Calculate gpu_count for "Others" rows
+        # Sum all gpu_counts that weren't assigned to regular rows
+        others_gpu_count = sum(count for key, count in gpu_count_lookup.items() if key not in assigned_keys)
+
+        for row in query_data:
+            for field in group_by_value:
+                val = row.get(field)
+                if val in ("Others", "Other"):
+                    row["gpu_count"] = others_gpu_count
+                    break
 
         return query_data
 
