@@ -139,3 +139,30 @@ class OCPGpuViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_unleash.assert_called_once()
+
+    def test_gpu_endpoint_with_filter_limit_and_group_by_vendor(self):
+        """Test GPU endpoint with filter[limit] and group_by[vendor] does not crash."""
+        url = reverse("reports-openshift-gpu")
+        query_params = {"group_by[vendor]": "*", "filter[limit]": "5"}
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("data", response.data)
+
+    def test_gpu_endpoint_with_filter_limit_and_group_by_model(self):
+        """Test GPU endpoint with filter[limit] and group_by[model] does not crash."""
+        url = reverse("reports-openshift-gpu")
+        query_params = {"group_by[model]": "*", "filter[limit]": "5"}
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("data", response.data)
+
+    def test_gpu_endpoint_with_filter_limit_and_group_by_node(self):
+        """Test GPU endpoint with filter[limit] and group_by[node] does not crash."""
+        url = reverse("reports-openshift-gpu")
+        query_params = {"group_by[node]": "*", "filter[limit]": "5"}
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("data", response.data)
