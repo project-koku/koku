@@ -381,12 +381,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
             current_count = row.get("physical_count") or 0
             gpu_count_lookup[key] = gpu_count_lookup.get(key, 0) + current_count
 
-        # Track which keys we've assigned to regular rows
         assigned_keys = set()
 
         for row in query_data:
-            # Check if this is an "Others" row (from filter[limit])
-            # "Others" rows have group_by fields set to "Others" or "Other"
             is_others_row = False
             for field in group_by_value:
                 val = row.get(field)
@@ -395,7 +392,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     break
 
             if is_others_row:
-                continue  # We'll handle "Others" rows in a second pass
+                continue
 
             key_parts = []
 
@@ -406,7 +403,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     db_col = field_map.get(field, field)
                     val = row.get(db_col)
 
-                # Convert list to single value (handles "Others" rows after fix-group-by-and-limit-bug merge)
                 if isinstance(val, list):
                     val = val[0] if len(val) > 0 else None
 
@@ -418,8 +414,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 row["gpu_count"] = gpu_count_lookup[key]
                 assigned_keys.add(key)
 
-        # Second pass: Calculate gpu_count for "Others" rows
-        # Sum all gpu_counts that weren't assigned to regular rows
         others_gpu_count = sum(count for key, count in gpu_count_lookup.items() if key not in assigned_keys)
 
         for row in query_data:
