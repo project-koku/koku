@@ -15,6 +15,7 @@ from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Max
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.fields.json import KT
@@ -289,6 +290,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_data = self.add_deltas(query_data, query_sum)
 
             query_data = self.order_by(query_data, query_order_by)
+
+            if self._report_type == "gpu":
+                query_data = self._calculate_unique_gpu_count(query_data, group_by_value)
+
             for row in query_data:
                 if tag_iterable := row.get("tags"):
                     row["tags"] = self.format_tags(tag_iterable)
@@ -320,6 +325,71 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.query_sum = ordered_total
         self.query_data = data
         return self._format_query_response()
+
+    def _calculate_unique_gpu_count(self, query_data, group_by_value):  # noqa: C901
+        """Calculate unique gpu_count for GPU reports.
+
+        Args:
+            query_data: The query results (list of dicts)
+            group_by_value: List of group_by fields
+
+        Returns:
+            Updated query_data with correct gpu_count values
+        """
+        query_data = list(query_data)
+        if not query_data:
+            return query_data
+
+        base_query = self.query_table.objects.filter(self.query_filter)
+        if self.query_exclusions:
+            base_query = base_query.exclude(self.query_exclusions)
+
+        base_fields = ["namespace", "node", "vendor_name", "model_name"]
+
+        unique_combinations = base_query.values(*base_fields).annotate(location_gpu_count=Max("gpu_count"))
+
+        has_project_groupby = "project" in group_by_value
+        has_node_groupby = "node" in group_by_value
+
+        gpu_count_lookup = {}
+        for row in unique_combinations:
+            vendor = row.get("vendor_name")
+            model = row.get("model_name")
+            namespace = row.get("namespace")
+            node = row.get("node")
+            gpu_count = row.get("location_gpu_count") or 0
+
+            # Build the key based on active group_by
+            if has_project_groupby and has_node_groupby:
+                key = (vendor, model, namespace, node)
+            elif has_project_groupby:
+                key = (vendor, model, namespace)
+            elif has_node_groupby:
+                key = (vendor, model, node)
+            else:
+                key = (vendor, model)
+
+            gpu_count_lookup[key] = gpu_count_lookup.get(key, 0) + gpu_count
+
+        for row in query_data:
+            vendor = row.get("vendor") or row.get("vendor_name")
+            model = row.get("model") or row.get("model_name")
+            project = row.get("project") or row.get("namespace")
+            node = row.get("node")
+
+            if has_project_groupby and has_node_groupby:
+                key = (vendor, model, project, node)
+            elif has_project_groupby:
+                key = (vendor, model, project)
+            elif has_node_groupby:
+                key = (vendor, model, node)
+            else:
+                key = (vendor, model)
+
+            if key in gpu_count_lookup:
+                row["gpu_count"] = gpu_count_lookup[key]
+
+        return query_data
 
     # Capacity Calculations
 
