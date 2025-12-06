@@ -7,6 +7,12 @@
 # fmt: off
 CURRENCIES = [
     {
+        "code": "AED",
+        "name": "United Arab Emirates Dirham",
+        "symbol": "\u062f.\u0625",
+        "description": "AED (\u062f.\u0625) - United Arab Emirates Dirham",
+    },
+    {
         "code": "AUD",
         "name": "Australian Dollar",
         "symbol": "A$",
@@ -97,6 +103,12 @@ CURRENCIES = [
         "description": "NZD (NZ$) - New Zealand Dollar",
     },
     {
+        "code": "SAR",
+        "name": "Saudi Riyal",
+        "symbol": "\u0631.\u0633",
+        "description": "SAR (\u0631.\u0633) - Saudi Riyal",
+    },
+    {
         "code": "SEK",
         "name": "Swedish Krona",
         "symbol": "SEK",
@@ -107,6 +119,12 @@ CURRENCIES = [
         "name": "Singapore Dollar",
         "symbol": "SGD",
         "description": "SGD (SGD) - Singapore Dollar",
+    },
+    {
+        "code": "TWD",
+        "name": "New Taiwan Dollar",
+        "symbol": "NT$",
+        "description": "TWD (NT$) - New Taiwan Dollar",
     },
     {
         "code": "USD",
