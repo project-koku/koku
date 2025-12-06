@@ -31,6 +31,7 @@ from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPExcludeSerializer
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
+from api.report.ocp.view import OCPGpuView
 from api.report.ocp.view import OCPMemoryView
 from api.report.ocp.view import OCPReportVirtualMachinesView
 from api.report.ocp.view import OCPVolumeView
@@ -1984,6 +1985,61 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_calculate_unique_gpu_count_handles_others_rows(self):
+        """Test _calculate_unique_gpu_count handles 'Others' rows correctly."""
+        with tenant_context(self.tenant):
+            has_data = OCPGpuSummaryP.objects.exists()
+            if not has_data:
+                self.skipTest("No GPU data available for testing")
+
+            url = reverse("reports-openshift-gpu")
+            params = {
+                "group_by[model]": "*",
+                "group_by[vendor]": "*",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+            }
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            data = response.data
+
+            # Verify the response structure
+            self.assertIn("data", data)
+            self.assertIn("meta", data)
+
+    def test_calculate_unique_gpu_count_with_resolution_monthly(self):
+        """Test _calculate_unique_gpu_count with monthly resolution."""
+        with tenant_context(self.tenant):
+            has_data = OCPGpuSummaryP.objects.exists()
+            if not has_data:
+                self.skipTest("No GPU data available for testing")
+
+            url = reverse("reports-openshift-gpu")
+            params = {
+                "group_by[model]": "*",
+                "filter[resolution]": "monthly",
+                "filter[time_scope_value]": "-2",
+                "filter[time_scope_units]": "month",
+            }
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            data = response.data
+
+            # With monthly resolution, data should still have correct gpu_count
+            for entry in data.get("data", []):
+                for model_entry in entry.get("models", []):
+                    for value in model_entry.get("values", []):
+                        gpu_count = value.get("gpu_count", {})
+                        if isinstance(gpu_count, dict):
+                            self.assertIn("value", gpu_count)
+                            self.assertGreaterEqual(gpu_count.get("value", 0), 0)
+
     def test_calculate_unique_gpu_count_with_vendor_groupby(self):
         """Test that _calculate_unique_gpu_count aggregates correctly by vendor."""
         with tenant_context(self.tenant):
@@ -2059,6 +2115,85 @@ class OCPReportQueryHandlerTest(IamTestCase):
             url = reverse("reports-openshift-gpu")
             params = {
                 "group_by[cluster]": "*",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+            }
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_calculate_unique_gpu_count_unit_test_others_row(self):
+        """Unit test for _calculate_unique_gpu_count with 'Others' rows."""
+        with tenant_context(self.tenant):
+            has_data = OCPGpuSummaryP.objects.exists()
+            if not has_data:
+                self.skipTest("No GPU data available for testing")
+
+            url = reverse("reports-openshift-gpu")
+            params = {"filter[time_scope_value]": "-1", "filter[time_scope_units]": "month"}
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_calculate_unique_gpu_count_unit_test_list_values(self):
+        """Unit test for _calculate_unique_gpu_count handling list values."""
+        with tenant_context(self.tenant):
+            has_data = OCPGpuSummaryP.objects.exists()
+            if not has_data:
+                self.skipTest("No GPU data available for testing")
+
+            url = reverse("reports-openshift-gpu")
+            params = {
+                "group_by[project]": "*",
+                "group_by[cluster]": "*",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+            }
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_calculate_unique_gpu_count_direct_with_others(self):
+        """Direct unit test for _calculate_unique_gpu_count with 'Others' rows and list values."""
+        with tenant_context(self.tenant):
+            url = "?filter[time_scope_value]=-1&filter[time_scope_units]=month"
+            query_params = self.mocked_query_params(url, OCPGpuView)
+            handler = OCPReportQueryHandler(query_params)
+
+            mock_query_data = [
+                {"model": "Tesla T4", "vendor": "nvidia", "gpu_count": 2},
+                {"model": "Others", "vendor": "nvidia", "gpu_count": 0},
+                {"model": ["A100", "V100"], "vendor": "nvidia", "gpu_count": 0},
+                {"vendor": "amd", "gpu_count": 0},
+            ]
+
+            result = handler._calculate_unique_gpu_count(mock_query_data, ["model"])
+
+            self.assertIsInstance(result, list)
+            self.assertEqual(len(result), 4, "All rows should be returned")
+
+            others_rows = [r for r in result if r.get("model") == "Others"]
+            self.assertEqual(len(others_rows), 1, "Others row should exist")
+
+            list_rows = [r for r in result if isinstance(r.get("model"), list)]
+            self.assertEqual(len(list_rows), 1, "List value row should exist")
+
+    def test_calculate_unique_gpu_count_with_exclude(self):
+        """Test _calculate_unique_gpu_count with query_exclusions set."""
+        with tenant_context(self.tenant):
+            has_data = OCPGpuSummaryP.objects.exists()
+            if not has_data:
+                self.skipTest("No GPU data available for testing")
+
+            url = reverse("reports-openshift-gpu")
+            params = {
+                "group_by[model]": "*",
                 "filter[time_scope_value]": "-1",
                 "filter[time_scope_units]": "month",
             }
