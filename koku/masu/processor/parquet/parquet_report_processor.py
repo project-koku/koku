@@ -329,73 +329,6 @@ class ParquetReportProcessor:
                 self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, self.start_date
             )
 
-    def prepare_parquet_s3(self, filename: Path):
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
-
-        parquet_cleared_key = ""
-        if self.provider_type == Provider.PROVIDER_OCP:
-            parquet_cleared_key = filename.stem.rsplit(".", 1)[0]
-
-        # AWS and Azure should remove files when running final bills
-        # OCP operators that send daily report files must wipe s3 before copying to prevent duplication
-        if (
-            not manifest_accessor.should_s3_parquet_be_cleared(manifest)
-            or manifest_accessor.get_s3_parquet_cleared(manifest, parquet_cleared_key)
-            or self.provider_type
-            in (
-                Provider.PROVIDER_GCP,
-                Provider.PROVIDER_GCP_LOCAL,
-            )
-        ):
-            return
-
-        metadata_key, metadata_value = self.get_metadata_kv(filename.stem)
-
-        to_delete = self.parquet_file_getter(
-            self.tracing_id,
-            self.parquet_path_s3,
-            metadata_key=metadata_key,
-            metadata_value_check=metadata_value,
-            context=self.error_context,
-        )
-        to_delete.extend(
-            self.parquet_file_getter(
-                self.tracing_id,
-                self.parquet_daily_path_s3,
-                metadata_key=metadata_key,
-                metadata_value_check=metadata_value,
-                context=self.error_context,
-            )
-        )
-        to_delete.extend(
-            self.parquet_file_getter(
-                self.tracing_id,
-                self.parquet_ocp_on_cloud_path_s3,
-                metadata_key=metadata_key,
-                metadata_value_check=metadata_value,
-                context=self.error_context,
-            )
-        )
-
-        if self.provider_type == Provider.PROVIDER_OCP and to_delete:
-            # filter the report
-            LOG.info(log_json(msg="files to delete pre filter", to_delete=to_delete))
-            to_delete = filter_s3_objects_less_than(
-                self.tracing_id,
-                to_delete,
-                metadata_key="reportnumhours",
-                metadata_value_check=self.ocp_files_to_process[filename.stem]["meta_reportnumhours"],
-                context=self.error_context,
-            )
-            LOG.info(log_json(msg="files to delete post filter", to_delete=to_delete))
-            if not to_delete:
-                raise ReportsAlreadyProcessed
-
-        delete_s3_objects(self.tracing_id, to_delete, self.error_context)
-        manifest_accessor.mark_s3_parquet_cleared(manifest, parquet_cleared_key)
-        LOG.info(log_json(msg="removed s3 files and marked manifest s3_parquet_cleared", context=self._context))
-
     def convert_to_parquet(self):  # noqa: C901
         """
         Convert archived CSV data from our S3 bucket for a given provider to Parquet.
@@ -465,7 +398,8 @@ class ParquetReportProcessor:
             parquet_base_filename, column_names, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             if isOnPrem:
                 if self.provider_type not in (Provider.PROVIDER_AZURE):
-                    self.handle_daily_frames_postgres(daily_frame)
+                    metadata = self.get_metadata(csv_filename.stem)
+                    self.handle_daily_frames_postgres(daily_frame, metadata)
             else:
                 if self.provider_type not in (Provider.PROVIDER_AZURE):
                     self.create_daily_parquet(parquet_base_filename, daily_frame)
@@ -554,12 +488,12 @@ class ParquetReportProcessor:
                     )
 
                     if not col_names:
-                        col_names = data_frame.columns # the dataframe is the only source for the actual column names
+                        col_names = list(data_frame.columns) # the dataframe is the only source for the actual column names
                     
                     if isOnPrem:
                         if not self.trino_table_exists.get(self.trino_table_exists_key):
                             self.create_parquet_table(col_names, daily=False, sync_partitions=False)
-                        self._write_dataframe(data_frame)
+                        self._write_dataframe(data_frame, self.get_metadata(csv_filename.stem))
                     else:
                         success = self._write_parquet_to_file(
                             parquet_filepath, parquet_base_filename, parquet_filename_suffix, data_frame
@@ -734,22 +668,29 @@ class ParquetReportProcessor:
         ):
             return
 
-        metadata_key, metadata_value = self.get_metadata_kv(filename.stem)
-
         if settings.ONPREM:
-            self._delete_old_data_postgres(filename, metadata_key, metadata_value)
+            self._delete_old_data_postgres(filename)
         else:
-            self._delete_old_data_trino(filename, metadata_key, metadata_value)
+            self._delete_old_data_trino(filename)
 
         manifest_accessor.mark_s3_parquet_cleared(manifest, parquet_cleared_key)
         LOG.info(log_json(msg="removed partitions and marked manifest s3_parquet_cleared", context=self._context))
 
-    def _delete_old_data_postgres(self, filename, metadata_key, metadata_value):
+    def _delete_old_data_postgres(self, filename):
         """ remove records with data older than the data in the file being processed
         """
-        return True
+        # Get reportnumhours for OCP (will be None for non-OCP)
+        reportnumhours = None
+        if self.ocp_files_to_process:
+            reportnumhours = int(self.ocp_files_to_process[filename.stem]["meta_reportnumhours"])
+
+        # Processor handles deleting from all relevant tables (raw and daily for OCP)
+        processor = self._get_report_processor(daily=False)
+        processor.delete_day_postgres(self.start_date, reportnumhours)
     
-    def _delete_old_data_trino(self, filename, metadata_key, metadata_value):
+    def _delete_old_data_trino(self, filename):
+        metadata_key, metadata_value = self.get_metadata_kv(filename.stem)
+
         to_delete = self.parquet_file_getter(
             self.tracing_id,
             self.parquet_path_s3,
@@ -792,20 +733,20 @@ class ParquetReportProcessor:
 
         delete_s3_objects(self.tracing_id, to_delete, self.error_context)
         
-    def handle_daily_frames_postgres(self, daily_frames):
+    def handle_daily_frames_postgres(self, daily_frames, metadata):
         """ handle daily frames in postgres"""
         if not daily_frames:
             return
 
-        col_names = daily_frames[0].columns
+        col_names = list(daily_frames[0].columns)
         self.create_parquet_table(col_names, daily=True, sync_partitions=False)
 
         processor = self._get_report_processor(daily=True)
 
         for _, data_frame in enumerate(daily_frames):
-            processor.write_dataframe_to_sql(data_frame)
+            processor.write_dataframe_to_sql(data_frame, metadata)
     
-    def _write_dataframe(self, data_frame):
+    def _write_dataframe(self, data_frame, metadata):
         """Write dataframe to sql."""
         processor = self._get_report_processor(daily=False)
-        processor.write_dataframe_to_sql(data_frame)
+        processor.write_dataframe_to_sql(data_frame, metadata)

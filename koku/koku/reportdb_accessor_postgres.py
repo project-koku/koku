@@ -91,3 +91,37 @@ class PostgresReportDBAccessor(ReportDBAccessor):
     
     def get_partition_create_sql(self, schema_name: str, table_name: str, partition_name: str, partition_values_lower: list[str], partition_values_upper: list[str]):
         return f"CREATE TABLE IF NOT EXISTS \"{schema_name}\".\"{partition_name}\" PARTITION OF \"{schema_name}\".\"{table_name}\" FOR VALUES FROM ({', '.join(partition_values_lower)}) TO ({', '.join(partition_values_upper)})"
+
+    def get_delete_day_by_manifestid_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, manifestid: str):
+        """Return the SQL to delete a day's data where manifestid doesn't match."""
+        return f"""
+            DELETE FROM "{schema_name}"."{table_name}"
+            WHERE source = '{source}'
+              AND year = '{year}'
+              AND month = '{month}'
+              AND DATE(interval_start) = DATE '{start_date}'
+              AND manifestid != '{manifestid}'
+        """
+
+    def get_delete_day_by_reportnumhours_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, reportnumhours: int):
+        """Return the SQL to delete a day's data where reportnumhours is less than specified value."""
+        return f"""
+            DELETE FROM "{schema_name}"."{table_name}"
+            WHERE source = '{source}'
+              AND year = '{year}'
+              AND month = '{month}'
+              AND DATE(interval_start) = DATE '{start_date}'
+              AND reportnumhours < {reportnumhours}
+        """
+
+    def get_check_day_exists_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str):
+        """Return the SQL to check if data exists for a specific day."""
+        return f"""
+            SELECT 1
+            FROM "{schema_name}"."{table_name}"
+            WHERE source = '{source}'
+              AND year = '{year}'
+              AND month = '{month}'
+              AND DATE(interval_start) = DATE '{start_date}'
+            LIMIT 1
+        """
