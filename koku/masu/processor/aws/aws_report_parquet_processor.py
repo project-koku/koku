@@ -65,6 +65,10 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
         """Return the mode for the source specific summary table."""
         return AWSCostEntryLineItemDailySummary
 
+    def get_table_names_for_delete(self):
+        """Return all AWS table names (raw, daily, ocp_on_aws)."""
+        return [TRINO_LINE_ITEM_TABLE, TRINO_LINE_ITEM_DAILY_TABLE, TRINO_OCP_ON_AWS_DAILY_TABLE]
+
     def create_bill(self, bill_date):
         """Create bill postgres entry."""
         if isinstance(bill_date, str):

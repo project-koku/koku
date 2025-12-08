@@ -210,7 +210,7 @@ class ReportParquetProcessorBase:
         LOG.info(sql)
         self._execute_trino_sql(sql, self._schema_name)
 
-    def write_dataframe_to_sql(self, data_frame):
+    def write_dataframe_to_sql(self, data_frame, metadata):
         """Write dataframe to sql."""
         with get_report_db_accessor().connect() as connection:
             engine = create_engine('postgresql://',creator=lambda: connection.getConnection())
@@ -222,6 +222,58 @@ class ReportParquetProcessorBase:
             data_frame['month'] = self._month
             data_frame['source'] = self._provider_uuid
             data_frame.to_sql(self._partition_name, engine, self._schema_name, if_exists='append', index=False)
+
+    def get_table_names_for_delete(self):
+        """Return list of table names to delete from. Override in subclass if needed."""
+        return [self._table_name]
+
+    def delete_day_postgres(self, start_date, reportnumhours=None):
+        """Delete old data for a specific day"""
+        from api.common import log_json
+
+        start_date_str = str(start_date)
+
+        # Get all table names to delete from (may include daily tables)
+        table_names = self.get_table_names_for_delete()
+
+        # Filter to only existing tables
+        existing_tables = []
+        for table_name in table_names:
+            check_table_sql = get_report_db_accessor().get_table_check_sql(table_name, self._schema_name)
+
+            with get_report_db_accessor().connect() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(check_table_sql)
+                    if cursor.fetchone():
+                        existing_tables.append(table_name)
+                    else:
+                        LOG.debug(f"Table {table_name} does not exist, skipping delete")
+
+        # Delete from existing tables
+        total_deleted = 0
+        for table_name in existing_tables:
+            delete_sql = get_report_db_accessor().get_delete_day_by_manifestid_sql(
+                self._schema_name,
+                table_name,
+                self._provider_uuid,
+                self._year,
+                self._month,
+                start_date_str,
+                str(self._manifest_id)
+            )
+
+            with get_report_db_accessor().connect(schema=self._schema_name) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(delete_sql)
+                    total_deleted += cursor.rowcount
+
+        LOG.info(
+            log_json(
+                msg="deleted old data from postgres (non-OCP)",
+                deleted_rows=total_deleted,
+                start_date=start_date_str,
+            )
+        )
 
     def _create_partition_name(self, year, month):
         """Create a unique partition name.
