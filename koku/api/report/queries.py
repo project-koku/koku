@@ -234,6 +234,11 @@ class ReportQueryHandler(QueryHandler):
         """Determine if we are working with an AWS API."""
         return "aws" in self.parameters.request.path
 
+    @property
+    def is_gpu(self):
+        """Determine if we are working with a GPU API."""
+        return "gpu" in self.parameters.request.path
+
     def initialize_totals(self):
         """Initialize the total response column values."""
         query_sum = {}
@@ -903,7 +908,10 @@ class ReportQueryHandler(QueryHandler):
             When(project__startswith="openshift-", then=Value("default")),
             When(project__startswith="kube-", then=Value("default")),
             When(project="openshift", then=Value("default")),
-            When(project__in=["Platform unallocated", "Worker unallocated"], then=Value("unallocated")),
+            When(
+                project__in=["Platform unallocated", "Worker unallocated", "GPU unallocated"],
+                then=Value("unallocated"),
+            ),
             When(project__in=["Storage unattributed", "Network unattributed"], then=Value("unattributed")),
         ]
 
@@ -1456,11 +1464,11 @@ class ReportQueryHandler(QueryHandler):
         drop_columns = group_by + ["rank", "source_uuid"]
         groups = ["date"]
 
-        skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
-
+        skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "vendor", "model"]
         aggs = {
             col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
         }
+
         others_data_frame = data_frame[data_frame["rank"] > self._limit]
         other_count = len(others_data_frame[group_by].drop_duplicates())
 
@@ -1468,8 +1476,14 @@ class ReportQueryHandler(QueryHandler):
         if self.is_openshift:
             clusters = list(others_data_frame["clusters"].explode().dropna().unique())
             drop_columns.append("clusters")
+        if self.is_gpu:
+            models = list(others_data_frame["model"].explode().dropna().unique())
+            drop_columns.append("model")
+            vendors = list(others_data_frame["vendor"].explode().dropna().unique())
+            drop_columns.append("vendor")
 
         others_data_frame = others_data_frame.drop(columns=drop_columns, errors="ignore")
+
         others_data_frame = others_data_frame.groupby(groups, dropna=True).agg(aggs, axis=1)
         columns = others_data_frame.columns.droplevel(1)
         others_data_frame.columns = columns
@@ -1493,6 +1507,9 @@ class ReportQueryHandler(QueryHandler):
         others_data_frame["source_uuid"] = [source_uuids] * len(others_data_frame)
         if self.is_openshift:
             others_data_frame["clusters"] = [clusters] * len(others_data_frame)
+        if self.is_gpu:
+            others_data_frame["vendor"] = [vendors] * len(others_data_frame)
+            others_data_frame["model"] = [models] * len(others_data_frame)
 
         return others_data_frame
 
