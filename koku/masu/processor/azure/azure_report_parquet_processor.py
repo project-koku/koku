@@ -51,6 +51,10 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
         """Return the mode for the source specific summary table."""
         return AzureCostEntryLineItemDailySummary
 
+    def get_table_names_for_delete(self):
+        """Return all Azure table names (raw/daily is same table, ocp_on_azure)."""
+        return [TRINO_LINE_ITEM_TABLE, TRINO_OCP_ON_AZURE_DAILY_TABLE]
+
     def create_bill(self, bill_date):
         """Create bill postgres entry."""
         if isinstance(bill_date, str):
