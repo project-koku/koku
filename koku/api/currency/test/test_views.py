@@ -15,7 +15,7 @@ class CurrencyViewTest(IamTestCase):
 
     def test_supported_currencies(self):
         """Test that a list GET call returns the supported currencies."""
-        qs = "?limit=20"
+        qs = "?limit=25"
         url = reverse("currency") + qs
         client = APIClient()
 
