@@ -62,3 +62,29 @@ class TrinoReportDBAccessor(ReportDBAccessor):
             return "boolean"
         else:
             return "varchar"
+
+    def get_partition_create_sql(self, schema_name: str, table_name: str, partition_name: str, partition_values_lower: list[str], partition_values_upper: list[str]):
+        """Trino doesn't need explicit partition creation - partitions are created automatically."""
+        # Trino partitions are created automatically when data is inserted
+        # This method is not used for Trino, but must exist to satisfy the abstract base class
+        return ""
+
+    def get_delete_day_by_manifestid_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, manifestid: str):
+        """Trino delete by manifestid - not used, Trino uses S3 file deletion."""
+        # Trino doesn't use SQL DELETE for parquet files
+        # Instead it deletes S3 objects directly via _delete_old_data_trino()
+        # This method exists only to satisfy the abstract base class
+        return ""
+
+    def get_delete_day_by_reportnumhours_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, reportnumhours: int):
+        """Trino delete by reportnumhours - not used, Trino uses S3 file deletion."""
+        # Trino doesn't use SQL DELETE for parquet files
+        # Instead it deletes S3 objects directly via _delete_old_data_trino()
+        # This method exists only to satisfy the abstract base class
+        return ""
+
+    def get_check_day_exists_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str):
+        """Trino check day exists - not used for Trino."""
+        # Trino doesn't need this check - it uses S3 metadata
+        # This method exists only to satisfy the abstract base class
+        return ""
