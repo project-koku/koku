@@ -56,6 +56,21 @@ class ReportDBAccessor(ABC):
         """ For now we assume that the partition values are strings"""
         pass
 
+    @abstractmethod
+    def get_delete_day_by_manifestid_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, manifestid: str):
+        """Return the SQL to delete a day's data where manifestid doesn't match"""
+        pass
+
+    @abstractmethod
+    def get_delete_day_by_reportnumhours_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, reportnumhours: int):
+        """Return the SQL to delete a day's data where reportnumhours is less than specified value"""
+        pass
+
+    @abstractmethod
+    def get_check_day_exists_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str):
+        """Return the SQL to check if data exists for a specific day"""
+        pass
+
 def get_report_db_accessor():
       from django.conf import settings
       from koku.reportdb_accessor_postgres import PostgresReportDBAccessor
