@@ -1476,11 +1476,6 @@ class ReportQueryHandler(QueryHandler):
         if self.is_openshift:
             clusters = list(others_data_frame["clusters"].explode().dropna().unique())
             drop_columns.append("clusters")
-        if self.is_gpu:
-            models = list(others_data_frame["model"].explode().dropna().unique())
-            drop_columns.append("model")
-            vendors = list(others_data_frame["vendor"].explode().dropna().unique())
-            drop_columns.append("vendor")
 
         others_data_frame = others_data_frame.drop(columns=drop_columns, errors="ignore")
 
@@ -1508,8 +1503,8 @@ class ReportQueryHandler(QueryHandler):
         if self.is_openshift:
             others_data_frame["clusters"] = [clusters] * len(others_data_frame)
         if self.is_gpu:
-            others_data_frame["vendor"] = [vendors] * len(others_data_frame)
-            others_data_frame["model"] = [models] * len(others_data_frame)
+            others_data_frame["model"] = "Others"
+            others_data_frame["vendor"] = "Others"
 
         return others_data_frame
 
