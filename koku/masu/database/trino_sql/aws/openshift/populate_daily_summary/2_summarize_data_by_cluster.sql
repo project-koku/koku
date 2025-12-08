@@ -600,12 +600,49 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_proje
     month,
     day
 )
-WITH cte_rankings AS (
+WITH cte_cluster_counts AS (
+    -- Count distinct clusters matching each AWS resource for tag-matched resources
+    -- This must query source OCP data to get accurate count across all OCP sources,
+    -- not just the temp table which only contains data for the current OCP source.
+    -- We use the temp table to get tags/matched_tag, but join to ALL OCP sources to count matches.
+    SELECT aws_temp.row_uuid,
+        count(DISTINCT ocp.source) as cluster_count
+    FROM hive.{{schema | sqlsafe}}.managed_aws_openshift_daily_temp AS aws_temp
+    JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+        ON aws_temp.usage_start = ocp.usage_start
+            AND (
+                json_query(aws_temp.tags, 'strict $.openshift_project' OMIT QUOTES) = ocp.namespace
+                OR json_query(aws_temp.tags, 'strict $.openshift_node' OMIT QUOTES) = ocp.node
+                OR json_query(aws_temp.tags, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_alias
+                OR json_query(aws_temp.tags, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_id
+                OR (aws_temp.matched_tag != '' AND any_match(split(aws_temp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
+                OR (aws_temp.matched_tag != '' AND any_match(split(aws_temp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
+            )
+        AND ocp.namespace != 'Worker unallocated'
+        AND ocp.namespace != 'Platform unallocated'
+        AND ocp.namespace != 'Storage unattributed'
+        AND ocp.namespace != 'Network unattributed'
+    WHERE aws_temp.source = {{cloud_provider_uuid}}
+        AND aws_temp.year = {{year}}
+        AND aws_temp.month = {{month}}
+        AND aws_temp.resource_id_matched = FALSE
+        AND aws_temp.matched_tag IS NOT NULL
+        AND aws_temp.matched_tag != ''
+        AND ocp.year = {{year}}
+        AND lpad(ocp.month, 2, '0') = {{month}}
+        AND ocp.day IN {{days | inclause}}
+        -- Don't filter by ocp.source here - we want to count ALL matching OCP sources
+    GROUP BY aws_temp.row_uuid
+),
+cte_rankings AS (
     SELECT pds.row_uuid,
-        count(*) as aws_uuid_count
+        count(*) as aws_uuid_count,
+        COALESCE(ccc.cluster_count, 1) as cluster_count
     FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
+    LEFT JOIN cte_cluster_counts AS ccc
+        ON pds.row_uuid = ccc.row_uuid
     WHERE pds.ocp_source = {{ocp_provider_uuid}} AND year = {{year}} AND month = {{month}}
-    GROUP BY row_uuid
+    GROUP BY pds.row_uuid, ccc.cluster_count
 )
 SELECT pds.row_uuid,
     cluster_id,
@@ -627,40 +664,60 @@ SELECT pds.row_uuid,
     availability_zone,
     region,
     unit,
-    usage_amount / aws_uuid_count as usage_amount,
+    -- For tag-matched resources, split cost across clusters; for resource_id-matched, only split within cluster
+    CASE WHEN pds.resource_id_matched = FALSE
+        THEN usage_amount / (r.aws_uuid_count * r.cluster_count)
+        ELSE usage_amount / r.aws_uuid_count
+    END as usage_amount,
     NULL AS data_transfer_direction,
     currency_code,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * unblended_cost
-        ELSE unblended_cost / aws_uuid_count
+        WHEN resource_id_matched = FALSE
+        THEN unblended_cost / (r.aws_uuid_count * r.cluster_count)
+        ELSE unblended_cost / r.aws_uuid_count
     END as unblended_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * unblended_cost * cast({{markup}} as decimal(24,9))
-        ELSE unblended_cost / aws_uuid_count * cast({{markup}} as decimal(24,9))
+        WHEN resource_id_matched = FALSE
+        THEN unblended_cost / (r.aws_uuid_count * r.cluster_count) * cast({{markup}} as decimal(24,9))
+        ELSE unblended_cost / r.aws_uuid_count * cast({{markup}} as decimal(24,9))
     END as markup_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * blended_cost
-        ELSE blended_cost / aws_uuid_count
+        WHEN resource_id_matched = FALSE
+        THEN blended_cost / (r.aws_uuid_count * r.cluster_count)
+        ELSE blended_cost / r.aws_uuid_count
     END as blended_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * blended_cost * cast({{markup}} as decimal(24,9))
-        ELSE blended_cost / aws_uuid_count * cast({{markup}} as decimal(24,9))
+        WHEN resource_id_matched = FALSE
+        THEN blended_cost / (r.aws_uuid_count * r.cluster_count) * cast({{markup}} as decimal(24,9))
+        ELSE blended_cost / r.aws_uuid_count * cast({{markup}} as decimal(24,9))
     END as markup_cost_blended,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * savingsplan_effective_cost
-        ELSE savingsplan_effective_cost / aws_uuid_count
+        WHEN resource_id_matched = FALSE
+        THEN savingsplan_effective_cost / (r.aws_uuid_count * r.cluster_count)
+        ELSE savingsplan_effective_cost / r.aws_uuid_count
     END as savingsplan_effective_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * savingsplan_effective_cost * cast({{markup}} as decimal(24,9))
-        ELSE savingsplan_effective_cost / aws_uuid_count * cast({{markup}} as decimal(24,9))
+        WHEN resource_id_matched = FALSE
+        THEN savingsplan_effective_cost / (r.aws_uuid_count * r.cluster_count) * cast({{markup}} as decimal(24,9))
+        ELSE savingsplan_effective_cost / r.aws_uuid_count * cast({{markup}} as decimal(24,9))
     END as markup_cost_savingsplan,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * calculated_amortized_cost
-        ELSE calculated_amortized_cost / aws_uuid_count
+        WHEN resource_id_matched = FALSE
+        THEN calculated_amortized_cost / (r.aws_uuid_count * r.cluster_count)
+        ELSE calculated_amortized_cost / r.aws_uuid_count
     END as calculated_amortized_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * calculated_amortized_cost * cast({{markup}} as decimal(33,9))
-        ELSE calculated_amortized_cost / aws_uuid_count * cast({{markup}} as decimal(33,9))
+        WHEN resource_id_matched = FALSE
+        THEN calculated_amortized_cost / (r.aws_uuid_count * r.cluster_count) * cast({{markup}} as decimal(33,9))
+        ELSE calculated_amortized_cost / r.aws_uuid_count * cast({{markup}} as decimal(33,9))
     END as markup_cost_amortized,
     CASE WHEN pds.pod_labels IS NOT NULL
         THEN json_format(cast(
