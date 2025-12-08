@@ -665,3 +665,46 @@ WHERE lids.source = {{source}}
     AND lpad(lids.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND lids.day IN {{days | inclause}}
 ;
+
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+    uuid,
+    report_period_id,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    usage_start,
+    usage_end,
+    namespace,
+    node,
+    resource_id,
+    all_labels,
+    source_uuid,
+    cost_category_id
+)
+SELECT uuid(),
+    {{report_period_id}} as report_period_id,
+    {{cluster_id}} as cluster_id,
+    {{cluster_alias}} as cluster_alias,
+    'GPU' as data_source,
+    date(gpu.interval_start) as usage_start,
+    date(gpu.interval_start) as usage_end,
+    gpu.namespace,
+    gpu.node,
+    gpu.gpu_uuid,
+    cast(map(
+        ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib'],
+        ARRAY[
+            max(gpu.gpu_model_name),
+            max(gpu.gpu_vendor_name),
+            CAST(max(gpu.gpu_memory_capacity_mib) AS varchar)
+        ]
+    ) as json) as all_labels,
+    cast({{source}} as UUID),
+    max(cat_ns.cost_category_id)
+FROM hive.{{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily AS gpu
+LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
+        ON gpu.namespace LIKE cat_ns.namespace
+WHERE gpu.source = {{source}}
+    AND gpu.year = {{year}}
+    AND lpad(gpu.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+GROUP BY gpu.gpu_uuid, gpu.namespace, gpu.node, gpu.interval_start
