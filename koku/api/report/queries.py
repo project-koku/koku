@@ -1471,16 +1471,10 @@ class ReportQueryHandler(QueryHandler):
 
         others_data_frame = data_frame[data_frame["rank"] > self._limit]
         other_count = len(others_data_frame[group_by].drop_duplicates())
-
         source_uuids = list(others_data_frame["source_uuid"].explode().dropna().unique())
         if self.is_openshift:
             clusters = list(others_data_frame["clusters"].explode().dropna().unique())
             drop_columns.append("clusters")
-        if self.is_gpu:
-            models = list(others_data_frame["model"].explode().dropna().unique())
-            drop_columns.append("model")
-            vendors = list(others_data_frame["vendor"].explode().dropna().unique())
-            drop_columns.append("vendor")
 
         others_data_frame = others_data_frame.drop(columns=drop_columns, errors="ignore")
 
@@ -1508,8 +1502,8 @@ class ReportQueryHandler(QueryHandler):
         if self.is_openshift:
             others_data_frame["clusters"] = [clusters] * len(others_data_frame)
         if self.is_gpu:
-            others_data_frame["vendor"] = [vendors] * len(others_data_frame)
-            others_data_frame["model"] = [models] * len(others_data_frame)
+            others_data_frame["model"] = other_str
+            others_data_frame["vendor"] = other_str
 
         return others_data_frame
 
