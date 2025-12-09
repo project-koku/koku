@@ -1193,7 +1193,7 @@ class ReportQueryHandler(QueryHandler):
             df[sort_term] = df[sort_term].replace({none_sort_term: None})
         return df.to_dict("records")
 
-    def _order_by(self, data, order_fields):
+    def _order_by(self, data, order_fields):  # noqa: C901
         """Order a list of dictionaries by dictionary keys.
 
         Args:
@@ -1257,9 +1257,14 @@ class ReportQueryHandler(QueryHandler):
         # Ensure "Others" is always the last item regardless of order_by direction
         if self._limit:
             group_by = self._get_group_by()
-            others = [e for e in sorted_data if any(e.get(f) in ("Others", "Other") for f in group_by)]
+            others = []
+            non_others = []
+            for item in sorted_data:
+                if any(item.get(f) in ("Others", "Other") for f in group_by):
+                    others.append(item)
+                else:
+                    non_others.append(item)
             if others:
-                non_others = [e for e in sorted_data if e not in others]
                 sorted_data = non_others + others
 
         return sorted_data

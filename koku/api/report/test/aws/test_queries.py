@@ -249,6 +249,11 @@ class AWSReportQueryTest(IamTestCase):
         self.assertEqual(out_data[-1]["account"], "Others")
         self.assertEqual(out_data[0]["account"], "account-2")
 
+        # Test with ASC ordering - Others should still be last
+        out_data_asc = handler._order_by(data, ["-date", "cost_total"])
+        self.assertEqual(out_data_asc[-1]["account"], "Others")
+        self.assertEqual(out_data_asc[0]["account"], "account-1")
+
     def test_get_group_by_with_group_by_and_limit_params(self):
         """Test the _get_group_by method with limit and group by params."""
         expected = ["account"]
