@@ -879,11 +879,14 @@ class OCPProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
+                            "node": F("node"),
                             "vendor": F("vendor_name"),
                             "model": F("model_name"),
                             "memory": Max(Coalesce(F("memory_capacity_gb"), Value(0, output_field=DecimalField()))),
                             "memory_units": Value("GB", output_field=CharField()),
-                            "gpu_count": Max(Coalesce(F("gpu_count"), Value(0, output_field=IntegerField()))),
+                            "gpu_count": Sum(
+                                Coalesce(F("gpu_count"), Value(0, output_field=IntegerField())), distinct=True
+                            ),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
                         },
                         "delta_key": {},
