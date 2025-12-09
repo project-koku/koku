@@ -1224,7 +1224,7 @@ class ReportQueryHandler(QueryHandler):
             "gpu_count",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
-        sorted_data = data
+        sorted_data = list(data) if not isinstance(data, list) else data
 
         for field in reversed(order_fields):
             reverse = False
@@ -1253,6 +1253,14 @@ class ReportQueryHandler(QueryHandler):
                     key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
                     reverse=reverse,
                 )
+
+        # Ensure "Others" is always the last item regardless of order_by direction
+        if self._limit:
+            group_by = self._get_group_by()
+            others = [e for e in sorted_data if any(e.get(f) in ("Others", "Other") for f in group_by)]
+            if others:
+                non_others = [e for e in sorted_data if e not in others]
+                sorted_data = non_others + others
 
         return sorted_data
 
