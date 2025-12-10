@@ -843,7 +843,7 @@ class OCPProviderMap(ProviderMap):
                     },
                     "gpu": {
                         "tables": {"query": OCPGpuSummaryP},
-                        "group_by_options": ["cluster", "project", "node", "vendor", "model"],
+                        "group_by_options": ["cluster", "project", "vendor", "model"],
                         "tag_column": "all_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),

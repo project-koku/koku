@@ -659,7 +659,6 @@ class OCPGpuGroupBySerializerTest(TestCase):
         """Test parse of GPU group_by params with valid fields."""
         group_by_params = {
             "cluster": ["cluster1"],
-            "node": ["node1"],
             "project": ["project1"],
             "vendor": ["nvidia"],
             "model": ["Tesla T4"],
