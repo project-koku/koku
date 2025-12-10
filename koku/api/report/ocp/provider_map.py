@@ -1195,4 +1195,4 @@ class OCPProviderMap(ProviderMap):
     @cached_property
     def distributed_unallocated_gpu_cost(self):
         """The unattributed GPU cost needs to have the infra exchange rate applied to it."""
-        return self.__cost_model_distributed_cost("unallocated_gpu", "infra_exchange_rate")
+        return self.__cost_model_distributed_cost("gpu_distributed", "infra_exchange_rate")
