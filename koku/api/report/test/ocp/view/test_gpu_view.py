@@ -166,3 +166,40 @@ class OCPGpuViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("data", response.data)
+
+    def test_gpu_endpoint_with_limit_and_order_by_model(self):
+        """Test GPU endpoint with filter[limit] and order_by[model]."""
+        url = reverse("reports-openshift-gpu")
+        query_params = {"group_by[model]": "*", "filter[limit]": "1", "order_by[model]": "asc"}
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("data", response.data)
+
+    def test_gpu_endpoint_with_limit_offset_and_order_by_model(self):
+        """Test GPU endpoint with filter[limit], filter[offset] and order_by[model]."""
+        url = reverse("reports-openshift-gpu")
+        query_params = {
+            "group_by[model]": "*",
+            "filter[limit]": "1",
+            "filter[offset]": "0",
+            "order_by[model]": "asc",
+        }
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("data", response.data)
+
+    def test_gpu_endpoint_with_limit_offset_and_order_by_vendor(self):
+        """Test GPU endpoint with filter[limit], filter[offset] and order_by[vendor]."""
+        url = reverse("reports-openshift-gpu")
+        query_params = {
+            "group_by[vendor]": "*",
+            "filter[limit]": "1",
+            "filter[offset]": "0",
+            "order_by[vendor]": "asc",
+        }
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("data", response.data)

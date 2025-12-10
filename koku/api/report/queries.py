@@ -1299,6 +1299,11 @@ class ReportQueryHandler(QueryHandler):
         gb = group_by_value if group_by_value else ["date"]
         rank_orders = []
 
+        resolved_order_field = self.order_field
+        is_alias_field = hasattr(self, "group_by_alias") and self.order_field in self.group_by_alias
+        if is_alias_field:
+            resolved_order_field = self.group_by_alias[self.order_field]
+
         rank_annotations = {}
         if ("delta" in self.order) or ("-delta" in self.order):
             if "__" in self._delta:
@@ -1309,10 +1314,7 @@ class ReportQueryHandler(QueryHandler):
                 rank_annotations = {self._delta: self.report_annotations[self._delta]}
                 rank_orders.append(getattr(F(self._delta), self.order_direction)())
         elif self._limit and "offset" in self.parameters.get("filter", {}) and self.parameters.get("order_by"):
-            resolved_order_field = self.order_field
-            if hasattr(self, "group_by_alias") and self.order_field in self.group_by_alias:
-                resolved_order_field = self.group_by_alias[self.order_field]
-            elif self.report_annotations.get(self.order_field):
+            if not is_alias_field and self.report_annotations.get(self.order_field):
                 rank_annotations = {self.order_field: self.report_annotations.get(self.order_field)}
             # AWS is special and account alias is a foreign key field so special_rank was annotated on the query
             if self.order_field == "account_alias":
@@ -1326,11 +1328,7 @@ class ReportQueryHandler(QueryHandler):
                 rank_annotations = {order_field: self.report_annotations.get(order_field)}
                 rank_orders.append(getattr(F(order_field), order_direction)())
             else:
-                resolved_order_field = self.order_field
-                if hasattr(self, "group_by_alias") and self.order_field in self.group_by_alias:
-                    resolved_order_field = self.group_by_alias[self.order_field]
-                    rank_annotations = {}
-                else:
+                if not is_alias_field:
                     rank_annotations = {
                         self.order_field: self.report_annotations.get(self.order_field, self.order_direction)
                     }
@@ -1346,17 +1344,15 @@ class ReportQueryHandler(QueryHandler):
             group_by_value.append("subscription_name")
 
         annotations = self.annotations
-        skip_annotate = False
         if hasattr(self, "group_by_alias"):
             exclude_fields = set(group_by_value) & set(self.group_by_alias.keys())
             if exclude_fields:
                 annotations = {k: v for k, v in annotations.items() if k not in exclude_fields}
-                skip_annotate = True
 
-        if skip_annotate:
-            ranks = query.values(*group_by_value)
-        else:
+        if annotations:
             ranks = query.annotate(**annotations).values(*group_by_value)
+        else:
+            ranks = query.values(*group_by_value)
 
         ranks = ranks.annotate(**rank_annotations).annotate(
             source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True)
