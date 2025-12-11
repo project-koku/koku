@@ -533,6 +533,11 @@ class ParamSerializer(BaseSerializer):
                     "subscription_guid" in group_keys or "subscription_guid" in or_keys
                 ):
                     continue
+                # special case: GPU order by model_name/vendor_name, but group by model/vendor.
+                if key == "model_name" and ("model" in group_keys or "model" in or_keys):
+                    continue
+                if key == "vendor_name" and ("vendor" in group_keys or "vendor" in or_keys):
+                    continue
                 # sepcial case: we order by date, but we group by an allowed param.
                 if key == "date" and group_keys:
                     # Checks to make sure the orderby date is allowed
