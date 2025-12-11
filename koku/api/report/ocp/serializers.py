@@ -344,7 +344,6 @@ class OCPGpuGroupBySerializer(GroupSerializer):
     _opfields = ("cluster", "node", "project", "vendor", "model")
 
     cluster = StringOrListField(child=serializers.CharField(), required=False)
-    node = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
     vendor = StringOrListField(child=serializers.CharField(), required=False)
     model = StringOrListField(child=serializers.CharField(), required=False)
