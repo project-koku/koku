@@ -9,8 +9,8 @@ CURRENCIES = [
     {
         "code": "AED",
         "name": "United Arab Emirates Dirham",
-        "symbol": "\u062f.\u0625",
-        "description": "AED (\u062f.\u0625) - United Arab Emirates Dirham",
+        "symbol": "AED",
+        "description": "AED (AED) - United Arab Emirates Dirham",
     },
     {
         "code": "AUD",
@@ -45,8 +45,8 @@ CURRENCIES = [
     {
         "code": "CZK",
         "name": "Czech Koruna",
-        "symbol": "K\u010d",
-        "description": "CZK (K\u010d) - Czech Koruna",
+        "symbol": "CZK",
+        "description": "CZK (CZK) - Czech Koruna",
     },
     {
         "code": "DKK",
@@ -105,8 +105,8 @@ CURRENCIES = [
     {
         "code": "SAR",
         "name": "Saudi Riyal",
-        "symbol": "\u0631.\u0633",
-        "description": "SAR (\u0631.\u0633) - Saudi Riyal",
+        "symbol": "SAR",
+        "description": "SAR (SAR) - Saudi Riyal",
     },
     {
         "code": "SEK",
@@ -117,8 +117,8 @@ CURRENCIES = [
     {
         "code": "SGD",
         "name": "Singapore Dollar",
-        "symbol": "SGD",
-        "description": "SGD (SGD) - Singapore Dollar",
+        "symbol": "S$",
+        "description": "SGD (S$) - Singapore Dollar",
     },
     {
         "code": "TWD",
@@ -135,8 +135,8 @@ CURRENCIES = [
     {
         "code": "ZAR",
         "name": "South African Rand",
-        "symbol": "ZAR",
-        "description": "ZAR (ZAR) - South African Rand",
+        "symbol": "R",
+        "description": "ZAR (R) - South African Rand",
     },
 ]
 # fmt: on
