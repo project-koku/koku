@@ -381,6 +381,8 @@ class OCPGpuOrderBySerializer(OrderSerializer):
         "infrastructure": "infra_total",
         "supplementary": "sup_total",
         "cost_model_gpu_cost": "cost_total",
+        "model": "model_name",
+        "vendor": "vendor_name",
     }
 
     cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
@@ -388,6 +390,8 @@ class OCPGpuOrderBySerializer(OrderSerializer):
     project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     vendor = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     model = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    vendor_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    model_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
     cost_model_gpu_cost = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     memory = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
