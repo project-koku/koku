@@ -1257,15 +1257,10 @@ class ReportQueryHandler(QueryHandler):
         # Ensure "Others" is always the last item regardless of order_by direction
         if self._limit:
             group_by = self._get_group_by()
-            others = []
-            non_others = []
-            for item in sorted_data:
-                if any(item.get(f) in ("Others", "Other") for f in group_by):
-                    others.append(item)
-                else:
-                    non_others.append(item)
-            if others:
-                sorted_data = non_others + others
+            sorted_data = sorted(
+                sorted_data,
+                key=lambda item: any(item.get(f) in ("Others", "Other") for f in group_by),
+            )
 
         return sorted_data
 
