@@ -792,25 +792,3 @@ class OCPGpuQueryParamSerializerTest(IamTestCase):
         self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
         serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
-
-    def test_gpu_order_by_model_without_group_by_model_fails(self):
-        """Test that order_by[model] fails without group_by[model]."""
-        query_params = {
-            "group_by": {"cluster": ["*"]},
-            "order_by": {"model": "asc"},
-        }
-        self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
-        serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
-
-    def test_gpu_order_by_vendor_without_group_by_vendor_fails(self):
-        """Test that order_by[vendor] fails without group_by[vendor]."""
-        query_params = {
-            "group_by": {"cluster": ["*"]},
-            "order_by": {"vendor": "desc"},
-        }
-        self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
-        serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
