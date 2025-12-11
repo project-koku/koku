@@ -410,8 +410,8 @@ class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
         "sup_total",
         "memory",
         "gpu_count",
-        "vendor",
-        "model",
+        "vendor_name",
+        "model_name",
         "node",
     )
 
