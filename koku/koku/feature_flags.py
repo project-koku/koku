@@ -33,7 +33,7 @@ class KokuUnleashClient(UnleashClient):
 
     def destroy(self):
         """Override destroy so that cache is not deleted."""
-        self.fl_job.remove()
+
         if self.metric_job:
             self.metric_job.remove()
 
