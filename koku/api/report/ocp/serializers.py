@@ -410,6 +410,9 @@ class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
         "sup_total",
         "memory",
         "gpu_count",
+        "vendor_name",
+        "model_name",
+        "node",
     )
 
     GROUP_BY_SERIALIZER = OCPGpuGroupBySerializer
