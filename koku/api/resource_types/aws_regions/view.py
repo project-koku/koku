@@ -17,6 +17,7 @@ from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.aws.models import AWSCostSummaryByRegionP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByRegionP
 
 
 class AWSAccountRegionView(generics.ListAPIView):
@@ -38,7 +39,7 @@ class AWSAccountRegionView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for aws.accounts and displays values related to what the user has access to
-        supported_query_params = ["search", "limit"]
+        supported_query_params = ["search", "limit", "openshift"]
         user_access = []
         error_message = {}
         # Test for only supported query_params
@@ -47,6 +48,15 @@ class AWSAccountRegionView(generics.ListAPIView):
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+                elif key == "openshift":
+                    openshift = self.request.query_params.get("openshift")
+                    if openshift == "true":
+                        self.queryset = (
+                            OCPAWSCostSummaryByRegionP.objects.annotate(**{"value": F("region")})
+                            .values("value")
+                            .distinct()
+                            .filter(region__isnull=False)
+                        )
         if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         elif request.user.access:

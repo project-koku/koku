@@ -18,6 +18,7 @@ from api.common.permissions.gcp_access import GcpAccessPermission
 from api.common.permissions.gcp_access import GcpProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.gcp.models import GCPTopology
+from reporting.provider.gcp.openshift.models import OCPGCPCostSummaryByAccountP
 
 
 class GCPAccountView(generics.ListAPIView):
@@ -34,7 +35,7 @@ class GCPAccountView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for GCP account id and displays values related to what the user has access to
-        supported_query_params = ["search", "limit"]
+        supported_query_params = ["search", "limit", "openshift"]
         error_message = {}
         query_holder = None
         # Test for only supported query_params
@@ -43,6 +44,14 @@ class GCPAccountView(generics.ListAPIView):
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+                elif key == "openshift":
+                    openshift = self.request.query_params.get("openshift")
+                    if openshift == "true":
+                        self.queryset = (
+                            OCPGCPCostSummaryByAccountP.objects.annotate(**{"value": F("account_id")})
+                            .values("value")
+                            .distinct()
+                        )
         if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         if request.user.access:
