@@ -164,3 +164,33 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
                 url = url + f"?key_only=true&{disabled_filter}=value"
                 response = self.client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_aws_categories_ocp_view(self):
+        """Test endpoint runs with openshift=true parameter."""
+        url = reverse("aws-categories") + "?openshift=true"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_aws_categories_ocp_view_false(self):
+        """Test endpoint runs with openshift=false parameter (uses default queryset)."""
+        url = reverse("aws-categories") + "?openshift=false"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_aws_categories_ocp_view_key_only(self):
+        """Test endpoint runs with openshift=true and key_only=true parameters."""
+        url = reverse("aws-categories") + "?openshift=true&key_only=true"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
