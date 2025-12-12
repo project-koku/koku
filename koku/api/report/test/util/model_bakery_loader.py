@@ -446,6 +446,8 @@ class ModelBakeryDataLoader(DataLoader):
             "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query_with_description"
         ) as mock_description_sql, patch(
             "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_virtualization_ui_summary_table"
+        ), patch(
+            "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_gpu_ui_summary_table_with_usage_only"
         ):
             mock_description_sql.return_value = ([], [])
             with ReportDBAccessor(self.schema) as accessor:

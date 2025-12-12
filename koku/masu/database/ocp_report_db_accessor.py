@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for OCP report data."""
+import copy
 import datetime
 import json
 import logging
@@ -28,12 +29,16 @@ from cost_models.sql_parameters import BaseCostModelParams
 from koku.database import SQLScriptAtomicExecutorMixin
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_flag_enabled_by_account
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.util.common import filter_dictionary
+from masu.util.common import source_in_trino_table
 from masu.util.common import trino_table_exists
 from masu.util.ocp.common import DistributionConfig
+from masu.util.ocp.common import get_cluster_alias_from_cluster_id
+from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
@@ -102,12 +107,43 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
+        # Trino Queries:
+        start_date = DateHelper().parse_to_date(sql_params["start_date"])
+        sql_params["year"] = start_date.strftime("%Y")
+        sql_params["month"] = start_date.strftime("%m")
+
+        self._populate_gpu_ui_summary_table_with_usage_only(sql_params)
         self._populate_virtualization_ui_summary_table(sql_params)
 
-    def _populate_virtualization_ui_summary_table(self, sql_params):
+    def _populate_gpu_ui_summary_table_with_usage_only(self, params):
+        """
+        Populates the gpu only table with just basic gpu information whenever
+        GPU information exists, but the customer has not set up a cost model.
+        """
+        sql_params = copy.deepcopy(params)
+        if not source_in_trino_table(
+            self.schema, sql_params.get("source_uuid"), TRINO_LINE_ITEM_TABLE_DAILY_MAP["gpu_usage"]
+        ):
+            return
+        with CostModelDBAccessor(self.schema, sql_params.get("source_uuid")) as cost_model_accessor:
+            # Check to see if the cost model is set up to give cost
+            if cost_model_accessor.metric_to_tag_params_map.get(metric_constants.OCP_GPU_MONTH):
+                return
+        cluster_id = get_cluster_id_from_provider(sql_params.get("source_uuid"))
+        sql_params["cluster_id"] = cluster_id
+        sql_params["cluster_alias"] = get_cluster_alias_from_cluster_id(cluster_id)
+        sql_params["source_uuid"] = str(sql_params["source_uuid"])
+        populate_gpu_usage_info = pkgutil.get_data(
+            "masu.database", "trino_sql/openshift/ui_summary/reporting_ocp_gpu_summary_p_usage_only.sql"
+        )
+        populate_gpu_usage_info = populate_gpu_usage_info.decode("utf-8")
+        self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
+
+    def _populate_virtualization_ui_summary_table(self, params):
         """
         Populates the virtualization ui table.
         """
+        sql_params = copy.deepcopy(params)
         if not self.schema_exists_trino():
             return
         trino_query_requirements = [
@@ -117,9 +153,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         ]
         if not all(trino_query_requirements):
             return
-        start_date = DateHelper().parse_to_date(sql_params["start_date"])
-        sql_params["year"] = start_date.strftime("%Y")
-        sql_params["month"] = start_date.strftime("%m")
         # create the temp table
         sql_params["uuid"] = str(uuid4().hex)
         create_temp_table_sql = pkgutil.get_data("masu.database", "sql/openshift/create_virtualization_tmp_table.sql")
@@ -129,19 +162,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         # This pathway won't be needed if/when we require users to utilize 4.0.0 operator
         population_temp_table_file = "populate_vm_tmp_table.sql"
-        vm_report_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP["vm_usage"]
-        if trino_table_exists(self.schema, vm_report_table):
-            source_uuid = sql_params.get("source_uuid")
-            source_sql = f"""
-                SELECT count(*) from hive.{self.schema}."{vm_report_table}$partitions"
-                WHERE source = '{source_uuid}'
-                """
-            source_available = self._execute_trino_raw_sql_query(
-                source_sql,
-                log_ref=f"Checking if source is in {vm_report_table}",
-            )[0][0]
-            if source_available:
-                population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
+        if source_in_trino_table(
+            self.schema, sql_params.get("source_uuid"), TRINO_LINE_ITEM_TABLE_DAILY_MAP["vm_usage"]
+        ):
+            population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
         populate_temp_table_sql = pkgutil.get_data(
             "masu.database", f"trino_sql/openshift/{population_temp_table_file}"
         )
