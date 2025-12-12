@@ -26,6 +26,7 @@ from api.resource_types.aws_category.serializers import AWSCategoryKeyOnlySerial
 from api.resource_types.aws_category.serializers import AWSCategorySerializer
 from reporting.provider.aws.models import AWSCategorySummary
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccountP
 
 LOG = logging.getLogger(__name__)
 
@@ -68,7 +69,8 @@ class AWSCategoryView(generics.ListAPIView):
         ],
     }
     KEY_ONLY_PARAM = "key_only"
-    SUPPORTED_FILTERS = ["limit", KEY_ONLY_PARAM] + list(FILTER_MAP.keys())
+    OPENSHIFT_PARAM = "openshift"
+    SUPPORTED_FILTERS = ["limit", KEY_ONLY_PARAM, OPENSHIFT_PARAM] + list(FILTER_MAP.keys())
     RBAC_FILTER = {"field": "usage_account_id", "operation": "in", "composition_key": "account_filter"}
 
     @property
@@ -78,6 +80,16 @@ class AWSCategoryView(generics.ListAPIView):
         """
         if key_only := self.request.query_params.get(self.KEY_ONLY_PARAM):
             if key_only.lower() == "true":
+                return True
+        return False
+
+    @property
+    def openshift_check(self):
+        """
+        Check if openshift filter is requested
+        """
+        if openshift := self.request.query_params.get(self.OPENSHIFT_PARAM):
+            if openshift.lower() == "true":
                 return True
         return False
 
@@ -140,13 +152,19 @@ class AWSCategoryView(generics.ListAPIView):
                 .filter(enabled=True)
                 .distinct()
             )
-            self.SUPPORTED_FILTERS = ["limit", self.KEY_ONLY_PARAM, "account"]
+            self.SUPPORTED_FILTERS = ["limit", self.KEY_ONLY_PARAM, self.OPENSHIFT_PARAM, "account"]
         # Check for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
                 if key not in self.SUPPORTED_FILTERS:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+        # Filter by accounts that have OCP+AWS data when openshift=true
+        if self.openshift_check:
+            ocp_aws_accounts = OCPAWSCostSummaryByAccountP.objects.values_list(
+                "usage_account_id", flat=True
+            ).distinct()
+            self.queryset = self.queryset.filter(usage_account_id__in=ocp_aws_accounts)
         filters = self.build_filters()
         if filters:
             self.queryset = self.queryset.filter(filters)
