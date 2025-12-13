@@ -41,6 +41,8 @@ Platform Sources is a Red Hat service that:
 - Sends Kafka events when sources are created, updated, or deleted
 - Allows applications (like Cost Management) to subscribe to source events
 
+**Note for On-Premise Deployments**: For on-premise deployments without access to Red Hat SaaS services, set `KOKU_ONPREM_DEPLOYMENT=True` to disable the Unleash feature flag service. See [Feature Flags Architecture](feature-flags.md) for details on on-premise deployment configuration.
+
 ### Sources in Koku
 
 Within Koku, **Sources** refers to:
