@@ -19,6 +19,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
+from koku.reportdb_accessor import get_report_db_accessor
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -234,28 +235,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_gcp_topology_trino(self, source_uuid, start_date, end_date, invoice_month):
         """Get the account topology for a GCP source."""
-        sql = f"""
-            SELECT source,
-                billing_account_id,
-                project_id,
-                project_name,
-                service_id,
-                service_description,
-                location_region
-            FROM hive.{self.schema}.gcp_line_items as gcp
-            WHERE gcp.source = '{source_uuid}'
-                AND gcp.year = '{invoice_month[:4]}'
-                AND gcp.month = '{invoice_month[4:]}'
-                AND gcp.usage_start_time >= TIMESTAMP '{start_date}'
-                AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{end_date}')
-            GROUP BY source,
-                billing_account_id,
-                project_id,
-                project_name,
-                service_id,
-                service_description,
-                location_region
-        """
+        sql = get_report_db_accessor().get_gcp_topology_sql(
+            schema_name=self.schema,
+            source_uuid=source_uuid,
+            year=invoice_month[:4],
+            month=invoice_month[4:6],
+            start_date=str(start_date),
+            end_date=str(end_date)
+        )
         context = {
             "schema": self.schema,
             "start": start_date,
@@ -417,13 +404,15 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                sql = f"""
-                    DELETE FROM hive.{self.schema}.{TRINO_OCP_GCP_DAILY_SUMMARY_TABLE}
-                        WHERE source = '{gcp_source}'
-                        AND ocp_source = '{ocp_source}'
-                        AND year = '{year}'
-                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                        AND day = '{day}'"""
+                sql = get_report_db_accessor().get_delete_by_day_ocp_on_cloud_sql(
+                    schema_name=self.schema,
+                    table_name=TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
+                    cloud_source=gcp_source,
+                    ocp_source=ocp_source,
+                    year=year,
+                    month=month,
+                    day=day
+                )
                 self._execute_trino_raw_sql_query(
                     sql,
                     context={"year": year, "month": month, "day": day, "table": TRINO_OCP_GCP_DAILY_SUMMARY_TABLE},
