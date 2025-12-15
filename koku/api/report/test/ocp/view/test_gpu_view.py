@@ -67,13 +67,13 @@ class OCPGpuViewTest(IamTestCase):
         url = reverse("reports-openshift-gpu")
         query_params = {
             "filter[vendor]": "nvidia",
-            "group_by[node]": "*",
+            "group_by[cluster]": "*",
             "order_by[cost]": "desc",
         }
         url = url + "?" + urlencode(query_params, doseq=True)
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        gpu_values = response.data["data"][0]["nodes"][0]["values"][0]
+        gpu_values = response.data["data"][0]["clusters"][0]["values"][0]
         self.assertGreater(len(gpu_values), 0, "GPU endpoint should return actual data")
         self.assertEqual(gpu_values["vendor"], "nvidia", "GPU vendor should be nvidia")
         self.assertIsInstance(gpu_values["memory"]["value"], Decimal, "GPU memory should be numeric")
@@ -158,10 +158,10 @@ class OCPGpuViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("data", response.data)
 
-    def test_gpu_endpoint_with_filter_limit_and_group_by_node(self):
-        """Test GPU endpoint with filter[limit] and group_by[node] does not crash."""
+    def test_gpu_endpoint_with_filter_limit_and_group_by_cluster(self):
+        """Test GPU endpoint with filter[limit] and group_by[cluster] does not crash."""
         url = reverse("reports-openshift-gpu")
-        query_params = {"group_by[node]": "*", "filter[limit]": "1"}
+        query_params = {"group_by[cluster]": "*", "filter[limit]": "1"}
         url = url + "?" + urlencode(query_params, doseq=True)
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
