@@ -18,6 +18,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
+from koku.reportdb_accessor import get_report_db_accessor
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -200,13 +201,15 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                sql = f"""
-                    DELETE FROM hive.{self.schema}.{TRINO_OCP_AWS_DAILY_SUMMARY_TABLE}
-                        WHERE source = '{aws_source}'
-                        AND ocp_source = '{ocp_source}'
-                        AND year = '{year}'
-                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                        AND day = '{day}'"""
+                sql = get_report_db_accessor().get_delete_by_day_ocp_on_cloud_sql(
+                    schema_name=self.schema,
+                    table_name=TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
+                    cloud_source=aws_source,
+                    ocp_source=ocp_source,
+                    year=year,
+                    month=month,
+                    day=day
+                )
                 self._execute_trino_raw_sql_query(
                     sql,
                     context={"year": year, "month": month, "day": day, "table": TRINO_OCP_AWS_DAILY_SUMMARY_TABLE},
