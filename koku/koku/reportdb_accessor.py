@@ -71,6 +71,66 @@ class ReportDBAccessor(ABC):
         """Return the SQL to check if data exists for a specific day"""
         pass
 
+    @abstractmethod
+    def get_delete_by_month_sql(self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str):
+        """Return the SQL to delete partitions by month"""
+        pass
+
+    @abstractmethod
+    def get_delete_by_day_sql(self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str, day: str):
+        """Return the SQL to delete partitions by day"""
+        pass
+
+    @abstractmethod
+    def get_delete_by_source_sql(self, schema_name: str, table_name: str, partition_column: str, provider_uuid: str):
+        """Return the SQL to delete partitions by source"""
+        pass
+
+    @abstractmethod
+    def get_expired_data_ocp_sql(self, schema_name: str, table_name: str, source_column: str, expired_date: str):
+        """Return SQL to find expired data (year, month, source) tuples before expired_date"""
+        pass
+
+    @abstractmethod
+    def get_check_source_in_partitions_sql(self, schema_name: str, table_name: str, source_uuid: str):
+        """Return SQL to check if source exists in table partitions"""
+        pass
+
+    @abstractmethod
+    def get_nodes_query_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+        """Return SQL to get nodes from OpenShift cluster"""
+        pass
+
+    @abstractmethod
+    def get_pvcs_query_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+        """Return SQL to get PVCs from OpenShift cluster"""
+        pass
+
+    @abstractmethod
+    def get_projects_query_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+        """Return SQL to get projects from OpenShift cluster"""
+        pass
+
+    @abstractmethod
+    def get_max_min_timestamp_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+        """Return SQL to get max/min timestamps from parquet data"""
+        pass
+
+    @abstractmethod
+    def get_delete_by_day_ocp_on_cloud_sql(self, schema_name: str, table_name: str, cloud_source: str, ocp_source: str, year: str, month: str, day: str):
+        """Return SQL to delete partitions by day for OCP-on-cloud tables (with dual source columns)"""
+        pass
+
+    @abstractmethod
+    def get_gcp_topology_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+        """Return SQL to get GCP topology (account, project, service, region)"""
+        pass
+
+    @abstractmethod
+    def get_data_validation_sql(self, schema_name: str, table_name: str, source_column: str, provider_filter: str, metric: str, date_column: str, start_date: str, end_date: str, year: str, month: str):
+        """Return SQL for data validation query (sum metric by date)"""
+        pass
+
 def get_report_db_accessor():
       from django.conf import settings
       from koku.reportdb_accessor_postgres import PostgresReportDBAccessor
