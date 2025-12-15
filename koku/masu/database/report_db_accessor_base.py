@@ -14,6 +14,7 @@ from django.db import connection
 from django.db import OperationalError
 from django.db import transaction
 from jinjasql import JinjaSql
+from koku.reportdb_accessor import get_report_db_accessor
 from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
 
@@ -249,7 +250,7 @@ class ReportDBAccessorBase:
         cache_key = build_trino_table_exists_key(self.schema, table_name)
         if result := get_value_from_cache(cache_key):
             return result
-        table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
+        table_check_sql = get_report_db_accessor().get_table_check_sql(table_name, self.schema)
         exists = bool(self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino"))
         set_value_in_cache(cache_key, exists)
         return exists
@@ -259,7 +260,7 @@ class ReportDBAccessorBase:
         cache_key = build_trino_schema_exists_key(self.schema)
         if result := get_value_from_cache(cache_key):
             return result
-        check_sql = f"SHOW SCHEMAS LIKE '{self.schema}'"
+        check_sql = get_report_db_accessor().get_schema_check_sql(self.schema)
         exists = bool(self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino"))
         set_value_in_cache(cache_key, exists)
         return exists
@@ -279,12 +280,14 @@ class ReportDBAccessorBase:
             )
             for i in range(retries):
                 try:
-                    sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
-                    WHERE {source_column} = '{source}'
-                    AND year = '{year}'
-                    AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                    """
+                    sql = get_report_db_accessor().get_delete_by_month_sql(
+                        schema_name=self.schema,
+                        table_name=table,
+                        source_column=source_column,
+                        source=source,
+                        year=year,
+                        month=month
+                    )
                     self._execute_trino_raw_sql_query(
                         sql,
                         log_ref=f"delete_hive_partition_by_month for {year}-{month}",
