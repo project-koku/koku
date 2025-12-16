@@ -60,7 +60,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "group_by_options"
         )
         if self._report_type == "gpu":
-            self.group_by_alias = {"vendor": "vendor_name", "model": "model_name"}
+            self.group_by_alias = {"gpu_vendor": "vendor_name", "gpu_model": "model_name"}
 
         # We need to overwrite the default pack definitions with these
         # Order of the keys matters in how we see it in the views.
@@ -110,7 +110,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "units": "usage_units",
         }
         ocp_pack_definitions["usage"]["keys"].extend(["data_transfer_in", "data_transfer_out"])
-        ocp_pack_definitions["gpu_memory"] = {"keys": ["memory"], "units": "memory_units"}
+        ocp_pack_definitions["gpu_memory"] = {"keys": ["gpu_memory"], "units": "gpu_memory_units"}
         ocp_pack_definitions["gpu_count"] = {"keys": ["gpu_count"], "units": "gpu_count_units"}
 
         # super() needs to be called after _mapper and _limit is set
@@ -253,13 +253,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date", self.order]
 
-            report_annotations = self.report_annotations
-            if hasattr(self, "group_by_alias"):
-                exclude_fields = set(group_by_value) & set(self.group_by_alias.keys())
-                if exclude_fields:
-                    report_annotations = {k: v for k, v in report_annotations.items() if k not in exclude_fields}
-
-            query_data = query.values(*query_group_by).annotate(**report_annotations)
+            query_data = query.alias(**self.report_aliases).values(*query_group_by).annotate(**self.report_annotations)
 
             if is_grouped_by_project(self.parameters):
                 query_data = self._project_classification_annotation(query_data)

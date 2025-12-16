@@ -181,6 +181,11 @@ class ReportQueryHandler(QueryHandler):
         """Return annotations with the correct capacity field."""
         return self._mapper.report_type_map.get("annotations", {})
 
+    @property
+    def report_aliases(self):
+        """Return annotations with the correct capacity field."""
+        return self._mapper.report_type_map.get("aliases", {})
+
     @cached_property
     def query_table(self):
         """Return the database table or view to query against."""

@@ -360,6 +360,7 @@ class OCPGpuFilterSerializer(BaseFilterSerializer):
     project = StringOrListField(child=serializers.CharField(), required=False)
     vendor = StringOrListField(child=serializers.CharField(), required=False)
     model = StringOrListField(child=serializers.CharField(), required=False)
+    gpu_name = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPGpuOrderBySerializer(OrderSerializer):
@@ -393,6 +394,7 @@ class OCPGpuOrderBySerializer(OrderSerializer):
     model = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     vendor_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     model_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    gpu_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
     cost_model_gpu_cost = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     memory = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
@@ -411,8 +413,9 @@ class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
         "sup_total",
         "memory",
         "gpu_count",
-        "vendor_name",
-        "model_name",
+        "vendor",
+        "model",
+        "gpu_name",
         "node",
     )
 

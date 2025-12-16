@@ -178,8 +178,9 @@ class OCPProviderMap(ProviderMap):
                     "pod": {"field": "pod", "operation": "icontains"},
                     "node": {"field": "node", "operation": "icontains"},
                     "vm_name": {"field": "vm_name", "operation": "icontains"},
-                    "vendor": {"field": "vendor_name", "operation": "icontains"},
-                    "model": {"field": "model_name", "operation": "icontains"},
+                    "gpu_vendor": {"field": "vendor_name", "operation": "icontains"},
+                    "gpu_model": {"field": "model_name", "operation": "icontains"},
+                    "gpu_name": {"field": "gpu_name", "operation": "icontains"},
                     "infrastructures": {
                         "field": "cluster_id",
                         "operation": "exact",
@@ -857,7 +858,7 @@ class OCPProviderMap(ProviderMap):
                                 output_field=TextField(),  # Specify output field type
                             ),
                         },
-                        "group_by_options": ["cluster", "project", "vendor", "model"],
+                        "group_by_options": ["cluster", "project", "vendor", "model", "gpu_name"],
                         "tag_column": "all_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -894,10 +895,12 @@ class OCPProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                             "node": F("node"),
-                            "vendor": F("vendor_name"),
-                            "model": F("model_name"),
-                            "memory": Max(Coalesce(F("memory_capacity_gb"), Value(0, output_field=DecimalField()))),
-                            "memory_units": Value("GB", output_field=CharField()),
+                            "gpu_model": F("model_name"),
+                            "gpu_vendor": F("vendor_name"),
+                            "gpu_memory": Max(
+                                Coalesce(F("memory_capacity_gb"), Value(0, output_field=DecimalField()))
+                            ),
+                            "gpu_memory_units": Value("GB", output_field=CharField()),
                             "gpu_count": Sum(
                                 Coalesce(F("gpu_count"), Value(0, output_field=IntegerField())), distinct=True
                             ),
