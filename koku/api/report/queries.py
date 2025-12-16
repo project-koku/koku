@@ -1254,6 +1254,14 @@ class ReportQueryHandler(QueryHandler):
                     reverse=reverse,
                 )
 
+        # Ensure "Others" is always the last item regardless of order_by direction
+        if self._limit:
+            group_by = self._get_group_by()
+            sorted_data = sorted(
+                sorted_data,
+                key=lambda item: any(item.get(f) in ("Others", "Other") for f in group_by),
+            )
+
         return sorted_data
 
     def get_tag_order_by(self, tag_column, tag_value):
