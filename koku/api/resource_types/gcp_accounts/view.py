@@ -3,64 +3,46 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for GCP accounts."""
-from django.conf import settings
 from django.db.models import F
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
-from rest_framework import filters
-from rest_framework import generics
 from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
-from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.common.permissions.gcp_access import GcpProjectPermission
-from api.resource_types.serializers import ResourceTypeSerializer
+from api.resource_types.view import ResourceTypesGenericListView
 from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.openshift.models import OCPGCPCostSummaryByAccountP
 
 
-class GCPAccountView(generics.ListAPIView):
+class GCPAccountView(ResourceTypesGenericListView):
     """API GET list view for GCP accounts."""
 
     queryset = GCPTopology.objects.annotate(**{"value": F("account_id")}).values("value").distinct()
-    serializer_class = ResourceTypeSerializer
     permission_classes = [GcpAccessPermission | GcpProjectPermission]
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
-    ordering = ["value"]
-    search_fields = ["value"]
-    pagination_class = ResourceTypeViewPaginator
+    access_map = {
+        "gcp.account": "account_id__in",
+        "gcp.project": "project_id__in",
+    }
+    ocp_queryset = (
+        OCPGCPCostSummaryByAccountP.objects.annotate(**{"value": F("account_id")}).values("value").distinct()
+    )
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
-        # Reads the users values for GCP account id and displays values related to what the user has access to
-        supported_query_params = ["search", "limit", "openshift"]
+        self.supported_query_params = self.supported_query_params + ["openshift"]
         error_message = {}
-        query_holder = None
-        # Test for only supported query_params
-        if self.request.query_params:
-            for key in self.request.query_params:
-                if key not in supported_query_params:
-                    error_message[key] = [{"Unsupported parameter"}]
-                    return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
-                elif key == "openshift":
-                    openshift = self.request.query_params.get("openshift")
-                    if openshift == "true":
-                        self.queryset = (
-                            OCPGCPCostSummaryByAccountP.objects.annotate(**{"value": F("account_id")})
-                            .values("value")
-                            .distinct()
-                        )
-        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
-            return super().list(request)
-        if request.user.access:
-            gcp_account_access = request.user.access.get("gcp.account", {}).get("read", [])
-            gcp_project_access = request.user.access.get("gcp.project", {}).get("read", [])
-            query_holder = self.queryset
-            if gcp_project_access and gcp_project_access[0] != "*":
-                query_holder = query_holder.filter(project_id__in=gcp_project_access)
-            if gcp_account_access and gcp_account_access[0] != "*":
-                query_holder = query_holder.filter(account_id__in=gcp_account_access)
-            self.queryset = query_holder
+        for key in self.request.query_params:
+            if key not in self.supported_query_params:
+                error_message[key] = [{"Unsupported parameter"}]
+                return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+
+        if self.request.query_params.get("openshift") == "true":
+            self.queryset = self.ocp_queryset
+
+        if not self.has_admin_access(request):
+            self.queryset = self.filter_by_access(self.access_map, request, self.queryset)
+
         return super().list(request)
