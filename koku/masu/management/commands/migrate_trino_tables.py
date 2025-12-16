@@ -24,6 +24,7 @@ import koku.trino_database as trino_db
 from api.utils import DateHelper
 from koku.cache import build_trino_table_exists_key
 from koku.cache import delete_value_from_cache
+from koku.reportdb_accessor import get_report_db_accessor
 from reporting.models import TRINO_MANAGED_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -398,8 +399,8 @@ def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas:
 
 
 def check_table_exists(schema, table):
-    show_tables = f"SHOW TABLES LIKE '{table}'"
-    return run_trino_sql(show_tables, schema)
+    sql = get_report_db_accessor().get_table_check_sql(table_name=table, schema_name=schema)
+    return run_trino_sql(sql, schema)
 
 
 def find_expired_partitions(schema, months, table, source_column_param):
@@ -417,21 +418,14 @@ def find_expired_partitions(schema, months, table, source_column_param):
 
     prefix = f"    {schema}: "
     LOG.info(f"{prefix}Report data expiration is {expiration_date.date()!s} for a {months} month retention policy")
-    expired_partitions_query = f"""
-        SELECT partitions.year, partitions.month, partitions.source
-    FROM (
-        SELECT year as year,
-            month as month,
-            day as day,
-            cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date) as partition_date,
-            {source_column_param} as source
-        FROM  "{table}$partitions"
-    ) as partitions
-    WHERE partitions.partition_date < DATE '{expiration_date.date()!s}'
-    GROUP BY partitions.year, partitions.month, partitions.source
-        """
+    expired_partitions_query = get_report_db_accessor().get_expired_data_ocp_sql(
+        schema_name=schema,
+        table_name=table,
+        source_column=source_column_param,
+        expired_date=str(expiration_date.date())
+    )
     LOG.info(f"{prefix}Finding expired partitions for {table}")
-    return run_trino_sql(textwrap.dedent(expired_partitions_query), schema)
+    return run_trino_sql(expired_partitions_query, schema)
 
 
 def drop_expired_partitions(tables, schemas):
@@ -466,11 +460,13 @@ def drop_expired_partitions(tables, schemas):
                 year, month, source = partition
                 LOG.info(f"{prefix}Removing partition for {source} {year}-{month}...")
                 # Using same query as what we use in db accessor
-                delete_partition_query = f"""
-                            DELETE FROM hive.{schema}.{table}
-                            WHERE {source_column_param} = '{source}'
-                            AND year = '{year}'
-                            AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                            """
-                result = run_trino_sql(textwrap.dedent(delete_partition_query), schema)
+                delete_partition_query = get_report_db_accessor().get_delete_by_month_sql(
+                    schema_name=schema,
+                    table_name=table,
+                    source_column=source_column_param,
+                    source=source,
+                    year=year,
+                    month=month
+                )
+                result = run_trino_sql(delete_partition_query, schema)
                 LOG.info(f"{prefix}DELETE PARTITION result: {result}")
