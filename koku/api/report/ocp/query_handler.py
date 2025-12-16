@@ -152,9 +152,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         for tag_db_name, _, original_tag in self._tag_group_by:
             annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
 
-        if self._report_type == "gpu":
-            annotations["vendor"] = F("vendor_name")
-            annotations["model"] = F("model_name")
+        if special_annotations := self._mapper.report_type_map.get("report_type_annotations"):
+            annotations.update(special_annotations)
 
         return annotations
 

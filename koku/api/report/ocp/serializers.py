@@ -347,6 +347,7 @@ class OCPGpuGroupBySerializer(GroupSerializer):
     project = StringOrListField(child=serializers.CharField(), required=False)
     vendor = StringOrListField(child=serializers.CharField(), required=False)
     model = StringOrListField(child=serializers.CharField(), required=False)
+    gpu_name = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPGpuFilterSerializer(BaseFilterSerializer):

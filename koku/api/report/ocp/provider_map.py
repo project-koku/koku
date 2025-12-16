@@ -14,9 +14,11 @@ from django.db.models import IntegerField
 from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Sum
+from django.db.models import TextField
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import Coalesce
+from django.db.models.functions import Concat
 from django.db.models.functions import JSONObject
 
 from api.models import Provider
@@ -843,6 +845,18 @@ class OCPProviderMap(ProviderMap):
                     },
                     "gpu": {
                         "tables": {"query": OCPGpuSummaryP},
+                        "report_type_annotations": {
+                            "vendor": F("vendor_name"),
+                            "model": F("model_name"),
+                            "gpu_name": Concat(
+                                "vendor_name",
+                                Value("_"),
+                                "model_name",
+                                Value("_"),
+                                "node",
+                                output_field=TextField(),  # Specify output field type
+                            ),
+                        },
                         "group_by_options": ["cluster", "project", "vendor", "model"],
                         "tag_column": "all_labels",
                         "aggregates": {
@@ -891,6 +905,7 @@ class OCPProviderMap(ProviderMap):
                         },
                         "delta_key": {},
                         "filter": [],
+                        "group_by": ["gpu_name"],
                         "cost_units_key": "raw_currency",
                         "sum_columns": [
                             "cost_total",
@@ -1018,7 +1033,6 @@ class OCPProviderMap(ProviderMap):
                         "count_units_key": "Core",
                         "storage_usage_units_key": "GiB-Mo",
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
-                        "vm_name": Max("vm_name"),
                     },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
