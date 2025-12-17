@@ -59,8 +59,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.group_by_options = self._mapper.report_type_map.get("group_by_options") or self._mapper.provider_map.get(
             "group_by_options"
         )
-        if self._report_type == "gpu":
-            self.group_by_alias = {"vendor": "vendor_name", "model": "model_name"}
 
         # We need to overwrite the default pack definitions with these
         # Order of the keys matters in how we see it in the views.
@@ -110,7 +108,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "units": "usage_units",
         }
         ocp_pack_definitions["usage"]["keys"].extend(["data_transfer_in", "data_transfer_out"])
-        ocp_pack_definitions["gpu_memory"] = {"keys": ["memory"], "units": "memory_units"}
+        ocp_pack_definitions["gpu_memory"] = {"keys": ["gpu_memory"], "units": "gpu_memory_units"}
         ocp_pack_definitions["gpu_count"] = {"keys": ["gpu_count"], "units": "gpu_count_units"}
 
         # super() needs to be called after _mapper and _limit is set
@@ -152,9 +150,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         for tag_db_name, _, original_tag in self._tag_group_by:
             annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
 
-        if self._report_type == "gpu":
-            annotations["vendor"] = F("vendor_name")
-            annotations["model"] = F("model_name")
+        if special_annotations := self._mapper.report_type_map.get("report_type_annotations"):
+            annotations.update(special_annotations)
 
         return annotations
 
@@ -254,13 +251,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date", self.order]
 
-            report_annotations = self.report_annotations
-            if hasattr(self, "group_by_alias"):
-                exclude_fields = set(group_by_value) & set(self.group_by_alias.keys())
-                if exclude_fields:
-                    report_annotations = {k: v for k, v in report_annotations.items() if k not in exclude_fields}
-
-            query_data = query.values(*query_group_by).annotate(**report_annotations)
+            query_data = query.values(*query_group_by).annotate(**self.report_annotations)
 
             if is_grouped_by_project(self.parameters):
                 query_data = self._project_classification_annotation(query_data)
