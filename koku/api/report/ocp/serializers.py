@@ -360,7 +360,6 @@ class OCPGpuFilterSerializer(BaseFilterSerializer):
     project = StringOrListField(child=serializers.CharField(), required=False)
     vendor = StringOrListField(child=serializers.CharField(), required=False)
     model = StringOrListField(child=serializers.CharField(), required=False)
-    gpu_name = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPGpuOrderBySerializer(OrderSerializer):
@@ -415,7 +414,6 @@ class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
         "gpu_count",
         "vendor",
         "model",
-        "gpu_name",
         "node",
     )
 

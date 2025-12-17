@@ -59,8 +59,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.group_by_options = self._mapper.report_type_map.get("group_by_options") or self._mapper.provider_map.get(
             "group_by_options"
         )
-        if self._report_type == "gpu":
-            self.group_by_alias = {"gpu_vendor": "vendor_name", "gpu_model": "model_name"}
 
         # We need to overwrite the default pack definitions with these
         # Order of the keys matters in how we see it in the views.

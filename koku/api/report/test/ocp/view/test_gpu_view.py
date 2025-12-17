@@ -73,10 +73,10 @@ class OCPGpuViewTest(IamTestCase):
         url = url + "?" + urlencode(query_params, doseq=True)
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        gpu_values = response.data["data"][0]["clusters"][0]["values"][0]
+        gpu_values = response.data["data"][0]["clusters"][0]["gpu_names"][0]["values"][0]
         self.assertGreater(len(gpu_values), 0, "GPU endpoint should return actual data")
-        self.assertEqual(gpu_values["vendor"], "nvidia", "GPU vendor should be nvidia")
-        self.assertIsInstance(gpu_values["memory"]["value"], Decimal, "GPU memory should be numeric")
+        self.assertEqual(gpu_values["gpu_vendor"], "nvidia", "GPU vendor should be nvidia")
+        self.assertIsInstance(gpu_values["gpu_memory"]["value"], Decimal, "GPU memory should be numeric")
 
     def test_gpu_endpoint_response_structure(self):
         """Test that GPU endpoint returns proper response structure with new fields."""
@@ -96,10 +96,12 @@ class OCPGpuViewTest(IamTestCase):
         # With group_by[model], structure is: data[0]["models"][0]["values"][0]
         models = data["data"][0].get("models", [])
         self.assertGreater(len(models), 0, "Should have model groups when grouping by model")
-        values = models[0].get("values", [])
+        gpu_names = models[0].get("gpu_names", [])
+        self.assertGreater(len(gpu_names), 0, "Should have gpu_names in model group")
+        values = gpu_names[0].get("values", [])
         self.assertGreater(len(values), 0, "Should have values in model group")
         # Verify new fields are present
-        self.assertIn("memory", values[0], "memory field should be present in response")
+        self.assertIn("gpu_memory", values[0], "gpu_memory field should be present in response")
         self.assertIn("gpu_count", values[0], "gpu_count field should be present in response")
 
     def test_gpu_endpoint_order_by_memory(self):

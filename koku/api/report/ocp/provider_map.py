@@ -180,7 +180,6 @@ class OCPProviderMap(ProviderMap):
                     "vm_name": {"field": "vm_name", "operation": "icontains"},
                     "gpu_vendor": {"field": "vendor_name", "operation": "icontains"},
                     "gpu_model": {"field": "model_name", "operation": "icontains"},
-                    "gpu_name": {"field": "gpu_name", "operation": "icontains"},
                     "infrastructures": {
                         "field": "cluster_id",
                         "operation": "exact",
