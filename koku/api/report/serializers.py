@@ -580,7 +580,6 @@ class ParamSerializer(BaseSerializer):
 
 
 class ReportQueryParamSerializer(ParamSerializer):
-
     EXCLUDE_SERIALIZER = ExcludeSerializer
     FILTER_SERIALIZER = FilterSerializer
     GROUP_BY_SERIALIZER = GroupSerializer
