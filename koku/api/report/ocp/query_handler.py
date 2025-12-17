@@ -251,7 +251,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date", self.order]
 
-            query_data = query.alias(**self.report_aliases).values(*query_group_by).annotate(**self.report_annotations)
+            query_data = query.values(*query_group_by).annotate(**self.report_annotations)
 
             if is_grouped_by_project(self.parameters):
                 query_data = self._project_classification_annotation(query_data)
