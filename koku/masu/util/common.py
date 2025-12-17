@@ -415,6 +415,23 @@ def trino_table_exists(schema_name, table_name):
     return bool(table)
 
 
+def source_in_trino_table(schema_name, source_uuid, table_name):
+    """Checks to see if source is in trino table, but first checks
+    to see if trino table exists.
+
+    Returns:
+        int: The count of partitions for the source in the table, or 0 if table doesn't exist.
+    """
+    if trino_table_exists(schema_name, table_name):
+        source_has_partitions = f"""
+            SELECT count(*) from hive.{schema_name}."{table_name}$partitions"
+            WHERE source = '{source_uuid}'
+            """
+        results, _ = execute_trino_query(schema_name, source_has_partitions)
+        return results[0][0] if results else 0
+    return 0
+
+
 def convert_account(account):
     """Process the account string for Unleash checks."""
     if account and not account.startswith("acct") and not account.startswith("org"):
