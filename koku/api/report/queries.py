@@ -1458,7 +1458,11 @@ class ReportQueryHandler(QueryHandler):
             data_frame = pd.concat([data_frame, others_data_frame])
 
         # Replace NaN with 0
-        numeric_columns = [col for col in self.report_annotations if "unit" not in col]
+        fill_exclusions = {"source_uuid"}
+        if self.is_gpu:
+            fill_exclusions.update({"node", "gpu_vendor", "gpu_model"})
+
+        numeric_columns = [col for col in self.report_annotations if "unit" not in col and col not in fill_exclusions]
         fill_values = {column: 0 for column in numeric_columns}
         data_frame = data_frame.fillna(value=fill_values)
 
@@ -1473,6 +1477,8 @@ class ReportQueryHandler(QueryHandler):
         groups = ["date"]
 
         skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "vendor", "model"]
+        if self.is_gpu:
+            skip_columns.extend(["node", "gpu_vendor", "gpu_model"])
         aggs = {
             col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
         }
@@ -1512,6 +1518,9 @@ class ReportQueryHandler(QueryHandler):
         if self.is_gpu:
             others_data_frame["model"] = other_str
             others_data_frame["vendor"] = other_str
+            others_data_frame["node"] = None
+            others_data_frame["gpu_vendor"] = None
+            others_data_frame["gpu_model"] = None
 
         return others_data_frame
 
