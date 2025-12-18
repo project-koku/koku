@@ -374,7 +374,7 @@ class OCPGpuOrderBySerializer(OrderSerializer):
         "date",
         "cost",
         "cost_model_gpu_cost",
-        "memory",
+        "gpu_memory",
         "gpu_count",
     )
     _op_mapping = {
@@ -396,7 +396,7 @@ class OCPGpuOrderBySerializer(OrderSerializer):
     gpu_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
     cost_model_gpu_cost = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    memory = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    gpu_memory = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     gpu_count = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     cost_total = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     infra_total = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
@@ -410,7 +410,7 @@ class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
         "cost_total",
         "infra_total",
         "sup_total",
-        "memory",
+        "gpu_memory",
         "gpu_count",
         "vendor",
         "model",
