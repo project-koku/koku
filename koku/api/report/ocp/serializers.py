@@ -382,8 +382,6 @@ class OCPGpuOrderBySerializer(OrderSerializer):
         "infrastructure": "infra_total",
         "supplementary": "sup_total",
         "cost_model_gpu_cost": "cost_total",
-        # "model": "model_name",
-        # "vendor": "vendor_name",
     }
 
     cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)

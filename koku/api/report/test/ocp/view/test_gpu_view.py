@@ -31,7 +31,7 @@ class OCPGpuViewTest(IamTestCase):
     def test_gpu_endpoint_with_group_by_vendor(self):
         """Test GPU endpoint with group_by vendor (GPU-specific field)."""
         url = reverse("reports-openshift-gpu")
-        query_params = {"group_by[vendor]": "*"}
+        query_params = {"group_by[gpu_vendor]": "*"}
         url = url + "?" + urlencode(query_params, doseq=True)
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -40,7 +40,7 @@ class OCPGpuViewTest(IamTestCase):
     def test_gpu_endpoint_with_group_by_model(self):
         """Test GPU endpoint with group_by model (GPU-specific field)."""
         url = reverse("reports-openshift-gpu")
-        query_params = {"group_by[model]": "*"}
+        query_params = {"group_by[gpu_model]": "*"}
         url = url + "?" + urlencode(query_params, doseq=True)
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -66,7 +66,7 @@ class OCPGpuViewTest(IamTestCase):
         """Test GPU endpoint with combined filter, group_by, and order_by."""
         url = reverse("reports-openshift-gpu")
         query_params = {
-            "filter[vendor]": "nvidia",
+            "filter[gpu_vendor]": "nvidia",
             "group_by[cluster]": "*",
             "order_by[cost]": "desc",
         }
@@ -87,14 +87,14 @@ class OCPGpuViewTest(IamTestCase):
     def test_gpu_endpoint_with_group_by_returns_new_fields(self):
         """Test that GPU endpoint returns memory, and gpu_count fields."""
         url = reverse("reports-openshift-gpu")
-        query_params = {"group_by[model]": "*"}
+        query_params = {"group_by[gpu_model]": "*"}
         url = url + "?" + urlencode(query_params, doseq=True)
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data
 
         # With group_by[model], structure is: data[0]["models"][0]["values"][0]
-        models = data["data"][0].get("models", [])
+        models = data["data"][0].get("gpu_models", [])
         self.assertGreater(len(models), 0, "Should have model groups when grouping by model")
         gpu_names = models[0].get("gpu_names", [])
         self.assertGreater(len(gpu_names), 0, "Should have gpu_names in model group")
@@ -107,7 +107,7 @@ class OCPGpuViewTest(IamTestCase):
     def test_gpu_endpoint_order_by_memory(self):
         """Test that ordering by memory succeeds."""
         url = reverse("reports-openshift-gpu")
-        query_params = {"group_by[model]": "*", "order_by[memory]": "desc"}
+        query_params = {"group_by[gpu_model]": "*", "order_by[memory]": "desc"}
         url = url + "?" + urlencode(query_params, doseq=True)
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -145,7 +145,7 @@ class OCPGpuViewTest(IamTestCase):
     def test_gpu_endpoint_with_filter_limit_and_group_by_vendor(self):
         """Test GPU endpoint with filter[limit] and group_by[vendor] does not crash."""
         url = reverse("reports-openshift-gpu")
-        query_params = {"group_by[vendor]": "*", "filter[limit]": "1"}
+        query_params = {"group_by[gpu_vendor]": "*", "filter[limit]": "1"}
         url = url + "?" + urlencode(query_params, doseq=True)
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -154,7 +154,7 @@ class OCPGpuViewTest(IamTestCase):
     def test_gpu_endpoint_with_filter_limit_and_group_by_model(self):
         """Test GPU endpoint with filter[limit] and group_by[model] does not crash."""
         url = reverse("reports-openshift-gpu")
-        query_params = {"group_by[model]": "*", "filter[limit]": "1"}
+        query_params = {"group_by[gpu_model]": "*", "filter[limit]": "1"}
         url = url + "?" + urlencode(query_params, doseq=True)
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

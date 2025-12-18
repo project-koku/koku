@@ -1472,7 +1472,7 @@ class ReportQueryHandler(QueryHandler):
         drop_columns = group_by + ["rank", "source_uuid"]
         groups = ["date"]
 
-        skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "vendor", "model"]
+        skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "gpu_vendor", "gpu_model"]
         aggs = {
             col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
         }
