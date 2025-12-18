@@ -233,6 +233,27 @@ class AWSReportQueryTest(IamTestCase):
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
+    def test_order_by_others_always_last(self):
+        """Test that 'Others' is always last regardless of order_by direction."""
+        url = "?filter[limit]=1&group_by[account]=*"
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+
+        # Others has highest cost but should still be last with DESC ordering
+        data = [
+            {"account": "account-1", "cost_total": 100, "date": "2024-01"},
+            {"account": "Others", "cost_total": 300, "date": "2024-01"},
+            {"account": "account-2", "cost_total": 200, "date": "2024-01"},
+        ]
+        out_data = handler._order_by(data, ["-date", "-cost_total"])
+        self.assertEqual(out_data[-1]["account"], "Others")
+        self.assertEqual(out_data[0]["account"], "account-2")
+
+        # Test with ASC ordering - Others should still be last
+        out_data_asc = handler._order_by(data, ["-date", "cost_total"])
+        self.assertEqual(out_data_asc[-1]["account"], "Others")
+        self.assertEqual(out_data_asc[0]["account"], "account-1")
+
     def test_get_group_by_with_group_by_and_limit_params(self):
         """Test the _get_group_by method with limit and group by params."""
         expected = ["account"]

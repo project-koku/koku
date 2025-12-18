@@ -1193,7 +1193,7 @@ class ReportQueryHandler(QueryHandler):
             df[sort_term] = df[sort_term].replace({none_sort_term: None})
         return df.to_dict("records")
 
-    def _order_by(self, data, order_fields):
+    def _order_by(self, data, order_fields):  # noqa: C901
         """Order a list of dictionaries by dictionary keys.
 
         Args:
@@ -1253,6 +1253,14 @@ class ReportQueryHandler(QueryHandler):
                     key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
                     reverse=reverse,
                 )
+
+        # Ensure "Others" is always the last item regardless of order_by direction
+        if self._limit:
+            group_by = self._get_group_by()
+            sorted_data = sorted(
+                sorted_data,
+                key=lambda item: any(item.get(f) in ("Others", "Other") for f in group_by),
+            )
 
         return sorted_data
 
