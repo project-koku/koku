@@ -998,10 +998,6 @@ class ReportQueryHandler(QueryHandler):
 
     def _clean_prefix_grouping_labels(self, group: str, all_pack_keys: list[str] = None):
         """build grouping prefix"""
-
-        if "INTERNAL_GPU_PREFIX_" in group:
-            return group.removeprefix("INTERNAL_GPU_PREFIX_")
-
         internal_prefixes = [f"INTERNAL_{self._mapper.tag_column}_"]
         if hasattr(self._mapper, "aws_category_column"):
             internal_prefixes.append(f"INTERNAL_{self._mapper.aws_category_column}_")
