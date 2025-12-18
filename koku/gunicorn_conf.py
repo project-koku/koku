@@ -59,12 +59,6 @@ def post_fork(server, worker):
     UNLEASH_CLIENT.initialize_client()
 
 
-def worker_exit(server, worker):
-    """Called just after a worker has been exited, in the worker process."""
-    worker.log.info("Shutting down UNLEASH_CLIENT for gunicorn worker.")
-    UNLEASH_CLIENT.destroy()
-
-
 def worker_abort(worker):
     """Log the stack trace when a worker timeout occurs"""
     buffer = io.StringIO()

@@ -12,7 +12,6 @@ from celery.schedules import crontab
 from celery.schedules import ParseException
 from celery.signals import celeryd_after_setup
 from celery.signals import worker_process_init
-from celery.signals import worker_process_shutdown
 from django.conf import settings
 from kombu.exceptions import OperationalError
 
@@ -274,14 +273,6 @@ def init_worker(**kwargs):
 
     LOG.debug("Initializing UNLEASH_CLIENT for celery worker.")
     UNLEASH_CLIENT.initialize_client()
-
-
-@worker_process_shutdown.connect
-def shutdown_worker(**kwargs):
-    from koku.feature_flags import UNLEASH_CLIENT
-
-    LOG.debug("Shutting down UNLEASH_CLIENT for celery worker.")
-    UNLEASH_CLIENT.destroy()
 
 
 def is_task_currently_running(task_name, task_id, check_args=None):
