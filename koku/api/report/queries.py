@@ -1516,11 +1516,9 @@ class ReportQueryHandler(QueryHandler):
         if self.is_openshift:
             others_data_frame["clusters"] = [clusters] * len(others_data_frame)
         if self.is_gpu:
-            others_data_frame["model"] = other_str
-            others_data_frame["vendor"] = other_str
-            others_data_frame["node"] = None
-            others_data_frame["gpu_vendor"] = None
-            others_data_frame["gpu_model"] = None
+            others_data_frame["node"] = other_str
+            others_data_frame["gpu_vendor"] = other_str
+            others_data_frame["gpu_model"] = other_str
 
         return others_data_frame
 
