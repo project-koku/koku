@@ -619,6 +619,8 @@ class OCPAWSReportViewTest(IamTestCase):
         previous_usage = data[0].get("nodes", [])[0].get("values", [])[0].get("usage", {}).get("value")
         self.assertIsNotNone(previous_usage)
         for entry in data[0].get("nodes", []):
+            if entry.get("node", "") in ("Others", "Other"):
+                continue
             current_usage = entry.get("values", [])[0].get("usage", {}).get("value")
             self.assertTrue(current_usage <= previous_usage)
             previous_usage = current_usage

@@ -519,6 +519,52 @@ class CommonUtilTests(MasuTestCase):
         result = common_utils.trino_table_exists(self.schema, "table_name")
         self.assertFalse(result)
 
+    @patch("masu.util.common.execute_trino_query")
+    @patch("masu.util.common.trino_table_exists")
+    def test_source_in_trino_table_table_exists_source_found(self, mock_table_exists, mock_query):
+        """Test source_in_trino_table when table exists and source is found."""
+        mock_table_exists.return_value = True
+        mock_query.return_value = ([[5]], "")  # Count of 5 means source found with 5 partitions
+        source_uuid = "12345678-1234-1234-1234-123456789012"
+        result = common_utils.source_in_trino_table(self.schema, source_uuid, "test_table")
+        self.assertEqual(result, 5)
+        self.assertTrue(result)  # Verify it's truthy
+        mock_table_exists.assert_called_once_with(self.schema, "test_table")
+        mock_query.assert_called_once()
+
+    @patch("masu.util.common.execute_trino_query")
+    @patch("masu.util.common.trino_table_exists")
+    def test_source_in_trino_table_table_exists_source_not_found(self, mock_table_exists, mock_query):
+        """Test source_in_trino_table when table exists but source is not found."""
+        mock_table_exists.return_value = True
+        mock_query.return_value = ([[0]], "")  # Count of 0 means source not found
+        source_uuid = "12345678-1234-1234-1234-123456789012"
+        result = common_utils.source_in_trino_table(self.schema, source_uuid, "test_table")
+        self.assertEqual(result, 0)
+        self.assertFalse(result)  # Verify it's falsy
+
+    @patch("masu.util.common.execute_trino_query")
+    @patch("masu.util.common.trino_table_exists")
+    def test_source_in_trino_table_table_does_not_exist(self, mock_table_exists, mock_query):
+        """Test source_in_trino_table when table does not exist."""
+        mock_table_exists.return_value = False
+        source_uuid = "12345678-1234-1234-1234-123456789012"
+        result = common_utils.source_in_trino_table(self.schema, source_uuid, "test_table")
+        self.assertEqual(result, 0)
+        self.assertFalse(result)  # Verify it's falsy
+        mock_query.assert_not_called()
+
+    @patch("masu.util.common.execute_trino_query")
+    @patch("masu.util.common.trino_table_exists")
+    def test_source_in_trino_table_empty_results(self, mock_table_exists, mock_query):
+        """Test source_in_trino_table when query returns empty results."""
+        mock_table_exists.return_value = True
+        mock_query.return_value = ([], "")  # Empty results
+        source_uuid = "12345678-1234-1234-1234-123456789012"
+        result = common_utils.source_in_trino_table(self.schema, source_uuid, "test_table")
+        self.assertEqual(result, 0)
+        self.assertFalse(result)  # Verify it's falsy
+
     def test_convert_account(self):
         """Test that the correct account string is returned."""
         account_str = "1234567"

@@ -1324,5 +1324,164 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_trino_exec.assert_not_called()
 
 
-class OCPReportDBAccessorGPUUITest:
-    """Test Cases for GPU UI summary table population (independent from setUp dependencies)."""
+class OCPReportDBAccessorGPUUITest(MasuTestCase):
+    """Test Cases for GPU UI summary table population."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        super().setUp()
+        self.accessor = OCPReportDBAccessor(schema=self.schema)
+
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    def test_populate_gpu_ui_summary_table_with_usage_only_no_gpu_data(self, mock_source_in_trino):
+        """Test that GPU UI table is not populated when source has no GPU data in Trino."""
+        mock_source_in_trino.return_value = 0  # No GPU data (count is 0)
+        sql_params = {
+            "start_date": self.dh.this_month_start.date(),
+            "end_date": self.dh.this_month_end.date(),
+            "source_uuid": self.ocp_provider.uuid,
+            "year": "2024",
+            "month": "12",
+        }
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_trino_exec,
+            self.accessor as acc,
+        ):
+            acc._populate_gpu_ui_summary_table_with_usage_only(sql_params)
+            mock_trino_exec.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    def test_populate_gpu_ui_summary_table_with_usage_only_has_cost_model(
+        self, mock_source_in_trino, mock_cost_model_accessor
+    ):
+        """Test that GPU UI table is not populated when source has GPU cost model configured."""
+        mock_source_in_trino.return_value = 5  # Source has GPU data (5 partitions)
+        mock_cost_model_instance = Mock()
+        mock_cost_model_instance.metric_to_tag_params_map = {
+            metric_constants.OCP_GPU_MONTH: [{"rate_type": "Infrastructure", "tag_key": "nvidia"}]
+        }
+        mock_cost_model_accessor.return_value.__enter__ = Mock(return_value=mock_cost_model_instance)
+        mock_cost_model_accessor.return_value.__exit__ = Mock(return_value=False)
+
+        sql_params = {
+            "start_date": self.dh.this_month_start.date(),
+            "end_date": self.dh.this_month_end.date(),
+            "source_uuid": self.ocp_provider.uuid,
+            "year": "2024",
+            "month": "12",
+        }
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_trino_exec,
+            self.accessor as acc,
+        ):
+            acc._populate_gpu_ui_summary_table_with_usage_only(sql_params)
+            mock_trino_exec.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.get_cluster_alias_from_cluster_id")
+    @patch("masu.database.ocp_report_db_accessor.get_cluster_id_from_provider")
+    @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    def test_populate_gpu_ui_summary_table_with_usage_only_no_cost_model(
+        self,
+        mock_source_in_trino,
+        mock_cost_model_accessor,
+        mock_get_cluster_id,
+        mock_get_cluster_alias,
+    ):
+        """Test that GPU UI table is populated when source has GPU data but no cost model."""
+        mock_source_in_trino.return_value = 3  # Source has GPU data (3 partitions)
+        mock_cost_model_instance = Mock()
+        mock_cost_model_instance.metric_to_tag_params_map = {}  # No GPU cost model
+        mock_cost_model_accessor.return_value.__enter__ = Mock(return_value=mock_cost_model_instance)
+        mock_cost_model_accessor.return_value.__exit__ = Mock(return_value=False)
+        mock_get_cluster_id.return_value = "test-cluster-id"
+        mock_get_cluster_alias.return_value = "test-cluster-alias"
+
+        sql_params = {
+            "start_date": self.dh.this_month_start.date(),
+            "end_date": self.dh.this_month_end.date(),
+            "source_uuid": self.ocp_provider.uuid,
+            "year": "2024",
+            "month": "12",
+        }
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_trino_exec,
+            self.accessor as acc,
+        ):
+            acc._populate_gpu_ui_summary_table_with_usage_only(sql_params)
+            mock_trino_exec.assert_called_once()
+
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    def test_populate_gpu_ui_summary_table_with_usage_only_source_in_trino_returns_zero(self, mock_source_in_trino):
+        """Test that GPU UI table is not populated when source_in_trino_table returns zero count."""
+        mock_source_in_trino.return_value = 0  # Source has no GPU data (count is 0)
+        sql_params = {
+            "start_date": self.dh.this_month_start.date(),
+            "end_date": self.dh.this_month_end.date(),
+            "source_uuid": self.ocp_provider.uuid,
+            "year": "2024",
+            "month": "12",
+        }
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_trino_exec,
+            self.accessor as acc,
+        ):
+            acc._populate_gpu_ui_summary_table_with_usage_only(sql_params)
+            # With the fix, 0 is now falsy and function returns early
+            mock_trino_exec.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_populate_virtualization_ui_summary_table_uses_source_in_trino_table(
+        self, mock_psql, mock_schema_exists, mock_source_in_trino, mock_trino_table_exists
+    ):
+        """Test that _populate_virtualization_ui_summary_table uses source_in_trino_table."""
+        mock_trino_table_exists.return_value = True
+        mock_source_in_trino.return_value = 1  # Source found in VM table (count is 1)
+        sql_params = {
+            "start_date": "2024-01-01",
+            "end_date": "2024-01-31",
+            "source_uuid": self.ocp_provider.uuid,
+            "year": "2024",
+            "month": "01",
+        }
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query"),
+            self.accessor as acc,
+        ):
+            acc._populate_virtualization_ui_summary_table(sql_params)
+            # Verify source_in_trino_table was called for VM usage table
+            mock_source_in_trino.assert_called()
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_populate_virtualization_ui_summary_table_vm_table_not_in_source(
+        self, mock_psql, mock_schema_exists, mock_source_in_trino, mock_trino_table_exists
+    ):
+        """Test that _populate_virtualization_ui_summary_table uses fallback when VM table has no source data."""
+        mock_trino_table_exists.return_value = True
+        mock_source_in_trino.return_value = 0  # Source NOT found in VM table (count is 0)
+        sql_params = {
+            "start_date": "2024-01-01",
+            "end_date": "2024-01-31",
+            "source_uuid": self.ocp_provider.uuid,
+            "year": "2024",
+            "month": "01",
+        }
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query"),
+            patch("masu.database.ocp_report_db_accessor.pkgutil.get_data") as mock_get_data,
+            self.accessor as acc,
+        ):
+            mock_get_data.return_value = b"SELECT 1"
+            acc._populate_virtualization_ui_summary_table(sql_params)
+            # Verify that the fallback SQL file is used when source is not in VM table
+            calls = mock_get_data.call_args_list
+            # Should use populate_vm_tmp_table.sql (fallback) instead of populate_vm_tmp_table_with_vm_report.sql
+            sql_files_used = [str(call) for call in calls]
+            self.assertTrue(any("populate_vm_tmp_table.sql" in s for s in sql_files_used))

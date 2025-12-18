@@ -1644,9 +1644,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertGreater(len(first_entry["models"]), 0)
         first_model_group = first_entry["models"][0]
         self.assertIn("model", first_model_group)
-        self.assertIn("values", first_model_group)
-        self.assertGreater(len(first_model_group["values"]), 0)
-        first_value = first_model_group["values"][0]
+        self.assertIn("gpu_names", first_model_group)
+        second_model_group = first_model_group["gpu_names"][0]
+        self.assertGreater(len(second_model_group["values"]), 0)
+        first_value = second_model_group["values"][0]
         self.assertIn("model", first_value)
 
     def test_gpu_group_by_vendor_returns_grouped_data(self):
@@ -1675,9 +1676,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertGreater(len(first_entry["vendors"]), 0)
         first_vendor_group = first_entry["vendors"][0]
         self.assertIn("vendor", first_vendor_group)
-        self.assertIn("values", first_vendor_group)
-        self.assertGreater(len(first_vendor_group["values"]), 0)
-        first_value = first_vendor_group["values"][0]
+        self.assertIn("gpu_names", first_vendor_group)
+        second_vendor_group = first_vendor_group["gpu_names"][0]
+        self.assertGreater(len(second_vendor_group["values"]), 0)
+        first_value = second_vendor_group["values"][0]
         self.assertIn("vendor", first_value)
 
     def test_gpu_order_by_cost_with_group_by_model_works(self):
