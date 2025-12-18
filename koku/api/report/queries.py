@@ -1220,7 +1220,7 @@ class ReportQueryHandler(QueryHandler):
             "storage_class",
             "request_cpu",
             "request_memory",
-            "memory",
+            "gpu_memory",
             "gpu_count",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
