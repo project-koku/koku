@@ -710,7 +710,7 @@ class OCPGpuOrderBySerializerTest(TestCase):
             "gpu_model",
             "cost_model_gpu_cost",
             "cost",
-            "memory",
+            "gpu_memory",
             "gpu_count",
         ]
         for field in valid_fields:
@@ -747,12 +747,12 @@ class OCPGpuQueryParamSerializerTest(IamTestCase):
 
     def test_gpu_order_by_allowlist_fields(self):
         """Test that memory, and gpu_count are in order_by_allowlist."""
-        self.assertIn("memory", OCPGpuQueryParamSerializer.order_by_allowlist)
+        self.assertIn("gpu_memory", OCPGpuQueryParamSerializer.order_by_allowlist)
         self.assertIn("gpu_count", OCPGpuQueryParamSerializer.order_by_allowlist)
 
     def test_gpu_query_params_order_by_new_fields(self):
-        """Test GPU query params with new order_by fields (memory, gpu_count)."""
-        for field in ["memory", "gpu_count"]:
+        """Test GPU query params with new order_by fields (gpu_memory, gpu_count)."""
+        for field in ["gpu_memory", "gpu_count"]:
             query_params = {
                 "filter": {"gpu_vendor": ["nvidia"]},
                 "group_by": {"gpu_model": ["*"]},
