@@ -1472,7 +1472,7 @@ class ReportQueryHandler(QueryHandler):
         drop_columns = group_by + ["rank", "source_uuid"]
         groups = ["date"]
 
-        skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "vendor", "model"]
+        skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "gpu_vendor", "gpu_model"]
         aggs = {
             col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
         }
@@ -1510,8 +1510,8 @@ class ReportQueryHandler(QueryHandler):
         if self.is_openshift:
             others_data_frame["clusters"] = [clusters] * len(others_data_frame)
         if self.is_gpu:
-            others_data_frame["model"] = other_str
-            others_data_frame["vendor"] = other_str
+            others_data_frame["gpu_model"] = other_str
+            others_data_frame["gpu_vendor"] = other_str
 
         return others_data_frame
 

@@ -1547,7 +1547,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             test_model = models[0]
 
         url = reverse("reports-openshift-gpu")
-        params = {"filter[model]": test_model}
+        params = {"filter[gpu_model]": test_model}
         url = f"{url}?{urlencode(params)}"
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -1558,8 +1558,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         # Verify that response includes the filter in meta
         self.assertIn("meta", data)
         self.assertIn("filter", data["meta"])
-        self.assertIn("model", data["meta"]["filter"])
-        self.assertEqual(data["meta"]["filter"]["model"], [test_model])
+        self.assertIn("gpu_model", data["meta"]["filter"])
+        self.assertEqual(data["meta"]["filter"]["gpu_model"], [test_model])
 
         # Verify data is present (not empty)
         self.assertIn("data", data)
@@ -1575,7 +1575,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             test_vendor = vendors[0]
 
         url = reverse("reports-openshift-gpu")
-        params = {"filter[vendor]": test_vendor}
+        params = {"filter[gpu_vendor]": test_vendor}
         url = f"{url}?{urlencode(params)}"
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -1586,8 +1586,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         # Verify that response includes the filter in meta
         self.assertIn("meta", data)
         self.assertIn("filter", data["meta"])
-        self.assertIn("vendor", data["meta"]["filter"])
-        self.assertEqual(data["meta"]["filter"]["vendor"], [test_vendor])
+        self.assertIn("gpu_vendor", data["meta"]["filter"])
+        self.assertEqual(data["meta"]["filter"]["gpu_vendor"], [test_vendor])
 
     def test_gpu_multiple_model_filters_use_or_logic(self):
         """Test that multiple GPU model filter values use OR logic."""
@@ -1601,7 +1601,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         # Query with multiple models
         url = reverse("reports-openshift-gpu")
-        params = [("filter[model]", model1), ("filter[model]", model2)]
+        params = [("filter[gpu_model]", model1), ("filter[gpu_model]", model2)]
         url = f"{url}?{urlencode(params)}"
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -1612,15 +1612,15 @@ class OCPReportQueryHandlerTest(IamTestCase):
         # Verify both models are in the filter
         self.assertIn("meta", data)
         self.assertIn("filter", data["meta"])
-        self.assertIn("model", data["meta"]["filter"])
-        filter_models = data["meta"]["filter"]["model"]
+        self.assertIn("gpu_model", data["meta"]["filter"])
+        filter_models = data["meta"]["filter"]["gpu_model"]
         self.assertIn(model1, filter_models)
         self.assertIn(model2, filter_models)
 
     def test_gpu_group_by_model_returns_grouped_data(self):
         """Test that GPU group_by model returns data grouped by model."""
         url = reverse("reports-openshift-gpu")
-        params = {"group_by[model]": "*"}
+        params = {"group_by[gpu_model]": "*"}
         url = f"{url}?{urlencode(params)}"
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -1631,7 +1631,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         # Verify group_by is in meta
         self.assertIn("meta", data)
         self.assertIn("group_by", data["meta"])
-        self.assertIn("model", data["meta"]["group_by"])
+        self.assertIn("gpu_model", data["meta"]["group_by"])
 
         # Verify data structure has grouped values
         self.assertIn("data", data)
@@ -1640,20 +1640,20 @@ class OCPReportQueryHandlerTest(IamTestCase):
         first_entry = data["data"][0]
         self.assertIn("date", first_entry)
         # With group_by[model], structure is: data[0]["models"][0]["values"][0]
-        self.assertIn("models", first_entry)
-        self.assertGreater(len(first_entry["models"]), 0)
-        first_model_group = first_entry["models"][0]
-        self.assertIn("model", first_model_group)
+        self.assertIn("gpu_models", first_entry)
+        self.assertGreater(len(first_entry["gpu_models"]), 0)
+        first_model_group = first_entry["gpu_models"][0]
+        self.assertIn("gpu_model", first_model_group)
         self.assertIn("gpu_names", first_model_group)
         second_model_group = first_model_group["gpu_names"][0]
         self.assertGreater(len(second_model_group["values"]), 0)
         first_value = second_model_group["values"][0]
-        self.assertIn("model", first_value)
+        self.assertIn("gpu_model", first_value)
 
     def test_gpu_group_by_vendor_returns_grouped_data(self):
         """Test that GPU group_by vendor returns data grouped by vendor."""
         url = reverse("reports-openshift-gpu")
-        params = {"group_by[vendor]": "*"}
+        params = {"group_by[gpu_vendor]": "*"}
         url = f"{url}?{urlencode(params)}"
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -1664,7 +1664,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         # Verify group_by is in meta
         self.assertIn("meta", data)
         self.assertIn("group_by", data["meta"])
-        self.assertIn("vendor", data["meta"]["group_by"])
+        self.assertIn("gpu_vendor", data["meta"]["group_by"])
 
         # Verify data structure has grouped values
         self.assertIn("data", data)
@@ -1672,20 +1672,20 @@ class OCPReportQueryHandlerTest(IamTestCase):
         # With group_by[vendor], structure is: data[0]["vendors"][0]["values"][0]
         first_entry = data["data"][0]
         self.assertIn("date", first_entry)
-        self.assertIn("vendors", first_entry)
-        self.assertGreater(len(first_entry["vendors"]), 0)
-        first_vendor_group = first_entry["vendors"][0]
-        self.assertIn("vendor", first_vendor_group)
+        self.assertIn("gpu_vendors", first_entry)
+        self.assertGreater(len(first_entry["gpu_vendors"]), 0)
+        first_vendor_group = first_entry["gpu_vendors"][0]
+        self.assertIn("gpu_vendor", first_vendor_group)
         self.assertIn("gpu_names", first_vendor_group)
         second_vendor_group = first_vendor_group["gpu_names"][0]
         self.assertGreater(len(second_vendor_group["values"]), 0)
         first_value = second_vendor_group["values"][0]
-        self.assertIn("vendor", first_value)
+        self.assertIn("gpu_vendor", first_value)
 
     def test_gpu_order_by_cost_with_group_by_model_works(self):
         """Test that GPU order_by cost with group_by model works correctly."""
         url = reverse("reports-openshift-gpu")
-        params = {"group_by[model]": "*", "order_by[cost]": "desc"}
+        params = {"group_by[gpu_model]": "*", "order_by[cost]": "desc"}
         url = f"{url}?{urlencode(params)}"
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -1697,7 +1697,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIn("meta", data)
         self.assertIn("group_by", data["meta"])
         self.assertIn("order_by", data["meta"])
-        self.assertIn("model", data["meta"]["group_by"])
+        self.assertIn("gpu_model", data["meta"]["group_by"])
 
     def test_gpu_filter_and_group_by_combination(self):
         """Test that GPU filter and group_by work together correctly."""
@@ -1709,7 +1709,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             test_model = models[0]
 
         url = reverse("reports-openshift-gpu")
-        params = {"filter[model]": test_model, "group_by[cluster]": "*"}
+        params = {"filter[gpu_model]": test_model, "group_by[cluster]": "*"}
         url = f"{url}?{urlencode(params)}"
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -1721,7 +1721,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIn("meta", data)
         self.assertIn("filter", data["meta"])
         self.assertIn("group_by", data["meta"])
-        self.assertEqual(data["meta"]["filter"]["model"], [test_model])
+        self.assertEqual(data["meta"]["filter"]["gpu_model"], [test_model])
         self.assertIn("cluster", data["meta"]["group_by"])
 
     def test_gpu_filter_case_insensitive(self):
@@ -1733,14 +1733,14 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         # Test with uppercase
         url1 = reverse("reports-openshift-gpu")
-        params1 = {"filter[model]": test_model.upper()}
+        params1 = {"filter[gpu_model]": test_model.upper()}
         url1 = f"{url1}?{urlencode(params1)}"
         client = APIClient()
         response1 = client.get(url1, **self.headers)
 
         # Test with lowercase
         url2 = reverse("reports-openshift-gpu")
-        params2 = {"filter[model]": test_model.lower()}
+        params2 = {"filter[gpu_model]": test_model.lower()}
         url2 = f"{url2}?{urlencode(params2)}"
         response2 = client.get(url2, **self.headers)
 
@@ -1760,7 +1760,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_gpu_invalid_filter_value_returns_empty(self):
         """Test that GPU filtering by non-existent value returns empty results."""
         url = reverse("reports-openshift-gpu")
-        params = {"filter[model]": "NONEXISTENT_MODEL_XYZ_123"}
+        params = {"filter[gpu_model]": "NONEXISTENT_MODEL_XYZ_123"}
         url = f"{url}?{urlencode(params)}"
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -1777,7 +1777,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test that _calculate_unique_gpu_count returns empty list for empty input."""
         # Test via API with a filter that returns no results
         url = reverse("reports-openshift-gpu")
-        params = {"filter[model]": "NONEXISTENT_MODEL_FOR_EMPTY_TEST_XYZ"}
+        params = {"filter[gpu_model]": "NONEXISTENT_MODEL_FOR_EMPTY_TEST_XYZ"}
         url = f"{url}?{urlencode(params)}"
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -1813,7 +1813,11 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             # Test via API
             url = reverse("reports-openshift-gpu")
-            params = {"group_by[model]": "*", "filter[time_scope_value]": "-1", "filter[time_scope_units]": "month"}
+            params = {
+                "group_by[gpu_model]": "*",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+            }
             url = f"{url}?{urlencode(params)}"
             client = APIClient()
             response = client.get(url, **self.headers)
@@ -1824,8 +1828,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
             # Verify gpu_count values match expected
             for entry in data.get("data", []):
                 for value in entry.get("values", []):
-                    model = value.get("model")
-                    vendor = value.get("vendor")
+                    model = value.get("gpu_model")
+                    vendor = value.get("gpu_vendor")
                     gpu_count = value.get("gpu_count", {})
                     if isinstance(gpu_count, dict):
                         gpu_count = gpu_count.get("value", 0)
@@ -1863,7 +1867,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             # Test via API with group_by project
             url = reverse("reports-openshift-gpu")
             params = {
-                "group_by[model]": "*",
+                "group_by[gpu_model]": "*",
                 "group_by[project]": "*",
                 "filter[time_scope_value]": "-1",
                 "filter[time_scope_units]": "month",
@@ -1880,8 +1884,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 for project_entry in entry.get("projects", []):
                     project = project_entry.get("project")
                     for value in project_entry.get("values", []):
-                        model = value.get("model")
-                        vendor = value.get("vendor")
+                        model = value.get("gpu_model")
+                        vendor = value.get("gpu_vendor")
                         gpu_count = value.get("gpu_count", {})
                         if isinstance(gpu_count, dict):
                             gpu_count = gpu_count.get("value", 0)
@@ -1902,8 +1906,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             url = reverse("reports-openshift-gpu")
             params = {
-                "group_by[model]": "*",
-                "group_by[vendor]": "*",
+                "group_by[gpu_model]": "*",
+                "group_by[gpu_vendor]": "*",
                 "filter[time_scope_value]": "-1",
                 "filter[time_scope_units]": "month",
             }
@@ -1927,7 +1931,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             url = reverse("reports-openshift-gpu")
             params = {
-                "group_by[model]": "*",
+                "group_by[gpu_model]": "*",
                 "filter[resolution]": "monthly",
                 "filter[time_scope_value]": "-2",
                 "filter[time_scope_units]": "month",
@@ -1941,7 +1945,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             # With monthly resolution, data should still have correct gpu_count
             for entry in data.get("data", []):
-                for model_entry in entry.get("models", []):
+                for model_entry in entry.get("gpu_models", []):
                     for value in model_entry.get("values", []):
                         gpu_count = value.get("gpu_count", {})
                         if isinstance(gpu_count, dict):
@@ -1975,7 +1979,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             # Test via API with group_by vendor
             url = reverse("reports-openshift-gpu")
             params = {
-                "group_by[vendor]": "*",
+                "group_by[gpu_vendor]": "*",
                 "filter[time_scope_value]": "-1",
                 "filter[time_scope_units]": "month",
             }
@@ -1988,8 +1992,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             # Verify structure and that gpu_count values are present
             for entry in data.get("data", []):
-                for vendor_entry in entry.get("vendors", []):
-                    vendor = vendor_entry.get("vendor")
+                for vendor_entry in entry.get("gpu_vendors", []):
+                    vendor = vendor_entry.get("gpu_vendor")
                     for value in vendor_entry.get("values", []):
                         gpu_count = value.get("gpu_count", {})
                         self.assertIsInstance(gpu_count, dict, "gpu_count should be a dict")
@@ -2076,7 +2080,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             url = reverse("reports-openshift-gpu")
             params = {
-                "group_by[model]": "*",
+                "group_by[gpu_model]": "*",
                 "filter[time_scope_value]": "-1",
                 "filter[time_scope_units]": "month",
             }
