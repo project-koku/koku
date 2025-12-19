@@ -178,8 +178,8 @@ class OCPProviderMap(ProviderMap):
                     "pod": {"field": "pod", "operation": "icontains"},
                     "node": {"field": "node", "operation": "icontains"},
                     "vm_name": {"field": "vm_name", "operation": "icontains"},
-                    "vendor": {"field": "vendor_name", "operation": "icontains"},
-                    "model": {"field": "model_name", "operation": "icontains"},
+                    "gpu_vendor": {"field": "vendor_name", "operation": "icontains"},
+                    "gpu_model": {"field": "model_name", "operation": "icontains"},
                     "infrastructures": {
                         "field": "cluster_id",
                         "operation": "exact",
@@ -846,8 +846,8 @@ class OCPProviderMap(ProviderMap):
                     "gpu": {
                         "tables": {"query": OCPGpuSummaryP},
                         "report_type_annotations": {
-                            "vendor": F("vendor_name"),
-                            "model": F("model_name"),
+                            "gpu_vendor": F("vendor_name"),
+                            "gpu_model": F("model_name"),
                             "gpu_name": Concat(
                                 "vendor_name",
                                 Value("_"),
@@ -857,7 +857,7 @@ class OCPProviderMap(ProviderMap):
                                 output_field=TextField(),  # Specify output field type
                             ),
                         },
-                        "group_by_options": ["cluster", "project", "vendor", "model", "gpu_name"],
+                        "group_by_options": ["cluster", "project", "gpu_vendor", "gpu_model", "gpu_name"],
                         "tag_column": "all_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
