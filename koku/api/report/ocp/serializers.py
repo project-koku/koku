@@ -341,25 +341,25 @@ class OCPVirtualMachinesQueryParamSerializer(OCPQueryParamSerializer):
 class OCPGpuGroupBySerializer(GroupSerializer):
     """Serializer for handling GPU query parameter group_by."""
 
-    _opfields = ("cluster", "node", "project", "vendor", "model")
+    _opfields = ("cluster", "node", "project", "gpu_vendor", "gpu_model")
 
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
-    vendor = StringOrListField(child=serializers.CharField(), required=False)
-    model = StringOrListField(child=serializers.CharField(), required=False)
+    gpu_vendor = StringOrListField(child=serializers.CharField(), required=False)
+    gpu_model = StringOrListField(child=serializers.CharField(), required=False)
     gpu_name = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPGpuFilterSerializer(BaseFilterSerializer):
     """Serializer for handling GPU query parameter filter."""
 
-    _opfields = ("cluster", "node", "project", "vendor", "model")
+    _opfields = ("cluster", "node", "project", "gpu_vendor", "gpu_model")
 
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
-    vendor = StringOrListField(child=serializers.CharField(), required=False)
-    model = StringOrListField(child=serializers.CharField(), required=False)
+    gpu_vendor = StringOrListField(child=serializers.CharField(), required=False)
+    gpu_model = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPGpuOrderBySerializer(OrderSerializer):
@@ -369,8 +369,8 @@ class OCPGpuOrderBySerializer(OrderSerializer):
         "cluster",
         "node",
         "project",
-        "vendor",
-        "model",
+        "gpu_vendor",
+        "gpu_model",
         "date",
         "cost",
         "cost_model_gpu_cost",
@@ -382,17 +382,13 @@ class OCPGpuOrderBySerializer(OrderSerializer):
         "infrastructure": "infra_total",
         "supplementary": "sup_total",
         "cost_model_gpu_cost": "cost_total",
-        "model": "model_name",
-        "vendor": "vendor_name",
     }
 
     cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    vendor = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    model = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    vendor_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    model_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    gpu_vendor = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    gpu_model = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     gpu_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
     cost_model_gpu_cost = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
@@ -412,8 +408,8 @@ class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
         "sup_total",
         "gpu_memory",
         "gpu_count",
-        "vendor",
-        "model",
+        "gpu_vendor",
+        "gpu_model",
         "node",
     )
 
