@@ -144,7 +144,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params["cluster_alias"] = get_cluster_alias_from_cluster_id(cluster_id)
         sql_params["source_uuid"] = str(sql_params["source_uuid"])
         populate_gpu_usage_info = pkgutil.get_data(
-            "masu.database", "trino_sql/openshift/ui_summary/reporting_ocp_gpu_summary_p_usage_only.sql"
+            "masu.database", f"{self.get_sql_folder_name()}/openshift/ui_summary/reporting_ocp_gpu_summary_p_usage_only.sql"
         )
         populate_gpu_usage_info = populate_gpu_usage_info.decode("utf-8")
         self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
@@ -177,7 +177,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         ):
             population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
         populate_temp_table_sql = pkgutil.get_data(
-            "masu.database", f"trino_sql/openshift/{population_temp_table_file}"
+            "masu.database", f"{self.get_sql_folder_name()}/openshift/{population_temp_table_file}"
         )
         populate_temp_table_sql = populate_temp_table_sql.decode("utf8")
         self._execute_trino_multipart_sql_query(populate_temp_table_sql, bind_params=sql_params)
@@ -263,7 +263,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             db_results = {}
             if check_flag:
                 sql = pkgutil.get_data(
-                    "masu.database", f"trino_sql/{source_type.lower()}/reporting_ocpinfrastructure_provider_map.sql"
+                    "masu.database", f"{self.get_sql_folder_name()}/{source_type.lower()}/reporting_ocpinfrastructure_provider_map.sql"
                 )
                 sql = sql.decode("utf-8")
 
@@ -394,7 +394,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_hive_partition_by_day(days_tup, source, year, month)
 
-        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocpusagelineitem_daily_summary.sql")
+        sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/openshift/reporting_ocpusagelineitem_daily_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "uuid": source,
@@ -630,7 +630,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "Cluster": "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql",
             "PVC": "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim.sql",
             "OCP_VM": "sql/openshift/cost_model/monthly_cost_virtual_machine.sql",
-            "OCP_VM_CORE": "trino_sql/openshift/cost_model/monthly_vm_core.sql",
+            "OCP_VM_CORE": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_vm_core.sql",
         }
         cost_type_file = cost_type_file_mapping.get(cost_type)
         if not cost_type_file:
@@ -686,7 +686,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         insert_sql = pkgutil.get_data("masu.database", cost_type_file)
         insert_sql = insert_sql.decode("utf-8")
         LOG.info(log_json(msg="populating monthly costs", context=ctx))
-        if "trino_sql/" in cost_type_file:
+        if self.get_sql_folder_name() in cost_type_file:
             start_date = DateHelper().parse_to_date(sql_params["start_date"])
             sql_params["year"] = start_date.strftime("%Y")
             sql_params["month"] = start_date.strftime("%m")
@@ -766,12 +766,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
         vm_usage_metadata = {
             metric_constants.OCP_VM_HOUR: {
-                "file_path": "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_cost_virtual_machine.sql",
                 "log_msg": "populating virtual machine hourly costs",
                 "metric_params": {"use_fractional_hours": vm_table_exists},
             },
             metric_constants.OCP_VM_CORE_HOUR: {
-                "file_path": "trino_sql/openshift/cost_model/hourly_vm_core.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_vm_core.sql",
                 "log_msg": "populating virtual machine core hourly costs",
             },
         }
@@ -1356,7 +1356,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         metric_metadata = {
             metric_constants.OCP_VM_HOUR: {
                 "log_msg": "populating hourly VM tag based costs",
-                "file_path": "trino_sql/openshift/cost_model/hourly_cost_vm_tag_based.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_cost_vm_tag_based.sql",
                 "metric_params": {"use_fractional_hours": vm_table_exists},
             },
             metric_constants.OCP_VM_MONTH: {
@@ -1366,21 +1366,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             },
             metric_constants.OCP_VM_CORE_MONTH: {
                 "log_msg": "populating monthly VM Core based costs",
-                "file_path": "trino_sql/openshift/cost_model/monthly_vm_core_tag_based.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_vm_core_tag_based.sql",
                 "metric_params": monthly_params,
             },
             metric_constants.OCP_VM_CORE_HOUR: {
                 "log_msg": "populating hourly VM Core based costs",
-                "file_path": "trino_sql/openshift/cost_model/hourly_vm_core_tag_based.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_vm_core_tag_based.sql",
             },
             metric_constants.OCP_GPU_MONTH: {
                 "log_msg": "populating monthly GPU tag based costs",
-                "file_path": "trino_sql/openshift/cost_model/monthly_cost_gpu.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_cost_gpu.sql",
                 "metric_params": {**monthly_params, **cluster_params},
             },
             metric_constants.OCP_PROJECT_MONTH: {
                 "log_msg": "populating monthly project tag costs",
-                "file_path": "trino_sql/openshift/cost_model/monthly_project_tag_based.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_project_tag_based.sql",
                 "metric_params": {**monthly_params, **cluster_params},
             },
         }
@@ -1418,7 +1418,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 final_sql_params = param_builder.build_parameters(context_params=context_params)
                 sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
                 LOG.info(log_json(msg=metadata["log_msg"], context=context_params))
-                if "trino_sql/" in metadata["file_path"]:
+                if self.get_sql_folder_name() in metadata["file_path"]:
                     self._execute_trino_multipart_sql_query(sql, bind_params=final_sql_params)
                 else:
                     self._prepare_and_execute_raw_sql_query(

@@ -105,7 +105,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         """
 
-        sql = pkgutil.get_data("masu.database", "trino_sql/gcp/reporting_gcpcostentrylineitem_daily_summary.sql")
+        sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/gcp/reporting_gcpcostentrylineitem_daily_summary.sql")
         sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         sql_params = {
@@ -126,7 +126,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def fetch_invoice_month_dates(self, start_date, end_date, invoice_month, source_uuid):
         """Get extended valid date range for given invoice_month and start/end."""
-        sql = pkgutil.get_data("masu.database", "trino_sql/gcp/get_invoice_month_dates.sql")
+        sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/gcp/get_invoice_month_dates.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
@@ -325,7 +325,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bill_id,
             report_period_id,
         )
-        managed_path = "trino_sql/gcp/openshift/populate_daily_summary/"
+        managed_path = f"{self.get_sql_folder_name()}/gcp/openshift/populate_daily_summary/"
         prepare_sql, prepare_params = sql_metadata.prepare_template(
             f"{managed_path}/0_prepare_daily_summary_tables.sql", {"unattributed_storage": enable_unattributed_storage}
         )
@@ -387,7 +387,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
 
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/ui_summary/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/gcp/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             sql_params = {
                 "schema": self.schema,
@@ -447,7 +447,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     ):
         """Return a list of matched tags."""
         invoice_month_date = kwargs.get("invoice_month_date")
-        sql = pkgutil.get_data("masu.database", "trino_sql/gcp/openshift/reporting_ocpgcp_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/gcp/openshift/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
 
         days = self.date_helper.list_days(start_date, end_date)
