@@ -73,6 +73,14 @@ class ReportDBAccessorBase:
     def extract_context_from_sql_params(sql_params: dict):
         return extract_context_from_sql_params(sql_params)
 
+    def get_sql_folder_name(self):
+        """Return the SQL folder name based on ONPREM setting.
+
+        Returns:
+            str: 'postgres_sql' if ONPREM is True, otherwise 'trino_sql'
+        """
+        return "postgres_sql" if getattr(settings, "ONPREM", False) else "trino_sql"
+
     def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
         """Prepare the sql params and run via a cursor."""
         if tmp_sql_params is None:
@@ -302,7 +310,7 @@ class ReportDBAccessorBase:
         matched_tag_params = sql_metadata.build_params(
             ["schema", "start_date", "end_date", "month", "year", "matched_tag_strs", "ocp_provider_uuid"]
         )
-        matched_tags_sql = pkgutil.get_data("masu.database", "trino_sql/openshift/ocp_special_matched_tags.sql")
+        matched_tags_sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/openshift/ocp_special_matched_tags.sql")
         matched_tags_sql = matched_tags_sql.decode("utf-8")
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matched_tag_params))
         matched_tags_result = self._execute_trino_multipart_sql_query(matched_tags_sql, bind_params=matched_tag_params)
