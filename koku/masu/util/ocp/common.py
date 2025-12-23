@@ -707,11 +707,14 @@ class DistributionConfig(BaseModel):
 
     def get_full_path(self) -> str:
         """Get full path to SQL file relative to masu.database."""
-        base_path = (
-            "trino_sql/openshift/cost_model/distribute_cost/"
-            if self.is_trino
-            else "sql/openshift/cost_model/distribute_cost/"
-        )
+        if self.is_trino:
+            from django.conf import settings
+            # For Trino queries, use postgres_sql in ONPREM mode, otherwise trino_sql
+            sql_folder = "postgres_sql" if getattr(settings, "ONPREM", False) else "trino_sql"
+            base_path = f"{sql_folder}/openshift/cost_model/distribute_cost/"
+        else:
+            # For PostgreSQL queries, always use sql/
+            base_path = "sql/openshift/cost_model/distribute_cost/"
         return f"{base_path}{self.sql_file}"
 
     def table_exists(self, schema: str) -> bool:
