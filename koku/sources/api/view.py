@@ -76,7 +76,7 @@ LOG = logging.getLogger(__name__)
 MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet]
 HTTP_METHOD_LIST = ["get", "head"]
 
-if settings.DEVELOPMENT:
+if settings.SOURCES_CRUD or settings.DEVELOPMENT:
     MIXIN_LIST.extend([mixins.CreateModelMixin, mixins.UpdateModelMixin, DestroySourceMixin])
     HTTP_METHOD_LIST.extend(["post", "patch", "delete"])
 
