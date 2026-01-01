@@ -36,6 +36,29 @@ steps:
 This command will run database migraitons and start the API server. Once
 complete the API server will be running on port 8000 on your localhost.
 
+### On-Premise Deployment Configuration
+
+For on-premise deployments without access to Red Hat SaaS services (Unleash feature flags), set the following environment variable:
+
+```bash
+export KOKU_ONPREM_DEPLOYMENT=True
+```
+
+When enabled, this will:
+- Disable the Unleash feature flag client (all feature flags will return `False`)
+- Prevent external API calls to the Unleash server
+- Use the `DisabledUnleashClient` mock implementation
+
+**Example**:
+```bash
+export KOKU_ONPREM_DEPLOYMENT=True
+make docker-up
+```
+
+For standard SaaS deployments, leave this unset or set to `False`.
+
+See [Feature Flags Architecture](architecture/feature-flags.md) for more details.
+
 ## Deploying the Koku UI
 
 The Koku-UI application is the web-based frontend for Project Koku. It

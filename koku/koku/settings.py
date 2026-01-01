@@ -132,6 +132,12 @@ MIDDLEWARE = [
 MIDDLEWARE_TIME_TO_LIVE = ENVIRONMENT.int("MIDDLEWARE_TIME_TO_LIVE", default=900)  # in seconds (default = 15 minutes)
 
 DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
+
+# Deployment Mode Configuration
+# CRITICAL: Must default to False for SaaS backward compatibility
+# Set to True only for on-prem deployments (disables Unleash, uses on-prem S3, skips AWS APIs)
+KOKU_ONPREM_DEPLOYMENT = ENVIRONMENT.bool("KOKU_ONPREM_DEPLOYMENT", default=False)
+
 SCHEMA_SUFFIX = re.sub("[^a-zA-Z0-9_]", "_", ENVIRONMENT.get_value("SCHEMA_SUFFIX", default=""))
 print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
 if DEVELOPMENT:
