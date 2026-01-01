@@ -69,21 +69,21 @@ class TrinoReportDBAccessor(ReportDBAccessor):
         # This method is not used for Trino, but must exist to satisfy the abstract base class
         return ""
 
-    def get_delete_day_by_manifestid_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, manifestid: str):
+    def get_delete_day_by_manifestid_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, manifestid: str):
         """Trino delete by manifestid - not used, Trino uses S3 file deletion."""
         # Trino doesn't use SQL DELETE for parquet files
         # Instead it deletes S3 objects directly via _delete_old_data_trino()
         # This method exists only to satisfy the abstract base class
         return ""
 
-    def get_delete_day_by_reportnumhours_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, reportnumhours: int):
+    def get_delete_day_by_reportnumhours_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, reportnumhours: int, date_column: str):
         """Trino delete by reportnumhours - not used, Trino uses S3 file deletion."""
         # Trino doesn't use SQL DELETE for parquet files
         # Instead it deletes S3 objects directly via _delete_old_data_trino()
         # This method exists only to satisfy the abstract base class
         return ""
 
-    def get_check_day_exists_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str):
+    def get_check_day_exists_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, date_column: str):
         """Trino check day exists - not used for Trino."""
         # Trino doesn't need this check - it uses S3 metadata
         # This method exists only to satisfy the abstract base class
@@ -142,7 +142,8 @@ SELECT ocp.node,
         WHEN contains(array_agg(DISTINCT ocp.namespace), 'openshift-kube-apiserver') THEN 'master'
         WHEN any_match(array_agg(DISTINCT nl.node_labels), element -> element like  '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
         ELSE 'worker'
-    END) as node_role
+    END) as node_role,
+    lower(json_extract_scalar(max(node_labels), '$.kubernetes_io_arch')) as arch
 FROM hive.{schema_name}.openshift_pod_usage_line_items_daily as ocp
 LEFT JOIN hive.{schema_name}.openshift_node_labels_line_items_daily as nl
     ON ocp.node = nl.node
@@ -207,6 +208,10 @@ AND ocp_source = '{ocp_source}'
 AND year = '{year}'
 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
 AND day = '{day}'"""
+
+    def get_bind_param_style(self):
+        """Return the parameter binding style for Trino."""
+        return "qmark"
 
     def get_gcp_topology_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
         """Generate Trino SQL to get GCP topology."""

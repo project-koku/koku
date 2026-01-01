@@ -57,9 +57,9 @@ CREATE INDEX IF NOT EXISTS idx_ocp_summary_trino_usage_start
 
 -- Helper function to filter JSON by allowed keys (replaces Trino's map_filter)
 CREATE OR REPLACE FUNCTION {{schema | sqlsafe}}.filter_json_by_keys(input_json text, allowed_keys text[])
-RETURNS json AS $$
-    SELECT json_object_agg(key, value)
-    FROM json_each_text(input_json::json)
+RETURNS text AS $$
+    SELECT json_object_agg(key, value)::text
+    FROM jsonb_each_text(input_json::jsonb)
     WHERE key = ANY(allowed_keys)
 $$ LANGUAGE sql IMMUTABLE;
 
@@ -116,7 +116,7 @@ WITH cte_pg_enabled_keys as (
 cte_ocp_node_label_line_item_daily AS (
     SELECT date(nli.interval_start) as usage_start,
         nli.node,
-        {{schema | sqlsafe}}.filter_json_by_keys(nli.node_labels, pek.keys) as node_labels
+        {{schema | sqlsafe}}.filter_json_by_keys(nli.node_labels, pek.keys)::jsonb as node_labels
     FROM {{schema | sqlsafe}}.openshift_node_labels_line_items_daily AS nli
     CROSS JOIN cte_pg_enabled_keys AS pek
     WHERE nli.source = {{source}}
@@ -131,7 +131,7 @@ cte_ocp_node_label_line_item_daily AS (
 cte_ocp_namespace_label_line_item_daily AS (
     SELECT date(nli.interval_start) as usage_start,
         nli.namespace,
-        {{schema | sqlsafe}}.filter_json_by_keys(nli.namespace_labels, pek.keys) as namespace_labels
+        {{schema | sqlsafe}}.filter_json_by_keys(nli.namespace_labels, pek.keys)::jsonb as namespace_labels
     FROM {{schema | sqlsafe}}.openshift_namespace_labels_line_items_daily AS nli
     CROSS JOIN cte_pg_enabled_keys AS pek
     WHERE nli.source = {{source}}
@@ -268,10 +268,10 @@ FROM (
         max(cat_ns.cost_category_id) as cost_category_id,
         li.source as source_uuid,
         COALESCE(
-            COALESCE(nli.node_labels, '{}'::json) ||
-            COALESCE(nsli.namespace_labels, '{}'::json) ||
-            {{schema | sqlsafe}}.filter_json_by_keys(li.pod_labels, pek.keys),
-            '{}'::json
+            COALESCE(nli.node_labels, '{}'::jsonb) ||
+            COALESCE(nsli.namespace_labels, '{}'::jsonb) ||
+            {{schema | sqlsafe}}.filter_json_by_keys(li.pod_labels, pek.keys)::jsonb,
+            '{}'::jsonb
         ) as pod_labels,
         max(li.resource_id) as resource_id,
         sum(li.pod_usage_cpu_core_seconds) / 3600.0 as pod_usage_cpu_core_hours,
@@ -392,11 +392,11 @@ FROM (
         sli.storageclass,
         date(sli.interval_start) as usage_start,
         COALESCE(
-            COALESCE(nli.node_labels, '{}'::json) ||
-            COALESCE(nsli.namespace_labels, '{}'::json) ||
-            {{schema | sqlsafe}}.filter_json_by_keys(sli.persistentvolume_labels, pek.keys) ||
-            {{schema | sqlsafe}}.filter_json_by_keys(sli.persistentvolumeclaim_labels, pek.keys),
-            '{}'::json
+            COALESCE(nli.node_labels, '{}'::jsonb) ||
+            COALESCE(nsli.namespace_labels, '{}'::jsonb) ||
+            {{schema | sqlsafe}}.filter_json_by_keys(sli.persistentvolume_labels, pek.keys)::jsonb ||
+            {{schema | sqlsafe}}.filter_json_by_keys(sli.persistentvolumeclaim_labels, pek.keys)::jsonb,
+            '{}'::jsonb
         ) as volume_labels,
         sli.source as source_uuid,
         sli.csi_volume_handle as csi_volume_handle,
@@ -444,7 +444,7 @@ FROM (
 
 {% endif %}
 
-;
+RETURNING 1;
 
 /*
  * ====================================
@@ -575,7 +575,7 @@ SELECT
 FROM cte_unallocated_capacity AS uc
 LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
     ON uc.namespace LIKE cat_ns.namespace
-;
+RETURNING 1;
 
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
@@ -626,7 +626,7 @@ SELECT uuid_generate_v4(),
     namespace,
     node,
     resource_id,
-    pod_labels::json,
+    pod_labels::jsonb,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,
     pod_effective_usage_cpu_core_hours,
@@ -644,18 +644,18 @@ SELECT uuid_generate_v4(),
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    volume_labels::json,
-    COALESCE(pod_labels::json, '{}'::json) || COALESCE(volume_labels::json, '{}'::json) as all_labels,
+    volume_labels::jsonb,
+    COALESCE(pod_labels::jsonb, '{}'::jsonb) || COALESCE(volume_labels::jsonb, '{}'::jsonb) as all_labels,
     persistentvolumeclaim_capacity_gigabyte,
     persistentvolumeclaim_capacity_gigabyte_months,
     volume_request_storage_gigabyte_months,
     persistentvolumeclaim_usage_gigabyte_months,
     source_uuid::uuid,
-    infrastructure_usage_cost::json,
+    infrastructure_usage_cost::jsonb,
     cost_category_id
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino AS lids
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}
     AND lpad(lids.month, 2, '0') = {{month}}
     AND lids.day IN {{days | inclause}}
-;
+RETURNING 1;

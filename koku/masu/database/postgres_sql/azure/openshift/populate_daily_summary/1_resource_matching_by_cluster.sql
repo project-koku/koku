@@ -2,7 +2,8 @@ DELETE FROM {{schema | sqlsafe}}.managed_azure_openshift_daily_temp
 WHERE source = {{cloud_provider_uuid}}
 AND ocp_source = {{ocp_provider_uuid}}
 AND year = {{year}}
-AND month = {{month}};
+AND month = {{month}}
+RETURNING 1;
 
 INSERT INTO {{schema | sqlsafe}}.managed_azure_openshift_daily_temp (
     row_uuid,
@@ -77,7 +78,7 @@ cte_matchable_resource_names AS (
 ),
 cte_agg_tags AS (
     SELECT array_agg(cte_tag_matches.matched_tag) as matched_tags from (
-        SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
+        SELECT * FROM unnest(CAST(ARRAY{{matched_tag_array | sqlsafe}} AS VARCHAR[])) as t(matched_tag)
     ) as cte_tag_matches
 ),
 cte_enabled_tag_keys AS (
@@ -98,12 +99,12 @@ SELECT
     CASE
         WHEN coalesce(nullif(servicename, ''), metercategory) = 'Virtual Network'
             AND lower(consumedservice)='microsoft.compute'
-            AND (lower(additionalinfo)::json ? 'datatransferdirection')
+            AND (lower(additionalinfo)::jsonb ? 'datatransferdirection')
             AND resource_names.resourceid IS NOT NULL
-                THEN lower(azure.additionalinfo)::json->>'datatransferdirection'
+                THEN lower(azure.additionalinfo)::jsonb->>'datatransferdirection'
         ELSE NULL
     END as data_transfer_direction,
-    (azure.additionalinfo::json->>'ServiceType') as instance_type,
+    (azure.additionalinfo::jsonb->>'ServiceType') as instance_type,
     coalesce(nullif(azure.subscriptionid, ''), azure.subscriptionguid) as subscription_guid,
     azure.subscriptionname as subscription_name,
     azure.resourcelocation as resource_location,
@@ -130,15 +131,16 @@ SELECT
     azure.date,
     azure.metername,
     azure.resourceid as complete_resource_id,
-    {{schema | sqlsafe}}.filter_json_by_keys(azure.tags, etk.enabled_keys)::text as tags, -- Limit tag keys to enabled keys
+    (SELECT json_object_agg(key, value) FROM jsonb_each_text(azure.tags::jsonb) WHERE key = ANY(etk.enabled_keys))::text as tags, -- Limit tag keys to enabled keys
     CASE WHEN resource_names.resourceid IS NOT NULL
         THEN TRUE
         ELSE FALSE
     END as resource_id_matched,
     array_to_string(
         ARRAY(
-            SELECT unnest(tag_matches.matched_tags)
-            WHERE strpos(tags, unnest) != 0
+            SELECT tag
+            FROM unnest(tag_matches.matched_tags) AS tag
+            WHERE strpos(tags, tag) != 0
         ),
         ','
     ) as matched_tag,
@@ -163,4 +165,5 @@ WHERE azure.source = {{cloud_provider_uuid}}
     AND azure.month= {{month}}
     AND azure.date >= {{start_date}}
     AND azure.date < {{end_date}} + INTERVAL '1 day'
-    AND (resource_names.resourceid IS NOT NULL OR tag_matches.matched_tags IS NOT NULL);
+    AND (resource_names.resourceid IS NOT NULL OR tag_matches.matched_tags IS NOT NULL)
+RETURNING 1;

@@ -29,10 +29,14 @@ def fallback_development_true(feature_name: str, context: dict) -> bool:
 class MockUnleashClient:
     """Mock Unleash Client for ONPREM mode."""
 
-    def __init__(self, instance_id, **kwargs):
-        """Initialize mock client with only instance_id."""
+    def __init__(self, app_name, environment, instance_id, **kwargs):
+        """Initialize mock client with static context."""
         LOG.info("Using MockUnleashClient - Unleash is disabled")
         self.unleash_instance_id = instance_id
+        self.unleash_static_context = {
+            "appName": app_name,
+            "environment": environment
+        }
 
     def initialize_client(self):
         """No-op initialization."""
@@ -40,8 +44,12 @@ class MockUnleashClient:
 
     def is_enabled(self, feature_name: str, context: dict = None, fallback_function=None):
         """Return fallback value for feature flags."""
+        # Merge static context with runtime context
+        merged_context = self.unleash_static_context.copy()
+        merged_context.update(context or {})
+
         if fallback_function:
-            return fallback_function(feature_name, context or {})
+            return fallback_function(feature_name, merged_context)
         return False
 
     def destroy(self):
@@ -53,6 +61,8 @@ class MockUnleashClient:
 if settings.ONPREM:
     LOG.info("Unleash is disabled via ONPREM setting")
     UNLEASH_CLIENT = MockUnleashClient(
+        app_name="Cost Management",
+        environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
         instance_id=ENVIRONMENT.get_value("APP_POD_NAME", default="unleash-client-python")
     )
 else:
