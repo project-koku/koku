@@ -42,3 +42,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpgcp_cost_summary_by_region_p (
         account_id,
         region,
         invoice_month
+RETURNING 1;

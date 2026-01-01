@@ -41,3 +41,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpaws_cost_summary_p (
         AND usage_start >= {{start_date}}
         AND usage_start <= {{end_date}} + INTERVAL '1 day'
     GROUP BY usage_start
+RETURNING 1;

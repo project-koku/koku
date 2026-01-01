@@ -1,7 +1,8 @@
 DELETE FROM {{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp
 WHERE ocp_source = {{ocp_provider_uuid}}
 AND year = {{year}}
-AND month = {{month}};
+AND month = {{month}}
+RETURNING 1;
 
 INSERT INTO {{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp (
     resource_id,
@@ -20,11 +21,11 @@ SELECT
     {{month}} as month
 FROM {{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
 JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
-    ON azure.metername LIKE '%' || az_disk_capacity.product_substring || ' %' -- space here is important to avoid partial matching
+    ON azure.metername LIKE '%%' || az_disk_capacity.product_substring || ' %%' -- space here is important to avoid partial matching
     AND az_disk_capacity.provider_type = 'Azure'
 WHERE azure.date >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND azure.date < TIMESTAMP '{{end_date | sqlsafe}}' + INTERVAL '1 day'
-    AND azure.service_name LIKE '%Storage%'
+    AND azure.service_name LIKE '%%Storage%%'
     AND azure.complete_resource_id LIKE '%%Microsoft.Compute/disks/%%'
     AND lower(azure.resource_id) NOT LIKE '%%_osdisk'
     AND azure.year = {{year}}
@@ -32,13 +33,15 @@ WHERE azure.date >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND azure.ocp_source = {{ocp_provider_uuid}}
     and azure.source = {{cloud_provider_uuid}}
     AND azure.resource_id_matched = True
-GROUP BY azure.resource_id, date(date);
+GROUP BY azure.resource_id, date(date)
+RETURNING 1;
 
 DELETE FROM {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp
 WHERE ocp_source = {{ocp_provider_uuid}}
 AND source = {{cloud_provider_uuid}}
 AND year = {{year}}
-AND month = {{month}};
+AND month = {{month}}
+RETURNING 1;
 
 -- resource_id matching
 -- Storage disk resources:
@@ -115,7 +118,7 @@ SELECT uuid_generate_v4()::text as row_uuid,
         ELSE ocp.volume_labels
     END as volume_labels,
     max(azure.tags) as tags,
-    max(azure.resource_id_matched) as resource_id_matched,
+    bool_or(azure.resource_id_matched) as resource_id_matched,
     CASE
         WHEN max(persistentvolumeclaim) = ''
             THEN NULL
@@ -125,7 +128,7 @@ SELECT uuid_generate_v4()::text as row_uuid,
     {{ocp_provider_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
     JOIN {{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
         ON (azure.usage_start = ocp.usage_start)
         AND (
@@ -155,7 +158,8 @@ SELECT uuid_generate_v4()::text as row_uuid,
         AND az_disk.year = {{year}}
         AND az_disk.month = {{month}}
         AND az_disk.ocp_source = {{ocp_provider_uuid}}
-    GROUP BY azure.row_uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels;
+    GROUP BY azure.row_uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
+RETURNING 1;
 
 -- Unallocated Cost: ((Disk Capacity - Sum(PV capacity) / Disk Capacity) * Cost of Disk
 INSERT INTO {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (
@@ -196,7 +200,7 @@ WITH cte_total_pv_capacity as (
             max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity,
             azure.resource_id as azure_resource_id,
             ocp.cluster_id
-        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
         JOIN {{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
         ON (azure.usage_start = ocp.usage_start)
         AND (
@@ -236,12 +240,12 @@ SELECT uuid_generate_v4()::text as row_uuid, -- need a new uuid or it will dedup
         max(azure.currency) as currency,
         (max(az_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(az_disk.capacity) * max(azure.pretax_cost) / max(pv_cap.cluster_count)  as pretax_cost,
         ((max(az_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(az_disk.capacity) * max(azure.pretax_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost, -- pretax_cost x markup = markup_cost
-        max(azure.resource_id_matched) as resource_id_matched,
+        bool_or(azure.resource_id_matched) as resource_id_matched,
         {{cloud_provider_uuid}} as source,
         {{ocp_provider_uuid}} as ocp_source,
         max(azure.year) as year,
         max(azure.month) as month
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
     JOIN {{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
         ON (azure.usage_start = ocp.usage_start)
         AND (
@@ -269,7 +273,8 @@ SELECT uuid_generate_v4()::text as row_uuid, -- need a new uuid or it will dedup
         AND ocp.namespace != 'Storage unattributed'
         AND az_disk.year = {{year}}
         AND az_disk.month = {{month}}
-    GROUP BY azure.row_uuid, ocp.data_source, azure.resource_id;
+    GROUP BY azure.row_uuid, ocp.data_source, azure.resource_id
+RETURNING 1;
 
 -- Directly Pod resource_id matching
 INSERT INTO {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (
@@ -338,13 +343,13 @@ SELECT azure.row_uuid as row_uuid,
     ocp.pod_labels,
     ocp.volume_labels,
     max(azure.tags) as tags,
-    max(azure.resource_id_matched) as resource_id_matched,
+    bool_or(azure.resource_id_matched) as resource_id_matched,
     max(ocp.cost_category_id) as cost_category_id,
     {{cloud_provider_uuid}} as source,
     {{ocp_provider_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
     JOIN {{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
         ON (azure.usage_start = ocp.usage_start)
         AND (
@@ -372,7 +377,7 @@ SELECT azure.row_uuid as row_uuid,
         AND azure.month = {{month}}
         AND disk_cap.resource_id is NULL -- exclude any resource used in disk capacity calculations
     GROUP BY azure.row_uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
-;
+RETURNING 1;
 
 -- Tag matching
 INSERT INTO {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (
@@ -441,14 +446,14 @@ SELECT azure.row_uuid,
     {{ocp_provider_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
     JOIN {{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
         ON azure.usage_start = ocp.usage_start
         AND (
-                azure.tags::json->>'\2' = ocp.namespace
-                OR azure.tags::json->>'\2' = ocp.node
-                OR azure.tags::json->>'\2' = ocp.cluster_alias
-                OR azure.tags::json->>'\2' = ocp.cluster_id
+                azure.tags::jsonb->>'\2' = ocp.namespace
+                OR azure.tags::jsonb->>'\2' = ocp.node
+                OR azure.tags::jsonb->>'\2' = ocp.cluster_alias
+                OR azure.tags::jsonb->>'\2' = ocp.cluster_id
                 OR (azure.matched_tag != '' AND EXISTS (SELECT 1 FROM unnest(string_to_array(azure.matched_tag, ',')) AS tag WHERE strpos(ocp.pod_labels, replace(tag, ' ', '')) != 0))
                 OR (azure.matched_tag != '' AND EXISTS (SELECT 1 FROM unnest(string_to_array(azure.matched_tag, ',')) AS tag WHERE strpos(ocp.volume_labels, replace(tag, ' ', '')) != 0))
             )
@@ -469,7 +474,7 @@ SELECT azure.row_uuid,
         AND azure.matched_tag != ''
         AND azure.resource_id_matched = False
     GROUP BY azure.row_uuid, ocp.namespace, ocp.data_source
-;
+RETURNING 1;
 
 {%- if distribution == 'cpu' -%}
 {%- set pod_column = 'pod_effective_usage_cpu_core_hours' -%}
@@ -548,16 +553,22 @@ SELECT pds.row_uuid,
         ELSE pretax_cost / r.row_uuid_count * cast({{markup}} as decimal(24,9))
     END as markup_cost,
     CASE WHEN pds.pod_labels IS NOT NULL
-        THEN json_format(cast(
-            map_concat(
-                cast(json_parse(pds.pod_labels) as map(varchar, varchar)),
-                cast(json_parse(pds.tags) as map(varchar, varchar))
-            ) as JSON))
-        ELSE json_format(cast(
-            map_concat(
-                cast(json_parse(pds.volume_labels) as map(varchar, varchar)),
-                cast(json_parse(pds.tags) as map(varchar, varchar))
-            ) as JSON))
+        THEN (
+            SELECT json_object_agg(key, value)::text
+            FROM (
+                SELECT * FROM jsonb_each_text(pds.pod_labels::jsonb)
+                UNION ALL
+                SELECT * FROM jsonb_each_text(pds.tags::jsonb)
+            ) combined(key, value)
+        )
+        ELSE (
+            SELECT json_object_agg(key, value)::text
+            FROM (
+                SELECT * FROM jsonb_each_text(pds.volume_labels::jsonb)
+                UNION ALL
+                SELECT * FROM jsonb_each_text(pds.tags::jsonb)
+            ) combined(key, value)
+        )
     END as tags,
     pds.resource_id_matched as resource_id_matched,
     pds.matched_tag as matched_tag,
@@ -575,7 +586,7 @@ WHERE
     AND pds.year = {{year}}
     AND pds.month = {{month}}
     AND pds.source = {{cloud_provider_uuid}}
-;
+RETURNING 1;
 
 -- Network costs are currently not mapped to pod metrics
 -- and are filtered out of the above SQL since that is grouped by namespace
@@ -642,7 +653,7 @@ SELECT azure.row_uuid as row_uuid,
     max(azure.year) as year,
     max(azure.month) as month,
     cast(EXTRACT(DAY FROM max(azure.usage_start)) as varchar) as day
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
     JOIN {{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
         ON azure.usage_start = ocp.usage_start
         AND (azure.resource_id = ocp.node AND ocp.data_source = 'Pod')
@@ -662,4 +673,4 @@ SELECT azure.row_uuid as row_uuid,
         AND azure.month = {{month}}
         AND azure.resource_id_matched = True
     GROUP BY azure.row_uuid, ocp.node
-;
+RETURNING 1;

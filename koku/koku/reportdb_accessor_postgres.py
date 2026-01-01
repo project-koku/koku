@@ -92,29 +92,28 @@ class PostgresReportDBAccessor(ReportDBAccessor):
     def get_partition_create_sql(self, schema_name: str, table_name: str, partition_name: str, partition_values_lower: list[str], partition_values_upper: list[str]):
         return f"CREATE TABLE IF NOT EXISTS \"{schema_name}\".\"{partition_name}\" PARTITION OF \"{schema_name}\".\"{table_name}\" FOR VALUES FROM ({', '.join(partition_values_lower)}) TO ({', '.join(partition_values_upper)})"
 
-    def get_delete_day_by_manifestid_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, manifestid: str):
-        """Return the SQL to delete a day's data where manifestid doesn't match."""
+    def get_delete_day_by_manifestid_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, manifestid: str):
+        """Return the SQL to delete data where manifestid doesn't match."""
         return f"""
             DELETE FROM "{schema_name}"."{table_name}"
             WHERE source = '{source}'
               AND year = '{year}'
               AND month = '{month}'
-              AND DATE(interval_start) = DATE '{start_date}'
               AND manifestid != '{manifestid}'
         """
 
-    def get_delete_day_by_reportnumhours_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, reportnumhours: int):
+    def get_delete_day_by_reportnumhours_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, reportnumhours: int, date_column: str):
         """Return the SQL to delete a day's data where reportnumhours is less than specified value."""
         return f"""
             DELETE FROM "{schema_name}"."{table_name}"
             WHERE source = '{source}'
               AND year = '{year}'
               AND month = '{month}'
-              AND DATE(interval_start) = DATE '{start_date}'
+              AND DATE({date_column}) = DATE '{start_date}'
               AND reportnumhours < {reportnumhours}
         """
 
-    def get_check_day_exists_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str):
+    def get_check_day_exists_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, date_column: str):
         """Return the SQL to check if data exists for a specific day."""
         return f"""
             SELECT 1
@@ -122,7 +121,7 @@ class PostgresReportDBAccessor(ReportDBAccessor):
             WHERE source = '{source}'
               AND year = '{year}'
               AND month = '{month}'
-              AND DATE(interval_start) = DATE '{start_date}'
+              AND DATE({date_column}) = DATE '{start_date}'
             LIMIT 1
         """
 
@@ -171,10 +170,11 @@ SELECT ocp.node,
         WHEN 'openshift-kube-apiserver' = ANY(array_agg(DISTINCT ocp.namespace)) THEN 'master'
         WHEN EXISTS (
             SELECT 1 FROM unnest(array_agg(DISTINCT nl.node_labels)) AS label
-            WHERE label::text LIKE '%"node_role_kubernetes_io": "infra"%'
+            WHERE label::text LIKE '%%"node_role_kubernetes_io": "infra"%%'
         ) THEN 'infra'
         ELSE 'worker'
-    END) as node_role
+    END) as node_role,
+    lower(max(node_labels)::json->>'kubernetes_io_arch') as arch
 FROM "{schema_name}".openshift_pod_usage_line_items_daily as ocp
 LEFT JOIN "{schema_name}".openshift_node_labels_line_items_daily as nl
     ON ocp.node = nl.node
@@ -239,6 +239,10 @@ AND ocp_source = '{ocp_source}'
 AND year = '{year}'
 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
 AND day = '{day}'"""
+
+    def get_bind_param_style(self):
+        """Return the parameter binding style for PostgreSQL."""
+        return "pyformat"
 
     def get_gcp_topology_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
         """Generate PostgreSQL SQL to get GCP topology."""

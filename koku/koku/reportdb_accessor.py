@@ -57,17 +57,17 @@ class ReportDBAccessor(ABC):
         pass
 
     @abstractmethod
-    def get_delete_day_by_manifestid_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, manifestid: str):
-        """Return the SQL to delete a day's data where manifestid doesn't match"""
+    def get_delete_day_by_manifestid_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, manifestid: str):
+        """Return the SQL to delete data where manifestid doesn't match"""
         pass
 
     @abstractmethod
-    def get_delete_day_by_reportnumhours_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, reportnumhours: int):
+    def get_delete_day_by_reportnumhours_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, reportnumhours: int, date_column: str):
         """Return the SQL to delete a day's data where reportnumhours is less than specified value"""
         pass
 
     @abstractmethod
-    def get_check_day_exists_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str):
+    def get_check_day_exists_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, date_column: str):
         """Return the SQL to check if data exists for a specific day"""
         pass
 
@@ -129,6 +129,16 @@ class ReportDBAccessor(ABC):
     @abstractmethod
     def get_data_validation_sql(self, schema_name: str, table_name: str, source_column: str, provider_filter: str, metric: str, date_column: str, start_date: str, end_date: str, year: str, month: str):
         """Return SQL for data validation query (sum metric by date)"""
+        pass
+
+    @abstractmethod
+    def get_bind_param_style(self):
+        """
+        Return the parameter binding style for this database.
+
+        Returns:
+            str: 'qmark' for Trino (? placeholders), 'pyformat' for PostgreSQL (%s placeholders)
+        """
         pass
 
 def get_report_db_accessor():

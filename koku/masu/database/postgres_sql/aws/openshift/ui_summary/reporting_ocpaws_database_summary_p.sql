@@ -50,3 +50,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpaws_database_summary_p (
         AND usage_start <= {{end_date}} + INTERVAL '1 day'
         AND product_code IN ('AmazonRDS','AmazonDynamoDB','AmazonElastiCache','AmazonNeptune','AmazonRedshift','AmazonDocumentDB')
     GROUP BY usage_start, usage_account_id, account_alias_id, product_code
+RETURNING 1;

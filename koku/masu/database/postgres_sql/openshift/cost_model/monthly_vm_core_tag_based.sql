@@ -76,7 +76,7 @@ SELECT
     {%- if value_rates is defined and value_rates %}
     CASE
         {%- for value, rate in value_rates.items() %}
-        WHEN lids.pod_labels::json->>'{{ tag_key|sqlsafe }}' = {{value}}
+        WHEN lids.pod_labels::jsonb->>'{{ tag_key|sqlsafe }}' = {{value}}
         THEN (max(vm_usage.vm_cpu_cores) * CAST({{rate}} AS DECIMAL(33, 15))) / {{amortized_denominator}}
         {%- endfor %}
         {%- if default_rate is defined %}
@@ -91,11 +91,11 @@ FROM
     {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN
     vm_usage_summary AS vm_usage
-    ON lids.pod_labels::json->>'vm_kubevirt_io_name' = vm_usage.vm_name
+    ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = vm_usage.vm_name
     AND lids.usage_start = vm_usage.interval_day
 LEFT JOIN
     latest_vm_node_info AS latest
-    ON lids.pod_labels::json->>'vm_kubevirt_io_name' = latest.name_of_vm
+    ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = latest.name_of_vm
 WHERE
     lids.usage_start >= DATE({{start_date}})
     AND lids.usage_start <= DATE({{end_date}})
@@ -109,11 +109,11 @@ WHERE
         OR lids.cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary')
     )
 {%- if default_rate is defined %}
-    AND lids.pod_labels::json->'{{ tag_key|sqlsafe }}' IS NOT NULL
+    AND lids.pod_labels::jsonb->>'{{ tag_key|sqlsafe }}' IS NOT NULL
 {%- else %}
     AND (
         {%- for value, rate in value_rates.items() %}
-            {%- if not loop.first %} OR {%- endif %} lids.pod_labels::json->>'{{ tag_key|sqlsafe }}' = {{value}}
+            {%- if not loop.first %} OR {%- endif %} lids.pod_labels::jsonb->>'{{ tag_key|sqlsafe }}' = {{value}}
         {%- if loop.last %} ) {%- endif %}
         {%- endfor %}
 {%- endif %}
@@ -128,4 +128,4 @@ GROUP BY
     lids.cost_category_id,
     lids.pod_labels,
     lids.all_labels
-;
+RETURNING 1;

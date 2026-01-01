@@ -35,3 +35,4 @@ WHERE gpu.source = {{source_uuid}}
     AND date(gpu.interval_start) >= {{start_date}}
     AND date(gpu.interval_start) <= {{end_date}}
 GROUP BY gpu.namespace, gpu.node, gpu.gpu_vendor_name, gpu.gpu_model_name, gpu.interval_start
+RETURNING 1;
