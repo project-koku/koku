@@ -128,4 +128,4 @@ GROUP BY
     lids.cost_category_id,
     lids.pod_labels,
     lids.all_labels
-;
+RETURNING 1;

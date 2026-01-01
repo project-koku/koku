@@ -45,3 +45,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpgcp_cost_summary_by_service_p (
         service_id,
         service_alias,
         invoice_month
+RETURNING 1;

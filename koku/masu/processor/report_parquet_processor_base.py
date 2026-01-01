@@ -52,6 +52,7 @@ class ReportParquetProcessorBase:
         self._year = start_date.strftime("%Y")
         self._month = start_date.strftime("%m")
         self._partition_name = self._create_partition_name(self._year, self._month)
+
     @property
     def postgres_summary_table(self):
         """Return error if unimplemented in subclass."""
@@ -133,7 +134,7 @@ class ReportParquetProcessorBase:
             columns.append((norm_col, column_type))
 
         partition_columns = [("source", ColumnType.STRING), ("year", ColumnType.STRING), ("month", ColumnType.STRING)]
-        
+
         sql = get_report_db_accessor().get_table_create_sql(self._table_name, self._schema_name, columns, partition_columns, self._s3_path)
         
         return sql
@@ -228,10 +229,8 @@ class ReportParquetProcessorBase:
         return [self._table_name]
 
     def delete_day_postgres(self, start_date, reportnumhours=None):
-        """Delete old data for a specific day"""
+        """Delete old data for this source/year/month (non-OCP)"""
         from api.common import log_json
-
-        start_date_str = str(start_date)
 
         # Get all table names to delete from (may include daily tables)
         table_names = self.get_table_names_for_delete()
@@ -258,7 +257,6 @@ class ReportParquetProcessorBase:
                 self._provider_uuid,
                 self._year,
                 self._month,
-                start_date_str,
                 str(self._manifest_id)
             )
 
@@ -271,7 +269,6 @@ class ReportParquetProcessorBase:
             log_json(
                 msg="deleted old data from postgres (non-OCP)",
                 deleted_rows=total_deleted,
-                start_date=start_date_str,
             )
         )
 

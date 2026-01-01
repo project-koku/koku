@@ -68,4 +68,5 @@ LEFT JOIN (
     GROUP BY storage.persistentvolumeclaim, pod_usage.pod_labels::json->>'vm_kubevirt_io_name'
 ) AS pvc
     ON pvc.vm_name = latest.vm_name
-WHERE latest.rn = 1;
+WHERE latest.rn = 1
+RETURNING 1;

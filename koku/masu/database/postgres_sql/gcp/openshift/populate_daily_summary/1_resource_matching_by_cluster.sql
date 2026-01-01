@@ -2,7 +2,8 @@ DELETE FROM {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp
 WHERE ocp_source = {{ocp_provider_uuid}}
 AND source = {{cloud_provider_uuid}}
 AND year = {{year}}
-AND month = {{month}};
+AND month = {{month}}
+RETURNING 1;
 
 -- Direct resource matching
 INSERT INTO {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (
@@ -106,7 +107,7 @@ cte_matchable_resource_names AS (
 ),
 cte_agg_tags AS (
     SELECT array_agg(cte_tag_matches.matched_tag) as matched_tags from (
-        SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
+        SELECT * FROM unnest(CAST(ARRAY{{matched_tag_array | sqlsafe}} AS VARCHAR[])) as t(matched_tag)
     ) as cte_tag_matches
 ),
 cte_enabled_tag_keys AS (
@@ -138,7 +139,7 @@ SELECT gcp.row_uuid,
     gcp.service_id,
     nullif(gcp.sku_id, ''),
     gcp.system_labels,
-    {{schema | sqlsafe}}.filter_json_by_keys(gcp.labels, etk.enabled_keys)::text as labels,
+    (SELECT json_object_agg(key, value) FROM json_each_text(gcp.labels::json) WHERE key = ANY(etk.enabled_keys))::text as labels,
     gcp.cost_type,
     gcp.location_region as region,
     gcp.resource_name,
@@ -160,8 +161,9 @@ SELECT gcp.row_uuid,
     END as resource_id_matched,
     array_to_string(
         ARRAY(
-            SELECT unnest(tag_matches.matched_tags)
-            WHERE strpos(labels, unnest) != 0
+            SELECT tag
+            FROM unnest(tag_matches.matched_tags) AS tag
+            WHERE strpos(labels, tag) != 0
         ),
         ','
     ) as matched_tag,
@@ -189,4 +191,5 @@ JOIN cte_usage_date_partitions AS ym ON gcp.year = ym.year AND gcp.month = ym.mo
 WHERE gcp.source = {{cloud_provider_uuid}}
     AND gcp.usage_start_time >= {{start_date}}
     AND gcp.usage_start_time < {{end_date}} + INTERVAL '1 day'
-    AND (resource_names.resource_name IS NOT NULL OR tag_matches.matched_tags IS NOT NULL);
+    AND (resource_names.resource_name IS NOT NULL OR tag_matches.matched_tags IS NOT NULL)
+RETURNING 1;

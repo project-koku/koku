@@ -13,6 +13,7 @@ from django.conf import settings
 from django.db import connection
 from django.db import OperationalError
 from django.db import transaction
+from django.db.utils import ProgrammingError as DjangoProgrammingError
 from jinjasql import JinjaSql
 from koku.reportdb_accessor import get_report_db_accessor
 from trino.exceptions import TrinoExternalError
@@ -52,7 +53,8 @@ class ReportDBAccessorBase:
 
         self.date_helper = DateHelper()
         self.prepare_query = JinjaSql(param_style="pyformat").prepare_query
-        self.trino_prepare_query = JinjaSql(param_style="qmark").prepare_query
+        param_style = get_report_db_accessor().get_bind_param_style()
+        self.trino_prepare_query = JinjaSql(param_style=param_style).prepare_query
 
     def __enter__(self):
         """Enter context manager."""
@@ -156,7 +158,14 @@ class ReportDBAccessorBase:
         try:
             trino_cur = trino_conn.cursor()
             trino_cur.execute(sql, bind_params)
-            results = trino_cur.fetchall()
+            try:
+                results = trino_cur.fetchall()
+            except DjangoProgrammingError as e:
+                # PostgreSQL raises "no results to fetch" for CREATE/DROP without RETURNING
+                if "no results to fetch" in str(e):
+                    results = []
+                else:
+                    raise
             description = trino_cur.description
         except TrinoQueryError as ex:
             if "NoSuchKey" in str(ex):

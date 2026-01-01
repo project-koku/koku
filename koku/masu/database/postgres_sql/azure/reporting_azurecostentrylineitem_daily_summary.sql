@@ -73,7 +73,7 @@ SELECT uuid_generate_v4() as uuid,
     sum(li.usage_quantity * li.multiplier) AS usage_quantity,
     max(li.unit_of_measure) as unit_of_measure,
     max(li.currency) as currency,
-    {{schema | sqlsafe}}.filter_json_by_keys(li.tags::text, pek.keys)::json as tags,
+    (SELECT json_object_agg(key, value) FROM json_each_text(li.tags::json) WHERE key = ANY(pek.keys))::jsonb as tags,
     array_agg(DISTINCT li.instance_id) as instance_ids,
     count(DISTINCT li.instance_id) as instance_count,
     li.source_uuid,
@@ -91,3 +91,4 @@ GROUP BY li.usage_date,
     li.service_name,
     li.source_uuid,
     li.subscription_name
+RETURNING 1;

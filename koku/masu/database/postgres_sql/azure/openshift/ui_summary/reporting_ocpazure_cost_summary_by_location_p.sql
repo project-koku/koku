@@ -33,3 +33,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazure_cost_summary_by_location_p (
         AND usage_start >= {{start_date}}
         AND usage_start <= {{end_date}} + INTERVAL '1 day'
     GROUP BY usage_start, subscription_guid, resource_location
+RETURNING 1;

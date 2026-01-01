@@ -72,7 +72,7 @@ WHERE date(gpu.interval_start) >= DATE({{start_date}})
       {%- endfor %}
   )
   {%- endif %}
-;
+RETURNING 1;
 
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
@@ -113,7 +113,7 @@ WITH cte_unutilized_uptime_hours AS (
     ) AS gpu
         ON gpu.node = node_ut.node
         AND gpu.interval_date = DATE(node_ut.interval_start)
-    where node_labels like '%"nvidia_com_gpu_present": "True"%'
+    where node_labels like '%%"nvidia_com_gpu_present": "True"%%'
         AND node_ut.month = {{month}}
         AND node_ut.year = {{year}}
         AND node_ut.source = {{source_uuid}}
@@ -154,4 +154,4 @@ SELECT
     'Tag' AS monthly_cost_type
 FROM cte_unutilized_uptime_hours as hrs
 WHERE untilized_uptime > 0
-;
+RETURNING 1;

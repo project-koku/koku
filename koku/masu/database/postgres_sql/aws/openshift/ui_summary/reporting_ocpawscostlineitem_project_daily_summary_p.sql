@@ -90,7 +90,7 @@ SELECT uuid_generate_v4(),
     calculated_amortized_cost,
     markup_cost_amortized,
     pod_labels::json,
-    {{schema | sqlsafe}}.filter_json_by_keys(tags, pek.keys)::json AS tags,
+    (SELECT json_object_agg(key, value) FROM json_each_text(tags::json) WHERE key = ANY(pek.keys))::jsonb AS tags,
     aws_cost_category::json,
     cost_category_id,
     source::UUID
@@ -101,4 +101,4 @@ WHERE source = {{aws_source_uuid}}
     AND year = {{year}}
     AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND day IN {{days | inclause}}
-;
+RETURNING 1;

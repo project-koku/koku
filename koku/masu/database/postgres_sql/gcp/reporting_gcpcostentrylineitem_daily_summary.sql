@@ -44,7 +44,7 @@ SELECT uuid_generate_v4() as uuid,
     system_labels::json->>'compute.googleapis.com/machine_spec' as instance_type,
     max(usage_pricing_unit) as unit,
     cast(sum(usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
-    {{schema | sqlsafe}}.filter_json_by_keys(labels, pek.keys)::json as tags,
+    (SELECT json_object_agg(key, value) FROM json_each_text(labels::json) WHERE key = ANY(pek.keys))::jsonb as tags,
     max(currency) as currency,
     cost_type as line_item_type,
     cast(sum(cost) AS decimal(24,9)) as unblended_cost,
@@ -57,11 +57,11 @@ CROSS JOIN
     cte_pg_enabled_keys as pek
 WHERE source = '{{source_uuid | sqlsafe}}'
     AND (
-        (year = EXTRACT(YEAR FROM DATE('{{start_date}}'))::text AND month = lpad(EXTRACT(MONTH FROM DATE('{{start_date}}'))::text, 2, '0'))
+        (year = EXTRACT(YEAR FROM DATE({{start_date}}))::text AND month = lpad(EXTRACT(MONTH FROM DATE({{start_date}}))::text, 2, '0'))
         OR
-        (year = EXTRACT(YEAR FROM DATE('{{end_date}}'))::text AND month = lpad(EXTRACT(MONTH FROM DATE('{{end_date}}'))::text, 2, '0'))
+        (year = EXTRACT(YEAR FROM DATE({{end_date}}))::text AND month = lpad(EXTRACT(MONTH FROM DATE({{end_date}}))::text, 2, '0'))
         OR
-        (year = EXTRACT(YEAR FROM DATE('{{start_date}}') - INTERVAL '1 MONTH')::text AND month = lpad(EXTRACT(MONTH FROM DATE('{{start_date}}') - INTERVAL '1 MONTH')::text, 2, '0'))
+        (year = EXTRACT(YEAR FROM DATE({{start_date}}) - INTERVAL '1 MONTH')::text AND month = lpad(EXTRACT(MONTH FROM DATE({{start_date}}) - INTERVAL '1 MONTH')::text, 2, '0'))
     )
     AND invoice_month = '{{invoice_month | sqlsafe}}'
     AND usage_start_time >= '{{start_date | sqlsafe}}'::timestamp
@@ -77,3 +77,4 @@ GROUP BY billing_account_id,
     16, -- matches column num of tag's map_filter
     cost_type,
     invoice_month
+RETURNING 1;

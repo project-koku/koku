@@ -78,7 +78,7 @@ SELECT uuid_generate_v4(),
     currency,
     pretax_cost,
     markup_cost,
-    {{schema | sqlsafe}}.filter_json_by_keys(tags, pek.keys)::json AS tags,
+    (SELECT json_object_agg(key, value) FROM json_each_text(tags::json) WHERE key = ANY(pek.keys))::jsonb AS tags,
     cost_category_id,
     source::UUID
 FROM {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary
@@ -88,4 +88,4 @@ WHERE source = {{azure_source_uuid}}
     AND year = {{year}}
     AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND day in {{days | inclause}}
-;
+RETURNING 1;

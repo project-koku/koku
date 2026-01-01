@@ -39,3 +39,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazure_storage_summary_p (
         AND service_name LIKE '%%Storage%%'
         AND unit_of_measure = 'GB-Mo'
     GROUP BY usage_start, subscription_guid, service_name
+RETURNING 1;

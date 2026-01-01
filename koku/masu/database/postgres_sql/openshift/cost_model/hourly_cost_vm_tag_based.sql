@@ -104,4 +104,4 @@ GROUP BY usage_start,
     cost_category_id,
     pod_labels,
     all_labels
-;
+RETURNING 1;

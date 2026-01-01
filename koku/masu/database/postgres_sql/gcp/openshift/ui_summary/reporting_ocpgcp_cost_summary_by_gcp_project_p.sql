@@ -42,3 +42,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpgcp_cost_summary_by_gcp_project_p 
         project_id,
         project_name,
         invoice_month
+RETURNING 1;

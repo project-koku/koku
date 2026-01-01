@@ -82,4 +82,5 @@ FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
 WHERE namespace = 'GPU unallocated'
     AND usage_start >= DATE({{start_date}})
     AND usage_start <= DATE({{end_date}})
-    AND source_uuid = {{source_uuid}}::uuid;
+    AND source_uuid = {{source_uuid}}::uuid
+RETURNING 1;

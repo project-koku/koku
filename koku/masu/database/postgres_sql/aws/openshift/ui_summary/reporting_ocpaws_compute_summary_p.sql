@@ -52,3 +52,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpaws_compute_summary_p (
         AND usage_start <= {{end_date}} + INTERVAL '1 day'
         AND instance_type IS NOT NULL
     GROUP BY usage_start, usage_account_id, account_alias_id, instance_type, resource_id
+RETURNING 1;

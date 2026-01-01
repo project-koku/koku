@@ -134,4 +134,4 @@ GROUP BY
     lids.data_source,
     lids.cost_category_id,
     labels.combined_labels
-;
+RETURNING 1;
