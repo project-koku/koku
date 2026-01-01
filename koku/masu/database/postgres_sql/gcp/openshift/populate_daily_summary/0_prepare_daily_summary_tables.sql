@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS "{{schema}}".managed_gcp_openshift_daily_temp
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp
 (
     row_uuid VARCHAR,
     invoice_month VARCHAR,
@@ -34,10 +34,10 @@ CREATE TABLE IF NOT EXISTS "{{schema}}".managed_gcp_openshift_daily_temp
     day VARCHAR
 );
 
-CREATE INDEX IF NOT EXISTS idx_gcp_daily_temp_source_year_month ON "{{schema}}".managed_gcp_openshift_daily_temp (ocp_source, source, year, month);
-CREATE INDEX IF NOT EXISTS idx_gcp_daily_temp_day ON "{{schema}}".managed_gcp_openshift_daily_temp (day);
+CREATE INDEX IF NOT EXISTS idx_gcp_daily_temp_source_year_month ON {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (ocp_source, source, year, month);
+CREATE INDEX IF NOT EXISTS idx_gcp_daily_temp_day ON {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (day);
 
-CREATE TABLE IF NOT EXISTS "{{schema}}".managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp
 (
     row_uuid VARCHAR,
     cluster_id VARCHAR,
@@ -89,9 +89,9 @@ CREATE TABLE IF NOT EXISTS "{{schema}}".managed_reporting_ocpgcpcostlineitem_pro
     month VARCHAR
 );
 
-CREATE INDEX IF NOT EXISTS idx_gcp_summary_temp_source_year_month ON "{{schema}}".managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp (source, ocp_source, year, month);
+CREATE INDEX IF NOT EXISTS idx_gcp_summary_temp_source_year_month ON {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp (source, ocp_source, year, month);
 
-CREATE TABLE IF NOT EXISTS "{{schema}}".managed_reporting_ocpgcpcostlineitem_project_daily_summary
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary
 (
     row_uuid VARCHAR,
     cluster_id VARCHAR,
@@ -142,12 +142,12 @@ CREATE TABLE IF NOT EXISTS "{{schema}}".managed_reporting_ocpgcpcostlineitem_pro
     day VARCHAR
 );
 
-CREATE INDEX IF NOT EXISTS idx_gcp_summary_source_year_month ON "{{schema}}".managed_reporting_ocpgcpcostlineitem_project_daily_summary (source, ocp_source, year, month);
-CREATE INDEX IF NOT EXISTS idx_gcp_summary_day ON "{{schema}}".managed_reporting_ocpgcpcostlineitem_project_daily_summary (day);
-CREATE INDEX IF NOT EXISTS idx_gcp_summary_usage_start ON "{{schema}}".managed_reporting_ocpgcpcostlineitem_project_daily_summary (usage_start);
+CREATE INDEX IF NOT EXISTS idx_gcp_summary_source_year_month ON {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary (source, ocp_source, year, month);
+CREATE INDEX IF NOT EXISTS idx_gcp_summary_day ON {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary (day);
+CREATE INDEX IF NOT EXISTS idx_gcp_summary_usage_start ON {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary (usage_start);
 
 {% if unattributed_storage %}
-CREATE TABLE IF NOT EXISTS "{{schema}}".managed_gcp_openshift_disk_capacities_temp
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.managed_gcp_openshift_disk_capacities_temp
 (
     resource_global_name varchar,
     resource_name varchar,
@@ -156,5 +156,6 @@ CREATE TABLE IF NOT EXISTS "{{schema}}".managed_gcp_openshift_disk_capacities_te
     ocp_source varchar,
     year varchar,
     month varchar
-);
+)
 {% endif %}
+;

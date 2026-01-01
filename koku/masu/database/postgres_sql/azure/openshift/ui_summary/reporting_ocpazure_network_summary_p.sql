@@ -38,3 +38,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazure_network_summary_p (
         AND usage_start <= {{end_date}} + INTERVAL '1 day'
         AND service_name IN ('Virtual Network','VPN','DNS','Traffic Manager','ExpressRoute','Load Balancer','Application Gateway')
     GROUP BY usage_start, subscription_guid, service_name
+RETURNING 1;

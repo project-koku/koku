@@ -4,6 +4,7 @@ WHERE ocp_source = {{ocp_provider_uuid}}
 AND source = {{cloud_provider_uuid}}
 AND year = {{year}}
 AND month = {{month}}
+RETURNING 1
 {% endif %}
 ;
 
@@ -35,9 +36,9 @@ WHERE gcp.resource_global_name in (
                     (ocp.csi_volume_handle != '' AND strpos(temp.resource_global_name, ocp.csi_volume_handle) != 0)
                     OR (ocp.csi_volume_handle != '' AND strpos(temp.resource_name, ocp.csi_volume_handle) != 0)
                 )
-        WHERE temp.resource_global_name LIKE '%/disk/%'
+        WHERE temp.resource_global_name LIKE '%%/disk/%%'
         AND temp.service_description = 'Compute Engine'
-        AND lower(temp.sku_description) LIKE '% pd %'
+        AND lower(temp.sku_description) LIKE '%% pd %%'
         AND temp.year = {{year}}
         AND temp.month = {{month}}
         AND temp.source = {{cloud_provider_uuid}}
@@ -51,6 +52,7 @@ WHERE gcp.resource_global_name in (
     AND year = {{year}}
     AND source = {{cloud_provider_uuid}}
 GROUP BY gcp.resource_global_name, gcp.resource_name
+RETURNING 1
 {% endif %}
 ;
 
@@ -58,7 +60,8 @@ DELETE FROM {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_da
 WHERE ocp_source = {{ocp_provider_uuid}}
 AND source = {{cloud_provider_uuid}}
 AND year = {{year}}
-AND month = {{month}};
+AND month = {{month}}
+RETURNING 1;
 
 {%- if unattributed_storage -%}
 -- Storage disk resource id matching
@@ -169,7 +172,7 @@ SELECT
     {{ocp_provider_uuid}} as ocp_source,
     max(gcp.year) as year,
     max(gcp.month) as month
-FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
 JOIN {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
@@ -200,6 +203,7 @@ WHERE ocp.source = {{ocp_provider_uuid}}
     AND data_transfer_direction IS NULL
     AND gcp.resource_id_matched = TRUE
 GROUP BY gcp.row_uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels
+RETURNING 1
 {% endif %}
 ;
 
@@ -257,7 +261,7 @@ WITH cte_total_pv_capacity as (
             ocp.persistentvolume,
             max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity,
             gcp.resource_global_name as gcp_resource_name
-        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
         JOIN {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
             ON (gcp.usage_start = ocp.usage_start)
             AND strpos(gcp.resource_global_name, ocp.csi_volume_handle) > 0
@@ -327,7 +331,7 @@ SELECT uuid_generate_v4()::text as row_uuid,
     {{ocp_provider_uuid}} as ocp_source,
     max(gcp.year) as year,
     max(gcp.month) as month
-FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
 JOIN {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
@@ -360,9 +364,9 @@ WHERE ocp.source = {{ocp_provider_uuid}}
     AND data_transfer_direction IS NULL
     AND gcp.resource_id_matched = TRUE
 GROUP BY gcp.row_uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels
+RETURNING 1
 {%- endif -%}
 ;
-
 -- Direct resource_id matching
 INSERT INTO {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp (
     row_uuid,
@@ -450,7 +454,7 @@ SELECT gcp.row_uuid as row_uuid,
     {{ocp_provider_uuid}} as ocp_source,
     max(gcp.year) as year,
     max(gcp.month) as month
-FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
 JOIN {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
@@ -470,7 +474,7 @@ WHERE ocp.source = {{ocp_provider_uuid}}
     AND data_transfer_direction IS NULL
     AND gcp.resource_id_matched = TRUE
 GROUP BY gcp.row_uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
-;
+RETURNING 1;
 
 -- direct tag matching, these costs are split evenly between pod and storage since we don't have the info to quantify them separately
 INSERT INTO {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp (
@@ -559,14 +563,14 @@ SELECT gcp.row_uuid as row_uuid,
     {{ocp_provider_uuid}} as ocp_source,
     max(gcp.year) as year,
     max(gcp.month) as month
-FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
 JOIN {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
-                gcp.labels::json->>'openshift_project' = ocp.namespace
-                OR gcp.labels::json->>'openshift_node' = ocp.node
-                OR gcp.labels::json->>'openshift_cluster' = ocp.cluster_alias
-                OR gcp.labels::json->>'openshift_cluster' = ocp.cluster_id
+                gcp.labels::jsonb->>'openshift_project' = ocp.namespace
+                OR gcp.labels::jsonb->>'openshift_node' = ocp.node
+                OR gcp.labels::jsonb->>'openshift_cluster' = ocp.cluster_alias
+                OR gcp.labels::jsonb->>'openshift_cluster' = ocp.cluster_id
                 OR (gcp.matched_tag != '' AND EXISTS (
                     SELECT 1 FROM unnest(string_to_array(gcp.matched_tag, ',')) AS tag
                     WHERE strpos(ocp.pod_labels, replace(tag, ' ', '')) != 0
@@ -592,7 +596,7 @@ WHERE ocp.source = {{ocp_provider_uuid}}
     AND gcp.matched_tag != ''
     AND gcp.resource_id_matched = False
 GROUP BY gcp.row_uuid, ocp.namespace, ocp.data_source, gcp.invoice_month, gcp.matched_tag
-;
+RETURNING 1;
 
 {%- if distribution == 'cpu' -%}
 {%- set pod_column = 'pod_effective_usage_cpu_core_hours' -%}
@@ -696,17 +700,17 @@ SELECT pds.row_uuid,
         THEN (
             SELECT json_object_agg(key, value)::text
             FROM (
-                SELECT * FROM json_each_text(pds.pod_labels::json)
+                SELECT * FROM jsonb_each_text(pds.pod_labels::jsonb)
                 UNION ALL
-                SELECT * FROM json_each_text(pds.tags::json)
+                SELECT * FROM jsonb_each_text(pds.tags::jsonb)
             ) combined(key, value)
         )
         ELSE (
             SELECT json_object_agg(key, value)::text
             FROM (
-                SELECT * FROM json_each_text(pds.volume_labels::json)
+                SELECT * FROM jsonb_each_text(pds.volume_labels::jsonb)
                 UNION ALL
-                SELECT * FROM json_each_text(pds.tags::json)
+                SELECT * FROM jsonb_each_text(pds.tags::jsonb)
             ) combined(key, value)
         )
     END as tags,
@@ -725,7 +729,7 @@ WHERE pds.ocp_source = {{ocp_provider_uuid}}
     AND pds.year = {{year}}
     AND pds.month = {{month}}
     AND pds.source = {{cloud_provider_uuid}}
-;
+RETURNING 1;
 
 -- Network costs are currently not mapped to pod metrics
 -- and are filtered out of the above SQL since that is grouped by namespace
@@ -804,7 +808,7 @@ SELECT gcp.row_uuid as row_uuid,
     max(gcp.year) as year,
     max(gcp.month) as month,
     EXTRACT(DAY FROM max(gcp.usage_start))::text as day
-FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
 JOIN {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
@@ -824,4 +828,4 @@ WHERE ocp.source = {{ocp_provider_uuid}}
     AND data_transfer_direction != ''
     AND gcp.resource_id_matched = TRUE
 GROUP BY gcp.row_uuid, ocp.node
-;
+RETURNING 1;

@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS "{{schema}}".managed_azure_openshift_daily_temp
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.managed_azure_openshift_daily_temp
 (
     row_uuid VARCHAR,
     usage_start TIMESTAMP,
@@ -26,10 +26,10 @@ CREATE TABLE IF NOT EXISTS "{{schema}}".managed_azure_openshift_daily_temp
     day VARCHAR
 );
 
-CREATE INDEX IF NOT EXISTS idx_azure_daily_temp_source_year_month ON "{{schema}}".managed_azure_openshift_daily_temp (source, ocp_source, year, month);
-CREATE INDEX IF NOT EXISTS idx_azure_daily_temp_day ON "{{schema}}".managed_azure_openshift_daily_temp (day);
+CREATE INDEX IF NOT EXISTS idx_azure_daily_temp_source_year_month ON {{schema | sqlsafe}}.managed_azure_openshift_daily_temp (source, ocp_source, year, month);
+CREATE INDEX IF NOT EXISTS idx_azure_daily_temp_day ON {{schema | sqlsafe}}.managed_azure_openshift_daily_temp (day);
 
-CREATE TABLE IF NOT EXISTS "{{schema}}".managed_azure_openshift_disk_capacities_temp
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp
 (
     resource_id VARCHAR,
     capacity INTEGER,
@@ -39,9 +39,9 @@ CREATE TABLE IF NOT EXISTS "{{schema}}".managed_azure_openshift_disk_capacities_
     month VARCHAR
 );
 
-CREATE INDEX IF NOT EXISTS idx_azure_disk_cap_source_year_month ON "{{schema}}".managed_azure_openshift_disk_capacities_temp (ocp_source, year, month);
+CREATE INDEX IF NOT EXISTS idx_azure_disk_cap_source_year_month ON {{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp (ocp_source, year, month);
 
-CREATE TABLE IF NOT EXISTS "{{schema}}".managed_reporting_ocpazurecostlineitem_project_daily_summary_temp
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp
 (
     row_uuid VARCHAR,
     cluster_id VARCHAR,
@@ -87,10 +87,10 @@ CREATE TABLE IF NOT EXISTS "{{schema}}".managed_reporting_ocpazurecostlineitem_p
     day VARCHAR
 );
 
-CREATE INDEX IF NOT EXISTS idx_azure_summary_temp_source_year_month ON "{{schema}}".managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (source, ocp_source, year, month);
-CREATE INDEX IF NOT EXISTS idx_azure_summary_temp_day ON "{{schema}}".managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (day);
+CREATE INDEX IF NOT EXISTS idx_azure_summary_temp_source_year_month ON {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (source, ocp_source, year, month);
+CREATE INDEX IF NOT EXISTS idx_azure_summary_temp_day ON {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (day);
 
-CREATE TABLE IF NOT EXISTS "{{schema}}".managed_reporting_ocpazurecostlineitem_project_daily_summary
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary
 (
     row_uuid VARCHAR,
     cluster_id VARCHAR,
@@ -136,6 +136,6 @@ CREATE TABLE IF NOT EXISTS "{{schema}}".managed_reporting_ocpazurecostlineitem_p
     day VARCHAR
 );
 
-CREATE INDEX IF NOT EXISTS idx_azure_summary_source_year_month ON "{{schema}}".managed_reporting_ocpazurecostlineitem_project_daily_summary (source, ocp_source, year, month);
-CREATE INDEX IF NOT EXISTS idx_azure_summary_day ON "{{schema}}".managed_reporting_ocpazurecostlineitem_project_daily_summary (day);
-CREATE INDEX IF NOT EXISTS idx_azure_summary_usage_start ON "{{schema}}".managed_reporting_ocpazurecostlineitem_project_daily_summary (usage_start);
+CREATE INDEX IF NOT EXISTS idx_azure_summary_source_year_month ON {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary (source, ocp_source, year, month);
+CREATE INDEX IF NOT EXISTS idx_azure_summary_day ON {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary (day);
+CREATE INDEX IF NOT EXISTS idx_azure_summary_usage_start ON {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary (usage_start);

@@ -4,7 +4,7 @@ WITH cte_unnested_azure_tags AS (
     SELECT DISTINCT key,
         value
     FROM {{schema | sqlsafe}}.azure_line_items AS azure
-    CROSS JOIN LATERAL json_each_text(azure.tags::json) AS tags(key, value)
+    CROSS JOIN LATERAL jsonb_each_text(azure.tags::jsonb) AS tags(key, value)
     WHERE source = {{azure_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -17,8 +17,8 @@ cte_unnested_ocp_tags AS (
         volume_key,
         volume_value
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino AS ocp
-    CROSS JOIN LATERAL json_each_text(COALESCE(ocp.pod_labels::json, '{}'::json)) AS pod_tags(pod_key, pod_value)
-    CROSS JOIN LATERAL json_each_text(COALESCE(ocp.volume_labels::json, '{}'::json)) AS volume_tags(volume_key, volume_value)
+    CROSS JOIN LATERAL jsonb_each_text(COALESCE(ocp.pod_labels::jsonb, '{}'::jsonb)) AS pod_tags(pod_key, pod_value)
+    CROSS JOIN LATERAL jsonb_each_text(COALESCE(ocp.volume_labels::jsonb, '{}'::jsonb)) AS volume_tags(volume_key, volume_value)
     WHERE source IN {{ocp_source_uuids | inclause}}
         AND year = {{year}}
         AND lpad(month, 2, '0') = {{month}}

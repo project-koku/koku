@@ -6,6 +6,7 @@ import re
 import time
 import typing as t
 
+from django.db.utils import ProgrammingError as DjangoProgrammingError
 from koku.reportdb_accessor import get_report_db_accessor
 import sqlparse
 from trino.exceptions import TrinoExternalError
@@ -261,6 +262,12 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
                 cur = trino_conn.cursor()
                 cur.execute(stmt, params=s_params)
                 results = cur.fetchall()
+            except DjangoProgrammingError as e:
+                # PostgreSQL raises "no results to fetch" for CREATE/DROP without RETURNING
+                if "no results to fetch" in str(e):
+                    results = []
+                else:
+                    raise
             except TrinoQueryError as trino_exc:
                 exc_to_raise = TrinoStatementExecError(
                     statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc

@@ -41,6 +41,7 @@ from masu.util.ocp.common import DistributionConfig
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
+from reporting.models import TRINO_MANAGED_TABLES
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import TRINO_LINE_ITEM_DAILY_TABLE as AZURE_TRINO_LINE_ITEM_DAILY_TABLE
@@ -299,7 +300,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def delete_ocp_hive_partition_by_day(self, days, source, year, month):
         """Deletes partitions individually for each day in days list."""
-        table = "reporting_ocpusagelineitem_daily_summary"
+        table = list(TRINO_MANAGED_TABLES.keys())[0]
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
@@ -337,10 +338,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "table": table,
         }
         LOG.info(log_json(msg="deleting Hive partitions by source", context=ctx))
-        sql = f"""
-        DELETE FROM hive.{self.schema}.{table}
-        WHERE {partition_column} = '{provider_uuid}'
-        """
+        sql = get_report_db_accessor().get_delete_by_source_sql(
+            self.schema, table, partition_column, provider_uuid
+        )
         self._execute_trino_raw_sql_query(
             sql,
             log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",

@@ -72,7 +72,7 @@ WHERE date(gpu.interval_start) >= DATE({{start_date}})
       {%- endfor %}
   )
   {%- endif %}
-;
+RETURNING 1;
 
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
@@ -93,10 +93,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
 WITH cte_unutilized_uptime_hours AS (
     select
         node_ut.node,
-        -- count(node_ut.interval_start) * max((node_labels::json->>'nvidia_com_gpu_count')::DECIMAL(33, 15)) as node_uptime_hours,
+        -- count(node_ut.interval_start) * max((node_labels::jsonb->>'nvidia_com_gpu_count')::DECIMAL(33, 15)) as node_uptime_hours,
         -- max(gpu.aggregated_pod_uptime) as pod_uptime,
-        count(node_ut.interval_start) * max((node_labels::json->>'nvidia_com_gpu_count')::DECIMAL(33, 15)) - coalesce(max(gpu.aggregated_pod_uptime), 0) as untilized_uptime,
-        replace(node_ut.node_labels::json->>'nvidia_com_gpu_product', '_', ' ') as model,
+        count(node_ut.interval_start) * max((node_labels::jsonb->>'nvidia_com_gpu_count')::DECIMAL(33, 15)) - coalesce(max(gpu.aggregated_pod_uptime), 0) as untilized_uptime,
+        replace(node_ut.node_labels::jsonb->>'nvidia_com_gpu_product', '_', ' ') as model,
         DATE(node_ut.interval_start) as interval_date
     from {{schema | sqlsafe}}.openshift_node_labels_line_items as node_ut
     LEFT JOIN (
@@ -113,11 +113,11 @@ WITH cte_unutilized_uptime_hours AS (
     ) AS gpu
         ON gpu.node = node_ut.node
         AND gpu.interval_date = DATE(node_ut.interval_start)
-    where node_labels like '%"nvidia_com_gpu_present": "True"%'
+    where node_labels like '%%"nvidia_com_gpu_present": "True"%%'
         AND node_ut.month = {{month}}
         AND node_ut.year = {{year}}
         AND node_ut.source = {{source_uuid}}
-    group by node_ut.node, replace(node_labels::json->>'nvidia_com_gpu_product', '_', ' '), DATE(node_ut.interval_start)
+    group by node_ut.node, replace(node_labels::jsonb->>'nvidia_com_gpu_product', '_', ' '), DATE(node_ut.interval_start)
 )
 SELECT
     uuid_generate_v4() as uuid,
@@ -154,4 +154,4 @@ SELECT
     'Tag' AS monthly_cost_type
 FROM cte_unutilized_uptime_hours as hrs
 WHERE untilized_uptime > 0
-;
+RETURNING 1;

@@ -41,3 +41,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazure_database_summary_p (
             OR lower(service_name) LIKE '%%database%%'
         )
     GROUP BY usage_start, subscription_guid, service_name
+RETURNING 1;

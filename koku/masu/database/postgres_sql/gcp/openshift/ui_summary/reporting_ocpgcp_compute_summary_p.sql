@@ -46,3 +46,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpgcp_compute_summary_p (
         usage_end,
         instance_type,
         invoice_month
+RETURNING 1;

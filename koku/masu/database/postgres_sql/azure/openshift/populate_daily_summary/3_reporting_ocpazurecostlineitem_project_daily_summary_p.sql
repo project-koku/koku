@@ -73,12 +73,7 @@ filtered_data as (
         currency,
         pretax_cost,
         markup_cost,
-        cast(
-            map_filter(
-                cast(json_parse(tags) as map(varchar, varchar)),
-                (k,v) -> contains(pek.keys, k)
-            ) as json
-        ) AS enabled_tags,
+        (SELECT json_object_agg(key, value) FROM jsonb_each_text(tags::jsonb) WHERE key = ANY(pek.keys))::jsonb AS enabled_tags,
         cost_category_id
     FROM {{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary
     CROSS JOIN cte_pg_enabled_keys AS pek
@@ -139,4 +134,5 @@ GROUP BY
     resource_location,
     unit_of_measure,
     currency,
-    cost_category_id;
+    cost_category_id
+RETURNING 1;

@@ -9,15 +9,15 @@ WITH cte_array_agg_nodes AS (
 ),
 cte_cluster_info as (
     select
-        format('"openshift_cluster": "%s"', auth.credentials::json->>'cluster_id') AS cluster_id,
-        format('"openshift_cluster": "%s"', provider.name) as cluster_alias
+        '"openshift_cluster": "' || (auth.credentials->>'cluster_id') || '"' AS cluster_id,
+        '"openshift_cluster": "' || provider.name || '"' as cluster_alias
     from public.api_provider as provider
     inner join public.api_providerauthentication as auth
     ON provider.authentication_id = auth.id
     and provider.uuid = {{ocp_provider_uuid}}::uuid
 ),
 cte_tag_matches AS (
-    SELECT * FROM unnest(ARRAY{{matched_tag_strs | sqlsafe}}) as t(matched_tag)
+    SELECT * FROM unnest(CAST(ARRAY{{matched_tag_strs | sqlsafe}} AS VARCHAR[])) as t(matched_tag)
 
     UNION
 
@@ -29,11 +29,11 @@ cte_tag_matches AS (
 
     UNION
 
-    SELECT format('"openshift_node": "%s"', node) AS matched_tag  from cte_array_agg_nodes
+    SELECT '"openshift_node": "' || node || '"' AS matched_tag  from cte_array_agg_nodes
 
     UNION
 
-    SELECT distinct format('"openshift_project": "%s"', namespace)
+    SELECT distinct '"openshift_project": "' || namespace || '"'
     FROM {{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_provider_uuid}}
     AND month = {{month}}

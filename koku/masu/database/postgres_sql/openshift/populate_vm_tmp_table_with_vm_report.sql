@@ -38,3 +38,4 @@ WHERE pvc.source = {{source_uuid | string}}
 AND pvc.year = {{year}}
 AND pvc.month = {{month}}
 GROUP BY latest.vm_name, latest.node, pvc.vm_persistentvolumeclaim_name
+RETURNING 1;

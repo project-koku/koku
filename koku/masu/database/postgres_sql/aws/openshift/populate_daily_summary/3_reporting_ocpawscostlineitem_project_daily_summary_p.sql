@@ -48,12 +48,7 @@ with cte_pg_enabled_keys as (
 ),
 filtered_data as (
     SELECT cluster_id,
-    cast(
-        map_filter(
-            cast(json_parse(tags) as map(varchar, varchar)),
-            (k,v) -> contains(pek.keys, k)
-        ) as json
-     ) AS enabled_tags,
+    (SELECT json_object_agg(key, value) FROM jsonb_each_text(tags::jsonb) WHERE key = ANY(pek.keys))::jsonb AS enabled_tags,
     cluster_alias,
     data_source,
     namespace,
@@ -90,7 +85,7 @@ filtered_data as (
     markup_cost_savingsplan,
     calculated_amortized_cost,
     markup_cost_amortized,
-    json_parse(aws_cost_category) as aws_cost_category,
+    aws_cost_category::jsonb as aws_cost_category,
     cost_category_id
 FROM {{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary
 CROSS JOIN cte_pg_enabled_keys AS pek
@@ -163,4 +158,5 @@ GROUP BY
     currency_code,
     fd.enabled_tags,
     fd.aws_cost_category,
-    cost_category_id;
+    cost_category_id
+RETURNING 1;

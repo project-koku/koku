@@ -35,7 +35,7 @@ SELECT uuid_generate_v4(),
     {%- if value_rates is defined and value_rates %}
     CASE
         {%- for value, rate in value_rates.items() %}
-        WHEN lids.pod_labels::json->>'{{ tag_key|sqlsafe }}' = {{value}}
+        WHEN lids.pod_labels::jsonb->>'{{ tag_key|sqlsafe }}' = {{value}}
         THEN max(vmhrs.vm_interval_hours) * CAST({{rate}} as DECIMAL(33, 15))
         {%- endfor %}
         {%- if default_rate is defined %}
@@ -60,7 +60,7 @@ JOIN (
     GROUP BY 1, 2
     {%- else %}
     SELECT
-        pod_labels::json->>'vm_kubevirt_io_name' AS vm_name,
+        pod_labels::jsonb->>'vm_kubevirt_io_name' AS vm_name,
         DATE(interval_start) AS interval_day,
         count(interval_start) AS vm_interval_hours
     FROM {{schema | sqlsafe}}.openshift_pod_usage_line_items
@@ -71,7 +71,7 @@ JOIN (
     GROUP BY 1, 2
     {%- endif %}
 ) AS vmhrs
-ON lids.pod_labels::json->>'vm_kubevirt_io_name' = vmhrs.vm_name
+ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = vmhrs.vm_name
    AND DATE(vmhrs.interval_day) = lids.usage_start
 WHERE usage_start >= DATE({{start_date}})
     AND usage_start <= DATE({{end_date}})
@@ -85,11 +85,11 @@ WHERE usage_start >= DATE({{start_date}})
             OR lids.cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary')
         )
 {%- if default_rate is defined %}
-    AND lids.pod_labels::json->'{{ tag_key|sqlsafe }}' IS NOT NULL
+    AND lids.pod_labels::jsonb->>'{{ tag_key|sqlsafe }}' IS NOT NULL
 {%- else %}
         AND (
             {%- for value, rate in value_rates.items() %}
-                {%- if not loop.first %} OR {%- endif %} lids.pod_labels::json->>'{{ tag_key|sqlsafe }}' = {{value}}
+                {%- if not loop.first %} OR {%- endif %} lids.pod_labels::jsonb->>'{{ tag_key|sqlsafe }}' = {{value}}
                 {%- if loop.last %} ) {%- endif %}
             {%- endfor %}
 {%- endif %}
@@ -104,4 +104,4 @@ GROUP BY usage_start,
     cost_category_id,
     pod_labels,
     all_labels
-;
+RETURNING 1;
