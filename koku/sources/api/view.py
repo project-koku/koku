@@ -41,6 +41,7 @@ from masu.util.aws.common import get_available_regions
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
+from sources.kafka_publisher import publish_application_destroy_event
 from sources.storage import SourcesStorageError
 
 
@@ -65,6 +66,9 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
                 LOG.error(msg)
                 return Response(msg, status=500)
             else:
+                # Publish destroy event to Kafka before deleting the source model
+                # This ensures downstream services (e.g., ros-ocp-backend) are notified
+                publish_application_destroy_event(source)
                 result = super().destroy(request, *args, **kwargs)
                 invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
                 return result
