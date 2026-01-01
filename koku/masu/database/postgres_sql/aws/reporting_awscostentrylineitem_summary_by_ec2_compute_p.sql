@@ -43,7 +43,7 @@ cte_latest_values as (
     SELECT
         lineitem_resourceid as resource_id,
         nullif(product_instancetype, '') as instance_type,
-        max(resourcetags::json->>'Name') AS instance_name,
+        max(resourcetags::jsonb->>'Name') AS instance_name,
         resourcetags as tags,
         costcategory as cost_category,
         nullif(product_memory, '') as memory,
@@ -53,7 +53,7 @@ cte_latest_values as (
     AND year = '{{year | sqlsafe}}'
     AND month = '{{month | sqlsafe}}'
     AND lineitem_productcode = 'AmazonEC2'
-    AND product_productfamily LIKE '%Compute Instance%'
+    AND product_productfamily LIKE '%%Compute Instance%%'
     AND lineitem_resourceid != ''
     AND lineitem_usagestartdate = (
       SELECT max(date(lv.lineitem_usagestartdate)) AS usage_start
@@ -83,8 +83,8 @@ SELECT uuid_generate_v4() as uuid,
     region,
     cte_l.vcpu,
     cte_l.memory,
-    {{schema | sqlsafe}}.filter_json_by_keys(cte_l.tags, pek.keys)::json as tags,
-    cte_l.cost_category::json as cost_category,
+    (SELECT json_object_agg(key, value) FROM jsonb_each_text(cte_l.tags::jsonb) WHERE key = ANY(pek.keys))::jsonb as tags,
+    cte_l.cost_category::jsonb as cost_category,
     unit,
     cast(usage_amount as decimal(24,9)) as usage_amount,
     normalization_factor,
@@ -166,7 +166,7 @@ FROM (
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
         AND lineitem_productcode = 'AmazonEC2'
-        AND product_productfamily LIKE '%Compute Instance%'
+        AND product_productfamily LIKE '%%Compute Instance%%'
         AND lineitem_resourceid != ''
     GROUP BY lineitem_resourceid
 ) AS ds
@@ -174,3 +174,4 @@ CROSS JOIN cte_pg_enabled_keys AS pek
 JOIN cte_latest_values AS cte_l ON ds.resource_id = cte_l.resource_id
 LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON ds.usage_account_id = aa.account_id
+RETURNING 1

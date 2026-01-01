@@ -1,7 +1,8 @@
 DELETE FROM {{schema | sqlsafe}}.managed_aws_openshift_disk_capacities_temp
 WHERE ocp_source = {{ocp_provider_uuid}}
 AND year = {{year}}
-AND month = {{month}};
+AND month = {{month}}
+RETURNING 1;
 
 
 -- Developer notes
@@ -17,7 +18,7 @@ INSERT INTO {{schema | sqlsafe}}.managed_aws_openshift_disk_capacities_temp (
     month
 )
 WITH cte_hours as (
-    SELECT DAY(last_day_of_month({{start_date}})) * 24 as in_month
+    SELECT EXTRACT(DAY FROM (DATE_TRUNC('month', {{start_date}}) + INTERVAL '1 month - 1 day')) as in_month
 ),
 cte_ocp_filtered_resources as (
     select
@@ -27,7 +28,7 @@ cte_ocp_filtered_resources as (
         aws.year as year,
         aws.month as month
     FROM {{schema | sqlsafe}}.managed_aws_openshift_daily_temp as aws
-    JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
         ON aws.usage_start = ocp.usage_start
         AND strpos(aws.resource_id, ocp.csi_volume_handle) != 0
         AND ocp.csi_volume_handle is not null
@@ -62,13 +63,14 @@ calculated_capacity AS (
 SELECT *
 FROM calculated_capacity
 WHERE capacity > 0
-;
+RETURNING 1;
 
 DELETE FROM {{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary_temp
 WHERE ocp_source = {{ocp_provider_uuid}}
 AND source = {{cloud_provider_uuid}}
 AND year = {{year}}
-AND month = {{month}};
+AND month = {{month}}
+RETURNING 1;
 
 -- Storage disk resource id matching
 -- Algorhtim:
@@ -173,12 +175,12 @@ SELECT  uuid_generate_v4()::text as row_uuid, -- need a new uuid or it will dedu
             THEN NULL
         ELSE max(ocp.cost_category_id)
     END as cost_category_id,
-    max(aws.resource_id_matched) as resource_id_matched,
+    bool_or(aws.resource_id_matched) as resource_id_matched,
     {{cloud_provider_uuid}} as source,
     {{ocp_provider_uuid}} as ocp_source,
     max(aws.year) as year,
     max(aws.month) as month
-FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
 JOIN {{schema | sqlsafe}}.managed_aws_openshift_daily_temp as aws
     ON aws.usage_start = ocp.usage_start
     AND strpos(aws.resource_id, ocp.csi_volume_handle) != 0
@@ -203,7 +205,8 @@ WHERE ocp.source = {{ocp_provider_uuid}}
     AND aws_disk.year = {{year}}
     AND aws_disk.month = {{month}}
     AND aws_disk.ocp_source = {{ocp_provider_uuid}}
-GROUP BY aws.row_uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels;
+GROUP BY aws.row_uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels
+RETURNING 1;
 
 -- Unattributed Storage Cost:
 -- ((Disk Capacity - Sum(PV capacity) / Disk Capacity) * Cost of Disk
@@ -253,7 +256,7 @@ WITH cte_total_pv_capacity as (
             max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity,
             aws.resource_id as aws_resource_id,
             ocp.cluster_id
-        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
         JOIN {{schema | sqlsafe}}.managed_aws_openshift_daily_temp as aws
             ON (aws.usage_start = ocp.usage_start)
             AND strpos(aws.resource_id, ocp.csi_volume_handle) > 0
@@ -298,12 +301,12 @@ SELECT  uuid_generate_v4()::text as row_uuid, -- need a new uuid or it will dedu
     ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost_savingsplan,
     (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost) / max(pv_cap.cluster_count)  as calculated_amortized_cost,
     ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost_amortized,
-    max(aws.resource_id_matched) as resource_id_matched,
+    bool_or(aws.resource_id_matched) as resource_id_matched,
     {{cloud_provider_uuid}} as source,
     {{ocp_provider_uuid}} as ocp_source,
     max(aws.year) as year,
     max(aws.month) as month
-FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
 JOIN {{schema | sqlsafe}}.managed_aws_openshift_daily_temp as aws
     ON aws.usage_start = ocp.usage_start
     AND strpos(aws.resource_id, ocp.csi_volume_handle) != 0
@@ -330,7 +333,8 @@ WHERE ocp.source = {{ocp_provider_uuid}}
     AND aws_disk.year = {{year}}
     AND aws_disk.month = {{month}}
     AND aws_disk.ocp_source = {{ocp_provider_uuid}}
-GROUP BY aws.row_uuid, aws.resource_id;
+GROUP BY aws.row_uuid, aws.resource_id
+RETURNING 1;
 
 -- Direct resource_id matching
 INSERT INTO {{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary_temp (
@@ -408,12 +412,12 @@ SELECT aws.row_uuid,
         max(aws.tags) as tags,
         max(aws.aws_cost_category) as aws_cost_category,
         max(ocp.cost_category_id) as cost_category_id,
-        max(aws.resource_id_matched) as resource_id_matched,
+        bool_or(aws.resource_id_matched) as resource_id_matched,
         {{cloud_provider_uuid}} as source,
         {{ocp_provider_uuid}} as ocp_source,
         max(aws.year) as year,
         max(aws.month) as month
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
     JOIN {{schema | sqlsafe}}.managed_aws_openshift_daily_temp as aws
         ON aws.usage_start = ocp.usage_start
             AND strpos(aws.resource_id, ocp.resource_id) != 0
@@ -437,7 +441,7 @@ SELECT aws.row_uuid,
         AND aws.data_transfer_direction IS NULL
         AND aws_disk.resource_id is NULL -- exclude any resource used in disk capacity calculations
     GROUP BY aws.row_uuid, ocp.namespace, ocp.pod_labels
-;
+RETURNING 1;
 
 -- Tag matching
 INSERT INTO {{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary_temp (
@@ -522,14 +526,14 @@ SELECT aws.row_uuid,
         {{ocp_provider_uuid}} as ocp_source,
         max(aws.year) as year,
         max(aws.month) as month
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
     JOIN {{schema | sqlsafe}}.managed_aws_openshift_daily_temp as aws
         ON aws.usage_start = ocp.usage_start
             AND (
-                aws.tags::json->>'\2' = ocp.namespace
-                OR aws.tags::json->>'\2' = ocp.node
-                OR aws.tags::json->>'\2' = ocp.cluster_alias
-                OR aws.tags::json->>'\2' = ocp.cluster_id
+                aws.tags::jsonb->>'\2' = ocp.namespace
+                OR aws.tags::jsonb->>'\2' = ocp.node
+                OR aws.tags::jsonb->>'\2' = ocp.cluster_alias
+                OR aws.tags::jsonb->>'\2' = ocp.cluster_id
                 OR (aws.matched_tag != '' AND EXISTS (SELECT 1 FROM unnest(string_to_array(aws.matched_tag, ',')) AS tag WHERE strpos(ocp.pod_labels, replace(tag, ' ', '')) != 0))
                 OR (aws.matched_tag != '' AND EXISTS (SELECT 1 FROM unnest(string_to_array(aws.matched_tag, ',')) AS tag WHERE strpos(ocp.volume_labels, replace(tag, ' ', '')) != 0))
             )
@@ -548,7 +552,7 @@ SELECT aws.row_uuid,
         AND aws.resource_id_matched = FALSE
         AND aws.matched_tag is not null and aws.matched_tag != ''
     GROUP BY aws.row_uuid, ocp.namespace, ocp.data_source
-;
+RETURNING 1;
 
 {%- if distribution == 'cpu' -%}
 {%- set pod_column = 'pod_effective_usage_cpu_core_hours' -%}
@@ -608,13 +612,13 @@ WITH cte_cluster_counts AS (
     SELECT aws_temp.row_uuid,
         count(DISTINCT ocp.source) as cluster_count
     FROM {{schema | sqlsafe}}.managed_aws_openshift_daily_temp AS aws_temp
-    JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ocp
         ON aws_temp.usage_start = ocp.usage_start
             AND (
-                aws_temp.tags::json->>'\2' = ocp.namespace
-                OR aws_temp.tags::json->>'\2' = ocp.node
-                OR aws_temp.tags::json->>'\2' = ocp.cluster_alias
-                OR aws_temp.tags::json->>'\2' = ocp.cluster_id
+                aws_temp.tags::jsonb->>'\2' = ocp.namespace
+                OR aws_temp.tags::jsonb->>'\2' = ocp.node
+                OR aws_temp.tags::jsonb->>'\2' = ocp.cluster_alias
+                OR aws_temp.tags::jsonb->>'\2' = ocp.cluster_id
                 OR (aws_temp.matched_tag != '' AND EXISTS (SELECT 1 FROM unnest(string_to_array(aws_temp.matched_tag, ',')) AS tag WHERE strpos(ocp.pod_labels, replace(tag, ' ', '')) != 0))
                 OR (aws_temp.matched_tag != '' AND EXISTS (SELECT 1 FROM unnest(string_to_array(aws_temp.matched_tag, ',')) AS tag WHERE strpos(ocp.volume_labels, replace(tag, ' ', '')) != 0))
             )
@@ -720,16 +724,22 @@ SELECT pds.row_uuid,
         ELSE calculated_amortized_cost / r.aws_uuid_count * cast({{markup}} as decimal(33,9))
     END as markup_cost_amortized,
     CASE WHEN pds.pod_labels IS NOT NULL
-        THEN json_format(cast(
-            map_concat(
-                cast(json_parse(pds.pod_labels) as map(varchar, varchar)),
-                cast(json_parse(pds.tags) as map(varchar, varchar))
-            ) as JSON))
-        ELSE json_format(cast(
-            map_concat(
-                cast(json_parse(pds.volume_labels) as map(varchar, varchar)),
-                cast(json_parse(pds.tags) as map(varchar, varchar))
-            ) as JSON))
+        THEN (
+            SELECT json_object_agg(key, value)::text
+            FROM (
+                SELECT * FROM jsonb_each_text(pds.pod_labels::jsonb)
+                UNION ALL
+                SELECT * FROM jsonb_each_text(pds.tags::jsonb)
+            ) combined(key, value)
+        )
+        ELSE (
+            SELECT json_object_agg(key, value)::text
+            FROM (
+                SELECT * FROM jsonb_each_text(pds.volume_labels::jsonb)
+                UNION ALL
+                SELECT * FROM jsonb_each_text(pds.tags::jsonb)
+            ) combined(key, value)
+        )
     END as tags,
     aws_cost_category,
     cost_category_id,
@@ -746,7 +756,7 @@ JOIN cte_rankings as r
 LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON pds.usage_account_id = aa.account_id
 WHERE pds.ocp_source = {{ocp_provider_uuid}} AND year = {{year}} AND month = {{month}}
-;
+RETURNING 1;
 
 -- Put Node Network Costs into the Network unattributed namespace
 INSERT INTO {{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary (
@@ -826,7 +836,7 @@ SELECT
     max(aws.year) as year,
     max(aws.month) as month,
     max(cast(EXTRACT(DAY FROM aws.usage_start) AS varchar)) AS day
-FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino AS ocp
 JOIN {{schema | sqlsafe}}.managed_aws_openshift_daily_temp AS aws
     ON aws.usage_start = ocp.usage_start
     AND strpos(aws.resource_id, ocp.resource_id) != 0
@@ -848,4 +858,4 @@ GROUP BY
     aws.row_uuid,
     ocp.node,
     aws.data_transfer_direction
-;
+RETURNING 1;

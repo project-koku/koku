@@ -45,12 +45,12 @@ JOIN (
       AND month = {{month}}
     GROUP BY 1, 2
 ) AS vmhrs
-    ON lids.pod_labels::json->>'vm_kubevirt_io_name' = vmhrs.vm_name
+    ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = vmhrs.vm_name
     AND DATE(vmhrs.interval_day) = lids.usage_start
 {%- else %}
 JOIN (
     SELECT
-        pod_labels::json->>'vm_kubevirt_io_name' as vm_name,
+        pod_labels::jsonb->>'vm_kubevirt_io_name' as vm_name,
         DATE(interval_start) as interval_day,
         count(interval_start) AS vm_interval_hours
     FROM {{schema | sqlsafe}}.openshift_pod_usage_line_items
@@ -60,7 +60,7 @@ JOIN (
       AND month = {{month}}
     GROUP BY 1, 2
 ) AS vmhrs
-    ON lids.pod_labels::json->>'vm_kubevirt_io_name' = vmhrs.vm_name
+    ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = vmhrs.vm_name
     AND DATE(vmhrs.interval_day) = lids.usage_start
 {%- endif %}
 WHERE usage_start >= DATE({{start_date}})
@@ -85,4 +85,4 @@ GROUP BY usage_start,
     cost_category_id,
     pod_labels,
     all_labels
-;
+RETURNING 1;

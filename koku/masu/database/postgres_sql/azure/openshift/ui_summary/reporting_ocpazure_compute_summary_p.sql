@@ -41,3 +41,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazure_compute_summary_p (
         AND instance_type IS NOT NULL
         AND unit_of_measure = 'Hrs'
     GROUP BY usage_start, subscription_guid, instance_type, resource_id
+RETURNING 1;

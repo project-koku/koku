@@ -2,7 +2,8 @@ DELETE FROM {{schema | sqlsafe}}.managed_aws_openshift_daily_temp
 WHERE source = {{cloud_provider_uuid}}
 AND ocp_source = {{ocp_provider_uuid}}
 AND year = {{year}}
-AND month = {{month}};
+AND month = {{month}}
+RETURNING 1;
 
 INSERT INTO {{schema | sqlsafe}}.managed_aws_openshift_daily_temp (
     row_uuid,
@@ -79,7 +80,7 @@ cte_matchable_resource_names AS (
 ),
 cte_agg_tags AS (
     SELECT array_agg(cte_tag_matches.matched_tag) as matched_tags from (
-        SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
+        SELECT * FROM unnest(CAST(ARRAY{{matched_tag_array | sqlsafe}} AS VARCHAR[])) as t(matched_tag)
     ) as cte_tag_matches
 ),
 cte_enabled_tag_keys AS (
@@ -106,7 +107,7 @@ SELECT
     nullif(aws.product_instancetype, '') as instance_type,
     nullif(aws.product_region, '') as region,
     nullif(aws.pricing_unit, '') as unit,
-    {{schema | sqlsafe}}.filter_json_by_keys(aws.resourcetags, etk.enabled_keys)::text as tags,
+    (SELECT json_object_agg(key, value) FROM jsonb_each_text(aws.resourcetags::jsonb) WHERE key = ANY(etk.enabled_keys))::text as tags,
     aws.costcategory as aws_cost_category,
     aws.lineitem_usageamount as usage_amount,
     CASE
@@ -146,8 +147,9 @@ SELECT
     END as resource_id_matched,
     array_to_string(
         ARRAY(
-            SELECT unnest(tag_matches.matched_tags)
-            WHERE strpos(resourcetags, unnest) != 0
+            SELECT tag
+            FROM unnest(tag_matches.matched_tags) AS tag
+            WHERE strpos(resourcetags, tag) != 0
         ),
         ','
     ) as matched_tag,
@@ -173,3 +175,4 @@ WHERE aws.source = {{cloud_provider_uuid}}
     AND aws.lineitem_usagestartdate >= {{start_date}}
     AND aws.lineitem_usagestartdate < {{end_date}} + INTERVAL '1 day'
     AND (resource_names.lineitem_resourceid IS NOT NULL OR tag_matches.matched_tags IS NOT NULL)
+RETURNING 1

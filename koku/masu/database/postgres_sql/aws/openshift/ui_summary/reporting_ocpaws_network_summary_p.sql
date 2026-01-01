@@ -50,3 +50,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpaws_network_summary_p (
         AND usage_start <= {{end_date}} + INTERVAL '1 day'
         AND product_code IN ('AmazonVPC','AmazonCloudFront','AmazonRoute53','AmazonAPIGateway')
     GROUP BY usage_start, usage_account_id, account_alias_id, product_code
+RETURNING 1;

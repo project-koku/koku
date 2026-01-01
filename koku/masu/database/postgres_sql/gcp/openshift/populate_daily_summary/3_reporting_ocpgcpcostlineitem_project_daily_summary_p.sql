@@ -53,7 +53,7 @@ filtered_data as (
         persistentvolumeclaim,
         persistentvolume,
         storageclass,
-        {{schema | sqlsafe}}.filter_json_by_keys(tags, pek.keys)::json AS enabled_tags,
+        (SELECT json_object_agg(key, value) FROM jsonb_each_text(tags::jsonb) WHERE key = ANY(pek.keys))::jsonb AS enabled_tags,
         resource_id,
         date(usage_start) as usage_start,
         account_id,
@@ -163,4 +163,5 @@ GROUP BY
     unit,
     cost_category_id,
     invoice_month,
-    currency;
+    currency
+RETURNING 1;

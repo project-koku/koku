@@ -65,8 +65,8 @@ SELECT uuid_generate_v4() as uuid,
     cast(calculated_amortized_cost AS decimal(33, 9)),
     cast(public_on_demand_cost AS decimal(24,9)),
     cast(public_on_demand_rate AS decimal(24,9)),
-    {{schema | sqlsafe}}.filter_json_by_keys(tags, pek.keys)::json as tags,
-    costcategory::json as cost_category,
+    (SELECT json_object_agg(key, value) FROM jsonb_each_text(tags::jsonb) WHERE key = ANY(pek.keys))::jsonb as tags,
+    costcategory::jsonb as cost_category,
     aa.id as account_alias_id,
     ou.id as organizational_unit_id,
     '{{source_uuid | sqlsafe}}'::uuid as source_uuid,
@@ -149,3 +149,4 @@ LEFT JOIN {{schema | sqlsafe}}.reporting_awsorganizationalunit AS ou
             ou.deleted_timestamp is NULL
             OR ou.deleted_timestamp > ds.usage_start
         )
+RETURNING 1

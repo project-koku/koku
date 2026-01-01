@@ -38,3 +38,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpgcp_cost_summary_p (
         usage_start,
         usage_end,
         invoice_month
+RETURNING 1;

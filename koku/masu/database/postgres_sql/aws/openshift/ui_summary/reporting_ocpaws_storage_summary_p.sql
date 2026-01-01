@@ -51,3 +51,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpaws_storage_summary_p (
         AND product_family LIKE '%%Storage%%'
         AND unit = 'GB-Mo'
     GROUP BY usage_start, usage_account_id, account_alias_id, product_family
+RETURNING 1;
