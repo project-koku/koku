@@ -19,7 +19,7 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 class OCPProviderMapTest(IamTestCase):
     def test_distributed_costs_use_correct_exchange_rate(self):
-        """Ensure different distributed cost types use their respective exchange rates."""
+        """Ensure different distributed cost types use their respective exchange rates (Cursor.ai assisted)."""
         usage_date = self.dh.yesterday.date()
         cost_val = Decimal("10")
 
