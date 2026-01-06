@@ -90,7 +90,7 @@ def publish_application_destroy_event(source: Sources) -> None:
         payload = {
             "Id": source.source_id,  # Application ID (ros-ocp-backend doesn't use this, but it's required)
             "Source_id": source.source_id,  # This is what ros-ocp-backend actually uses to find clusters
-            "Application_type_id": 2,  # Cost management application type ID (2)
+            "Application_type_id": 0,  # Cost management application type ID for on-prem
             "Tenant": source.org_id or source.account_id,  # Required, prefer org_id
         }
         headers = _build_kafka_headers(source, event_type)
