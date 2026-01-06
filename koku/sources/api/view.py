@@ -22,7 +22,6 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.exceptions import ParseError
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.serializers import UUIDField
 from rest_framework.serializers import ValidationError
@@ -30,6 +29,7 @@ from rest_framework.serializers import ValidationError
 from api.common.filters import CharListFilter
 from api.common.pagination import ListPaginator
 from api.common.permissions import RESOURCE_TYPE_MAP
+from api.common.permissions.sources_access import SourcesAccessPermission
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
@@ -126,12 +126,12 @@ class SourcesViewSet(*MIXIN_LIST):
 
     lookup_fields = ("source_id", "source_uuid")
     queryset = Sources.objects.all()
-    permission_classes = (AllowAny,)
+    permission_classes = (SourcesAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
     http_method_names = HTTP_METHOD_LIST
 
-    @action(methods=["get"], detail=False, permission_classes=[AllowAny], url_path="aws-s3-regions")
+    @action(methods=["get"], detail=False, permission_classes=[SourcesAccessPermission], url_path="aws-s3-regions")
     def aws_s3_regions(self, request):
         regions = get_available_regions("s3")
         return ListPaginator(regions, request).paginated_response
@@ -320,7 +320,7 @@ class SourcesViewSet(*MIXIN_LIST):
         return response
 
     @method_decorator(never_cache)
-    @action(methods=["get"], detail=True, permission_classes=[AllowAny])
+    @action(methods=["get"], detail=True, permission_classes=[SourcesAccessPermission])
     def stats(self, request, pk=None):
         """Get source stats."""
         source = self.get_object()
