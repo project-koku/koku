@@ -1393,8 +1393,7 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
         mock_source_in_trino.return_value = 3  # Source has GPU data (3 partitions)
         mock_cost_model_instance = Mock()
         mock_cost_model_instance.metric_to_tag_params_map = {}  # No GPU cost model
-        mock_cost_model_accessor.return_value.__enter__ = Mock(return_value=mock_cost_model_instance)
-        mock_cost_model_accessor.return_value.__exit__ = Mock(return_value=False)
+        mock_cost_model_accessor.return_value = mock_cost_model_instance
         mock_get_cluster_id.return_value = "test-cluster-id"
         mock_get_cluster_alias.return_value = "test-cluster-alias"
 
