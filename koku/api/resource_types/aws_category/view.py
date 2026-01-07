@@ -26,7 +26,7 @@ from api.resource_types.aws_category.serializers import AWSCategoryKeyOnlySerial
 from api.resource_types.aws_category.serializers import AWSCategorySerializer
 from reporting.provider.aws.models import AWSCategorySummary
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
-from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccountP
+from reporting.provider.aws.openshift.models import OCPAWSCategorySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -52,7 +52,6 @@ class AWSCategoryView(generics.ListAPIView):
         "unnested_value": Func(F("values"), function="unnest"),
         "enabled": Exists(AWSEnabledCategoryKeys.objects.filter(key=OuterRef("key")).filter(enabled=True)),
     }
-    queryset = AWSCategorySummary.objects.values("key").annotate(**annotations).distinct()
     pagination_class = ResourceTypeViewPaginator
 
     FILTER_MAP = {
@@ -139,19 +138,38 @@ class AWSCategoryView(generics.ListAPIView):
                 filters.add(query_filter)
         return filters.compose()
 
+    def get_queryset(self):
+        """Get the appropriate queryset based on openshift parameter."""
+        if self.openshift_check:
+            # Use OCPAWSCategorySummary when openshift=true
+            return OCPAWSCategorySummary.objects.values("key").annotate(**self.annotations).distinct()
+        # Default to AWSCategorySummary
+        return AWSCategorySummary.objects.values("key").annotate(**self.annotations).distinct()
+
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         error_message = {}
+        # Set queryset based on openshift parameter
+        self.queryset = self.get_queryset()
+
         if self.key_only_check:
             annotate = {
                 "enabled": Exists(AWSEnabledCategoryKeys.objects.filter(key=OuterRef("key")).filter(enabled=True))
             }
-            self.queryset = (
-                AWSCategorySummary.objects.values_list("key", flat=True)
-                .annotate(**annotate)
-                .filter(enabled=True)
-                .distinct()
-            )
+            if self.openshift_check:
+                self.queryset = (
+                    OCPAWSCategorySummary.objects.values_list("key", flat=True)
+                    .annotate(**annotate)
+                    .filter(enabled=True)
+                    .distinct()
+                )
+            else:
+                self.queryset = (
+                    AWSCategorySummary.objects.values_list("key", flat=True)
+                    .annotate(**annotate)
+                    .filter(enabled=True)
+                    .distinct()
+                )
             self.SUPPORTED_FILTERS = ["limit", self.KEY_ONLY_PARAM, self.OPENSHIFT_PARAM, "account"]
         # Check for only supported query_params
         if self.request.query_params:
@@ -159,12 +177,6 @@ class AWSCategoryView(generics.ListAPIView):
                 if key not in self.SUPPORTED_FILTERS:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
-        # Filter by accounts that have OCP+AWS data when openshift=true
-        if self.openshift_check:
-            ocp_aws_accounts = OCPAWSCostSummaryByAccountP.objects.values_list(
-                "usage_account_id", flat=True
-            ).distinct()
-            self.queryset = self.queryset.filter(usage_account_id__in=ocp_aws_accounts)
         filters = self.build_filters()
         if filters:
             self.queryset = self.queryset.filter(filters)

@@ -279,6 +279,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     start, end, openshift_provider_uuid, aws_provider_uuid
                 )
 
+            # Populate OCP on AWS category summary table
+            accessor.populate_ocp_on_aws_category_summary_table(aws_bill_ids, start_date, end_date)
+
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "AWS"
                 LOG.info(log_json(msg="processing OCP-ALL for AWS", **context))
