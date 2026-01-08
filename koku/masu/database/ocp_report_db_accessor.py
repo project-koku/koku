@@ -125,10 +125,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             self.schema, sql_params.get("source_uuid"), TRINO_LINE_ITEM_TABLE_DAILY_MAP["gpu_usage"]
         ):
             return
-        with CostModelDBAccessor(self.schema, sql_params.get("source_uuid")) as cost_model_accessor:
-            # Check to see if the cost model is set up to give cost
-            if cost_model_accessor.metric_to_tag_params_map.get(metric_constants.OCP_GPU_MONTH):
-                return
+        # Don't use context manager here - its __exit__ resets schema to public,
+        # which would break subsequent ORM operations in the calling code
+        cost_model_accessor = CostModelDBAccessor(self.schema, sql_params.get("source_uuid"))
+        # Check to see if the cost model is set up to give cost
+        if cost_model_accessor.metric_to_tag_params_map.get(metric_constants.OCP_GPU_MONTH):
+            return
         cluster_id = get_cluster_id_from_provider(sql_params.get("source_uuid"))
         sql_params["cluster_id"] = cluster_id
         sql_params["cluster_alias"] = get_cluster_alias_from_cluster_id(cluster_id)
