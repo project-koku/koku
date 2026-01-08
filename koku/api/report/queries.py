@@ -234,11 +234,6 @@ class ReportQueryHandler(QueryHandler):
         """Determine if we are working with an AWS API."""
         return "aws" in self.parameters.request.path
 
-    @property
-    def is_gpu(self):
-        """Determine if we are working with a GPU API."""
-        return "gpu" in self.parameters.request.path
-
     def initialize_totals(self):
         """Initialize the total response column values."""
         query_sum = {}
@@ -1472,7 +1467,10 @@ class ReportQueryHandler(QueryHandler):
         drop_columns = group_by + ["rank", "source_uuid"]
         groups = ["date"]
 
-        skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "gpu_vendor", "gpu_model"]
+        skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
+        max_on_limit_columns = self._mapper.report_type_map.get("max_on_limit_columns", [])
+        skip_columns.extend(max_on_limit_columns)
+
         aggs = {
             col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
         }
@@ -1509,10 +1507,8 @@ class ReportQueryHandler(QueryHandler):
         others_data_frame["source_uuid"] = [source_uuids] * len(others_data_frame)
         if self.is_openshift:
             others_data_frame["clusters"] = [clusters] * len(others_data_frame)
-        if self.is_gpu:
-            others_data_frame["gpu_model"] = other_str
-            others_data_frame["gpu_vendor"] = other_str
-
+        for column in max_on_limit_columns:
+            others_data_frame[column] = other_str
         return others_data_frame
 
     def date_group_data(self, data_list):
