@@ -503,6 +503,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 cost_model_rate_type="gpu_distributed",
                 query_type="trino",
                 required_table="openshift_gpu_usage_line_items_daily",
+                requires_full_month=True,
             ),
         }
 
@@ -515,7 +516,38 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             return
 
         report_period_id = report_period.id
+        dh = DateHelper()
         for cost_model_key, config in distribution_configs.items():
+            # Handle distributions that require full month data
+            if config.requires_full_month:
+                start_date_parsed = dh.parse_to_date(start_date)
+                is_current_month = (
+                    start_date_parsed.year == dh.now_utc.year and start_date_parsed.month == dh.now_utc.month
+                )
+                if is_current_month:
+                    # Trigger distribution for previous month only on the first of the month
+                    # (when we've just received complete data for the previous month)
+                    is_first_of_month = dh.now_utc.day == 1
+                    if not is_first_of_month:
+                        continue
+                    start_date = dh.last_month_start.date()
+                    end_date = dh.last_month_end.date()
+                    prev_report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+                    if not prev_report_period:
+                        msg = f"No report period found for previous month, skipping {cost_model_key} distribution"
+                        LOG.info(
+                            log_json(
+                                msg=msg,
+                                context={
+                                    "schema": self.schema,
+                                    "provider_uuid": provider_uuid,
+                                    "prev_month_start": start_date,
+                                },
+                            )
+                        )
+                        continue
+                    report_period_id = prev_report_period.id
+
             sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
@@ -524,6 +556,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "source_uuid": provider_uuid,
                 "cost_model_rate_type": config.cost_model_rate_type,
             }
+
             self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
             populate = distribution_info.get(cost_model_key, config.distribute_by_default)
             if not populate:

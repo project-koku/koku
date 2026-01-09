@@ -1051,7 +1051,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
     def test_populate_distributed_cost_sql_called(
         self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
     ):
-        """Test that the platform distribution is called."""
+        """Test that platform distribution is called and GPU skipped for current month (not first of month)."""
 
         def get_pkgutil_values(file):
             """get pkgutil values"""
@@ -1085,7 +1085,17 @@ class OCPReportDBAccessorTest(MasuTestCase):
         mock_jinja = Mock()
         mock_jinja.side_effect = side_effect
 
-        with self.accessor as acc:
+        # Mock DateHelper to return a day other than the 1st (e.g., day 15)
+        # GPU distribution for prev month only runs on the 1st of the month
+        with (
+            self.accessor as acc,
+            patch("masu.database.ocp_report_db_accessor.DateHelper") as mock_dh_class,
+        ):
+            mock_dh = Mock()
+            mock_dh.parse_to_date.return_value = start_date
+            mock_dh.now_utc = self.dh.now.replace(day=15)  # Not the first of the month
+            mock_dh_class.return_value = mock_dh
+
             acc.prepare_query = mock_jinja
             acc.populate_distributed_cost_sql(
                 start_date,
@@ -1093,6 +1103,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
             )
+            # GPU distribution is skipped for current month and prev month not triggered (not 1st of month)
             expected_calls = [
                 call(masu_database, "sql/openshift/cost_model/distribute_cost/distribute_worker_cost.sql"),
                 call(masu_database, "sql/openshift/cost_model/distribute_cost/distribute_platform_cost.sql"),
@@ -1102,15 +1113,143 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 call(
                     masu_database, "sql/openshift/cost_model/distribute_cost/distribute_unattributed_network_cost.sql"
                 ),
-                call(
-                    masu_database,
-                    "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
-                ),
             ]
             for expected_call in expected_calls:
                 self.assertIn(expected_call, mock_data_get.call_args_list)
+            # GPU should NOT be called since it's not the 1st of the month
+            gpu_call = call(
+                masu_database,
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
+            )
+            self.assertNotIn(gpu_call, mock_data_get.call_args_list)
             mock_sql_execute.assert_called()
-            self.assertEqual(len(mock_sql_execute.call_args_list), 9)
+            mock_trino_execute.assert_not_called()
+
+    @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_distributed_cost_sql_gpu_runs_prev_month_on_first_of_month(
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
+    ):
+        """Test that GPU distribution runs for previous month only on the first of the month."""
+
+        def get_pkgutil_values(file):
+            """get pkgutil values"""
+            sql = pkgutil.get_data(masu_database, f"sql/openshift/cost_model/{file}")
+            sql = sql.decode("utf-8")
+            return sql
+
+        masu_database = "masu.database"
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+        default_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "report_period_id": 1,
+            "distribution": "cpu",
+            "source_uuid": self.ocp_test_provider_uuid,
+            "populate": True,
+        }
+        side_effect = [
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_platform_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_worker_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_unattributed_storage_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_unattributed_network_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+        ]
+        mock_jinja = Mock()
+        mock_jinja.side_effect = side_effect
+
+        # Mock DateHelper to return day 1 (first of the month)
+        with (
+            self.accessor as acc,
+            patch("masu.database.ocp_report_db_accessor.DateHelper") as mock_dh_class,
+        ):
+            mock_dh = Mock()
+            mock_dh.parse_to_date.return_value = start_date
+            mock_dh.now_utc = self.dh.now.replace(day=1)  # First of the month
+            mock_dh.last_month_start = self.dh.last_month_start
+            mock_dh.last_month_end = self.dh.last_month_end
+            mock_dh_class.return_value = mock_dh
+
+            acc.prepare_query = mock_jinja
+            acc.populate_distributed_cost_sql(
+                start_date,
+                end_date,
+                self.ocp_test_provider_uuid,
+                {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+            )
+            # GPU distribution runs for previous month on the 1st of the month
+            gpu_call = call(
+                masu_database,
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
+            )
+            self.assertIn(gpu_call, mock_data_get.call_args_list)
+            # Trino should be called for GPU distribution on previous month
+            mock_trino_execute.assert_called()
+
+    @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_distributed_cost_sql_gpu_runs_for_previous_month(
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
+    ):
+        """Test that GPU distribution runs for previous month (requires_full_month=True)."""
+
+        def get_pkgutil_values(file):
+            """get pkgutil values"""
+            sql = pkgutil.get_data(masu_database, f"sql/openshift/cost_model/{file}")
+            sql = sql.decode("utf-8")
+            return sql
+
+        masu_database = "masu.database"
+        # Use previous month to test that GPU distribution runs
+        start_date = self.dh.last_month_start.date()
+        end_date = self.dh.last_month_end.date()
+        default_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "report_period_id": 1,
+            "distribution": "cpu",
+            "source_uuid": self.ocp_test_provider_uuid,
+            "populate": True,
+        }
+        side_effect = [
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_platform_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_worker_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_unattributed_storage_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_unattributed_network_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+        ]
+        mock_jinja = Mock()
+        mock_jinja.side_effect = side_effect
+
+        with self.accessor as acc:
+            acc.prepare_query = mock_jinja
+            acc.populate_distributed_cost_sql(
+                start_date,
+                end_date,
+                self.ocp_test_provider_uuid,
+                {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+            )
+            # GPU distribution should run for previous month
+            gpu_call = call(
+                masu_database,
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
+            )
+            self.assertIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_called()
 
     def test_update_line_item_daily_summary_with_tag_mapping(self):
