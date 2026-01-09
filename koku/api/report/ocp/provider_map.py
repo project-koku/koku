@@ -905,7 +905,7 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
                         },
-                        "max_on_limit_columns": ["gpu_model", "gpu_vendor", "node"],  # _aggregate_ranks_over_limit
+                        "aggregate_ranks_exclusions": ["gpu_model", "gpu_vendor", "node"],  # _aggregate_ranks_over_limit
                         "delta_key": {},
                         "filter": [],
                         "group_by": ["gpu_name"],

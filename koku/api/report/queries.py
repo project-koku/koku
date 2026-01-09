@@ -1468,8 +1468,8 @@ class ReportQueryHandler(QueryHandler):
         groups = ["date"]
 
         skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
-        max_on_limit_columns = self._mapper.report_type_map.get("max_on_limit_columns", [])
-        skip_columns.extend(max_on_limit_columns)
+        aggregate_ranks_exclusions = self._mapper.report_type_map.get("aggregate_ranks_exclusions", [])
+        skip_columns.extend(aggregate_ranks_exclusions)
 
         aggs = {
             col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
@@ -1507,7 +1507,7 @@ class ReportQueryHandler(QueryHandler):
         others_data_frame["source_uuid"] = [source_uuids] * len(others_data_frame)
         if self.is_openshift:
             others_data_frame["clusters"] = [clusters] * len(others_data_frame)
-        for column in max_on_limit_columns:
+        for column in aggregate_ranks_exclusions:
             others_data_frame[column] = other_str
         return others_data_frame
 
