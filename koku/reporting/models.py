@@ -152,7 +152,7 @@ OCP_ON_AZURE_PERSPECTIVES = (
 
 # These are cleaned during source delete
 # Table name differs based on ONPREM to avoid collision in PostgreSQL
-if getattr(settings, 'ONPREM', False):
+if getattr(settings, "ONPREM", False):
     TRINO_MANAGED_TABLES = {
         "reporting_ocpusagelineitem_daily_summary_trino": "source",
         "managed_gcp_openshift_daily_temp": "ocp_source",
@@ -186,7 +186,7 @@ else:
     }
 
 # These are cleaned during expired_data flow
-if getattr(settings, 'ONPREM', False):
+if getattr(settings, "ONPREM", False):
     EXPIRE_MANAGED_TABLES = {
         "reporting_ocpusagelineitem_daily_summary_trino": "source",
     }

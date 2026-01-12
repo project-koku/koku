@@ -111,7 +111,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/aws/reporting_awscostentrylineitem_daily_summary.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.get_sql_folder_name()}/aws/reporting_awscostentrylineitem_daily_summary.sql"
+        )
         sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         sql_params = {
@@ -171,7 +173,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
 
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/aws/openshift/ui_summary/{table_name}.sql")
+            sql = pkgutil.get_data(
+                "masu.database", f"{self.get_sql_folder_name()}/aws/openshift/ui_summary/{table_name}.sql"
+            )
             sql = sql.decode("utf-8")
             sql_params = {
                 "schema": self.schema,
@@ -208,7 +212,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     ocp_source=ocp_source,
                     year=year,
                     month=month,
-                    day=day
+                    day=day,
                 )
                 self._execute_trino_raw_sql_query(
                     sql,
@@ -439,7 +443,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self, aws_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
     ):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/aws/openshift/reporting_ocpaws_matched_tags.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.get_sql_folder_name()}/aws/openshift/reporting_ocpaws_matched_tags.sql"
+        )
         sql = sql.decode("utf-8")
 
         days = self.date_helper.list_days(start_date, end_date)

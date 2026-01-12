@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Abstract interface for report database accessors."""
-from abc import ABC, abstractmethod
-from enum import Enum, auto
+from abc import ABC
+from abc import abstractmethod
+from enum import auto
+from enum import Enum
 
 
 class ColumnType(Enum):
@@ -12,6 +14,7 @@ class ColumnType(Enum):
     DATE = auto()
     BOOLEAN = auto()
     STRING = auto()
+
 
 class ReportDBAccessor(ABC):
     """Abstract base class for database accessors."""
@@ -30,11 +33,10 @@ class ReportDBAccessor(ABC):
         pass
 
     @abstractmethod
-    def get_schema_check_sql(self,schema_name: str):
+    def get_schema_check_sql(self, schema_name: str):
         """Return the SQL to check if a schema exists"""
         pass
 
-    
     @abstractmethod
     def get_table_check_sql(self, table_name: str, schema_name: str):
         """Return the SQL to check if a table exists"""
@@ -46,38 +48,70 @@ class ReportDBAccessor(ABC):
         pass
 
     @abstractmethod
-    def get_table_create_sql(self, table_name: str, schema_name: str, columns: list[tuple[str, ColumnType]], partition_columns: list[tuple[str, ColumnType]], s3_path: str):
+    def get_table_create_sql(
+        self,
+        table_name: str,
+        schema_name: str,
+        columns: list[tuple[str, ColumnType]],
+        partition_columns: list[tuple[str, ColumnType]],
+        s3_path: str,
+    ):
         """Return the SQL to create a new table"""
         pass
 
     @abstractmethod
-    def get_partition_create_sql(self, schema_name: str, table_name: str, partition_name: str, partition_values_lower: list[str], partition_values_upper: list[str]):
+    def get_partition_create_sql(
+        self,
+        schema_name: str,
+        table_name: str,
+        partition_name: str,
+        partition_values_lower: list[str],
+        partition_values_upper: list[str],
+    ):
         """Return the SQL to create a new partition"""
         """ For now we assume that the partition values are strings"""
         pass
 
     @abstractmethod
-    def get_delete_day_by_manifestid_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, manifestid: str):
+    def get_delete_day_by_manifestid_sql(
+        self, schema_name: str, table_name: str, source: str, year: str, month: str, manifestid: str
+    ):
         """Return the SQL to delete data where manifestid doesn't match"""
         pass
 
     @abstractmethod
-    def get_delete_day_by_reportnumhours_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, reportnumhours: int, date_column: str):
+    def get_delete_day_by_reportnumhours_sql(
+        self,
+        schema_name: str,
+        table_name: str,
+        source: str,
+        year: str,
+        month: str,
+        start_date: str,
+        reportnumhours: int,
+        date_column: str,
+    ):
         """Return the SQL to delete a day's data where reportnumhours is less than specified value"""
         pass
 
     @abstractmethod
-    def get_check_day_exists_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, date_column: str):
+    def get_check_day_exists_sql(
+        self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, date_column: str
+    ):
         """Return the SQL to check if data exists for a specific day"""
         pass
 
     @abstractmethod
-    def get_delete_by_month_sql(self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str):
+    def get_delete_by_month_sql(
+        self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str
+    ):
         """Return the SQL to delete partitions by month"""
         pass
 
     @abstractmethod
-    def get_delete_by_day_sql(self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str, day: str):
+    def get_delete_by_day_sql(
+        self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str, day: str
+    ):
         """Return the SQL to delete partitions by day"""
         pass
 
@@ -97,37 +131,61 @@ class ReportDBAccessor(ABC):
         pass
 
     @abstractmethod
-    def get_nodes_query_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_nodes_query_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Return SQL to get nodes from OpenShift cluster"""
         pass
 
     @abstractmethod
-    def get_pvcs_query_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_pvcs_query_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Return SQL to get PVCs from OpenShift cluster"""
         pass
 
     @abstractmethod
-    def get_projects_query_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_projects_query_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Return SQL to get projects from OpenShift cluster"""
         pass
 
     @abstractmethod
-    def get_max_min_timestamp_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_max_min_timestamp_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Return SQL to get max/min timestamps from parquet data"""
         pass
 
     @abstractmethod
-    def get_delete_by_day_ocp_on_cloud_sql(self, schema_name: str, table_name: str, cloud_source: str, ocp_source: str, year: str, month: str, day: str):
+    def get_delete_by_day_ocp_on_cloud_sql(
+        self, schema_name: str, table_name: str, cloud_source: str, ocp_source: str, year: str, month: str, day: str
+    ):
         """Return SQL to delete partitions by day for OCP-on-cloud tables (with dual source columns)"""
         pass
 
     @abstractmethod
-    def get_gcp_topology_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_gcp_topology_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Return SQL to get GCP topology (account, project, service, region)"""
         pass
 
     @abstractmethod
-    def get_data_validation_sql(self, schema_name: str, table_name: str, source_column: str, provider_filter: str, metric: str, date_column: str, start_date: str, end_date: str, year: str, month: str):
+    def get_data_validation_sql(
+        self,
+        schema_name: str,
+        table_name: str,
+        source_column: str,
+        provider_filter: str,
+        metric: str,
+        date_column: str,
+        start_date: str,
+        end_date: str,
+        year: str,
+        month: str,
+    ):
         """Return SQL for data validation query (sum metric by date)"""
         pass
 
@@ -141,12 +199,13 @@ class ReportDBAccessor(ABC):
         """
         pass
 
-def get_report_db_accessor():
-      from django.conf import settings
-      from koku.reportdb_accessor_postgres import PostgresReportDBAccessor
-      from koku.reportdb_accessor_trino import TrinoReportDBAccessor
 
-      if settings.ONPREM:
-          return PostgresReportDBAccessor()
-      else:
-          return TrinoReportDBAccessor()
+def get_report_db_accessor():
+    from django.conf import settings
+    from koku.reportdb_accessor_postgres import PostgresReportDBAccessor
+    from koku.reportdb_accessor_trino import TrinoReportDBAccessor
+
+    if settings.ONPREM:
+        return PostgresReportDBAccessor()
+    else:
+        return TrinoReportDBAccessor()

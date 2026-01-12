@@ -30,10 +30,10 @@ from pydantic import BaseModel
 from pydantic import Field
 from pydantic import field_validator
 
-from koku.reportdb_accessor import get_report_db_accessor
 import koku.trino_database as trino_db
 from api.common import log_json
 from api.utils import DateHelper
+from koku.reportdb_accessor import get_report_db_accessor
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from reporting.provider.all.models import EnabledTagKeys
@@ -432,7 +432,9 @@ def source_in_trino_table(schema_name, source_uuid, table_name):
         int: The count of partitions for the source in the table, or 0 if table doesn't exist.
     """
     if trino_table_exists(schema_name, table_name):
-        source_has_partitions = get_report_db_accessor().get_check_source_in_partitions_sql(schema_name, table_name, source_uuid)
+        source_has_partitions = get_report_db_accessor().get_check_source_in_partitions_sql(
+            schema_name, table_name, source_uuid
+        )
         results, _ = execute_trino_query(schema_name, source_has_partitions)
         return results[0][0] if results else 0
     return 0

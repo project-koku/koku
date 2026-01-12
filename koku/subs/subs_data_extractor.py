@@ -99,7 +99,9 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def get_resource_ids_for_usage_account(self, usage_account, year, month):
         """Determine the relevant resource ids and end time to process to for each resource id."""
-        sql_file = f"{self.get_sql_folder_name()}/{self.provider_type.lower()}/determine_resource_ids_for_usage_account.sql"
+        sql_file = (
+            f"{self.get_sql_folder_name()}/{self.provider_type.lower()}/determine_resource_ids_for_usage_account.sql"
+        )
         sql = pkgutil.get_data("subs", sql_file)
         sql = sql.decode("utf-8")
         sql_params = {
