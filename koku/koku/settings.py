@@ -59,7 +59,6 @@ ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)
 
 # Enable on-prem deployment features (e.g., Kafka events for source deletion)
 KOKU_ONPREM_DEPLOYMENT = ENVIRONMENT.bool("KOKU_ONPREM_DEPLOYMENT", default=False)
-
 ALLOWED_HOSTS = ["*"]
 
 # Application definition
