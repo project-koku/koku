@@ -26,8 +26,16 @@ class CharListFilter(BaseCSVFilter, CharFilter):
 
 class SearchFilterResourceTypes(SearchFilter):
     """
-    A search filter that does not split search strings by spaces or commas.
-    Treats 'US East' as one search term instead of ['US', 'East'].
+    A search filter that treats the entire query as a single literal token.
+
+    Unlike the default SearchFilter, this prevents splitting by spaces or commas,
+    ensuring that multi-word resources (e.g., 'US East' or 'Red Hat') are
+    matched exactly as typed rather than as separate keywords.
+
+    Note: If multi-term search (searching for several independent items at once)
+    is required in the future, this can be updated to split strictly on commas
+    while still preserving internal spaces.
+
     """
 
     def get_search_terms(self, request):
