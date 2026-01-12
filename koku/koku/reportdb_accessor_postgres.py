@@ -5,7 +5,8 @@
 """PostgreSQL database accessor implementation."""
 import logging
 
-from koku.reportdb_accessor import ColumnType, ReportDBAccessor
+from koku.reportdb_accessor import ColumnType
+from koku.reportdb_accessor import ReportDBAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class DjangoConnectionWrapper:
         from django.db import connection
 
         # Set schema if provided
-        if schema and schema != 'default':
+        if schema and schema != "default":
             with connection.cursor() as cursor:
                 cursor.execute("SET search_path TO %s", [schema])
 
@@ -30,11 +31,13 @@ class DjangoConnectionWrapper:
 
     def cursor(self):
         from django.db import connection
+
         return connection.cursor()
 
     def getConnection(self):
         """Return the underlying Django connection for compatibility."""
         from django.db import connection
+
         return connection.connection
 
 
@@ -51,21 +54,31 @@ class PostgresReportDBAccessor(ReportDBAccessor):
         Returns:
             DB-API 2.0 compatible connection object
         """
-        schema = kwargs.get('schema')
+        schema = kwargs.get("schema")
         return DjangoConnectionWrapper(schema=schema)
-    
+
     def get_schema_check_sql(self, schema_name: str):
         """Return the SQL to check if a schema exists."""
         return f"SELECT 1 FROM information_schema.schemata WHERE schema_name = '{schema_name}'"
 
     def get_table_check_sql(self, table_name: str, schema_name: str):
-        return f"SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}' AND table_schema = '{schema_name}'"
-    
+        return (
+            f"SELECT 1 FROM information_schema.tables "
+            f"WHERE table_name = '{table_name}' AND table_schema = '{schema_name}'"
+        )
+
     def get_schema_create_sql(self, schema_name: str):
         return f"CREATE SCHEMA IF NOT EXISTS {schema_name}"
 
-    def get_table_create_sql(self, table_name: str, schema_name: str, columns: list[tuple[str, ColumnType]], partition_columns: list[tuple[str, ColumnType]], s3_path: str):
-        sql = f"CREATE TABLE IF NOT EXISTS \"{schema_name}\".\"{table_name}\" ("
+    def get_table_create_sql(
+        self,
+        table_name: str,
+        schema_name: str,
+        columns: list[tuple[str, ColumnType]],
+        partition_columns: list[tuple[str, ColumnType]],
+        s3_path: str,
+    ):
+        sql = f'CREATE TABLE IF NOT EXISTS "{schema_name}"."{table_name}" ('
 
         for column in columns:
             sql += f"{column[0]} {self._get_column_type_sql(column[1])}, "
@@ -88,11 +101,25 @@ class PostgresReportDBAccessor(ReportDBAccessor):
             return "boolean"
         else:
             return "varchar"
-    
-    def get_partition_create_sql(self, schema_name: str, table_name: str, partition_name: str, partition_values_lower: list[str], partition_values_upper: list[str]):
-        return f"CREATE TABLE IF NOT EXISTS \"{schema_name}\".\"{partition_name}\" PARTITION OF \"{schema_name}\".\"{table_name}\" FOR VALUES FROM ({', '.join(partition_values_lower)}) TO ({', '.join(partition_values_upper)})"
 
-    def get_delete_day_by_manifestid_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, manifestid: str):
+    def get_partition_create_sql(
+        self,
+        schema_name: str,
+        table_name: str,
+        partition_name: str,
+        partition_values_lower: list[str],
+        partition_values_upper: list[str],
+    ):
+        return (
+            f'CREATE TABLE IF NOT EXISTS "{schema_name}"."{partition_name}" '
+            f'PARTITION OF "{schema_name}"."{table_name}" '
+            f"FOR VALUES FROM ({', '.join(partition_values_lower)}) "
+            f"TO ({', '.join(partition_values_upper)})"
+        )
+
+    def get_delete_day_by_manifestid_sql(
+        self, schema_name: str, table_name: str, source: str, year: str, month: str, manifestid: str
+    ):
         """Return the SQL to delete data where manifestid doesn't match."""
         return f"""
             DELETE FROM "{schema_name}"."{table_name}"
@@ -102,7 +129,17 @@ class PostgresReportDBAccessor(ReportDBAccessor):
               AND manifestid != '{manifestid}'
         """
 
-    def get_delete_day_by_reportnumhours_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, reportnumhours: int, date_column: str):
+    def get_delete_day_by_reportnumhours_sql(
+        self,
+        schema_name: str,
+        table_name: str,
+        source: str,
+        year: str,
+        month: str,
+        start_date: str,
+        reportnumhours: int,
+        date_column: str,
+    ):
         """Return the SQL to delete a day's data where reportnumhours is less than specified value."""
         return f"""
             DELETE FROM "{schema_name}"."{table_name}"
@@ -113,7 +150,9 @@ class PostgresReportDBAccessor(ReportDBAccessor):
               AND reportnumhours < {reportnumhours}
         """
 
-    def get_check_day_exists_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, date_column: str):
+    def get_check_day_exists_sql(
+        self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, date_column: str
+    ):
         """Return the SQL to check if data exists for a specific day."""
         return f"""
             SELECT 1
@@ -125,14 +164,18 @@ class PostgresReportDBAccessor(ReportDBAccessor):
             LIMIT 1
         """
 
-    def get_delete_by_month_sql(self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str):
+    def get_delete_by_month_sql(
+        self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str
+    ):
         """Generate PostgreSQL DELETE SQL for partitions by month."""
         return f"""DELETE FROM "{schema_name}".{table_name}
 WHERE {source_column} = '{source}'
 AND year = '{year}'
 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')"""
 
-    def get_delete_by_day_sql(self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str, day: str):
+    def get_delete_by_day_sql(
+        self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str, day: str
+    ):
         """Generate PostgreSQL DELETE SQL for partitions by day."""
         return f"""DELETE FROM "{schema_name}".{table_name}
 WHERE {source_column} = '{source}'
@@ -160,7 +203,9 @@ SELECT count(*) FROM "{schema_name}".{table_name}
 WHERE source = '{source_uuid}'
 """
 
-    def get_nodes_query_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_nodes_query_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Generate PostgreSQL SQL to get nodes from OpenShift cluster."""
         return f"""
 SELECT ocp.node,
@@ -192,7 +237,9 @@ GROUP BY ocp.node,
     ocp.resource_id
 """
 
-    def get_pvcs_query_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_pvcs_query_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Generate PostgreSQL SQL to get PVCs from OpenShift cluster."""
         return f"""
 SELECT distinct persistentvolume,
@@ -206,7 +253,9 @@ WHERE ocp.source = '{source_uuid}'
     AND ocp.interval_start < '{end_date}'::timestamp + INTERVAL '1 day'
 """
 
-    def get_projects_query_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_projects_query_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Generate PostgreSQL SQL to get projects from OpenShift cluster."""
         return f"""
 SELECT distinct namespace
@@ -218,7 +267,9 @@ WHERE ocp.source = '{source_uuid}'
     AND ocp.interval_start < '{end_date}'::timestamp + INTERVAL '1 day'
 """
 
-    def get_max_min_timestamp_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_max_min_timestamp_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Generate PostgreSQL SQL to get max/min timestamps from parquet data."""
         return f"""
 SELECT min(interval_start) as min_timestamp,
@@ -231,7 +282,9 @@ WHERE ocp.source = '{source_uuid}'
     AND ocp.interval_start < '{end_date}'::timestamp + INTERVAL '1 day'
 """
 
-    def get_delete_by_day_ocp_on_cloud_sql(self, schema_name: str, table_name: str, cloud_source: str, ocp_source: str, year: str, month: str, day: str):
+    def get_delete_by_day_ocp_on_cloud_sql(
+        self, schema_name: str, table_name: str, cloud_source: str, ocp_source: str, year: str, month: str, day: str
+    ):
         """Generate PostgreSQL DELETE SQL for OCP-on-cloud partitions by day."""
         return f"""DELETE FROM "{schema_name}".{table_name}
 WHERE source = '{cloud_source}'
@@ -244,7 +297,9 @@ AND day = '{day}'"""
         """Return the parameter binding style for PostgreSQL."""
         return "pyformat"
 
-    def get_gcp_topology_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_gcp_topology_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Generate PostgreSQL SQL to get GCP topology."""
         return f"""
 SELECT source,
@@ -269,7 +324,19 @@ GROUP BY source,
     location_region
 """
 
-    def get_data_validation_sql(self, schema_name: str, table_name: str, source_column: str, provider_filter: str, metric: str, date_column: str, start_date: str, end_date: str, year: str, month: str):
+    def get_data_validation_sql(
+        self,
+        schema_name: str,
+        table_name: str,
+        source_column: str,
+        provider_filter: str,
+        metric: str,
+        date_column: str,
+        start_date: str,
+        end_date: str,
+        year: str,
+        month: str,
+    ):
         """Generate PostgreSQL SQL for data validation query."""
         return f"""
 SELECT sum({metric}) as metric, {date_column} as date

@@ -169,7 +169,7 @@ class DataValidator:
                 start_date=str(start),
                 end_date=str(end),
                 year=year,
-                month=month
+                month=month,
             )
 
             if trino:

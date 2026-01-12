@@ -6,7 +6,6 @@
 import logging
 
 import requests
-from koku.reportdb_accessor import get_report_db_accessor
 from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -17,6 +16,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework_csv.renderers import CSVRenderer
+
+from koku.reportdb_accessor import get_report_db_accessor
 
 LOG = logging.getLogger(__name__)
 

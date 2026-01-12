@@ -33,10 +33,7 @@ class MockUnleashClient:
         """Initialize mock client with static context."""
         LOG.info("Using MockUnleashClient - Unleash is disabled")
         self.unleash_instance_id = instance_id
-        self.unleash_static_context = {
-            "appName": app_name,
-            "environment": environment
-        }
+        self.unleash_static_context = {"appName": app_name, "environment": environment}
 
     def initialize_client(self):
         """No-op initialization."""
@@ -63,7 +60,7 @@ if settings.ONPREM:
     UNLEASH_CLIENT = MockUnleashClient(
         app_name="Cost Management",
         environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
-        instance_id=ENVIRONMENT.get_value("APP_POD_NAME", default="unleash-client-python")
+        instance_id=ENVIRONMENT.get_value("APP_POD_NAME", default="unleash-client-python"),
     )
 else:
     LOG.info("Unleash is enabled - connecting to Unleash server")

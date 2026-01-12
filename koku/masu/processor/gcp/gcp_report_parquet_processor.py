@@ -78,9 +78,9 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
             )
 
     def _generate_create_table_sql(self, column_names):
-        column_names.append('manifestid')
+        column_names.append("manifestid")
         return super()._generate_create_table_sql(column_names)
 
     def write_dataframe_to_sql(self, data_frame, metadata):
-        data_frame['manifestid'] = str(self._manifest_id)
+        data_frame["manifestid"] = str(self._manifest_id)
         super().write_dataframe_to_sql(data_frame, metadata)

@@ -106,7 +106,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         """
 
-        sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/gcp/reporting_gcpcostentrylineitem_daily_summary.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.get_sql_folder_name()}/gcp/reporting_gcpcostentrylineitem_daily_summary.sql"
+        )
         sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         sql_params = {
@@ -241,7 +243,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             year=invoice_month[:4],
             month=invoice_month[4:6],
             start_date=str(start_date),
-            end_date=str(end_date)
+            end_date=str(end_date),
         )
         context = {
             "schema": self.schema,
@@ -374,7 +376,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
 
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/gcp/openshift/ui_summary/{table_name}.sql")
+            sql = pkgutil.get_data(
+                "masu.database", f"{self.get_sql_folder_name()}/gcp/openshift/ui_summary/{table_name}.sql"
+            )
             sql = sql.decode("utf-8")
             sql_params = {
                 "schema": self.schema,
@@ -411,7 +415,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     ocp_source=ocp_source,
                     year=year,
                     month=month,
-                    day=day
+                    day=day,
                 )
                 self._execute_trino_raw_sql_query(
                     sql,
@@ -436,7 +440,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     ):
         """Return a list of matched tags."""
         invoice_month_date = kwargs.get("invoice_month_date")
-        sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/gcp/openshift/reporting_ocpgcp_matched_tags.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.get_sql_folder_name()}/gcp/openshift/reporting_ocpgcp_matched_tags.sql"
+        )
         sql = sql.decode("utf-8")
 
         days = self.date_helper.list_days(start_date, end_date)

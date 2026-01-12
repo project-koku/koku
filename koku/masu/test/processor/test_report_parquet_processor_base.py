@@ -6,6 +6,7 @@
 import shutil
 import tempfile
 import uuid
+from datetime import date
 from unittest.mock import patch
 
 import pandas as pd
@@ -43,7 +44,6 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         self.account = "org1234567"
         self.s3_path = self.temp_dir
         self.provider_uuid = str(uuid.uuid4())
-        self.local_parquet = self.output_file
         self.date_columns = ["date1", "date2"]
         self.numeric_columns = ["numeric1", "numeric2"]
         self.boolean_columns = ["bool_col"]
@@ -54,14 +54,15 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
             "date_columns": self.date_columns,
             "boolean_columns": self.boolean_columns,
         }
+        self.start_date = date(2024, 1, 15)
         self.processor = ReportParquetProcessorBase(
             self.manifest_id,
             self.account,
             self.s3_path,
             self.provider_uuid,
-            self.local_parquet,
             self.column_types,
             self.table_name,
+            self.start_date,
         )
         self.log_base = "masu.processor.report_parquet_processor_base"
         self.log_output_info = f"INFO:{self.log_base}:"
@@ -81,10 +82,6 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         expected_schema_name = "org1234567"
         self.assertEqual(self.processor._schema_name, expected_schema_name)
 
-    def test_generate_column_list(self):
-        """Test the generate_column_list helper."""
-        self.assertEqual(len(self.processor._generate_column_list()), len(self.csv_col_names))
-
     def test_postgres_summary_table(self):
         """Test that the unimplemented property raises an error."""
         with self.assertRaises(PostgresSummaryTableError):
@@ -94,7 +91,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
     @patch("masu.processor.aws.aws_report_parquet_processor.ReportParquetProcessorBase._execute_trino_sql")
     def test_generate_create_table_sql(self, mock_execute):
         """Test the generate parquet table sql."""
-        generated_sql = self.processor._generate_create_table_sql()
+        generated_sql = self.processor._generate_create_table_sql(self.csv_col_names)
 
         expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema}.{self.table_name}"
         expected_end = (
@@ -108,7 +105,10 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
             self.assertIn(f"{date_col} timestamp", generated_sql)
         for other_col in self.other_columns:
             self.assertIn(f"{other_col} varchar", generated_sql)
-        self.assertTrue(generated_sql.endswith(expected_end))
+        self.assertTrue(
+            generated_sql.endswith(expected_end),
+            f"Expected to end with:\n{expected_end}\n\nActual SQL:\n{generated_sql}",
+        )
 
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_trino_sql")
     def test_create_table(self, mock_execute):
@@ -120,7 +120,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
             )
             expected_logs.append(expected_log)
         with self.assertLogs(self.log_base, level="INFO") as logger:
-            self.processor.create_table()
+            self.processor.create_table(self.csv_col_names)
             for expected_log in expected_logs:
                 self.assertIn(expected_log, logger.output)
 

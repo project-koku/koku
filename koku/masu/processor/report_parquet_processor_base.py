@@ -7,15 +7,13 @@ import base64
 import hashlib
 import logging
 
-import pyarrow.parquet as pq
-from koku.reportdb_accessor import ColumnType, get_report_db_accessor
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.db import Error
+from django.db import ProgrammingError
 from django_tenants.utils import schema_context
-from trino.exceptions import TrinoQueryError
-from trino.exceptions import TrinoUserError
-from django.db import ProgrammingError, Error
 from sqlalchemy import create_engine
+from trino.exceptions import TrinoQueryError
 
 from api.common import log_json
 from api.models import Provider
@@ -24,6 +22,8 @@ from koku.cache import build_trino_table_exists_key
 from koku.cache import get_value_from_cache
 from koku.cache import set_value_in_cache
 from koku.pg_partition import get_or_create_partition
+from koku.reportdb_accessor import ColumnType
+from koku.reportdb_accessor import get_report_db_accessor
 from masu.util.common import strip_characters_from_column_name
 from reporting.models import PartitionedTable
 from reporting.models import TenantAPIProvider
@@ -76,7 +76,7 @@ class ReportParquetProcessorBase:
                         LOG.warning(err)
                     else:
                         LOG.error(err)
-                except Error as err: # TrinoQueryError is the equivalent of Error in Django
+                except Error as err:  # TrinoQueryError is the equivalent of Error in Django
                     LOG.error(err)
         return rows
 
@@ -135,8 +135,10 @@ class ReportParquetProcessorBase:
 
         partition_columns = [("source", ColumnType.STRING), ("year", ColumnType.STRING), ("month", ColumnType.STRING)]
 
-        sql = get_report_db_accessor().get_table_create_sql(self._table_name, self._schema_name, columns, partition_columns, self._s3_path)
-        
+        sql = get_report_db_accessor().get_table_create_sql(
+            self._table_name, self._schema_name, columns, partition_columns, self._s3_path
+        )
+
         return sql
 
     def create_table(self, column_names):
@@ -214,15 +216,15 @@ class ReportParquetProcessorBase:
     def write_dataframe_to_sql(self, data_frame, metadata):
         """Write dataframe to sql."""
         with get_report_db_accessor().connect() as connection:
-            engine = create_engine('postgresql://',creator=lambda: connection.getConnection())
+            engine = create_engine("postgresql://", creator=lambda: connection.getConnection())
             #
             # Add values for partition columns
             # Write to partition directly for performance
             #
-            data_frame['year'] = self._year
-            data_frame['month'] = self._month
-            data_frame['source'] = self._provider_uuid
-            data_frame.to_sql(self._partition_name, engine, self._schema_name, if_exists='append', index=False)
+            data_frame["year"] = self._year
+            data_frame["month"] = self._month
+            data_frame["source"] = self._provider_uuid
+            data_frame.to_sql(self._partition_name, engine, self._schema_name, if_exists="append", index=False)
 
     def get_table_names_for_delete(self):
         """Return list of table names to delete from. Override in subclass if needed."""
@@ -252,12 +254,7 @@ class ReportParquetProcessorBase:
         total_deleted = 0
         for table_name in existing_tables:
             delete_sql = get_report_db_accessor().get_delete_day_by_manifestid_sql(
-                self._schema_name,
-                table_name,
-                self._provider_uuid,
-                self._year,
-                self._month,
-                str(self._manifest_id)
+                self._schema_name, table_name, self._provider_uuid, self._year, self._month, str(self._manifest_id)
             )
 
             with get_report_db_accessor().connect(schema=self._schema_name) as conn:
@@ -274,16 +271,21 @@ class ReportParquetProcessorBase:
 
     def _create_partition_name(self, year, month):
         """Create a unique partition name.
-        In Postgres the partition is a table. Its name is limited to 63 chars including schema. The table name with the partition values require more chars. Thereofore, we need some other unique identifier.
-        The name is a base64 encoded sha256 hash of the table name, provider uuid, year, and month.
+
+        In Postgres the partition is a table. Its name is limited to 63 chars including schema.
+        The table name with the partition values require more chars. Therefore, we need some
+        other unique identifier. The name is a base64 encoded sha256 hash of the table name,
+        provider uuid, year, and month.
         """
         value = f"{self._table_name}{self._provider_uuid}{year}{month}"
-        hash = hashlib.sha256(value.encode('ascii')).digest()
-        b64value = base64.b64encode(hash).decode('ascii')
+        hash = hashlib.sha256(value.encode("ascii")).digest()
+        b64value = base64.b64encode(hash).decode("ascii")
         return b64value
-    
+
     def create_report_partition(self):
         partition_values_lower = [f"'{self._provider_uuid}'", f"'{self._year}'", f"'{self._month}'"]
         partition_values_upper = [f"'{self._provider_uuid}'", f"'{self._year}'", f"'{int(self._month)+1:02d}'"]
-        sql = get_report_db_accessor().get_partition_create_sql(self._schema_name, self._table_name, self._partition_name, partition_values_lower, partition_values_upper)
+        sql = get_report_db_accessor().get_partition_create_sql(
+            self._schema_name, self._table_name, self._partition_name, partition_values_lower, partition_values_upper
+        )
         self._execute_trino_sql(sql, self._schema_name)

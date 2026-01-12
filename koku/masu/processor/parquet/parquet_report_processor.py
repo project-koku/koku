@@ -318,7 +318,12 @@ class ParquetReportProcessor:
             )
         elif self.provider_type == Provider.PROVIDER_OCP:
             return OCPReportParquetProcessor(
-                self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, self.report_type, self.start_date
+                self.manifest_id,
+                self.account,
+                s3_hive_table_path,
+                self.provider_uuid,
+                self.report_type,
+                self.start_date,
             )
         elif self.provider_type == Provider.PROVIDER_AZURE:
             return AzureReportParquetProcessor(
@@ -457,7 +462,7 @@ class ParquetReportProcessor:
             log_json(self.tracing_id, msg="converting csv to parquet", context=self._context, file_name=csv_filename)
         )
 
-        col_names = [] # this is part of the return value
+        col_names = []  # this is part of the return value
 
         try:
             csv_col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
@@ -488,8 +493,10 @@ class ParquetReportProcessor:
                     )
 
                     if not col_names:
-                        col_names = list(data_frame.columns) # the dataframe is the only source for the actual column names
-                    
+                        col_names = list(
+                            data_frame.columns
+                        )  # the dataframe is the only source for the actual column names
+
                     if isOnPrem:
                         if not self.trino_table_exists.get(self.trino_table_exists_key):
                             self.create_parquet_table(col_names, daily=False, sync_partitions=False)
@@ -677,8 +684,7 @@ class ParquetReportProcessor:
         LOG.info(log_json(msg="removed partitions and marked manifest s3_parquet_cleared", context=self._context))
 
     def _delete_old_data_postgres(self, filename):
-        """ remove records with data older than the data in the file being processed
-        """
+        """remove records with data older than the data in the file being processed"""
         # Get reportnumhours for OCP (will be None for non-OCP)
         reportnumhours = None
         if self.ocp_files_to_process:
@@ -687,7 +693,7 @@ class ParquetReportProcessor:
         # Processor handles deleting from all relevant tables (raw and daily for OCP)
         processor = self._get_report_processor(daily=False)
         processor.delete_day_postgres(self.start_date, reportnumhours)
-    
+
     def _delete_old_data_trino(self, filename):
         metadata_key, metadata_value = self.get_metadata_kv(filename.stem)
 
@@ -732,9 +738,9 @@ class ParquetReportProcessor:
                 raise ReportsAlreadyProcessed
 
         delete_s3_objects(self.tracing_id, to_delete, self.error_context)
-        
+
     def handle_daily_frames_postgres(self, daily_frames, metadata):
-        """ handle daily frames in postgres"""
+        """handle daily frames in postgres"""
         if not daily_frames:
             return
 
@@ -745,7 +751,7 @@ class ParquetReportProcessor:
 
         for _, data_frame in enumerate(daily_frames):
             processor.write_dataframe_to_sql(data_frame, metadata)
-    
+
     def _write_dataframe(self, data_frame, metadata):
         """Write dataframe to sql."""
         processor = self._get_report_processor(daily=False)
