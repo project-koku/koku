@@ -13,6 +13,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.filters import SearchFilterResourceTypes
 from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.aws_access import AWSOUAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
@@ -25,7 +26,7 @@ class AWSOrganizationalUnitView(generics.ListAPIView):
     queryset = AWSOrganizationalUnit.objects.annotate(**{"value": F("org_unit_id")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer
     permission_classes = [AWSOUAccessPermission]
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
+    filter_backends = [filters.OrderingFilter, SearchFilterResourceTypes]
     ordering = ["value"]
     search_fields = ["value"]
     pagination_class = ResourceTypeViewPaginator

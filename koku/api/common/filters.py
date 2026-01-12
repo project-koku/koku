@@ -24,9 +24,9 @@ class CharListFilter(BaseCSVFilter, CharFilter):
         return qs.filter(reduce(and_, queries))
 
 
-class SingleTokenSearchFilter(SearchFilter):
+class SearchFilterResourceTypes(SearchFilter):
     """
-    A search filter that does not split search strings by spaces.
+    A search filter that does not split search strings by spaces or commas.
     Treats 'US East' as one search term instead of ['US', 'East'].
     """
 
