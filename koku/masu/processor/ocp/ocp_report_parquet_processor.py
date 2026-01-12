@@ -67,7 +67,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             "vm_disk_allocated_size_byte_seconds",
             "gpu_memory_capacity_mib",
             "gpu_pod_uptime",
-            "reportnumhours", # this is a calculated column and not part of the report
+            "reportnumhours",  # this is a calculated column and not part of the report
         ]
         date_columns = ["report_period_start", "report_period_end", "interval_start", "interval_end"]
         column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}
@@ -128,7 +128,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                 self._month,
                 start_date_str,
                 reportnumhours,
-                self._date_column
+                self._date_column,
             )
 
             with get_report_db_accessor().connect(schema=self._schema_name) as conn:
@@ -156,7 +156,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                     self._year,
                     self._month,
                     start_date_str,
-                    self._date_column
+                    self._date_column,
                 )
 
                 with get_report_db_accessor().connect(schema=self._schema_name) as conn:
@@ -213,11 +213,11 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             if bill.cluster_alias != cluster_alias:
                 bill.cluster_alias = cluster_alias
                 bill.save(update_fields=["cluster_alias"])
-    
+
     def write_dataframe_to_sql(self, data_frame, metadata):
-        data_frame['reportnumhours'] = metadata['ReportNumHours']
+        data_frame["reportnumhours"] = metadata["ReportNumHours"]
         super().write_dataframe_to_sql(data_frame, metadata)
 
     def _generate_create_table_sql(self, column_names):
-        column_names.append('reportnumhours')
+        column_names.append("reportnumhours")
         return super()._generate_create_table_sql(column_names)

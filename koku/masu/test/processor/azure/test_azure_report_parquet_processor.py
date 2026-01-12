@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportParquetProcessor."""
+from datetime import date
+
 from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
@@ -25,9 +27,9 @@ class AzureReportParquetProcessorTest(MasuTestCase):
         self.account = "org1234567"
         self.s3_path = "/s3/path"
         self.provider_uuid = self.azure_provider_uuid
-        self.local_parquet = "/local/path"
+        self.start_date = date(2024, 1, 15)
         self.processor = AzureReportParquetProcessor(
-            self.manifest_id, self.account, self.s3_path, self.provider_uuid, self.local_parquet
+            self.manifest_id, self.account, self.s3_path, self.provider_uuid, self.start_date
         )
 
     def test_azure_table_name(self):
@@ -36,7 +38,7 @@ class AzureReportParquetProcessorTest(MasuTestCase):
 
         s3_path = "/s3/path/openshift/daily"
         processor = AzureReportParquetProcessor(
-            self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.local_parquet
+            self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.start_date
         )
         self.assertEqual(processor._table_name, TRINO_OCP_ON_AZURE_DAILY_TABLE)
 
