@@ -1541,13 +1541,13 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
             mock_trino_exec.assert_not_called()
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_virtualization_ui_summary_table_uses_source_in_trino_table(
-        self, mock_psql, mock_schema_exists, mock_source_in_trino, mock_trino_table_exists
+        self, mock_trino_sql, mock_psql, mock_schema_exists, mock_trino_table_exists
     ):
-        """Test that _populate_virtualization_ui_summary_table uses source_in_trino_table."""
+        """Test that _populate_virtualization_ui_summary_table uses _execute_trino_raw_sql_query."""
         mock_trino_table_exists.return_value = True
         mock_source_in_trino.return_value = 1  # Source found in VM table (count is 1)
         with (
@@ -1559,11 +1559,11 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
             mock_source_in_trino.assert_called()
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_virtualization_ui_summary_table_vm_table_not_in_source(
-        self, mock_psql, mock_schema_exists, mock_source_in_trino, mock_trino_table_exists
+        self, mock_trino_sql, mock_psql, mock_schema_exists, mock_trino_table_exists
     ):
         """Test that _populate_virtualization_ui_summary_table uses fallback when VM table has no source data."""
         mock_trino_table_exists.return_value = True

@@ -5,9 +5,11 @@
 """Trino database accessor implementation."""
 import logging
 
-from django.conf import settings
 import trino.dbapi
-from koku.reportdb_accessor import ColumnType, ReportDBAccessor
+from django.conf import settings
+
+from koku.reportdb_accessor import ColumnType
+from koku.reportdb_accessor import ReportDBAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -36,7 +38,15 @@ class TrinoReportDBAccessor(ReportDBAccessor):
     def get_schema_create_sql(self, schema_name: str):
         return f"CREATE SCHEMA IF NOT EXISTS {schema_name}"
 
-    def get_table_create_sql(self, table_name: str, schema_name: str, columns: list[tuple[str, ColumnType]], partition_columns: list[tuple[str, ColumnType]], s3_path: str):
+    def get_table_create_sql(
+        self,
+        table_name: str,
+        schema_name: str,
+        columns: list[tuple[str, ColumnType]],
+        partition_columns: list[tuple[str, ColumnType]],
+        s3_path: str,
+    ):
+        s3_full_path = f"{settings.S3_BUCKET_NAME}/{s3_path}"
         sql = f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} ("
 
         for column in columns:
@@ -44,12 +54,12 @@ class TrinoReportDBAccessor(ReportDBAccessor):
         for partition_column in partition_columns:
             sql += f"{partition_column[0]} {self._get_column_type_sql(partition_column[1])}, "
         sql = sql.rstrip(", ")
-        
-        partition_column_str = ", ".join([col_name for col_name, _ in partition_columns])
+
+        partition_column_str = ", ".join([f"'{col_name}'" for col_name, _ in partition_columns])
 
         sql += (
-            f") WITH(external_location = '{settings.TRINO_S3A_OR_S3}://{s3_path}', format = 'PARQUET',"
-            f" partitioned_by=ARRAY[{partition_column_str}])"
+            f") WITH(external_location = '{settings.TRINO_S3A_OR_S3}://{s3_full_path}', "
+            f"format = 'PARQUET', partitioned_by=ARRAY[{partition_column_str}])"
         )
         return sql
 
@@ -63,40 +73,65 @@ class TrinoReportDBAccessor(ReportDBAccessor):
         else:
             return "varchar"
 
-    def get_partition_create_sql(self, schema_name: str, table_name: str, partition_name: str, partition_values_lower: list[str], partition_values_upper: list[str]):
+    def get_partition_create_sql(
+        self,
+        schema_name: str,
+        table_name: str,
+        partition_name: str,
+        partition_values_lower: list[str],
+        partition_values_upper: list[str],
+    ):
         """Trino doesn't need explicit partition creation - partitions are created automatically."""
         # Trino partitions are created automatically when data is inserted
         # This method is not used for Trino, but must exist to satisfy the abstract base class
         return ""
 
-    def get_delete_day_by_manifestid_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, manifestid: str):
+    def get_delete_day_by_manifestid_sql(
+        self, schema_name: str, table_name: str, source: str, year: str, month: str, manifestid: str
+    ):
         """Trino delete by manifestid - not used, Trino uses S3 file deletion."""
         # Trino doesn't use SQL DELETE for parquet files
         # Instead it deletes S3 objects directly via _delete_old_data_trino()
         # This method exists only to satisfy the abstract base class
         return ""
 
-    def get_delete_day_by_reportnumhours_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, reportnumhours: int, date_column: str):
+    def get_delete_day_by_reportnumhours_sql(
+        self,
+        schema_name: str,
+        table_name: str,
+        source: str,
+        year: str,
+        month: str,
+        start_date: str,
+        reportnumhours: int,
+        date_column: str,
+    ):
         """Trino delete by reportnumhours - not used, Trino uses S3 file deletion."""
         # Trino doesn't use SQL DELETE for parquet files
         # Instead it deletes S3 objects directly via _delete_old_data_trino()
         # This method exists only to satisfy the abstract base class
         return ""
 
-    def get_check_day_exists_sql(self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, date_column: str):
+    def get_check_day_exists_sql(
+        self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, date_column: str
+    ):
         """Trino check day exists - not used for Trino."""
         # Trino doesn't need this check - it uses S3 metadata
         # This method exists only to satisfy the abstract base class
         return ""
 
-    def get_delete_by_month_sql(self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str):
+    def get_delete_by_month_sql(
+        self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str
+    ):
         """Generate Trino DELETE SQL for partitions by month."""
         return f"""DELETE FROM hive.{schema_name}.{table_name}
 WHERE {source_column} = '{source}'
 AND year = '{year}'
 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')"""
 
-    def get_delete_by_day_sql(self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str, day: str):
+    def get_delete_by_day_sql(
+        self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str, day: str
+    ):
         """Generate Trino DELETE SQL for partitions by day."""
         return f"""DELETE FROM hive.{schema_name}.{table_name}
 WHERE {source_column} = '{source}'
@@ -132,7 +167,9 @@ SELECT count(*) from hive.{schema_name}."{table_name}$partitions"
 WHERE source = '{source_uuid}'
 """
 
-    def get_nodes_query_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_nodes_query_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Generate Trino SQL to get nodes from OpenShift cluster."""
         return f"""
 SELECT ocp.node,
@@ -140,7 +177,8 @@ SELECT ocp.node,
     max(ocp.node_capacity_cpu_cores) as node_capacity_cpu_cores,
     coalesce(max(ocp.node_role), CASE
         WHEN contains(array_agg(DISTINCT ocp.namespace), 'openshift-kube-apiserver') THEN 'master'
-        WHEN any_match(array_agg(DISTINCT nl.node_labels), element -> element like  '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
+        WHEN any_match(array_agg(DISTINCT nl.node_labels),
+            x -> x like '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
         ELSE 'worker'
     END) as node_role,
     lower(json_extract_scalar(max(node_labels), '$.kubernetes_io_arch')) as arch
@@ -161,7 +199,9 @@ GROUP BY ocp.node,
     ocp.resource_id
 """
 
-    def get_pvcs_query_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_pvcs_query_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Generate Trino SQL to get PVCs from OpenShift cluster."""
         return f"""
 SELECT distinct persistentvolume,
@@ -175,7 +215,9 @@ WHERE ocp.source = '{source_uuid}'
     AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
 """
 
-    def get_projects_query_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_projects_query_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Generate Trino SQL to get projects from OpenShift cluster."""
         return f"""
 SELECT distinct namespace
@@ -187,7 +229,9 @@ WHERE ocp.source = '{source_uuid}'
     AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
 """
 
-    def get_max_min_timestamp_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_max_min_timestamp_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Generate Trino SQL to get max/min timestamps from parquet data."""
         return f"""
 SELECT min(interval_start) as min_timestamp,
@@ -200,7 +244,9 @@ WHERE ocp.source = '{source_uuid}'
     AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
 """
 
-    def get_delete_by_day_ocp_on_cloud_sql(self, schema_name: str, table_name: str, cloud_source: str, ocp_source: str, year: str, month: str, day: str):
+    def get_delete_by_day_ocp_on_cloud_sql(
+        self, schema_name: str, table_name: str, cloud_source: str, ocp_source: str, year: str, month: str, day: str
+    ):
         """Generate Trino DELETE SQL for OCP-on-cloud partitions by day."""
         return f"""DELETE FROM hive.{schema_name}.{table_name}
 WHERE source = '{cloud_source}'
@@ -213,7 +259,9 @@ AND day = '{day}'"""
         """Return the parameter binding style for Trino."""
         return "qmark"
 
-    def get_gcp_topology_sql(self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str):
+    def get_gcp_topology_sql(
+        self, schema_name: str, source_uuid: str, year: str, month: str, start_date: str, end_date: str
+    ):
         """Generate Trino SQL to get GCP topology."""
         return f"""
 SELECT source,
@@ -238,7 +286,19 @@ GROUP BY source,
     location_region
 """
 
-    def get_data_validation_sql(self, schema_name: str, table_name: str, source_column: str, provider_filter: str, metric: str, date_column: str, start_date: str, end_date: str, year: str, month: str):
+    def get_data_validation_sql(
+        self,
+        schema_name: str,
+        table_name: str,
+        source_column: str,
+        provider_filter: str,
+        metric: str,
+        date_column: str,
+        start_date: str,
+        end_date: str,
+        year: str,
+        month: str,
+    ):
         """Generate Trino SQL for data validation query."""
         return f"""
 SELECT sum({metric}) as metric, {date_column} as date

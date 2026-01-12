@@ -146,7 +146,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params["cluster_alias"] = get_cluster_alias_from_cluster_id(cluster_id)
         sql_params["source_uuid"] = str(sql_params["source_uuid"])
         populate_gpu_usage_info = pkgutil.get_data(
-            "masu.database", f"{self.get_sql_folder_name()}/openshift/ui_summary/reporting_ocp_gpu_summary_p_usage_only.sql"
+            "masu.database",
+            f"{self.get_sql_folder_name()}/openshift/ui_summary/reporting_ocp_gpu_summary_p_usage_only.sql",
         )
         populate_gpu_usage_info = populate_gpu_usage_info.decode("utf-8")
         self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
@@ -178,9 +179,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if trino_table_exists(self.schema, vm_report_table):
             source_uuid = sql_params.get("source_uuid")
             source_sql = get_report_db_accessor().get_check_source_in_partitions_sql(
-                schema_name=self.schema,
-                table_name=vm_report_table,
-                source_uuid=source_uuid
+                schema_name=self.schema, table_name=vm_report_table, source_uuid=source_uuid
             )
             source_available = self._execute_trino_raw_sql_query(
                 source_sql,
@@ -275,7 +274,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             db_results = {}
             if check_flag:
                 sql = pkgutil.get_data(
-                    "masu.database", f"{self.get_sql_folder_name()}/{source_type.lower()}/reporting_ocpinfrastructure_provider_map.sql"
+                    "masu.database",
+                    f"{self.get_sql_folder_name()}/{source_type.lower()}/reporting_ocpinfrastructure_provider_map.sql",
                 )
                 sql = sql.decode("utf-8")
 
@@ -325,11 +325,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 sql = get_report_db_accessor().get_delete_by_day_sql(
                     schema_name=self.schema,
                     table_name=table,
-                    source_column='source',
+                    source_column="source",
                     source=source,
                     year=year,
                     month=month,
-                    day=day
+                    day=day,
                 )
                 self._execute_trino_raw_sql_query(
                     sql,
@@ -346,9 +346,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "table": table,
         }
         LOG.info(log_json(msg="deleting Hive partitions by source", context=ctx))
-        sql = get_report_db_accessor().get_delete_by_source_sql(
-            self.schema, table, partition_column, provider_uuid
-        )
+        sql = get_report_db_accessor().get_delete_by_source_sql(self.schema, table, partition_column, provider_uuid)
         self._execute_trino_raw_sql_query(
             sql,
             log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
@@ -364,10 +362,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             LOG.info("Could not find table.")
             return False
         sql = get_report_db_accessor().get_expired_data_ocp_sql(
-            schema_name=self.schema,
-            table_name=table,
-            source_column=source_column,
-            expired_date=date_str
+            schema_name=self.schema, table_name=table, source_column=source_column, expired_date=date_str
         )
         return self._execute_trino_raw_sql_query(sql, log_ref="finding expired partitions")
 
@@ -400,7 +395,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_hive_partition_by_day(days_tup, source, year, month)
 
-        sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/openshift/reporting_ocpusagelineitem_daily_summary.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.get_sql_folder_name()}/openshift/reporting_ocpusagelineitem_daily_summary.sql"
+        )
         sql = sql.decode("utf-8")
         sql_params = {
             "uuid": source,
@@ -420,7 +417,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         try:
             self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
         except TrinoStatementExecError as trino_exc:
-            if trino_exc.error_name == "ALREADY_EXISTS": # For Postgres and ONPREM we should try handling existing records in query
+            if (
+                trino_exc.error_name == "ALREADY_EXISTS"
+            ):  # For Postgres and ONPREM we should try handling existing records in query
                 LOG.warning(
                     log_json(
                         ctx=self.extract_context_from_sql_params(sql_params),
@@ -1122,7 +1121,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             year=start_date.strftime("%Y"),
             month=start_date.strftime("%m"),
             start_date=str(start_date),
-            end_date=str(end_date)
+            end_date=str(end_date),
         )
         context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
         return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_nodes_trino")
@@ -1137,7 +1136,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             year=start_date.strftime("%Y"),
             month=start_date.strftime("%m"),
             start_date=str(start_date),
-            end_date=str(end_date)
+            end_date=str(end_date),
         )
         context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
         return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_pvcs_trino")
@@ -1150,7 +1149,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             year=start_date.strftime("%Y"),
             month=start_date.strftime("%m"),
             start_date=str(start_date),
-            end_date=str(end_date)
+            end_date=str(end_date),
         )
         context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
         projects = self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_projects_trino")
@@ -1306,7 +1305,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             year=start_date.strftime("%Y"),
             month=start_date.strftime("%m"),
             start_date=str(start_date),
-            end_date=str(end_date)
+            end_date=str(end_date),
         )
         context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
         timestamps = self._execute_trino_raw_sql_query(

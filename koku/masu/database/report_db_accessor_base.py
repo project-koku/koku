@@ -15,7 +15,6 @@ from django.db import OperationalError
 from django.db import transaction
 from django.db.utils import ProgrammingError as DjangoProgrammingError
 from jinjasql import JinjaSql
-from koku.reportdb_accessor import get_report_db_accessor
 from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
 
@@ -27,6 +26,7 @@ from koku.cache import build_trino_table_exists_key
 from koku.cache import get_value_from_cache
 from koku.cache import set_value_in_cache
 from koku.database_exc import get_extended_exception_by_type
+from koku.reportdb_accessor import get_report_db_accessor
 from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
 from koku.trino_database import TrinoHiveMetastoreError
@@ -295,7 +295,7 @@ class ReportDBAccessorBase:
                         source_column=source_column,
                         source=source,
                         year=year,
-                        month=month
+                        month=month,
                     )
                     self._execute_trino_raw_sql_query(
                         sql,
@@ -322,7 +322,9 @@ class ReportDBAccessorBase:
         matched_tag_params = sql_metadata.build_params(
             ["schema", "start_date", "end_date", "month", "year", "matched_tag_strs", "ocp_provider_uuid"]
         )
-        matched_tags_sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/openshift/ocp_special_matched_tags.sql")
+        matched_tags_sql = pkgutil.get_data(
+            "masu.database", f"{self.get_sql_folder_name()}/openshift/ocp_special_matched_tags.sql"
+        )
         matched_tags_sql = matched_tags_sql.decode("utf-8")
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matched_tag_params))
         matched_tags_result = self._execute_trino_multipart_sql_query(matched_tags_sql, bind_params=matched_tag_params)

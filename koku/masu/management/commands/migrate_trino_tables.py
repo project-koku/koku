@@ -422,7 +422,7 @@ def find_expired_partitions(schema, months, table, source_column_param):
         schema_name=schema,
         table_name=table,
         source_column=source_column_param,
-        expired_date=str(expiration_date.date())
+        expired_date=str(expiration_date.date()),
     )
     LOG.info(f"{prefix}Finding expired partitions for {table}")
     return run_trino_sql(expired_partitions_query, schema)
@@ -466,7 +466,7 @@ def drop_expired_partitions(tables, schemas):
                     source_column=source_column_param,
                     source=source,
                     year=year,
-                    month=month
+                    month=month,
                 )
                 result = run_trino_sql(delete_partition_query, schema)
                 LOG.info(f"{prefix}DELETE PARTITION result: {result}")
