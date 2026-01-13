@@ -18,6 +18,7 @@ from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from providers.provider_errors import SkipStatusPush
 from sources.api import get_auth_header
 from sources.api import get_param_from_header
+from sources.api.source_type_mapping import get_cmmo_id
 from sources.api.source_type_mapping import get_provider_type
 
 LOG = logging.getLogger(__name__)
@@ -57,12 +58,23 @@ class SourcesSerializer(serializers.ModelSerializer):
         max_length=50, required=False, allow_null=False, allow_blank=False, read_only=True
     )
     uuid = serializers.SerializerMethodField("get_source_uuid", read_only=True)
+    source_type_id = serializers.SerializerMethodField("get_source_type_id", read_only=True)
+    source_ref = serializers.SerializerMethodField("get_source_ref", read_only=True)
 
     class Meta:
         """Metadata for the serializer."""
 
         model = Sources
-        fields = ("id", "uuid", "name", "source_type", "authentication", "billing_source")
+        fields = (
+            "id",
+            "uuid",
+            "name",
+            "source_type",
+            "source_type_id",
+            "source_ref",
+            "authentication",
+            "billing_source",
+        )
 
     def get_source_id(self, obj):
         """Get the source_id."""
@@ -71,6 +83,16 @@ class SourcesSerializer(serializers.ModelSerializer):
     def get_source_uuid(self, obj):
         """Get the source_uuid."""
         return obj.source_uuid
+
+    def get_source_type_id(self, obj):
+        """Get CMMO source_type_id from source_type (e.g., "OCP" -> "1")."""
+        return get_cmmo_id(obj.source_type)
+
+    def get_source_ref(self, obj):
+        """Get source_ref from authentication.credentials.cluster_id for OCP sources."""
+        if obj.source_type == Provider.PROVIDER_OCP and obj.authentication:
+            return obj.authentication.get("credentials", {}).get("cluster_id")
+        return None
 
 
 class AdminSourcesSerializer(SourcesSerializer):
