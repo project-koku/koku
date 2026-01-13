@@ -18,6 +18,7 @@ from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from providers.provider_errors import SkipStatusPush
 from sources.api import get_auth_header
 from sources.api import get_param_from_header
+from sources.api.source_type_mapping import get_provider_type
 
 LOG = logging.getLogger(__name__)
 
@@ -76,7 +77,14 @@ class AdminSourcesSerializer(SourcesSerializer):
     """Source serializer specific to administration."""
 
     name = serializers.CharField(max_length=256, required=True, allow_null=False, allow_blank=False)
-    source_type = serializers.CharField(max_length=50, required=True, allow_null=False, allow_blank=False)
+    source_type = serializers.CharField(max_length=50, required=False, allow_null=False, allow_blank=False)
+    source_type_id = serializers.CharField(max_length=10, required=False, write_only=True)
+    source_ref = serializers.CharField(max_length=256, required=False, write_only=True)
+
+    class Meta(SourcesSerializer.Meta):
+        """Metadata for the serializer."""
+
+        fields = SourcesSerializer.Meta.fields + ("source_type_id", "source_ref")
 
     def validate_source_type(self, source_type):
         """Validate credentials field."""
@@ -110,6 +118,29 @@ class AdminSourcesSerializer(SourcesSerializer):
         return org_id
 
     def validate(self, data):
+        # Convert source_type_id to source_type if provided (CMMO compatibility)
+        if "source_type_id" in data:
+            source_type_id = data.pop("source_type_id")
+            provider_type = get_provider_type(source_type_id)
+            if provider_type:
+                data["source_type"] = provider_type
+            else:
+                raise serializers.ValidationError({"source_type_id": f"Invalid source_type_id: {source_type_id}"})
+
+        # Require either source_type or source_type_id
+        if "source_type" not in data:
+            raise serializers.ValidationError({"source_type": "Either source_type or source_type_id is required"})
+
+        # Handle source_ref -> authentication.credentials.cluster_id for OCP sources
+        if "source_ref" in data:
+            source_ref = data.pop("source_ref")
+            if data.get("source_type") == Provider.PROVIDER_OCP:
+                if "authentication" not in data:
+                    data["authentication"] = {}
+                if "credentials" not in data["authentication"]:
+                    data["authentication"]["credentials"] = {}
+                data["authentication"]["credentials"]["cluster_id"] = source_ref
+
         data["source_id"] = self._validate_source_id(data.get("id"))
         data["offset"] = self._validate_offset(data.get("offset"))
         data["account_id"] = self._validate_account_id(data.get("account_id"))
