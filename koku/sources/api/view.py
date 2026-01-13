@@ -22,6 +22,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.exceptions import ParseError
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.serializers import UUIDField
 from rest_framework.serializers import ValidationError
@@ -125,11 +126,12 @@ class SourcesViewSet(*MIXIN_LIST):
 
     lookup_fields = ("source_id", "source_uuid")
     queryset = Sources.objects.all()
+    permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
     http_method_names = HTTP_METHOD_LIST
 
-    @action(methods=["get"], detail=False, url_path="aws-s3-regions")
+    @action(methods=["get"], detail=False, permission_classes=[AllowAny], url_path="aws-s3-regions")
     def aws_s3_regions(self, request):
         regions = get_available_regions("s3")
         return ListPaginator(regions, request).paginated_response
@@ -318,7 +320,7 @@ class SourcesViewSet(*MIXIN_LIST):
         return response
 
     @method_decorator(never_cache)
-    @action(methods=["get"], detail=True)
+    @action(methods=["get"], detail=True, permission_classes=[AllowAny])
     def stats(self, request, pk=None):
         """Get source stats."""
         source = self.get_object()
