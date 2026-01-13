@@ -113,6 +113,7 @@ from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
 from koku.cache import OPENSHIFT_CACHE_PREFIX
 from koku.cache import OPENSHIFT_GCP_CACHE_PREFIX
 from sources.api.application_type_views import ApplicationTypesView
+from sources.api.application_views import ApplicationsView
 from sources.api.source_type_views import SourceTypesView
 from sources.api.views import SourcesViewSet
 
@@ -121,6 +122,7 @@ ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("source_types/", SourceTypesView.as_view(), name="source-types"),
     path("application_types/", ApplicationTypesView.as_view(), name="application-types"),
+    path("applications/", ApplicationsView.as_view(), name="applications"),
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
     path("currency/", get_currency, name="currency"),
     path("exchange-rates/", get_exchange_rates, name="exchange-rates"),
