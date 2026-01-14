@@ -6,7 +6,6 @@
 import logging
 
 import requests
-import trino
 from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -17,6 +16,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework_csv.renderers import CSVRenderer
+
+from koku.reportdb_accessor import get_report_db_accessor
 
 LOG = logging.getLogger(__name__)
 
@@ -50,19 +51,19 @@ def trino_query(request):
         msg = f"Running Trino query: {query}"
         LOG.info(msg)
 
-        with trino.dbapi.connect(
+        with get_report_db_accessor().connect(
             host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="readonly", catalog="hive", schema=schema_name
         ) as conn:
-            cur = conn.cursor()
-            cur.execute(query)
-            cols = [des[0] for des in cur.description]
-            rows = cur.fetchall()
-            results = []
-            for row in rows:
-                result = {}
-                for i, value in enumerate(row):
-                    result[cols[i]] = value
-                results.append(result)
+            with conn.cursor() as cur:
+                cur.execute(query)
+                cols = [des[0] for des in cur.description]
+                rows = cur.fetchall()
+                results = []
+                for row in rows:
+                    result = {}
+                    for i, value in enumerate(row):
+                        result[cols[i]] = value
+                    results.append(result)
 
         return Response(results)
 
