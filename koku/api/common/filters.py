@@ -9,6 +9,7 @@ from operator import and_
 from django.db.models import Q
 from django_filters import CharFilter
 from django_filters.filters import BaseCSVFilter
+from rest_framework.fields import CharField
 from rest_framework.filters import SearchFilter
 
 
@@ -28,18 +29,22 @@ class SearchFilterResourceTypes(SearchFilter):
     """
     A search filter that treats the entire query as a single literal token.
 
-    Unlike the default SearchFilter, this prevents splitting by spaces or commas,
-    ensuring that multi-word resources (e.g., 'US East' or 'Red Hat') are
-    matched exactly as typed rather than as separate keywords.
+    Unlike the default SearchFilter, this prevents the query from being split
+    by spaces or commas, ensuring that multi-word resources (e.g., 'US East'
+    or 'Red Hat') are matched exactly as typed rather than as separate keywords.
+
+    This implementation leverages standard DRF CharField validation for security
+    and input sanitization but bypasses the default 'search_smart_split' logic
+    to preserve the query as a monolithic term.
 
     Note: If multi-term search (searching for several independent items at once)
     is required in the future, this can be updated to split strictly on commas
     while still preserving internal spaces.
-
     """
 
     def get_search_terms(self, request):
-        params = request.query_params.get(self.search_param, "")
-        params = params.replace("\x00", "")  # substitute-character cleanup
-        # We return a list containing the whole string if it exists
-        return [params] if params else []
+        value = request.query_params.get(self.search_param, "")
+        field = CharField(trim_whitespace=False, allow_blank=True)
+        cleaned_value = field.run_validation(value)
+
+        return [cleaned_value] if cleaned_value else []
