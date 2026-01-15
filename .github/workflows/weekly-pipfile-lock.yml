@@ -1,0 +1,63 @@
+name: Weekly Pipfile Lock Update
+
+on:
+  schedule:
+    # Run every Monday at 9:00 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  update-pipfile-lock:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pipenv
+        run: |
+          pip install --upgrade pip
+          pip install pipenv
+
+      - name: Relock Pipfile
+        run: |
+          pipenv lock
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if [ -n "$(git status --porcelain Pipfile.lock)" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.check-changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: update Pipfile.lock dependencies'
+          title: 'chore: Update Pipfile.lock dependencies'
+          body: |
+            This PR was automatically created by the weekly Pipfile lock update workflow.
+
+            The Pipfile.lock has been updated with the latest dependency versions.
+
+            Please review the changes and merge if everything looks good.
+          branch: chore/weekly-pipfile-lock-update
+          delete-branch: true
+          labels: |
+            dependencies
+            automated
