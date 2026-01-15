@@ -349,7 +349,7 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
             context=context,
         )
     )
-    source = utils.get_source_and_provider_from_cluster_id(manifest.cluster_id)
+    source = utils.get_source_and_provider_from_cluster_id(manifest.cluster_id, org_id=context["org_id"])
     if not source:
         msg = f"Received unexpected OCP report from {manifest.cluster_id}"
         LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
@@ -368,9 +368,6 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     schema_name: str = provider.account.get("schema_name")
     context["provider_type"] = provider.type
     context["schema"] = schema_name
-
-    # set the account and org_id based on the provider if the kafka msg don't contain them
-    context["org_id"] = context["org_id"] or provider.account.get("org_id")
     # for anemic accounts, use `no_account`
     context["account"] = context["account"] or provider.account.get("account_id") or "no_account"
 
@@ -495,6 +492,10 @@ def handle_message(kmsg):
     account = value.get("account")
     org_id = value.get("org_id")
     context = {"account": account, "org_id": org_id}
+    if not org_id:
+        msg = f"Recieved unknown organization message: {str(value)}"
+        LOG.info(log_json(request_id, msg=msg, context=context))
+        return FAILURE_CONFIRM_STATUS, None, None
     try:
         msg = f"Extracting Payload for msg: {str(value)}"
         LOG.info(log_json(request_id, msg=msg, context=context))
