@@ -525,7 +525,7 @@ class ProviderSerializerTest(IamTestCase):
         test_cases = [
             {"provider": Provider.PROVIDER_AWS, "dup_allowed": True},
             {"provider": Provider.PROVIDER_AZURE, "dup_allowed": True},
-            {"provider": Provider.PROVIDER_OCP, "dup_allowed": False},
+            {"provider": Provider.PROVIDER_OCP, "dup_allowed": True},
         ]
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
@@ -536,12 +536,16 @@ class ProviderSerializerTest(IamTestCase):
                 data = self.generic_providers[test["provider"]]
                 serializer = ProviderSerializer(data=data, context=self.request_context)
                 if serializer.is_valid(raise_exception=True):
-                    serializer.save()
+                    provider_1 = serializer.save()
 
                 serializer = ProviderSerializer(data=data, context=alt_request_context)
                 if test["dup_allowed"]:
                     serializer.is_valid(raise_exception=True)
-                    serializer.save()
+                    provider_2 = serializer.save()
+                    self.assertIsNotNone(provider_1)
+                    self.assertIsNotNone(provider_2)
+                    self.assertNotEqual(provider_1.uuid, provider_2.uuid)
+                    self.assertNotEqual(provider_1.customer, provider_2.customer)
                 else:
                     with self.assertRaises(ValidationError) as excCtx:
                         serializer.is_valid(raise_exception=True)
