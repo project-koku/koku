@@ -508,14 +508,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
 
         table_name = self._table_map["line_item_daily_summary"]
-        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
-        if not report_period:
-            msg = "no report period for OCP provider, skipping distribution update"
-            context = {"schema": self.schema, "provider_uuid": provider_uuid, "start_date": start_date}
-            LOG.info(log_json(msg=msg, context=context))
-            return
-
-        report_period_id = report_period.id
         dh = DateHelper()
         for cost_model_key, config in distribution_configs.items():
             # Handle distributions that require full month data
@@ -525,28 +517,20 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     start_date_parsed.year == dh.now_utc.year and start_date_parsed.month == dh.now_utc.month
                 )
                 if is_current_month:
-                    # Trigger distribution for previous month only on the first of the month
-                    # (when we've just received complete data for the previous month)
-                    is_first_of_month = dh.now_utc.day == 1
-                    if not is_first_of_month:
+                    # Trigger distribution for previous month during a window of the current
+                    # month
+                    if dh.now_utc.day not in [1, 2, 3, 4, 5]:
                         continue
-                    start_date = dh.last_month_start.date()
-                    end_date = dh.last_month_end.date()
-                    prev_report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
-                    if not prev_report_period:
-                        msg = f"No report period found for previous month, skipping {cost_model_key} distribution"
-                        LOG.info(
-                            log_json(
-                                msg=msg,
-                                context={
-                                    "schema": self.schema,
-                                    "provider_uuid": provider_uuid,
-                                    "prev_month_start": start_date,
-                                },
-                            )
-                        )
-                        continue
-                    report_period_id = prev_report_period.id
+                start_date = dh.last_month_start.date()
+                end_date = dh.last_month_end.date()
+
+            report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+            if not report_period:
+                msg = "no report period for OCP provider, skipping distribution update"
+                context = {"schema": self.schema, "provider_uuid": provider_uuid, "start_date": start_date}
+                LOG.info(log_json(msg=msg, context=context))
+                continue
+            report_period_id = report_period.id
 
             sql_params = {
                 "start_date": start_date,
