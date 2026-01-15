@@ -519,10 +519,13 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 if is_current_month:
                     # Trigger distribution for previous month during a window of the current
                     # month
-                    if dh.now_utc.day not in [1, 2, 3, 4, 5]:
+                    if dh.now_utc.day in [1, 2, 3, 4, 5]:
+                        start_date = dh.last_month_start.date()
+                        end_date = dh.last_month_end.date()
+                    else:
+                        msg = f"Skipping {cost_model_key} distribution requires full month"
+                        LOG.info(log_json(msg=msg, context={"schema": self.schema, "cost_model_key": cost_model_key}))
                         continue
-                start_date = dh.last_month_start.date()
-                end_date = dh.last_month_end.date()
 
             report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
             if not report_period:
@@ -531,7 +534,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.info(log_json(msg=msg, context=context))
                 continue
             report_period_id = report_period.id
-
             sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
