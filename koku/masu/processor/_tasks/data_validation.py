@@ -11,6 +11,7 @@ from trino.exceptions import TrinoExternalError
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
+from koku.reportdb_accessor import get_report_db_accessor
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import GCP_REPORT_TABLE_MAP
@@ -152,29 +153,28 @@ class DataValidator:
         # query trino/postgres
         table, query_filters = self.get_table_filters_for_provider(provider_type, trino)
         for start, end in date_range_pair(self.start_date, self.end_date, step=self.date_step):
+            # Determine source column name based on database type and whether it's OCP-on-cloud
             if trino:
                 source = "source" if not self.ocp_on_cloud_type else "cluster_id"
-                sql = f"""
-                    SELECT sum({query_filters.get("metric")}) as metric, {query_filters.get("date")} as date
-                    FROM hive.{self.schema}.{table}
-                        WHERE {source} = '{provider_filter}'
-                        AND {query_filters.get("date")} >= date('{start}')
-                        AND {query_filters.get("date")} <= date('{end}')
-                        AND year = '{year}'
-                        AND lpad(month, 2, '0') = '{month}'
-                        GROUP BY {query_filters.get("date")}
-                        ORDER BY {query_filters.get("date")}"""
-                result = report_db_accessor._execute_trino_raw_sql_query(sql, log_ref="data validation query")
             else:
                 source = "source_uuid" if not self.ocp_on_cloud_type else "cluster_id"
-                sql = f"""
-                    SELECT sum({query_filters.get("metric")}) as metric, {query_filters.get("date")} as date
-                    FROM {self.schema}.{table}_{year}_{month}
-                        WHERE {source} = '{provider_filter}'
-                        AND {query_filters.get("date")} >= '{start}'
-                        AND {query_filters.get("date")} <= '{end}'
-                        GROUP BY {query_filters.get("date")}
-                        ORDER BY {query_filters.get("date")}"""
+
+            sql = get_report_db_accessor().get_data_validation_sql(
+                schema_name=self.schema,
+                table_name=table,
+                source_column=source,
+                provider_filter=provider_filter,
+                metric=query_filters.get("metric"),
+                date_column=query_filters.get("date"),
+                start_date=str(start),
+                end_date=str(end),
+                year=year,
+                month=month,
+            )
+
+            if trino:
+                result = report_db_accessor._execute_trino_raw_sql_query(sql, log_ref="data validation query")
+            else:
                 result = report_db_accessor._prepare_and_execute_raw_sql_query(
                     table, sql, operation="VALIDATION_QUERY"
                 )

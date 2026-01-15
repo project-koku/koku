@@ -37,6 +37,8 @@ from masu.util.ocp.ocp_post_processor import OCPPostProcessor
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportManifest
 
+logging.disable(logging.NOTSET)
+
 
 class TestParquetReportProcessor(MasuTestCase):
     """Test cases for Parquet Report Processor."""
@@ -247,7 +249,7 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
     def test_convert_to_parquet_validation_error(self, mock_remove, mock_exists):
         """Test the convert_to_parquet task hits column validation error."""
-        _, __, result = self.report_processor_ingress.convert_csv_to_parquet(Path("file.csv.gz"))
+        _, __, ___, result = self.report_processor_ingress.convert_csv_to_parquet(Path("file.csv.gz"))
         self.assertFalse(result)
 
     def test_unknown_provider(self):
@@ -278,7 +280,7 @@ class TestParquetReportProcessor(MasuTestCase):
             patch(
                 "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type", return_value=None
             ),
-            patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.prepare_parquet_s3"),
+            patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor._delete_old_data"),
         ):
             with self.assertRaises(ParquetReportProcessorError):
                 self.report_processor_ocp.convert_to_parquet()
@@ -289,7 +291,7 @@ class TestParquetReportProcessor(MasuTestCase):
             patch.object(
                 ParquetReportProcessor,
                 "convert_csv_to_parquet",
-                return_value=("", pd.DataFrame(), False),
+                return_value=("", [], pd.DataFrame(), False),
             ),
             patch.object(ParquetReportProcessor, "create_daily_parquet"),
             self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger,
@@ -301,7 +303,7 @@ class TestParquetReportProcessor(MasuTestCase):
         with (
             patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""),
             patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type", new=None),
-            patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.prepare_parquet_s3"),
+            patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor._delete_old_data"),
         ):
             with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="WARNING") as logger:
                 self.report_processor_ocp.convert_to_parquet()
@@ -312,7 +314,7 @@ class TestParquetReportProcessor(MasuTestCase):
             patch.object(
                 ParquetReportProcessor,
                 "convert_csv_to_parquet",
-                return_value=("", pd.DataFrame(), False),
+                return_value=("", [], pd.DataFrame(), False),
             ),
             patch.object(ParquetReportProcessor, "create_daily_parquet"),
         ):
@@ -324,9 +326,10 @@ class TestParquetReportProcessor(MasuTestCase):
             patch.object(
                 ParquetReportProcessor,
                 "convert_csv_to_parquet",
-                return_value=("", pd.DataFrame([{"key": "value"}]), True),
+                return_value=("", [], pd.DataFrame([{"key": "value"}]), True),
             ),
             patch.object(ParquetReportProcessor, "create_daily_parquet"),
+            patch.object(ParquetReportProcessor, "create_parquet_table"),
         ):
             result = self.report_processor_gcp.convert_to_parquet()
             self.assertTrue(result)
@@ -336,11 +339,11 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
     def test_convert_csv_to_parquet(self, mock_stats, mock_remove, mock_exists):
         """Test convert_csv_to_parquet."""
-        _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv"))
+        _, __, ___, result = self.report_processor.convert_csv_to_parquet(Path("file.csv"))
         self.assertFalse(result)
 
         with patch("masu.processor.parquet.parquet_report_processor.Path"):
-            _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
+            _, __, ___, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
             self.assertFalse(result)
 
         with (
@@ -350,7 +353,7 @@ class TestParquetReportProcessor(MasuTestCase):
         ):
             mock_pd.read_csv.return_value.__enter__.return_value = [1, 2, 3]
             mock_open.side_effect = ValueError()
-            _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
+            _, __, ___, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
             self.assertFalse(result)
 
         with (
@@ -361,7 +364,7 @@ class TestParquetReportProcessor(MasuTestCase):
             patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.create_parquet_table"),
         ):
             mock_pd.read_csv.return_value.__enter__.return_value = [1, 2, 3]
-            _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
+            _, __, ___, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
             self.assertFalse(result)
 
         with (
@@ -371,7 +374,7 @@ class TestParquetReportProcessor(MasuTestCase):
             patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"),
             patch.object(ParquetReportProcessor, "create_parquet_table"),
         ):
-            _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
+            _, __, ___, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
             self.assertTrue(result)
 
         with (
@@ -398,7 +401,7 @@ class TestParquetReportProcessor(MasuTestCase):
                     "create_table": True,
                 },
             )
-            _, __, result = report_processor.convert_csv_to_parquet(Path(test_report))
+            _, __, ___, result = report_processor.convert_csv_to_parquet(Path(test_report))
             self.assertTrue(result)
             shutil.rmtree(local_path, ignore_errors=True)
 
@@ -635,7 +638,7 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch("masu.processor.parquet.parquet_report_processor.filter_s3_objects_less_than")
     @patch.object(ParquetReportProcessor, "parquet_file_getter")
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
-    def test_prepare_parquet_s3_ocp_files_reports_already_processed(
+    def test__delete_old_data_ocp_files_reports_already_processed(
         self, mock_stats, mock_s3_getter, mock_s3_filter, *_
     ):
         """Test raising ReportsAlreadyProcessed."""
@@ -663,7 +666,7 @@ class TestParquetReportProcessor(MasuTestCase):
             },
         )
         with self.assertRaises(ReportsAlreadyProcessed):
-            report_processor.prepare_parquet_s3(filename)
+            report_processor._delete_old_data(filename)
 
     @patch("masu.processor.parquet.parquet_report_processor.delete_s3_objects")
     @patch.object(ParquetReportProcessor, "parquet_ocp_on_cloud_path_s3", return_value="")
@@ -672,7 +675,7 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch("masu.processor.parquet.parquet_report_processor.filter_s3_objects_less_than")
     @patch.object(ParquetReportProcessor, "parquet_file_getter")
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
-    def test_prepare_parquet_s3_ocp_files_reports_to_delete(self, mock_stats, mock_s3_getter, mock_s3_filter, *_):
+    def test__delete_old_data_ocp_files_reports_to_delete(self, mock_stats, mock_s3_getter, mock_s3_filter, *_):
         """Test that s3-parquet-tracker is updated when a we delete s3 files."""
         mock_s3_getter.return_value = ["file1"]
         mock_s3_filter.return_value = ["file1"]
@@ -697,7 +700,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 },
             },
         )
-        report_processor.prepare_parquet_s3(filename)
+        report_processor._delete_old_data(filename)
 
         manifest = CostUsageReportManifest.objects.get(id=self.ocp_manifest_id)
         self.assertTrue(manifest.s3_parquet_cleared_tracker["pod_usage"])
