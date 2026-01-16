@@ -183,7 +183,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         self.ocp_manifest = CostUsageReportManifest.objects.filter(cluster_id__isnull=True).first()
         self.ocp_manifest_id = self.ocp_manifest.id
-        self.ocp_source = baker.make("Sources", provider=self.ocp_provider)
+        self.ocp_source = baker.make("Sources", provider=self.ocp_provider, org_id=self.org_id)
 
         manifest = utils.parse_manifest("koku/masu/test/data/ocp/payload2")
         manifest.manifest_id = self.ocp_manifest_id
@@ -602,7 +602,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.close_and_set_db_connection")
     def test_handle_messages(self, _):
         """Test to ensure that kafka messages are handled."""
-        hccm_msg = MockMessage(UPLOAD_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate", {"org_id": self.org_id}
+        )
 
         # Verify that when extract_payload is successful with 'hccm' message that SUCCESS_CONFIRM_STATUS is returned
         with patch("masu.external.kafka_msg_handler.extract_payload", return_value=(None, None)):
@@ -916,7 +918,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         return_value=None,
                     ):
                         self.assertFalse(
-                            msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})[0]
+                            msg_handler.extract_payload(
+                                payload_url, "test_request_id", "fake_identity", {"org_id": self.org_id}
+                            )[0]
                         )
                         shutil.rmtree(fake_dir)
                         shutil.rmtree(fake_data_dir)
