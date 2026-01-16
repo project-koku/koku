@@ -14,6 +14,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.filters import SearchFilterResourceTypes
 from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.common.permissions.gcp_access import GcpProjectPermission
@@ -28,7 +29,7 @@ class GCPProjectsView(generics.ListAPIView):
     queryset = GCPTopology.objects.annotate(**{"value": F("project_id")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer
     permission_classes = [GcpProjectPermission | GcpAccessPermission]
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
+    filter_backends = [filters.OrderingFilter, SearchFilterResourceTypes]
     ordering = ["value"]
     search_fields = ["value"]
     pagination_class = ResourceTypeViewPaginator

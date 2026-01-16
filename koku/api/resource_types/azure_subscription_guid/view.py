@@ -14,6 +14,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.filters import SearchFilterResourceTypes
 from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
@@ -38,7 +39,7 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
     )
     serializer_class = ResourceTypeSerializer
     permission_classes = [AzureAccessPermission]
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
+    filter_backends = [filters.OrderingFilter, SearchFilterResourceTypes]
     ordering = ["value", "alias"]
     search_fields = ["value", "alias"]
     pagination_class = ResourceTypeViewPaginator
