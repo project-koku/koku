@@ -523,6 +523,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 is_current_month = (
                     start_date_parsed.year == dh.now_utc.year and start_date_parsed.month == dh.now_utc.month
                 )
+                sql_params["start_date"] = dh.month_start(start_date)
                 if is_current_month:
                     # Trigger distribution for previous month during a window of the current
                     # month
