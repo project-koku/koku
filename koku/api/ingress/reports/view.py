@@ -40,10 +40,12 @@ class IngressReportsDetailView(APIView):
         try:
             UUID(source)
         except ValueError:
-            return Response({"Error": "Invalid source uuid."}, status=status.HTTP_400_BAD_REQUEST)
-        report_instance = self.get_object(source)
+            return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # scope to schema_name to prevent cross-tenant data exposure
+        report_instance = IngressReports.objects.filter(source=source, schema_name=request.user.customer.schema_name)
         if not report_instance:
-            return Response({"Error": "Provider uuid not found."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = IngressReportsSerializer(report_instance, many=True)
         paginator = ListPaginator(serializer.data, request)
@@ -61,28 +63,35 @@ class IngressReportsView(APIView):
         """
         Return list of sources.
         """
-        reports = IngressReports.objects.filter()
+        reports = IngressReports.objects.filter(schema_name=request.user.customer.schema_name)
         serializer = IngressReportsSerializer(reports, many=True)
         paginator = ListPaginator(serializer.data, request)
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         """Handle posted reports."""
-        source_uuid = request.data.get("source")
-        source_id = request.data.get("source")
-        try:
-            source = Sources.objects.filter(source_id=request.data.get("source")).first()
-        except ValueError:
-            try:
-                source = Sources.objects.filter(koku_uuid=request.data.get("source")).first()
-            except ValueError:
-                pass
-        if source:
-            source_uuid = source.koku_uuid
-            source_id = source.source_id
+
+        if not getattr(request.user, "customer", None):
+            return Response({"Error": "Unauthorized."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        source_ref = request.data.get("source")
+        source = (
+            Sources.objects.filter(
+                source_id=source_ref,
+                customer__schema_name=request.user.customer.schema_name,
+            ).first()
+            or Sources.objects.filter(
+                koku_uuid=source_ref,
+                customer__schema_name=request.user.customer.schema_name,
+            ).first()
+        )
+
+        if not source:
+            return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
+
         data = {
-            "source": source_uuid,
-            "source_id": source_id,
+            "source": source.koku_uuid,
+            "source_id": source.source_id,
             "reports_list": request.data.get("reports_list"),
             "bill_year": request.data.get("bill_year"),
             "bill_month": request.data.get("bill_month"),
