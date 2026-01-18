@@ -5,6 +5,7 @@
 """View for report posting."""
 from uuid import UUID
 
+from django.db.models import Q
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -22,15 +23,6 @@ class IngressReportsDetailView(APIView):
     """
 
     permission_classes = [AllowAny]
-
-    def get_object(self, source):
-        """
-        Helper method to get reports with given source
-        """
-        try:
-            return IngressReports.objects.filter(source=source)
-        except IngressReports.DoesNotExist:
-            return None
 
     def get(self, request, *args, **kwargs):
         """
@@ -75,17 +67,17 @@ class IngressReportsView(APIView):
             return Response({"Error": "Unauthorized."}, status=status.HTTP_401_UNAUTHORIZED)
 
         source_ref = request.data.get("source")
-        source = (
-            Sources.objects.filter(
-                source_id=source_ref,
-                customer__schema_name=request.user.customer.schema_name,
-            ).first()
-            or Sources.objects.filter(
-                koku_uuid=source_ref,
-                customer__schema_name=request.user.customer.schema_name,
-            ).first()
-        )
+        source_lookup = Q(source_id=source_ref) if str(source_ref).isdigit() else Q(koku_uuid=source_ref)
 
+        tenant_filter = Q()
+        account_id = request.user.customer.account_id
+        org_id = request.user.customer.org_id
+        if account_id:
+            tenant_filter |= Q(account_id=account_id)
+        if org_id:
+            tenant_filter |= Q(org_id=org_id)
+
+        source = Sources.objects.filter(source_lookup & tenant_filter).first()
         if not source:
             return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
 
