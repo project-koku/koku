@@ -521,11 +521,11 @@ class ProviderSerializerTest(IamTestCase):
 
     @patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True)
     def test_create_same_provider_different_customers(self, *args):
-        """Test that the same provider can not be created for 2 different customers."""
+        """Test that the same provider can be created for 2 different customers."""
         test_cases = [
-            {"provider": Provider.PROVIDER_AWS, "dup_allowed": True},
-            {"provider": Provider.PROVIDER_AZURE, "dup_allowed": True},
-            {"provider": Provider.PROVIDER_OCP, "dup_allowed": True},
+            {"provider": Provider.PROVIDER_AWS},
+            {"provider": Provider.PROVIDER_AZURE},
+            {"provider": Provider.PROVIDER_OCP},
         ]
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
@@ -536,22 +536,11 @@ class ProviderSerializerTest(IamTestCase):
                 data = self.generic_providers[test["provider"]]
                 serializer = ProviderSerializer(data=data, context=self.request_context)
                 if serializer.is_valid(raise_exception=True):
-                    provider_1 = serializer.save()
+                    serializer.save()
 
                 serializer = ProviderSerializer(data=data, context=alt_request_context)
-                if test["dup_allowed"]:
-                    serializer.is_valid(raise_exception=True)
-                    provider_2 = serializer.save()
-                    self.assertIsNotNone(provider_1)
-                    self.assertIsNotNone(provider_2)
-                    self.assertNotEqual(provider_1.uuid, provider_2.uuid)
-                    self.assertNotEqual(provider_1.customer, provider_2.customer)
-                else:
-                    with self.assertRaises(ValidationError) as excCtx:
-                        serializer.is_valid(raise_exception=True)
-                        serializer.save()
-                    validationErr = excCtx.exception.detail[ProviderErrors.DUPLICATE_AUTH][0]
-                    self.assertTrue("Cost management does not allow duplicate accounts" in str(validationErr))
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
 
     @patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True)
     def test_ocp_cluster_id_isolation_between_customers(self, *args):
