@@ -14,6 +14,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.filters import SearchFilterResourceTypes
 from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
@@ -33,7 +34,7 @@ class OCPClustersView(generics.ListAPIView):
     )
     serializer_class = ResourceTypeSerializer
     permission_classes = [OpenShiftAccessPermission]
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
+    filter_backends = [filters.OrderingFilter, SearchFilterResourceTypes]
     ordering = ["value", "ocp_cluster_alias"]
     search_fields = ["value", "ocp_cluster_alias"]
     pagination_class = ResourceTypeViewPaginator
