@@ -29,6 +29,7 @@ from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.test import MasuTestCase
+from masu.util.common import SummaryRangeConfig
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
@@ -1038,11 +1039,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Test that updating monthly costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
+        summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
         with self.accessor as acc:
-            result = acc.populate_distributed_cost_sql(
-                start_date, end_date, self.provider_uuid, {"platform_cost": True}
-            )
-            self.assertIsNone(result)
+            # Should not raise an exception when no report period exists
+            acc.populate_distributed_cost_sql(summary_range, self.provider_uuid, {"platform_cost": True})
 
     def _setup_distributed_cost_sql_mocks(self, start_date, end_date):
         """Helper to set up common mocks for distributed cost SQL tests."""
@@ -1098,9 +1098,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_dh_class.return_value = mock_dh
 
             acc.prepare_query = mock_jinja
+            summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
             acc.populate_distributed_cost_sql(
-                start_date,
-                end_date,
+                summary_range,
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
             )
@@ -1137,9 +1137,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_dh_class.return_value = mock_dh
 
             acc.prepare_query = mock_jinja
+            summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
             acc.populate_distributed_cost_sql(
-                start_date,
-                end_date,
+                summary_range,
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
             )
@@ -1164,9 +1164,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         with self.accessor as acc:
             acc.prepare_query = mock_jinja
+            summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
             acc.populate_distributed_cost_sql(
-                start_date,
-                end_date,
+                summary_range,
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
             )
@@ -1209,9 +1209,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_dh_class.return_value = mock_dh
 
             acc.prepare_query = mock_jinja
+            summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
             acc.populate_distributed_cost_sql(
-                start_date,
-                end_date,
+                summary_range,
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
             )

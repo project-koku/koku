@@ -18,6 +18,7 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.test import MasuTestCase
+from masu.util.common import SummaryRangeConfig
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -286,7 +287,8 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         end_date = self.dh.this_month_end
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
-        updater.update_summary_cost_model_costs(start_date, end_date)
+        summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
+        updater.update_summary_cost_model_costs(summary_range)
 
         with schema_context(self.schema):
             # Monthly cost

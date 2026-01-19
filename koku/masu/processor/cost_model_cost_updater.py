@@ -6,6 +6,7 @@
 import logging
 
 from api.models import Provider
+from api.utils import DateHelper
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.cache import TAG_MAPPING_PREFIX
@@ -85,6 +86,11 @@ class CostModelCostUpdater:
             None
 
         """
+        dh = DateHelper()
+        if start_date is None:
+            start_date = dh.this_month_start.date()
+        if end_date is None:
+            end_date = dh.today.date()
         summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
         if self._updater:
             if is_customer_cost_model_large(self._schema):
