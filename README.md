@@ -39,7 +39,7 @@ do the following:
 
     **For on-premise deployments** without access to Red Hat SaaS services, also set:
 
-        KOKU_ONPREM_DEPLOYMENT=True
+        ONPREM=True
 
     This disables the Unleash feature flag client and prevents external API calls. See [docs/architecture/feature-flags.md](docs/architecture/feature-flags.md) for details.
 

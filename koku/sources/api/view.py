@@ -73,7 +73,7 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
             else:
                 # Publish destroy event to Kafka before deleting the source model
                 # This ensures downstream services (e.g., ros-ocp-backend) are notified
-                if settings.KOKU_ONPREM_DEPLOYMENT:
+                if settings.ONPREM:
                     publish_application_destroy_event(source)
                 result = super().destroy(request, *args, **kwargs)
                 invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
@@ -86,7 +86,7 @@ LOG = logging.getLogger(__name__)
 MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet]
 HTTP_METHOD_LIST = ["get", "head"]
 
-if settings.KOKU_ONPREM_DEPLOYMENT or settings.DEVELOPMENT:
+if settings.ONPREM or settings.DEVELOPMENT:
     MIXIN_LIST.extend([mixins.CreateModelMixin, mixins.UpdateModelMixin, DestroySourceMixin])
     HTTP_METHOD_LIST.extend(["post", "patch", "delete"])
 

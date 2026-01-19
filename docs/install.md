@@ -41,7 +41,7 @@ complete the API server will be running on port 8000 on your localhost.
 For on-premise deployments without access to Red Hat SaaS services (Unleash feature flags), set the following environment variable:
 
 ```bash
-export KOKU_ONPREM_DEPLOYMENT=True
+export ONPREM=True
 ```
 
 When enabled, this will:
@@ -51,7 +51,7 @@ When enabled, this will:
 
 **Example**:
 ```bash
-export KOKU_ONPREM_DEPLOYMENT=True
+export ONPREM=True
 make docker-up
 ```
 

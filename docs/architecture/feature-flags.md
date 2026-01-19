@@ -20,7 +20,7 @@ Koku uses [Unleash](https://www.getunleash.io/) for feature flag management in S
 
 ### SaaS Mode (Default)
 
-- `KOKU_ONPREM_DEPLOYMENT=False` (or unset)
+- `ONPREM=False` (or unset)
 - Uses `UnleashClient` to connect to Red Hat's Unleash server
 - Feature flags are dynamically controlled via Unleash dashboard
 - Requires network access to Unleash server
@@ -28,14 +28,14 @@ Koku uses [Unleash](https://www.getunleash.io/) for feature flag management in S
 
 **Configuration**:
 ```bash
-KOKU_ONPREM_DEPLOYMENT=False  # or leave unset
+ONPREM=False  # or leave unset
 UNLEASH_URL=https://unleash.example.com
 UNLEASH_TOKEN=your-token-here
 ```
 
 ### On-Premise Mode
 
-- `KOKU_ONPREM_DEPLOYMENT=True`
+- `ONPREM=True`
 - Uses `DisabledUnleashClient` (mock implementation)
 - All feature flags return `False` by default
 - No external API calls to Unleash server
@@ -44,7 +44,7 @@ UNLEASH_TOKEN=your-token-here
 
 **Configuration**:
 ```bash
-KOKU_ONPREM_DEPLOYMENT=True
+ONPREM=True
 # Unleash URL and token are ignored in on-prem mode
 ```
 
@@ -56,10 +56,10 @@ KOKU_ONPREM_DEPLOYMENT=True
 
 **File**: [`koku/koku/feature_flags.py`](../../koku/feature_flags.py)
 
-The Unleash client is selected at application startup based on the `KOKU_ONPREM_DEPLOYMENT` setting:
+The Unleash client is selected at application startup based on the `ONPREM` setting:
 
 ```python
-if settings.KOKU_ONPREM_DEPLOYMENT:
+if settings.ONPREM:
     UNLEASH_CLIENT = DisabledUnleashClient()
 else:
     UNLEASH_CLIENT = UnleashClient(
@@ -99,7 +99,7 @@ The `DisabledUnleashClient` is a mock implementation that provides a no-op inter
 
 | Variable                  | Required | Default | Description                                      |
 |---------------------------|----------|---------|--------------------------------------------------|
-| `KOKU_ONPREM_DEPLOYMENT`  | No       | `False` | Enable on-premise mode (disables Unleash client) |
+| `ONPREM`  | No       | `False` | Enable on-premise mode (disables Unleash client) |
 | `UNLEASH_URL`             | SaaS only| -       | Unleash server URL (ignored in on-prem mode)     |
 | `UNLEASH_TOKEN`           | SaaS only| -       | Unleash API token (ignored in on-prem mode)      |
 | `UNLEASH_ADMIN_TOKEN`     | SaaS only| -       | Unleash admin token (ignored in on-prem mode)    |
@@ -109,12 +109,12 @@ The `DisabledUnleashClient` is a mock implementation that provides a no-op inter
 
 **For development** (`.env` file):
 ```bash
-KOKU_ONPREM_DEPLOYMENT=True
+ONPREM=True
 ```
 
 **For Docker Compose**:
 ```bash
-export KOKU_ONPREM_DEPLOYMENT=True
+export ONPREM=True
 make docker-up
 ```
 
@@ -123,13 +123,13 @@ make docker-up
 # values.yaml
 koku:
   env:
-    - name: KOKU_ONPREM_DEPLOYMENT
+    - name: ONPREM
       value: "True"
 ```
 
 **Django settings**: [`koku/koku/settings.py`](../../koku/settings.py#L123)
 ```python
-KOKU_ONPREM_DEPLOYMENT = env.bool("KOKU_ONPREM_DEPLOYMENT", default=False)
+ONPREM = env.bool("ONPREM", default=False)
 ```
 
 ---
@@ -143,7 +143,7 @@ KOKU_ONPREM_DEPLOYMENT = env.bool("KOKU_ONPREM_DEPLOYMENT", default=False)
 Comprehensive test suite covering:
 
 1. **Client Initialization**
-   - Correct client selected based on `KOKU_ONPREM_DEPLOYMENT`
+   - Correct client selected based on `ONPREM`
    - Both SaaS and on-prem modes tested
 
 2. **Feature Flag Evaluation**
@@ -254,7 +254,7 @@ if UNLEASH_CLIENT.is_enabled("tenant_specific_feature", context=context):
 
 1. **Set environment variable** in all deployment environments:
    ```bash
-   KOKU_ONPREM_DEPLOYMENT=True
+   ONPREM=True
    ```
 
 2. **Update Helm chart values** (if using Helm):
@@ -282,7 +282,7 @@ If migration to on-prem mode causes issues:
 
 1. **Revert environment variable**:
    ```bash
-   KOKU_ONPREM_DEPLOYMENT=False
+   ONPREM=False
    ```
 
 2. **Restart services** to reconnect to Unleash server
@@ -342,13 +342,13 @@ If migration to on-prem mode causes issues:
 
 **Issue**: Feature flags not working in development
 
-**Solution**: Check that `KOKU_ONPREM_DEPLOYMENT` is not set to `True` in your `.env` file. For development with real Unleash, either unset it or set it to `False`.
+**Solution**: Check that `ONPREM` is not set to `True` in your `.env` file. For development with real Unleash, either unset it or set it to `False`.
 
 ---
 
 **Issue**: Unleash connection errors in logs
 
-**Solution**: If you're seeing Unleash connection errors and want to run in on-prem mode, set `KOKU_ONPREM_DEPLOYMENT=True` to disable Unleash client entirely.
+**Solution**: If you're seeing Unleash connection errors and want to run in on-prem mode, set `ONPREM=True` to disable Unleash client entirely.
 
 ---
 
@@ -375,7 +375,7 @@ If migration to on-prem mode causes issues:
 
 3. **Document Flag Dependencies**: If a feature requires a flag to be enabled, document this in code comments and user-facing documentation.
 
-4. **Test Both Modes**: When adding feature-flagged code, test with both `KOKU_ONPREM_DEPLOYMENT=True` and `False`.
+4. **Test Both Modes**: When adding feature-flagged code, test with both `ONPREM=True` and `False`.
 
 5. **Monitor Logs**: Check logs for feature flag evaluation to understand which code paths are being executed.
 
@@ -394,4 +394,3 @@ Potential improvements to the feature flag system:
 
 *Last Updated: December 2025*
 *Related Commit: `6475a00c` (koku-onprem-integration branch)*
-
