@@ -66,15 +66,14 @@ class OCPUtilTests(MasuTestCase):
 
     def test_get_source_and_provider_from_cluster_id(self):
         """Test that the source/provider is returned for a cluster ID."""
-        baker.make("Sources", provider=self.ocp_provider)
-        cluster_id = self.ocp_cluster_id
-        source = utils.get_source_and_provider_from_cluster_id(cluster_id)
+        baker.make("Sources", provider=self.ocp_provider, org_id=self.org_id)
+        source = utils.get_source_and_provider_from_cluster_id(self.ocp_cluster_id, self.org_id)
         self.assertEqual(source.provider, self.ocp_provider)
 
     def test_get_source_and_provider_from_cluster_id_invalid_cluster_id(self):
         """Test that the source/provider is not returned for an invalid cluster ID."""
         cluster_id = "bad_cluster_id"
-        provider_uuid = utils.get_source_and_provider_from_cluster_id(cluster_id)
+        provider_uuid = utils.get_source_and_provider_from_cluster_id(cluster_id, self.org_id)
         self.assertIsNone(provider_uuid)
 
     def test_match_openshift_labels(self):
