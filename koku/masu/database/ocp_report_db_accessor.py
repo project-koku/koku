@@ -478,6 +478,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             distribution: Choice of monthly distribution ex. memory
             provider_uuid (str): The str of the provider UUID
         """
+        start = start_date
+        end = end_date
 
         distribution_configs = {
             metric_constants.PLATFORM_COST: DistributionConfig(
@@ -523,13 +525,18 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 is_current_month = (
                     start_date_parsed.year == dh.now_utc.year and start_date_parsed.month == dh.now_utc.month
                 )
-                sql_params["start_date"] = dh.month_start(start_date)
+                start = dh.month_start(start_date)
+                end = dh.month_end(end_date)
+                sql_params["start_date"] = start
+                sql_params["end_date"] = end
                 if is_current_month:
                     # Trigger distribution for previous month during a window of the current
                     # month
                     if dh.now_utc.day in [1, 2, 3]:
-                        sql_params["start_date"] = dh.last_month_start.date()
-                        sql_params["end_date"] = dh.last_month_end.date()
+                        start = dh.month_start(start_date)
+                        end = dh.month_end(end_date)
+                        sql_params["start_date"] = start
+                        sql_params["end_date"] = end
                     else:
                         msg = f"Skipping {cost_model_key} distribution requires full month"
                         LOG.info(log_json(msg=msg, context={"schema": self.schema, "cost_model_key": cost_model_key}))
@@ -573,6 +580,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
             else:
                 self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
+
+        return start, end
 
     def _delete_monthly_cost_model_rate_type_data(self, sql_params, cost_model_key):
         delete_sql = pkgutil.get_data(
