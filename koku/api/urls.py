@@ -122,14 +122,6 @@ ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 
 urlpatterns = [
     path("source_types/", SourceTypesView.as_view(), name="source-types"),
-    path(
-        "sources",
-        SourcesViewSet.as_view(
-            actions={"get": "list", "post": "create", "patch": "partial_update", "delete": "destroy", "head": "list"}
-        ),
-        name="sources-no-slash",
-    ),
-    path("source_types", SourceTypesView.as_view(), name="source-types-no-slash"),
     path("application_types/", ApplicationTypesView.as_view(), name="application-types"),
     path("applications/", ApplicationsView.as_view(), name="applications"),
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
