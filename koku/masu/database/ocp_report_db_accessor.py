@@ -468,7 +468,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             ),
         )
 
-    def populate_distributed_cost_sql(self, start_date, end_date, provider_uuid, distribution_info):
+    def populate_distributed_cost_sql(self, summary_range, provider_uuid, distribution_info):
         """
         Populate the distribution cost model options.
 
@@ -478,8 +478,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             distribution: Choice of monthly distribution ex. memory
             provider_uuid (str): The str of the provider UUID
         """
-        start = start_date
-        end = end_date
 
         distribution_configs = {
             metric_constants.PLATFORM_COST: DistributionConfig(
@@ -513,30 +511,22 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         dh = DateHelper()
         for cost_model_key, config in distribution_configs.items():
             sql_params = {
-                "start_date": start_date,
-                "end_date": end_date,
+                "start_date": summary_range.start_date,
+                "end_date": summary_range.end_date,
                 "schema": self.schema,
                 "source_uuid": provider_uuid,
                 "cost_model_rate_type": config.cost_model_rate_type,
             }
             # Handle distributions that require full month data
             if config.requires_full_month:
-                start_date_parsed = dh.parse_to_date(start_date)
-                is_current_month = (
-                    start_date_parsed.year == dh.now_utc.year and start_date_parsed.month == dh.now_utc.month
-                )
-                start = dh.month_start(start_date)
-                end = dh.month_end(end_date)
-                sql_params["start_date"] = start
-                sql_params["end_date"] = end
-                if is_current_month:
+                sql_params["start_date"] = summary_range.start_of_month
+                sql_params["end_date"] = summary_range.end_of_month
+                if summary_range.is_current_month:
                     # Trigger distribution for previous month during a window of the current
                     # month
                     if dh.now_utc.day in [1, 2, 3]:
-                        start = dh.month_start(start_date)
-                        end = dh.month_end(end_date)
-                        sql_params["start_date"] = start
-                        sql_params["end_date"] = end
+                        sql_params["start_date"] = summary_range.start_of_previous_month
+                        sql_params["end_date"] = summary_range.end_of_previous_month
                     else:
                         msg = f"Skipping {cost_model_key} distribution requires full month"
                         LOG.info(log_json(msg=msg, context={"schema": self.schema, "cost_model_key": cost_model_key}))
@@ -581,7 +571,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             else:
                 self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
 
-        return start, end
+        return summary_range
 
     def _delete_monthly_cost_model_rate_type_data(self, sql_params, cost_model_key):
         delete_sql = pkgutil.get_data(

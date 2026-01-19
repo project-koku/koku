@@ -6,7 +6,6 @@
 import logging
 from decimal import Decimal
 
-from dateutil.parser import parse
 from django.utils import timezone
 from django_tenants.utils import schema_context
 
@@ -19,6 +18,7 @@ from masu.util.common import filter_dictionary
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
+from masu.util.ocp.common import SummaryRangeConfig
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
@@ -534,14 +534,16 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 filters={"monthly_cost_type": "Node_Core_Hour", "report_period_id": report_period_id},
             )
 
-    def distribute_costs_and_update_ui_summary(self, start_date, end_date):
+    def distribute_costs_and_update_ui_summary(self, summary_range):
         """Distribute cost model costs and update UI summary tables"""
         with OCPReportDBAccessor(self._schema) as accessor:
-            start, end = accessor.populate_distributed_cost_sql(
-                start_date, end_date, self._provider_uuid, self._distribution_info
+            summary_range = accessor.populate_distributed_cost_sql(
+                summary_range, self._provider_uuid, self._distribution_info
             )
-            accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
-            report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
+            accessor.populate_ui_summary_tables(
+                summary_range.summary_start, summary_range.summary_end, self._provider.uuid
+            )
+            report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, summary_range.summary_start)
             if report_period:
                 report_period.derived_cost_datetime = timezone.now()
                 report_period.save()
@@ -557,10 +559,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             None
 
         """
-        if isinstance(start_date, str):
-            start_date = parse(start_date)
-        if isinstance(end_date, str):
-            end_date = parse(end_date)
+        summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
 
         LOG.info(
             log_json(
@@ -571,23 +570,28 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 cluster_id=self._cluster_id,
             )
         )
-        self._update_usage_costs(start_date, end_date)
-        self._update_markup_cost(start_date, end_date)
-        self._update_monthly_cost(start_date, end_date)
+        # TODO: In a follow up PR replace the start_date & end_date with the SummaryRangeConfig
+        self._update_usage_costs(summary_range.start_date, summary_range.end_date)
+        self._update_markup_cost(summary_range.start_date, summary_range.end_date)
+        self._update_monthly_cost(summary_range.start_date, summary_range.end_date)
         # only update based on tag rates if there are tag rates
         # this also lets costs get removed if there is no tiered rate and then add to them if there is a tag_rate
         if self._tag_infra_rates != {} or self._tag_supplementary_rates != {}:
-            self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
-            self._update_tag_usage_costs(start_date, end_date)
-            self._update_tag_usage_default_costs(start_date, end_date)
-            self._update_monthly_tag_based_cost(start_date, end_date)
-            self._update_node_hour_tag_based_cost(start_date, end_date)
+            self._delete_tag_usage_costs(summary_range.start_date, summary_range.end_date, self._provider.uuid)
+            self._update_tag_usage_costs(summary_range.start_date, summary_range.end_date)
+            self._update_tag_usage_default_costs(summary_range.start_date, summary_range.end_date)
+            self._update_monthly_tag_based_cost(summary_range.start_date, summary_range.end_date)
+            self._update_node_hour_tag_based_cost(summary_range.start_date, summary_range.end_date)
             with OCPReportDBAccessor(self._schema) as report_accessor:
                 cluster_params = {"cluster_id": self._cluster_id, "cluster_alias": self._cluster_alias}
                 report_accessor.populate_tag_based_costs(
-                    start_date, end_date, self._provider.uuid, self.metric_to_tag_params_map, cluster_params
+                    summary_range.start_date,
+                    summary_range.end_date,
+                    self._provider.uuid,
+                    self.metric_to_tag_params_map,
+                    cluster_params,
                 )
         if not (self._tag_infra_rates or self._tag_supplementary_rates):
-            self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
+            self._delete_tag_usage_costs(summary_range.start_date, summary_range.end_date, self._provider.uuid)
 
-        self.distribute_costs_and_update_ui_summary(start_date, end_date)
+        self.distribute_costs_and_update_ui_summary(summary_range)
