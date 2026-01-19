@@ -35,6 +35,7 @@ from masu.processor import is_feature_flag_enabled_by_account
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.util.common import filter_dictionary
 from masu.util.common import source_in_trino_table
+from masu.util.common import SummaryRangeConfig
 from masu.util.common import trino_table_exists
 from masu.util.ocp.common import DistributionConfig
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
@@ -468,7 +469,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             ),
         )
 
-    def populate_distributed_cost_sql(self, summary_range, provider_uuid, distribution_info):
+    def populate_distributed_cost_sql(
+        self, summary_range: SummaryRangeConfig, provider_uuid: uuid.UUID, distribution_info: dict
+    ) -> None:
         """
         Populate the distribution cost model options.
 
@@ -519,6 +522,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             # Handle distributions that require full month data
             if config.requires_full_month:
+                # Skip full-month distributions on subsequent days when iterating day-by-day
+                if summary_range.skip_full_month:
+                    continue
                 sql_params["start_date"] = summary_range.start_of_month
                 sql_params["end_date"] = summary_range.end_of_month
                 if summary_range.is_current_month:

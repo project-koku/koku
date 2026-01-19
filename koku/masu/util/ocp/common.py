@@ -6,7 +6,6 @@
 import json
 import logging
 import os
-from datetime import date
 from datetime import datetime
 from datetime import UTC
 from decimal import Decimal
@@ -35,7 +34,6 @@ from pydantic import ValidationInfo
 from api.common import log_json
 from api.provider.models import Provider
 from api.provider.models import Sources
-from api.utils import DateHelper
 from api.utils import DateHelper as dh
 from masu.util.common import trino_table_exists
 
@@ -645,72 +643,6 @@ def get_latest_operator_version():
         if latest_version_num is None or Version(version_num) > Version(latest_version_num):
             latest_version_num = version_num
     return latest_version_num
-
-
-class SummaryRangeConfig(BaseModel):
-    """Configuration for start & end date.
-
-    Consolidates and configures Date Parameters.
-    Accepts datetime objects or date strings which are automatically parsed.
-    """
-
-    start_date: date
-    end_date: date
-    summary_starts: list[date] = Field(default_factory=list)
-    summary_ends: list[date] = Field(default_factory=list)
-
-    @field_validator("start_date", "end_date", mode="before")
-    @classmethod
-    def parse_date_string(cls, value: datetime | date | str) -> date:
-        """Convert string or datetime values to date objects."""
-        return DateHelper().parse_to_date(value)
-
-    def model_post_init(self, __context: Any) -> None:
-        """Add initial start_date and end_date to summary lists."""
-        self.summary_starts.append(self.start_date)
-        self.summary_ends.append(self.end_date)
-
-    @property
-    def start_of_month(self) -> date:
-        """Date of the 1st of the month of start_date."""
-        start = DateHelper().month_start(self.start_date)
-        self.summary_starts.append(start)
-        return start
-
-    @property
-    def end_of_month(self) -> date:
-        """Date of the last day of the month of end_date."""
-        end = DateHelper().month_end(self.end_date)
-        self.summary_ends.append(end)
-        return end
-
-    @property
-    def start_of_previous_month(self) -> date:
-        """Date of the 1st of the previous month."""
-        start = DateHelper().last_month_start.date()
-        self.summary_starts.append(start)
-        return start
-
-    @property
-    def end_of_previous_month(self) -> date:
-        """Date of the last day of the previous month."""
-        end = DateHelper().last_month_end.date()
-        self.summary_ends.append(end)
-        return end
-
-    @property
-    def is_current_month(self) -> bool:
-        """Check if start_date is in the current month."""
-        now_utc = DateHelper().now_utc
-        return self.start_date.year == now_utc.year and self.start_date.month == now_utc.month
-
-    @property
-    def summary_start(self) -> date:
-        return min(self.summary_starts)
-
-    @property
-    def summary_end(self) -> date:
-        return max(self.summary_ends)
 
 
 class DistributionConfig(BaseModel):

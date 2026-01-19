@@ -15,10 +15,10 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.common import filter_dictionary
+from masu.util.common import SummaryRangeConfig
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
-from masu.util.ocp.common import SummaryRangeConfig
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
@@ -548,7 +548,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 report_period.derived_cost_datetime = timezone.now()
                 report_period.save()
 
-    def update_summary_cost_model_costs(self, start_date, end_date):
+    def update_summary_cost_model_costs(self, summary_range: SummaryRangeConfig) -> None:
         """Update the OCP summary table with the charge information.
 
         Args:
@@ -559,8 +559,6 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             None
 
         """
-        summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
-
         LOG.info(
             log_json(
                 msg="updating cost model costs for provider",
