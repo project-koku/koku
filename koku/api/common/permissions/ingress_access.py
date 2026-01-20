@@ -4,13 +4,12 @@
 #
 """Defines the Ingress Access Permissions class."""
 from django.conf import settings
-from rest_framework import permissions
 
-from api.provider.models import Provider
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
+from api.provider.models import Provider
 
 ACCESS_TYPE_MAP = {
     Provider.PROVIDER_AWS: AwsAccessPermission.resource_type,
@@ -22,6 +21,7 @@ ACCESS_TYPE_MAP = {
     Provider.PROVIDER_OCP: OpenShiftAccessPermission.resource_type,
 }
 ACCESS_RESOURCE_TYPES = tuple(ACCESS_TYPE_MAP.values())
+
 
 class IngressAccessPermission:
     """Utility class for Ingress RBAC checks."""
