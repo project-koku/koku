@@ -3,12 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for Ingress Access Permissions."""
-
 from unittest.mock import Mock
+
 from django.test import TestCase
+
 from api.common.permissions.ingress_access import IngressAccessPermission
 from api.iam.models import User
 from api.provider.models import Provider
+
 
 class IngressAccessPermissionTest(TestCase):
     """Test the Ingress Access Permissions (CursorAI assisted code)."""
