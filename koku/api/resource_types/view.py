@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.filters import SearchFilterResourceTypes
 from api.common.pagination import ResourceTypePaginator
 from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
@@ -134,7 +135,7 @@ class ResourceTypesGenericListView(generics.ListAPIView):
     supported_query_params = ["search", "limit"]
     serializer_class = ResourceTypeSerializer
     pagination_class = ResourceTypeViewPaginator
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
+    filter_backends = [filters.OrderingFilter, SearchFilterResourceTypes]
 
     def has_admin_access(self, request):
         """Check if the user has admin access."""

@@ -32,6 +32,6 @@ LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS
 WHERE gpu.source = {{source_uuid}}
     AND gpu.year = {{year}}
     AND lpad(gpu.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
-    AND date(gpu.interval_start) >= {{start_date}}
-    AND date(gpu.interval_start) <= {{end_date}}
+    AND date(gpu.interval_start) >= date({{start_date}})
+    AND date(gpu.interval_start) <= date({{end_date}})
 GROUP BY gpu.namespace, gpu.node, gpu.gpu_vendor_name, gpu.gpu_model_name, gpu.interval_start

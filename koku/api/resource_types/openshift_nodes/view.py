@@ -13,6 +13,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.filters import SearchFilterResourceTypes
 from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftNodePermission
@@ -31,7 +32,7 @@ class OCPNodesView(generics.ListAPIView):
     )
     serializer_class = ResourceTypeSerializer
     permission_classes = [OpenShiftNodePermission | OpenShiftAccessPermission]
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
+    filter_backends = [filters.OrderingFilter, SearchFilterResourceTypes]
     ordering = ["value"]
     search_fields = ["value"]
     pagination_class = ResourceTypeViewPaginator
