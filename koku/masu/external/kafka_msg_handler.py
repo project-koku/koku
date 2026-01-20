@@ -493,7 +493,7 @@ def handle_message(kmsg):
     org_id = value.get("org_id")
     context = {"account": account, "org_id": org_id}
     if not org_id:
-        msg = f"Recieved unknown organization message: {str(value)}"
+        msg = f"Received unknown organization message: {str(value)}"
         LOG.info(log_json(request_id, msg=msg, context=context))
         return FAILURE_CONFIRM_STATUS, None, None
     try:
