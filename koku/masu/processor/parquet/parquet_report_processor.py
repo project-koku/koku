@@ -426,6 +426,9 @@ class ParquetReportProcessor:
 
     def create_parquet_table(self, column_names, daily=False, sync_partitions=True):
         """Create parquet table."""
+        # Skip empty files, if we have no storage report data we can't create the table
+        if not column_names:
+            return
         processor = self._get_report_processor(daily=daily)
         if not processor.schema_exists():
             processor.create_schema()
@@ -548,7 +551,8 @@ class ParquetReportProcessor:
                 file_path, parquet_base_filename, file_name_suffix, data_frame, file_type=DAILY_FILE_TYPE
             )
         if file_path:
-            self.create_parquet_table(file_path, daily=True)
+            col_names = list(data_frames[0].columns)
+            self.create_parquet_table(col_names, daily=True)
 
     def _determin_s3_path(self, file_type):
         """Determine the s3 path to use to write a parquet file to."""

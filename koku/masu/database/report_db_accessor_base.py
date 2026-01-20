@@ -131,7 +131,7 @@ class ReportDBAccessorBase:
         return results
 
     @retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError))
-    def _execute_trino_raw_sql_query_with_description(
+    def _execute_trino_raw_sql_query_with_description( # noqa: C901
         self,
         sql,
         *,
