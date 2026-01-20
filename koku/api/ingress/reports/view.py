@@ -5,13 +5,13 @@
 """View for report posting."""
 from uuid import UUID
 
-from django.db.models import Q
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.common.pagination import ListPaginator
+from api.common.permissions.ingress_access import IngressAccessPermission
 from api.ingress.reports.serializers import IngressReportsSerializer
 from api.provider.models import Sources
 from reporting.ingress.models import IngressReports
@@ -36,7 +36,12 @@ class IngressReportsDetailView(APIView):
 
         # scope to schema_name to prevent cross-tenant data exposure
         report_instance = IngressReports.objects.filter(source=source, schema_name=request.user.customer.schema_name)
-        if not report_instance:
+
+        first_report = report_instance.first()
+        if not first_report:
+            return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not IngressAccessPermission.has_access(request, first_report.source.type):
             return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = IngressReportsSerializer(report_instance, many=True)
@@ -55,6 +60,9 @@ class IngressReportsView(APIView):
         """
         Return list of sources.
         """
+        if not IngressAccessPermission.has_any_read_access(request):
+            return Response({"Error": "Not authorized."}, status=status.HTTP_403_FORBIDDEN)
+
         reports = IngressReports.objects.filter(schema_name=request.user.customer.schema_name)
         serializer = IngressReportsSerializer(reports, many=True)
         paginator = ListPaginator(serializer.data, request)
@@ -67,19 +75,15 @@ class IngressReportsView(APIView):
             return Response({"Error": "Unauthorized."}, status=status.HTTP_401_UNAUTHORIZED)
 
         source_ref = request.data.get("source")
-        source_lookup = Q(source_id=source_ref) if str(source_ref).isdigit() else Q(koku_uuid=source_ref)
-
-        tenant_filter = Q()
-        account_id = request.user.customer.account_id
         org_id = request.user.customer.org_id
-        if account_id:
-            tenant_filter |= Q(account_id=account_id)
-        if org_id:
-            tenant_filter |= Q(org_id=org_id)
+        lookup = {"source_id": source_ref} if str(source_ref).isdigit() else {"koku_uuid": source_ref}
 
-        source = Sources.objects.filter(source_lookup & tenant_filter).first()
+        source = Sources.objects.filter(org_id=org_id, **lookup).first()
         if not source:
             return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not IngressAccessPermission.has_access(request, source.source_type, write=True):
+            return Response({"Error": "Not authorized for source."}, status=status.HTTP_403_FORBIDDEN)
 
         data = {
             "source": source.koku_uuid,
