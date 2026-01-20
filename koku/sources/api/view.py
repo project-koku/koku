@@ -33,6 +33,7 @@ from rest_framework.serializers import ValidationError
 from api.common.filters import CharListFilter
 from api.common.pagination import ListPaginator
 from api.common.permissions import RESOURCE_TYPE_MAP
+from api.common.response import set_content_length
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
@@ -254,13 +255,26 @@ class SourcesViewSet(*MIXIN_LIST):
         return (account_id, tenant)
 
     @method_decorator(never_cache)
+    def create(self, request, *args, **kwargs):
+        """Create a Source."""
+        schema_name = request.user.customer.schema_name
+        try:
+            response = super().create(request=request, args=args, kwargs=kwargs)
+            invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
+            return set_content_length(response, request, self.get_renderer_context())
+        except (SourcesStorageError, ParseError) as error:
+            raise SourcesException(str(error))
+        except SourcesDependencyError as error:
+            raise SourcesDependencyException(str(error))
+
+    @method_decorator(never_cache)
     def update(self, request, *args, **kwargs):
         """Update a Source."""
         schema_name = request.user.customer.schema_name
         try:
             result = super().update(request=request, args=args, kwargs=kwargs)
             invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
-            return result
+            return set_content_length(result, request, self.get_renderer_context())
         except (SourcesStorageError, ParseError) as error:
             raise SourcesException(str(error))
         except SourcesDependencyError as error:
@@ -311,7 +325,7 @@ class SourcesViewSet(*MIXIN_LIST):
                     {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
                 ]
                 source["additional_context"] = manager.get_additional_context()
-        return response
+        return set_content_length(response, request, self.get_renderer_context())
 
     @method_decorator(never_cache)
     def retrieve(self, request, *args, **kwargs):
@@ -351,7 +365,7 @@ class SourcesViewSet(*MIXIN_LIST):
                 {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
             ]
             response.data["additional_context"] = manager.get_additional_context()
-        return response
+        return set_content_length(response, request, self.get_renderer_context())
 
     @method_decorator(never_cache)
     @action(methods=["get"], detail=True, permission_classes=[AllowAny])

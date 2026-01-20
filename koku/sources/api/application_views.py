@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.common.response import set_content_length
 from api.provider.models import Sources
 
 
@@ -47,7 +48,8 @@ class ApplicationsView(APIView):
             for source in queryset
         ]
 
-        return Response({"meta": {"count": len(applications)}, "data": applications})
+        response = Response({"meta": {"count": len(applications)}, "data": applications})
+        return set_content_length(response, request, self.get_renderer_context())
 
     def post(self, request):
         """Create an application association.
@@ -80,7 +82,7 @@ class ApplicationsView(APIView):
             )
 
         # Return success - no database storage needed
-        return Response(
+        response = Response(
             {
                 "id": str(source.source_id),
                 "source_id": str(source.source_id),
@@ -88,3 +90,4 @@ class ApplicationsView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+        return set_content_length(response, request, self.get_renderer_context())

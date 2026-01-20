@@ -7,6 +7,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.common.response import set_content_length
+
 
 # Cost Management is the only supported application type
 APPLICATION_TYPES = [{"id": "0", "name": "/insights/platform/cost-management"}]
@@ -26,4 +28,5 @@ class ApplicationTypesView(APIView):
         if filter_name:
             app_types = [at for at in app_types if at["name"] == filter_name]
 
-        return Response({"meta": {"count": len(app_types)}, "data": app_types})
+        response = Response({"meta": {"count": len(app_types)}, "data": app_types})
+        return set_content_length(response, request, self.get_renderer_context())
