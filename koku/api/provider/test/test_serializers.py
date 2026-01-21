@@ -521,11 +521,11 @@ class ProviderSerializerTest(IamTestCase):
 
     @patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True)
     def test_create_same_provider_different_customers(self, *args):
-        """Test that the same provider can be created for 2 different customers."""
+        """Test that the same provider can not be created for 2 different customers."""
         test_cases = [
-            {"provider": Provider.PROVIDER_AWS},
-            {"provider": Provider.PROVIDER_AZURE},
-            {"provider": Provider.PROVIDER_OCP},
+            {"provider": Provider.PROVIDER_AWS, "dup_allowed": True},
+            {"provider": Provider.PROVIDER_AZURE, "dup_allowed": True},
+            {"provider": Provider.PROVIDER_OCP, "dup_allowed": False},
         ]
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
@@ -539,58 +539,15 @@ class ProviderSerializerTest(IamTestCase):
                     serializer.save()
 
                 serializer = ProviderSerializer(data=data, context=alt_request_context)
-                serializer.is_valid(raise_exception=True)
-                serializer.save()
-
-    @patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True)
-    def test_ocp_cluster_id_isolation_between_customers(self, *args):
-        """Test that OCP cluster_id is isolated per customer.
-
-        This test validates:
-        - Different customers CAN use the same cluster_id (no cross-org visibility)
-        - Same customer CANNOT create duplicate cluster_id (duplicate check works within org)
-
-        """
-        cluster_id = "test-idor-cluster-12345"
-        ocp_data = {
-            "name": "test-ocp-provider",
-            "type": Provider.PROVIDER_OCP.lower(),
-            "authentication": {"credentials": {"cluster_id": cluster_id}},
-            "billing_source": {"data_source": {}},
-        }
-
-        # Create second customer context
-        user_data = self._create_user_data()
-        customer_b_context = self._create_request_context(
-            self.create_mock_customer_data(account="10002", org_id="2222222"),
-            user_data,
-            create_tenant=True,
-        )
-
-        # 1. Customer A creates OCP provider with cluster_id
-        serializer = ProviderSerializer(data=ocp_data.copy(), context=self.request_context)
-        self.assertTrue(serializer.is_valid(raise_exception=True))
-        provider_a = serializer.save()
-        self.assertIsNotNone(provider_a)
-
-        # 2. Customer B creates OCP provider with SAME cluster_id - should SUCCEED
-        ocp_data_b = ocp_data.copy()
-        ocp_data_b["name"] = "test-ocp-provider-b"
-        serializer = ProviderSerializer(data=ocp_data_b, context=customer_b_context)
-        self.assertTrue(serializer.is_valid(raise_exception=True))
-        provider_b = serializer.save()
-        self.assertIsNotNone(provider_b)
-        self.assertNotEqual(provider_a.uuid, provider_b.uuid)
-        self.assertNotEqual(provider_a.customer, provider_b.customer)
-
-        # 3. Customer A tries to create ANOTHER provider with same cluster_id - should FAIL
-        ocp_data_dup = ocp_data.copy()
-        ocp_data_dup["name"] = "test-ocp-provider-duplicate"
-        serializer = ProviderSerializer(data=ocp_data_dup, context=self.request_context)
-        with self.assertRaises(ValidationError) as exc_context:
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-        self.assertIn(ProviderErrors.DUPLICATE_AUTH, exc_context.exception.detail)
+                if test["dup_allowed"]:
+                    serializer.is_valid(raise_exception=True)
+                    serializer.save()
+                else:
+                    with self.assertRaises(ValidationError) as excCtx:
+                        serializer.is_valid(raise_exception=True)
+                        serializer.save()
+                    validationErr = excCtx.exception.detail[ProviderErrors.DUPLICATE_AUTH][0]
+                    self.assertTrue("Cost management does not allow duplicate accounts" in str(validationErr))
 
     def test_create_provider_for_demo_account(self):
         """Test creating a provider for a demo account."""
