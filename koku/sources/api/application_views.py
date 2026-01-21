@@ -8,7 +8,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.common.response import set_content_length
 from api.provider.models import Sources
 
 
@@ -49,7 +48,7 @@ class ApplicationsView(APIView):
         ]
 
         response = Response({"meta": {"count": len(applications)}, "data": applications})
-        return set_content_length(response, request, self.get_renderer_context())
+        return response
 
     def post(self, request):
         """Create an application association.
@@ -90,4 +89,4 @@ class ApplicationsView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
-        return set_content_length(response, request, self.get_renderer_context())
+        return response

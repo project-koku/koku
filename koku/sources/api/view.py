@@ -33,7 +33,6 @@ from rest_framework.serializers import ValidationError
 from api.common.filters import CharListFilter
 from api.common.pagination import ListPaginator
 from api.common.permissions import RESOURCE_TYPE_MAP
-from api.common.response import set_content_length
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
@@ -261,7 +260,7 @@ class SourcesViewSet(*MIXIN_LIST):
         try:
             response = super().create(request=request, args=args, kwargs=kwargs)
             invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
-            return set_content_length(response, request, self.get_renderer_context())
+            return response
         except (SourcesStorageError, ParseError) as error:
             raise SourcesException(str(error))
         except SourcesDependencyError as error:
@@ -274,7 +273,7 @@ class SourcesViewSet(*MIXIN_LIST):
         try:
             result = super().update(request=request, args=args, kwargs=kwargs)
             invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
-            return set_content_length(result, request, self.get_renderer_context())
+            return result
         except (SourcesStorageError, ParseError) as error:
             raise SourcesException(str(error))
         except SourcesDependencyError as error:
@@ -325,7 +324,7 @@ class SourcesViewSet(*MIXIN_LIST):
                     {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
                 ]
                 source["additional_context"] = manager.get_additional_context()
-        return set_content_length(response, request, self.get_renderer_context())
+        return response
 
     @method_decorator(never_cache)
     def retrieve(self, request, *args, **kwargs):
@@ -365,7 +364,7 @@ class SourcesViewSet(*MIXIN_LIST):
                 {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
             ]
             response.data["additional_context"] = manager.get_additional_context()
-        return set_content_length(response, request, self.get_renderer_context())
+        return response
 
     @method_decorator(never_cache)
     @action(methods=["get"], detail=True, permission_classes=[AllowAny])

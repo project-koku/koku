@@ -7,7 +7,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.common.response import set_content_length
 from sources.api.source_type_mapping import CMMO_ID_TO_SOURCE_NAME
 
 
@@ -27,4 +26,4 @@ class SourceTypesView(APIView):
             source_types = [st for st in source_types if st["name"] == filter_name]
 
         response = Response({"meta": {"count": len(source_types)}, "data": source_types})
-        return set_content_length(response, request, self.get_renderer_context())
+        return response

@@ -54,7 +54,6 @@ class KokuUnleashClient(UnleashClient):
 
 class DisabledUnleashClient:
     """Mock Unleash client for on-prem deployments without Unleash server.
-
     Makes zero network calls and uses fallback functions for feature flags.
     This enables Koku to run in environments where Unleash is not available.
     """
@@ -65,12 +64,10 @@ class DisabledUnleashClient:
 
     def is_enabled(self, feature_name, context=None, fallback_function=None):
         """Check if feature is enabled using fallback function only.
-
         Args:
             feature_name (str): Name of the feature flag
             context (dict): Context dict (ignored in disabled mode)
             fallback_function (callable): Function to determine feature state
-
         Returns:
             bool: Result of fallback_function or False if no fallback provided
         """
