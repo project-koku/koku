@@ -16,6 +16,7 @@ from api.common.pagination import ListPaginator
 from api.common.permissions.ingress_access import IngressAccessPermission
 from api.ingress.reports.serializers import IngressReportsSerializer
 from api.provider.models import Sources
+from masu.processor import is_ingress_rbac_grace_period_enabled
 from reporting.ingress.models import IngressReports
 
 LOG = logging.getLogger(__name__)
@@ -103,8 +104,15 @@ class IngressReportsView(APIView):
             return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
 
         if not IngressAccessPermission.has_access(request, source.source_type, write=True):
-            LOG.warning(log_json(msg="rbac write access denied for ingress source", source=source.koku_uuid))
-            return Response({"Error": "Not authorized for source."}, status=status.HTTP_403_FORBIDDEN)
+            if not is_ingress_rbac_grace_period_enabled(org_id):
+                LOG.warning(
+                    log_json(
+                        msg="access denied for ingress report posting",
+                        source=source.koku_uuid,
+                        org_id=org_id,
+                    )
+                )
+                return Response({"Error": "Not authorized for source."}, status=status.HTTP_403_FORBIDDEN)
 
         data = {
             "source": source.koku_uuid,
