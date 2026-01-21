@@ -629,6 +629,20 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     msg_handler.handle_message(hccm_msg)
                     mock_close.assert_called()
 
+    def test_handle_message_missing_org_id(self):
+        """Test that handle_message returns FAILURE_CONFIRM_STATUS when org_id is missing."""
+        value_dict = {
+            "request_id": "test-request-id",
+            "account": "12345",
+        }
+        msg = MockMessage(UPLOAD_TOPIC, "http://test-url.com/file", value_dict=value_dict)
+
+        status, report_metas, manifest_uuid = msg_handler.handle_message(msg)
+
+        self.assertEqual(status, msg_handler.FAILURE_CONFIRM_STATUS)
+        self.assertIsNone(report_metas)
+        self.assertIsNone(manifest_uuid)
+
     def test_process_report(self):
         """Test report processing."""
         report_meta = {
