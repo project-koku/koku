@@ -13,7 +13,7 @@ from api.provider.models import Provider
 
 
 class IngressAccessPermissionTest(TestCase):
-    """Test the Ingress Access Permissions (CursorAI assisted code)."""
+    """Test the Ingress Access Permissions."""
 
     def test_has_access_success(self):
         # Resource type for AWS is "aws.account" per ACCESS_TYPE_MAP
