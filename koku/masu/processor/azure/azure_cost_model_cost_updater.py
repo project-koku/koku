@@ -13,6 +13,7 @@ from api.common import log_json
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.util.azure.common import get_bills_from_provider
+from masu.util.common import SummaryRangeConfig
 
 
 LOG = logging.getLogger(__name__)
@@ -54,12 +55,11 @@ class AzureCostModelCostUpdater:
         except AzureCostModelCostUpdaterError as error:
             LOG.error(log_json(msg="unable to update markup costs", context=self._context), exc_info=error)
 
-    def update_summary_cost_model_costs(self, start_date=None, end_date=None):
+    def update_summary_cost_model_costs(self, summary_range: SummaryRangeConfig) -> None:
         """Update the Azure summary table with the charge information.
 
         Args:
-            start_date (str, Optional) - Start date of range to update derived cost.
-            end_date (str, Optional) - End date of range to update derived cost.
+            summary_range (SummaryRangeConfig) - Date range configuration for cost model updates.
 
         Returns
             None
@@ -69,17 +69,17 @@ class AzureCostModelCostUpdater:
             log_json(
                 msg="starting charge calculation updates",
                 context=self._context,
-                start_date=start_date,
-                end_date=end_date,
+                start_date=summary_range.start_date,
+                end_date=summary_range.end_date,
             )
         )
 
-        self._update_markup_cost(start_date, end_date)
+        self._update_markup_cost(summary_range.start_date, summary_range.end_date)
 
         with AzureReportDBAccessor(self._schema) as accessor:
             LOG.debug(log_json(msg="updating Azure derived cost summary", context=self._context))
-            accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
-            bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
+            accessor.populate_ui_summary_tables(summary_range.start_date, summary_range.end_date, self._provider.uuid)
+            bills = accessor.bills_for_provider_uuid(self._provider.uuid, summary_range.start_date)
             with schema_context(self._schema):
                 for bill in bills:
                     bill.derived_cost_datetime = timezone.now()
