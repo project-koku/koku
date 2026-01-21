@@ -159,8 +159,9 @@ class ReportsViewTest(MasuTestCase):
         response = client.post(url, data=post_data, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    @patch("api.ingress.reports.view.is_ingress_rbac_grace_period_enabled", return_value=False)
     @patch("api.ingress.reports.view.IngressAccessPermission.has_access", return_value=False)
-    def test_post_no_write_access(self, _):
+    def test_post_no_write_access(self, *args):
         """Test POST ingress reports with no write access."""
         url = reverse("reports")
         post_data = {
@@ -206,3 +207,19 @@ class ReportsViewTest(MasuTestCase):
         response = client.post(url, data=post_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("already being processed", str(response.json()))
+
+    @patch("api.ingress.reports.view.is_ingress_rbac_grace_period_enabled", return_value=True)
+    @patch("api.ingress.reports.view.IngressAccessPermission.has_access", return_value=False)
+    @patch("api.ingress.reports.serializers.ProviderAccessor.check_file_access")
+    def test_post_rbac_grace_period_fallback(self, *args):
+        """Test POST ingress reports fallback when RBAC fails but grace period is enabled."""
+        url = reverse("reports")
+        post_data = {
+            "source": f"{self.aws_provider.uuid}",
+            "reports_list": ["test.csv"],
+            "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
+            "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
+        }
+        client = APIClient()
+        response = client.post(url, data=post_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
