@@ -8,11 +8,13 @@ import os
 import shutil
 from datetime import timedelta
 from pathlib import Path
+from unittest.mock import MagicMock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
 import faker
 import pandas as pd
+from django.test.utils import override_settings
 from django_tenants.utils import schema_context
 from rest_framework.exceptions import ValidationError
 
@@ -863,3 +865,79 @@ class TestParquetReportProcessor(MasuTestCase):
             )
             result = report_processor.check_required_columns_for_ingress_reports(RECOMMENDED_COLUMNS)
             self.assertIsNone(result)
+
+    @override_settings(ONPREM=True)
+    @patch.object(ParquetReportProcessor, "_get_report_processor")
+    @patch.object(ParquetReportProcessor, "create_parquet_table")
+    def test_handle_daily_frames_postgres(self, mock_create_table, mock_get_processor):
+        """Test handle_daily_frames_postgres writes to SQL."""
+        mock_processor = MagicMock()
+        mock_get_processor.return_value = mock_processor
+
+        data_frames = [pd.DataFrame({"col1": [1, 2], "col2": ["a", "b"]})]
+        metadata = {"ManifestId": "123"}
+
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.ocp_provider_uuid,
+            provider_type=Provider.PROVIDER_OCP,
+            manifest_id=self.ocp_manifest_id,
+            context={"start_date": self.today, "tracing_id": "test-123"},
+        )
+
+        report_processor.handle_daily_frames_postgres(data_frames, metadata)
+
+        mock_create_table.assert_called_once()
+        mock_processor.write_dataframe_to_sql.assert_called()
+
+    @override_settings(ONPREM=True)
+    @patch.object(ParquetReportProcessor, "_get_report_processor")
+    def test_write_dataframe(self, mock_get_processor):
+        """Test _write_dataframe calls processor.write_dataframe_to_sql."""
+        mock_processor = MagicMock()
+        mock_get_processor.return_value = mock_processor
+
+        data_frame = pd.DataFrame({"col1": [1, 2]})
+        metadata = {"ManifestId": "123"}
+
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.ocp_provider_uuid,
+            provider_type=Provider.PROVIDER_OCP,
+            manifest_id=self.ocp_manifest_id,
+            context={"start_date": self.today, "tracing_id": "test-123"},
+        )
+
+        report_processor._write_dataframe(data_frame, metadata)
+        mock_processor.write_dataframe_to_sql.assert_called_once_with(data_frame, metadata)
+
+    @override_settings(ONPREM=True)
+    @patch.object(ParquetReportProcessor, "_get_report_processor")
+    def test_delete_old_data_postgres(self, mock_get_processor):
+        """Test _delete_old_data_postgres calls processor.delete_day_postgres."""
+        mock_processor = MagicMock()
+        mock_get_processor.return_value = mock_processor
+
+        filename = Path("pod_usage.count.csv")
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=filename,
+            provider_uuid=self.ocp_provider_uuid,
+            provider_type=Provider.PROVIDER_OCP,
+            manifest_id=self.ocp_manifest_id,
+            context={
+                "start_date": self.today,
+                "tracing_id": "test-123",
+                "ocp_files_to_process": {
+                    filename.stem: {
+                        "meta_reportdatestart": "2024-01-15",
+                        "meta_reportnumhours": "24",
+                    }
+                },
+            },
+        )
+
+        report_processor._delete_old_data_postgres(filename)
+        mock_processor.delete_day_postgres.assert_called()
