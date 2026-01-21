@@ -97,7 +97,6 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
 
         Deletes from both raw and daily tables, similar to how Trino deletes from multiple S3 paths.
         """
-        from api.common import log_json
         from koku.reportdb_accessor import get_report_db_accessor
         from masu.processor.parquet.parquet_report_processor import ReportsAlreadyProcessed
 
@@ -114,8 +113,6 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                     cursor.execute(check_table_sql)
                     if cursor.fetchone():
                         existing_tables.append(table_name)
-                    else:
-                        LOG.debug(f"Table {table_name} does not exist, skipping delete")
 
         # Delete from existing tables
         total_deleted = 0
