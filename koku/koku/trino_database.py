@@ -225,7 +225,7 @@ def connect(**connect_args):
 
 
 @retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError))
-def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None): # noqa: C901
+def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):  # noqa: C901
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
     will be parsed into individual statements for execution. If preprocessor is None,
