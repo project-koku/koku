@@ -434,7 +434,7 @@ def source_in_trino_table(schema_name, source_uuid, table_name):
 
 def convert_account(account):
     """Process the account string for Unleash checks."""
-    if account and not account.startswith("acct", "org"):
+    if account and not account.startswith("acct") and not account.startswith("org"):
         account = f"acct{account}"
     return account
 
