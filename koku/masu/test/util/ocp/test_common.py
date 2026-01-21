@@ -260,3 +260,22 @@ class DistributionConfigTest(MasuTestCase):
         )
         self.assertTrue(config.table_exists(self.schema))
         mock_table_exists.assert_not_called()
+
+    def test_requires_full_month_field(self):
+        """Test requires_full_month field defaults to False and can be set to True."""
+        # Test default value is False
+        config = utils.DistributionConfig(
+            sql_file="test.sql",
+            cost_model_rate_type="test",
+        )
+        self.assertFalse(config.requires_full_month)
+
+        # Test explicit True value
+        config = utils.DistributionConfig(
+            sql_file="test.sql",
+            cost_model_rate_type="test",
+            query_type="trino",
+            required_table="test_table",
+            requires_full_month=True,
+        )
+        self.assertTrue(config.requires_full_month)
