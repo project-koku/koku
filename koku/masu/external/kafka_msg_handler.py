@@ -495,6 +495,9 @@ def handle_message(kmsg):
     account = value.get("account")
     org_id = value.get("org_id")
     context = {"account": account, "org_id": org_id}
+    if not org_id:
+        msg = f"Received unknown organization message: {str(value)}"
+        LOG.info(log_json(request_id, msg=msg, context=context))
     try:
         msg = f"Extracting Payload for msg: {str(value)}"
         LOG.info(log_json(request_id, msg=msg, context=context))
