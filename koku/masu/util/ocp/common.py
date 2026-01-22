@@ -662,6 +662,9 @@ class DistributionConfig(BaseModel):
     distribute_by_default: bool = Field(
         default=False, description="Whether to distribute when no cost model is present"
     )
+    requires_full_month: bool = Field(
+        default=False, description="Requires a full month of data before distribution can happen."
+    )
     query_type: Literal["postgresql", "trino"] = Field(
         default="postgresql", description="Query engine to use for execution"
     )
