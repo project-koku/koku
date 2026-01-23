@@ -496,6 +496,7 @@ def handle_message(kmsg):
         msg = f"Received unknown organization message: {str(value)}"
         LOG.info(log_json(request_id, msg=msg, context=context))
         return FAILURE_CONFIRM_STATUS, None, None
+
     try:
         msg = f"Extracting Payload for msg: {str(value)}"
         LOG.info(log_json(request_id, msg=msg, context=context))
