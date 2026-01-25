@@ -117,8 +117,12 @@ from sources.api.application_views import ApplicationsView
 from sources.api.source_type_views import SourceTypesView
 from sources.api.views import SourcesViewSet
 
-ROUTER = DefaultRouter(trailing_slash=False)
+ROUTER = DefaultRouter()
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
+
+# Router without trailing slash for compatibility
+ROUTER_NO_SLASH = DefaultRouter(trailing_slash=False)
+ROUTER_NO_SLASH.register(r"sources", SourcesViewSet, basename="sources-no-slash")
 
 urlpatterns = [
     path("source_types", SourceTypesView.as_view(), name="source-types"),
@@ -554,4 +558,4 @@ urlpatterns = [
     # These endpoints have been removed from the codebase
     path("settings/", SunsetView, name="settings"),
 ]
-urlpatterns += ROUTER.urls
+urlpatterns += ROUTER.urls + ROUTER_NO_SLASH.urls
