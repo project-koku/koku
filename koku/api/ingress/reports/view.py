@@ -103,16 +103,17 @@ class IngressReportsView(APIView):
             LOG.info(log_json(msg="ingress report post source not found", source_ref=source_ref, org_id=org_id))
             return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if not IngressAccessPermission.has_access(request, source.source_type, write=True):
-            if not is_ingress_rbac_grace_period_enabled(org_id):
-                LOG.warning(
-                    log_json(
-                        msg="access denied for ingress report posting",
-                        source=source.koku_uuid,
-                        org_id=org_id,
-                    )
+        if not is_ingress_rbac_grace_period_enabled(org_id) and not IngressAccessPermission.has_access(
+            request, source.source_type, write=True
+        ):
+            LOG.warning(
+                log_json(
+                    msg="access denied for ingress report posting",
+                    source=source.koku_uuid,
+                    org_id=org_id,
                 )
-                return Response({"Error": "Not authorized for source."}, status=status.HTTP_403_FORBIDDEN)
+            )
+            return Response({"Error": "Not authorized for source."}, status=status.HTTP_403_FORBIDDEN)
 
         data = {
             "source": source.koku_uuid,

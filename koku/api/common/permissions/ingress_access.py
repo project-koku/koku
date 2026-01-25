@@ -39,8 +39,8 @@ class IngressAccessPermission:
         resource_access = access.get(resource_type, {})
         if write:
             write_access = resource_access.get("write", [])
-            return bool(write_access)
-        return bool(resource_access.get("read", []))
+            return any(write_access)
+        return any(resource_access.get("read", []))
 
     @staticmethod
     def has_any_read_access(request):
