@@ -84,6 +84,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                             start_date=start_date,
                         )
                     )
+                    return start_date, end_date
 
                 for start, end in date_range_pair(invoice_start, invoice_end, step=settings.TRINO_DATE_STEP):
                     LOG.info(
