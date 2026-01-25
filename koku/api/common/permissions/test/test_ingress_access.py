@@ -36,6 +36,22 @@ class IngressAccessPermissionTest(TestCase):
         # Test failure (wrong provider type)
         self.assertFalse(IngressAccessPermission.has_access(req, Provider.PROVIDER_OCP, write=True))
 
+    def test_has_any_read_access_failure(self):
+        # Case where access is an empty dict
+        user = Mock(spec=User, access={}, admin=False)
+        req = Mock(user=user)
+        self.assertFalse(IngressAccessPermission.has_any_read_access(req))
+
+        # Case where access has other keys but no read access for ingress types
+        user = Mock(spec=User, access={"other.resource": {"read": ["*"]}}, admin=False)
+        req = Mock(user=user)
+        self.assertFalse(IngressAccessPermission.has_any_read_access(req))
+
+    def test_has_any_read_access_admin_bypass(self):
+        user = Mock(spec=User, access={}, admin=True)
+        req = Mock(user=user)
+        self.assertTrue(IngressAccessPermission.has_any_read_access(req))
+
     def test_admin_bypass(self):
         user = Mock(spec=User, access={}, admin=True)
         req = Mock(user=user)
@@ -45,3 +61,4 @@ class IngressAccessPermissionTest(TestCase):
         user = Mock(spec=User, access=None, admin=False)
         req = Mock(user=user)
         self.assertFalse(IngressAccessPermission.has_access(req, Provider.PROVIDER_AWS))
+        self.assertFalse(IngressAccessPermission.has_any_read_access(req))

@@ -5,6 +5,7 @@
 """Test Report Views."""
 import uuid
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 
 from django.urls import reverse
 from django_tenants.utils import schema_context
@@ -223,3 +224,21 @@ class ReportsViewTest(MasuTestCase):
         client = APIClient()
         response = client.post(url, data=post_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @patch("api.ingress.reports.view.IngressReportsSerializer.is_valid", return_value=False)
+    def test_post_validation_failed(self, mock_is_valid):
+        """Test POST ingress reports when validation fails."""
+        mock_is_valid.return_value = False
+        with patch("api.ingress.reports.view.IngressReportsSerializer.errors", new_callable=PropertyMock) as mock_err:
+            mock_err.return_value = {"error": "validation failed"}
+            url = reverse("reports")
+            post_data = {
+                "source": str(self.aws_provider.uuid),
+                "reports_list": ["test.csv"],
+                "bill_year": self.dh.bill_year_from_date(self.dh.this_month_start),
+                "bill_month": self.dh.bill_month_from_date(self.dh.this_month_start),
+            }
+            client = APIClient()
+            response = client.post(url, data=post_data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.json(), {"error": "validation failed"})
