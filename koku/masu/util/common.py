@@ -9,11 +9,15 @@ import gzip
 import json
 import logging
 import re
+from datetime import date
 from datetime import timedelta
 from itertools import groupby
 from os import remove
 from tempfile import gettempdir
 from threading import RLock
+from typing import Any
+from typing import Iterator
+from typing import Self
 from uuid import uuid4
 
 import pandas as pd
@@ -22,6 +26,9 @@ from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
 from django.conf import settings
 from django_tenants.utils import schema_context
+from pydantic import BaseModel
+from pydantic import Field
+from pydantic import field_validator
 
 import koku.trino_database as trino_db
 from api.common import log_json
@@ -31,6 +38,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from reporting.provider.all.models import EnabledTagKeys
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.states import ManifestStep
+
 
 LOG = logging.getLogger(__name__)
 
@@ -192,8 +200,8 @@ def date_range(start_date, end_date, step=5):
 
     dates = rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step)
 
-    for date in dates:
-        yield date.date()
+    for _date in dates:
+        yield _date.date()
     if end_date not in dates:
         yield end_date.date()
 
@@ -219,11 +227,11 @@ def date_range_pair(start_date, end_date, step=5):
     if len(dates) == 1:
         yield start_date.date(), end_date.date()
     else:
-        for date in dates:
-            if date == start_date and date != end_date:
+        for _date in dates:
+            if _date == start_date and _date != end_date:
                 continue
-            yield start_date.date(), date.date()
-            start_date = date + timedelta(days=1)
+            yield start_date.date(), _date.date()
+            start_date = _date + timedelta(days=1)
         if len(dates) != 1 and end_date not in dates:
             yield start_date.date(), end_date.date()
 
@@ -518,3 +526,86 @@ def get_latest_openshift_on_cloud_manifest(start_date, provider_uuid):
         except CostUsageReportManifest.DoesNotExist:
             pass
     return manifest_id
+
+
+class SummaryRangeConfig(BaseModel):
+    """Configuration for start & end date.
+
+    Consolidates and configures Date Parameters.
+    Accepts datetime objects or date strings which are automatically parsed.
+    """
+
+    start_date: date
+    end_date: date
+    summary_starts: list[date] = Field(default_factory=list)
+    summary_ends: list[date] = Field(default_factory=list)
+    skip_full_month: bool = Field(
+        default=False,
+        description="When True, skip distributions that require full month data. "
+        "Set automatically by iter_days() for days after the first.",
+    )
+
+    @field_validator("start_date", "end_date", mode="before")
+    @classmethod
+    def parse_date_string(cls, value: datetime.datetime | date | str) -> date:
+        """Convert string or datetime values to date objects."""
+        return DateHelper().parse_to_date(value)
+
+    def model_post_init(self, __context: Any) -> None:
+        """Add initial start_date and end_date to summary lists."""
+        self.summary_starts.append(self.start_date)
+        self.summary_ends.append(self.end_date)
+
+    @property
+    def start_of_month(self) -> date:
+        """Date of the 1st of the month of start_date."""
+        start = DateHelper().month_start(self.start_date)
+        self.summary_starts.append(start)
+        return start
+
+    @property
+    def end_of_month(self) -> date:
+        """Date of the last day of the month of end_date."""
+        end = DateHelper().month_end(self.end_date)
+        self.summary_ends.append(end)
+        return end
+
+    @property
+    def start_of_previous_month(self) -> date:
+        """Date of the 1st of the previous month."""
+        start = DateHelper().last_month_start.date()
+        self.summary_starts.append(start)
+        return start
+
+    @property
+    def end_of_previous_month(self) -> date:
+        """Date of the last day of the previous month."""
+        end = DateHelper().last_month_end.date()
+        self.summary_ends.append(end)
+        return end
+
+    @property
+    def is_current_month(self) -> bool:
+        """Check if start_date is in the current month."""
+        now_utc = DateHelper().now_utc
+        return self.start_date.year == now_utc.year and self.start_date.month == now_utc.month
+
+    @property
+    def summary_start(self) -> date:
+        return min(self.summary_starts)
+
+    @property
+    def summary_end(self) -> date:
+        return max(self.summary_ends)
+
+    def iter_days(self) -> Iterator[Self]:
+        """Yield a SummaryRangeConfig for each day in the range.
+
+        Useful for splitting processing into individual days for large customers.
+        The first day will have skip_full_month=False (runs full-month distributions),
+        subsequent days will have skip_full_month=True (skips full-month distributions).
+        """
+        first_day = True
+        for day in DateHelper().list_days(self.start_date, self.end_date):
+            yield SummaryRangeConfig(start_date=day, end_date=day, skip_full_month=not first_day)
+            first_day = False

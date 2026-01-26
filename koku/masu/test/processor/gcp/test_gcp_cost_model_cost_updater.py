@@ -12,6 +12,7 @@ from django.utils import timezone
 from api.utils import DateHelper
 from masu.processor.gcp.gcp_cost_model_cost_updater import GCPCostModelCostUpdater
 from masu.test import MasuTestCase
+from masu.util.common import SummaryRangeConfig
 
 
 class GCPCostModelCostUpdaterTest(MasuTestCase):
@@ -53,13 +54,17 @@ class GCPCostModelCostUpdaterTest(MasuTestCase):
         mock_timezone_now.return_value = test_now
 
         with patch.object(self.updater, "_update_markup_cost") as mock_update_markup_cost:
-            self.updater.update_summary_cost_model_costs(start_date=start_date, end_date=end_date)
+            summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
+            self.updater.update_summary_cost_model_costs(summary_range)
 
-        mock_update_markup_cost.assert_called_once_with(start_date, end_date)
+        mock_update_markup_cost.assert_called_once_with(summary_range.start_date, summary_range.end_date)
 
         mock_accessor.assert_called_once_with(self.schema)
         mock_accessor.return_value.__enter__.return_value.fetch_invoice_month_dates.assert_called_once_with(
-            start_date, end_date, start_date.strftime("%Y%m"), UUID(self.gcp_provider_uuid)
+            summary_range.start_date,
+            summary_range.end_date,
+            summary_range.start_date.strftime("%Y%m"),
+            UUID(self.gcp_provider_uuid),
         )
         mock_accessor.return_value.__enter__.return_value.populate_ui_summary_tables.assert_called()
         mock_accessor.return_value.__enter__.return_value.bills_for_provider_uuid.assert_called()

@@ -35,6 +35,7 @@ from masu.processor import is_feature_flag_enabled_by_account
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.util.common import filter_dictionary
 from masu.util.common import source_in_trino_table
+from masu.util.common import SummaryRangeConfig
 from masu.util.common import trino_table_exists
 from masu.util.ocp.common import DistributionConfig
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
@@ -468,7 +469,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             ),
         )
 
-    def populate_distributed_cost_sql(self, start_date, end_date, provider_uuid, distribution_info):
+    def populate_distributed_cost_sql(
+        self, summary_range: SummaryRangeConfig, provider_uuid: uuid.UUID, distribution_info: dict
+    ) -> None:
         """
         Populate the distribution cost model options.
 
@@ -503,27 +506,50 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 cost_model_rate_type="gpu_distributed",
                 query_type="trino",
                 required_table="openshift_gpu_usage_line_items_daily",
+                requires_full_month=True,
             ),
         }
 
         table_name = self._table_map["line_item_daily_summary"]
-        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
-        if not report_period:
-            msg = "no report period for OCP provider, skipping distribution update"
-            context = {"schema": self.schema, "provider_uuid": provider_uuid, "start_date": start_date}
-            LOG.info(log_json(msg=msg, context=context))
-            return
-
-        report_period_id = report_period.id
+        dh = DateHelper()
         for cost_model_key, config in distribution_configs.items():
             sql_params = {
-                "start_date": start_date,
-                "end_date": end_date,
+                "start_date": summary_range.start_date,
+                "end_date": summary_range.end_date,
                 "schema": self.schema,
-                "report_period_id": report_period_id,
                 "source_uuid": provider_uuid,
                 "cost_model_rate_type": config.cost_model_rate_type,
             }
+            # Handle distributions that require full month data
+            if config.requires_full_month:
+                # Skip full-month distributions on subsequent days when iterating day-by-day
+                if summary_range.skip_full_month:
+                    continue
+                sql_params["start_date"] = summary_range.start_of_month
+                sql_params["end_date"] = summary_range.end_of_month
+                if summary_range.is_current_month:
+                    # Trigger distribution for previous month during a window of the current
+                    # month
+                    if dh.now_utc.day in [1, 2, 3]:
+                        sql_params["start_date"] = summary_range.start_of_previous_month
+                        sql_params["end_date"] = summary_range.end_of_previous_month
+                    else:
+                        msg = f"Skipping {cost_model_key} distribution requires full month"
+                        LOG.info(log_json(msg=msg, context={"schema": self.schema, "cost_model_key": cost_model_key}))
+                        continue
+
+            report_period = self.report_periods_for_provider_uuid(provider_uuid, sql_params["start_date"])
+            if not report_period:
+                msg = f"no report period for OCP provider, skipping {cost_model_key} distribution update"
+                context = {
+                    "schema": self.schema,
+                    "provider_uuid": provider_uuid,
+                    "start_date": sql_params["start_date"],
+                }
+                LOG.info(log_json(msg=msg, context=context))
+                continue
+            sql_params["report_period_id"] = report_period.id
+
             self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
             populate = distribution_info.get(cost_model_key, config.distribute_by_default)
             if not populate:
@@ -550,6 +576,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
             else:
                 self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
+
+        return summary_range
 
     def _delete_monthly_cost_model_rate_type_data(self, sql_params, cost_model_key):
         delete_sql = pkgutil.get_data(
