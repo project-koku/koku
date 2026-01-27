@@ -8,6 +8,7 @@ from collections import defaultdict
 from copy import deepcopy
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from api.common import error_obj
@@ -527,25 +528,27 @@ class CostModelSerializer(BaseSerializer):
 
     def validate_source_uuids(self, source_uuids):
         """Check that uuids in source_uuids are valid identifiers."""
-        if not source_uuids:
-            err_msg = "Invalid request. source_uuids cannot be empty."
-            raise serializers.ValidationError(err_msg)
 
         if not self.customer:
             err_msg = "Invalid request. Customer schema name could not be found."
             LOG.warning(msg=err_msg)
             raise serializers.ValidationError(err_msg)
 
-        valid_count = Provider.objects.filter(uuid__in=source_uuids, customer=self.customer).count()
-        if valid_count != len(set(source_uuids)):
-            err_msg = "Invalid request. Source UUID validation failed."
+        try:
+            is_valid_uuids = Provider.objects.filter(uuid__in=source_uuids, customer=self.customer).count() == len(
+                set(source_uuids)
+            )
+        except DjangoValidationError:
+            is_valid_uuids = False
+
+        if not is_valid_uuids:
             LOG.warning(
                 log_json(
                     msg="Source UUID validation failed. Provider object does not exist with one or more of the uuids.",
                     context={"source_uuids": source_uuids, "schema": self.customer.schema_name},
                 )
             )
-            raise serializers.ValidationError(err_msg)
+            raise serializers.ValidationError("Invalid request. Source UUID validation failed.")
 
         return source_uuids
 

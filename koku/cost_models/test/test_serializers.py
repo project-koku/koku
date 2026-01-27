@@ -680,11 +680,6 @@ class CostModelSerializerTest(IamTestCase):
         """Test validate source uuid error scenarios."""
         test_matrix = [
             {
-                "name": "empty_list",
-                "input": [],
-                "expected_error": "Invalid request. source_uuids cannot be empty.",
-            },
-            {
                 "name": "non_existent_uuid",
                 "input": [uuid4()],
                 "expected_error": "Invalid request. Source UUID validation failed.",
@@ -692,6 +687,11 @@ class CostModelSerializerTest(IamTestCase):
             {
                 "name": "mixed_valid_invalid_uuid",
                 "input": [self.provider.uuid, uuid4()],
+                "expected_error": "Invalid request. Source UUID validation failed.",
+            },
+            {
+                "name": "malformed_uuid_string",
+                "input": ["not-a-uuid"],
                 "expected_error": "Invalid request. Source UUID validation failed.",
             },
         ]
