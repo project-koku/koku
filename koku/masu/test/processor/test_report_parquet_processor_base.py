@@ -6,6 +6,8 @@
 import shutil
 import tempfile
 import uuid
+from datetime import date
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pandas as pd
@@ -43,7 +45,6 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         self.account = "org1234567"
         self.s3_path = self.temp_dir
         self.provider_uuid = str(uuid.uuid4())
-        self.local_parquet = self.output_file
         self.date_columns = ["date1", "date2"]
         self.numeric_columns = ["numeric1", "numeric2"]
         self.boolean_columns = ["bool_col"]
@@ -54,14 +55,15 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
             "date_columns": self.date_columns,
             "boolean_columns": self.boolean_columns,
         }
+        self.start_date = date(2024, 1, 15)
         self.processor = ReportParquetProcessorBase(
             self.manifest_id,
             self.account,
             self.s3_path,
             self.provider_uuid,
-            self.local_parquet,
             self.column_types,
             self.table_name,
+            self.start_date,
         )
         self.log_base = "masu.processor.report_parquet_processor_base"
         self.log_output_info = f"INFO:{self.log_base}:"
@@ -81,10 +83,6 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         expected_schema_name = "org1234567"
         self.assertEqual(self.processor._schema_name, expected_schema_name)
 
-    def test_generate_column_list(self):
-        """Test the generate_column_list helper."""
-        self.assertEqual(len(self.processor._generate_column_list()), len(self.csv_col_names))
-
     def test_postgres_summary_table(self):
         """Test that the unimplemented property raises an error."""
         with self.assertRaises(PostgresSummaryTableError):
@@ -94,7 +92,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
     @patch("masu.processor.aws.aws_report_parquet_processor.ReportParquetProcessorBase._execute_trino_sql")
     def test_generate_create_table_sql(self, mock_execute):
         """Test the generate parquet table sql."""
-        generated_sql = self.processor._generate_create_table_sql()
+        generated_sql = self.processor._generate_create_table_sql(self.csv_col_names)
 
         expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema}.{self.table_name}"
         expected_end = (
@@ -108,33 +106,10 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
             self.assertIn(f"{date_col} timestamp", generated_sql)
         for other_col in self.other_columns:
             self.assertIn(f"{other_col} varchar", generated_sql)
-        self.assertTrue(generated_sql.endswith(expected_end))
-
-    @override_settings(S3_BUCKET_NAME="test-bucket")
-    @patch("masu.processor.aws.aws_report_parquet_processor.ReportParquetProcessorBase._execute_trino_sql")
-    def test_generate_create_table_sql_with_provider_map(self, mock_execute):
-        """Test the generate parquet table sql."""
-        partition_map = {
-            "source": "varchar",
-            "year": "varchar",
-            "month": "varchar",
-            "day": "varchar",
-        }
-        generated_sql = self.processor._generate_create_table_sql(partition_map=partition_map)
-
-        expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema}.{self.table_name}"
-        expected_end = (
-            f"WITH(external_location = '{settings.TRINO_S3A_OR_S3}://test-bucket/{self.temp_dir}', "
-            "format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month', 'day'])"
+        self.assertTrue(
+            generated_sql.endswith(expected_end),
+            f"Expected to end with:\n{expected_end}\n\nActual SQL:\n{generated_sql}",
         )
-        self.assertTrue(generated_sql.startswith(expected_start))
-        for num_col in self.numeric_columns:
-            self.assertIn(f"{num_col} double", generated_sql)
-        for date_col in self.date_columns:
-            self.assertIn(f"{date_col} timestamp", generated_sql)
-        for other_col in self.other_columns:
-            self.assertIn(f"{other_col} varchar", generated_sql)
-        self.assertTrue(generated_sql.endswith(expected_end))
 
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_trino_sql")
     def test_create_table(self, mock_execute):
@@ -146,7 +121,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
             )
             expected_logs.append(expected_log)
         with self.assertLogs(self.log_base, level="INFO") as logger:
-            self.processor.create_table()
+            self.processor.create_table(self.csv_col_names)
             for expected_log in expected_logs:
                 self.assertIn(expected_log, logger.output)
 
@@ -219,3 +194,62 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.create_schema()
             self.assertIn(expected_log, logger.output)
+
+    @patch("masu.processor.report_parquet_processor_base.create_engine")
+    @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
+    def test_write_dataframe_to_sql(self, mock_get_accessor, mock_create_engine):
+        """Test writing dataframe to SQL."""
+        mock_conn = MagicMock()
+        mock_conn.getConnection.return_value = MagicMock()
+        mock_get_accessor.return_value.connect.return_value.__enter__.return_value = mock_conn
+
+        data_frame = pd.DataFrame({"col1": ["a", "b"], "col2": [1, 2]})
+        metadata = {"ManifestId": "123"}
+
+        self.processor.write_dataframe_to_sql(data_frame, metadata)
+
+        # Verify partition columns were added
+        self.assertIn("year", data_frame.columns)
+        self.assertIn("month", data_frame.columns)
+        self.assertIn("source", data_frame.columns)
+
+    def test_create_partition_name(self):
+        """Test partition name generation is deterministic."""
+        name1 = self.processor._create_partition_name("2024", "01")
+        name2 = self.processor._create_partition_name("2024", "01")
+        self.assertEqual(name1, name2)
+
+        # Different month should give different name
+        name3 = self.processor._create_partition_name("2024", "02")
+        self.assertNotEqual(name1, name3)
+
+    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_trino_sql")
+    @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
+    def test_create_report_partition(self, mock_get_accessor, mock_execute):
+        """Test partition creation."""
+        mock_get_accessor.return_value.get_partition_create_sql.return_value = "CREATE PARTITION SQL"
+        self.processor.create_report_partition()
+        mock_execute.assert_called()
+
+    @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
+    def test_delete_day_postgres(self, mock_get_accessor):
+        """Test delete_day_postgres method."""
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.return_value = (1,)  # Table exists
+        mock_cursor.rowcount = 5
+
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_get_accessor.return_value.connect.return_value.__enter__.return_value = mock_conn
+        mock_get_accessor.return_value.get_table_check_sql.return_value = "SELECT 1"
+        mock_get_accessor.return_value.get_delete_day_by_manifestid_sql.return_value = "DELETE SQL"
+
+        self.processor.delete_day_postgres(date(2024, 1, 15))
+
+        mock_cursor.execute.assert_called()
+
+    def test_get_table_names_for_delete(self):
+        """Test that table names for delete returns the table name."""
+        table_names = self.processor.get_table_names_for_delete()
+        self.assertEqual(len(table_names), 1)
+        self.assertIn(self.table_name, table_names)

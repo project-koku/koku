@@ -17,7 +17,7 @@ from reporting.provider.gcp.models import TRINO_OCP_ON_GCP_DAILY_TABLE
 
 
 class GCPReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
+    def __init__(self, manifest_id, account, s3_path, provider_uuid, start_date):
         numeric_columns = [
             "cost",
             "currency_conversion_rate",
@@ -44,15 +44,19 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
             account=account,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
-            parquet_local_path=parquet_local_path,
             column_types=column_types,
             table_name=table_name,
+            start_date=start_date,
         )
 
     @property
     def postgres_summary_table(self):
         """Return the mode for the source specific summary table."""
         return GCPCostEntryLineItemDailySummary
+
+    def get_table_names_for_delete(self):
+        """Return all GCP table names (raw, daily, ocp_on_gcp)."""
+        return [TRINO_LINE_ITEM_TABLE, TRINO_LINE_ITEM_DAILY_TABLE, TRINO_OCP_ON_GCP_DAILY_TABLE]
 
     def create_bill(self, bill_date):
         """Create bill postgres entry."""
@@ -72,3 +76,11 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
                 billing_period_end=end_date_utc,
                 provider_id=provider.uuid,
             )
+
+    def _generate_create_table_sql(self, column_names):
+        column_names.append("manifestid")
+        return super()._generate_create_table_sql(column_names)
+
+    def write_dataframe_to_sql(self, data_frame, metadata):
+        data_frame["manifestid"] = str(self._manifest_id)
+        super().write_dataframe_to_sql(data_frame, metadata)

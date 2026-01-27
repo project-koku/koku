@@ -234,11 +234,6 @@ class ReportQueryHandler(QueryHandler):
         """Determine if we are working with an AWS API."""
         return "aws" in self.parameters.request.path
 
-    @property
-    def is_gpu(self):
-        """Determine if we are working with a GPU API."""
-        return "gpu" in self.parameters.request.path
-
     def initialize_totals(self):
         """Initialize the total response column values."""
         query_sum = {}
@@ -1193,7 +1188,7 @@ class ReportQueryHandler(QueryHandler):
             df[sort_term] = df[sort_term].replace({none_sort_term: None})
         return df.to_dict("records")
 
-    def _order_by(self, data, order_fields):
+    def _order_by(self, data, order_fields):  # noqa: C901
         """Order a list of dictionaries by dictionary keys.
 
         Args:
@@ -1220,7 +1215,7 @@ class ReportQueryHandler(QueryHandler):
             "storage_class",
             "request_cpu",
             "request_memory",
-            "memory",
+            "gpu_memory",
             "gpu_count",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
@@ -1253,6 +1248,14 @@ class ReportQueryHandler(QueryHandler):
                     key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
                     reverse=reverse,
                 )
+
+        # Ensure "Others" is always the last item regardless of order_by direction
+        if self._limit:
+            group_by = self._get_group_by()
+            sorted_data = sorted(
+                sorted_data,
+                key=lambda item: any(item.get(f) in ("Others", "Other") for f in group_by),
+            )
 
         return sorted_data
 
@@ -1464,23 +1467,20 @@ class ReportQueryHandler(QueryHandler):
         drop_columns = group_by + ["rank", "source_uuid"]
         groups = ["date"]
 
-        skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "vendor", "model"]
+        skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
+        aggregate_ranks_exclusions = self._mapper.report_type_map.get("aggregate_ranks_exclusions", [])
+        skip_columns.extend(aggregate_ranks_exclusions)
+
         aggs = {
             col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
         }
 
         others_data_frame = data_frame[data_frame["rank"] > self._limit]
         other_count = len(others_data_frame[group_by].drop_duplicates())
-
         source_uuids = list(others_data_frame["source_uuid"].explode().dropna().unique())
         if self.is_openshift:
             clusters = list(others_data_frame["clusters"].explode().dropna().unique())
             drop_columns.append("clusters")
-        if self.is_gpu:
-            models = list(others_data_frame["model"].explode().dropna().unique())
-            drop_columns.append("model")
-            vendors = list(others_data_frame["vendor"].explode().dropna().unique())
-            drop_columns.append("vendor")
 
         others_data_frame = others_data_frame.drop(columns=drop_columns, errors="ignore")
 
@@ -1507,10 +1507,8 @@ class ReportQueryHandler(QueryHandler):
         others_data_frame["source_uuid"] = [source_uuids] * len(others_data_frame)
         if self.is_openshift:
             others_data_frame["clusters"] = [clusters] * len(others_data_frame)
-        if self.is_gpu:
-            others_data_frame["vendor"] = [vendors] * len(others_data_frame)
-            others_data_frame["model"] = [models] * len(others_data_frame)
-
+        for column in aggregate_ranks_exclusions:
+            others_data_frame[column] = other_str
         return others_data_frame
 
     def date_group_data(self, data_list):

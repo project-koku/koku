@@ -18,6 +18,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
+from koku.reportdb_accessor import get_report_db_accessor
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -110,7 +111,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        sql = pkgutil.get_data("masu.database", "trino_sql/aws/reporting_awscostentrylineitem_daily_summary.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.get_sql_folder_name()}/aws/reporting_awscostentrylineitem_daily_summary.sql"
+        )
         sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         sql_params = {
@@ -146,6 +149,13 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
+    def populate_ocp_on_aws_category_summary_table(self, bill_ids, start_date, end_date):
+        """Populate the OCP on AWS category key values table."""
+        sql = pkgutil.get_data("masu.database", "sql/aws/openshift/reporting_ocpawscategory_summary.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        self._prepare_and_execute_raw_sql_query("reporting_ocpawscategory_summary", sql, sql_params)
+
     def populate_ocp_on_aws_ui_summary_tables(self, sql_params, tables=OCPAWS_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
@@ -163,7 +173,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
 
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"trino_sql/aws/openshift/ui_summary/{table_name}.sql")
+            sql = pkgutil.get_data(
+                "masu.database", f"{self.get_sql_folder_name()}/aws/openshift/ui_summary/{table_name}.sql"
+            )
             sql = sql.decode("utf-8")
             sql_params = {
                 "schema": self.schema,
@@ -193,13 +205,15 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                sql = f"""
-                    DELETE FROM hive.{self.schema}.{TRINO_OCP_AWS_DAILY_SUMMARY_TABLE}
-                        WHERE source = '{aws_source}'
-                        AND ocp_source = '{ocp_source}'
-                        AND year = '{year}'
-                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                        AND day = '{day}'"""
+                sql = get_report_db_accessor().get_delete_by_day_ocp_on_cloud_sql(
+                    schema_name=self.schema,
+                    table_name=TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
+                    cloud_source=aws_source,
+                    ocp_source=ocp_source,
+                    year=year,
+                    month=month,
+                    day=day,
+                )
                 self._execute_trino_raw_sql_query(
                     sql,
                     context={"year": year, "month": month, "day": day, "table": TRINO_OCP_AWS_DAILY_SUMMARY_TABLE},
@@ -263,7 +277,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bill_id,
             report_period_id,
         )
-        managed_path = "trino_sql/aws/openshift/populate_daily_summary"
+        managed_path = f"{self.get_sql_folder_name()}/aws/openshift/populate_daily_summary"
         prepare_sql, prepare_params = sql_metadata.prepare_template(
             f"{managed_path}/0_prepare_daily_summary_tables.sql"
         )
@@ -429,7 +443,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self, aws_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
     ):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "trino_sql/aws/openshift/reporting_ocpaws_matched_tags.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.get_sql_folder_name()}/aws/openshift/reporting_ocpaws_matched_tags.sql"
+        )
         sql = sql.decode("utf-8")
 
         days = self.date_helper.list_days(start_date, end_date)
@@ -495,7 +511,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info(log_json(msg=msg, context=context))
 
-        sql = pkgutil.get_data("masu.database", f"trino_sql/aws/{table_name}.sql")
+        sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/aws/{table_name}.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,

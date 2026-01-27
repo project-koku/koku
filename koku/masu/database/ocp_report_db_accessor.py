@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for OCP report data."""
+import copy
 import datetime
 import json
 import logging
@@ -26,15 +27,21 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from cost_models.sql_parameters import BaseCostModelParams
 from koku.database import SQLScriptAtomicExecutorMixin
+from koku.reportdb_accessor import get_report_db_accessor
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_flag_enabled_by_account
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.util.common import filter_dictionary
+from masu.util.common import source_in_trino_table
 from masu.util.common import trino_table_exists
 from masu.util.ocp.common import DistributionConfig
+from masu.util.ocp.common import get_cluster_alias_from_cluster_id
+from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
+from reporting.models import TRINO_MANAGED_TABLES
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import TRINO_LINE_ITEM_DAILY_TABLE as AZURE_TRINO_LINE_ITEM_DAILY_TABLE
@@ -102,12 +109,46 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
+        # Trino Queries:
+        start_date = DateHelper().parse_to_date(sql_params["start_date"])
+        sql_params["year"] = start_date.strftime("%Y")
+        sql_params["month"] = start_date.strftime("%m")
+
+        self._populate_gpu_ui_summary_table_with_usage_only(sql_params)
         self._populate_virtualization_ui_summary_table(sql_params)
 
-    def _populate_virtualization_ui_summary_table(self, sql_params):
+    def _populate_gpu_ui_summary_table_with_usage_only(self, params):
+        """
+        Populates the gpu only table with just basic gpu information whenever
+        GPU information exists, but the customer has not set up a cost model.
+        """
+        sql_params = copy.deepcopy(params)
+        if not source_in_trino_table(
+            self.schema, sql_params.get("source_uuid"), TRINO_LINE_ITEM_TABLE_DAILY_MAP["gpu_usage"]
+        ):
+            return
+        # Don't use context manager here - its __exit__ resets schema to public,
+        # which would break subsequent ORM operations in the calling code
+        cost_model_accessor = CostModelDBAccessor(self.schema, sql_params.get("source_uuid"))
+        # Check to see if the cost model is set up to give cost
+        if cost_model_accessor.metric_to_tag_params_map.get(metric_constants.OCP_GPU_MONTH):
+            return
+        cluster_id = get_cluster_id_from_provider(sql_params.get("source_uuid"))
+        sql_params["cluster_id"] = cluster_id
+        sql_params["cluster_alias"] = get_cluster_alias_from_cluster_id(cluster_id)
+        sql_params["source_uuid"] = str(sql_params["source_uuid"])
+        populate_gpu_usage_info = pkgutil.get_data(
+            "masu.database",
+            f"{self.get_sql_folder_name()}/openshift/ui_summary/reporting_ocp_gpu_summary_p_usage_only.sql",
+        )
+        populate_gpu_usage_info = populate_gpu_usage_info.decode("utf-8")
+        self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
+
+    def _populate_virtualization_ui_summary_table(self, params):
         """
         Populates the virtualization ui table.
         """
+        sql_params = copy.deepcopy(params)
         if not self.schema_exists_trino():
             return
         trino_query_requirements = [
@@ -117,9 +158,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         ]
         if not all(trino_query_requirements):
             return
-        start_date = DateHelper().parse_to_date(sql_params["start_date"])
-        sql_params["year"] = start_date.strftime("%Y")
-        sql_params["month"] = start_date.strftime("%m")
         # create the temp table
         sql_params["uuid"] = str(uuid4().hex)
         create_temp_table_sql = pkgutil.get_data("masu.database", "sql/openshift/create_virtualization_tmp_table.sql")
@@ -132,10 +170,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         vm_report_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP["vm_usage"]
         if trino_table_exists(self.schema, vm_report_table):
             source_uuid = sql_params.get("source_uuid")
-            source_sql = f"""
-                SELECT count(*) from hive.{self.schema}."{vm_report_table}$partitions"
-                WHERE source = '{source_uuid}'
-                """
+            source_sql = get_report_db_accessor().get_check_source_in_partitions_sql(
+                schema_name=self.schema, table_name=vm_report_table, source_uuid=source_uuid
+            )
             source_available = self._execute_trino_raw_sql_query(
                 source_sql,
                 log_ref=f"Checking if source is in {vm_report_table}",
@@ -143,7 +180,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             if source_available:
                 population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
         populate_temp_table_sql = pkgutil.get_data(
-            "masu.database", f"trino_sql/openshift/{population_temp_table_file}"
+            "masu.database", f"{self.get_sql_folder_name()}/openshift/{population_temp_table_file}"
         )
         populate_temp_table_sql = populate_temp_table_sql.decode("utf8")
         self._execute_trino_multipart_sql_query(populate_temp_table_sql, bind_params=sql_params)
@@ -229,7 +266,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             db_results = {}
             if check_flag:
                 sql = pkgutil.get_data(
-                    "masu.database", f"trino_sql/{source_type.lower()}/reporting_ocpinfrastructure_provider_map.sql"
+                    "masu.database",
+                    f"{self.get_sql_folder_name()}/{source_type.lower()}/reporting_ocpinfrastructure_provider_map.sql",
                 )
                 sql = sql.decode("utf-8")
 
@@ -262,7 +300,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def delete_ocp_hive_partition_by_day(self, days, source, year, month):
         """Deletes partitions individually for each day in days list."""
-        table = "reporting_ocpusagelineitem_daily_summary"
+        table = list(TRINO_MANAGED_TABLES.keys())[0]
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
@@ -276,13 +314,15 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                sql = f"""
-                DELETE FROM hive.{self.schema}.{table}
-                WHERE source = '{source}'
-                AND year = '{year}'
-                AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                AND day = '{day}'
-                """
+                sql = get_report_db_accessor().get_delete_by_day_sql(
+                    schema_name=self.schema,
+                    table_name=table,
+                    source_column="source",
+                    source=source,
+                    year=year,
+                    month=month,
+                    day=day,
+                )
                 self._execute_trino_raw_sql_query(
                     sql,
                     log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}",
@@ -298,10 +338,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "table": table,
         }
         LOG.info(log_json(msg="deleting Hive partitions by source", context=ctx))
-        sql = f"""
-        DELETE FROM hive.{self.schema}.{table}
-        WHERE {partition_column} = '{provider_uuid}'
-        """
+        sql = get_report_db_accessor().get_delete_by_source_sql(self.schema, table, partition_column, provider_uuid)
         self._execute_trino_raw_sql_query(
             sql,
             log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
@@ -316,19 +353,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if not self.table_exists_trino(table):
             LOG.info("Could not find table.")
             return False
-        sql = f"""
-            SELECT partitions.year, partitions.month, partitions.source
-            FROM (
-                SELECT year as year,
-                    month as month,
-                    day as day,
-                    cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date) as partition_date,
-                    {source_column} as source
-                FROM  "{table}$partitions"
-            ) as partitions
-            WHERE partitions.partition_date < DATE '{date_str}'
-            GROUP BY partitions.year, partitions.month, partitions.source
-        """
+        sql = get_report_db_accessor().get_expired_data_ocp_sql(
+            schema_name=self.schema, table_name=table, source_column=source_column, expired_date=date_str
+        )
         return self._execute_trino_raw_sql_query(sql, log_ref="finding expired partitions")
 
     def populate_line_item_daily_summary_table_trino(
@@ -360,7 +387,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_hive_partition_by_day(days_tup, source, year, month)
 
-        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocpusagelineitem_daily_summary.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.get_sql_folder_name()}/openshift/reporting_ocpusagelineitem_daily_summary.sql"
+        )
         sql = sql.decode("utf-8")
         sql_params = {
             "uuid": source,
@@ -380,7 +409,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         try:
             self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
         except TrinoStatementExecError as trino_exc:
-            if trino_exc.error_name == "ALREADY_EXISTS":
+            if (
+                trino_exc.error_name == "ALREADY_EXISTS"
+            ):  # For Postgres and ONPREM we should try handling existing records in query
                 LOG.warning(
                     log_json(
                         ctx=self.extract_context_from_sql_params(sql_params),
@@ -569,7 +600,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "Cluster": "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql",
             "PVC": "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim.sql",
             "OCP_VM": "sql/openshift/cost_model/monthly_cost_virtual_machine.sql",
-            "OCP_VM_CORE": "trino_sql/openshift/cost_model/monthly_vm_core.sql",
+            "OCP_VM_CORE": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_vm_core.sql",
         }
         cost_type_file = cost_type_file_mapping.get(cost_type)
         if not cost_type_file:
@@ -625,7 +656,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         insert_sql = pkgutil.get_data("masu.database", cost_type_file)
         insert_sql = insert_sql.decode("utf-8")
         LOG.info(log_json(msg="populating monthly costs", context=ctx))
-        if "trino_sql/" in cost_type_file:
+        if self.get_sql_folder_name() in cost_type_file:
             start_date = DateHelper().parse_to_date(sql_params["start_date"])
             sql_params["year"] = start_date.strftime("%Y")
             sql_params["month"] = start_date.strftime("%m")
@@ -705,12 +736,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
         vm_usage_metadata = {
             metric_constants.OCP_VM_HOUR: {
-                "file_path": "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_cost_virtual_machine.sql",
                 "log_msg": "populating virtual machine hourly costs",
                 "metric_params": {"use_fractional_hours": vm_table_exists},
             },
             metric_constants.OCP_VM_CORE_HOUR: {
-                "file_path": "trino_sql/openshift/cost_model/hourly_vm_core.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_vm_core.sql",
                 "log_msg": "populating virtual machine core hourly costs",
             },
         }
@@ -1049,32 +1080,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_nodes_trino(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
-        sql = f"""
-            SELECT ocp.node,
-                ocp.resource_id,
-                max(ocp.node_capacity_cpu_cores) as node_capacity_cpu_cores,
-                coalesce(max(ocp.node_role), CASE
-                    WHEN contains(array_agg(DISTINCT ocp.namespace), 'openshift-kube-apiserver') THEN 'master'
-                    WHEN any_match(array_agg(DISTINCT nl.node_labels), element -> element like  '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
-                    ELSE 'worker'
-                END) as node_role,
-                lower(json_extract_scalar(max(node_labels), '$.kubernetes_io_arch')) as arch
-            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
-            LEFT JOIN hive.{self.schema}.openshift_node_labels_line_items_daily as nl
-                ON ocp.node = nl.node
-            WHERE ocp.source = '{source_uuid}'
-                AND ocp.year = '{start_date.strftime("%Y")}'
-                AND ocp.month = '{start_date.strftime("%m")}'
-                AND ocp.interval_start >= TIMESTAMP '{start_date}'
-                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
-                AND nl.source = '{source_uuid}'
-                AND nl.year = '{start_date.strftime("%Y")}'
-                AND nl.month = '{start_date.strftime("%m")}'
-                AND nl.interval_start >= TIMESTAMP '{start_date}'
-                AND nl.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
-            GROUP BY ocp.node,
-                ocp.resource_id
-        """  # noqa: E501
+        sql = get_report_db_accessor().get_nodes_query_sql(
+            schema_name=self.schema,
+            source_uuid=source_uuid,
+            year=start_date.strftime("%Y"),
+            month=start_date.strftime("%m"),
+            start_date=str(start_date),
+            end_date=str(end_date),
+        )
         context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
         return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_nodes_trino")
 
@@ -1082,31 +1095,27 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get the nodes from an OpenShift cluster."""
         if not trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily"):
             return []
-        sql = f"""
-            SELECT distinct persistentvolume,
-                persistentvolumeclaim,
-                csi_volume_handle
-            FROM hive.{self.schema}.openshift_storage_usage_line_items_daily as ocp
-            WHERE ocp.source = '{source_uuid}'
-                AND ocp.year = '{start_date.strftime("%Y")}'
-                AND ocp.month = '{start_date.strftime("%m")}'
-                AND ocp.interval_start >= TIMESTAMP '{start_date}'
-                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
-        """
+        sql = get_report_db_accessor().get_pvcs_query_sql(
+            schema_name=self.schema,
+            source_uuid=source_uuid,
+            year=start_date.strftime("%Y"),
+            month=start_date.strftime("%m"),
+            start_date=str(start_date),
+            end_date=str(end_date),
+        )
         context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
         return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_pvcs_trino")
 
     def get_projects_trino(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
-        sql = f"""
-            SELECT distinct namespace
-            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
-            WHERE ocp.source = '{source_uuid}'
-                AND ocp.year = '{start_date.strftime("%Y")}'
-                AND ocp.month = '{start_date.strftime("%m")}'
-                AND ocp.interval_start >= TIMESTAMP '{start_date}'
-                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
-        """
+        sql = get_report_db_accessor().get_projects_query_sql(
+            schema_name=self.schema,
+            source_uuid=source_uuid,
+            year=start_date.strftime("%Y"),
+            month=start_date.strftime("%m"),
+            start_date=str(start_date),
+            end_date=str(end_date),
+        )
         context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
         projects = self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_projects_trino")
 
@@ -1255,16 +1264,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_max_min_timestamp_from_parquet(self, source_uuid, start_date, end_date):
         """Get the max and min timestamps for parquet data given a date range"""
-        sql = f"""
-            SELECT min(interval_start) as min_timestamp,
-                max(interval_start) as max_timestamp
-            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
-            WHERE ocp.source = '{source_uuid}'
-                AND ocp.year = '{start_date.strftime("%Y")}'
-                AND ocp.month = '{start_date.strftime("%m")}'
-                AND ocp.interval_start >= TIMESTAMP '{start_date}'
-                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
-        """
+        sql = get_report_db_accessor().get_max_min_timestamp_sql(
+            schema_name=self.schema,
+            source_uuid=source_uuid,
+            year=start_date.strftime("%Y"),
+            month=start_date.strftime("%m"),
+            start_date=str(start_date),
+            end_date=str(end_date),
+        )
         context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
         timestamps = self._execute_trino_raw_sql_query(
             sql, context=context, log_ref="get_max_min_timestamp_from_parquet"
@@ -1295,7 +1302,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         metric_metadata = {
             metric_constants.OCP_VM_HOUR: {
                 "log_msg": "populating hourly VM tag based costs",
-                "file_path": "trino_sql/openshift/cost_model/hourly_cost_vm_tag_based.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_cost_vm_tag_based.sql",
                 "metric_params": {"use_fractional_hours": vm_table_exists},
             },
             metric_constants.OCP_VM_MONTH: {
@@ -1305,21 +1312,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             },
             metric_constants.OCP_VM_CORE_MONTH: {
                 "log_msg": "populating monthly VM Core based costs",
-                "file_path": "trino_sql/openshift/cost_model/monthly_vm_core_tag_based.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_vm_core_tag_based.sql",
                 "metric_params": monthly_params,
             },
             metric_constants.OCP_VM_CORE_HOUR: {
                 "log_msg": "populating hourly VM Core based costs",
-                "file_path": "trino_sql/openshift/cost_model/hourly_vm_core_tag_based.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_vm_core_tag_based.sql",
             },
             metric_constants.OCP_GPU_MONTH: {
                 "log_msg": "populating monthly GPU tag based costs",
-                "file_path": "trino_sql/openshift/cost_model/monthly_cost_gpu.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_cost_gpu.sql",
                 "metric_params": {**monthly_params, **cluster_params},
             },
             metric_constants.OCP_PROJECT_MONTH: {
                 "log_msg": "populating monthly project tag costs",
-                "file_path": "trino_sql/openshift/cost_model/monthly_project_tag_based.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_project_tag_based.sql",
                 "metric_params": {**monthly_params, **cluster_params},
             },
         }
@@ -1357,7 +1364,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 final_sql_params = param_builder.build_parameters(context_params=context_params)
                 sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
                 LOG.info(log_json(msg=metadata["log_msg"], context=context_params))
-                if "trino_sql/" in metadata["file_path"]:
+                if self.get_sql_folder_name() in metadata["file_path"]:
                     self._execute_trino_multipart_sql_query(sql, bind_params=final_sql_params)
                 else:
                     self._prepare_and_execute_raw_sql_query(

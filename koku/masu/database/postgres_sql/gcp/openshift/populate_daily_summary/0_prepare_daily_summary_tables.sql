@@ -1,0 +1,161 @@
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp
+(
+    row_uuid VARCHAR,
+    invoice_month VARCHAR,
+    account_id VARCHAR,
+    project_id VARCHAR,
+    usage_start TIMESTAMP,
+    data_transfer_direction VARCHAR,
+    service_id VARCHAR,
+    sku_id VARCHAR,
+    system_labels TEXT,
+    labels TEXT,
+    cost_type VARCHAR,
+    region VARCHAR,
+    resource_name VARCHAR,
+    instance_type VARCHAR,
+    project_name VARCHAR,
+    service_description VARCHAR,
+    service_alias VARCHAR,
+    sku_description VARCHAR,
+    sku_alias VARCHAR,
+    unit VARCHAR,
+    usage_amount FLOAT,
+    currency VARCHAR,
+    unblended_cost FLOAT,
+    credit_amount FLOAT,
+    resource_global_name VARCHAR,
+    resource_id_matched BOOLEAN,
+    matched_tag VARCHAR,
+    ocp_source VARCHAR,
+    source VARCHAR,
+    year VARCHAR,
+    month VARCHAR,
+    day VARCHAR
+);
+
+CREATE INDEX IF NOT EXISTS idx_gcp_daily_temp_source_year_month ON {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (ocp_source, source, year, month);
+CREATE INDEX IF NOT EXISTS idx_gcp_daily_temp_day ON {{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (day);
+
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp
+(
+    row_uuid VARCHAR,
+    cluster_id VARCHAR,
+    cluster_alias VARCHAR,
+    data_source VARCHAR,
+    namespace VARCHAR,
+    node VARCHAR,
+    persistentvolumeclaim VARCHAR,
+    persistentvolume VARCHAR,
+    storageclass VARCHAR,
+    pod_labels TEXT,
+    resource_name VARCHAR,
+    resource_id VARCHAR,
+    usage_start TIMESTAMP,
+    usage_end TIMESTAMP,
+    account_id VARCHAR,
+    project_id VARCHAR,
+    project_name VARCHAR,
+    instance_type VARCHAR,
+    service_id VARCHAR,
+    service_alias VARCHAR,
+    sku_id VARCHAR,
+    sku_alias VARCHAR,
+    region VARCHAR,
+    unit VARCHAR,
+    usage_amount FLOAT,
+    currency VARCHAR,
+    invoice_month VARCHAR,
+    credit_amount FLOAT,
+    unblended_cost FLOAT,
+    markup_cost FLOAT,
+    project_markup_cost FLOAT,
+    pod_cost FLOAT,
+    pod_credit FLOAT,
+    pod_effective_usage_cpu_core_hours FLOAT,
+    pod_effective_usage_memory_gigabyte_hours FLOAT,
+    node_capacity_cpu_core_hours FLOAT,
+    node_capacity_memory_gigabyte_hours FLOAT,
+    volume_labels TEXT,
+    tags TEXT,
+    cost_category_id INTEGER,
+    project_rank INTEGER,
+    data_source_rank INTEGER,
+    resource_id_matched BOOLEAN,
+    matched_tag VARCHAR,
+    source VARCHAR,
+    ocp_source VARCHAR,
+    year VARCHAR,
+    month VARCHAR
+);
+
+CREATE INDEX IF NOT EXISTS idx_gcp_summary_temp_source_year_month ON {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp (source, ocp_source, year, month);
+
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary
+(
+    row_uuid VARCHAR,
+    cluster_id VARCHAR,
+    cluster_alias VARCHAR,
+    data_source VARCHAR,
+    namespace VARCHAR,
+    node VARCHAR,
+    persistentvolumeclaim VARCHAR,
+    persistentvolume VARCHAR,
+    storageclass VARCHAR,
+    pod_labels TEXT,
+    resource_id VARCHAR,
+    usage_start TIMESTAMP,
+    usage_end TIMESTAMP,
+    account_id VARCHAR,
+    project_id VARCHAR,
+    project_name VARCHAR,
+    instance_type VARCHAR,
+    service_id VARCHAR,
+    service_alias VARCHAR,
+    data_transfer_direction VARCHAR,
+    sku_id VARCHAR,
+    sku_alias VARCHAR,
+    region VARCHAR,
+    unit VARCHAR,
+    usage_amount FLOAT,
+    currency VARCHAR,
+    invoice_month VARCHAR,
+    credit_amount FLOAT,
+    unblended_cost FLOAT,
+    markup_cost FLOAT,
+    project_markup_cost FLOAT,
+    pod_cost FLOAT,
+    pod_credit FLOAT,
+    node_capacity_cpu_core_hours FLOAT,
+    node_capacity_memory_gigabyte_hours FLOAT,
+    volume_labels TEXT,
+    tags TEXT,
+    cost_category_id INTEGER,
+    project_rank INTEGER,
+    data_source_rank INTEGER,
+    resource_id_matched BOOLEAN,
+    matched_tag VARCHAR,
+    source VARCHAR,
+    ocp_source VARCHAR,
+    year VARCHAR,
+    month VARCHAR,
+    day VARCHAR
+);
+
+CREATE INDEX IF NOT EXISTS idx_gcp_summary_source_year_month ON {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary (source, ocp_source, year, month);
+CREATE INDEX IF NOT EXISTS idx_gcp_summary_day ON {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary (day);
+CREATE INDEX IF NOT EXISTS idx_gcp_summary_usage_start ON {{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary (usage_start);
+
+{% if unattributed_storage %}
+CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.managed_gcp_openshift_disk_capacities_temp
+(
+    resource_global_name varchar,
+    resource_name varchar,
+    capacity integer,
+    source varchar,
+    ocp_source varchar,
+    year varchar,
+    month varchar
+)
+{% endif %}
+;

@@ -659,10 +659,9 @@ class OCPGpuGroupBySerializerTest(TestCase):
         """Test parse of GPU group_by params with valid fields."""
         group_by_params = {
             "cluster": ["cluster1"],
-            "node": ["node1"],
             "project": ["project1"],
-            "vendor": ["nvidia"],
-            "model": ["Tesla T4"],
+            "gpu_vendor": ["nvidia"],
+            "gpu_model": ["Tesla T4"],
         }
         serializer = OCPGpuGroupBySerializer(data=group_by_params)
         self.assertTrue(serializer.is_valid())
@@ -684,8 +683,8 @@ class OCPGpuFilterSerializerTest(TestCase):
             "cluster": ["cluster1"],
             "node": ["node1"],
             "project": ["project1"],
-            "vendor": ["nvidia"],
-            "model": ["Tesla T4"],
+            "gpu_vendor": ["nvidia"],
+            "gpu_model": ["Tesla T4"],
         }
         serializer = OCPGpuFilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
@@ -707,11 +706,11 @@ class OCPGpuOrderBySerializerTest(TestCase):
             "cluster",
             "node",
             "project",
-            "vendor",
-            "model",
+            "gpu_vendor",
+            "gpu_model",
             "cost_model_gpu_cost",
             "cost",
-            "memory",
+            "gpu_memory",
             "gpu_count",
         ]
         for field in valid_fields:
@@ -738,7 +737,7 @@ class OCPGpuQueryParamSerializerTest(IamTestCase):
     def test_gpu_query_params_valid(self):
         """Test GPU query params with valid input."""
         query_params = {
-            "filter": {"vendor": ["nvidia"], "model": ["Tesla T4"]},
+            "filter": {"gpu_vendor": ["nvidia"], "gpu_model": ["Tesla T4"]},
             "group_by": {"cluster": ["*"]},
             "order_by": {"cost": "desc"},
         }
@@ -748,15 +747,15 @@ class OCPGpuQueryParamSerializerTest(IamTestCase):
 
     def test_gpu_order_by_allowlist_fields(self):
         """Test that memory, and gpu_count are in order_by_allowlist."""
-        self.assertIn("memory", OCPGpuQueryParamSerializer.order_by_allowlist)
+        self.assertIn("gpu_memory", OCPGpuQueryParamSerializer.order_by_allowlist)
         self.assertIn("gpu_count", OCPGpuQueryParamSerializer.order_by_allowlist)
 
     def test_gpu_query_params_order_by_new_fields(self):
-        """Test GPU query params with new order_by fields (memory, gpu_count)."""
-        for field in ["memory", "gpu_count"]:
+        """Test GPU query params with new order_by fields (gpu_memory, gpu_count)."""
+        for field in ["gpu_memory", "gpu_count"]:
             query_params = {
-                "filter": {"vendor": ["nvidia"]},
-                "group_by": {"model": ["*"]},
+                "filter": {"gpu_vendor": ["nvidia"]},
+                "group_by": {"gpu_model": ["*"]},
                 "order_by": {field: "desc"},
             }
             self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
@@ -766,9 +765,29 @@ class OCPGpuQueryParamSerializerTest(IamTestCase):
     def test_gpu_query_params_combined(self):
         """Test GPU query params with combined filter, group_by, and order_by."""
         query_params = {
-            "filter": {"vendor": ["nvidia"], "node": ["node1", "node2"]},
+            "filter": {"gpu_vendor": ["nvidia"], "node": ["node1", "node2"]},
             "group_by": {"project": ["*"]},
             "order_by": {"cost": "desc"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+        serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())
+
+    def test_gpu_order_by_model_with_group_by_model(self):
+        """Test that order_by[gpu_model] works with group_by[gpu_model]."""
+        query_params = {
+            "group_by": {"gpu_model": ["*"]},
+            "order_by": {"gpu_model": "asc"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+        serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())
+
+    def test_gpu_order_by_vendor_with_group_by_vendor(self):
+        """Test that order_by[gpu_vendor] works with group_by[gpu_vendor]."""
+        query_params = {
+            "group_by": {"gpu_vendor": ["*"]},
+            "order_by": {"gpu_vendor": "desc"},
         }
         self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
         serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)

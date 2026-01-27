@@ -4,7 +4,10 @@
 #
 """Test the OCPReportParquetProcessor."""
 import datetime
+from datetime import date
+from unittest.mock import patch
 
+import pandas as pd
 from django_tenants.utils import schema_context
 
 from api.models import Provider
@@ -28,10 +31,10 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         self.account = "org1234567"
         self.s3_path = "/s3/path"
         self.provider_uuid = self.ocp_provider_uuid
-        self.local_parquet = "/local/path"
+        self.start_date = date(2024, 1, 15)
         self.report_type = "pod_usage"
         self.processor = OCPReportParquetProcessor(
-            self.manifest_id, self.account, self.s3_path, self.provider_uuid, self.local_parquet, self.report_type
+            self.manifest_id, self.account, self.s3_path, self.provider_uuid, self.report_type, self.start_date
         )
 
     def test_ocp_table_name(self):
@@ -40,7 +43,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
 
         s3_path = "/s3/path/daily"
         processor = OCPReportParquetProcessor(
-            self.manifest_id, self.account, s3_path, self.provider_uuid, self.local_parquet, self.report_type
+            self.manifest_id, self.account, s3_path, self.provider_uuid, self.report_type, self.start_date
         )
         self.assertEqual(processor._table_name, TRINO_LINE_ITEM_TABLE_DAILY_MAP[self.report_type])
 
@@ -104,7 +107,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         s3_path = "/s3/path"
 
         processor = OCPReportParquetProcessor(
-            self.manifest_id, self.account, s3_path, self.provider_uuid, self.local_parquet, report_type
+            self.manifest_id, self.account, s3_path, self.provider_uuid, report_type, self.start_date
         )
         self.assertEqual(processor._table_name, TRINO_LINE_ITEM_TABLE_MAP[report_type])
         self.assertEqual(processor._table_name, "openshift_gpu_usage_line_items")
@@ -112,7 +115,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         # Test daily table name
         s3_path_daily = "/s3/path/daily"
         processor_daily = OCPReportParquetProcessor(
-            self.manifest_id, self.account, s3_path_daily, self.provider_uuid, self.local_parquet, report_type
+            self.manifest_id, self.account, s3_path_daily, self.provider_uuid, report_type, self.start_date
         )
         self.assertEqual(processor_daily._table_name, TRINO_LINE_ITEM_TABLE_DAILY_MAP[report_type])
         self.assertEqual(processor_daily._table_name, "openshift_gpu_usage_line_items_daily")
@@ -121,10 +124,47 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         """Test that GPU numeric columns are included in the processor."""
         report_type = "gpu_usage"
         processor = OCPReportParquetProcessor(
-            self.manifest_id, self.account, self.s3_path, self.provider_uuid, self.local_parquet, report_type
+            self.manifest_id, self.account, self.s3_path, self.provider_uuid, report_type, self.start_date
         )
 
         # Check that GPU-specific numeric columns are in the column_types
         numeric_columns = processor._column_types["numeric_columns"]
         self.assertIn("gpu_memory_capacity_mib", numeric_columns)
         self.assertIn("gpu_pod_uptime", numeric_columns)
+
+    def test_get_table_names_for_delete(self):
+        """Test that both raw and daily table names are returned."""
+        table_names = self.processor.get_table_names_for_delete()
+        self.assertEqual(len(table_names), 2)
+        self.assertIn(TRINO_LINE_ITEM_TABLE_MAP[self.report_type], table_names)
+        self.assertIn(TRINO_LINE_ITEM_TABLE_DAILY_MAP[self.report_type], table_names)
+
+    @patch("koku.reportdb_accessor.get_report_db_accessor")
+    def test_delete_day_postgres(self, _):
+        """Test delete_day_postgres."""
+        self.processor.delete_day_postgres(self.start_date, reportnumhours=24)
+
+    @patch("koku.reportdb_accessor.get_report_db_accessor")
+    def test_delete_day_postgres_raises_when_data_exists(self, mock_get_accessor):
+        """Test delete_day_postgres raises exception when data exists."""
+        mock_conn = mock_get_accessor.return_value.connect.return_value.__enter__.return_value
+        mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
+        mock_cursor.rowcount = 0
+        mock_cursor.fetchone.return_value = (1,)
+        with self.assertRaises(Exception):
+            self.processor.delete_day_postgres(self.start_date, reportnumhours=24)
+
+    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase.write_dataframe_to_sql")
+    def test_write_dataframe_to_sql(self, _):
+        """Test write_dataframe_to_sql adds reportnumhours column."""
+        data_frame = pd.DataFrame({"col1": [1, 2]})
+        metadata = {"ReportNumHours": "24"}
+        self.processor.write_dataframe_to_sql(data_frame, metadata)
+        self.assertIn("reportnumhours", data_frame.columns)
+
+    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._generate_create_table_sql")
+    def test_generate_create_table_sql(self, _):
+        """Test _generate_create_table_sql appends reportnumhours column."""
+        column_names = ["col1", "col2"]
+        self.processor._generate_create_table_sql(column_names)
+        self.assertIn("reportnumhours", column_names)
