@@ -66,15 +66,14 @@ class OCPUtilTests(MasuTestCase):
 
     def test_get_source_and_provider_from_cluster_id(self):
         """Test that the source/provider is returned for a cluster ID."""
-        baker.make("Sources", provider=self.ocp_provider)
-        cluster_id = self.ocp_cluster_id
-        source = utils.get_source_and_provider_from_cluster_id(cluster_id)
+        baker.make("Sources", provider=self.ocp_provider, org_id=self.org_id)
+        source = utils.get_source_and_provider_from_cluster_id(self.ocp_cluster_id, self.org_id)
         self.assertEqual(source.provider, self.ocp_provider)
 
     def test_get_source_and_provider_from_cluster_id_invalid_cluster_id(self):
         """Test that the source/provider is not returned for an invalid cluster ID."""
         cluster_id = "bad_cluster_id"
-        provider_uuid = utils.get_source_and_provider_from_cluster_id(cluster_id)
+        provider_uuid = utils.get_source_and_provider_from_cluster_id(cluster_id, self.org_id)
         self.assertIsNone(provider_uuid)
 
     def test_match_openshift_labels(self):
@@ -260,3 +259,22 @@ class DistributionConfigTest(MasuTestCase):
         )
         self.assertTrue(config.table_exists(self.schema))
         mock_table_exists.assert_not_called()
+
+    def test_requires_full_month_field(self):
+        """Test requires_full_month field defaults to False and can be set to True."""
+        # Test default value is False
+        config = utils.DistributionConfig(
+            sql_file="test.sql",
+            cost_model_rate_type="test",
+        )
+        self.assertFalse(config.requires_full_month)
+
+        # Test explicit True value
+        config = utils.DistributionConfig(
+            sql_file="test.sql",
+            cost_model_rate_type="test",
+            query_type="trino",
+            required_table="test_table",
+            requires_full_month=True,
+        )
+        self.assertTrue(config.requires_full_month)
