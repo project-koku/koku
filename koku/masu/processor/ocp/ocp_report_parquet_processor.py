@@ -23,11 +23,15 @@ LOG = logging.getLogger(__name__)
 
 
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
+    def __init__(self, manifest_id, account, s3_path, provider_uuid, report_type, start_date):
         if "daily" in s3_path:
             ocp_table_name = TRINO_LINE_ITEM_TABLE_DAILY_MAP[report_type]
         else:
             ocp_table_name = TRINO_LINE_ITEM_TABLE_MAP[report_type]
+
+        self._report_type = report_type
+        self._date_column = "interval_start"
+
         numeric_columns = [
             "pod_usage_cpu_core_seconds",
             "pod_request_cpu_core_seconds",
@@ -63,6 +67,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             "vm_disk_allocated_size_byte_seconds",
             "gpu_memory_capacity_mib",
             "gpu_pod_uptime",
+            "reportnumhours",  # this is a calculated column and not part of the report
         ]
         date_columns = ["report_period_start", "report_period_end", "interval_start", "interval_end"]
         column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}
@@ -71,15 +76,101 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             account=account,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
-            parquet_local_path=parquet_local_path,
             column_types=column_types,
             table_name=ocp_table_name,
+            start_date=start_date,
         )
 
     @property
     def postgres_summary_table(self):
         """Return the mode for the source specific summary table."""
         return OCPUsageLineItemDailySummary
+
+    def get_table_names_for_delete(self):
+        """Return both raw and daily table names for OCP."""
+        raw_table_name = TRINO_LINE_ITEM_TABLE_MAP[self._report_type]
+        daily_table_name = TRINO_LINE_ITEM_TABLE_DAILY_MAP[self._report_type]
+        return [raw_table_name, daily_table_name]
+
+    def delete_day_postgres(self, start_date, reportnumhours=None):
+        """Delete old data for a specific day (OCP implementation with reportnumhours check).
+
+        Deletes from both raw and daily tables, similar to how Trino deletes from multiple S3 paths.
+        """
+        from koku.reportdb_accessor import get_report_db_accessor
+        from masu.processor.parquet.parquet_report_processor import ReportsAlreadyProcessed
+
+        start_date_str = str(start_date)
+        table_names = self.get_table_names_for_delete()
+
+        # Filter to only existing tables
+        existing_tables = []
+        for table_name in table_names:
+            check_table_sql = get_report_db_accessor().get_table_check_sql(table_name, self._schema_name)
+
+            with get_report_db_accessor().connect(schema=self._schema_name) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(check_table_sql)
+                    if cursor.fetchone():
+                        existing_tables.append(table_name)
+
+        # Delete from existing tables
+        total_deleted = 0
+        for table_name in existing_tables:
+            delete_sql = get_report_db_accessor().get_delete_day_by_reportnumhours_sql(
+                self._schema_name,
+                table_name,
+                self._provider_uuid,
+                self._year,
+                self._month,
+                start_date_str,
+                reportnumhours,
+                self._date_column,
+            )
+
+            with get_report_db_accessor().connect(schema=self._schema_name) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(delete_sql)
+                    total_deleted += cursor.rowcount
+
+        LOG.info(
+            log_json(
+                msg="deleted old data from postgres (OCP)",
+                deleted_rows=total_deleted,
+                start_date=start_date_str,
+                reportnumhours=reportnumhours,
+            )
+        )
+
+        # If nothing was deleted, check if data exists for this day in existing tables
+        if total_deleted == 0:
+            data_exists = False
+            for table_name in existing_tables:
+                check_sql = get_report_db_accessor().get_check_day_exists_sql(
+                    self._schema_name,
+                    table_name,
+                    self._provider_uuid,
+                    self._year,
+                    self._month,
+                    start_date_str,
+                    self._date_column,
+                )
+
+                with get_report_db_accessor().connect(schema=self._schema_name) as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute(check_sql)
+                        if cursor.fetchone() is not None:
+                            data_exists = True
+                            break
+
+            if data_exists:
+                LOG.info(
+                    log_json(
+                        msg="existing data has equal or greater reportnumhours",
+                        start_date=start_date_str,
+                    )
+                )
+                raise ReportsAlreadyProcessed
 
     def create_bill(self, bill_date):
         """Create bill postgres entry."""
@@ -119,3 +210,11 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             if bill.cluster_alias != cluster_alias:
                 bill.cluster_alias = cluster_alias
                 bill.save(update_fields=["cluster_alias"])
+
+    def write_dataframe_to_sql(self, data_frame, metadata):
+        data_frame["reportnumhours"] = metadata["ReportNumHours"]
+        super().write_dataframe_to_sql(data_frame, metadata)
+
+    def _generate_create_table_sql(self, column_names):
+        column_names.append("reportnumhours")
+        return super()._generate_create_table_sql(column_names)

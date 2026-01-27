@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWSReportParquetProcessor."""
+from datetime import date
 from unittest.mock import patch
 
+import pandas as pd
 from django_tenants.utils import schema_context
 
 from api.common import log_json
@@ -29,9 +31,9 @@ class AWSReportProcessorParquetTest(MasuTestCase):
         self.manifest_id = 1
         self.account = "org1234567"
         self.s3_path = "/s3/path"
-        self.local_parquet = "/local/path"
+        self.start_date = date(2024, 1, 15)
         self.processor = AWSReportParquetProcessor(
-            self.manifest_id, self.account, self.s3_path, self.aws_provider_uuid, self.local_parquet
+            self.manifest_id, self.account, self.s3_path, self.aws_provider_uuid, self.start_date
         )
 
     def test_aws_table_name(self):
@@ -40,13 +42,13 @@ class AWSReportProcessorParquetTest(MasuTestCase):
 
         s3_path = "/s3/path/daily"
         processor = AWSReportParquetProcessor(
-            self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.local_parquet
+            self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.start_date
         )
         self.assertEqual(processor._table_name, TRINO_LINE_ITEM_DAILY_TABLE)
 
         s3_path = "/s3/path/openshift/daily"
         processor = AWSReportParquetProcessor(
-            self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.local_parquet
+            self.manifest_id, self.account, s3_path, self.aws_provider_uuid, self.start_date
         )
         self.assertEqual(processor._table_name, TRINO_OCP_ON_AWS_DAILY_TABLE)
 
@@ -107,3 +109,25 @@ class AWSReportProcessorParquetTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertNotEqual(PartitionedTable.objects.filter(table_name=table_name).count(), 0)
+
+    def test_get_table_names_for_delete(self):
+        """Test that all table names are returned."""
+        table_names = self.processor.get_table_names_for_delete()
+        self.assertEqual(len(table_names), 3)
+        self.assertIn(TRINO_LINE_ITEM_TABLE, table_names)
+        self.assertIn(TRINO_LINE_ITEM_DAILY_TABLE, table_names)
+        self.assertIn(TRINO_OCP_ON_AWS_DAILY_TABLE, table_names)
+
+    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase.write_dataframe_to_sql")
+    def test_write_dataframe_to_sql(self, _):
+        """Test write_dataframe_to_sql adds manifestid column."""
+        data_frame = pd.DataFrame({"col1": [1, 2]})
+        self.processor.write_dataframe_to_sql(data_frame, {})
+        self.assertIn("manifestid", data_frame.columns)
+
+    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._generate_create_table_sql")
+    def test_generate_create_table_sql(self, _):
+        """Test _generate_create_table_sql appends manifestid column."""
+        column_names = ["col1", "col2"]
+        self.processor._generate_create_table_sql(column_names)
+        self.assertIn("manifestid", column_names)

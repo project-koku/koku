@@ -13,6 +13,7 @@ from django.conf import settings
 from django.db import connection
 from django.db import OperationalError
 from django.db import transaction
+from django.db.utils import ProgrammingError as DjangoProgrammingError
 from jinjasql import JinjaSql
 from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
@@ -25,6 +26,7 @@ from koku.cache import build_trino_table_exists_key
 from koku.cache import get_value_from_cache
 from koku.cache import set_value_in_cache
 from koku.database_exc import get_extended_exception_by_type
+from koku.reportdb_accessor import get_report_db_accessor
 from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
 from koku.trino_database import TrinoHiveMetastoreError
@@ -51,7 +53,8 @@ class ReportDBAccessorBase:
 
         self.date_helper = DateHelper()
         self.prepare_query = JinjaSql(param_style="pyformat").prepare_query
-        self.trino_prepare_query = JinjaSql(param_style="qmark").prepare_query
+        param_style = get_report_db_accessor().get_bind_param_style()
+        self.trino_prepare_query = JinjaSql(param_style=param_style).prepare_query
 
     def __enter__(self):
         """Enter context manager."""
@@ -72,6 +75,14 @@ class ReportDBAccessorBase:
     @staticmethod
     def extract_context_from_sql_params(sql_params: dict):
         return extract_context_from_sql_params(sql_params)
+
+    def get_sql_folder_name(self):
+        """Return the SQL folder name based on ONPREM setting.
+
+        Returns:
+            str: 'postgres_sql' if ONPREM is True, otherwise 'trino_sql'
+        """
+        return "postgres_sql" if getattr(settings, "ONPREM", False) else "trino_sql"
 
     def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
         """Prepare the sql params and run via a cursor."""
@@ -120,7 +131,7 @@ class ReportDBAccessorBase:
         return results
 
     @retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError))
-    def _execute_trino_raw_sql_query_with_description(
+    def _execute_trino_raw_sql_query_with_description(  # noqa: C901
         self,
         sql,
         *,
@@ -147,7 +158,14 @@ class ReportDBAccessorBase:
         try:
             trino_cur = trino_conn.cursor()
             trino_cur.execute(sql, bind_params)
-            results = trino_cur.fetchall()
+            try:
+                results = trino_cur.fetchall()
+            except DjangoProgrammingError as e:
+                # PostgreSQL raises "no results to fetch" for CREATE/DROP without RETURNING
+                if "no results to fetch" in str(e):
+                    results = []
+                else:
+                    raise
             description = trino_cur.description
         except TrinoQueryError as ex:
             if "NoSuchKey" in str(ex):
@@ -241,7 +259,7 @@ class ReportDBAccessorBase:
         cache_key = build_trino_table_exists_key(self.schema, table_name)
         if result := get_value_from_cache(cache_key):
             return result
-        table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
+        table_check_sql = get_report_db_accessor().get_table_check_sql(table_name, self.schema)
         exists = bool(self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino"))
         set_value_in_cache(cache_key, exists)
         return exists
@@ -251,7 +269,7 @@ class ReportDBAccessorBase:
         cache_key = build_trino_schema_exists_key(self.schema)
         if result := get_value_from_cache(cache_key):
             return result
-        check_sql = f"SHOW SCHEMAS LIKE '{self.schema}'"
+        check_sql = get_report_db_accessor().get_schema_check_sql(self.schema)
         exists = bool(self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino"))
         set_value_in_cache(cache_key, exists)
         return exists
@@ -271,12 +289,14 @@ class ReportDBAccessorBase:
             )
             for i in range(retries):
                 try:
-                    sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
-                    WHERE {source_column} = '{source}'
-                    AND year = '{year}'
-                    AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                    """
+                    sql = get_report_db_accessor().get_delete_by_month_sql(
+                        schema_name=self.schema,
+                        table_name=table,
+                        source_column=source_column,
+                        source=source,
+                        year=year,
+                        month=month,
+                    )
                     self._execute_trino_raw_sql_query(
                         sql,
                         log_ref=f"delete_hive_partition_by_month for {year}-{month}",
@@ -284,6 +304,11 @@ class ReportDBAccessorBase:
                     break
                 except TrinoExternalError as err:
                     if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                        continue
+                    else:
+                        raise err
+                except OperationalError as err:
+                    if i < (retries - 1):
                         continue
                     else:
                         raise err
@@ -297,7 +322,9 @@ class ReportDBAccessorBase:
         matched_tag_params = sql_metadata.build_params(
             ["schema", "start_date", "end_date", "month", "year", "matched_tag_strs", "ocp_provider_uuid"]
         )
-        matched_tags_sql = pkgutil.get_data("masu.database", "trino_sql/openshift/ocp_special_matched_tags.sql")
+        matched_tags_sql = pkgutil.get_data(
+            "masu.database", f"{self.get_sql_folder_name()}/openshift/ocp_special_matched_tags.sql"
+        )
         matched_tags_sql = matched_tags_sql.decode("utf-8")
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matched_tag_params))
         matched_tags_result = self._execute_trino_multipart_sql_query(matched_tags_sql, bind_params=matched_tag_params)

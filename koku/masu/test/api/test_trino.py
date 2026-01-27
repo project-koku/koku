@@ -18,7 +18,7 @@ class TrinoQueryTest(MasuTestCase):
     """Test Cases for the trino_query endpoint."""
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.trino.trino")
+    @patch("masu.api.trino.get_report_db_accessor")
     def test_trino_query_no_query(self, mock_trino, _):
         """Test the GET trino/query endpoint with no query."""
         data = {"schema": "org1234567"}
@@ -29,7 +29,7 @@ class TrinoQueryTest(MasuTestCase):
         self.assertEqual(response.json(), expected)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.trino.trino")
+    @patch("masu.api.trino.get_report_db_accessor")
     def test_trino_query_no_schema(self, mock_trino, _):
         """Test the GET trino/query endpoint with no schema."""
         data = {"query": "select 1"}
@@ -40,7 +40,7 @@ class TrinoQueryTest(MasuTestCase):
         self.assertEqual(response.json(), expected)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.trino.trino")
+    @patch("masu.api.trino.get_report_db_accessor")
     def test_trino_query_dissallowed_query(self, mock_trino, _):
         """Test the GET trino/query endpoint with bad queries."""
         dissallowed_keywords = ["delete", "insert", "update", "alter", "create", "drop", "grant"]
@@ -52,7 +52,7 @@ class TrinoQueryTest(MasuTestCase):
             self.assertEqual(response.json(), expected)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.trino.trino")
+    @patch("masu.api.trino.get_report_db_accessor")
     def test_trino_query_allowed_queries(self, *args):
         """Test the GET trino/query endpoint with allowed queries."""
         test_queries = [

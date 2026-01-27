@@ -54,9 +54,13 @@ SECRET_KEY = ENVIRONMENT.get_value(
 # Default value: False
 DEBUG = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 
+ONPREM = ENVIRONMENT.bool("ONPREM", default=False)
+
 # Allow org admins to bypass RBAC permission checks
 ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)
 
+# Enable on-prem deployment features (e.g., Kafka events for source deletion)
+ONPREM = ENVIRONMENT.bool("ONPREM", default=False)
 ALLOWED_HOSTS = ["*"]
 
 # Application definition
@@ -132,6 +136,12 @@ MIDDLEWARE = [
 MIDDLEWARE_TIME_TO_LIVE = ENVIRONMENT.int("MIDDLEWARE_TIME_TO_LIVE", default=900)  # in seconds (default = 15 minutes)
 
 DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
+
+# Deployment Mode Configuration
+# CRITICAL: Must default to False for SaaS backward compatibility
+# Set to True only for on-prem deployments (disables Unleash, uses on-prem S3, skips AWS APIs)
+ONPREM = ENVIRONMENT.bool("ONPREM", default=False)
+
 SCHEMA_SUFFIX = re.sub("[^a-zA-Z0-9_]", "_", ENVIRONMENT.get_value("SCHEMA_SUFFIX", default=""))
 print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
 if DEVELOPMENT:

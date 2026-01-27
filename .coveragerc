@@ -25,6 +25,7 @@ omit =
   */test_*.py
   *provider_interface.py
   *dev_middleware.py
+  *reportdb_accessor.py
 
 [paths]
 source = koku

@@ -22,6 +22,7 @@ services:
     entrypoint:
       - /koku/run_server.sh
     environment:
+      - ONPREM=${ONPREM-False}
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -85,6 +86,7 @@ services:
     entrypoint:
       - /koku/run_server.sh
     environment:
+      - ONPREM=${ONPREM-False}
       - MASU=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
@@ -156,6 +158,7 @@ services:
       - manage.py
       - restart_celery
     environment:
+      - ONPREM=${ONPREM-False}
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -220,26 +223,26 @@ services:
       - 6001-6020:9000
       - 5678:5678
     volumes:
-      - "./koku:/koku/koku"
-      - "./dev/containers/unleash:/koku/.unleash"
-      - "./db_functions:/koku/db_functions"
-      - "./scripts:/koku/scripts"
-      - "./testing:/testing"
-      - "./testing/local_providers/azure_local:/tmp/local_container"
-      - "./testing/local_providers/aws_local:/tmp/local_bucket"
-      - "./testing/local_providers/aws_local_0:/tmp/local_bucket_0"
-      - "./testing/local_providers/aws_local_1:/tmp/local_bucket_1"
-      - "./testing/local_providers/aws_local_2:/tmp/local_bucket_2"
-      - "./testing/local_providers/aws_local_3:/tmp/local_bucket_3"
-      - "./testing/local_providers/aws_local_4:/tmp/local_bucket_4"
-      - "./testing/local_providers/aws_local_5:/tmp/local_bucket_5"
-      - "./testing/local_providers/insights_local:/var/tmp/masu/insights_local"
-      - "./testing/local_providers/gcp_local/:/tmp/gcp_local_bucket"
-      - "./testing/local_providers/gcp_local_0/:/tmp/gcp_local_bucket_0"
-      - "./testing/local_providers/gcp_local_1/:/tmp/gcp_local_bucket_1"
-      - "./testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2"
-      - "./testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3"
-      - "./dev/credentials:/etc/credentials"
+      - "./koku:/koku/koku:z"
+      - "./dev/containers/unleash:/koku/.unleash:z"
+      - "./db_functions:/koku/db_functions:z"
+      - "./scripts:/koku/scripts:z"
+      - "./testing:/testing:z"
+      - "./testing/local_providers/azure_local:/tmp/local_container:z"
+      - "./testing/local_providers/aws_local:/tmp/local_bucket:z"
+      - "./testing/local_providers/aws_local_0:/tmp/local_bucket_0:z"
+      - "./testing/local_providers/aws_local_1:/tmp/local_bucket_1:z"
+      - "./testing/local_providers/aws_local_2:/tmp/local_bucket_2:z"
+      - "./testing/local_providers/aws_local_3:/tmp/local_bucket_3:z"
+      - "./testing/local_providers/aws_local_4:/tmp/local_bucket_4:z"
+      - "./testing/local_providers/aws_local_5:/tmp/local_bucket_5:z"
+      - "./testing/local_providers/insights_local:/var/tmp/masu/insights_local:z"
+      - "./testing/local_providers/gcp_local/:/tmp/gcp_local_bucket:z"
+      - "./testing/local_providers/gcp_local_0/:/tmp/gcp_local_bucket_0:z"
+      - "./testing/local_providers/gcp_local_1/:/tmp/gcp_local_bucket_1:z"
+      - "./testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2:z"
+      - "./testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3:z"
+      - "./dev/credentials:/etc/credentials:z"
     depends_on:
       - koku-base
 
@@ -297,12 +300,13 @@ services:
     ports:
       - 7001-7020:9000
     volumes:
-      - "./koku:/koku/koku"
-      - "./dev/containers/unleash:/koku/.unleash"
-      - "./db_functions:/koku/db_functions"
-      - "./scripts:/koku/scripts"
+      - "./koku:/koku/koku:z"
+      - "./dev/containers/unleash:/koku/.unleash:z"
+      - "./db_functions:/koku/db_functions:z"
+      - "./scripts:/koku/scripts:z"
     depends_on:
       - koku-base
+      - kafka
 
   subs-worker:
     container_name: subs_worker
@@ -368,13 +372,14 @@ services:
     ports:
       - 7021:9000
     volumes:
-      - "./koku:/koku/koku"
-      - "./dev/containers/unleash:/koku/.unleash"
-      - "./db_functions:/koku/db_functions"
-      - "./scripts:/koku/scripts"
-      - "./dev/credentials:/etc/credentials"
+      - "./koku:/koku/koku:z"
+      - "./dev/containers/unleash:/koku/.unleash:z"
+      - "./db_functions:/koku/db_functions:z"
+      - "./scripts:/koku/scripts:z"
+      - "./dev/credentials:/etc/credentials:z"
     depends_on:
       - koku-base
+      - kafka
 
   sources-client:
     container_name: sources_client
@@ -438,13 +443,14 @@ services:
       - 4000:8000
       - 4001:9000
     volumes:
-      - "./koku:/koku/koku"
-      - "./dev/containers/unleash:/koku/.unleash"
-      - "./db_functions:/koku/db_functions"
-      - "./scripts:/koku/scripts"
-      - "./dev/credentials:/etc/credentials"
+      - "./koku:/koku/koku:z"
+      - "./dev/containers/unleash:/koku/.unleash:z"
+      - "./db_functions:/koku/db_functions:z"
+      - "./scripts:/koku/scripts:z"
+      - "./dev/credentials:/etc/credentials:z"
     depends_on:
       - koku-base
+      - kafka
 
   koku-beat:
     container_name: koku_beat
@@ -474,12 +480,13 @@ services:
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     volumes:
-      - "./koku:/koku/koku"
-      - "./dev/containers/unleash:/koku/.unleash"
-      - "./db_functions:/koku/db_functions"
-      - "./scripts:/koku/scripts"
+      - "./koku:/koku/koku:z"
+      - "./dev/containers/unleash:/koku/.unleash:z"
+      - "./db_functions:/koku/db_functions:z"
+      - "./scripts:/koku/scripts:z"
     depends_on:
       - koku-base
+      - kafka
 
   ### Utilities
 
@@ -499,7 +506,7 @@ services:
     ports:
       - ${POSTGRES_SQL_SERVICE_PORT-15432}:5432
     volumes:
-      - ./dev/containers/postgresql/data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
+      - ./dev/containers/postgresql/data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data:z
     command:
       # This command give more precise control over the parameter settings
       # Included are loading the pg_stat_statements lib
@@ -627,7 +634,7 @@ services:
     ports:
       - 4242:4242
     volumes:
-      - "./dev/containers/unleash:/.unleash"
+      - "./dev/containers/unleash:/.unleash:z"
     depends_on:
       db:
         condition: service_healthy
@@ -647,7 +654,7 @@ services:
       - 9090:9090
     command: server /home/kminio/data --console-address ":9090"
     volumes:
-      - ./dev/containers/minio:/home/kminio/data
+      - ./dev/containers/minio:/home/kminio/data:z
 
   create-parquet-bucket:
     image: minio/mc:latest
@@ -733,3 +740,44 @@ services:
       nofile:
         soft: 4096
         hard: 4096
+
+  kafka-zookeeper:
+    container_name: koku-zookeeper
+    image: confluentinc/cp-zookeeper
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=32181
+      - ZOOKEEPER_SERVER_ID=1
+
+  kafka:
+    container_name: koku-kafka
+    image: confluentinc/cp-kafka:7.4.0
+    environment:
+      - KAFKA_ADVERTISED_LISTENERS=DOCKER://kafka:29092,LOCALHOST://localhost:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=DOCKER:PLAINTEXT,LOCALHOST:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=DOCKER
+      - KAFKA_BROKER_ID=1
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_ZOOKEEPER_CONNECT=kafka-zookeeper:32181
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    ports:
+      - 9092:9092
+      - 29092:29092
+    depends_on:
+      - kafka-zookeeper
+
+  init-kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      # blocks until kafka is reachable
+      kafka-topics --bootstrap-server kafka:29092 --list
+
+      echo -e 'Creating kafka topic'
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic platform.sources.event-stream --replication-factor 1 --partitions 1
+
+      echo -e 'Successfully created the following topics:'
+      kafka-topics --bootstrap-server kafka:29092 --list
+      "
+    depends_on:
+      - kafka
