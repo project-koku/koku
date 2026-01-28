@@ -199,7 +199,7 @@ trigger_ocp_ingest() {
       log-info "Triggering ingest for, source_name: $1, uuid: $UUID, org_id: $ORG_ID, payload_name: $payload_name"
       local url="$MASU_URL_PREFIX/v1/ingest_ocp_payload/?org_id=$ORG_ID&payload_name=$payload_name"
       log-info "url: $url"
-      RESPONSE=$(curl -s -w "%{http_code}\n" "${MASU_URL_PREFIX}/v1/ingest_ocp_payload/?org_id=${ORG_ID}&payload_name=${payload_name}")
+      RESPONSE=$(curl -s -w "%{http_code}\n" "$url")
       STATUS_CODE=${RESPONSE: -3}
       DATA=${RESPONSE:: -3}
 
