@@ -172,3 +172,12 @@ def is_status_api_update_enabled(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_status_api_update_enabled", context)
+
+
+def is_ingress_rbac_grace_period_enabled(account):  # pragma: no cover
+    """Flag to enable ingress report processing."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(
+        "cost-management.backend.ingress-rbac-grace-period-enabled", context, fallback_development_true
+    )

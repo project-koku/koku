@@ -61,3 +61,4 @@ jobs:
                   labels: |
                       dependencies
                       automated
+                      smoke-tests
