@@ -47,11 +47,12 @@ sqlparse = "*"
 packaging = "*"
 psycopg2-binary = "*"
 watchtower = "*"
-unleashclient = "*"
+unleashclient = "<6.0.0"
 kombu = "*"
 pandas = "<3.0"
 scipy = ">=1.16"
 boto3 = "*"
+sqlalchemy = ">=2.0.0"
 
 [dev-packages]
 argh = ">=0.26.2"
