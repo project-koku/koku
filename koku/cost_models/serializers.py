@@ -8,9 +8,11 @@ from collections import defaultdict
 from copy import deepcopy
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from api.common import error_obj
+from api.common import log_json
 from api.currency.currencies import CURRENCY_CHOICES
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
@@ -437,15 +439,19 @@ class CostModelSerializer(BaseSerializer):
     currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
 
     @property
+    def customer(self):
+        """Return the customer for the request."""
+        if self.context.get("request"):
+            user = self.context.get("request").user
+            return user.customer if hasattr(user, "customer") and user.customer else None
+        return None
+
+    @property
     def metric_map(self):
         """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
         # Get account from context if available
-        account = None
-        if self.context.get("request"):
-            user = self.context.get("request").user
-            if hasattr(user, "customer") and user.customer:
-                account = user.customer.schema_name
+        account = self.customer.schema_name if self.customer else None
 
         metric_map = metric_constants.get_cost_model_metrics_map(account=account)
         for metric, value in metric_map.items():
@@ -522,17 +528,29 @@ class CostModelSerializer(BaseSerializer):
 
     def validate_source_uuids(self, source_uuids):
         """Check that uuids in source_uuids are valid identifiers."""
-        valid_uuids = []
-        invalid_uuids = []
-        for uuid in source_uuids:
-            if Provider.objects.filter(uuid=uuid).count() == 1:
-                valid_uuids.append(uuid)
-            else:
-                invalid_uuids.append(uuid)
-        if invalid_uuids:
-            err_msg = f"Provider object does not exist with following uuid(s): {invalid_uuids}."
+
+        if not self.customer:
+            err_msg = "Invalid request. Customer schema name could not be found."
+            LOG.warning(msg=err_msg)
             raise serializers.ValidationError(err_msg)
-        return valid_uuids
+
+        try:
+            is_valid_uuids = Provider.objects.filter(uuid__in=source_uuids, customer=self.customer).count() == len(
+                set(source_uuids)
+            )
+        except DjangoValidationError:
+            is_valid_uuids = False
+
+        if not is_valid_uuids:
+            LOG.warning(
+                log_json(
+                    msg="Source UUID validation failed. Provider object does not exist with one or more of the uuids.",
+                    context={"source_uuids": source_uuids, "schema": self.customer.schema_name},
+                )
+            )
+            raise serializers.ValidationError("Invalid request. Source UUID validation failed.")
+
+        return source_uuids
 
     def validate_rates_currency(self, data):
         """Validate incoming currency and rates all match."""
