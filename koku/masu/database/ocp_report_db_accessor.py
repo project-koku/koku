@@ -132,7 +132,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # Check to see if the cost model is set up to give cost
         if cost_model_accessor.metric_to_tag_params_map.get(metric_constants.OCP_GPU_MONTH):
             return
+
         cluster_id = get_cluster_id_from_provider(sql_params.get("source_uuid"))
+        if not cluster_id:
+            LOG.info(
+                log_json(msg="No cluster_id found for source, skipping GPU UI table population.", context=sql_params)
+            )
+            return
+
         sql_params["cluster_id"] = cluster_id
         sql_params["cluster_alias"] = get_cluster_alias_from_cluster_id(cluster_id)
         sql_params["source_uuid"] = str(sql_params["source_uuid"])
