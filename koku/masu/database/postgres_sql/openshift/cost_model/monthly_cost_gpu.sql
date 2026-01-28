@@ -114,6 +114,8 @@ WITH cte_unutilized_uptime_hours AS (
         ON gpu.node = node_ut.node
         AND gpu.interval_date = DATE(node_ut.interval_start)
     where node_labels like '%%"nvidia_com_gpu_present": "True"%%'
+        AND date(node_ut.interval_start) >= DATE({{start_date}})
+        AND date(node_ut.interval_start) <= DATE({{end_date}})
         AND node_ut.month = {{month}}
         AND node_ut.year = {{year}}
         AND node_ut.source = {{source_uuid}}
