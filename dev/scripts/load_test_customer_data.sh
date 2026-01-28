@@ -181,6 +181,8 @@ trigger_ocp_ingest() {
   #
   local formatted_start_date
   local formatted_end_date
+  # standard org_id for local development
+  local ORG_ID="1234567"
 
   UUID=$(psql "$DATABASE_NAME" --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = '$1'" | head -1 | sed -e 's/^[ \t]*//')
   if [[ -n $UUID ]]; then
@@ -194,10 +196,10 @@ trigger_ocp_ingest() {
     fi
     while [ ! "$formatted_start_date" \> "$formatted_end_date" ]; do
       local payload_name="$2.$formatted_start_date.tar.gz"
-      log-info "Triggering ingest for, source_name: $1, uuid: $UUID, payload_name: $payload_name"
-      local url="$MASU_URL_PREFIX/v1/ingest_ocp_payload/?payload_name=$payload_name"
+      log-info "Triggering ingest for, source_name: $1, uuid: $UUID, org_id: $ORG_ID, payload_name: $payload_name"
+      local url="$MASU_URL_PREFIX/v1/ingest_ocp_payload/?org_id=$ORG_ID&payload_name=$payload_name"
       log-info "url: $url"
-      RESPONSE=$(curl -s -w "%{http_code}\n" "${MASU_URL_PREFIX}"/v1/ingest_ocp_payload/?payload_name="$payload_name")
+      RESPONSE=$(curl -s -w "%{http_code}\n" "$url")
       STATUS_CODE=${RESPONSE: -3}
       DATA=${RESPONSE:: -3}
 
