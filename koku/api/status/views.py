@@ -25,5 +25,4 @@ class StatusView(APIView):
         status_info = Status()
         serializer = StatusSerializer(status_info)
         server_info = serializer.data
-        server_info["server_address"] = request.META.get("HTTP_HOST", "localhost")
         return Response(server_info)
