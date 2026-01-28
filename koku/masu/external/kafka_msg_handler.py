@@ -56,6 +56,7 @@ from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
+from masu.util.ocp.ocp_data_validator import validate_and_sanitize_dataframe
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.states import CombinedChoices
@@ -77,9 +78,26 @@ class EmptyPayloadFileError(pd.errors.EmptyDataError):
 
 
 def get_data_frame(file_path: os.PathLike):
-    """read csv file into dataframe"""
+    """Read csv file into dataframe with validation and sanitization.
+
+    This function reads the CSV file and immediately validates/sanitizes
+    the data to prevent malicious content (SQLi, XSS) from being processed
+    or stored.
+    """
     try:
-        return pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"), on_bad_lines="warn")
+        df = pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"), on_bad_lines="warn")
+        # Validate and sanitize data immediately after reading to prevent
+        # malicious content from being processed or copied to S3
+        df, issues = validate_and_sanitize_dataframe(df, strict=False)
+        if issues:
+            LOG.warning(
+                log_json(
+                    msg="Validation issues found in payload - data has been sanitized",
+                    file=str(file_path),
+                    issue_count=len(issues),
+                )
+            )
+        return df
     except pd.errors.EmptyDataError as error:
         LOG.warning(f"File {file_path} is empty.")
         raise EmptyPayloadFileError("File is empty.") from error
