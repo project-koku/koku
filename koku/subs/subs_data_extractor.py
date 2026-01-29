@@ -67,7 +67,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def determine_ids_for_provider(self, year, month):
         """Determine the relevant IDs to process data for this provider."""
-        sql_file = f"{self.get_sql_folder_name()}/{self.provider_type.lower()}/determine_ids_for_provider.sql"
+        sql_file = f"trino_sql/{self.provider_type.lower()}/determine_ids_for_provider.sql"
         sql = pkgutil.get_data("subs", sql_file)
         sql = sql.decode("utf-8")
         sql_params = {
@@ -91,7 +91,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def determine_row_count(self, sql_params):
         """Determine the number of records in the table that have not been processed and match the criteria."""
-        sql_file = f"{self.get_sql_folder_name()}/{self.provider_type.lower()}/subs_row_count.sql"
+        sql_file = f"trino_sql/{self.provider_type.lower()}/subs_row_count.sql"
         sql = pkgutil.get_data("subs", sql_file)
         sql = sql.decode("utf-8")
         count = self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref="determine_subs_row_count")
@@ -99,9 +99,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def get_resource_ids_for_usage_account(self, usage_account, year, month):
         """Determine the relevant resource ids and end time to process to for each resource id."""
-        sql_file = (
-            f"{self.get_sql_folder_name()}/{self.provider_type.lower()}/determine_resource_ids_for_usage_account.sql"
-        )
+        sql_file = f"trino_sql/{self.provider_type.lower()}/determine_resource_ids_for_usage_account.sql"
         sql = pkgutil.get_data("subs", sql_file)
         sql = sql.decode("utf-8")
         sql_params = {
@@ -125,7 +123,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             "resources": batch,
             "usage_account": usage_account,
         }
-        sql_file = f"{self.get_sql_folder_name()}/{self.provider_type.lower()}/subs_summary.sql"
+        sql_file = f"trino_sql/{self.provider_type.lower()}/subs_summary.sql"
         summary_sql = pkgutil.get_data("subs", sql_file)
         summary_sql = summary_sql.decode("utf-8")
         total_count = self.determine_row_count(sql_params)
