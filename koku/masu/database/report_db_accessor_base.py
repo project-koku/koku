@@ -85,9 +85,9 @@ class ReportDBAccessorBase:
         """Return the SQL folder name based on ONPREM setting.
 
         Returns:
-            str: 'postgres_sql' if ONPREM is True, otherwise 'trino_sql'
+            str: 'self_hosted_sql' if ONPREM is True, otherwise 'trino_sql'
         """
-        return "postgres_sql" if getattr(settings, "ONPREM", False) else "trino_sql"
+        return "self_hosted_sql" if getattr(settings, "ONPREM", False) else "trino_sql"
 
     def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
         """Prepare the sql params and run via a cursor."""

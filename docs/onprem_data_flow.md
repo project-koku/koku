@@ -105,7 +105,7 @@ This document describes the data flow from tar.gz ingestion to PostgreSQL tables
 │                   SUMMARIZATION (Celery Tasks)                                            │
 │                                                                                           │
 │   • update_summary_tables task                                                            │
-│   • Runs SQL from postgres_sql/ folder                                                    │
+│   • Runs SQL from self_hosted_sql/ folder                                                 │
 │   • Populates summary tables (e.g., reporting_ocpusagelineitem_                           │
 │     daily_summary, reporting_ocpaws*, reporting_ocpgcp*, etc.)                            │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
@@ -154,7 +154,7 @@ This document describes the data flow from tar.gz ingestion to PostgreSQL tables
 | `koku/reportdb_accessor.py` | Abstract interface for DB accessors |
 | `koku/reportdb_accessor_postgres.py` | PostgreSQL-specific SQL generation |
 | `koku/reportdb_accessor_trino.py` | Trino-specific SQL generation (cloud mode) |
-| `masu/database/postgres_sql/` | SQL files for summarization queries |
+| `masu/database/self_hosted_sql/` | SQL files for summarization queries |
 
 ## Flow Summary
 
