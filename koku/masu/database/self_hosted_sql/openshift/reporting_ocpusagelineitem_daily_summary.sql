@@ -1,59 +1,10 @@
 /*
  * Process OCP Usage Data Processing SQL
- * PostgreSQL version for ONPREM deployment
+ * PostgreSQL version for self-hosted/on-prem deployment
+ *
+ * Note: The staging table (reporting_ocpusagelineitem_daily_summary_staging)
+ * is created by Django migrations. See self_hosted_models.py.
  */
-
--- Staging table (equivalent to Trino/Hive managed table)
-CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino (
-    uuid VARCHAR,
-    report_period_id INTEGER,
-    cluster_id VARCHAR,
-    cluster_alias VARCHAR,
-    data_source VARCHAR,
-    usage_start DATE,
-    usage_end DATE,
-    namespace VARCHAR,
-    node VARCHAR,
-    resource_id VARCHAR,
-    pod_labels VARCHAR,
-    pod_usage_cpu_core_hours FLOAT,
-    pod_request_cpu_core_hours FLOAT,
-    pod_effective_usage_cpu_core_hours FLOAT,
-    pod_limit_cpu_core_hours FLOAT,
-    pod_usage_memory_gigabyte_hours FLOAT,
-    pod_request_memory_gigabyte_hours FLOAT,
-    pod_effective_usage_memory_gigabyte_hours FLOAT,
-    pod_limit_memory_gigabyte_hours FLOAT,
-    node_capacity_cpu_cores FLOAT,
-    node_capacity_cpu_core_hours FLOAT,
-    node_capacity_memory_gigabytes FLOAT,
-    node_capacity_memory_gigabyte_hours FLOAT,
-    cluster_capacity_cpu_core_hours FLOAT,
-    cluster_capacity_memory_gigabyte_hours FLOAT,
-    persistentvolumeclaim VARCHAR,
-    persistentvolume VARCHAR,
-    storageclass VARCHAR,
-    volume_labels VARCHAR,
-    persistentvolumeclaim_capacity_gigabyte FLOAT,
-    persistentvolumeclaim_capacity_gigabyte_months FLOAT,
-    volume_request_storage_gigabyte_months FLOAT,
-    persistentvolumeclaim_usage_gigabyte_months FLOAT,
-    source_uuid VARCHAR,
-    infrastructure_usage_cost VARCHAR,
-    csi_volume_handle VARCHAR,
-    cost_category_id INTEGER,
-    source VARCHAR,
-    year VARCHAR,
-    month VARCHAR,
-    day VARCHAR
-);
-
-CREATE INDEX IF NOT EXISTS idx_ocp_summary_trino_source_year_month
-    ON {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino (source, year, month);
-CREATE INDEX IF NOT EXISTS idx_ocp_summary_trino_day
-    ON {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino (day);
-CREATE INDEX IF NOT EXISTS idx_ocp_summary_trino_usage_start
-    ON {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino (usage_start);
 
 -- Helper function to filter JSON by allowed keys (replaces Trino's map_filter)
 CREATE OR REPLACE FUNCTION {{schema | sqlsafe}}.filter_json_by_keys(input_json text, allowed_keys text[])
@@ -64,7 +15,7 @@ RETURNS text AS $$
 $$ LANGUAGE sql IMMUTABLE;
 
 -- First INSERT: Pod and Storage usage aggregation
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_staging (
     uuid,
     report_period_id,
     cluster_id,
@@ -455,7 +406,7 @@ What was selected from unallocated capacity.
 AND lids.namespace != 'Platform unallocated'
 AND lids.namespace != 'Worker unallocated'
  */
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_staging (
     uuid,
     report_period_id,
     cluster_id,
@@ -526,7 +477,7 @@ cte_unallocated_capacity AS (
         EXTRACT(YEAR FROM lids.usage_start)::text as year,
         EXTRACT(MONTH FROM lids.usage_start)::text as month,
         EXTRACT(DAY FROM lids.usage_start)::text as day
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as lids
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_staging as lids
     LEFT JOIN cte_node_role AS nodes
         ON lids.node = nodes.node
         AND lids.resource_id = nodes.resource_id
@@ -653,7 +604,7 @@ SELECT uuid_generate_v4(),
     source_uuid::uuid,
     infrastructure_usage_cost::jsonb,
     cost_category_id
-FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino AS lids
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_staging AS lids
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}
     AND lpad(lids.month, 2, '0') = {{month}}

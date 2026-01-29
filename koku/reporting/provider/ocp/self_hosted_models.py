@@ -370,8 +370,79 @@ class OCPGPUUsageLineItemDaily(OCPLineItemBase):
     gpu_pod_uptime = models.FloatField(null=True)
 
 
-# Mapping from report type to Django model (for on-prem PostgreSQL)
-OCP_LINE_ITEM_MODEL_MAP = {
+class OCPUsageLineItemDailySummaryStaging(models.Model):
+    """Staging table for OCP daily summary aggregation (self-hosted/on-prem only).
+
+    This table is used during summarization to aggregate line item data before
+    inserting into the final reporting_ocpusagelineitem_daily_summary table.
+    """
+
+    class Meta:
+        db_table = "reporting_ocpusagelineitem_daily_summary_staging"
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    usage_start = models.DateField(null=True, db_index=True)
+
+    # Report metadata
+    report_period_id = models.IntegerField(null=True)
+    cluster_id = models.CharField(max_length=256, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    data_source = models.CharField(max_length=64, null=True)
+    usage_end = models.DateField(null=True)
+    namespace = models.CharField(max_length=253, null=True)
+    node = models.CharField(max_length=253, null=True)
+    resource_id = models.CharField(max_length=256, null=True)
+
+    # Pod metrics
+    pod_labels = models.TextField(null=True)
+    pod_usage_cpu_core_hours = models.FloatField(null=True)
+    pod_request_cpu_core_hours = models.FloatField(null=True)
+    pod_effective_usage_cpu_core_hours = models.FloatField(null=True)
+    pod_limit_cpu_core_hours = models.FloatField(null=True)
+    pod_usage_memory_gigabyte_hours = models.FloatField(null=True)
+    pod_request_memory_gigabyte_hours = models.FloatField(null=True)
+    pod_effective_usage_memory_gigabyte_hours = models.FloatField(null=True)
+    pod_limit_memory_gigabyte_hours = models.FloatField(null=True)
+
+    # Node capacity
+    node_capacity_cpu_cores = models.FloatField(null=True)
+    node_capacity_cpu_core_hours = models.FloatField(null=True)
+    node_capacity_memory_gigabytes = models.FloatField(null=True)
+    node_capacity_memory_gigabyte_hours = models.FloatField(null=True)
+
+    # Cluster capacity
+    cluster_capacity_cpu_core_hours = models.FloatField(null=True)
+    cluster_capacity_memory_gigabyte_hours = models.FloatField(null=True)
+
+    # Storage metrics
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
+    persistentvolume = models.CharField(max_length=253, null=True)
+    storageclass = models.CharField(max_length=256, null=True)
+    volume_labels = models.TextField(null=True)
+    persistentvolumeclaim_capacity_gigabyte = models.FloatField(null=True)
+    persistentvolumeclaim_capacity_gigabyte_months = models.FloatField(null=True)
+    volume_request_storage_gigabyte_months = models.FloatField(null=True)
+    persistentvolumeclaim_usage_gigabyte_months = models.FloatField(null=True)
+
+    # Source tracking
+    source_uuid = models.CharField(max_length=64, null=True)
+    source = models.CharField(max_length=64, null=True, db_index=True)
+    infrastructure_usage_cost = models.TextField(null=True)
+    csi_volume_handle = models.CharField(max_length=256, null=True)
+    cost_category_id = models.IntegerField(null=True)
+
+    # Partition columns (for compatibility with existing SQL)
+    year = models.CharField(max_length=4, null=True)
+    month = models.CharField(max_length=2, null=True)
+    day = models.CharField(max_length=2, null=True)
+
+
+# Mapping from report type to Django model (for self-hosted/on-prem PostgreSQL)
+SELF_HOSTED_MODEL_MAP = {
     "pod_usage": OCPPodUsageLineItem,
     "storage_usage": OCPStorageUsageLineItem,
     "node_labels": OCPNodeLabelsLineItem,
@@ -380,7 +451,7 @@ OCP_LINE_ITEM_MODEL_MAP = {
     "gpu_usage": OCPGPUUsageLineItem,
 }
 
-OCP_LINE_ITEM_DAILY_MODEL_MAP = {
+SELF_HOSTED_DAILY_MODEL_MAP = {
     "pod_usage": OCPPodUsageLineItemDaily,
     "storage_usage": OCPStorageUsageLineItemDaily,
     "node_labels": OCPNodeLabelsLineItemDaily,
@@ -388,3 +459,23 @@ OCP_LINE_ITEM_DAILY_MODEL_MAP = {
     "vm_usage": OCPVMUsageLineItemDaily,
     "gpu_usage": OCPGPUUsageLineItemDaily,
 }
+
+
+def get_self_hosted_models():
+    """Get all self-hosted models (raw, daily, and staging).
+
+    Returns a list of all Django models used for self-hosted/on-prem data storage.
+    Used for cleanup operations like source deletion and expired data removal.
+    """
+    models = list(SELF_HOSTED_MODEL_MAP.values())
+    models.extend(SELF_HOSTED_DAILY_MODEL_MAP.values())
+    models.append(OCPUsageLineItemDailySummaryStaging)
+    return models
+
+
+def get_self_hosted_table_names():
+    """Get table names for all self-hosted models.
+
+    Returns a list of database table names for partition cleanup operations.
+    """
+    return [model._meta.db_table for model in get_self_hosted_models()]

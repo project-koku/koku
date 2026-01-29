@@ -6,6 +6,8 @@
 import logging
 from datetime import date
 
+from django.conf import settings
+
 from api.common import log_json
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
@@ -13,6 +15,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from reporting.models import PartitionedTable
 from reporting.models import TRINO_MANAGED_TABLES
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
+from reporting.provider.ocp.self_hosted_models import get_self_hosted_table_names
 
 LOG = logging.getLogger(__name__)
 
@@ -84,6 +87,10 @@ class OCPReportDBCleaner:
             if not simulate:
                 cascade_delete(usage_period_objs.query.model, usage_period_objs)
 
+                # For on-prem, also delete from self-hosted tables
+                if settings.ONPREM:
+                    accessor.delete_self_hosted_data_by_source(provider_uuid)
+
         return removed_items
 
     def purge_expired_report_data_by_date(self, expired_date, simulate=False):
@@ -101,6 +108,10 @@ class OCPReportDBCleaner:
                 accessor._table_map["line_item_daily_summary"]
             ]
             table_names.extend(UI_SUMMARY_TABLES)
+
+            # For on-prem, include self-hosted line item tables in partition cleanup
+            if settings.ONPREM:
+                table_names.extend(get_self_hosted_table_names())
 
             # Iterate over the remainder as they could involve much larger amounts of data
             for usage_period in all_usage_periods:

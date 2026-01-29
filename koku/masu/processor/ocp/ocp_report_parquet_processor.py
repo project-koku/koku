@@ -18,8 +18,8 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_MAP
-from reporting.provider.ocp.self_hosted_models import OCP_LINE_ITEM_DAILY_MODEL_MAP
-from reporting.provider.ocp.self_hosted_models import OCP_LINE_ITEM_MODEL_MAP
+from reporting.provider.ocp.self_hosted_models import SELF_HOSTED_DAILY_MODEL_MAP
+from reporting.provider.ocp.self_hosted_models import SELF_HOSTED_MODEL_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -91,16 +91,16 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
         return OCPUsageLineItemDailySummary
 
     @property
-    def postgres_line_item_model(self):
-        """Return the Django model for line item data (on-prem PostgreSQL).
+    def self_hosted_line_item_model(self):
+        """Return the Django model for line item data (self-hosted/on-prem only).
 
         This leverages Django models instead of raw SQL table creation,
         enabling automatic migrations and consistent partition management.
         """
         if self._is_daily:
-            return OCP_LINE_ITEM_DAILY_MODEL_MAP.get(self._report_type)
+            return SELF_HOSTED_DAILY_MODEL_MAP.get(self._report_type)
         else:
-            return OCP_LINE_ITEM_MODEL_MAP.get(self._report_type)
+            return SELF_HOSTED_MODEL_MAP.get(self._report_type)
 
     def get_table_names_for_delete(self):
         """Return both raw and daily table names for OCP."""
@@ -227,7 +227,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                 bill.cluster_alias = cluster_alias
                 bill.save(update_fields=["cluster_alias"])
 
-    def write_dataframe_to_sql(self, data_frame, metadata):
+    def write_to_self_hosted_table(self, data_frame, metadata):
         """Write dataframe to PostgreSQL for on-prem using Django model infrastructure.
 
         This method is only called for on-prem deployments. SaaS writes to S3 parquet files instead.
@@ -243,7 +243,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
 
         data_frame["reportnumhours"] = metadata["ReportNumHours"]
 
-        model = self.postgres_line_item_model
+        model = self.self_hosted_line_item_model
         if not model:
             raise NotImplementedError(
                 f"No Django model found for OCP report type '{self._report_type}'. "

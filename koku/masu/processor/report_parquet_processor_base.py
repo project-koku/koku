@@ -219,14 +219,14 @@ class ReportParquetProcessorBase:
         LOG.info(sql)
         self._execute_trino_sql(sql, self._schema_name)
 
-    def write_dataframe_to_sql(self, data_frame, metadata):
-        """Write dataframe to sql.
+    def write_to_self_hosted_table(self, data_frame, metadata):
+        """Write dataframe to self-hosted PostgreSQL table.
 
         This base implementation is a no-op. Subclasses that support on-prem
         should override this method to write data to PostgreSQL.
         For SaaS, data is written to S3 parquet files instead.
         """
         raise NotImplementedError(
-            f"{self.__class__.__name__} does not implement write_dataframe_to_sql. "
+            f"{self.__class__.__name__} does not implement write_to_self_hosted_table. "
             "On-prem is only supported for OCP providers."
         )

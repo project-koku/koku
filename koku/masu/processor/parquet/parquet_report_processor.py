@@ -753,7 +753,7 @@ class ParquetReportProcessor:
         """Handle daily frames in postgres (on-prem only).
 
         For on-prem, tables are created by Django migrations.
-        Line item partitions are created automatically in write_dataframe_to_sql.
+        Line item partitions are created automatically in write_to_self_hosted_table.
         """
         if not daily_frames:
             return
@@ -761,9 +761,9 @@ class ParquetReportProcessor:
         processor = self._get_report_processor(daily=True)
 
         for data_frame in daily_frames:
-            processor.write_dataframe_to_sql(data_frame, metadata)
+            processor.write_to_self_hosted_table(data_frame, metadata)
 
     def _write_dataframe(self, data_frame, metadata):
         """Write dataframe to sql."""
         processor = self._get_report_processor(daily=False)
-        processor.write_dataframe_to_sql(data_frame, metadata)
+        processor.write_to_self_hosted_table(data_frame, metadata)
