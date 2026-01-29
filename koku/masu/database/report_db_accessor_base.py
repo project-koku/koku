@@ -76,6 +76,11 @@ class ReportDBAccessorBase:
     def extract_context_from_sql_params(sql_params: dict):
         return extract_context_from_sql_params(sql_params)
 
+    @property
+    def trino_sql_folder_name(self):
+        # Replace this with get_sql_folder_name() when onpremise support is added
+        return "trino_sql"
+
     def get_sql_folder_name(self):
         """Return the SQL folder name based on ONPREM setting.
 
