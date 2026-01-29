@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor for Parquet files."""
-import base64
-import hashlib
 import logging
 
 from dateutil.relativedelta import relativedelta
@@ -12,7 +10,6 @@ from django.conf import settings
 from django.db import Error
 from django.db import ProgrammingError
 from django_tenants.utils import schema_context
-from sqlalchemy import create_engine
 from trino.exceptions import TrinoQueryError
 
 from api.common import log_json
@@ -49,9 +46,9 @@ class ReportParquetProcessorBase:
         self._provider_uuid = provider_uuid
         self._column_types = column_types
         self._table_name = table_name
+        self._start_date = start_date
         self._year = start_date.strftime("%Y")
         self._month = start_date.strftime("%m")
-        self._partition_name = self._create_partition_name(self._year, self._month)
 
     @property
     def postgres_summary_table(self):
@@ -148,9 +145,18 @@ class ReportParquetProcessorBase:
         self._execute_trino_sql(sql, self._schema_name)
         LOG.info(log_json(msg="trino parquet table created", table=self._table_name, schema=self._schema_name))
 
-    def get_or_create_postgres_partition(self, bill_date, **kwargs):
-        """Make sure we have a Postgres partition for a billing period."""
-        table_name = self.postgres_summary_table._meta.db_table
+    def get_or_create_postgres_partition(self, bill_date, model=None, **kwargs):
+        """Make sure we have a Postgres partition for a billing period.
+
+        Args:
+            bill_date: The billing period date
+            model: Optional Django model to create partitions for. If not provided,
+                   uses self.postgres_summary_table (for backward compatibility).
+            **kwargs: Optional overrides for partition_type and partition_column
+        """
+        if model is None:
+            model = self.postgres_summary_table
+        table_name = model._meta.db_table
         partition_type = kwargs.get("partition_type", PartitionedTable.RANGE)
         partition_column = kwargs.get("partition_column", "usage_start")
 
@@ -214,78 +220,13 @@ class ReportParquetProcessorBase:
         self._execute_trino_sql(sql, self._schema_name)
 
     def write_dataframe_to_sql(self, data_frame, metadata):
-        """Write dataframe to sql."""
-        with get_report_db_accessor().connect() as connection:
-            engine = create_engine("postgresql://", creator=lambda: connection.getConnection())
-            #
-            # Add values for partition columns
-            # Write to partition directly for performance
-            #
-            data_frame["year"] = self._year
-            data_frame["month"] = self._month
-            data_frame["source"] = self._provider_uuid
-            data_frame.to_sql(self._partition_name, engine, self._schema_name, if_exists="append", index=False)
+        """Write dataframe to sql.
 
-    def get_table_names_for_delete(self):
-        """Return list of table names to delete from. Override in subclass if needed."""
-        return [self._table_name]
-
-    def delete_day_postgres(self, start_date, reportnumhours=None):
-        """Delete old data for this source/year/month (non-OCP)"""
-        from api.common import log_json
-
-        # Get all table names to delete from (may include daily tables)
-        table_names = self.get_table_names_for_delete()
-
-        # Filter to only existing tables
-        existing_tables = []
-        for table_name in table_names:
-            check_table_sql = get_report_db_accessor().get_table_check_sql(table_name, self._schema_name)
-
-            with get_report_db_accessor().connect() as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(check_table_sql)
-                    if cursor.fetchone():
-                        existing_tables.append(table_name)
-                    else:
-                        LOG.debug(f"Table {table_name} does not exist, skipping delete")
-
-        # Delete from existing tables
-        total_deleted = 0
-        for table_name in existing_tables:
-            delete_sql = get_report_db_accessor().get_delete_day_by_manifestid_sql(
-                self._schema_name, table_name, self._provider_uuid, self._year, self._month, str(self._manifest_id)
-            )
-
-            with get_report_db_accessor().connect(schema=self._schema_name) as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(delete_sql)
-                    total_deleted += cursor.rowcount
-
-        LOG.info(
-            log_json(
-                msg="deleted old data from postgres (non-OCP)",
-                deleted_rows=total_deleted,
-            )
-        )
-
-    def _create_partition_name(self, year, month):
-        """Create a unique partition name.
-
-        In Postgres the partition is a table. Its name is limited to 63 chars including schema.
-        The table name with the partition values require more chars. Therefore, we need some
-        other unique identifier. The name is a base64 encoded sha256 hash of the table name,
-        provider uuid, year, and month.
+        This base implementation is a no-op. Subclasses that support on-prem
+        should override this method to write data to PostgreSQL.
+        For SaaS, data is written to S3 parquet files instead.
         """
-        value = f"{self._table_name}{self._provider_uuid}{year}{month}"
-        hash = hashlib.sha256(value.encode("ascii")).digest()
-        b64value = base64.b64encode(hash).decode("ascii")
-        return b64value
-
-    def create_report_partition(self):
-        partition_values_lower = [f"'{self._provider_uuid}'", f"'{self._year}'", f"'{self._month}'"]
-        partition_values_upper = [f"'{self._provider_uuid}'", f"'{self._year}'", f"'{int(self._month)+1:02d}'"]
-        sql = get_report_db_accessor().get_partition_create_sql(
-            self._schema_name, self._table_name, self._partition_name, partition_values_lower, partition_values_upper
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement write_dataframe_to_sql. "
+            "On-prem is only supported for OCP providers."
         )
-        self._execute_trino_sql(sql, self._schema_name)

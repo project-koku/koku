@@ -425,11 +425,17 @@ class ParquetReportProcessor:
         return True
 
     def create_parquet_table(self, column_names, daily=False, sync_partitions=True):
-        """Create parquet table."""
+        """Create Trino/Hive parquet table (SaaS only).
+
+        Creates schema, table, syncs Hive partitions, and ensures PostgreSQL
+        summary table partitions exist.
+        """
         # Skip empty files, if we have no storage report data we can't create the table
         if not column_names:
             return
+
         processor = self._get_report_processor(daily=daily)
+
         if not processor.schema_exists():
             processor.create_schema()
         if not processor.table_exists():
@@ -438,8 +444,7 @@ class ParquetReportProcessor:
         processor.get_or_create_postgres_partition(bill_date=self.bill_date)
         if sync_partitions:
             processor.sync_hive_partitions()
-        else:
-            processor.create_report_partition()
+
         if not daily:
             processor.create_bill(bill_date=self.bill_date)
 
@@ -501,8 +506,9 @@ class ParquetReportProcessor:
                         )  # the dataframe is the only source for the actual column names
 
                     if isOnPrem:
-                        if not self.trino_table_exists.get(self.trino_table_exists_key):
-                            self.create_parquet_table(col_names, daily=False, sync_partitions=False)
+                        processor = self._get_report_processor(daily=False)
+                        processor.get_or_create_postgres_partition(bill_date=self.bill_date)
+                        processor.create_bill(bill_date=self.bill_date)
                         self._write_dataframe(data_frame, self.get_metadata(csv_filename.stem))
                     else:
                         success = self._write_parquet_to_file(
@@ -744,16 +750,17 @@ class ParquetReportProcessor:
         delete_s3_objects(self.tracing_id, to_delete, self.error_context)
 
     def handle_daily_frames_postgres(self, daily_frames, metadata):
-        """handle daily frames in postgres"""
+        """Handle daily frames in postgres (on-prem only).
+
+        For on-prem, tables are created by Django migrations.
+        Line item partitions are created automatically in write_dataframe_to_sql.
+        """
         if not daily_frames:
             return
 
-        col_names = list(daily_frames[0].columns)
-        self.create_parquet_table(col_names, daily=True, sync_partitions=False)
-
         processor = self._get_report_processor(daily=True)
 
-        for _, data_frame in enumerate(daily_frames):
+        for data_frame in daily_frames:
             processor.write_dataframe_to_sql(data_frame, metadata)
 
     def _write_dataframe(self, data_frame, metadata):
