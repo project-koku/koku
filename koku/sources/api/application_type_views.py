@@ -21,8 +21,8 @@ class ApplicationTypesView(APIView):
         """List application types with optional filter[name] support."""
         app_types = APPLICATION_TYPES.copy()
 
-        # Support filter[name] query parameter
-        filter_name = request.query_params.get("filter[name]")
+        # Support filter[name] and filter[name][eq] query parameters (for CMMO and ROS compatibility)
+        filter_name = request.query_params.get("filter[name][eq]") or request.query_params.get("filter[name]")
         if filter_name:
             app_types = [at for at in app_types if at["name"] == filter_name]
 
