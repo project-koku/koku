@@ -5,13 +5,13 @@
 """Test Report Views."""
 import uuid
 from unittest.mock import patch
-from unittest.mock import PropertyMock
 
 from django.urls import reverse
 from django_tenants.utils import schema_context
 from faker import Faker
 from model_bakery import baker
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import RbacPermissions
@@ -239,12 +239,11 @@ class ReportsViewTest(MasuTestCase):
         response = client.post(url, data=post_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    @patch("api.ingress.reports.view.IngressReportsSerializer.is_valid", return_value=False)
-    def test_post_validation_failed(self, mock_is_valid):
+    def test_post_validation_failed(self):
         """Test POST ingress reports when validation fails."""
-        mock_is_valid.return_value = False
-        with patch("api.ingress.reports.view.IngressReportsSerializer.errors", new_callable=PropertyMock) as mock_err:
-            mock_err.return_value = {"Error": "Invalid request."}
+
+        with patch("api.ingress.reports.view.IngressReportsSerializer.is_valid") as mock_is_valid:
+            mock_is_valid.side_effect = ValidationError({"Error": "Invalid request."})
             url = reverse("reports")
             post_data = {
                 "source": str(self.aws_provider.uuid),
