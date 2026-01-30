@@ -91,7 +91,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         """
         sql = pkgutil.get_data(
-            "masu.database", f"{self.get_sql_folder_name()}/azure/reporting_azurecostentrylineitem_daily_summary.sql"
+            "masu.database", f"{self.trino_sql_folder_name}/azure/reporting_azurecostentrylineitem_daily_summary.sql"
         )
         sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
@@ -212,7 +212,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         for table_name in tables:
             sql = pkgutil.get_data(
-                "masu.database", f"{self.get_sql_folder_name()}/azure/openshift/ui_summary/{table_name}.sql"
+                "masu.database", f"{self.trino_sql_folder_name}/azure/openshift/ui_summary/{table_name}.sql"
             )
             sql = sql.decode("utf-8")
             sql_params = {
@@ -280,7 +280,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bill_id,
             report_period_id,
         )
-        managed_path = f"{self.get_sql_folder_name()}/azure/openshift/populate_daily_summary"
+        managed_path = f"{self.trino_sql_folder_name}/azure/openshift/populate_daily_summary"
         prepare_sql, prepare_params = sql_metadata.prepare_template(
             f"{managed_path}/0_prepare_daily_summary_tables.sql"
         )
@@ -361,7 +361,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     ):
         """Return a list of matched tags."""
         sql = pkgutil.get_data(
-            "masu.database", f"{self.get_sql_folder_name()}/azure/openshift/reporting_ocpazure_matched_tags.sql"
+            "masu.database", f"{self.trino_sql_folder_name}/azure/openshift/reporting_ocpazure_matched_tags.sql"
         )
         sql = sql.decode("utf-8")
 

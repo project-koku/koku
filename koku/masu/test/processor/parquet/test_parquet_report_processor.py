@@ -868,8 +868,7 @@ class TestParquetReportProcessor(MasuTestCase):
 
     @override_settings(ONPREM=True)
     @patch.object(ParquetReportProcessor, "_get_report_processor")
-    @patch.object(ParquetReportProcessor, "create_parquet_table")
-    def test_handle_daily_frames_postgres(self, mock_create_table, mock_get_processor):
+    def test_handle_daily_frames_postgres(self, mock_get_processor):
         """Test handle_daily_frames_postgres writes to SQL."""
         mock_processor = MagicMock()
         mock_get_processor.return_value = mock_processor
@@ -888,13 +887,12 @@ class TestParquetReportProcessor(MasuTestCase):
 
         report_processor.handle_daily_frames_postgres(data_frames, metadata)
 
-        mock_create_table.assert_called_once()
-        mock_processor.write_dataframe_to_sql.assert_called()
+        mock_processor.write_to_self_hosted_table.assert_called()
 
     @override_settings(ONPREM=True)
     @patch.object(ParquetReportProcessor, "_get_report_processor")
     def test_write_dataframe(self, mock_get_processor):
-        """Test _write_dataframe calls processor.write_dataframe_to_sql."""
+        """Test _write_dataframe calls processor.write_to_self_hosted_table."""
         mock_processor = MagicMock()
         mock_get_processor.return_value = mock_processor
 
@@ -911,7 +909,7 @@ class TestParquetReportProcessor(MasuTestCase):
         )
 
         report_processor._write_dataframe(data_frame, metadata)
-        mock_processor.write_dataframe_to_sql.assert_called_once_with(data_frame, metadata)
+        mock_processor.write_to_self_hosted_table.assert_called_once_with(data_frame, metadata)
 
     @override_settings(ONPREM=True)
     @patch.object(ParquetReportProcessor, "_get_report_processor")

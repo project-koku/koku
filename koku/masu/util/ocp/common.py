@@ -714,8 +714,8 @@ class DistributionConfig(BaseModel):
         if self.is_trino:
             from django.conf import settings
 
-            # For Trino queries, use postgres_sql in ONPREM mode, otherwise trino_sql
-            sql_folder = "postgres_sql" if getattr(settings, "ONPREM", False) else "trino_sql"
+            # For Trino queries, use self_hosted_sql in ONPREM mode, otherwise trino_sql
+            sql_folder = "self_hosted_sql" if getattr(settings, "ONPREM", False) else "trino_sql"
             base_path = f"{sql_folder}/openshift/cost_model/distribute_cost/"
         else:
             # For PostgreSQL queries, always use sql/

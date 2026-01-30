@@ -6,7 +6,6 @@
 from datetime import date
 from unittest.mock import patch
 
-import pandas as pd
 from django_tenants.utils import schema_context
 
 from api.common import log_json
@@ -108,21 +107,6 @@ class GCPReportProcessorParquetTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertNotEqual(PartitionedTable.objects.filter(table_name=table_name).count(), 0)
-
-    def test_get_table_names_for_delete(self):
-        """Test that all table names are returned."""
-        table_names = self.processor.get_table_names_for_delete()
-        self.assertEqual(len(table_names), 3)
-        self.assertIn(TRINO_LINE_ITEM_TABLE, table_names)
-        self.assertIn(TRINO_LINE_ITEM_DAILY_TABLE, table_names)
-        self.assertIn(TRINO_OCP_ON_GCP_DAILY_TABLE, table_names)
-
-    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase.write_dataframe_to_sql")
-    def test_write_dataframe_to_sql(self, _):
-        """Test write_dataframe_to_sql adds manifestid column."""
-        data_frame = pd.DataFrame({"col1": [1, 2]})
-        self.processor.write_dataframe_to_sql(data_frame, {})
-        self.assertIn("manifestid", data_frame.columns)
 
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._generate_create_table_sql")
     def test_generate_create_table_sql(self, _):

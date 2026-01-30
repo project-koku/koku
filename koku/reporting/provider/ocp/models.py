@@ -1023,3 +1023,19 @@ class OCPGpuSummaryP(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
+
+
+# Import on-prem line item models so Django can discover them for migrations
+# These models are only used when ONPREM=True, but need to be discoverable for migrations
+from reporting.provider.ocp.self_hosted_models import OCPGPUUsageLineItem  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPGPUUsageLineItemDaily  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPNamespaceLabelsLineItem  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPNamespaceLabelsLineItemDaily  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPNodeLabelsLineItem  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPNodeLabelsLineItemDaily  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPPodUsageLineItem  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPPodUsageLineItemDaily  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPStorageUsageLineItem  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPStorageUsageLineItemDaily  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPVMUsageLineItem  # noqa: E402, F401
+from reporting.provider.ocp.self_hosted_models import OCPVMUsageLineItemDaily  # noqa: E402, F401
