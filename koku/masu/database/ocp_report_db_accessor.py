@@ -308,7 +308,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def delete_ocp_hive_partition_by_day(self, days, source, year, month):
         """Deletes partitions individually for each day in days list."""
-        table = list(TRINO_MANAGED_TABLES.keys())[0]
+        if not TRINO_MANAGED_TABLES:
+            # On-prem mode - deletion handled in SQL file
+            return
+        table = "reporting_ocpusagelineitem_daily_summary"
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
@@ -352,6 +355,49 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
         )
         return True
+
+    def delete_self_hosted_data_by_source(self, provider_uuid):
+        """Delete data from all self-hosted tables by source UUID (for on-prem).
+
+        This deletes data from the line item tables and staging table when a source is deleted.
+
+        Args:
+            provider_uuid: The provider UUID to delete data for
+        """
+        from reporting.provider.ocp.self_hosted_models import get_self_hosted_models
+        from reporting.provider.ocp.self_hosted_models import OCPUsageLineItemDailySummaryStaging
+
+        provider_uuid_str = str(provider_uuid)
+        total_deleted = 0
+
+        with schema_context(self.schema):
+            for model in get_self_hosted_models():
+                # Staging table uses source_uuid, line item tables use source
+                if model == OCPUsageLineItemDailySummaryStaging:
+                    deleted_count, _ = model.objects.filter(source_uuid=provider_uuid_str).delete()
+                else:
+                    deleted_count, _ = model.objects.filter(source=provider_uuid_str).delete()
+
+                if deleted_count:
+                    LOG.info(
+                        log_json(
+                            msg="deleted self-hosted data by source",
+                            table=model._meta.db_table,
+                            provider_uuid=provider_uuid_str,
+                            deleted_count=deleted_count,
+                        )
+                    )
+                    total_deleted += deleted_count
+
+        LOG.info(
+            log_json(
+                msg="completed self-hosted data cleanup by source",
+                schema=self.schema,
+                provider_uuid=provider_uuid_str,
+                total_deleted=total_deleted,
+            )
+        )
+        return total_deleted
 
     def find_expired_trino_partitions(self, table, source_column, date_str):
         """Queries Trino for partitions less than the parition date."""

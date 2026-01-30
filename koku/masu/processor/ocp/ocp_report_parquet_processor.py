@@ -18,6 +18,8 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_MAP
+from reporting.provider.ocp.self_hosted_models import SELF_HOSTED_DAILY_MODEL_MAP
+from reporting.provider.ocp.self_hosted_models import SELF_HOSTED_MODEL_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -26,8 +28,10 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, report_type, start_date):
         if "daily" in s3_path:
             ocp_table_name = TRINO_LINE_ITEM_TABLE_DAILY_MAP[report_type]
+            self._is_daily = True
         else:
             ocp_table_name = TRINO_LINE_ITEM_TABLE_MAP[report_type]
+            self._is_daily = False
 
         self._report_type = report_type
         self._date_column = "interval_start"
@@ -85,6 +89,18 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
     def postgres_summary_table(self):
         """Return the mode for the source specific summary table."""
         return OCPUsageLineItemDailySummary
+
+    @property
+    def self_hosted_line_item_model(self):
+        """Return the Django model for line item data (self-hosted/on-prem only).
+
+        This leverages Django models instead of raw SQL table creation,
+        enabling automatic migrations and consistent partition management.
+        """
+        if self._is_daily:
+            return SELF_HOSTED_DAILY_MODEL_MAP.get(self._report_type)
+        else:
+            return SELF_HOSTED_MODEL_MAP.get(self._report_type)
 
     def get_table_names_for_delete(self):
         """Return both raw and daily table names for OCP."""
@@ -211,9 +227,62 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                 bill.cluster_alias = cluster_alias
                 bill.save(update_fields=["cluster_alias"])
 
-    def write_dataframe_to_sql(self, data_frame, metadata):
+    def write_to_self_hosted_table(self, data_frame, metadata):
+        """Write dataframe to PostgreSQL for on-prem using Django model infrastructure.
+
+        This method is only called for on-prem deployments. SaaS writes to S3 parquet files instead.
+        Uses the standard partition naming convention (tablename_YYYY_MM) and the existing
+        partition infrastructure (get_or_create_postgres_partition).
+        """
+        import pandas as pd
+        from uuid import uuid4
+
+        from sqlalchemy import create_engine
+
+        from koku.reportdb_accessor import get_report_db_accessor
+
         data_frame["reportnumhours"] = metadata["ReportNumHours"]
-        super().write_dataframe_to_sql(data_frame, metadata)
+
+        model = self.self_hosted_line_item_model
+        if not model:
+            raise NotImplementedError(
+                f"No Django model found for OCP report type '{self._report_type}'. "
+                "On-prem requires Django models for all supported report types."
+            )
+
+        # Ensure partitions exist using the standard infrastructure
+        # This is the same partitioning structure we utilize in the SaaS for
+        # our postgresql summary tables.
+        self.get_or_create_postgres_partition(self._start_date, model=model)
+
+        table_name = model._meta.db_table
+
+        # Add partition tracking columns
+        data_frame["year"] = self._year
+        data_frame["month"] = self._month
+        data_frame["source"] = str(self._provider_uuid)  # Store as string for SQL join compatibility
+
+        # Add usage_start as date (derived from interval_start) for partition column
+        # PostgreSQL uses this to route rows to the correct partition automatically
+        if "interval_start" in data_frame.columns:
+            data_frame["usage_start"] = pd.to_datetime(data_frame["interval_start"]).dt.date
+
+        # Generate UUIDs for each row (required for partitioned tables)
+        data_frame["id"] = [uuid4() for _ in range(len(data_frame))]
+
+        # Write to the parent table - PostgreSQL routes to correct partition based on usage_start
+        with get_report_db_accessor().connect() as connection:
+            engine = create_engine("postgresql://", creator=lambda: connection.getConnection())
+            data_frame.to_sql(name=table_name, con=engine, schema=self._schema_name, if_exists="append", index=False)
+
+        LOG.info(
+            log_json(
+                msg="wrote dataframe to postgresql",
+                schema=self._schema_name,
+                table=table_name,
+                rows=len(data_frame),
+            )
+        )
 
     def _generate_create_table_sql(self, column_names):
         column_names.append("reportnumhours")

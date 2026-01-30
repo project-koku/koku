@@ -37,7 +37,7 @@ WITH filtered_data as (
         ouds.node,
         DATE(nsp.interval_start) as usage_start
     from {{schema | sqlsafe}}.openshift_namespace_labels_line_items_daily as nsp
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_trino as ouds
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_staging as ouds
         ON nsp.month = lpad(ouds.month, 2, '0')
         AND nsp.year = ouds.year
         AND nsp.source = ouds.source

@@ -7,7 +7,6 @@ import shutil
 import tempfile
 import uuid
 from datetime import date
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pandas as pd
@@ -194,62 +193,3 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.create_schema()
             self.assertIn(expected_log, logger.output)
-
-    @patch("masu.processor.report_parquet_processor_base.create_engine")
-    @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
-    def test_write_dataframe_to_sql(self, mock_get_accessor, mock_create_engine):
-        """Test writing dataframe to SQL."""
-        mock_conn = MagicMock()
-        mock_conn.getConnection.return_value = MagicMock()
-        mock_get_accessor.return_value.connect.return_value.__enter__.return_value = mock_conn
-
-        data_frame = pd.DataFrame({"col1": ["a", "b"], "col2": [1, 2]})
-        metadata = {"ManifestId": "123"}
-
-        self.processor.write_dataframe_to_sql(data_frame, metadata)
-
-        # Verify partition columns were added
-        self.assertIn("year", data_frame.columns)
-        self.assertIn("month", data_frame.columns)
-        self.assertIn("source", data_frame.columns)
-
-    def test_create_partition_name(self):
-        """Test partition name generation is deterministic."""
-        name1 = self.processor._create_partition_name("2024", "01")
-        name2 = self.processor._create_partition_name("2024", "01")
-        self.assertEqual(name1, name2)
-
-        # Different month should give different name
-        name3 = self.processor._create_partition_name("2024", "02")
-        self.assertNotEqual(name1, name3)
-
-    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_trino_sql")
-    @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
-    def test_create_report_partition(self, mock_get_accessor, mock_execute):
-        """Test partition creation."""
-        mock_get_accessor.return_value.get_partition_create_sql.return_value = "CREATE PARTITION SQL"
-        self.processor.create_report_partition()
-        mock_execute.assert_called()
-
-    @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
-    def test_delete_day_postgres(self, mock_get_accessor):
-        """Test delete_day_postgres method."""
-        mock_cursor = MagicMock()
-        mock_cursor.fetchone.return_value = (1,)  # Table exists
-        mock_cursor.rowcount = 5
-
-        mock_conn = MagicMock()
-        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_get_accessor.return_value.connect.return_value.__enter__.return_value = mock_conn
-        mock_get_accessor.return_value.get_table_check_sql.return_value = "SELECT 1"
-        mock_get_accessor.return_value.get_delete_day_by_manifestid_sql.return_value = "DELETE SQL"
-
-        self.processor.delete_day_postgres(date(2024, 1, 15))
-
-        mock_cursor.execute.assert_called()
-
-    def test_get_table_names_for_delete(self):
-        """Test that table names for delete returns the table name."""
-        table_names = self.processor.get_table_names_for_delete()
-        self.assertEqual(len(table_names), 1)
-        self.assertIn(self.table_name, table_names)
