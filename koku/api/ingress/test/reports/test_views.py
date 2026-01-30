@@ -151,8 +151,26 @@ class ReportsViewTest(MasuTestCase):
         """Test POST ingress reports with no customer attribute on user."""
         url = reverse("reports")
         client = APIClient()
-        with patch("api.ingress.reports.view.getattr", return_value=None):
+        with patch("api.ingress.reports.view.has_customer_object", return_value=None):
             response = client.post(url, data={}, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.json(), {"Error": "Invalid request."})
+
+    def test_get_no_customer(self):
+        """Test GET ingress reports with no customer attribute on user."""
+        url = reverse("reports")
+        client = APIClient()
+        with patch("api.ingress.reports.view.has_customer_object", return_value=None):
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.json(), {"Error": "Invalid request."})
+
+    def test_get_detail_no_customer(self):
+        """Test GET ingress report details with no customer attribute on user."""
+        url = f"{reverse('reports')}{self.gcp_provider.uuid}/"
+        client = APIClient()
+        with patch("api.ingress.reports.view.has_customer_object", return_value=None):
+            response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertEqual(response.json(), {"Error": "Invalid request."})
 
