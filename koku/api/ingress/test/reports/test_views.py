@@ -14,6 +14,7 @@ from model_bakery import baker
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from api.iam.test.iam_test_case import RbacPermissions
 from masu.test import MasuTestCase
 
 FAKE = Faker()
@@ -74,7 +75,8 @@ class ReportsViewTest(MasuTestCase):
         url = f"{reverse('reports')}invalid/"
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.json(), {"Error": "Invalid request."})
 
     def test_get_non_existant_source_reports(self):
         """Test to get reports for a non existant source."""
@@ -109,6 +111,7 @@ class ReportsViewTest(MasuTestCase):
         response = client.post(url, data=post_data, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    @RbacPermissions({"aws.account": {"write": ["*"]}})
     @patch("api.ingress.reports.serializers.ProviderAccessor.check_file_access")
     def test_post_ingress_reports_invalid_uuid(self, _):
         """Test to post reports for a particular source."""
@@ -121,23 +124,28 @@ class ReportsViewTest(MasuTestCase):
         }
         client = APIClient()
         response = client.post(url, data=post_data, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Invalid request", str(response.json()))
 
+    @RbacPermissions({"aws.account": {"read": []}})
     @patch("api.ingress.reports.view.IngressAccessPermission.has_any_read_access", return_value=False)
     def test_get_view_no_access(self, _):
         """Test GET ingress reports with no read access."""
         url = reverse("reports")
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.json(), {"Error": "Invalid request."})
 
+    @RbacPermissions({"aws.account": {"read": []}})
     @patch("api.ingress.reports.view.IngressAccessPermission.has_access", return_value=False)
     def test_get_source_view_no_access(self, _):
         """Test GET ingress reports for a source with no read access."""
         url = f"{reverse('reports')}{self.gcp_provider.uuid}/"
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.json(), {"Error": "Invalid request."})
 
     def test_post_no_customer(self):
         """Test POST ingress reports with no customer attribute on user."""
@@ -145,7 +153,8 @@ class ReportsViewTest(MasuTestCase):
         client = APIClient()
         with patch("api.ingress.reports.view.getattr", return_value=None):
             response = client.post(url, data={}, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.json(), {"Error": "Invalid request."})
 
     def test_post_source_not_found(self):
         """Test POST ingress reports with non-existent source."""
@@ -158,8 +167,10 @@ class ReportsViewTest(MasuTestCase):
         }
         client = APIClient()
         response = client.post(url, data=post_data, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.json(), {"Error": "Invalid request."})
 
+    @RbacPermissions({"aws.account": {"write": []}})
     @patch("api.ingress.reports.view.is_ingress_rbac_grace_period_enabled", return_value=False)
     @patch("api.ingress.reports.view.IngressAccessPermission.has_access", return_value=False)
     def test_post_no_write_access(self, *args):
@@ -173,8 +184,10 @@ class ReportsViewTest(MasuTestCase):
         }
         client = APIClient()
         response = client.post(url, data=post_data, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.json(), {"Error": "Invalid request."})
 
+    @RbacPermissions({"aws.account": {"write": ["*"]}})
     @patch("api.ingress.reports.serializers.ProviderAccessor.check_file_access")
     def test_post_ingress_reports(self, _):
         """Test to post reports for a particular source."""
@@ -207,7 +220,7 @@ class ReportsViewTest(MasuTestCase):
         # second submission for the same month/source should be rate-limited (400)
         response = client.post(url, data=post_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("already being processed", str(response.json()))
+        self.assertIn("Invalid request", str(response.json()))
 
     @patch("api.ingress.reports.view.is_ingress_rbac_grace_period_enabled", return_value=True)
     @patch("api.ingress.reports.view.IngressAccessPermission.has_access", return_value=False)
@@ -230,7 +243,7 @@ class ReportsViewTest(MasuTestCase):
         """Test POST ingress reports when validation fails."""
         mock_is_valid.return_value = False
         with patch("api.ingress.reports.view.IngressReportsSerializer.errors", new_callable=PropertyMock) as mock_err:
-            mock_err.return_value = {"error": "validation failed"}
+            mock_err.return_value = {"Error": "Invalid request."}
             url = reverse("reports")
             post_data = {
                 "source": str(self.aws_provider.uuid),
@@ -241,4 +254,4 @@ class ReportsViewTest(MasuTestCase):
             client = APIClient()
             response = client.post(url, data=post_data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertEqual(response.json(), {"error": "validation failed"})
+            self.assertEqual(response.json(), {"Error": "Invalid request."})
