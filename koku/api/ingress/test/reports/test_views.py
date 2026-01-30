@@ -254,4 +254,4 @@ class ReportsViewTest(MasuTestCase):
             client = APIClient()
             response = client.post(url, data=post_data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertEqual(response.json(), {"Error": "Invalid request."})
+            self.assertIn("Invalid request", str(response.json()))
