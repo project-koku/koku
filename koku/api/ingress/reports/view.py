@@ -128,24 +128,21 @@ class IngressReportsView(APIView):
                 "schema_name": schema_name,
             }
             serializer = IngressReportsSerializer(data=data)
-            if serializer.is_valid(raise_exception=True):
-                serializer.save()
-                data["ingress_report_uuid"] = serializer.data.get("uuid")
-                data["status"] = serializer.data.get("status")
-                IngressReports.ingest(data)
-                paginator = ListPaginator(data, request)
-                LOG.info(
-                    log_json(
-                        msg="Ingress report validated and ingestion triggered.",
-                        ingress_report_uuid=data["ingress_report_uuid"],
-                        bill_period=f"{data['bill_year']}-{data['bill_month']}",
-                        **context,
-                    )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            data["ingress_report_uuid"] = serializer.data.get("uuid")
+            data["status"] = serializer.data.get("status")
+            IngressReports.ingest(data)
+            paginator = ListPaginator(data, request)
+            LOG.info(
+                log_json(
+                    msg="Ingress report validated and ingestion triggered.",
+                    ingress_report_uuid=data["ingress_report_uuid"],
+                    bill_period=f"{data['bill_year']}-{data['bill_month']}",
+                    **context,
                 )
-                return paginator.get_paginated_response(data)
-            else:
-                LOG.warning(log_json(msg="Ingress report validation failed.", **context), exc_info=serializer.errors)
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            )
+            return paginator.get_paginated_response(data)
 
         LOG.warning(log_json(msg="Unauthorized ingress report post access.", **context))
         return Response({"Error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)

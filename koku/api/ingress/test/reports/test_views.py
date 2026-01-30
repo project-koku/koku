@@ -203,6 +203,7 @@ class ReportsViewTest(MasuTestCase):
         self.assertEqual(response.json().get("data").get("source"), str(self.aws_provider.uuid))
         self.assertEqual(response.json().get("data").get("reports_list"), post_data.get("reports_list"))
 
+    @RbacPermissions({"aws.account": {"write": ["*"]}})
     @patch("api.ingress.reports.serializers.is_ingress_rate_limiting_disabled", return_value=False)
     @patch("api.ingress.reports.serializers.ProviderAccessor.check_file_access")
     def test_post_ingress_reports_rate_limited(self, *args):
@@ -220,7 +221,7 @@ class ReportsViewTest(MasuTestCase):
         # second submission for the same month/source should be rate-limited (400)
         response = client.post(url, data=post_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Invalid request", str(response.json()))
+        self.assertIn("already being processed", str(response.json()))
 
     @patch("api.ingress.reports.view.is_ingress_rbac_grace_period_enabled", return_value=True)
     @patch("api.ingress.reports.view.IngressAccessPermission.has_access", return_value=False)
