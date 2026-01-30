@@ -32,10 +32,12 @@ class StatusAPITest(TestCase):
         super().setUp()
         logging.disable(logging.NOTSET)
 
+    @patch("masu.api.status.RbacService")
     @patch("masu.api.status.ApplicationStatus.celery_status", new_callable=PropertyMock)
-    def test_status(self, mock_celery):
+    def test_status(self, mock_celery, mock_rbac_service):
         """Test the status endpoint."""
         mock_celery.return_value = {"celery@koku_worker": {}}
+        mock_rbac_service.return_value.get_cache_ttl.return_value = 30
         response = self.client.get(reverse("server-status"))
         body = response.data
 
@@ -44,22 +46,29 @@ class StatusAPITest(TestCase):
         self.assertIn("api_version", body)
         self.assertIn("celery_status", body)
         self.assertIn("commit", body)
+        self.assertIn("config", body)
         self.assertIn("current_datetime", body)
         self.assertIn("database_status", body)
-        self.assertIn("debug", body)
         self.assertIn("modules", body)
         self.assertIn("platform_info", body)
         self.assertIn("python_version", body)
+
+        # Verify config fields
+        self.assertIn("debug", body["config"])
+        self.assertIn("masu_retain_num_months", body["config"])
+        self.assertIn("rbac_cache_ttl", body["config"])
 
         self.assertEqual(body["api_version"], API_VERSION)
         self.assertIsNotNone(body["celery_status"])
         self.assertIsNotNone(body["commit"])
         self.assertIsNotNone(body["current_datetime"])
         self.assertIsNotNone(body["database_status"])
-        self.assertIsNotNone(body["debug"])
+        self.assertIsNotNone(body["config"]["debug"])
+        self.assertIsNotNone(body["config"]["masu_retain_num_months"])
         self.assertIsNotNone(body["modules"])
         self.assertIsNotNone(body["platform_info"])
         self.assertIsNotNone(body["python_version"])
+        self.assertEqual(body["config"]["rbac_cache_ttl"], 30)
 
     @patch("masu.api.status.celery_app")
     def test_status_celery_param(self, mock_celery):
