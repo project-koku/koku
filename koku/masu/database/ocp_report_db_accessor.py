@@ -301,7 +301,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def delete_ocp_hive_partition_by_day(self, days, source, year, month):
         """Deletes partitions individually for each day in days list."""
-        table = list(TRINO_MANAGED_TABLES.keys())[0]
+        if not TRINO_MANAGED_TABLES:
+            # On-prem mode - deletion handled in SQL file
+            return
+        table = "reporting_ocpusagelineitem_daily_summary"
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(

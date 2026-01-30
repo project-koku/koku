@@ -384,7 +384,8 @@ class OCPUsageLineItemDailySummaryStaging(models.Model):
         partition_type = "RANGE"
         partition_cols = ["usage_start"]
 
-    id = models.UUIDField(primary_key=True, default=uuid4)
+    # uuid is a placeholder column - always NULL in staging, real UUID generated on copy to final table
+    uuid = models.CharField(max_length=64, null=True)
     usage_start = models.DateField(null=True, db_index=True)
 
     # Report metadata

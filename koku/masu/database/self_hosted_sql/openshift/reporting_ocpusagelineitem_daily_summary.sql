@@ -14,6 +14,14 @@ RETURNS text AS $$
     WHERE key = ANY(allowed_keys)
 $$ LANGUAGE sql IMMUTABLE;
 
+-- Delete existing staging data for this source/date range to prevent duplicates
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_staging
+WHERE source = {{source}}
+    AND year = {{year}}
+    AND lpad(month, 2, '0') = {{month}}
+    AND usage_start >= {{start_date}}
+    AND usage_start < {{end_date}} + INTERVAL '1 day';
+
 -- First INSERT: Pod and Storage usage aggregation
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_staging (
     uuid,

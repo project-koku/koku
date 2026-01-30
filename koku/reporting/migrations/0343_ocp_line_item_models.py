@@ -407,7 +407,8 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPUsageLineItemDailySummaryStaging",
             fields=[
-                ("id", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("uuid", models.CharField(max_length=64, null=True)),
                 ("usage_start", models.DateField(db_index=True, null=True)),
                 ("report_period_id", models.IntegerField(null=True)),
                 ("cluster_id", models.CharField(max_length=256, null=True)),
