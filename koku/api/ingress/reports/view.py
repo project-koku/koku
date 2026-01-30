@@ -88,6 +88,7 @@ class IngressReportsView(APIView):
             return Response({"Error": "Unauthorized."}, status=status.HTTP_401_UNAUTHORIZED)
 
         org_id = request.user.customer.org_id
+        schema_name = request.user.customer.schema_name
         source_ref = request.data.get("source")
 
         if not source_ref:
@@ -103,7 +104,7 @@ class IngressReportsView(APIView):
             LOG.info(log_json(msg="ingress report post source not found", source_ref=source_ref, org_id=org_id))
             return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if not is_ingress_rbac_grace_period_enabled(org_id) and not IngressAccessPermission.has_access(
+        if not is_ingress_rbac_grace_period_enabled(schema_name) and not IngressAccessPermission.has_access(
             request, source.source_type, write=True
         ):
             LOG.warning(
@@ -121,7 +122,7 @@ class IngressReportsView(APIView):
             "reports_list": request.data.get("reports_list"),
             "bill_year": request.data.get("bill_year"),
             "bill_month": request.data.get("bill_month"),
-            "schema_name": request.user.customer.schema_name,
+            "schema_name": schema_name,
         }
         serializer = IngressReportsSerializer(data=data)
         if serializer.is_valid(raise_exception=True):
