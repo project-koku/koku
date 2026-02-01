@@ -445,13 +445,12 @@ def source_in_trino_table(schema_name, source_uuid, table_name):
 def convert_account(account):
     """Process the account string for Unleash checks."""
 
-    if not account or account.startswith("acct") or account.startswith("org"):
-        return account
-
-    # find the customer with account_id or org_id
-    customer = Customer.objects.filter(Q(account_id=account) | Q(org_id=account)).first()
-    if customer:
-        return customer.schema_name
+    if account and not account.startswith(("acct", "org")):
+        # find the customer with account_id or org_id
+        customer = Customer.objects.filter(Q(account_id=account) | Q(org_id=account)).first()
+        if customer:
+            return customer.schema_name
+    return account
 
 
 def filter_dictionary(dictionary, keys_to_keep):
