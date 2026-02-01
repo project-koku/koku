@@ -567,17 +567,18 @@ class CommonUtilTests(MasuTestCase):
 
     def test_convert_account(self):
         """Test that the correct account string is returned."""
-        account_str = "1234567"
-        account = common_utils.convert_account(account_str)
-        self.assertIn("acct", account)
+        test_matrix = [
+            {"account": "1234567", "expected": "org1234567"},
+            {"account": "acct1234567", "expected": "acct1234567"},
+            {"account": "org1234567", "expected": "org1234567"},
+            {"account": "", "expected": ""},
+            {"account": None, "expected": None},
+        ]
 
-        account_str = "acct1234567"
-        account = common_utils.convert_account(account_str)
-        self.assertEqual(account_str, account)
-
-        account_str = "org1234567"
-        account = common_utils.convert_account(account_str)
-        self.assertEqual(account_str, account)
+        for case in test_matrix:
+            with self.subTest(case=case):
+                account = common_utils.convert_account(case["account"])
+                self.assertEqual(account, case["expected"])
 
     def test_filter_dictionary(self):
         """Test the filter dictionary util."""

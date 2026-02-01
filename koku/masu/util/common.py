@@ -25,6 +25,7 @@ from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
 from django.conf import settings
+from django.db.models import Q
 from django_tenants.utils import schema_context
 from pydantic import BaseModel
 from pydantic import Field
@@ -32,6 +33,7 @@ from pydantic import field_validator
 
 import koku.trino_database as trino_db
 from api.common import log_json
+from api.iam.models import Customer
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -442,9 +444,14 @@ def source_in_trino_table(schema_name, source_uuid, table_name):
 
 def convert_account(account):
     """Process the account string for Unleash checks."""
-    if account and not account.startswith("acct") and not account.startswith("org"):
-        account = f"acct{account}"
-    return account
+
+    if not account or account.startswith("acct") or account.startswith("org"):
+        return account
+
+    # find the customer with account_id or org_id
+    customer = Customer.objects.filter(Q(account_id=account) | Q(org_id=account)).first()
+    if customer:
+        return customer.schema_name
 
 
 def filter_dictionary(dictionary, keys_to_keep):
