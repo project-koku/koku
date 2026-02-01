@@ -97,7 +97,3 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
                 payer_account_id=payer_account_id,
                 provider_id=provider.uuid,
             )
-
-    def _generate_create_table_sql(self, column_names):
-        column_names.append("manifestid")
-        return super()._generate_create_table_sql(column_names)

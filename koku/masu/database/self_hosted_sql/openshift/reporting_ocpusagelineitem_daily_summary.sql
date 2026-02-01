@@ -73,7 +73,7 @@ WITH cte_pg_enabled_keys as (
     AND provider_type = 'OCP'
 ),
 cte_ocp_node_label_line_item_daily AS (
-    SELECT date(nli.interval_start) as usage_start,
+    SELECT nli.usage_start,
         nli.node,
         {{schema | sqlsafe}}.filter_json_by_keys(nli.node_labels, pek.keys)::jsonb as node_labels
     FROM {{schema | sqlsafe}}.openshift_node_labels_line_items_daily AS nli
@@ -81,14 +81,14 @@ cte_ocp_node_label_line_item_daily AS (
     WHERE nli.source = {{source}}
        AND nli.year = {{year}}
        AND nli.month = {{month}}
-       AND nli.interval_start >= {{start_date}}
-       AND nli.interval_start < {{end_date}} + INTERVAL '1 day'
-    GROUP BY date(nli.interval_start),
+       AND nli.usage_start >= {{start_date}}
+       AND nli.usage_start < {{end_date}} + INTERVAL '1 day'
+    GROUP BY nli.usage_start,
         nli.node,
         3
 ),
 cte_ocp_namespace_label_line_item_daily AS (
-    SELECT date(nli.interval_start) as usage_start,
+    SELECT nli.usage_start,
         nli.namespace,
         {{schema | sqlsafe}}.filter_json_by_keys(nli.namespace_labels, pek.keys)::jsonb as namespace_labels
     FROM {{schema | sqlsafe}}.openshift_namespace_labels_line_items_daily AS nli
@@ -96,19 +96,20 @@ cte_ocp_namespace_label_line_item_daily AS (
     WHERE nli.source = {{source}}
        AND nli.year = {{year}}
        AND nli.month = {{month}}
-       AND nli.interval_start >= {{start_date}}
-       AND nli.interval_start < {{end_date}} + INTERVAL '1 day'
-    GROUP BY date(nli.interval_start),
+       AND nli.usage_start >= {{start_date}}
+       AND nli.usage_start < {{end_date}} + INTERVAL '1 day'
+    GROUP BY nli.usage_start,
         nli.namespace,
         3
 ),
 cte_ocp_node_capacity AS (
-    SELECT date(nc.interval_start) as usage_start,
+    SELECT nc.usage_start,
         nc.node,
         sum(nc.node_capacity_cpu_core_seconds) as node_capacity_cpu_core_seconds,
         sum(nc.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds
     FROM (
-        SELECT li.interval_start,
+        SELECT li.usage_start,
+            li.interval_start,
             li.node,
             max(li.node_capacity_cpu_core_seconds) as node_capacity_cpu_core_seconds,
             max(li.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds
@@ -116,12 +117,13 @@ cte_ocp_node_capacity AS (
         WHERE li.source = {{source}}
             AND li.year = {{year}}
             AND li.month = {{month}}
-            AND li.interval_start >= {{start_date}}
-            AND li.interval_start < {{end_date}} + INTERVAL '1 day'
-        GROUP BY li.interval_start,
+            AND li.usage_start >= {{start_date}}
+            AND li.usage_start < {{end_date}} + INTERVAL '1 day'
+        GROUP BY li.usage_start,
+            li.interval_start,
             li.node
     ) as nc
-    GROUP BY date(nc.interval_start),
+    GROUP BY nc.usage_start,
         nc.node
 ),
 cte_ocp_cluster_capacity AS (
@@ -135,7 +137,7 @@ cte_ocp_cluster_capacity AS (
 ,
 -- Determine which node a PVC is running on
 cte_volume_nodes AS (
-    SELECT date(sli.interval_start) as usage_start,
+    SELECT sli.usage_start,
         sli.persistentvolumeclaim,
         sli.persistentvolume,
         sli.pod,
@@ -147,16 +149,16 @@ cte_volume_nodes AS (
         ON uli.source = sli.source
             AND uli.namespace = sli.namespace
             AND uli.pod = sli.pod
-            AND date(uli.interval_start) = date(sli.interval_start)
+            AND uli.usage_start = sli.usage_start
      WHERE sli.source = {{source}}
         AND sli.year = {{year}}
         AND sli.month = {{month}}
-        AND sli.interval_start >= {{start_date}}
-        AND sli.interval_start < {{end_date}} + INTERVAL '1 day'
+        AND sli.usage_start >= {{start_date}}
+        AND sli.usage_start < {{end_date}} + INTERVAL '1 day'
         AND uli.source = {{source}}
         AND uli.year = {{year}}
         AND uli.month = {{month}}
-     GROUP BY date(sli.interval_start),
+     GROUP BY sli.usage_start,
           sli.persistentvolumeclaim,
           sli.persistentvolume,
           sli.pod,
@@ -221,7 +223,7 @@ SELECT null as uuid,
     EXTRACT(MONTH FROM pua.usage_start)::text as month,
     EXTRACT(DAY FROM pua.usage_start)::text as day
 FROM (
-    SELECT date(li.interval_start) as usage_start,
+    SELECT li.usage_start,
         li.namespace,
         li.node,
         max(cat_ns.cost_category_id) as cost_category_id,
@@ -251,24 +253,24 @@ FROM (
     CROSS JOIN cte_pg_enabled_keys AS pek
     LEFT JOIN cte_ocp_node_label_line_item_daily as nli
         ON nli.node = li.node
-            AND nli.usage_start = date(li.interval_start)
+            AND nli.usage_start = li.usage_start
     LEFT JOIN cte_ocp_namespace_label_line_item_daily as nsli
         ON nsli.namespace = li.namespace
-            AND nsli.usage_start = date(li.interval_start)
+            AND nsli.usage_start = li.usage_start
     LEFT JOIN cte_ocp_node_capacity as nc
-        ON nc.usage_start = date(li.interval_start)
+        ON nc.usage_start = li.usage_start
             AND nc.node = li.node
     LEFT JOIN cte_ocp_cluster_capacity as cc
-        ON cc.usage_start = date(li.interval_start)
+        ON cc.usage_start = li.usage_start
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
         ON li.namespace LIKE cat_ns.namespace
     WHERE li.source = {{source}}
         AND li.year = {{year}}
         AND li.month = {{month}}
-        AND li.interval_start >= {{start_date}}
-        AND li.interval_start < {{end_date}} + INTERVAL '1 day'
+        AND li.usage_start >= {{start_date}}
+        AND li.usage_start < {{end_date}} + INTERVAL '1 day'
         AND li.node != ''
-    GROUP BY date(li.interval_start),
+    GROUP BY li.usage_start,
         li.namespace,
         li.node,
         li.source,
@@ -349,7 +351,7 @@ FROM (
         sli.persistentvolumeclaim,
         sli.persistentvolume,
         sli.storageclass,
-        date(sli.interval_start) as usage_start,
+        sli.usage_start,
         COALESCE(
             COALESCE(nli.node_labels, '{}'::jsonb) ||
             COALESCE(nsli.namespace_labels, '{}'::jsonb) ||
@@ -368,26 +370,26 @@ FROM (
     FROM {{schema | sqlsafe}}.openshift_storage_usage_line_items_daily sli
     CROSS JOIN cte_pg_enabled_keys AS pek
     LEFT JOIN cte_volume_nodes as vn
-        ON vn.usage_start = date(sli.interval_start)
+        ON vn.usage_start = sli.usage_start
             AND vn.persistentvolumeclaim = sli.persistentvolumeclaim
             AND vn.pod = sli.pod
             AND vn.namespace = sli.namespace
     LEFT JOIN cte_shared_volume_node_count as nc
-        ON nc.usage_start = date(sli.interval_start)
+        ON nc.usage_start = sli.usage_start
             AND nc.persistentvolume = sli.persistentvolume
     LEFT JOIN cte_ocp_node_label_line_item_daily as nli
         ON nli.node = vn.node
             AND nli.usage_start = vn.usage_start
     LEFT JOIN cte_ocp_namespace_label_line_item_daily as nsli
         ON nsli.namespace = sli.namespace
-            AND nsli.usage_start = date(sli.interval_start)
+            AND nsli.usage_start = sli.usage_start
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
         ON sli.namespace LIKE cat_ns.namespace
     WHERE sli.source = {{source}}
         AND sli.year = {{year}}
         AND sli.month = {{month}}
-        AND sli.interval_start >= {{start_date}}
-        AND sli.interval_start < {{end_date}} + INTERVAL '1 day'
+        AND sli.usage_start >= {{start_date}}
+        AND sli.usage_start < {{end_date}} + INTERVAL '1 day'
     GROUP BY sli.namespace,
         vn.node,
         vn.resource_id,
@@ -395,7 +397,7 @@ FROM (
         sli.persistentvolume,
         sli.storageclass,
         sli.csi_volume_handle,
-        date(sli.interval_start),
+        sli.usage_start,
         8,  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE volume_labels EXPRESSION */
             /* The volume_labels expression was too complex for PostgreSQL to use */
         sli.source

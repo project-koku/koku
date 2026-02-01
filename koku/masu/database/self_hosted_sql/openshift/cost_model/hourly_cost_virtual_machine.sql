@@ -37,7 +37,7 @@ FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN (
     SELECT
         vm_name,
-        DATE(interval_start) as interval_day,
+        usage_start as interval_day,
         sum(vm_uptime_total_seconds) / 3600 AS vm_interval_hours
     FROM {{schema | sqlsafe}}.openshift_vm_usage_line_items
     WHERE source = {{source_uuid}}
@@ -46,12 +46,12 @@ JOIN (
     GROUP BY 1, 2
 ) AS vmhrs
     ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = vmhrs.vm_name
-    AND DATE(vmhrs.interval_day) = lids.usage_start
+    AND vmhrs.interval_day = lids.usage_start
 {%- else %}
 JOIN (
     SELECT
         pod_labels::jsonb->>'vm_kubevirt_io_name' as vm_name,
-        DATE(interval_start) as interval_day,
+        usage_start as interval_day,
         count(interval_start) AS vm_interval_hours
     FROM {{schema | sqlsafe}}.openshift_pod_usage_line_items
     WHERE strpos(pod_labels, 'vm_kubevirt_io_name') != 0
@@ -61,7 +61,7 @@ JOIN (
     GROUP BY 1, 2
 ) AS vmhrs
     ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = vmhrs.vm_name
-    AND DATE(vmhrs.interval_day) = lids.usage_start
+    AND vmhrs.interval_day = lids.usage_start
 {%- endif %}
 WHERE usage_start >= DATE({{start_date}})
     AND usage_start <= DATE({{end_date}})

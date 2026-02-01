@@ -858,6 +858,46 @@ class OCPReportDBAccessorTest(MasuTestCase):
         mock_trino.assert_not_called()
         self.assertFalse(result)
 
+    @patch("reporting.provider.ocp.self_hosted_models.get_self_hosted_models")
+    def test_delete_self_hosted_data_by_source(self, mock_get_models):
+        """Test that delete_self_hosted_data_by_source deletes from all self-hosted tables."""
+        # Create mock models
+        mock_staging_model = Mock()
+        mock_staging_model.objects.filter.return_value.delete.return_value = (5, {})
+        mock_staging_model._meta.db_table = "staging_table"
+
+        mock_line_item_model = Mock()
+        mock_line_item_model.objects.filter.return_value.delete.return_value = (10, {})
+        mock_line_item_model._meta.db_table = "line_item_table"
+
+        mock_get_models.return_value = [mock_staging_model, mock_line_item_model]
+
+        with patch(
+            "reporting.provider.ocp.self_hosted_models.OCPUsageLineItemDailySummaryStaging",
+            mock_staging_model,
+        ):
+            with self.accessor as acc:
+                result = acc.delete_self_hosted_data_by_source(self.ocp_provider_uuid)
+
+                # Verify staging table filtered by source_uuid
+                mock_staging_model.objects.filter.assert_called_with(source_uuid=str(self.ocp_provider_uuid))
+                # Verify line item table filtered by source
+                mock_line_item_model.objects.filter.assert_called_with(source=str(self.ocp_provider_uuid))
+                self.assertEqual(result, 15)  # 5 + 10
+
+    @patch("reporting.provider.ocp.self_hosted_models.get_self_hosted_models")
+    def test_delete_self_hosted_data_by_source_no_data(self, mock_get_models):
+        """Test delete_self_hosted_data_by_source when no data exists."""
+        mock_model = Mock()
+        mock_model.objects.filter.return_value.delete.return_value = (0, {})
+        mock_model._meta.db_table = "test_table"
+
+        mock_get_models.return_value = [mock_model]
+
+        with self.accessor as acc:
+            result = acc.delete_self_hosted_data_by_source(uuid.uuid4())
+            self.assertEqual(result, 0)
+
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
     @patch("masu.database.report_db_accessor_base.trino_db.connect")
@@ -1451,16 +1491,19 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
 
     @patch("masu.database.ocp_report_db_accessor.get_cluster_id_from_provider")
     @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
-    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_gpu_ui_summary_table_with_usage_only_no_cluster_id(
         self,
-        mock_source_in_trino,
+        mock_trino_raw_sql,
+        mock_trino_table_exists,
         mock_cost_model_accessor,
         mock_get_cluster_id,
     ):
         """Test that GPU UI table is not populated when source has no cluster ID."""
         mock_get_cluster_id.return_value = None
-        mock_source_in_trino.return_value = 1  # Source has GPU data
+        mock_trino_table_exists.return_value = True
+        mock_trino_raw_sql.return_value = [[1]]  # Source has GPU data
         mock_cost_model_instance = Mock()
         mock_cost_model_instance.metric_to_tag_params_map = {}
         mock_cost_model_accessor.return_value = mock_cost_model_instance
@@ -1472,10 +1515,14 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
             mock_trino_exec.assert_not_called()
             mock_get_cluster_id.assert_called_once_with(self.ocp_provider.uuid)
 
-    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
-    def test_populate_gpu_ui_summary_table_with_usage_only_no_gpu_data(self, mock_source_in_trino):
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_gpu_ui_summary_table_with_usage_only_no_gpu_data(
+        self, mock_trino_raw_sql, mock_trino_table_exists
+    ):
         """Test that GPU UI table is not populated when source has no GPU data in Trino."""
-        mock_source_in_trino.return_value = 0  # No GPU data (count is 0)
+        mock_trino_table_exists.return_value = True
+        mock_trino_raw_sql.return_value = [[0]]  # No GPU data (count is 0)
         with (
             patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_trino_exec,
             self.accessor as acc,
@@ -1484,12 +1531,14 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
             mock_trino_exec.assert_not_called()
 
     @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
-    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_gpu_ui_summary_table_with_usage_only_has_cost_model(
-        self, mock_source_in_trino, mock_cost_model_accessor
+        self, mock_trino_raw_sql, mock_trino_table_exists, mock_cost_model_accessor
     ):
         """Test that GPU UI table is not populated when source has GPU cost model configured."""
-        mock_source_in_trino.return_value = 5  # Source has GPU data (5 partitions)
+        mock_trino_table_exists.return_value = True
+        mock_trino_raw_sql.return_value = [[5]]  # Source has GPU data (5 partitions)
         mock_cost_model_instance = Mock()
         mock_cost_model_instance.metric_to_tag_params_map = {
             metric_constants.OCP_GPU_MONTH: [{"rate_type": "Infrastructure", "tag_key": "nvidia"}]
@@ -1506,16 +1555,19 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.get_cluster_alias_from_cluster_id")
     @patch("masu.database.ocp_report_db_accessor.get_cluster_id_from_provider")
     @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
-    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_gpu_ui_summary_table_with_usage_only_no_cost_model(
         self,
-        mock_source_in_trino,
+        mock_trino_raw_sql,
+        mock_trino_table_exists,
         mock_cost_model_accessor,
         mock_get_cluster_id,
         mock_get_cluster_alias,
     ):
         """Test that GPU UI table is populated when source has GPU data but no cost model."""
-        mock_source_in_trino.return_value = 3  # Source has GPU data (3 partitions)
+        mock_trino_table_exists.return_value = True
+        mock_trino_raw_sql.return_value = [[3]]  # Source has GPU data (3 partitions)
         mock_cost_model_instance = Mock()
         mock_cost_model_instance.metric_to_tag_params_map = {}  # No GPU cost model
         mock_cost_model_accessor.return_value = mock_cost_model_instance
@@ -1528,10 +1580,14 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
             acc._populate_gpu_ui_summary_table_with_usage_only(self.sql_params)
             mock_trino_exec.assert_called_once()
 
-    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
-    def test_populate_gpu_ui_summary_table_with_usage_only_source_in_trino_returns_zero(self, mock_source_in_trino):
-        """Test that GPU UI table is not populated when source_in_trino_table returns zero count."""
-        mock_source_in_trino.return_value = 0  # Source has no GPU data (count is 0)
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_gpu_ui_summary_table_with_usage_only_source_in_trino_returns_zero(
+        self, mock_trino_raw_sql, mock_trino_table_exists
+    ):
+        """Test that GPU UI table is not populated when source check returns zero count."""
+        mock_trino_table_exists.return_value = True
+        mock_trino_raw_sql.return_value = [[0]]  # Source has no GPU data (count is 0)
         with (
             patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_trino_exec,
             self.accessor as acc,
@@ -1549,14 +1605,14 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
     ):
         """Test that _populate_virtualization_ui_summary_table uses _execute_trino_raw_sql_query."""
         mock_trino_table_exists.return_value = True
-        mock_source_in_trino.return_value = 1  # Source found in VM table (count is 1)
+        mock_trino_sql.return_value = [[1]]  # Source found in VM table (count is 1)
         with (
             patch.object(self.accessor, "_execute_trino_multipart_sql_query"),
             self.accessor as acc,
         ):
             acc._populate_virtualization_ui_summary_table(self.sql_params)
-            # Verify source_in_trino_table was called for VM usage table
-            mock_source_in_trino.assert_called()
+            # Verify _execute_trino_raw_sql_query was called for VM usage table
+            mock_trino_sql.assert_called()
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
@@ -1567,7 +1623,7 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
     ):
         """Test that _populate_virtualization_ui_summary_table uses fallback when VM table has no source data."""
         mock_trino_table_exists.return_value = True
-        mock_source_in_trino.return_value = 0  # Source NOT found in VM table (count is 0)
+        mock_trino_sql.return_value = [[0]]  # Source NOT found in VM table (count is 0)
         with (
             patch.object(self.accessor, "_execute_trino_multipart_sql_query"),
             patch("masu.database.ocp_report_db_accessor.pkgutil.get_data") as mock_get_data,

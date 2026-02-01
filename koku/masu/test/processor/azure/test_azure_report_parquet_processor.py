@@ -4,7 +4,6 @@
 #
 """Test the AzureReportParquetProcessor."""
 from datetime import date
-from unittest.mock import patch
 
 from django_tenants.utils import schema_context
 
@@ -78,10 +77,3 @@ class AzureReportParquetProcessorTest(MasuTestCase):
                 provider=self.azure_provider_uuid,
             )
             self.assertIsNotNone(bill.first())
-
-    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._generate_create_table_sql")
-    def test_generate_create_table_sql(self, _):
-        """Test _generate_create_table_sql appends manifestid column."""
-        column_names = ["col1", "col2"]
-        self.processor._generate_create_table_sql(column_names)
-        self.assertIn("manifestid", column_names)

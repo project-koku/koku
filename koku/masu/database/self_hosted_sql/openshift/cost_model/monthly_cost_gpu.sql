@@ -22,8 +22,8 @@ SELECT
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
     'GPU' as data_source,
-    date(gpu.interval_start) as usage_start,
-    date(gpu.interval_start) as usage_end,
+    gpu.usage_start,
+    gpu.usage_start as usage_end,
     gpu.namespace as namespace,
     gpu.node as node,
     gpu.gpu_uuid as resource_id,
@@ -58,8 +58,8 @@ SELECT
 FROM {{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily AS gpu
 LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
     ON gpu.namespace LIKE cat_ns.namespace
-WHERE date(gpu.interval_start) >= DATE({{start_date}})
-  AND date(gpu.interval_start) <= DATE({{end_date}})
+WHERE gpu.usage_start >= DATE({{start_date}})
+  AND gpu.usage_start <= DATE({{end_date}})
   AND gpu.source = {{source_uuid}}
   AND gpu.year = {{year}}
   AND gpu.month = {{month}}
@@ -97,29 +97,29 @@ WITH cte_unutilized_uptime_hours AS (
         -- max(gpu.aggregated_pod_uptime) as pod_uptime,
         count(node_ut.interval_start) * max((node_labels::jsonb->>'nvidia_com_gpu_count')::DECIMAL(33, 15)) - coalesce(max(gpu.aggregated_pod_uptime), 0) as untilized_uptime,
         replace(node_ut.node_labels::jsonb->>'nvidia_com_gpu_product', '_', ' ') as model,
-        DATE(node_ut.interval_start) as interval_date
+        node_ut.usage_start as interval_date
     from {{schema | sqlsafe}}.openshift_node_labels_line_items as node_ut
     LEFT JOIN (
         SELECT
             sum(gpu.gpu_pod_uptime) / 3600 as aggregated_pod_uptime,
             gpu.node,
-            DATE(gpu.interval_start) as interval_date
+            gpu.usage_start as interval_date
         from {{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu
             WHERE gpu.source = {{source_uuid}}
             AND gpu.year = {{year}}
             AND gpu.month = {{month}}
-        group by node, DATE(gpu.interval_start)
+        group by node, gpu.usage_start
 
     ) AS gpu
         ON gpu.node = node_ut.node
-        AND gpu.interval_date = DATE(node_ut.interval_start)
+        AND gpu.interval_date = node_ut.usage_start
     where node_labels like '%%"nvidia_com_gpu_present": "True"%%'
-        AND date(node_ut.interval_start) >= DATE({{start_date}})
-        AND date(node_ut.interval_start) <= DATE({{end_date}})
+        AND node_ut.usage_start >= DATE({{start_date}})
+        AND node_ut.usage_start <= DATE({{end_date}})
         AND node_ut.month = {{month}}
         AND node_ut.year = {{year}}
         AND node_ut.source = {{source_uuid}}
-    group by node_ut.node, replace(node_labels::jsonb->>'nvidia_com_gpu_product', '_', ' '), DATE(node_ut.interval_start)
+    group by node_ut.node, replace(node_labels::jsonb->>'nvidia_com_gpu_product', '_', ' '), node_ut.usage_start
 )
 SELECT
     uuid_generate_v4() as uuid,

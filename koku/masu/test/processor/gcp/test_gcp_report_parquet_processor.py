@@ -107,10 +107,3 @@ class GCPReportProcessorParquetTest(MasuTestCase):
 
         with schema_context(self.schema):
             self.assertNotEqual(PartitionedTable.objects.filter(table_name=table_name).count(), 0)
-
-    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._generate_create_table_sql")
-    def test_generate_create_table_sql(self, _):
-        """Test _generate_create_table_sql appends manifestid column."""
-        column_names = ["col1", "col2"]
-        self.processor._generate_create_table_sql(column_names)
-        self.assertIn("manifestid", column_names)

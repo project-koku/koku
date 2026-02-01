@@ -51,7 +51,7 @@ JOIN (
     {%- if use_fractional_hours %}
     SELECT
         vm_name,
-        DATE(interval_start) AS interval_day,
+        usage_start AS interval_day,
         sum(vm_uptime_total_seconds) / 3600 AS vm_interval_hours
     FROM {{schema | sqlsafe}}.openshift_vm_usage_line_items
     WHERE source = {{source_uuid}}
@@ -61,7 +61,7 @@ JOIN (
     {%- else %}
     SELECT
         pod_labels::jsonb->>'vm_kubevirt_io_name' AS vm_name,
-        DATE(interval_start) AS interval_day,
+        usage_start AS interval_day,
         count(interval_start) AS vm_interval_hours
     FROM {{schema | sqlsafe}}.openshift_pod_usage_line_items
     WHERE strpos(pod_labels, 'vm_kubevirt_io_name') != 0
@@ -72,7 +72,7 @@ JOIN (
     {%- endif %}
 ) AS vmhrs
 ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = vmhrs.vm_name
-   AND DATE(vmhrs.interval_day) = lids.usage_start
+   AND vmhrs.interval_day = lids.usage_start
 WHERE usage_start >= DATE({{start_date}})
     AND usage_start <= DATE({{end_date}})
     AND report_period_id = {{report_period_id}}

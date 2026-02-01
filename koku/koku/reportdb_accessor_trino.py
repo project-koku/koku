@@ -104,7 +104,6 @@ class TrinoReportDBAccessor(ReportDBAccessor):
         month: str,
         start_date: str,
         reportnumhours: int,
-        date_column: str,
     ):
         """Trino delete by reportnumhours - not used, Trino uses S3 file deletion."""
         # Trino doesn't use SQL DELETE for parquet files
@@ -113,7 +112,7 @@ class TrinoReportDBAccessor(ReportDBAccessor):
         return ""
 
     def get_check_day_exists_sql(
-        self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, date_column: str
+        self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str
     ):
         """Trino check day exists - not used for Trino."""
         # Trino doesn't need this check - it uses S3 metadata

@@ -16,8 +16,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_gpu_summary_p (
 SELECT uuid_generate_v4(),
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
-    date(gpu.interval_start) as usage_start,
-    date(gpu.interval_start) as usage_end,
+    gpu.usage_start,
+    gpu.usage_start as usage_end,
     gpu.namespace,
     gpu.node,
     gpu.gpu_vendor_name,
@@ -32,7 +32,7 @@ LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
 WHERE gpu.source = {{source_uuid}}
     AND gpu.year = {{year}}
     AND lpad(gpu.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
-    AND date(gpu.interval_start) >= date({{start_date}})
-    AND date(gpu.interval_start) <= date({{end_date}})
-GROUP BY gpu.namespace, gpu.node, gpu.gpu_vendor_name, gpu.gpu_model_name, gpu.interval_start
+    AND gpu.usage_start >= date({{start_date}})
+    AND gpu.usage_start <= date({{end_date}})
+GROUP BY gpu.namespace, gpu.node, gpu.gpu_vendor_name, gpu.gpu_model_name, gpu.usage_start
 RETURNING 1;

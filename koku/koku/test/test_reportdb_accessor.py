@@ -6,7 +6,6 @@
 from django.test import TestCase
 from django.test.utils import override_settings
 
-from koku.reportdb_accessor import ColumnType
 from koku.reportdb_accessor import get_report_db_accessor
 from koku.reportdb_accessor_postgres import PostgresReportDBAccessor
 
@@ -51,43 +50,6 @@ class TestPostgresReportDBAccessor(TestCase):
         self.assertIn(self.table_name, sql)
         self.assertIn(self.schema_name, sql)
 
-    def test_get_schema_create_sql(self):
-        """Test schema create SQL generation."""
-        sql = self.accessor.get_schema_create_sql(self.schema_name)
-        self.assertIn("CREATE SCHEMA IF NOT EXISTS", sql)
-        self.assertIn(self.schema_name, sql)
-
-    def test_get_table_create_sql(self):
-        """Test table create SQL generation."""
-        columns = [("col1", ColumnType.STRING), ("col2", ColumnType.NUMERIC)]
-        partition_columns = [("source", ColumnType.STRING)]
-        sql = self.accessor.get_table_create_sql(
-            self.table_name, self.schema_name, columns, partition_columns, "/s3/path"
-        )
-        self.assertIn("CREATE TABLE IF NOT EXISTS", sql)
-        self.assertIn("PARTITION BY RANGE", sql)
-        self.assertIn("col1 varchar", sql)
-        self.assertIn("col2 float", sql)
-
-    def test_get_column_type_sql(self):
-        """Test column type SQL mapping."""
-        self.assertEqual(self.accessor._get_column_type_sql(ColumnType.NUMERIC), "float")
-        self.assertEqual(self.accessor._get_column_type_sql(ColumnType.DATE), "timestamp")
-        self.assertEqual(self.accessor._get_column_type_sql(ColumnType.BOOLEAN), "boolean")
-        self.assertEqual(self.accessor._get_column_type_sql(ColumnType.STRING), "varchar")
-
-    def test_get_partition_create_sql(self):
-        """Test partition create SQL generation."""
-        sql = self.accessor.get_partition_create_sql(
-            self.schema_name,
-            self.table_name,
-            "partition_1",
-            ["'uuid'", "'2024'", "'01'"],
-            ["'uuid'", "'2024'", "'02'"],
-        )
-        self.assertIn("PARTITION OF", sql)
-        self.assertIn("FOR VALUES FROM", sql)
-
     def test_get_delete_day_by_manifestid_sql(self):
         """Test delete by manifest ID SQL generation."""
         sql = self.accessor.get_delete_day_by_manifestid_sql(
@@ -106,7 +68,6 @@ class TestPostgresReportDBAccessor(TestCase):
             "01",
             "2024-01-15",
             24,
-            "interval_start",
         )
         self.assertIn("DELETE FROM", sql)
         self.assertIn("reportnumhours < 24", sql)
@@ -120,7 +81,6 @@ class TestPostgresReportDBAccessor(TestCase):
             "2024",
             "01",
             "2024-01-15",
-            "interval_start",
         )
         self.assertIn("SELECT 1", sql)
         self.assertIn("LIMIT 1", sql)

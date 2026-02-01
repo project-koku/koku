@@ -5,10 +5,12 @@
 """PostgreSQL database accessor implementation."""
 import logging
 
-from koku.reportdb_accessor import ColumnType
 from koku.reportdb_accessor import ReportDBAccessor
 
 LOG = logging.getLogger(__name__)
+
+# Date column used for partitioning in self-hosted line item tables
+DATE_COLUMN = "usage_start"
 
 
 class DjangoConnectionWrapper:
@@ -67,56 +69,6 @@ class PostgresReportDBAccessor(ReportDBAccessor):
             f"WHERE table_name = '{table_name}' AND table_schema = '{schema_name}'"
         )
 
-    def get_schema_create_sql(self, schema_name: str):
-        return f"CREATE SCHEMA IF NOT EXISTS {schema_name}"
-
-    def get_table_create_sql(
-        self,
-        table_name: str,
-        schema_name: str,
-        columns: list[tuple[str, ColumnType]],
-        partition_columns: list[tuple[str, ColumnType]],
-        s3_path: str,
-    ):
-        sql = f'CREATE TABLE IF NOT EXISTS "{schema_name}"."{table_name}" ('
-
-        for column in columns:
-            sql += f"{column[0]} {self._get_column_type_sql(column[1])}, "
-        for partition_column in partition_columns:
-            sql += f"{partition_column[0]} {self._get_column_type_sql(partition_column[1])}, "
-        sql = sql.rstrip(", ")
-
-        partition_column_str = ", ".join([col_name for col_name, _ in partition_columns])
-
-        sql += f") PARTITION BY RANGE({partition_column_str})"
-
-        return sql
-
-    def _get_column_type_sql(self, column_type: ColumnType):
-        if column_type == ColumnType.NUMERIC:
-            return "float"
-        elif column_type == ColumnType.DATE:
-            return "timestamp"
-        elif column_type == ColumnType.BOOLEAN:
-            return "boolean"
-        else:
-            return "varchar"
-
-    def get_partition_create_sql(
-        self,
-        schema_name: str,
-        table_name: str,
-        partition_name: str,
-        partition_values_lower: list[str],
-        partition_values_upper: list[str],
-    ):
-        return (
-            f'CREATE TABLE IF NOT EXISTS "{schema_name}"."{partition_name}" '
-            f'PARTITION OF "{schema_name}"."{table_name}" '
-            f"FOR VALUES FROM ({', '.join(partition_values_lower)}) "
-            f"TO ({', '.join(partition_values_upper)})"
-        )
-
     def get_delete_day_by_manifestid_sql(
         self, schema_name: str, table_name: str, source: str, year: str, month: str, manifestid: str
     ):
@@ -138,7 +90,6 @@ class PostgresReportDBAccessor(ReportDBAccessor):
         month: str,
         start_date: str,
         reportnumhours: int,
-        date_column: str,
     ):
         """Return the SQL to delete a day's data where reportnumhours is less than specified value."""
         return f"""
@@ -146,12 +97,12 @@ class PostgresReportDBAccessor(ReportDBAccessor):
             WHERE source = '{source}'
               AND year = '{year}'
               AND month = '{month}'
-              AND DATE({date_column}) = DATE '{start_date}'
+              AND {DATE_COLUMN} = DATE '{start_date}'
               AND reportnumhours < {reportnumhours}
         """
 
     def get_check_day_exists_sql(
-        self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str, date_column: str
+        self, schema_name: str, table_name: str, source: str, year: str, month: str, start_date: str
     ):
         """Return the SQL to check if data exists for a specific day."""
         return f"""
@@ -160,7 +111,7 @@ class PostgresReportDBAccessor(ReportDBAccessor):
             WHERE source = '{source}'
               AND year = '{year}'
               AND month = '{month}'
-              AND DATE({date_column}) = DATE '{start_date}'
+              AND {DATE_COLUMN} = DATE '{start_date}'
             LIMIT 1
         """
 

@@ -34,7 +34,6 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             self._is_daily = False
 
         self._report_type = report_type
-        self._date_column = "interval_start"
 
         numeric_columns = [
             "pod_usage_cpu_core_seconds",
@@ -141,7 +140,6 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                 self._month,
                 start_date_str,
                 reportnumhours,
-                self._date_column,
             )
 
             with get_report_db_accessor().connect(schema=self._schema_name) as conn:
@@ -169,7 +167,6 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                     self._year,
                     self._month,
                     start_date_str,
-                    self._date_column,
                 )
 
                 with get_report_db_accessor().connect(schema=self._schema_name) as conn:
@@ -283,7 +280,3 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                 rows=len(data_frame),
             )
         )
-
-    def _generate_create_table_sql(self, column_names):
-        column_names.append("reportnumhours")
-        return super()._generate_create_table_sql(column_names)

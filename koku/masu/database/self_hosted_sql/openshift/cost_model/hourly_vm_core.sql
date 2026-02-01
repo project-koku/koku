@@ -46,7 +46,7 @@ WITH
     vm_usage_summary AS (
         SELECT
             vm_map.vm_cpu_request_cores AS vm_cpu_cores,
-            DATE(vm_map.interval_start) AS interval_day,
+            vm_map.usage_start AS interval_day,
             vm_map.vm_name AS vm_name,
             sum(vm_map.vm_uptime_total_seconds) AS vm_interval_hours
         FROM {{schema | sqlsafe}}.openshift_vm_usage_line_items AS vm_map
@@ -76,7 +76,7 @@ WITH
             {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
         JOIN vm_max_interval as max
             ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = max.vm_name
-            AND DATE(lids.usage_start) = DATE(max.max_interval_start)
+            AND lids.usage_start = DATE(max.max_interval_start)
         WHERE lids.report_period_id = {{report_period_id}}
             AND lids.data_source = 'Pod'
             AND lids.pod_usage_cpu_core_hours IS NOT NULL

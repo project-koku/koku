@@ -35,7 +35,6 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_flag_enabled_by_account
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.util.common import filter_dictionary
-from masu.util.common import source_in_trino_table
 from masu.util.common import SummaryRangeConfig
 from masu.util.common import trino_table_exists
 from masu.util.ocp.common import DistributionConfig
@@ -124,9 +123,18 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         GPU information exists, but the customer has not set up a cost model.
         """
         sql_params = copy.deepcopy(params)
-        if not source_in_trino_table(
-            self.schema, sql_params.get("source_uuid"), TRINO_LINE_ITEM_TABLE_DAILY_MAP["gpu_usage"]
-        ):
+        gpu_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP["gpu_usage"]
+        if not trino_table_exists(self.schema, gpu_table):
+            return
+        source_uuid = sql_params.get("source_uuid")
+        source_sql = get_report_db_accessor().get_check_source_in_partitions_sql(
+            schema_name=self.schema, table_name=gpu_table, source_uuid=source_uuid
+        )
+        source_available = self._execute_trino_raw_sql_query(
+            source_sql,
+            log_ref=f"Checking if source is in {gpu_table}",
+        )[0][0]
+        if not source_available:
             return
         # Don't use context manager here - its __exit__ resets schema to public,
         # which would break subsequent ORM operations in the calling code

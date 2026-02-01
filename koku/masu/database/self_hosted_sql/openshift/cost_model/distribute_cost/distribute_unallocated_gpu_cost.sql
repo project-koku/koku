@@ -32,14 +32,14 @@ namespace_usage_information as (
         gpu_usage.namespace,
         gpu_usage.node,
         sum(gpu_pod_uptime) as pod_usage_uptime,
-        DATE(interval_start) as usage_start
+        gpu_usage.usage_start
     FROM {{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu_usage
     INNER JOIN unattributed_gpu_cost AS ungpu
         ON ungpu.node = gpu_usage.node
     WHERE source = {{source_uuid}}
       AND year = {{year}}
       AND month = {{month}}
-    group by gpu_model_name, gpu_usage.node, namespace, DATE(interval_start)
+    group by gpu_model_name, gpu_usage.node, namespace, gpu_usage.usage_start
 )
 SELECT
     uuid_generate_v4(),

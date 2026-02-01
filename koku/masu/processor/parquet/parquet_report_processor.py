@@ -424,7 +424,7 @@ class ParquetReportProcessor:
                 raise ParquetReportProcessorError(msg)
         return True
 
-    def create_parquet_table(self, column_names, daily=False, sync_partitions=True):
+    def create_parquet_table(self, column_names, daily=False):
         """Create Trino/Hive parquet table (SaaS only).
 
         Creates schema, table, syncs Hive partitions, and ensures PostgreSQL
@@ -442,8 +442,7 @@ class ParquetReportProcessor:
             processor.create_table(column_names)
         self.trino_table_exists[self.trino_table_exists_key] = True
         processor.get_or_create_postgres_partition(bill_date=self.bill_date)
-        if sync_partitions:
-            processor.sync_hive_partitions()
+        processor.sync_hive_partitions()
 
         if not daily:
             processor.create_bill(bill_date=self.bill_date)

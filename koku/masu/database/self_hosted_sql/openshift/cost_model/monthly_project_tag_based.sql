@@ -35,22 +35,22 @@ WITH filtered_data as (
         ouds.cluster_id,
         ouds.cluster_alias,
         ouds.node,
-        DATE(nsp.interval_start) as usage_start
+        nsp.usage_start
     from {{schema | sqlsafe}}.openshift_namespace_labels_line_items_daily as nsp
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_staging as ouds
         ON nsp.month = lpad(ouds.month, 2, '0')
         AND nsp.year = ouds.year
         AND nsp.source = ouds.source
         AND nsp.namespace = ouds.namespace
-        AND DATE(nsp.interval_start) = DATE(ouds.usage_start)
+        AND nsp.usage_start = DATE(ouds.usage_start)
     WHERE nsp.month = {{month}}
         and nsp.year = {{year}}
         and nsp.source = {{source_uuid | string}}
         and nsp.namespace NOT LIKE 'kube-%%'
         and nsp.namespace NOT LIKE 'openshift-%%'
         and nsp.namespace != 'openshift'
-        and DATE(nsp.interval_start) >= DATE({{start_date}})
-        and DATE(nsp.interval_start) <= DATE({{end_date}})
+        and nsp.usage_start >= DATE({{start_date}})
+        and nsp.usage_start <= DATE({{end_date}})
         {%- if default_rate is defined %}
             AND nsp.namespace_labels::jsonb->>'{{ tag_key|sqlsafe }}' IS NOT NULL
         {%- else %}
@@ -67,7 +67,7 @@ WITH filtered_data as (
     ouds.cluster_id,
     ouds.cluster_alias,
     ouds.node,
-    DATE(nsp.interval_start)
+    nsp.usage_start
 ),
 node_count as (
     select

@@ -7,6 +7,7 @@ import datetime
 from datetime import date
 from unittest.mock import patch
 
+import pandas as pd
 from django_tenants.utils import schema_context
 
 from api.models import Provider
@@ -131,9 +132,103 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         self.assertIn("gpu_memory_capacity_mib", numeric_columns)
         self.assertIn("gpu_pod_uptime", numeric_columns)
 
-    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._generate_create_table_sql")
-    def test_generate_create_table_sql(self, _):
-        """Test _generate_create_table_sql appends reportnumhours column."""
-        column_names = ["col1", "col2"]
-        self.processor._generate_create_table_sql(column_names)
-        self.assertIn("reportnumhours", column_names)
+    def test_get_table_names_for_delete(self):
+        """Test that both raw and daily table names are returned."""
+        table_names = self.processor.get_table_names_for_delete()
+        self.assertEqual(len(table_names), 2)
+        self.assertIn(TRINO_LINE_ITEM_TABLE_MAP[self.report_type], table_names)
+        self.assertIn(TRINO_LINE_ITEM_TABLE_DAILY_MAP[self.report_type], table_names)
+
+    @patch("koku.reportdb_accessor.get_report_db_accessor")
+    def test_delete_day_postgres(self, _):
+        """Test delete_day_postgres."""
+        self.processor.delete_day_postgres(self.start_date, reportnumhours=24)
+
+    @patch("koku.reportdb_accessor.get_report_db_accessor")
+    def test_delete_day_postgres_raises_when_data_exists(self, mock_get_accessor):
+        """Test delete_day_postgres raises exception when data exists."""
+        mock_conn = mock_get_accessor.return_value.connect.return_value.__enter__.return_value
+        mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
+        mock_cursor.rowcount = 0
+        mock_cursor.fetchone.return_value = (1,)
+        with self.assertRaises(Exception):
+            self.processor.delete_day_postgres(self.start_date, reportnumhours=24)
+
+    def test_is_daily_flag(self):
+        """Test that _is_daily is set correctly based on s3_path."""
+        # Non-daily path
+        processor = OCPReportParquetProcessor(
+            self.manifest_id, self.account, "/s3/path", self.provider_uuid, self.report_type, self.start_date
+        )
+        self.assertFalse(processor._is_daily)
+
+        # Daily path
+        processor_daily = OCPReportParquetProcessor(
+            self.manifest_id, self.account, "/s3/path/daily", self.provider_uuid, self.report_type, self.start_date
+        )
+        self.assertTrue(processor_daily._is_daily)
+
+    def test_self_hosted_line_item_model(self):
+        """Test that self_hosted_line_item_model returns correct model."""
+        from reporting.provider.ocp.self_hosted_models import SELF_HOSTED_DAILY_MODEL_MAP
+        from reporting.provider.ocp.self_hosted_models import SELF_HOSTED_MODEL_MAP
+
+        # Non-daily processor
+        processor = OCPReportParquetProcessor(
+            self.manifest_id, self.account, "/s3/path", self.provider_uuid, "pod_usage", self.start_date
+        )
+        self.assertEqual(processor.self_hosted_line_item_model, SELF_HOSTED_MODEL_MAP["pod_usage"])
+
+        # Daily processor
+        processor_daily = OCPReportParquetProcessor(
+            self.manifest_id, self.account, "/s3/path/daily", self.provider_uuid, "pod_usage", self.start_date
+        )
+        self.assertEqual(processor_daily.self_hosted_line_item_model, SELF_HOSTED_DAILY_MODEL_MAP["pod_usage"])
+
+    @patch(
+        "masu.processor.ocp.ocp_report_parquet_processor.OCPReportParquetProcessor.get_or_create_postgres_partition"
+    )
+    @patch("koku.reportdb_accessor.get_report_db_accessor")
+    def test_write_to_self_hosted_table(self, mock_get_accessor, mock_partition):
+        """Test write_to_self_hosted_table writes data correctly."""
+        # Create a daily processor (has self_hosted_line_item_model)
+        processor = OCPReportParquetProcessor(
+            self.manifest_id, self.account, "/s3/path/daily", self.provider_uuid, "pod_usage", self.start_date
+        )
+
+        data_frame = pd.DataFrame({"col1": [1, 2], "interval_start": pd.to_datetime(["2024-01-15", "2024-01-15"])})
+        metadata = {"ReportNumHours": 24}
+
+        with patch("pandas.DataFrame.to_sql") as mock_to_sql:
+            processor.write_to_self_hosted_table(data_frame, metadata)
+
+            # Verify columns were added
+            self.assertIn("reportnumhours", data_frame.columns)
+            self.assertIn("year", data_frame.columns)
+            self.assertIn("month", data_frame.columns)
+            self.assertIn("source", data_frame.columns)
+            self.assertIn("usage_start", data_frame.columns)
+            self.assertIn("id", data_frame.columns)
+
+            # Verify partition was created
+            mock_partition.assert_called_once()
+
+            # Verify to_sql was called
+            mock_to_sql.assert_called_once()
+
+    def test_write_to_self_hosted_table_no_model(self):
+        """Test write_to_self_hosted_table raises when no model exists."""
+        # Create processor with report type that has no model
+        processor = OCPReportParquetProcessor(
+            self.manifest_id, self.account, "/s3/path/daily", self.provider_uuid, "pod_usage", self.start_date
+        )
+
+        # Mock self_hosted_line_item_model to return None
+        with patch.object(
+            type(processor), "self_hosted_line_item_model", new_callable=lambda: property(lambda self: None)
+        ):
+            data_frame = pd.DataFrame({"col1": [1, 2]})
+            metadata = {"ReportNumHours": 24}
+
+            with self.assertRaises(NotImplementedError):
+                processor.write_to_self_hosted_table(data_frame, metadata)
