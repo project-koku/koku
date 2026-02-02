@@ -1,4 +1,3 @@
 # Koku Documentation Index #
 
-Welcome to the Koku documentation!
-
+Welcome to the Koku documentation!!
