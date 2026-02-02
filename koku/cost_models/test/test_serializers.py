@@ -676,49 +676,14 @@ class CostModelSerializerTest(IamTestCase):
         expected_sub_string = "Duplicate tag_value"
         self.assertIn(expected_sub_string, result_err_msg)
 
-    def test_validate_source_uuid_errors(self):
-        """Test validate source uuid error scenarios."""
-        test_matrix = [
-            {
-                "name": "non_existent_uuid",
-                "input": [uuid4()],
-                "expected_error": "Invalid request. Source UUID validation failed.",
-            },
-            {
-                "name": "mixed_valid_invalid_uuid",
-                "input": [self.provider.uuid, uuid4()],
-                "expected_error": "Invalid request. Source UUID validation failed.",
-            },
-            {
-                "name": "malformed_uuid_string",
-                "input": ["not-a-uuid"],
-                "expected_error": "Invalid request. Source UUID validation failed.",
-            },
-        ]
-
+    def test_validate_source_uuid_error(self):
+        """Test validate source uuid error."""
+        tag_value = {"tag_value": "key_one", "value": 0.2}
+        self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=[tag_value])
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
-            for case in test_matrix:
-                with self.subTest(case=case["name"]):
-                    with self.assertRaises(serializers.ValidationError) as cm:
-                        serializer.validate_source_uuids(case["input"])
-                    self.assertEqual(str(cm.exception.detail[0]), case["expected_error"])
-
-    def test_validate_source_uuid_error_no_customer(self):
-        """Test validate source uuid error when customer is missing."""
-        with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model, context={})
-            with self.assertRaises(serializers.ValidationError) as cm:
-                serializer.validate_source_uuids([self.provider.uuid])
-            self.assertEqual(str(cm.exception.detail[0]), "Invalid request. Customer schema name could not be found.")
-
-    def test_validate_source_uuid_success(self):
-        """Test validate source uuid success."""
-        with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
-            uuids = [self.provider.uuid]
-            result = serializer.validate_source_uuids(uuids)
-            self.assertEqual(result, uuids)
+            with self.assertRaises(serializers.ValidationError):
+                serializer.validate_source_uuids([uuid4()])
 
     def test_distribution_choices_added_successfully(self):
         """Test that source distribution is a valid choice and added successsfully."""

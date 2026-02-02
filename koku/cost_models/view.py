@@ -131,7 +131,7 @@ class CostModelViewSet(viewsets.ModelViewSet):
         except FieldError as fe:
             raise exception(fe)
 
-    def get_queryset(self):
+    def get_queryset(self):  # noqa: C901
         """Get a queryset.
 
         Restricts the returned data to source_uuid if supplied as a query parameter.
