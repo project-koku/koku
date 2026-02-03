@@ -535,9 +535,9 @@ class CostModelSerializer(BaseSerializer):
             raise serializers.ValidationError(err_msg)
 
         try:
-            is_valid_uuids = Provider.objects.filter(uuid__in=source_uuids, customer=self.customer).count() == len(
-                set(source_uuids)
-            )
+            is_valid_uuids = Provider.objects.filter(
+                uuid__in=source_uuids, customer__schema_name=self.customer.schema_name
+            ).count() == len(set(source_uuids))
         except DjangoValidationError:
             is_valid_uuids = False
 
