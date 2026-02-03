@@ -111,7 +111,6 @@ class ReportsViewTest(MasuTestCase):
         response = client.post(url, data=post_data, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @RbacPermissions({"aws.account": {"write": ["*"]}})
     @patch("api.ingress.reports.serializers.ProviderAccessor.check_file_access")
     def test_post_ingress_reports_invalid_uuid(self, _):
         """Test to post reports for a particular source."""
@@ -127,25 +126,23 @@ class ReportsViewTest(MasuTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("Invalid request", str(response.json()))
 
+    @patch("api.common.permissions.ingress_access.is_ingress_rbac_grace_period_enabled", return_value=False)
     @RbacPermissions({"aws.account": {"read": []}})
-    @patch("api.ingress.reports.view.IngressAccessPermission.has_any_read_access", return_value=False)
     def test_get_view_no_access(self, _):
         """Test GET ingress reports with no read access."""
         url = reverse("reports")
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.json(), {"Error": "Invalid request."})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    @patch("api.common.permissions.ingress_access.is_ingress_rbac_grace_period_enabled", return_value=False)
     @RbacPermissions({"aws.account": {"read": []}})
-    @patch("api.ingress.reports.view.IngressAccessPermission.has_access", return_value=False)
     def test_get_source_view_no_access(self, _):
         """Test GET ingress reports for a source with no read access."""
         url = f"{reverse('reports')}{self.gcp_provider.uuid}/"
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.json(), {"Error": "Invalid request."})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_no_customer(self):
         """Test ingress reports with no customer attribute on user."""
@@ -176,11 +173,10 @@ class ReportsViewTest(MasuTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.json(), {"Error": "Invalid request."})
 
-    @RbacPermissions({"aws.account": {"write": []}})
-    @patch("api.ingress.reports.view.is_ingress_rbac_grace_period_enabled", return_value=False)
-    @patch("api.ingress.reports.view.IngressAccessPermission.has_access", return_value=False)
-    def test_post_no_write_access(self, *args):
-        """Test POST ingress reports with no write access."""
+    @patch("api.common.permissions.ingress_access.is_ingress_rbac_grace_period_enabled", return_value=False)
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_post_no_write_access(self, _):
+        """Test POST ingress reports with no write access (non-admin users cannot POST)."""
         url = reverse("reports")
         post_data = {
             "source": str(self.aws_provider.uuid),
@@ -190,10 +186,8 @@ class ReportsViewTest(MasuTestCase):
         }
         client = APIClient()
         response = client.post(url, data=post_data, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.json(), {"Error": "Invalid request."})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    @RbacPermissions({"aws.account": {"write": ["*"]}})
     @patch("api.ingress.reports.serializers.ProviderAccessor.check_file_access")
     def test_post_ingress_reports(self, _):
         """Test to post reports for a particular source."""
@@ -209,7 +203,6 @@ class ReportsViewTest(MasuTestCase):
         self.assertEqual(response.json().get("data").get("source"), str(self.aws_provider.uuid))
         self.assertEqual(response.json().get("data").get("reports_list"), post_data.get("reports_list"))
 
-    @RbacPermissions({"aws.account": {"write": ["*"]}})
     @patch("api.ingress.reports.serializers.is_ingress_rate_limiting_disabled", return_value=False)
     @patch("api.ingress.reports.serializers.ProviderAccessor.check_file_access")
     def test_post_ingress_reports_rate_limited(self, *args):
@@ -229,11 +222,11 @@ class ReportsViewTest(MasuTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("already being processed", str(response.json()))
 
-    @patch("api.ingress.reports.view.is_ingress_rbac_grace_period_enabled", return_value=True)
-    @patch("api.ingress.reports.view.IngressAccessPermission.has_access", return_value=False)
+    @patch("api.common.permissions.ingress_access.is_ingress_rbac_grace_period_enabled", return_value=True)
     @patch("api.ingress.reports.serializers.ProviderAccessor.check_file_access")
+    @RbacPermissions({"aws.account": {"read": []}})
     def test_post_rbac_grace_period_fallback(self, *args):
-        """Test POST ingress reports fallback when RBAC fails but grace period is enabled."""
+        """Test POST ingress reports succeeds when grace period is enabled (bypasses RBAC)."""
         url = reverse("reports")
         post_data = {
             "source": f"{self.aws_provider.uuid}",
