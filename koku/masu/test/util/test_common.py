@@ -663,16 +663,20 @@ class SummaryRangeConfigTests(TestCase):
     def test_iter_summary_range_by_month_with_extended_summary_dates(self):
         """Test iter_summary_range_by_month uses min/max of summary_starts and summary_ends."""
         config = common_utils.SummaryRangeConfig(start_date=date(2025, 1, 15), end_date=date(2025, 2, 3))
-        # Access start_of_previous_month to add earlier date to summary_starts
-        # This simulates the GPU finalization case where the previous month start is accessed
-        config.start_of_previous_month  # Adds previous month to summary_starts
+        # Access start_of_month to add the 1st of the month to summary_starts
+        # This simulates the GPU finalization case where full month boundaries are accessed
+        config.start_of_month  # Adds 2025-01-01 to summary_starts
 
         ranges = list(config.iter_summary_range_by_month())
 
-        # Should now span from start_of_previous_month to the end_date
-        self.assertGreaterEqual(len(ranges), 2)
-        # The first range should start from the previous month
-        self.assertEqual(ranges[0].summary_start.day, 1)
+        # Should now span from start_of_month (2025-01-01) to end_date (2025-02-03)
+        self.assertEqual(len(ranges), 2)
+        # First range should start from 1st of month, not the original start_date
+        self.assertEqual(ranges[0].summary_start, date(2025, 1, 1))
+        self.assertEqual(ranges[0].summary_end, date(2025, 1, 31))
+        # Second range is the partial February
+        self.assertEqual(ranges[1].summary_start, date(2025, 2, 1))
+        self.assertEqual(ranges[1].summary_end, date(2025, 2, 3))
 
     def test_iter_summary_range_by_month_preserves_skip_full_month(self):
         """Test iter_summary_range_by_month preserves skip_full_month flag."""
