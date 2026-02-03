@@ -18,6 +18,7 @@ from django.test import TestCase
 from django_tenants.utils import schema_context
 
 import masu.util.common as common_utils
+from api.iam.models import Customer
 from api.iam.test.iam_test_case import FakeTrinoConn
 from api.iam.test.iam_test_case import FakeTrinoCur
 from api.models import Provider
@@ -567,10 +568,24 @@ class CommonUtilTests(MasuTestCase):
 
     def test_convert_account(self):
         """Test that the correct account string is returned."""
+
+        # Using distinct account/org_ids to avoid conflicts with test setup
+        acct_id = "99112233"
+        org_id = "99445566"
+        unassociated_id = "999999"
+
+        Customer.objects.update_or_create(account_id=acct_id, defaults={"schema_name": f"acct{acct_id}"})
+        Customer.objects.update_or_create(org_id=org_id, defaults={"schema_name": f"org{org_id}"})
+
         test_matrix = [
-            {"account": "1234567", "expected": "org1234567"},
+            # Customer lookup cases
+            {"account": acct_id, "expected": f"acct{acct_id}"},
+            {"account": org_id, "expected": f"org{org_id}"},
+            {"account": unassociated_id, "expected": unassociated_id},
+            # Passthrough cases
             {"account": "acct1234567", "expected": "acct1234567"},
             {"account": "org1234567", "expected": "org1234567"},
+            # Edge cases
             {"account": "", "expected": ""},
             {"account": None, "expected": None},
         ]
