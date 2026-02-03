@@ -1,0 +1,203 @@
+---
+generators:
+  - OCPGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      nodes:
+        - node:
+          node_name: compute_1
+          node_labels: label_instance-type:medium|label_kubernetes_io_arch:amd64
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            # Payload XSS no namespace
+            "<script>alert('xss')</script>":
+              namespace_labels: cats:hacked
+              pods:
+                - pod:
+                  pod_name: normal-pod
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:Test
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_xss
+                  storage_class: hostpath
+                  volume_request_gig: 20
+                  labels: label_environment:Test
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: xss_test_data
+                    pod_name: normal-pod
+                    labels: label_environment:Test
+                    capacity_gig: 20
+            # Payload SQL Injection no namespace
+            "'; DROP TABLE users; --":
+              namespace_labels: cats:sqli
+              pods:
+                - pod:
+                  pod_name: sqli-pod
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:SQLiTest
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_sqli
+                  storage_class: hostpath
+                  volume_request_gig: 20
+                  labels: label_environment:Test
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: sqli_test_data
+                    pod_name: sqli-pod
+                    labels: label_environment:Test
+                    capacity_gig: 20
+            # Namespace normal para comparação
+            NormalNamespace:
+              namespace_labels: cats:normal
+              pods:
+                - pod:
+                  pod_name: safe-pod
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:SafeApp
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_normal
+                  storage_class: hostpath
+                  volume_request_gig: 20
+                  labels: label_environment:Production
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: normal_test_data
+                    pod_name: safe-pod
+                    labels: label_environment:Production
+                    capacity_gig: 20
+        - node:
+          node_name: compute_2
+          node_labels: label_instance-type:small
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            # Iframe injection
+            "<iframe src='evil.com'>":
+              pods:
+                - pod:
+                  pod_name: iframe-pod
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:IframeTest
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_iframe
+                  storage_class: hostpath
+                  volume_request_gig: 20
+                  labels: label_environment:Test
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: iframe_test_data
+                    pod_name: iframe-pod
+                    labels: label_environment:Test
+                    capacity_gig: 20
+            # Event handler XSS
+            "test<img onerror=alert('xss')>":
+              pods:
+                - pod:
+                  # Pod com SQL injection no nome
+                  pod_name: "pod' OR '1'='1"
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:EventTest
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_event
+                  storage_class: hostpath
+                  volume_request_gig: 20
+                  labels: label_environment:Test
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: event_test_data
+                    pod_name: "pod' OR '1'='1"
+                    labels: label_environment:Test
+                    capacity_gig: 20
+            # UNION SELECT injection
+            "' UNION SELECT * FROM users --":
+              pods:
+                - pod:
+                  pod_name: union-pod
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:UnionTest
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_union
+                  storage_class: hostpath
+                  volume_request_gig: 20
+                  labels: label_environment:Test
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: union_test_data
+                    pod_name: union-pod
+                    labels: label_environment:Test
+                    capacity_gig: 20
+        - node:
+          # Node com javascript injection
+          node_name: "javascript:alert('xss')"
+          node_labels: label_instance-type:malicious
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            MaliciousNode:
+              pods:
+                - pod:
+                  pod_name: malicious-node-pod
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:NodeTest
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_malnode
+                  storage_class: hostpath
+                  volume_request_gig: 20
+                  labels: label_environment:Test
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: malnode_test_data
+                    pod_name: malicious-node-pod
+                    labels: label_environment:Test
+                    capacity_gig: 20
+        - node:
+          node_name: master_1
+          cpu_cores: 4
+          memory_gig: 8
+          namespaces:
+            kube-system:
+              pods:
+                - pod:
+                  pod_name: system-pod
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600

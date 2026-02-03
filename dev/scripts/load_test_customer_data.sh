@@ -416,8 +416,12 @@ build_gcp_data() {
 # ONPREM customer data
 build_onprem_data() {
   local _source_name="ON-PREM"
-  local _yaml_files=("ocp/ocp_on_premise.yml")
-  local _rendered_yaml_files=("$YAML_PATH/ocp/rendered_ocp_on_premise.yml")
+  # COST-7038: Original line (uncomment after testing):
+  # local _yaml_files=("ocp/ocp_on_premise.yml")
+  # local _rendered_yaml_files=("$YAML_PATH/ocp/rendered_ocp_on_premise.yml")
+  # COST-7038: Using malicious payloads YAML for security testing:
+  local _yaml_files=("ocp/ocp_test_malicious_payloads.yml")
+  local _rendered_yaml_files=("$YAML_PATH/ocp/rendered_ocp_test_malicious_payloads.yml")
   local _ocp_ingest_name="Test OCP on Premises"
   local _ocp_payload
   _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
@@ -426,8 +430,10 @@ build_onprem_data() {
   render_yaml_files "${_yaml_files[@]}"
 
   log-info "Building OpenShift on ${_source_name} report data..."
-  nise_report ocp --static-report-file "$YAML_PATH/ocp/rendered_ocp_on_premise.yml" --ocp-cluster-id my-ocp-cluster-3 --minio-upload "${MINIO_UPLOAD}" --daily-reports --payload-name "$_ocp_payload"
-  # nise_report ocp --static-report-file "$YAML_PATH/ocp/rendered_ocp_on_premise.yml" --ocp-cluster-id my-ocp-cluster-3 --minio-upload "${MINIO_UPLOAD}" --payload-name "$_ocp_payload"
+  # COST-7038: Original line (uncomment after testing):
+  # nise_report ocp --static-report-file "$YAML_PATH/ocp/rendered_ocp_on_premise.yml" --ocp-cluster-id my-ocp-cluster-3 --minio-upload "${MINIO_UPLOAD}" --daily-reports --payload-name "$_ocp_payload"
+  # COST-7038: Using malicious payloads for security testing:
+  nise_report ocp --static-report-file "$YAML_PATH/ocp/rendered_ocp_test_malicious_payloads.yml" --ocp-cluster-id my-ocp-cluster-3 --minio-upload "${MINIO_UPLOAD}" --daily-reports --payload-name "$_ocp_payload"
 
   log-info "Cleanup ${_source_name} rendered YAML files..."
   cleanup_rendered_files "${_rendered_yaml_files[@]}"
