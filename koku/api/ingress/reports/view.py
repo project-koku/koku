@@ -20,10 +20,6 @@ from reporting.ingress.models import IngressReports
 LOG = logging.getLogger(__name__)
 
 
-def has_customer_object(request):
-    return getattr(request.user, "customer", None)
-
-
 class IngressReportsDetailView(APIView):
     """
     View to fetch report details for specific source
@@ -35,10 +31,6 @@ class IngressReportsDetailView(APIView):
         """
         Return reports for source.
         """
-        if not has_customer_object(request):
-            LOG.warning("Unauthorized ingress report read. User has no customer attribute.")
-            return Response({"Error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
-
         source = kwargs["source"]
         try:
             UUID(source)
@@ -73,10 +65,6 @@ class IngressReportsView(APIView):
         Return list of sources.
         """
 
-        if not has_customer_object(request):
-            LOG.warning("Unauthorized ingress report read. User has no customer attribute.")
-            return Response({"Error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
-
         schema_name = request.user.customer.schema_name
 
         reports = IngressReports.objects.filter(schema_name=schema_name)
@@ -86,10 +74,6 @@ class IngressReportsView(APIView):
 
     def post(self, request):
         """Handle posted reports."""
-
-        if not has_customer_object(request):
-            LOG.warning("Unauthorized ingress report post. User has no customer attribute.")
-            return Response({"Error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
 
         source_ref = request.data.get("source")
         schema_name = request.user.customer.schema_name

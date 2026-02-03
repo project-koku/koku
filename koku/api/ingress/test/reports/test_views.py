@@ -144,8 +144,8 @@ class ReportsViewTest(MasuTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_no_customer(self):
-        """Test ingress reports with no customer attribute on user."""
+    def test_no_customer_permission_denied(self):
+        """Test ingress reports returns 403 when user has no customer attribute."""
         test_cases = [
             ("POST list", "post", reverse("reports")),
             ("GET list", "get", reverse("reports")),
@@ -154,10 +154,12 @@ class ReportsViewTest(MasuTestCase):
         client = APIClient()
         for name, method, url in test_cases:
             with self.subTest(endpoint=name):
-                with patch("api.ingress.reports.view.has_customer_object", return_value=None):
+                with patch(
+                    "api.common.permissions.ingress_access.IngressAccessPermission.has_permission",
+                    return_value=False,
+                ):
                     response = getattr(client, method)(url, data={}, **self.headers)
-                    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-                    self.assertEqual(response.json(), {"Error": "Invalid request."})
+                    self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_post_source_not_found(self):
         """Test POST ingress reports with non-existent source."""

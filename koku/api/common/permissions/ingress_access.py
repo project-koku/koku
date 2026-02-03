@@ -18,7 +18,12 @@ class IngressAccessPermission(SettingsAccessPermission):
     def has_permission(self, request, view):
         """Check if the user has permission to access ingress data."""
         customer = getattr(request.user, "customer", None)
-        if customer and is_ingress_rbac_grace_period_enabled(customer.schema_name):
+
+        if not customer:
+            LOG.warning("Unauthorized ingress access. User has no customer attribute.")
+            return False
+
+        if is_ingress_rbac_grace_period_enabled(customer.schema_name):
             LOG.info(log_json(msg="Ingress RBAC grace period is enabled for customer", schema=customer.schema_name))
             return True
 
