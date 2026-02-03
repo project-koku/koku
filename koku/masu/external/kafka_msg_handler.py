@@ -30,6 +30,7 @@ from django.db import OperationalError
 from django.db import transaction
 from kombu.exceptions import OperationalError as KombuOperationalError
 
+import masu.util.ocp.ocp_data_validator  # noqa: F401
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
@@ -56,12 +57,13 @@ from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
-from masu.util.ocp.ocp_data_validator import validate_and_sanitize_dataframe
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.states import CombinedChoices
 from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
+
+# Import registers the .ocp accessor on pandas DataFrames
 
 LOG = logging.getLogger(__name__)
 SUCCESS_CONFIRM_STATUS = "success"
@@ -87,8 +89,10 @@ def get_data_frame(file_path: os.PathLike):
     """
     try:
         df = pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"), on_bad_lines="warn")
-        # Validate and sanitize data immediately after reading
-        df, issues = validate_and_sanitize_dataframe(df, strict=False)
+
+        # Validate and sanitize using the pandas accessor
+        df, issues = df.ocp.validate_and_sanitize()
+
         if issues:
             LOG.warning(
                 log_json(
@@ -97,6 +101,7 @@ def get_data_frame(file_path: os.PathLike):
                     issue_count=len(issues),
                 )
             )
+
         # Write sanitized data back to file so any downstream file operations
         # (like S3 upload) use the sanitized version
         df.to_csv(file_path, index=False, header=True)
