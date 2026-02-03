@@ -127,7 +127,7 @@ class ReportsViewTest(MasuTestCase):
         self.assertIn("Invalid request", str(response.json()))
 
     @patch("api.common.permissions.ingress_access.is_ingress_rbac_grace_period_enabled", return_value=False)
-    @RbacPermissions({"aws.account": {"read": []}})
+    @RbacPermissions({"settings": {"read": []}})
     def test_get_view_no_access(self, _):
         """Test GET ingress reports with no read access."""
         url = reverse("reports")
@@ -136,7 +136,7 @@ class ReportsViewTest(MasuTestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     @patch("api.common.permissions.ingress_access.is_ingress_rbac_grace_period_enabled", return_value=False)
-    @RbacPermissions({"aws.account": {"read": []}})
+    @RbacPermissions({"settings": {"read": []}})
     def test_get_source_view_no_access(self, _):
         """Test GET ingress reports for a source with no read access."""
         url = f"{reverse('reports')}{self.gcp_provider.uuid}/"
@@ -174,9 +174,9 @@ class ReportsViewTest(MasuTestCase):
         self.assertEqual(response.json(), {"Error": "Invalid request."})
 
     @patch("api.common.permissions.ingress_access.is_ingress_rbac_grace_period_enabled", return_value=False)
-    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    @RbacPermissions({"settings": {"read": ["*"]}})
     def test_post_no_write_access(self, _):
-        """Test POST ingress reports with no write access (non-admin users cannot POST)."""
+        """Test POST ingress reports with no write access (requires settings.write wildcard)."""
         url = reverse("reports")
         post_data = {
             "source": str(self.aws_provider.uuid),
@@ -224,7 +224,7 @@ class ReportsViewTest(MasuTestCase):
 
     @patch("api.common.permissions.ingress_access.is_ingress_rbac_grace_period_enabled", return_value=True)
     @patch("api.ingress.reports.serializers.ProviderAccessor.check_file_access")
-    @RbacPermissions({"aws.account": {"read": []}})
+    @RbacPermissions({"settings": {"read": []}})
     def test_post_rbac_grace_period_fallback(self, *args):
         """Test POST ingress reports succeeds when grace period is enabled (bypasses RBAC)."""
         url = reverse("reports")
