@@ -52,6 +52,7 @@ FIELD_MAX_LENGTHS = {
 # Kubernetes DNS-1123 subdomain pattern (used for namespaces, pods, nodes, etc.)
 # Must be lowercase alphanumeric, '-', or '.', start and end with alphanumeric
 # Max 253 characters
+# DNS-1123 subdomain pattern: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
 DNS_1123_SUBDOMAIN_PATTERN = re.compile(r"^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$")
 
 # More permissive pattern for labels and other fields that may contain special chars

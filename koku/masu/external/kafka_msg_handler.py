@@ -80,14 +80,14 @@ class EmptyPayloadFileError(pd.errors.EmptyDataError):
 def get_data_frame(file_path: os.PathLike):
     """Read csv file into dataframe with validation and sanitization.
 
-    This function reads the CSV file and immediately validates/sanitizes
-    the data to prevent malicious content (SQLi, XSS) from being processed
-    or stored.
+    This function reads the CSV file, validates/sanitizes the data to prevent
+    malicious content (SQLi, XSS), and writes the sanitized data back to the file.
+    This ensures the file on disk always contains sanitized data for any downstream
+    operations (e.g., S3 upload).
     """
     try:
         df = pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"), on_bad_lines="warn")
-        # Validate and sanitize data immediately after reading to prevent
-        # malicious content from being processed or copied to S3
+        # Validate and sanitize data immediately after reading
         df, issues = validate_and_sanitize_dataframe(df, strict=False)
         if issues:
             LOG.warning(
@@ -97,6 +97,9 @@ def get_data_frame(file_path: os.PathLike):
                     issue_count=len(issues),
                 )
             )
+        # Write sanitized data back to file so any downstream file operations
+        # (like S3 upload) use the sanitized version
+        df.to_csv(file_path, index=False, header=True)
         return df
     except pd.errors.EmptyDataError as error:
         LOG.warning(f"File {file_path} is empty.")
@@ -106,9 +109,18 @@ def get_data_frame(file_path: os.PathLike):
         raise error
 
 
-def divide_csv_daily(file_path: os.PathLike, manifest_id: int, hour_dict: dict):
-    """Split local file into daily content."""
-    data_frame = get_data_frame(file_path)
+def divide_csv_daily(file_path: os.PathLike, manifest_id: int, hour_dict: dict, data_frame: pd.DataFrame = None):
+    """Split local file into daily content.
+
+    Args:
+        file_path: Path to the CSV file.
+        manifest_id: The manifest ID for tracking.
+        hour_dict: Dictionary mapping dates to hour counts.
+        data_frame: Optional pre-loaded and validated DataFrame.
+                   If not provided, the file will be read and validated.
+    """
+    if data_frame is None:
+        data_frame = get_data_frame(file_path)
 
     report_type, _ = utils.detect_type(file_path)
     unique_times = data_frame.interval_start.unique()
@@ -150,6 +162,11 @@ def create_daily_archives(payload_info: utils.PayloadInfo, filepath: Path, conte
     """Create daily CSVs from incoming report and archive to S3."""
     manifest = payload_info.manifest
     cur_manifest = CostUsageReportManifest.objects.get(id=manifest.manifest_id)
+
+    # Validate and sanitize the data FIRST, before any branching.
+    # This ensures ALL code paths go through security validation.
+    data_frame = get_data_frame(filepath)
+
     daily_file_names = {}
     if cur_manifest.operator_version and not cur_manifest.operator_daily_reports:
         # operator_version and NOT operator_daily_reports is used for payloads received from
@@ -159,9 +176,11 @@ def create_daily_archives(payload_info: utils.PayloadInfo, filepath: Path, conte
     else:
         # we call divide_csv_daily for operators sending daily files
         # or for really old operators (those still relying on metering)
-        daily_files = divide_csv_daily(filepath, manifest.manifest_id, manifest.hours_per_day)
+        # Pass the already-validated DataFrame to avoid re-reading and re-validating
+        daily_files = divide_csv_daily(filepath, manifest.manifest_id, manifest.hours_per_day, data_frame)
 
     if not daily_files:
+        # Fallback: use the original file (already sanitized by get_data_frame)
         daily_files = [{"filepath": filepath, "date": manifest.date, "num_hours": 0}]
 
     for daily_file in daily_files:
