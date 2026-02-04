@@ -1252,7 +1252,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.os")
     @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
     @patch("masu.external.kafka_msg_handler.divide_csv_daily")
-    def test_create_daily_archives_very_old_operator(self, mock_divide, *args):
+    @patch("masu.external.kafka_msg_handler.get_data_frame")
+    def test_create_daily_archives_very_old_operator(self, mock_get_data_frame, mock_divide, *args):
         """Test that this method returns a file list."""
         # modify the manifest to remove the operator version to test really old operators:
         self.ocp_manifest.operator_version = None
@@ -1264,6 +1265,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         ]
         expected_filenames = [FILE_PATH_ONE, FILE_PATH_TWO]
 
+        mock_get_data_frame.return_value = pd.DataFrame()
         mock_divide.return_value = daily_files
 
         file_path = Path("path")
@@ -1273,8 +1275,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     @patch("masu.external.kafka_msg_handler.os")
     @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
-    def test_create_daily_archives_non_daily_operator_files(self, *args):
+    @patch("masu.external.kafka_msg_handler.get_data_frame")
+    def test_create_daily_archives_non_daily_operator_files(self, mock_get_data_frame, *args):
         """Test that this method returns a file list."""
+        mock_get_data_frame.return_value = pd.DataFrame()
+
         file_path = Path("path")
 
         context = {"version": "1"}
@@ -1285,7 +1290,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.os")
     @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
     @patch("masu.external.kafka_msg_handler.divide_csv_daily")
-    def test_create_daily_archives_daily_operator_files(self, mock_divide, *args):
+    @patch("masu.external.kafka_msg_handler.get_data_frame")
+    def test_create_daily_archives_daily_operator_files(self, mock_get_data_frame, mock_divide, *args):
         """Test that this method returns a file list."""
         self.ocp_manifest.operator_daily_reports = True
         self.ocp_manifest.save()
@@ -1300,6 +1306,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             FILE_PATH_TWO: {"meta_reportdatestart": "2020-01-02", "meta_reportnumhours": "24"},
         }
 
+        mock_get_data_frame.return_value = pd.DataFrame()
         mock_divide.return_value = daily_files
 
         file_path = Path("path")
