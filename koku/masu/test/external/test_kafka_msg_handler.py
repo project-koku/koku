@@ -1318,7 +1318,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.os")
     @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
     @patch("masu.external.kafka_msg_handler.divide_csv_daily")
-    def test_create_daily_archives_daily_operator_files_empty_file(self, mock_divide, *args):
+    @patch("masu.external.kafka_msg_handler.get_data_frame")
+    def test_create_daily_archives_daily_operator_files_empty_file(self, mock_get_data_frame, mock_divide, *args):
         """Test that this method returns a file list."""
         self.ocp_manifest.operator_daily_reports = True
         self.ocp_manifest.save()
@@ -1327,6 +1328,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.fake_payload_info.manifest.date = start_date
 
         # simulate empty report file
+        mock_get_data_frame.return_value = pd.DataFrame()
         mock_divide.return_value = None
 
         file_path = Path("path")
