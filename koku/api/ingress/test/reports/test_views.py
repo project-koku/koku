@@ -5,15 +5,16 @@
 """Test Report Views."""
 import uuid
 from unittest.mock import patch
-from unittest.mock import PropertyMock
 
 from django.urls import reverse
 from django_tenants.utils import schema_context
 from faker import Faker
 from model_bakery import baker
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
+from api.iam.test.iam_test_case import RbacPermissions
 from masu.test import MasuTestCase
 
 FAKE = Faker()
@@ -74,7 +75,8 @@ class ReportsViewTest(MasuTestCase):
         url = f"{reverse('reports')}invalid/"
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.json(), {"Error": "Invalid request."})
 
     def test_get_non_existant_source_reports(self):
         """Test to get reports for a non existant source."""
@@ -121,9 +123,11 @@ class ReportsViewTest(MasuTestCase):
         }
         client = APIClient()
         response = client.post(url, data=post_data, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Invalid request", str(response.json()))
 
-    @patch("api.ingress.reports.view.IngressAccessPermission.has_any_read_access", return_value=False)
+    @patch("api.common.permissions.ingress_access.is_ingress_rbac_grace_period_enabled", return_value=False)
+    @RbacPermissions({"settings": {"read": []}})
     def test_get_view_no_access(self, _):
         """Test GET ingress reports with no read access."""
         url = reverse("reports")
@@ -131,21 +135,31 @@ class ReportsViewTest(MasuTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    @patch("api.ingress.reports.view.IngressAccessPermission.has_access", return_value=False)
+    @patch("api.common.permissions.ingress_access.is_ingress_rbac_grace_period_enabled", return_value=False)
+    @RbacPermissions({"settings": {"read": []}})
     def test_get_source_view_no_access(self, _):
         """Test GET ingress reports for a source with no read access."""
         url = f"{reverse('reports')}{self.gcp_provider.uuid}/"
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_post_no_customer(self):
-        """Test POST ingress reports with no customer attribute on user."""
-        url = reverse("reports")
+    def test_no_customer_permission_denied(self):
+        """Test ingress reports returns 403 when user has no customer attribute."""
+        test_cases = [
+            ("POST list", "post", reverse("reports")),
+            ("GET list", "get", reverse("reports")),
+            ("GET detail", "get", f"{reverse('reports')}{self.gcp_provider.uuid}/"),
+        ]
         client = APIClient()
-        with patch("api.ingress.reports.view.getattr", return_value=None):
-            response = client.post(url, data={}, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        for name, method, url in test_cases:
+            with self.subTest(endpoint=name):
+                with patch(
+                    "api.common.permissions.ingress_access.IngressAccessPermission.has_permission",
+                    return_value=False,
+                ):
+                    response = getattr(client, method)(url, data={}, **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_post_source_not_found(self):
         """Test POST ingress reports with non-existent source."""
@@ -158,12 +172,13 @@ class ReportsViewTest(MasuTestCase):
         }
         client = APIClient()
         response = client.post(url, data=post_data, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.json(), {"Error": "Invalid request."})
 
-    @patch("api.ingress.reports.view.is_ingress_rbac_grace_period_enabled", return_value=False)
-    @patch("api.ingress.reports.view.IngressAccessPermission.has_access", return_value=False)
-    def test_post_no_write_access(self, *args):
-        """Test POST ingress reports with no write access."""
+    @patch("api.common.permissions.ingress_access.is_ingress_rbac_grace_period_enabled", return_value=False)
+    @RbacPermissions({"settings": {"read": ["*"]}})
+    def test_post_no_write_access(self, _):
+        """Test POST ingress reports with no write access (requires settings.write wildcard)."""
         url = reverse("reports")
         post_data = {
             "source": str(self.aws_provider.uuid),
@@ -209,11 +224,11 @@ class ReportsViewTest(MasuTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("already being processed", str(response.json()))
 
-    @patch("api.ingress.reports.view.is_ingress_rbac_grace_period_enabled", return_value=True)
-    @patch("api.ingress.reports.view.IngressAccessPermission.has_access", return_value=False)
+    @patch("api.common.permissions.ingress_access.is_ingress_rbac_grace_period_enabled", return_value=True)
     @patch("api.ingress.reports.serializers.ProviderAccessor.check_file_access")
+    @RbacPermissions({"settings": {"read": []}})
     def test_post_rbac_grace_period_fallback(self, *args):
-        """Test POST ingress reports fallback when RBAC fails but grace period is enabled."""
+        """Test POST ingress reports succeeds when grace period is enabled (bypasses RBAC)."""
         url = reverse("reports")
         post_data = {
             "source": f"{self.aws_provider.uuid}",
@@ -225,12 +240,11 @@ class ReportsViewTest(MasuTestCase):
         response = client.post(url, data=post_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    @patch("api.ingress.reports.view.IngressReportsSerializer.is_valid", return_value=False)
-    def test_post_validation_failed(self, mock_is_valid):
+    def test_post_validation_failed(self):
         """Test POST ingress reports when validation fails."""
-        mock_is_valid.return_value = False
-        with patch("api.ingress.reports.view.IngressReportsSerializer.errors", new_callable=PropertyMock) as mock_err:
-            mock_err.return_value = {"error": "validation failed"}
+
+        with patch("api.ingress.reports.view.IngressReportsSerializer.is_valid") as mock_is_valid:
+            mock_is_valid.side_effect = ValidationError({"Error": "Invalid request."})
             url = reverse("reports")
             post_data = {
                 "source": str(self.aws_provider.uuid),
@@ -241,4 +255,4 @@ class ReportsViewTest(MasuTestCase):
             client = APIClient()
             response = client.post(url, data=post_data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertEqual(response.json(), {"error": "validation failed"})
+            self.assertIn("Invalid request", str(response.json()))
