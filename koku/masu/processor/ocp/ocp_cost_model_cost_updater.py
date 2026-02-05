@@ -534,19 +534,22 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 filters={"monthly_cost_type": "Node_Core_Hour", "report_period_id": report_period_id},
             )
 
-    def distribute_costs_and_update_ui_summary(self, summary_range):
+    def distribute_costs_and_update_ui_summary(self, summary_range: SummaryRangeConfig):
         """Distribute cost model costs and update UI summary tables"""
         with OCPReportDBAccessor(self._schema) as accessor:
             summary_range = accessor.populate_distributed_cost_sql(
                 summary_range, self._provider_uuid, self._distribution_info
             )
-            accessor.populate_ui_summary_tables(
-                summary_range.summary_start, summary_range.summary_end, self._provider.uuid
-            )
-            report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, summary_range.summary_start)
-            if report_period:
-                report_period.derived_cost_datetime = timezone.now()
-                report_period.save()
+            for month_range in summary_range.iter_summary_range_by_month():
+                accessor.populate_ui_summary_tables(
+                    month_range.summary_start, month_range.summary_end, self._provider.uuid
+                )
+
+                if report_period := accessor.report_periods_for_provider_uuid(
+                    self._provider_uuid, month_range.summary_start
+                ):
+                    report_period.derived_cost_datetime = timezone.now()
+                    report_period.save()
 
     def update_summary_cost_model_costs(self, summary_range: SummaryRangeConfig) -> None:
         """Update the OCP summary table with the charge information.
