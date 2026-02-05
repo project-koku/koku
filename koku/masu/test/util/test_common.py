@@ -566,35 +566,6 @@ class CommonUtilTests(MasuTestCase):
         self.assertEqual(result, 0)
         self.assertFalse(result)  # Verify it's falsy
 
-    def test_convert_account(self):
-        """Test that the correct account string is returned."""
-
-        # Using distinct account/org_ids to avoid conflicts with test setup
-        acct_id = "99112233"
-        org_id = "99445566"
-        unassociated_id = "999999"
-
-        Customer.objects.update_or_create(account_id=acct_id, defaults={"schema_name": f"acct{acct_id}"})
-        Customer.objects.update_or_create(org_id=org_id, defaults={"schema_name": f"org{org_id}"})
-
-        test_matrix = [
-            # Customer lookup cases
-            {"account": acct_id, "expected": f"acct{acct_id}"},
-            {"account": org_id, "expected": f"org{org_id}"},
-            {"account": unassociated_id, "expected": unassociated_id},
-            # Passthrough cases
-            {"account": "acct1234567", "expected": "acct1234567"},
-            {"account": "org1234567", "expected": "org1234567"},
-            # Edge cases
-            {"account": "", "expected": ""},
-            {"account": None, "expected": None},
-        ]
-
-        for case in test_matrix:
-            with self.subTest(case=case):
-                account = common_utils.convert_account(case["account"])
-                self.assertEqual(account, case["expected"])
-
     def test_filter_dictionary(self):
         """Test the filter dictionary util."""
         test_dictionary = {"good_key": "good_value", "bad_key": "bad_value"}

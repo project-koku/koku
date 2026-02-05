@@ -31,7 +31,7 @@ from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_feature_flag_enabled_by_account
+from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.util.common import filter_dictionary
 from masu.util.common import source_in_trino_table
@@ -1402,7 +1402,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
             # Check Unleash flag for GPU cost model
             if name == metric_constants.OCP_GPU_MONTH:
-                if not is_feature_flag_enabled_by_account(
+                if not is_feature_flag_enabled_by_schema(
                     self.schema, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True
                 ):
                     continue

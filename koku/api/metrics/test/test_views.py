@@ -177,13 +177,13 @@ class CostModelMetricsMapViewTest(IamTestCase):
         self.assertEqual(gpu_metric["default_cost_type"], "Infrastructure")
         self.assertEqual(gpu_metric["source_type"], "OCP")
 
-    @patch("api.metrics.constants.is_feature_flag_enabled_by_account", return_value=False)
+    @patch("api.metrics.constants.is_feature_flag_enabled_by_schema", return_value=False)
     def test_gpu_metric_hidden_when_flag_disabled(self, mock_unleash):
         """Test GPU metric is not available when Unleash flag is disabled."""
         metrics = get_cost_model_metrics_map(account=self.schema_name)
         self.assertNotIn("gpu_cost_per_month", metrics)
 
-    @patch("api.metrics.constants.is_feature_flag_enabled_by_account", return_value=True)
+    @patch("api.metrics.constants.is_feature_flag_enabled_by_schema", return_value=True)
     def test_gpu_metric_visible_when_flag_enabled(self, mock_unleash):
         """Test GPU metric is available when Unleash flag is enabled."""
         metrics = get_cost_model_metrics_map(account=self.schema_name)
@@ -191,7 +191,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
         gpu_metric = metrics["gpu_cost_per_month"]
         self.assertEqual(gpu_metric["label_metric"], "GPU")
 
-    @patch("api.metrics.constants.is_feature_flag_enabled_by_account")
+    @patch("api.metrics.constants.is_feature_flag_enabled_by_schema")
     def test_metrics_endpoint_extracts_account_from_user(self, mock_unleash):
         """Test /metrics/ endpoint extracts account successfully"""
         mock_unleash.return_value = True
@@ -205,7 +205,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
         # Verify unleash was called
         self.assertTrue(mock_unleash.called)
 
-    @patch("api.metrics.constants.is_feature_flag_enabled_by_account")
+    @patch("api.metrics.constants.is_feature_flag_enabled_by_schema")
     def test_account_extraction_with_attribute_error(self, mock_unleash):
         """Test account extraction handles AttributeError when user has no customer."""
         from api.metrics.views import metrics
