@@ -18,8 +18,7 @@ class TrinoQueryTest(MasuTestCase):
     """Test Cases for the trino_query endpoint."""
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.trino.trino")
-    def test_trino_query_no_query(self, mock_trino, _):
+    def test_trino_query_no_query(self, _):
         """Test the GET trino/query endpoint with no query."""
         data = {"schema": "org1234567"}
 
@@ -29,8 +28,7 @@ class TrinoQueryTest(MasuTestCase):
         self.assertEqual(response.json(), expected)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.trino.trino")
-    def test_trino_query_no_schema(self, mock_trino, _):
+    def test_trino_query_no_schema(self, _):
         """Test the GET trino/query endpoint with no schema."""
         data = {"query": "select 1"}
 
@@ -40,8 +38,7 @@ class TrinoQueryTest(MasuTestCase):
         self.assertEqual(response.json(), expected)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.trino.trino")
-    def test_trino_query_dissallowed_query(self, mock_trino, _):
+    def test_trino_query_dissallowed_query(self, _):
         """Test the GET trino/query endpoint with bad queries."""
         dissallowed_keywords = ["delete", "insert", "update", "alter", "create", "drop", "grant"]
         for keyword in dissallowed_keywords:
@@ -51,10 +48,16 @@ class TrinoQueryTest(MasuTestCase):
             self.assertEqual(response.status_code, 400)
             self.assertEqual(response.json(), expected)
 
+    @patch("trino.dbapi.connect")
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.trino.trino")
-    def test_trino_query_allowed_queries(self, *args):
+    def test_trino_query_allowed_queries(self, _, mock_connect):
         """Test the GET trino/query endpoint with allowed queries."""
+        # Setup mock cursor
+        mock_cursor = MagicMock()
+        mock_cursor.description = [("col1",), ("col2",)]
+        mock_cursor.fetchall.return_value = [("val1", "val2")]
+        mock_connect.return_value.__enter__.return_value.cursor.return_value = mock_cursor
+
         test_queries = [
             "SELECT * FROM openshift_pod_usage_line_items",
             "SELECT DISTINCT json_extract_scalar(json_parse(persistentvolumeclaim_labels), '$.kubevirt_io_created_by')",

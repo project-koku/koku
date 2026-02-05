@@ -237,8 +237,13 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
 
     if provider_type == Provider.PROVIDER_OCP:
         accessor = OCPReportDBAccessor(schema_name)
-        for table, partition_column in TRINO_MANAGED_TABLES.items():
-            accessor.delete_hive_partitions_by_source(table, partition_column, provider_uuid)
+        if settings.ONPREM:
+            # For on-prem, delete from all self-hosted tables via source column
+            accessor.delete_self_hosted_data_by_source(provider_uuid)
+        else:
+            # For SaaS, delete Hive partitions in Trino
+            for table, partition_column in TRINO_MANAGED_TABLES.items():
+                accessor.delete_hive_partitions_by_source(table, partition_column, provider_uuid)
 
 
 # This task will process the autovacuum tuning as a background process

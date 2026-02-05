@@ -7,19 +7,28 @@ import time
 import typing as t
 
 import sqlparse
-import trino
+from django.db.utils import ProgrammingError as DjangoProgrammingError
 from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
 from trino.transaction import IsolationLevel
 
 from api.common import log_json
 from koku import settings
+from koku.reportdb_accessor import get_report_db_accessor
 
 LOG = logging.getLogger(__name__)
 
 POSITIONAL_VARS = re.compile("%s")
 NAMED_VARS = re.compile(r"%(.+)s")
 EOT = re.compile(r",\s*\)$")  # pylint: disable=anomalous-backslash-in-string
+
+########################################################
+# Comments about moving from Trino to Postgres
+# 1. The retry logic is not needed for Postgres. There are errors that happen dur to the separation of hive/trino/s3.
+# 2. The isolation level is not needed for Postgres. It is always AUTOCOMMIT which is the default for postgres.
+# 3. The exceptions defined in this file are not needed for Postgres.
+#    We can start with relying on the Django (psycopg2) exceptions.
+########################################################
 
 
 class KokuError(Exception):
@@ -187,7 +196,7 @@ def retry(
 
 def connect(**connect_args):
     """
-    Establish a trino connection.
+    Establish a databse connection. For ONPREM the connection is not via Trino, but via Django.
     Keyword Params:
         schema (str) : trino schema (required)
         host (str) : trino hostname (can set from environment)
@@ -195,13 +204,14 @@ def connect(**connect_args):
         user (str) : trino user (can set from environment)
         catalog (str) : trino catalog (can set from enviromment)
     Returns:
-        trino.dbapi.Connection : connection to trino if successful
+        Python DB-API 2.0 compatible connection object
     """
     trino_connect_args = {
         "host": (connect_args.get("host") or os.environ.get("TRINO_HOST") or "trino"),
         "port": (connect_args.get("port") or os.environ.get("TRINO_PORT") or 8080),
         "user": (connect_args.get("user") or os.environ.get("TRINO_USER") or "admin"),
         "catalog": (connect_args.get("catalog") or os.environ.get("TRINO_DEFAULT_CATALOG") or "hive"),
+        # I don't think this is really in use. It is always AUTOCOMMIT which is the default for postgres.
         "isolation_level": (
             connect_args.get("isolation_level")
             or os.environ.get("TRINO_DEFAULT_ISOLATION_LEVEL")
@@ -211,11 +221,11 @@ def connect(**connect_args):
         "legacy_primitive_types": connect_args.get("legacy_primitive_types", False),
         "max_attempts": 9,  # based on exponential backoff used in the trino lib, 9 max retries with take ~100 seconds
     }
-    return trino.dbapi.connect(**trino_connect_args)
+    return get_report_db_accessor().connect(**trino_connect_args)
 
 
 @retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError))
-def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
+def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):  # noqa: C901
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
     will be parsed into individual statements for execution. If preprocessor is None,
@@ -223,7 +233,7 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
     then it should be a callable taking two positional arguments and returning a 2-element tuple:
         pre_process(sql, parameters) -> (processed_sql, processed_parameters)
     Parameters:
-        trino_conn (trino.dbapi.Connection) : Connection to trino
+        trino_conn : Python DB-API 2.0 compatible connection object
         sqlscript (str) : Buffer of one or more semicolon-terminated SQL statements.
         params (Iterable, dict, None) : Parameters used in the SQL or None if no parameters
         preprocessor (Callable, None) : Callable taking two args and returning a 2-element tuple
@@ -255,6 +265,12 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
                 cur = trino_conn.cursor()
                 cur.execute(stmt, params=s_params)
                 results = cur.fetchall()
+            except DjangoProgrammingError as e:
+                # PostgreSQL raises "no results to fetch" for CREATE/DROP without RETURNING
+                if "no results to fetch" in str(e):
+                    results = []
+                else:
+                    raise
             except TrinoQueryError as trino_exc:
                 exc_to_raise = TrinoStatementExecError(
                     statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc

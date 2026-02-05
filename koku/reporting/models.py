@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for cost entry tables."""
+from django.conf import settings
+
 from reporting.currency.models import CurrencySettings
 from reporting.ingress.models import IngressReports
 from reporting.partition.models import PartitionedTable
@@ -148,20 +150,30 @@ OCP_ON_AZURE_PERSPECTIVES = (
     OCPAzureDatabaseSummaryP,
 )
 
-# These are cleaned during source delete
-# Also used during the expired_data flow
-TRINO_MANAGED_TABLES = {
-    "reporting_ocpusagelineitem_daily_summary": "source",
-    "managed_gcp_openshift_daily_temp": "ocp_source",
-    "managed_gcp_openshift_disk_capacities_temp": "ocp_source",
-    "managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp": "ocp_source",
-    "managed_reporting_ocpgcpcostlineitem_project_daily_summary": "ocp_source",
-    "managed_aws_openshift_daily_temp": "ocp_source",
-    "managed_reporting_ocpawscostlineitem_project_daily_summary_temp": "ocp_source",
-    "managed_reporting_ocpawscostlineitem_project_daily_summary": "ocp_source",
-    "managed_aws_openshift_disk_capacities_temp": "ocp_source",
-    "managed_azure_openshift_daily_temp": "ocp_source",
-    "managed_azure_openshift_disk_capacities_temp": "ocp_source",
-    "managed_reporting_ocpazurecostlineitem_project_daily_summary_temp": "ocp_source",
-    "managed_reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
-}
+# These are Trino/Hive managed tables that are cleaned during source delete
+# For on-prem, cleanup is handled via Django model delete (see delete_self_hosted_data_by_source)
+# Empty dict for on-prem to allow safe imports without errors
+if getattr(settings, "ONPREM", False):
+    TRINO_MANAGED_TABLES = {}
+    EXPIRE_MANAGED_TABLES = {}
+else:
+    TRINO_MANAGED_TABLES = {
+        "reporting_ocpusagelineitem_daily_summary": "source",
+        "managed_gcp_openshift_daily_temp": "ocp_source",
+        "managed_gcp_openshift_disk_capacities_temp": "ocp_source",
+        "managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp": "ocp_source",
+        "managed_reporting_ocpgcpcostlineitem_project_daily_summary": "ocp_source",
+        "managed_aws_openshift_daily_temp": "ocp_source",
+        "managed_reporting_ocpawscostlineitem_project_daily_summary_temp": "ocp_source",
+        "managed_reporting_ocpawscostlineitem_project_daily_summary": "ocp_source",
+        "managed_aws_openshift_disk_capacities_temp": "ocp_source",
+        "managed_azure_openshift_daily_temp": "ocp_source",
+        "managed_azure_openshift_disk_capacities_temp": "ocp_source",
+        "managed_reporting_ocpazurecostlineitem_project_daily_summary_temp": "ocp_source",
+        "managed_reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
+    }
+
+    # These are cleaned during expired_data flow
+    EXPIRE_MANAGED_TABLES = {
+        "reporting_ocpusagelineitem_daily_summary": "source",
+    }
