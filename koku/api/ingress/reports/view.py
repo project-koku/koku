@@ -7,7 +7,6 @@ import logging
 from uuid import UUID
 
 from rest_framework import status
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -16,7 +15,6 @@ from api.common.pagination import ListPaginator
 from api.common.permissions.ingress_access import IngressAccessPermission
 from api.ingress.reports.serializers import IngressReportsSerializer
 from api.provider.models import Sources
-from masu.processor import is_ingress_rbac_grace_period_enabled
 from reporting.ingress.models import IngressReports
 
 LOG = logging.getLogger(__name__)
@@ -27,7 +25,7 @@ class IngressReportsDetailView(APIView):
     View to fetch report details for specific source
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IngressAccessPermission]
 
     def get(self, request, *args, **kwargs):
         """
@@ -37,22 +35,17 @@ class IngressReportsDetailView(APIView):
         try:
             UUID(source)
         except ValueError:
-            LOG.warning(log_json(msg="invalid source UUID in ingress report detail view", source=source))
-            return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
+            LOG.warning(log_json(msg="Invalid source UUID in ingress report detail view.", source=source))
+            return Response({"Error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
 
         # scope to schema_name to prevent cross-tenant data exposure
         schema_name = request.user.customer.schema_name
-        report_instance = IngressReports.objects.filter(source=source, schema_name=schema_name)
+        context = {"schema": schema_name, "source": source}
 
+        report_instance = IngressReports.objects.filter(source=source, schema_name=request.user.customer)
         first_report = report_instance.first()
         if not first_report:
-            LOG.warning(log_json(msg="source not found in ingress report detail view", source=source))
-            return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        if not IngressAccessPermission.has_access(request, first_report.source.type):
-            LOG.warning(
-                log_json(msg="rbac read access denied for ingress source", schema_name=schema_name, source=source)
-            )
+            LOG.warning(log_json(msg="Source not found in ingress report detail view.", **context))
             return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = IngressReportsSerializer(report_instance, many=True)
@@ -65,17 +58,16 @@ class IngressReportsView(APIView):
     View to interact with settings for a customer.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IngressAccessPermission]
 
     def get(self, request, *args, **kwargs):
         """
         Return list of sources.
         """
-        if not IngressAccessPermission.has_any_read_access(request):
-            LOG.warning(log_json(msg="ingress report read access denied", user=request.user.username))
-            return Response({"Error": "Not authorized."}, status=status.HTTP_403_FORBIDDEN)
 
-        reports = IngressReports.objects.filter(schema_name=request.user.customer.schema_name)
+        schema_name = request.user.customer.schema_name
+
+        reports = IngressReports.objects.filter(schema_name=schema_name)
         serializer = IngressReportsSerializer(reports, many=True)
         paginator = ListPaginator(serializer.data, request)
         return paginator.get_paginated_response(serializer.data)
@@ -83,38 +75,19 @@ class IngressReportsView(APIView):
     def post(self, request):
         """Handle posted reports."""
 
-        if not getattr(request.user, "customer", None):
-            LOG.warning("unauthorized ingress report post: user has no customer attribute")
-            return Response({"Error": "Unauthorized."}, status=status.HTTP_401_UNAUTHORIZED)
-
-        org_id = request.user.customer.org_id
-        schema_name = request.user.customer.schema_name
         source_ref = request.data.get("source")
-
+        schema_name = request.user.customer.schema_name
+        context = {"schema": schema_name, "source": source_ref}
         if not source_ref:
-            LOG.info(
-                log_json(msg="ingress report post missing source reference", source_ref=source_ref, org_id=org_id)
-            )
-            return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
+            LOG.info(log_json(msg="Ingress report post failed. Missing source reference.", **context))
+            return Response({"Error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
 
         lookup = {"source_id": source_ref} if str(source_ref).isdigit() else {"koku_uuid": source_ref}
-        source = Sources.objects.filter(org_id=org_id, **lookup).first()
+        source = Sources.objects.filter(org_id=request.user.customer.org_id, **lookup).first()
 
         if not source:
-            LOG.info(log_json(msg="ingress report post source not found", source_ref=source_ref, org_id=org_id))
-            return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        if not is_ingress_rbac_grace_period_enabled(schema_name) and not IngressAccessPermission.has_access(
-            request, source.source_type, write=True
-        ):
-            LOG.warning(
-                log_json(
-                    msg="access denied for ingress report posting",
-                    source=source.koku_uuid,
-                    org_id=org_id,
-                )
-            )
-            return Response({"Error": "Not authorized for source."}, status=status.HTTP_403_FORBIDDEN)
+            LOG.info(log_json(msg="Ingress report post failed. Source not found.", **context))
+            return Response({"Error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
 
         data = {
             "source": source.koku_uuid,
@@ -125,24 +98,18 @@ class IngressReportsView(APIView):
             "schema_name": schema_name,
         }
         serializer = IngressReportsSerializer(data=data)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            data["ingress_report_uuid"] = serializer.data.get("uuid")
-            data["status"] = serializer.data.get("status")
-            IngressReports.ingest(data)
-            paginator = ListPaginator(data, request)
-            LOG.info(
-                log_json(
-                    msg="ingress report validated and ingestion triggered",
-                    ingress_report_uuid=data["ingress_report_uuid"],
-                    source=source.koku_uuid,
-                    bill_period=f"{data['bill_year']}-{data['bill_month']}",
-                )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        data["ingress_report_uuid"] = serializer.data.get("uuid")
+        data["status"] = serializer.data.get("status")
+        IngressReports.ingest(data)
+        paginator = ListPaginator(data, request)
+        LOG.info(
+            log_json(
+                msg="Ingress report validated and ingestion triggered.",
+                ingress_report_uuid=data["ingress_report_uuid"],
+                bill_period=f"{data['bill_year']}-{data['bill_month']}",
+                **context,
             )
-            return paginator.get_paginated_response(data)
-
-        LOG.warning(
-            log_json(msg="ingress report validation failed", source_ref=source_ref, org_id=org_id),
-            exc_info=serializer.errors,
         )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return paginator.get_paginated_response(data)

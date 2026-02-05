@@ -155,7 +155,5 @@ def is_tag_processing_disabled(schema):  # pragma: no cover
 
 def is_ingress_rbac_grace_period_enabled(schema):  # pragma: no cover
     """Flag to enable ingress report processing."""
-    context = {"schema": schema}
-    return UNLEASH_CLIENT.is_enabled(
-        "cost-management.backend.ingress-rbac-grace-period-enabled", context, fallback_development_true
-    )
+    enabled = UNLEASH_CLIENT.is_enabled("cost-management.backend.ingress-rbac-grace-period-enabled", context)
+    return enabled
