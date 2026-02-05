@@ -3,53 +3,28 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Defines the Ingress Access Permissions class."""
-from django.conf import settings
+import logging
 
-from api.common.permissions.aws_access import AwsAccessPermission
-from api.common.permissions.azure_access import AzureAccessPermission
-from api.common.permissions.gcp_access import GcpAccessPermission
-from api.common.permissions.openshift_access import OpenShiftAccessPermission
-from api.provider.models import Provider
+from api.common import log_json
+from api.common.permissions.settings_access import SettingsAccessPermission
+from masu.processor import is_ingress_rbac_grace_period_enabled
 
-ACCESS_TYPE_MAP = {
-    Provider.PROVIDER_AWS: AwsAccessPermission.resource_type,
-    Provider.PROVIDER_AWS_LOCAL: AwsAccessPermission.resource_type,
-    Provider.PROVIDER_AZURE: AzureAccessPermission.resource_type,
-    Provider.PROVIDER_AZURE_LOCAL: AzureAccessPermission.resource_type,
-    Provider.PROVIDER_GCP: GcpAccessPermission.resource_type,
-    Provider.PROVIDER_GCP_LOCAL: GcpAccessPermission.resource_type,
-    Provider.PROVIDER_OCP: OpenShiftAccessPermission.resource_type,
-}
-ACCESS_RESOURCE_TYPES = tuple(ACCESS_TYPE_MAP.values())
+LOG = logging.getLogger(__name__)
 
 
-class IngressAccessPermission:
-    """Utility class for Ingress RBAC checks."""
+class IngressAccessPermission(SettingsAccessPermission):
+    """Determines if a user can access ingress data."""
 
-    @staticmethod
-    def has_access(request, provider_type, write=False):
-        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
+    def has_permission(self, request, view):
+        """Check if the user has permission to access ingress data."""
+        customer = getattr(request.user, "customer", None)
+
+        if not customer:
+            LOG.warning("Unauthorized ingress access. User has no customer attribute.")
+            return False
+
+        if is_ingress_rbac_grace_period_enabled(customer.schema_name):
+            LOG.info(log_json(msg="Ingress RBAC grace period is enabled for customer", schema=customer.schema_name))
             return True
-        access = getattr(request.user, "access", None)
-        if not access or not isinstance(access, dict):
-            return False
-        resource_type = ACCESS_TYPE_MAP.get(provider_type)
-        if not resource_type:
-            return False
-        resource_access = access.get(resource_type, {})
-        if write:
-            write_access = resource_access.get("write", [])
-            return any(write_access)
-        return any(resource_access.get("read", []))
 
-    @staticmethod
-    def has_any_read_access(request):
-        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
-            return True
-        access = getattr(request.user, "access", None)
-        if not access or not isinstance(access, dict):
-            return False
-        for resource_type in ACCESS_RESOURCE_TYPES:
-            if access.get(resource_type, {}).get("read", []):
-                return True
-        return False
+        return super().has_permission(request, view)
