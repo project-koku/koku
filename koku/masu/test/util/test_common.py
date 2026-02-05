@@ -605,6 +605,75 @@ def test_get_latest_openshift_on_cloud_manifest(self):
     self.assertEqual(manifest.manifest_id, manifest_expected_id)
 
 
+class SummaryRangeConfigTests(TestCase):
+    """Tests for SummaryRangeConfig."""
+
+    def test_iter_summary_range_by_month_single_month(self):
+        """Test iter_summary_range_by_month with a single month range."""
+        config = common_utils.SummaryRangeConfig(start_date=date(2025, 1, 5), end_date=date(2025, 1, 20))
+        ranges = list(config.iter_summary_range_by_month())
+
+        self.assertEqual(len(ranges), 1)
+        self.assertEqual(ranges[0].summary_start, date(2025, 1, 5))
+        self.assertEqual(ranges[0].summary_end, date(2025, 1, 20))
+
+    def test_iter_summary_range_by_month_spans_two_months(self):
+        """Test iter_summary_range_by_month with a date range spanning two months."""
+        config = common_utils.SummaryRangeConfig(start_date=date(2025, 1, 1), end_date=date(2025, 2, 3))
+        ranges = list(config.iter_summary_range_by_month())
+
+        self.assertEqual(len(ranges), 2)
+        # First range: 2025-01-01 to 2025-01-31
+        self.assertEqual(ranges[0].summary_start, date(2025, 1, 1))
+        self.assertEqual(ranges[0].summary_end, date(2025, 1, 31))
+        # Second range: 2025-02-01 to 2025-02-03
+        self.assertEqual(ranges[1].summary_start, date(2025, 2, 1))
+        self.assertEqual(ranges[1].summary_end, date(2025, 2, 3))
+
+    def test_iter_summary_range_by_month_spans_three_months(self):
+        """Test iter_summary_range_by_month with a date range spanning three months."""
+        config = common_utils.SummaryRangeConfig(start_date=date(2025, 1, 15), end_date=date(2025, 3, 10))
+        ranges = list(config.iter_summary_range_by_month())
+
+        self.assertEqual(len(ranges), 3)
+        # First range: 2025-01-15 to 2025-01-31
+        self.assertEqual(ranges[0].summary_start, date(2025, 1, 15))
+        self.assertEqual(ranges[0].summary_end, date(2025, 1, 31))
+        # Second range: 2025-02-01 to 2025-02-28
+        self.assertEqual(ranges[1].summary_start, date(2025, 2, 1))
+        self.assertEqual(ranges[1].summary_end, date(2025, 2, 28))
+        # Third range: 2025-03-01 to 2025-03-10
+        self.assertEqual(ranges[2].summary_start, date(2025, 3, 1))
+        self.assertEqual(ranges[2].summary_end, date(2025, 3, 10))
+
+    def test_iter_summary_range_by_month_with_extended_summary_dates(self):
+        """Test iter_summary_range_by_month uses min/max of summary_starts and summary_ends."""
+        config = common_utils.SummaryRangeConfig(start_date=date(2025, 1, 15), end_date=date(2025, 2, 3))
+        # Access start_of_month to add the 1st of the month to summary_starts
+        # This simulates the GPU finalization case where full month boundaries are accessed
+        config.start_of_month  # Adds 2025-01-01 to summary_starts
+
+        ranges = list(config.iter_summary_range_by_month())
+
+        # Should now span from start_of_month (2025-01-01) to end_date (2025-02-03)
+        self.assertEqual(len(ranges), 2)
+        # First range should start from 1st of month, not the original start_date
+        self.assertEqual(ranges[0].summary_start, date(2025, 1, 1))
+        self.assertEqual(ranges[0].summary_end, date(2025, 1, 31))
+        # Second range is the partial February
+        self.assertEqual(ranges[1].summary_start, date(2025, 2, 1))
+        self.assertEqual(ranges[1].summary_end, date(2025, 2, 3))
+
+    def test_iter_summary_range_by_month_preserves_skip_full_month(self):
+        """Test iter_summary_range_by_month preserves skip_full_month flag."""
+        config = common_utils.SummaryRangeConfig(
+            start_date=date(2025, 1, 1), end_date=date(2025, 2, 3), skip_full_month=True
+        )
+
+        for range_config in config.iter_summary_range_by_month():
+            self.assertTrue(range_config.skip_full_month)
+
+
 class NamedTemporaryGZipTests(TestCase):
     """Tests for NamedTemporaryGZip."""
 

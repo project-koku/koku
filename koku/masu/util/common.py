@@ -602,3 +602,18 @@ class SummaryRangeConfig(BaseModel):
         for day in DateHelper().list_days(self.start_date, self.end_date):
             yield SummaryRangeConfig(start_date=day, end_date=day, skip_full_month=not first_day)
             first_day = False
+
+    def iter_summary_range_by_month(self) -> Iterator[Self]:
+        """Yield a SummaryRangeConfig for each month in the summary range.
+
+        Uses summary_start (min of all start dates) and summary_end (max of all end dates)
+        to determine the full range, then splits into monthly ranges. This is needed for
+        VM summary table updates that match Trino partition structure (year/month).
+
+        Example:
+            If summary_start is 2025-01-01 and summary_end is 2025-02-03, yields:
+            - SummaryRangeConfig(2025-01-01, 2025-01-31)
+            - SummaryRangeConfig(2025-02-01, 2025-02-03)
+        """
+        for start, end in DateHelper().list_month_tuples(self.summary_start, self.summary_end):
+            yield SummaryRangeConfig(start_date=start, end_date=end, skip_full_month=self.skip_full_month)
