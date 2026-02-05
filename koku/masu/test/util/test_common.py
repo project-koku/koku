@@ -18,7 +18,6 @@ from django.test import TestCase
 from django_tenants.utils import schema_context
 
 import masu.util.common as common_utils
-from api.iam.models import Customer
 from api.iam.test.iam_test_case import FakeTrinoConn
 from api.iam.test.iam_test_case import FakeTrinoCur
 from api.models import Provider

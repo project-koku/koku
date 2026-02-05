@@ -25,7 +25,6 @@ from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
 from django.conf import settings
-from django.db.models import Q
 from django_tenants.utils import schema_context
 from pydantic import BaseModel
 from pydantic import Field
@@ -33,7 +32,6 @@ from pydantic import field_validator
 
 import koku.trino_database as trino_db
 from api.common import log_json
-from api.iam.models import Customer
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
