@@ -147,6 +147,7 @@ def _deliver_status(request, status_obj):
         return Response(status_obj.sources_response, status=status.HTTP_200_OK)
     elif request.method == "POST":
         status_obj.push_status()
+        return Response(status=status.HTTP_204_NO_CONTENT)
     else:
         raise status.HTTP_405_METHOD_NOT_ALLOWED
 

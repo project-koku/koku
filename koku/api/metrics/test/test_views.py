@@ -180,13 +180,13 @@ class CostModelMetricsMapViewTest(IamTestCase):
     @patch("api.metrics.constants.is_feature_flag_enabled_by_schema", return_value=False)
     def test_gpu_metric_hidden_when_flag_disabled(self, mock_unleash):
         """Test GPU metric is not available when Unleash flag is disabled."""
-        metrics = get_cost_model_metrics_map(account=self.schema_name)
+        metrics = get_cost_model_metrics_map(schema=self.schema_name)
         self.assertNotIn("gpu_cost_per_month", metrics)
 
     @patch("api.metrics.constants.is_feature_flag_enabled_by_schema", return_value=True)
     def test_gpu_metric_visible_when_flag_enabled(self, mock_unleash):
         """Test GPU metric is available when Unleash flag is enabled."""
-        metrics = get_cost_model_metrics_map(account=self.schema_name)
+        metrics = get_cost_model_metrics_map(schema=self.schema_name)
         self.assertIn("gpu_cost_per_month", metrics)
         gpu_metric = metrics["gpu_cost_per_month"]
         self.assertEqual(gpu_metric["label_metric"], "GPU")
