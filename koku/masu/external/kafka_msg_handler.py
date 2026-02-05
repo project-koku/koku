@@ -63,8 +63,6 @@ from reporting_common.states import CombinedChoices
 from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
 
-# Import registers the .ocp accessor on pandas DataFrames
-
 LOG = logging.getLogger(__name__)
 SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
@@ -80,17 +78,10 @@ class EmptyPayloadFileError(pd.errors.EmptyDataError):
 
 
 def get_data_frame(file_path: os.PathLike):
-    """Read csv file into dataframe with validation and sanitization.
-
-    This function reads the CSV file, validates/sanitizes the data to prevent
-    malicious content (SQLi, XSS), and writes the sanitized data back to the file.
-    This ensures the file on disk always contains sanitized data for any downstream
-    operations (e.g., S3 upload).
-    """
+    """Read CSV into dataframe, validate/sanitize for SQLi/XSS, and write back to file."""
     try:
         df = pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"), on_bad_lines="warn")
 
-        # Validate and sanitize using the pandas accessor
         df, issues = df.ocp.validate_and_sanitize()
 
         if issues:
@@ -102,8 +93,7 @@ def get_data_frame(file_path: os.PathLike):
                 )
             )
 
-        # Write sanitized data back to file so any downstream file operations
-        # (like S3 upload) use the sanitized version
+        # Write sanitized data back for S3 upload
         df.to_csv(file_path, index=False, header=True)
         return df
     except pd.errors.EmptyDataError as error:
@@ -168,10 +158,8 @@ def create_daily_archives(payload_info: utils.PayloadInfo, filepath: Path, conte
     manifest = payload_info.manifest
     cur_manifest = CostUsageReportManifest.objects.get(id=manifest.manifest_id)
 
-    # Validate and sanitize the data FIRST, before any branching.
-    # This ensures ALL code paths go through security validation.
+    # Validate/sanitize data before any branching
     data_frame = get_data_frame(filepath)
-
     daily_file_names = {}
     if cur_manifest.operator_version and not cur_manifest.operator_daily_reports:
         # operator_version and NOT operator_daily_reports is used for payloads received from

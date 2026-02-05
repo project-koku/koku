@@ -41,26 +41,7 @@ class OCPDataValidationError(Exception):
 
 @pd.api.extensions.register_dataframe_accessor("ocp")
 class OCPDataFrameAccessor:
-    """
-    Pandas DataFrame accessor for OCP data validation and sanitization.
-
-    This accessor provides a clean, pandas-native API for validating and
-    sanitizing OCP report data to prevent SQL injection and XSS attacks.
-
-    Usage:
-        # Validate and sanitize in one call
-        df, issues = df.ocp.validate_and_sanitize()
-
-        # Just validate (returns issues without modifying)
-        df, issues = df.ocp.validate()
-
-        # Just sanitize
-        df = df.ocp.sanitize()
-
-        # Check if data contains malicious content
-        if df.ocp.has_malicious_content():
-            raise SecurityError("Malicious content detected")
-    """
+    """Pandas DataFrame accessor for OCP data validation and sanitization."""
 
     # Fields to validate and sanitize - user-controllable string fields from OCP data
     FIELDS_TO_VALIDATE = (
