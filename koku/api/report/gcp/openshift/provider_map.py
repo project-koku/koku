@@ -171,9 +171,11 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                         },
                         "delta_key": {
@@ -301,14 +303,16 @@ class OCPGCPProviderMap(ProviderMap):
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True, default=Value([])
                             ),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
                                 Value("hour", output_field=CharField()),
                             ),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "cost_units_key": "currency",
@@ -434,7 +438,9 @@ class OCPGCPProviderMap(ProviderMap):
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
                                 Value("gibibyte month", output_field=CharField()),
                             ),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
