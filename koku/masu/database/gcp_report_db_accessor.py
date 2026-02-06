@@ -23,7 +23,7 @@ from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG
-from masu.processor import is_feature_flag_enabled_by_account
+from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import is_tag_processing_disabled
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.provider.all.models import EnabledTagKeys
@@ -312,7 +312,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        enable_unattributed_storage = is_feature_flag_enabled_by_account(
+        enable_unattributed_storage = is_feature_flag_enabled_by_schema(
             self.schema, GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG, dev_fallback=True
         )
         sql_metadata = SummarySqlMetadata(

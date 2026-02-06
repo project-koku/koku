@@ -390,7 +390,7 @@ class CostModelSerializerTest(IamTestCase):
     def test_get_metric_display_data_openshift(self):
         """Test the display data helper function for OpenShift metrics."""
         # Mock Unleash flag to include GPU metrics
-        with patch("api.metrics.constants.is_feature_flag_enabled_by_account", return_value=True):
+        with patch("api.metrics.constants.is_feature_flag_enabled_by_schema", return_value=True):
             serializer = CostModelSerializer(data=None, context=self.request_context)
 
             for metric_choice in metric_constants.METRIC_CHOICES:

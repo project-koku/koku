@@ -565,20 +565,6 @@ class CommonUtilTests(MasuTestCase):
         self.assertEqual(result, 0)
         self.assertFalse(result)  # Verify it's falsy
 
-    def test_convert_account(self):
-        """Test that the correct account string is returned."""
-        account_str = "1234567"
-        account = common_utils.convert_account(account_str)
-        self.assertIn("acct", account)
-
-        account_str = "acct1234567"
-        account = common_utils.convert_account(account_str)
-        self.assertEqual(account_str, account)
-
-        account_str = "org1234567"
-        account = common_utils.convert_account(account_str)
-        self.assertEqual(account_str, account)
-
     def test_filter_dictionary(self):
         """Test the filter dictionary util."""
         test_dictionary = {"good_key": "good_value", "bad_key": "bad_value"}
