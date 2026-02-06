@@ -141,12 +141,6 @@ def is_feature_cost_4403_ec2_compute_cost_enabled(schema):  # pragma: no cover
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
 
 
-def is_customer_cost_model_large(schema):  # pragma: no cover
-    """Flag the customer as having a large amount of data for cost model updates."""
-    context = {"schema": schema}
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer-cost-model", context)
-
-
 def is_tag_processing_disabled(schema):  # pragma: no cover
     """Flag the customer as tag processing disabled."""
     context = {"schema": schema}

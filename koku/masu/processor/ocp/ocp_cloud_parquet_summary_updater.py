@@ -24,6 +24,7 @@ from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdat
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair
+from masu.util.common import SummaryRangeConfig
 from masu.util.gcp.common import get_bills_from_provider as gcp_get_bills_from_provider
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
@@ -170,7 +171,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         # Update the UI tables for the OpenShift provider
         with OCPReportDBAccessor(self._schema) as ocp_accessor:
-            ocp_accessor.populate_ui_summary_tables(start_date, end_date, ocp_provider_uuid)
+            ocp_accessor.populate_ui_summary_tables(
+                SummaryRangeConfig(start_date=start_date, end_date=end_date), ocp_provider_uuid
+            )
 
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on AWS."""

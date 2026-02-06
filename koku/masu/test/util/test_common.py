@@ -664,14 +664,14 @@ class SummaryRangeConfigTests(TestCase):
         self.assertEqual(ranges[1].summary_start, date(2025, 2, 1))
         self.assertEqual(ranges[1].summary_end, date(2025, 2, 3))
 
-    def test_iter_summary_range_by_month_preserves_skip_full_month(self):
-        """Test iter_summary_range_by_month preserves skip_full_month flag."""
+    def test_iter_summary_range_by_month_preserves_summarize_previous_month(self):
+        """Test iter_summary_range_by_month preserves summarize_previous_month flag."""
         config = common_utils.SummaryRangeConfig(
-            start_date=date(2025, 1, 1), end_date=date(2025, 2, 3), skip_full_month=True
+            start_date=date(2025, 1, 1), end_date=date(2025, 2, 3), summarize_previous_month=True
         )
 
         for range_config in config.iter_summary_range_by_month():
-            self.assertTrue(range_config.skip_full_month)
+            self.assertTrue(range_config.summarize_previous_month)
 
 
 class NamedTemporaryGZipTests(TestCase):

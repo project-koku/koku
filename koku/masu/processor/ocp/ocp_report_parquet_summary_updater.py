@@ -17,6 +17,7 @@ from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.common import date_range_pair
+from masu.util.common import SummaryRangeConfig
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
@@ -130,7 +131,9 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 accessor.populate_line_item_daily_summary_table_trino(
                     start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid
                 )
-                accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
+                accessor.populate_ui_summary_tables(
+                    SummaryRangeConfig(start_date=start, end_date=end), self._provider.uuid
+                )
 
             # This will process POD and STORAGE together
             LOG.info(

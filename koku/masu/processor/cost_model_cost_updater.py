@@ -10,7 +10,6 @@ from api.utils import DateHelper
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.cache import TAG_MAPPING_PREFIX
-from masu.processor import is_customer_cost_model_large
 from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater
 from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
 from masu.processor.gcp.gcp_cost_model_cost_updater import GCPCostModelCostUpdater
@@ -93,11 +92,7 @@ class CostModelCostUpdater:
             end_date = dh.today.date()
         summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
         if self._updater:
-            if is_customer_cost_model_large(self._schema):
-                for day_range in summary_range.iter_days():
-                    self._updater.update_summary_cost_model_costs(day_range)
-            else:
-                self._updater.update_summary_cost_model_costs(summary_range)
+            self._updater.update_summary_cost_model_costs(summary_range)
             invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
             # Invalidate the tag_rate_map for tag mapping
             invalidate_cache_for_tenant_and_cache_key(self._schema, TAG_MAPPING_PREFIX)
