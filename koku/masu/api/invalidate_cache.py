@@ -5,6 +5,7 @@
 """Endpoint for cache invalidation."""
 import logging
 from typing import Literal
+from typing import Optional
 
 from pydantic import BaseModel
 from pydantic import ValidationError
@@ -25,6 +26,7 @@ LOG = logging.getLogger("__name__")
 
 class CacheInvalidationEvent(BaseModel):
     schema_name: str
+    key_prefix: Optional[str] = None
     cache_name: Literal[CacheEnum.api, CacheEnum.rbac]
 
 
@@ -48,7 +50,7 @@ def invalidate_cache(request: Request):
     for event in events.events:
         if event.cache_name == CacheEnum.api:
             invalidate_cache_for_tenant_and_cache_key(
-                event.schema_name, cache_key_prefix=CacheEnum.api, cache_name=CacheEnum.api
+                event.schema_name, cache_key_prefix=event.key_prefix, cache_name=CacheEnum.api
             )
         elif event.cache_name == CacheEnum.rbac:
             schema_name = event.schema_name.removeprefix("acct").removeprefix("org")
