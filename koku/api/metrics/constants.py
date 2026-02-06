@@ -6,7 +6,7 @@
 import copy
 
 from api.models import Provider
-from masu.processor import is_feature_flag_enabled_by_account
+from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 
 """Model for our cost model metric map."""
@@ -285,11 +285,11 @@ UNLEASH_METRICS_GPU = {
 }
 
 
-def get_cost_model_metrics_map(account=None):
+def get_cost_model_metrics_map(schema=None):
     map_copy = copy.deepcopy(COST_MODEL_METRIC_MAP)
 
     # Check GPU unleash flag
-    if is_feature_flag_enabled_by_account(account, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True):
+    if is_feature_flag_enabled_by_schema(schema, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True):
         map_copy |= copy.deepcopy(UNLEASH_METRICS_GPU)
 
     return map_copy

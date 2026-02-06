@@ -451,9 +451,9 @@ class CostModelSerializer(BaseSerializer):
         """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
         # Get account from context if available
-        account = self.customer.schema_name if self.customer else None
+        schema = self.customer.schema_name if self.customer else None
 
-        metric_map = metric_constants.get_cost_model_metrics_map(account=account)
+        metric_map = metric_constants.get_cost_model_metrics_map(schema=schema)
         for metric, value in metric_map.items():
             try:
                 metric_map_by_source[value["source_type"]][metric] = value
