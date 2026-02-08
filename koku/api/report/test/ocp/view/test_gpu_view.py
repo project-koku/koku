@@ -126,7 +126,7 @@ class OCPGpuViewTest(IamTestCase):
                 f"order_by[{field}] without group_by should succeed (in allowlist)",
             )
 
-    @patch("api.report.ocp.view.is_feature_flag_enabled_by_account", return_value=False)
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=False)
     def test_gpu_endpoint_blocked_when_unleash_flag_disabled(self, mock_unleash):
         """Test that GPU endpoint returns 403 when Unleash flag is disabled."""
         url = reverse("reports-openshift-gpu")
@@ -134,7 +134,7 @@ class OCPGpuViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         mock_unleash.assert_called_once()
 
-    @patch("api.report.ocp.view.is_feature_flag_enabled_by_account", return_value=True)
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
     def test_gpu_endpoint_accessible_when_unleash_flag_enabled(self, mock_unleash):
         """Test that GPU endpoint is accessible when Unleash flag is enabled."""
         url = reverse("reports-openshift-gpu")

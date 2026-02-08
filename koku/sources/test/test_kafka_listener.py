@@ -82,7 +82,7 @@ def raise_validation_error(param_a, param_b, param_c, param_d, param_e):
     raise ValidationError()
 
 
-def raise_provider_manager_error(param_a):
+def raise_provider_manager_error(*args, **kwargs):
     """Raise ProviderBuilderError"""
     raise ProviderBuilderError("test exception")
 

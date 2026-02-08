@@ -1446,7 +1446,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             mock_trino_exec.assert_called()
 
-    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_account", return_value=False)
+    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_gpu_cost_model_disabled_by_unleash(self, mock_trino_exec, mock_trino_exists, mock_feature_flag):
