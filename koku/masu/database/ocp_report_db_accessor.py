@@ -96,11 +96,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get the report periods with report period before provided date."""
         return OCPUsageReportPeriod.objects.filter(report_period_start__lte=date)
 
-    def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
+    def populate_ui_summary_tables(self, summary_range: SummaryRangeConfig, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
+            "start_date": summary_range.start_date,
+            "end_date": summary_range.end_date,
             "schema": self.schema,
             "source_uuid": source_uuid,
         }
@@ -115,6 +115,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params["month"] = start_date.strftime("%m")
 
         self._populate_gpu_ui_summary_table_with_usage_only(sql_params)
+        if summary_range.summarize_previous_month and not summary_range.is_current_month:
+            # Don't resummarize virtualization UI table if we are summarizing previous month
+            return
         self._populate_virtualization_ui_summary_table(sql_params)
 
     def _populate_gpu_ui_summary_table_with_usage_only(self, params):
@@ -588,9 +591,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             # Handle distributions that require full month data
             if config.requires_full_month:
-                # Skip full-month distributions on subsequent days when iterating day-by-day
-                if summary_range.skip_full_month:
-                    continue
                 sql_params["start_date"] = summary_range.start_of_month
                 sql_params["end_date"] = summary_range.end_of_month
                 if summary_range.is_current_month:
@@ -599,6 +599,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     if dh.now_utc.day in [1, 2, 3]:
                         sql_params["start_date"] = summary_range.start_of_previous_month
                         sql_params["end_date"] = summary_range.end_of_previous_month
+                        summary_range.summarize_previous_month = True
                     else:
                         msg = f"Skipping {cost_model_key} distribution requires full month"
                         LOG.info(log_json(msg=msg, context={"schema": self.schema, "cost_model_key": cost_model_key}))
