@@ -541,9 +541,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 summary_range, self._provider_uuid, self._distribution_info
             )
             for month_range in summary_range.iter_summary_range_by_month():
-                accessor.populate_ui_summary_tables(
-                    month_range.summary_start, month_range.summary_end, self._provider.uuid
-                )
+                accessor.populate_ui_summary_tables(month_range, self._provider.uuid)
 
                 if report_period := accessor.report_periods_for_provider_uuid(
                     self._provider_uuid, month_range.summary_start
