@@ -1351,9 +1351,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Test that virtualization UI table is not populated when summarizing previous month (not current month)."""
         start_date = self.dh.last_month_start.date()
         end_date = self.dh.last_month_end.date()
-        summary_range = SummaryRangeConfig(
-            start_date=start_date, end_date=end_date, summarize_previous_month=True
-        )
+        summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date, summarize_previous_month=True)
         source_uuid = self.ocp_provider_uuid
         with self.accessor as acc:
             acc.populate_ui_summary_tables(summary_range, source_uuid, tables=[])
