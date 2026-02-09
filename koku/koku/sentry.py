@@ -19,11 +19,29 @@ def traces_sampler(sampling_context):
     return 0.05
 
 
+def before_send(event, hint):
+    """Filter out worker timeout/OOM errors on api-reads workers."""
+    server_name = event.get("server_name", "")
+
+    # Only filter events from api-reads workers
+    if "api-reads" not in server_name:
+        return event
+
+    # Check for worker timeout or OOM in the message
+    message = (event.get("message") or "").lower()
+    keywords = ["worker timeout", "killing worker", "out of memory"]
+    if any(kw in message for kw in keywords):
+        return None  # Drop the event
+
+    return event
+
+
 if ENVIRONMENT.bool("KOKU_ENABLE_SENTRY", default=False):
     sentry_sdk.init(
         dsn=ENVIRONMENT("KOKU_SENTRY_DSN"),
         environment=ENVIRONMENT("KOKU_SENTRY_ENVIRONMENT"),
         traces_sampler=traces_sampler,
+        before_send=before_send,
     )
     print("Sentry setup.")
 else:
