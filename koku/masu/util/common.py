@@ -532,10 +532,10 @@ class SummaryRangeConfig(BaseModel):
     end_date: date
     summary_starts: list[date] = Field(default_factory=list)
     summary_ends: list[date] = Field(default_factory=list)
-    skip_full_month: bool = Field(
+    summarize_previous_month: bool = Field(
         default=False,
-        description="When True, skip distributions that require full month data. "
-        "Set automatically by iter_days() for days after the first.",
+        description="When True, indicates we are summarizing previous month data (e.g., GPU finalization). "
+        "Used to skip certain UI table updates that don't need to be reprocessed.",
     )
 
     @field_validator("start_date", "end_date", mode="before")
@@ -591,18 +591,6 @@ class SummaryRangeConfig(BaseModel):
     def summary_end(self) -> date:
         return max(self.summary_ends)
 
-    def iter_days(self) -> Iterator[Self]:
-        """Yield a SummaryRangeConfig for each day in the range.
-
-        Useful for splitting processing into individual days for large customers.
-        The first day will have skip_full_month=False (runs full-month distributions),
-        subsequent days will have skip_full_month=True (skips full-month distributions).
-        """
-        first_day = True
-        for day in DateHelper().list_days(self.start_date, self.end_date):
-            yield SummaryRangeConfig(start_date=day, end_date=day, skip_full_month=not first_day)
-            first_day = False
-
     def iter_summary_range_by_month(self) -> Iterator[Self]:
         """Yield a SummaryRangeConfig for each month in the summary range.
 
@@ -616,4 +604,6 @@ class SummaryRangeConfig(BaseModel):
             - SummaryRangeConfig(2025-02-01, 2025-02-03)
         """
         for start, end in DateHelper().list_month_tuples(self.summary_start, self.summary_end):
-            yield SummaryRangeConfig(start_date=start, end_date=end, skip_full_month=self.skip_full_month)
+            yield SummaryRangeConfig(
+                start_date=start, end_date=end, summarize_previous_month=self.summarize_previous_month
+            )
