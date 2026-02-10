@@ -3,17 +3,21 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for report posting."""
+import logging
 from uuid import UUID
 
 from rest_framework import status
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.common import log_json
 from api.common.pagination import ListPaginator
+from api.common.permissions.ingress_access import IngressAccessPermission
 from api.ingress.reports.serializers import IngressReportsSerializer
 from api.provider.models import Sources
 from reporting.ingress.models import IngressReports
+
+LOG = logging.getLogger(__name__)
 
 
 class IngressReportsDetailView(APIView):
@@ -21,16 +25,7 @@ class IngressReportsDetailView(APIView):
     View to fetch report details for specific source
     """
 
-    permission_classes = [AllowAny]
-
-    def get_object(self, source):
-        """
-        Helper method to get reports with given source
-        """
-        try:
-            return IngressReports.objects.filter(source=source)
-        except IngressReports.DoesNotExist:
-            return None
+    permission_classes = [IngressAccessPermission]
 
     def get(self, request, *args, **kwargs):
         """
@@ -40,10 +35,18 @@ class IngressReportsDetailView(APIView):
         try:
             UUID(source)
         except ValueError:
-            return Response({"Error": "Invalid source uuid."}, status=status.HTTP_400_BAD_REQUEST)
-        report_instance = self.get_object(source)
-        if not report_instance:
-            return Response({"Error": "Provider uuid not found."}, status=status.HTTP_400_BAD_REQUEST)
+            LOG.warning(log_json(msg="Invalid source UUID in ingress report detail view.", source=source))
+            return Response({"Error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # scope to schema_name to prevent cross-tenant data exposure
+        schema_name = request.user.customer.schema_name
+        context = {"schema": schema_name, "source": source}
+
+        report_instance = IngressReports.objects.filter(source=source, schema_name=request.user.customer)
+        first_report = report_instance.first()
+        if not first_report:
+            LOG.warning(log_json(msg="Source not found in ingress report detail view.", **context))
+            return Response({"Error": "Source not found."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = IngressReportsSerializer(report_instance, many=True)
         paginator = ListPaginator(serializer.data, request)
@@ -55,46 +58,58 @@ class IngressReportsView(APIView):
     View to interact with settings for a customer.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IngressAccessPermission]
 
     def get(self, request, *args, **kwargs):
         """
         Return list of sources.
         """
-        reports = IngressReports.objects.filter()
+
+        schema_name = request.user.customer.schema_name
+
+        reports = IngressReports.objects.filter(schema_name=schema_name)
         serializer = IngressReportsSerializer(reports, many=True)
         paginator = ListPaginator(serializer.data, request)
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         """Handle posted reports."""
-        source_uuid = request.data.get("source")
-        source_id = request.data.get("source")
-        try:
-            source = Sources.objects.filter(source_id=request.data.get("source")).first()
-        except ValueError:
-            try:
-                source = Sources.objects.filter(koku_uuid=request.data.get("source")).first()
-            except ValueError:
-                pass
-        if source:
-            source_uuid = source.koku_uuid
-            source_id = source.source_id
+
+        source_ref = request.data.get("source")
+        schema_name = request.user.customer.schema_name
+        context = {"schema": schema_name, "source": source_ref}
+        if not source_ref:
+            LOG.info(log_json(msg="Ingress report post failed. Missing source reference.", **context))
+            return Response({"Error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
+
+        lookup = {"source_id": source_ref} if str(source_ref).isdigit() else {"koku_uuid": source_ref}
+        source = Sources.objects.filter(org_id=request.user.customer.org_id, **lookup).first()
+
+        if not source:
+            LOG.info(log_json(msg="Ingress report post failed. Source not found.", **context))
+            return Response({"Error": "Invalid request."}, status=status.HTTP_400_BAD_REQUEST)
+
         data = {
-            "source": source_uuid,
-            "source_id": source_id,
+            "source": source.koku_uuid,
+            "source_id": source.source_id,
             "reports_list": request.data.get("reports_list"),
             "bill_year": request.data.get("bill_year"),
             "bill_month": request.data.get("bill_month"),
-            "schema_name": request.user.customer.schema_name,
+            "schema_name": schema_name,
         }
         serializer = IngressReportsSerializer(data=data)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            data["ingress_report_uuid"] = serializer.data.get("uuid")
-            data["status"] = serializer.data.get("status")
-            IngressReports.ingest(data)
-            paginator = ListPaginator(data, request)
-            return paginator.get_paginated_response(data)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        data["ingress_report_uuid"] = serializer.data.get("uuid")
+        data["status"] = serializer.data.get("status")
+        IngressReports.ingest(data)
+        paginator = ListPaginator(data, request)
+        LOG.info(
+            log_json(
+                msg="Ingress report validated and ingestion triggered.",
+                ingress_report_uuid=data["ingress_report_uuid"],
+                bill_period=f"{data['bill_year']}-{data['bill_month']}",
+                **context,
+            )
+        )
+        return paginator.get_paginated_response(data)

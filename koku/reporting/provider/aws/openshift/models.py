@@ -66,6 +66,23 @@ class OCPAWSTagsSummary(models.Model):
     node = models.TextField(null=True)
 
 
+class OCPAWSCategorySummary(models.Model):
+    """A collection of all current existing AWS category key and values for OCP on AWS."""
+
+    class Meta:
+        """Meta for OCPAWSCategorySummary."""
+
+        db_table = "reporting_ocpawscategory_summary"
+        unique_together = ("key", "cost_entry_bill", "usage_account_id")
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    key = models.TextField()
+    values = ArrayField(models.TextField())
+    cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
+    usage_account_id = models.TextField(null=True)
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+
 # ======================================================
 #  Partitioned Models to replace matviews
 # ======================================================

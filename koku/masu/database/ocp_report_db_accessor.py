@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for OCP report data."""
+import copy
 import datetime
 import json
 import logging
@@ -28,12 +29,17 @@ from cost_models.sql_parameters import BaseCostModelParams
 from koku.database import SQLScriptAtomicExecutorMixin
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_feature_flag_enabled_by_account
+from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.util.common import filter_dictionary
+from masu.util.common import source_in_trino_table
+from masu.util.common import SummaryRangeConfig
 from masu.util.common import trino_table_exists
 from masu.util.ocp.common import DistributionConfig
+from masu.util.ocp.common import get_cluster_alias_from_cluster_id
+from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
@@ -89,11 +95,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get the report periods with report period before provided date."""
         return OCPUsageReportPeriod.objects.filter(report_period_start__lte=date)
 
-    def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
+    def populate_ui_summary_tables(self, summary_range: SummaryRangeConfig, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
+            "start_date": summary_range.start_date,
+            "end_date": summary_range.end_date,
             "schema": self.schema,
             "source_uuid": source_uuid,
         }
@@ -102,12 +108,55 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
+        # Trino Queries:
+        start_date = DateHelper().parse_to_date(sql_params["start_date"])
+        sql_params["year"] = start_date.strftime("%Y")
+        sql_params["month"] = start_date.strftime("%m")
+
+        self._populate_gpu_ui_summary_table_with_usage_only(sql_params)
+        if summary_range.summarize_previous_month and not summary_range.is_current_month:
+            # Don't resummarize virtualization UI table if we are summarizing previous month
+            return
         self._populate_virtualization_ui_summary_table(sql_params)
 
-    def _populate_virtualization_ui_summary_table(self, sql_params):
+    def _populate_gpu_ui_summary_table_with_usage_only(self, params):
+        """
+        Populates the gpu only table with just basic gpu information whenever
+        GPU information exists, but the customer has not set up a cost model.
+        """
+        sql_params = copy.deepcopy(params)
+        if not source_in_trino_table(
+            self.schema, sql_params.get("source_uuid"), TRINO_LINE_ITEM_TABLE_DAILY_MAP["gpu_usage"]
+        ):
+            return
+        # Don't use context manager here - its __exit__ resets schema to public,
+        # which would break subsequent ORM operations in the calling code
+        cost_model_accessor = CostModelDBAccessor(self.schema, sql_params.get("source_uuid"))
+        # Check to see if the cost model is set up to give cost
+        if cost_model_accessor.metric_to_tag_params_map.get(metric_constants.OCP_GPU_MONTH):
+            return
+
+        cluster_id = get_cluster_id_from_provider(sql_params.get("source_uuid"))
+        if not cluster_id:
+            LOG.info(
+                log_json(msg="No cluster_id found for source, skipping GPU UI table population.", context=sql_params)
+            )
+            return
+
+        sql_params["cluster_id"] = cluster_id
+        sql_params["cluster_alias"] = get_cluster_alias_from_cluster_id(cluster_id)
+        sql_params["source_uuid"] = str(sql_params["source_uuid"])
+        populate_gpu_usage_info = pkgutil.get_data(
+            "masu.database", "trino_sql/openshift/ui_summary/reporting_ocp_gpu_summary_p_usage_only.sql"
+        )
+        populate_gpu_usage_info = populate_gpu_usage_info.decode("utf-8")
+        self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
+
+    def _populate_virtualization_ui_summary_table(self, params):
         """
         Populates the virtualization ui table.
         """
+        sql_params = copy.deepcopy(params)
         if not self.schema_exists_trino():
             return
         trino_query_requirements = [
@@ -117,9 +166,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         ]
         if not all(trino_query_requirements):
             return
-        start_date = DateHelper().parse_to_date(sql_params["start_date"])
-        sql_params["year"] = start_date.strftime("%Y")
-        sql_params["month"] = start_date.strftime("%m")
         # create the temp table
         sql_params["uuid"] = str(uuid4().hex)
         create_temp_table_sql = pkgutil.get_data("masu.database", "sql/openshift/create_virtualization_tmp_table.sql")
@@ -129,19 +175,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         # This pathway won't be needed if/when we require users to utilize 4.0.0 operator
         population_temp_table_file = "populate_vm_tmp_table.sql"
-        vm_report_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP["vm_usage"]
-        if trino_table_exists(self.schema, vm_report_table):
-            source_uuid = sql_params.get("source_uuid")
-            source_sql = f"""
-                SELECT count(*) from hive.{self.schema}."{vm_report_table}$partitions"
-                WHERE source = '{source_uuid}'
-                """
-            source_available = self._execute_trino_raw_sql_query(
-                source_sql,
-                log_ref=f"Checking if source is in {vm_report_table}",
-            )[0][0]
-            if source_available:
-                population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
+        if source_in_trino_table(
+            self.schema, sql_params.get("source_uuid"), TRINO_LINE_ITEM_TABLE_DAILY_MAP["vm_usage"]
+        ):
+            population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
         populate_temp_table_sql = pkgutil.get_data(
             "masu.database", f"trino_sql/openshift/{population_temp_table_file}"
         )
@@ -442,7 +479,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             ),
         )
 
-    def populate_distributed_cost_sql(self, start_date, end_date, provider_uuid, distribution_info):
+    def populate_distributed_cost_sql(
+        self, summary_range: SummaryRangeConfig, provider_uuid: uuid.UUID, distribution_info: dict
+    ) -> None:
         """
         Populate the distribution cost model options.
 
@@ -477,27 +516,48 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 cost_model_rate_type="gpu_distributed",
                 query_type="trino",
                 required_table="openshift_gpu_usage_line_items_daily",
+                requires_full_month=True,
             ),
         }
 
         table_name = self._table_map["line_item_daily_summary"]
-        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
-        if not report_period:
-            msg = "no report period for OCP provider, skipping distribution update"
-            context = {"schema": self.schema, "provider_uuid": provider_uuid, "start_date": start_date}
-            LOG.info(log_json(msg=msg, context=context))
-            return
-
-        report_period_id = report_period.id
+        dh = DateHelper()
         for cost_model_key, config in distribution_configs.items():
             sql_params = {
-                "start_date": start_date,
-                "end_date": end_date,
+                "start_date": summary_range.start_date,
+                "end_date": summary_range.end_date,
                 "schema": self.schema,
-                "report_period_id": report_period_id,
                 "source_uuid": provider_uuid,
                 "cost_model_rate_type": config.cost_model_rate_type,
             }
+            # Handle distributions that require full month data
+            if config.requires_full_month:
+                sql_params["start_date"] = summary_range.start_of_month
+                sql_params["end_date"] = summary_range.end_of_month
+                if summary_range.is_current_month:
+                    # Trigger distribution for previous month during a window of the current
+                    # month
+                    if dh.now_utc.day in [1, 2, 3]:
+                        sql_params["start_date"] = summary_range.start_of_previous_month
+                        sql_params["end_date"] = summary_range.end_of_previous_month
+                        summary_range.summarize_previous_month = True
+                    else:
+                        msg = f"Skipping {cost_model_key} distribution requires full month"
+                        LOG.info(log_json(msg=msg, context={"schema": self.schema, "cost_model_key": cost_model_key}))
+                        continue
+
+            report_period = self.report_periods_for_provider_uuid(provider_uuid, sql_params["start_date"])
+            if not report_period:
+                msg = f"no report period for OCP provider, skipping {cost_model_key} distribution update"
+                context = {
+                    "schema": self.schema,
+                    "provider_uuid": provider_uuid,
+                    "start_date": sql_params["start_date"],
+                }
+                LOG.info(log_json(msg=msg, context=context))
+                continue
+            sql_params["report_period_id"] = report_period.id
+
             self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
             populate = distribution_info.get(cost_model_key, config.distribute_by_default)
             if not populate:
@@ -524,6 +584,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
             else:
                 self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
+
+        return summary_range
 
     def _delete_monthly_cost_model_rate_type_data(self, sql_params, cost_model_key):
         delete_sql = pkgutil.get_data(
@@ -1341,7 +1403,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
             # Check Unleash flag for GPU cost model
             if name == metric_constants.OCP_GPU_MONTH:
-                if not is_feature_flag_enabled_by_account(
+                if not is_feature_flag_enabled_by_schema(
                     self.schema, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True
                 ):
                     continue

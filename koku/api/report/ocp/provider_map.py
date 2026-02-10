@@ -14,9 +14,11 @@ from django.db.models import IntegerField
 from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Sum
+from django.db.models import TextField
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import Coalesce
+from django.db.models.functions import Concat
 from django.db.models.functions import JSONObject
 
 from api.models import Provider
@@ -176,8 +178,8 @@ class OCPProviderMap(ProviderMap):
                     "pod": {"field": "pod", "operation": "icontains"},
                     "node": {"field": "node", "operation": "icontains"},
                     "vm_name": {"field": "vm_name", "operation": "icontains"},
-                    "vendor": {"field": "vendor_name", "operation": "icontains"},
-                    "model": {"field": "model_name", "operation": "icontains"},
+                    "gpu_vendor": {"field": "vendor_name", "operation": "icontains"},
+                    "gpu_model": {"field": "model_name", "operation": "icontains"},
                     "infrastructures": {
                         "field": "cluster_id",
                         "operation": "exact",
@@ -224,9 +226,14 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"),
+                                filter=Q(source_uuid__isnull=False),
+                                distinct=True,
+                                default=Value([]),
                             ),
                         },
                         "capacity_aggregate": {},
@@ -300,9 +307,14 @@ class OCPProviderMap(ProviderMap):
                             "cost_gpu_unallocated_distributed": self.distributed_unallocated_gpu_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"),
+                                filter=Q(source_uuid__isnull=False),
+                                distinct=True,
+                                default=Value([]),
                             ),
                             "cost_group": F("cost_category__name"),
                         },
@@ -396,9 +408,14 @@ class OCPProviderMap(ProviderMap):
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
                             "capacity": Max("cluster_capacity_cpu_core_hours"),  # overwritten in capacity aggregation
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"),
+                                filter=Q(source_uuid__isnull=False),
+                                distinct=True,
+                                default=Value([]),
                             ),
                         },
                         "delta_key": {
@@ -522,9 +539,14 @@ class OCPProviderMap(ProviderMap):
                                 "cluster_capacity_memory_gigabyte_hours"
                             ),  # This is to keep the order, overwritten with capacity aggregate
                             "usage_units": Value("GiB-Hours", output_field=CharField()),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"),
+                                filter=Q(source_uuid__isnull=False),
+                                distinct=True,
+                                default=Value([]),
                             ),
                         },
                         "delta_key": {
@@ -607,10 +629,16 @@ class OCPProviderMap(ProviderMap):
                                 )
                             ),
                             "persistent_volume_claim": ArrayAgg(
-                                "persistentvolumeclaim", filter=Q(persistentvolumeclaim__isnull=False), distinct=True
+                                "persistentvolumeclaim",
+                                filter=Q(persistentvolumeclaim__isnull=False),
+                                distinct=True,
+                                default=Value([]),
                             ),
                             "storage_class": ArrayAgg(
-                                "storageclass", filter=Q(storageclass__isnull=False), distinct=True
+                                "storageclass",
+                                filter=Q(storageclass__isnull=False),
+                                distinct=True,
+                                default=Value([]),
                             ),
                         },
                         "default_ordering": {"usage": "desc"},
@@ -676,15 +704,26 @@ class OCPProviderMap(ProviderMap):
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage_units": Value("GiB-Mo", output_field=CharField()),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"),
+                                filter=Q(source_uuid__isnull=False),
+                                distinct=True,
+                                default=Value([]),
                             ),
                             "persistent_volume_claim": ArrayAgg(
-                                "persistentvolumeclaim", filter=Q(persistentvolumeclaim__isnull=False), distinct=True
+                                "persistentvolumeclaim",
+                                filter=Q(persistentvolumeclaim__isnull=False),
+                                distinct=True,
+                                default=Value([]),
                             ),
                             "storage_class": ArrayAgg(
-                                "storageclass", filter=Q(storageclass__isnull=False), distinct=True
+                                "storageclass",
+                                filter=Q(storageclass__isnull=False),
+                                distinct=True,
+                                default=Value([]),
                             ),
                         },
                         "delta_key": {
@@ -788,9 +827,14 @@ class OCPProviderMap(ProviderMap):
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage_units": Value("GB", output_field=CharField()),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"),
+                                filter=Q(source_uuid__isnull=False),
+                                distinct=True,
+                                default=Value([]),
                             ),
                         },
                         "delta_key": {
@@ -843,7 +887,19 @@ class OCPProviderMap(ProviderMap):
                     },
                     "gpu": {
                         "tables": {"query": OCPGpuSummaryP},
-                        "group_by_options": ["cluster", "project", "vendor", "model"],
+                        "report_type_annotations": {
+                            "gpu_vendor": F("vendor_name"),
+                            "gpu_model": F("model_name"),
+                            "gpu_name": Concat(
+                                "vendor_name",
+                                Value("_"),
+                                "model_name",
+                                Value("_"),
+                                "node",
+                                output_field=TextField(),  # Specify output field type
+                            ),
+                        },
+                        "group_by_options": ["cluster", "project", "gpu_vendor", "gpu_model", "gpu_name"],
                         "tag_column": "all_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -875,22 +931,35 @@ class OCPProviderMap(ProviderMap):
                             "cost_markup": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": self.__cost_model_gpu_cost(),
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "clusters": ArrayAgg(
+                                Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
+                            ),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"),
+                                filter=Q(source_uuid__isnull=False),
+                                distinct=True,
+                                default=Value([]),
                             ),
                             "node": F("node"),
-                            "vendor": F("vendor_name"),
-                            "model": F("model_name"),
-                            "memory": Max(Coalesce(F("memory_capacity_gb"), Value(0, output_field=DecimalField()))),
-                            "memory_units": Value("GB", output_field=CharField()),
+                            "gpu_model": F("model_name"),
+                            "gpu_vendor": F("vendor_name"),
+                            "gpu_memory": Max(
+                                Coalesce(F("memory_capacity_gb"), Value(0, output_field=DecimalField()))
+                            ),
+                            "gpu_memory_units": Value("GB", output_field=CharField()),
                             "gpu_count": Sum(
                                 Coalesce(F("gpu_count"), Value(0, output_field=IntegerField())), distinct=True
                             ),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
                         },
+                        "aggregate_ranks_exclusions": [
+                            "gpu_model",
+                            "gpu_vendor",
+                            "node",
+                        ],  # _aggregate_ranks_over_limit
                         "delta_key": {},
                         "filter": [],
+                        "group_by": ["gpu_name"],
                         "cost_units_key": "raw_currency",
                         "sum_columns": [
                             "cost_total",
@@ -982,7 +1051,10 @@ class OCPProviderMap(ProviderMap):
                             "node": Max(F("node")),
                             "project": Max("namespace"),
                             "source_uuid": ArrayAgg(
-                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                                F("source_uuid"),
+                                filter=Q(source_uuid__isnull=False),
+                                distinct=True,
+                                default=Value([]),
                             ),
                             "storage": ArrayAgg(
                                 JSONObject(
@@ -994,8 +1066,9 @@ class OCPProviderMap(ProviderMap):
                                 ),
                                 distinct=True,
                                 filter=~Q(persistentvolumeclaim_usage_gigabyte_months__isnull=True),
+                                default=Value([]),
                             ),
-                            "tags": ArrayAgg(F("pod_labels"), distinct=True),
+                            "tags": ArrayAgg(F("pod_labels"), distinct=True, default=Value([])),
                         },
                         "delta_key": {
                             "request": Sum("pod_request_cpu_core_hours"),
@@ -1018,7 +1091,6 @@ class OCPProviderMap(ProviderMap):
                         "count_units_key": "Core",
                         "storage_usage_units_key": "GiB-Mo",
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
-                        "vm_name": Max("vm_name"),
                     },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
@@ -1194,5 +1266,5 @@ class OCPProviderMap(ProviderMap):
 
     @cached_property
     def distributed_unallocated_gpu_cost(self):
-        """The unattributed GPU cost needs to have the infra exchange rate applied to it."""
-        return self.__cost_model_distributed_cost("gpu_distributed", "infra_exchange_rate")
+        """The unallocated GPU cost needs to have the cost model exchange rate applied to it."""
+        return self.__cost_model_distributed_cost("gpu_distributed", "exchange_rate")

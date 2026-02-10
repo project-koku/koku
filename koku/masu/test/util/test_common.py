@@ -519,19 +519,51 @@ class CommonUtilTests(MasuTestCase):
         result = common_utils.trino_table_exists(self.schema, "table_name")
         self.assertFalse(result)
 
-    def test_convert_account(self):
-        """Test that the correct account string is returned."""
-        account_str = "1234567"
-        account = common_utils.convert_account(account_str)
-        self.assertIn("acct", account)
+    @patch("masu.util.common.execute_trino_query")
+    @patch("masu.util.common.trino_table_exists")
+    def test_source_in_trino_table_table_exists_source_found(self, mock_table_exists, mock_query):
+        """Test source_in_trino_table when table exists and source is found."""
+        mock_table_exists.return_value = True
+        mock_query.return_value = ([[5]], "")  # Count of 5 means source found with 5 partitions
+        source_uuid = "12345678-1234-1234-1234-123456789012"
+        result = common_utils.source_in_trino_table(self.schema, source_uuid, "test_table")
+        self.assertEqual(result, 5)
+        self.assertTrue(result)  # Verify it's truthy
+        mock_table_exists.assert_called_once_with(self.schema, "test_table")
+        mock_query.assert_called_once()
 
-        account_str = "acct1234567"
-        account = common_utils.convert_account(account_str)
-        self.assertEqual(account_str, account)
+    @patch("masu.util.common.execute_trino_query")
+    @patch("masu.util.common.trino_table_exists")
+    def test_source_in_trino_table_table_exists_source_not_found(self, mock_table_exists, mock_query):
+        """Test source_in_trino_table when table exists but source is not found."""
+        mock_table_exists.return_value = True
+        mock_query.return_value = ([[0]], "")  # Count of 0 means source not found
+        source_uuid = "12345678-1234-1234-1234-123456789012"
+        result = common_utils.source_in_trino_table(self.schema, source_uuid, "test_table")
+        self.assertEqual(result, 0)
+        self.assertFalse(result)  # Verify it's falsy
 
-        account_str = "org1234567"
-        account = common_utils.convert_account(account_str)
-        self.assertEqual(account_str, account)
+    @patch("masu.util.common.execute_trino_query")
+    @patch("masu.util.common.trino_table_exists")
+    def test_source_in_trino_table_table_does_not_exist(self, mock_table_exists, mock_query):
+        """Test source_in_trino_table when table does not exist."""
+        mock_table_exists.return_value = False
+        source_uuid = "12345678-1234-1234-1234-123456789012"
+        result = common_utils.source_in_trino_table(self.schema, source_uuid, "test_table")
+        self.assertEqual(result, 0)
+        self.assertFalse(result)  # Verify it's falsy
+        mock_query.assert_not_called()
+
+    @patch("masu.util.common.execute_trino_query")
+    @patch("masu.util.common.trino_table_exists")
+    def test_source_in_trino_table_empty_results(self, mock_table_exists, mock_query):
+        """Test source_in_trino_table when query returns empty results."""
+        mock_table_exists.return_value = True
+        mock_query.return_value = ([], "")  # Empty results
+        source_uuid = "12345678-1234-1234-1234-123456789012"
+        result = common_utils.source_in_trino_table(self.schema, source_uuid, "test_table")
+        self.assertEqual(result, 0)
+        self.assertFalse(result)  # Verify it's falsy
 
     def test_filter_dictionary(self):
         """Test the filter dictionary util."""
@@ -571,6 +603,75 @@ def test_get_latest_openshift_on_cloud_manifest(self):
         creation_datetime__isnull=False,
     ).latest("creation_datetime")
     self.assertEqual(manifest.manifest_id, manifest_expected_id)
+
+
+class SummaryRangeConfigTests(TestCase):
+    """Tests for SummaryRangeConfig."""
+
+    def test_iter_summary_range_by_month_single_month(self):
+        """Test iter_summary_range_by_month with a single month range."""
+        config = common_utils.SummaryRangeConfig(start_date=date(2025, 1, 5), end_date=date(2025, 1, 20))
+        ranges = list(config.iter_summary_range_by_month())
+
+        self.assertEqual(len(ranges), 1)
+        self.assertEqual(ranges[0].summary_start, date(2025, 1, 5))
+        self.assertEqual(ranges[0].summary_end, date(2025, 1, 20))
+
+    def test_iter_summary_range_by_month_spans_two_months(self):
+        """Test iter_summary_range_by_month with a date range spanning two months."""
+        config = common_utils.SummaryRangeConfig(start_date=date(2025, 1, 1), end_date=date(2025, 2, 3))
+        ranges = list(config.iter_summary_range_by_month())
+
+        self.assertEqual(len(ranges), 2)
+        # First range: 2025-01-01 to 2025-01-31
+        self.assertEqual(ranges[0].summary_start, date(2025, 1, 1))
+        self.assertEqual(ranges[0].summary_end, date(2025, 1, 31))
+        # Second range: 2025-02-01 to 2025-02-03
+        self.assertEqual(ranges[1].summary_start, date(2025, 2, 1))
+        self.assertEqual(ranges[1].summary_end, date(2025, 2, 3))
+
+    def test_iter_summary_range_by_month_spans_three_months(self):
+        """Test iter_summary_range_by_month with a date range spanning three months."""
+        config = common_utils.SummaryRangeConfig(start_date=date(2025, 1, 15), end_date=date(2025, 3, 10))
+        ranges = list(config.iter_summary_range_by_month())
+
+        self.assertEqual(len(ranges), 3)
+        # First range: 2025-01-15 to 2025-01-31
+        self.assertEqual(ranges[0].summary_start, date(2025, 1, 15))
+        self.assertEqual(ranges[0].summary_end, date(2025, 1, 31))
+        # Second range: 2025-02-01 to 2025-02-28
+        self.assertEqual(ranges[1].summary_start, date(2025, 2, 1))
+        self.assertEqual(ranges[1].summary_end, date(2025, 2, 28))
+        # Third range: 2025-03-01 to 2025-03-10
+        self.assertEqual(ranges[2].summary_start, date(2025, 3, 1))
+        self.assertEqual(ranges[2].summary_end, date(2025, 3, 10))
+
+    def test_iter_summary_range_by_month_with_extended_summary_dates(self):
+        """Test iter_summary_range_by_month uses min/max of summary_starts and summary_ends."""
+        config = common_utils.SummaryRangeConfig(start_date=date(2025, 1, 15), end_date=date(2025, 2, 3))
+        # Access start_of_month to add the 1st of the month to summary_starts
+        # This simulates the GPU finalization case where full month boundaries are accessed
+        config.start_of_month  # Adds 2025-01-01 to summary_starts
+
+        ranges = list(config.iter_summary_range_by_month())
+
+        # Should now span from start_of_month (2025-01-01) to end_date (2025-02-03)
+        self.assertEqual(len(ranges), 2)
+        # First range should start from 1st of month, not the original start_date
+        self.assertEqual(ranges[0].summary_start, date(2025, 1, 1))
+        self.assertEqual(ranges[0].summary_end, date(2025, 1, 31))
+        # Second range is the partial February
+        self.assertEqual(ranges[1].summary_start, date(2025, 2, 1))
+        self.assertEqual(ranges[1].summary_end, date(2025, 2, 3))
+
+    def test_iter_summary_range_by_month_preserves_summarize_previous_month(self):
+        """Test iter_summary_range_by_month preserves summarize_previous_month flag."""
+        config = common_utils.SummaryRangeConfig(
+            start_date=date(2025, 1, 1), end_date=date(2025, 2, 3), summarize_previous_month=True
+        )
+
+        for range_config in config.iter_summary_range_by_month():
+            self.assertTrue(range_config.summarize_previous_month)
 
 
 class NamedTemporaryGZipTests(TestCase):

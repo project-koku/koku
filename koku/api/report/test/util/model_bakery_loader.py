@@ -34,6 +34,7 @@ from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.tasks import update_cost_model_costs
 from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
+from masu.util.common import SummaryRangeConfig
 from reporting.models import AWSAccountAlias
 from reporting.models import AWSOrganizationalUnit
 
@@ -446,6 +447,8 @@ class ModelBakeryDataLoader(DataLoader):
             "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query_with_description"
         ) as mock_description_sql, patch(
             "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_virtualization_ui_summary_table"
+        ), patch(
+            "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_gpu_ui_summary_table_with_usage_only"
         ):
             mock_description_sql.return_value = ([], [])
             with ReportDBAccessor(self.schema) as accessor:
@@ -464,7 +467,9 @@ class ModelBakeryDataLoader(DataLoader):
                     report_period_ids, self.first_start_date, self.last_end_date, provider.uuid
                 )
             with OCPReportDBAccessor(self.schema) as accessor:
-                accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
+                accessor.populate_ui_summary_tables(
+                    SummaryRangeConfig(start_date=self.first_start_date, end_date=self.last_end_date), provider.uuid
+                )
 
         populate_ocp_topology(self.schema, provider, cluster_id)
 

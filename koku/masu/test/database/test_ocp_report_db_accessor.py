@@ -29,6 +29,7 @@ from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.test import MasuTestCase
+from masu.util.common import SummaryRangeConfig
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
@@ -1038,30 +1039,19 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Test that updating monthly costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
+        summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
         with self.accessor as acc:
-            result = acc.populate_distributed_cost_sql(
-                start_date, end_date, self.provider_uuid, {"platform_cost": True}
-            )
-            self.assertIsNone(result)
+            # Should not raise an exception when no report period exists
+            acc.populate_distributed_cost_sql(summary_range, self.provider_uuid, {"platform_cost": True})
 
-    @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
-    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_distributed_cost_sql_called(
-        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
-    ):
-        """Test that the platform distribution is called."""
+    def _setup_distributed_cost_sql_mocks(self, start_date, end_date):
+        """Helper to set up common mocks for distributed cost SQL tests."""
+        masu_database = "masu.database"
 
         def get_pkgutil_values(file):
-            """get pkgutil values"""
             sql = pkgutil.get_data(masu_database, f"sql/openshift/cost_model/{file}")
-            sql = sql.decode("utf-8")
-            return sql
+            return sql.decode("utf-8")
 
-        masu_database = "masu.database"
-        start_date = self.dh.this_month_start.date()
-        end_date = self.dh.this_month_end.date()
         default_sql_params = {
             "start_date": start_date,
             "end_date": end_date,
@@ -1084,34 +1074,154 @@ class OCPReportDBAccessorTest(MasuTestCase):
         ]
         mock_jinja = Mock()
         mock_jinja.side_effect = side_effect
+        return masu_database, mock_jinja
 
-        with self.accessor as acc:
+    @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_distributed_cost_sql_called(
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
+    ):
+        """Test that platform distribution is called and GPU skipped for current month (not first of month)."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+        masu_database, mock_jinja = self._setup_distributed_cost_sql_mocks(start_date, end_date)
+
+        with (
+            self.accessor as acc,
+            patch("masu.database.ocp_report_db_accessor.DateHelper") as mock_dh_class,
+        ):
+            mock_dh = Mock()
+            mock_dh.parse_to_date.return_value = start_date
+            mock_dh.now_utc = self.dh.now.replace(day=15)  # Not the first of the month
+            mock_dh_class.return_value = mock_dh
+
             acc.prepare_query = mock_jinja
+            summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
             acc.populate_distributed_cost_sql(
-                start_date,
-                end_date,
+                summary_range,
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
             )
-            expected_calls = [
-                call(masu_database, "sql/openshift/cost_model/distribute_cost/distribute_worker_cost.sql"),
-                call(masu_database, "sql/openshift/cost_model/distribute_cost/distribute_platform_cost.sql"),
-                call(
-                    masu_database, "sql/openshift/cost_model/distribute_cost/distribute_unattributed_storage_cost.sql"
-                ),
-                call(
-                    masu_database, "sql/openshift/cost_model/distribute_cost/distribute_unattributed_network_cost.sql"
-                ),
-                call(
-                    masu_database,
-                    "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
-                ),
-            ]
-            for expected_call in expected_calls:
-                self.assertIn(expected_call, mock_data_get.call_args_list)
+            # GPU should NOT be called since it's not the 1st of the month
+            gpu_call = call(
+                masu_database,
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
+            )
+            self.assertNotIn(gpu_call, mock_data_get.call_args_list)
             mock_sql_execute.assert_called()
-            self.assertEqual(len(mock_sql_execute.call_args_list), 9)
+            mock_trino_execute.assert_not_called()
+
+    @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_distributed_cost_sql_gpu_runs_prev_month_on_first_of_month(
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
+    ):
+        """Test that GPU distribution runs for previous month only on the first of the month."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+        masu_database, mock_jinja = self._setup_distributed_cost_sql_mocks(start_date, end_date)
+
+        with (
+            self.accessor as acc,
+            patch("masu.database.ocp_report_db_accessor.DateHelper") as mock_dh_class,
+        ):
+            mock_dh = Mock()
+            mock_dh.parse_to_date.return_value = start_date
+            mock_dh.now_utc = self.dh.now.replace(day=1)  # First of the month
+            mock_dh.last_month_start = self.dh.last_month_start
+            mock_dh.last_month_end = self.dh.last_month_end
+            mock_dh_class.return_value = mock_dh
+
+            acc.prepare_query = mock_jinja
+            summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
+            acc.populate_distributed_cost_sql(
+                summary_range,
+                self.ocp_test_provider_uuid,
+                {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+            )
+            gpu_call = call(
+                masu_database,
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
+            )
+            self.assertIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_called()
+
+    @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_distributed_cost_sql_gpu_runs_for_previous_month(
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
+    ):
+        """Test that GPU distribution runs when directly processing a previous month."""
+        start_date = self.dh.last_month_start.date()
+        end_date = self.dh.last_month_end.date()
+        masu_database, mock_jinja = self._setup_distributed_cost_sql_mocks(start_date, end_date)
+
+        with self.accessor as acc:
+            acc.prepare_query = mock_jinja
+            summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
+            acc.populate_distributed_cost_sql(
+                summary_range,
+                self.ocp_test_provider_uuid,
+                {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+            )
+            gpu_call = call(
+                masu_database,
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
+            )
+            self.assertIn(gpu_call, mock_data_get.call_args_list)
+            mock_trino_execute.assert_called()
+
+    @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
+    def test_populate_distributed_cost_sql_gpu_skipped_no_prev_report_period(
+        self, mock_report_periods, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
+    ):
+        """Test that GPU distribution is skipped when no report period exists for previous month."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+        masu_database, mock_jinja = self._setup_distributed_cost_sql_mocks(start_date, end_date)
+
+        # Return current month report period, but None for previous month
+        current_report_period = Mock()
+        current_report_period.id = 1
+        mock_report_periods.side_effect = lambda provider_uuid, date: (
+            current_report_period if date == start_date else None
+        )
+
+        with (
+            self.accessor as acc,
+            patch("masu.database.ocp_report_db_accessor.DateHelper") as mock_dh_class,
+        ):
+            mock_dh = Mock()
+            mock_dh.parse_to_date.return_value = start_date
+            mock_dh.now_utc = self.dh.now.replace(day=1)  # First of the month
+            mock_dh.last_month_start = self.dh.last_month_start
+            mock_dh.last_month_end = self.dh.last_month_end
+            mock_dh_class.return_value = mock_dh
+
+            acc.prepare_query = mock_jinja
+            summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
+            acc.populate_distributed_cost_sql(
+                summary_range,
+                self.ocp_test_provider_uuid,
+                {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+            )
+            # GPU should NOT be called since no report period exists for previous month
+            gpu_call = call(
+                masu_database,
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
+            )
+            self.assertNotIn(gpu_call, mock_data_get.call_args_list)
+            mock_trino_execute.assert_not_called()
 
     def test_update_line_item_daily_summary_with_tag_mapping(self):
         """
@@ -1232,6 +1342,23 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             mock_psql.assert_not_called()
 
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_virtualization_ui_summary_table")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_gpu_ui_summary_table_with_usage_only")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_populate_ui_summary_tables_skips_virtualization_for_previous_month(
+        self, mock_psql, mock_gpu_populate, mock_virt_populate
+    ):
+        """Test that virtualization UI table is not populated when summarizing previous month (not current month)."""
+        start_date = self.dh.last_month_start.date()
+        end_date = self.dh.last_month_end.date()
+        summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date, summarize_previous_month=True)
+        source_uuid = self.ocp_provider_uuid
+        with self.accessor as acc:
+            acc.populate_ui_summary_tables(summary_range, source_uuid, tables=[])
+        mock_psql.assert_not_called()
+        mock_gpu_populate.assert_called_once()
+        mock_virt_populate.assert_not_called()
+
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
     def test__populate_virtualization_ui_summary_table_no_trino_schema(self, mock_psql, mock_schema_exists):
@@ -1296,7 +1423,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             mock_trino_exec.assert_called()
 
-    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_account", return_value=False)
+    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_gpu_cost_model_disabled_by_unleash(self, mock_trino_exec, mock_trino_exists, mock_feature_flag):
@@ -1324,5 +1451,149 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_trino_exec.assert_not_called()
 
 
-class OCPReportDBAccessorGPUUITest:
-    """Test Cases for GPU UI summary table population (independent from setUp dependencies)."""
+class OCPReportDBAccessorGPUUITest(MasuTestCase):
+    """Test Cases for GPU UI summary table population."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        super().setUp()
+        self.accessor = OCPReportDBAccessor(schema=self.schema)
+        self.sql_params = {
+            "start_date": self.dh.this_month_start.date(),
+            "end_date": self.dh.this_month_end.date(),
+            "source_uuid": self.ocp_provider.uuid,
+            "year": "2026",
+            "month": "01",
+        }
+
+    @patch("masu.database.ocp_report_db_accessor.get_cluster_id_from_provider")
+    @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    def test_populate_gpu_ui_summary_table_with_usage_only_no_cluster_id(
+        self,
+        mock_source_in_trino,
+        mock_cost_model_accessor,
+        mock_get_cluster_id,
+    ):
+        """Test that GPU UI table is not populated when source has no cluster ID."""
+        mock_get_cluster_id.return_value = None
+        mock_source_in_trino.return_value = 1  # Source has GPU data
+        mock_cost_model_instance = Mock()
+        mock_cost_model_instance.metric_to_tag_params_map = {}
+        mock_cost_model_accessor.return_value = mock_cost_model_instance
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_trino_exec,
+            self.accessor as acc,
+        ):
+            acc._populate_gpu_ui_summary_table_with_usage_only(self.sql_params)
+            mock_trino_exec.assert_not_called()
+            mock_get_cluster_id.assert_called_once_with(self.ocp_provider.uuid)
+
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    def test_populate_gpu_ui_summary_table_with_usage_only_no_gpu_data(self, mock_source_in_trino):
+        """Test that GPU UI table is not populated when source has no GPU data in Trino."""
+        mock_source_in_trino.return_value = 0  # No GPU data (count is 0)
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_trino_exec,
+            self.accessor as acc,
+        ):
+            acc._populate_gpu_ui_summary_table_with_usage_only(self.sql_params)
+            mock_trino_exec.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    def test_populate_gpu_ui_summary_table_with_usage_only_has_cost_model(
+        self, mock_source_in_trino, mock_cost_model_accessor
+    ):
+        """Test that GPU UI table is not populated when source has GPU cost model configured."""
+        mock_source_in_trino.return_value = 5  # Source has GPU data (5 partitions)
+        mock_cost_model_instance = Mock()
+        mock_cost_model_instance.metric_to_tag_params_map = {
+            metric_constants.OCP_GPU_MONTH: [{"rate_type": "Infrastructure", "tag_key": "nvidia"}]
+        }
+        mock_cost_model_accessor.return_value.__enter__ = Mock(return_value=mock_cost_model_instance)
+        mock_cost_model_accessor.return_value.__exit__ = Mock(return_value=False)
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_trino_exec,
+            self.accessor as acc,
+        ):
+            acc._populate_gpu_ui_summary_table_with_usage_only(self.sql_params)
+            mock_trino_exec.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.get_cluster_alias_from_cluster_id")
+    @patch("masu.database.ocp_report_db_accessor.get_cluster_id_from_provider")
+    @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    def test_populate_gpu_ui_summary_table_with_usage_only_no_cost_model(
+        self,
+        mock_source_in_trino,
+        mock_cost_model_accessor,
+        mock_get_cluster_id,
+        mock_get_cluster_alias,
+    ):
+        """Test that GPU UI table is populated when source has GPU data but no cost model."""
+        mock_source_in_trino.return_value = 3  # Source has GPU data (3 partitions)
+        mock_cost_model_instance = Mock()
+        mock_cost_model_instance.metric_to_tag_params_map = {}  # No GPU cost model
+        mock_cost_model_accessor.return_value = mock_cost_model_instance
+        mock_get_cluster_id.return_value = "test-cluster-id"
+        mock_get_cluster_alias.return_value = "test-cluster-alias"
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_trino_exec,
+            self.accessor as acc,
+        ):
+            acc._populate_gpu_ui_summary_table_with_usage_only(self.sql_params)
+            mock_trino_exec.assert_called_once()
+
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    def test_populate_gpu_ui_summary_table_with_usage_only_source_in_trino_returns_zero(self, mock_source_in_trino):
+        """Test that GPU UI table is not populated when source_in_trino_table returns zero count."""
+        mock_source_in_trino.return_value = 0  # Source has no GPU data (count is 0)
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_trino_exec,
+            self.accessor as acc,
+        ):
+            acc._populate_gpu_ui_summary_table_with_usage_only(self.sql_params)
+            # With the fix, 0 is now falsy and function returns early
+            mock_trino_exec.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_populate_virtualization_ui_summary_table_uses_source_in_trino_table(
+        self, mock_psql, mock_schema_exists, mock_source_in_trino, mock_trino_table_exists
+    ):
+        """Test that _populate_virtualization_ui_summary_table uses source_in_trino_table."""
+        mock_trino_table_exists.return_value = True
+        mock_source_in_trino.return_value = 1  # Source found in VM table (count is 1)
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query"),
+            self.accessor as acc,
+        ):
+            acc._populate_virtualization_ui_summary_table(self.sql_params)
+            # Verify source_in_trino_table was called for VM usage table
+            mock_source_in_trino.assert_called()
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    @patch("masu.database.ocp_report_db_accessor.source_in_trino_table")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_populate_virtualization_ui_summary_table_vm_table_not_in_source(
+        self, mock_psql, mock_schema_exists, mock_source_in_trino, mock_trino_table_exists
+    ):
+        """Test that _populate_virtualization_ui_summary_table uses fallback when VM table has no source data."""
+        mock_trino_table_exists.return_value = True
+        mock_source_in_trino.return_value = 0  # Source NOT found in VM table (count is 0)
+        with (
+            patch.object(self.accessor, "_execute_trino_multipart_sql_query"),
+            patch("masu.database.ocp_report_db_accessor.pkgutil.get_data") as mock_get_data,
+            self.accessor as acc,
+        ):
+            mock_get_data.return_value = b"SELECT 1"
+            acc._populate_virtualization_ui_summary_table(self.sql_params)
+            # Verify that the fallback SQL file is used when source is not in VM table
+            calls = mock_get_data.call_args_list
+            # Should use populate_vm_tmp_table.sql (fallback) instead of populate_vm_tmp_table_with_vm_report.sql
+            sql_files_used = [str(call) for call in calls]
+            self.assertTrue(any("populate_vm_tmp_table.sql" in s for s in sql_files_used))

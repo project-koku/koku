@@ -146,6 +146,13 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
+    def populate_ocp_on_aws_category_summary_table(self, bill_ids, start_date, end_date):
+        """Populate the OCP on AWS category key values table."""
+        sql = pkgutil.get_data("masu.database", "sql/aws/openshift/reporting_ocpawscategory_summary.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        self._prepare_and_execute_raw_sql_query("reporting_ocpawscategory_summary", sql, sql_params)
+
     def populate_ocp_on_aws_ui_summary_tables(self, sql_params, tables=OCPAWS_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:

@@ -3,23 +3,20 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for AWS by regions."""
-from django.conf import settings
 from django.db.models import F
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
-from rest_framework import filters
-from rest_framework import generics
 from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
-from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.aws_access import AwsAccessPermission
-from api.resource_types.serializers import ResourceTypeSerializer
+from api.resource_types.view import ResourceTypesGenericListView
 from reporting.provider.aws.models import AWSCostSummaryByRegionP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByRegionP
 
 
-class AWSAccountRegionView(generics.ListAPIView):
+class AWSAccountRegionView(ResourceTypesGenericListView):
     """API GET list view for AWS by region"""
 
     queryset = (
@@ -28,30 +25,28 @@ class AWSAccountRegionView(generics.ListAPIView):
         .distinct()
         .filter(region__isnull=False)
     )
-    serializer_class = ResourceTypeSerializer
     permission_classes = [AwsAccessPermission]
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
-    ordering = ["value"]
-    search_fields = ["value"]
-    pagination_class = ResourceTypeViewPaginator
+    access_map = {"aws.account": "usage_account_id__in"}
+    ocp_queryset = (
+        OCPAWSCostSummaryByRegionP.objects.annotate(**{"value": F("region")})
+        .values("value")
+        .distinct()
+        .filter(region__isnull=False)
+    )
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
-        # Reads the users values for aws.accounts and displays values related to what the user has access to
-        supported_query_params = ["search", "limit"]
-        user_access = []
+        self.supported_query_params = self.supported_query_params + ["openshift"]
         error_message = {}
-        # Test for only supported query_params
-        if self.request.query_params:
-            for key in self.request.query_params:
-                if key not in supported_query_params:
-                    error_message[key] = [{"Unsupported parameter"}]
-                    return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
-        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
-            return super().list(request)
-        elif request.user.access:
-            user_access = request.user.access.get("aws.account", {}).get("read", [])
-        if user_access and user_access[0] == "*":
-            return super().list(request)
-        self.queryset = self.queryset.filter(usage_account_id__in=user_access)
+        for key in self.request.query_params:
+            if key not in self.supported_query_params:
+                error_message[key] = [{"Unsupported parameter"}]
+                return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+
+        if self.request.query_params.get("openshift") == "true":
+            self.queryset = self.ocp_queryset
+
+        if not self.has_admin_access(request):
+            self.queryset = self.filter_by_access(self.access_map, request, self.queryset)
+
         return super().list(request)

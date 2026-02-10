@@ -183,7 +183,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         self.ocp_manifest = CostUsageReportManifest.objects.filter(cluster_id__isnull=True).first()
         self.ocp_manifest_id = self.ocp_manifest.id
-        self.ocp_source = baker.make("Sources", provider=self.ocp_provider)
+        self.ocp_source = baker.make("Sources", provider=self.ocp_provider, org_id=self.org_id)
 
         manifest = utils.parse_manifest("koku/masu/test/data/ocp/payload2")
         manifest.manifest_id = self.ocp_manifest_id
@@ -602,7 +602,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.close_and_set_db_connection")
     def test_handle_messages(self, _):
         """Test to ensure that kafka messages are handled."""
-        hccm_msg = MockMessage(UPLOAD_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate", {"org_id": self.org_id}
+        )
 
         # Verify that when extract_payload is successful with 'hccm' message that SUCCESS_CONFIRM_STATUS is returned
         with patch("masu.external.kafka_msg_handler.extract_payload", return_value=(None, None)):
@@ -626,6 +628,20 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 with self.assertRaises(KafkaMsgHandlerError):
                     msg_handler.handle_message(hccm_msg)
                     mock_close.assert_called()
+
+    def test_handle_message_missing_org_id(self):
+        """Test that handle_message returns FAILURE_CONFIRM_STATUS when org_id is missing."""
+        value_dict = {
+            "request_id": "test-request-id",
+            "account": "12345",
+        }
+        msg = MockMessage(UPLOAD_TOPIC, "http://test-url.com/file", value_dict=value_dict)
+
+        status, report_metas, manifest_uuid = msg_handler.handle_message(msg)
+
+        self.assertEqual(status, msg_handler.FAILURE_CONFIRM_STATUS)
+        self.assertIsNone(report_metas)
+        self.assertIsNone(manifest_uuid)
 
     def test_process_report(self):
         """Test report processing."""
@@ -916,7 +932,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         return_value=None,
                     ):
                         self.assertFalse(
-                            msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})[0]
+                            msg_handler.extract_payload(
+                                payload_url, "test_request_id", "fake_identity", {"org_id": self.org_id}
+                            )[0]
                         )
                         shutil.rmtree(fake_dir)
                         shutil.rmtree(fake_data_dir)
@@ -1234,7 +1252,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.os")
     @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
     @patch("masu.external.kafka_msg_handler.divide_csv_daily")
-    def test_create_daily_archives_very_old_operator(self, mock_divide, *args):
+    @patch("masu.external.kafka_msg_handler.get_data_frame")
+    def test_create_daily_archives_very_old_operator(self, mock_get_data_frame, mock_divide, *args):
         """Test that this method returns a file list."""
         # modify the manifest to remove the operator version to test really old operators:
         self.ocp_manifest.operator_version = None
@@ -1246,6 +1265,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         ]
         expected_filenames = [FILE_PATH_ONE, FILE_PATH_TWO]
 
+        mock_get_data_frame.return_value = pd.DataFrame()
         mock_divide.return_value = daily_files
 
         file_path = Path("path")
@@ -1255,8 +1275,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     @patch("masu.external.kafka_msg_handler.os")
     @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
-    def test_create_daily_archives_non_daily_operator_files(self, *args):
+    @patch("masu.external.kafka_msg_handler.get_data_frame")
+    def test_create_daily_archives_non_daily_operator_files(self, mock_get_data_frame, *args):
         """Test that this method returns a file list."""
+        mock_get_data_frame.return_value = pd.DataFrame()
+
         file_path = Path("path")
 
         context = {"version": "1"}
@@ -1267,7 +1290,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.os")
     @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
     @patch("masu.external.kafka_msg_handler.divide_csv_daily")
-    def test_create_daily_archives_daily_operator_files(self, mock_divide, *args):
+    @patch("masu.external.kafka_msg_handler.get_data_frame")
+    def test_create_daily_archives_daily_operator_files(self, mock_get_data_frame, mock_divide, *args):
         """Test that this method returns a file list."""
         self.ocp_manifest.operator_daily_reports = True
         self.ocp_manifest.save()
@@ -1282,6 +1306,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             FILE_PATH_TWO: {"meta_reportdatestart": "2020-01-02", "meta_reportnumhours": "24"},
         }
 
+        mock_get_data_frame.return_value = pd.DataFrame()
         mock_divide.return_value = daily_files
 
         file_path = Path("path")
@@ -1293,7 +1318,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.os")
     @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
     @patch("masu.external.kafka_msg_handler.divide_csv_daily")
-    def test_create_daily_archives_daily_operator_files_empty_file(self, mock_divide, *args):
+    @patch("masu.external.kafka_msg_handler.get_data_frame")
+    def test_create_daily_archives_daily_operator_files_empty_file(self, mock_get_data_frame, mock_divide, *args):
         """Test that this method returns a file list."""
         self.ocp_manifest.operator_daily_reports = True
         self.ocp_manifest.save()
@@ -1302,6 +1328,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.fake_payload_info.manifest.date = start_date
 
         # simulate empty report file
+        mock_get_data_frame.return_value = pd.DataFrame()
         mock_divide.return_value = None
 
         file_path = Path("path")
