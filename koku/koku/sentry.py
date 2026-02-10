@@ -1,4 +1,6 @@
 """Sentry configuration file for the Koku project."""
+import re
+
 import sentry_sdk
 
 from .env import ENVIRONMENT
@@ -19,19 +21,27 @@ def traces_sampler(sampling_context):
     return 0.05
 
 
+def _extract_pid(message):
+    """Extract PID from timeout/kill messages."""
+    # Matches: "(pid:123)", "pid:123"
+    match = re.search(r"pid:(\d+)", message.lower())
+    return match.group(1) if match else None
+
+
 def before_send(event, hint):
-    """Filter out worker timeout/OOM errors on api-reads workers."""
-    server_name = event.get("server_name", "")
+    """Group timeout/OOM errors by PID for api-reads workers."""
+    # Get message from either logentry or message field
+    message = (event.get("logentry") or {}).get("formatted") or event.get("message") or ""
+    message_lower = message.lower() if isinstance(message, str) else ""
 
-    # Only filter events from api-reads workers
-    if "api-reads" not in server_name:
-        return event
-
-    # Check for worker timeout or OOM in the message
-    message = (event.get("message") or "").lower()
+    # Check for worker timeout or OOM
     keywords = ["worker timeout", "killing worker", "out of memory"]
-    if any(kw in message for kw in keywords):
-        return None  # Drop the event
+    if any(kw in message_lower for kw in keywords):
+        server_name = event.get("server_name", "")
+
+        if "api-reads" in server_name:
+            if pid := _extract_pid(message):
+                event["fingerprint"] = [f"worker-timeout-api-reads-pid-{pid}"]
 
     return event
 
