@@ -38,24 +38,21 @@ class TagQueryThrottle(SimpleRateThrottle):
         - Requests without tag group-by parameters
         - Requests with date ranges < 30 days
         """
-        # Get schema name
         try:
             schema_name = request.user.customer.schema_name
         except AttributeError:
-            return None  # No customer context, skip throttling
+            return None
 
-        # Check for tag group-by parameters
         tag_keys = self._extract_tag_keys(request.query_params)
         if not tag_keys:
             return None
 
-        # Only throttle customers flagged in Unleash
-        if not is_feature_flag_enabled_by_schema(schema_name, TAG_QUERY_RATE_LIMIT_FLAG):
-            return None
-
-        # Check date range
         date_range_days = self._get_date_range_days(request.query_params)
         if date_range_days < self.DAYS_RANGE_LIMIT:
+            return None
+
+        if not is_feature_flag_enabled_by_schema(schema_name, TAG_QUERY_RATE_LIMIT_FLAG):
+            # Limit the need to check unleash by calling it last
             return None
 
         # Build cache key: schema + sorted tag keys
