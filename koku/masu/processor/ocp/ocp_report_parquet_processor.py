@@ -18,16 +18,23 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_MAP
+from reporting.provider.ocp.self_hosted_models import SELF_HOSTED_DAILY_MODEL_MAP
+from reporting.provider.ocp.self_hosted_models import SELF_HOSTED_MODEL_MAP
 
 LOG = logging.getLogger(__name__)
 
 
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
+    def __init__(self, manifest_id, account, s3_path, provider_uuid, report_type, start_date):
         if "daily" in s3_path:
             ocp_table_name = TRINO_LINE_ITEM_TABLE_DAILY_MAP[report_type]
+            self._is_daily = True
         else:
             ocp_table_name = TRINO_LINE_ITEM_TABLE_MAP[report_type]
+            self._is_daily = False
+
+        self._report_type = report_type
+
         numeric_columns = [
             "pod_usage_cpu_core_seconds",
             "pod_request_cpu_core_seconds",
@@ -63,6 +70,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             "vm_disk_allocated_size_byte_seconds",
             "gpu_memory_capacity_mib",
             "gpu_pod_uptime",
+            "reportnumhours",  # this is a calculated column and not part of the report
         ]
         date_columns = ["report_period_start", "report_period_end", "interval_start", "interval_end"]
         column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}
@@ -71,15 +79,111 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             account=account,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
-            parquet_local_path=parquet_local_path,
             column_types=column_types,
             table_name=ocp_table_name,
+            start_date=start_date,
         )
 
     @property
     def postgres_summary_table(self):
         """Return the mode for the source specific summary table."""
         return OCPUsageLineItemDailySummary
+
+    @property
+    def self_hosted_line_item_model(self):
+        """Return the Django model for line item data (self-hosted/on-prem only).
+
+        This leverages Django models instead of raw SQL table creation,
+        enabling automatic migrations and consistent partition management.
+        """
+        if self._is_daily:
+            return SELF_HOSTED_DAILY_MODEL_MAP.get(self._report_type)
+        else:
+            return SELF_HOSTED_MODEL_MAP.get(self._report_type)
+
+    def get_table_names_for_delete(self):
+        """Return both raw and daily table names for OCP."""
+        raw_table_name = TRINO_LINE_ITEM_TABLE_MAP[self._report_type]
+        daily_table_name = TRINO_LINE_ITEM_TABLE_DAILY_MAP[self._report_type]
+        return [raw_table_name, daily_table_name]
+
+    def delete_day_postgres(self, start_date, reportnumhours=None):
+        """Delete old data for a specific day (OCP implementation with reportnumhours check).
+
+        Deletes from both raw and daily tables, similar to how Trino deletes from multiple S3 paths.
+        """
+        from koku.reportdb_accessor import get_report_db_accessor
+        from masu.processor.parquet.parquet_report_processor import ReportsAlreadyProcessed
+
+        start_date_str = str(start_date)
+        table_names = self.get_table_names_for_delete()
+
+        # Filter to only existing tables
+        existing_tables = []
+        for table_name in table_names:
+            check_table_sql = get_report_db_accessor().get_table_check_sql(table_name, self._schema_name)
+
+            with get_report_db_accessor().connect(schema=self._schema_name) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(check_table_sql)
+                    if cursor.fetchone():
+                        existing_tables.append(table_name)
+
+        # Delete from existing tables
+        total_deleted = 0
+        for table_name in existing_tables:
+            delete_sql = get_report_db_accessor().get_delete_day_by_reportnumhours_sql(
+                self._schema_name,
+                table_name,
+                self._provider_uuid,
+                self._year,
+                self._month,
+                start_date_str,
+                reportnumhours,
+            )
+
+            with get_report_db_accessor().connect(schema=self._schema_name) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(delete_sql)
+                    total_deleted += cursor.rowcount
+
+        LOG.info(
+            log_json(
+                msg="deleted old data from postgres (OCP)",
+                deleted_rows=total_deleted,
+                start_date=start_date_str,
+                reportnumhours=reportnumhours,
+            )
+        )
+
+        # If nothing was deleted, check if data exists for this day in existing tables
+        if total_deleted == 0:
+            data_exists = False
+            for table_name in existing_tables:
+                check_sql = get_report_db_accessor().get_check_day_exists_sql(
+                    self._schema_name,
+                    table_name,
+                    self._provider_uuid,
+                    self._year,
+                    self._month,
+                    start_date_str,
+                )
+
+                with get_report_db_accessor().connect(schema=self._schema_name) as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute(check_sql)
+                        if cursor.fetchone() is not None:
+                            data_exists = True
+                            break
+
+            if data_exists:
+                LOG.info(
+                    log_json(
+                        msg="existing data has equal or greater reportnumhours",
+                        start_date=start_date_str,
+                    )
+                )
+                raise ReportsAlreadyProcessed
 
     def create_bill(self, bill_date):
         """Create bill postgres entry."""
@@ -119,3 +223,60 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             if bill.cluster_alias != cluster_alias:
                 bill.cluster_alias = cluster_alias
                 bill.save(update_fields=["cluster_alias"])
+
+    def write_to_self_hosted_table(self, data_frame, metadata):
+        """Write dataframe to PostgreSQL for on-prem using Django model infrastructure.
+
+        This method is only called for on-prem deployments. SaaS writes to S3 parquet files instead.
+        Uses the standard partition naming convention (tablename_YYYY_MM) and the existing
+        partition infrastructure (get_or_create_postgres_partition).
+        """
+        import pandas as pd
+        from uuid import uuid4
+
+        from sqlalchemy import create_engine
+
+        from koku.reportdb_accessor import get_report_db_accessor
+
+        data_frame["reportnumhours"] = metadata["ReportNumHours"]
+
+        model = self.self_hosted_line_item_model
+        if not model:
+            raise NotImplementedError(
+                f"No Django model found for OCP report type '{self._report_type}'. "
+                "On-prem requires Django models for all supported report types."
+            )
+
+        # Ensure partitions exist using the standard infrastructure
+        # This is the same partitioning structure we utilize in the SaaS for
+        # our postgresql summary tables.
+        self.get_or_create_postgres_partition(self._start_date, model=model)
+
+        table_name = model._meta.db_table
+
+        # Add partition tracking columns
+        data_frame["year"] = self._year
+        data_frame["month"] = self._month
+        data_frame["source"] = str(self._provider_uuid)  # Store as string for SQL join compatibility
+
+        # Add usage_start as date (derived from interval_start) for partition column
+        # PostgreSQL uses this to route rows to the correct partition automatically
+        if "interval_start" in data_frame.columns:
+            data_frame["usage_start"] = pd.to_datetime(data_frame["interval_start"]).dt.date
+
+        # Generate UUIDs for each row (required for partitioned tables)
+        data_frame["id"] = [uuid4() for _ in range(len(data_frame))]
+
+        # Write to the parent table - PostgreSQL routes to correct partition based on usage_start
+        with get_report_db_accessor().connect() as connection:
+            engine = create_engine("postgresql://", creator=lambda: connection.getConnection())
+            data_frame.to_sql(name=table_name, con=engine, schema=self._schema_name, if_exists="append", index=False)
+
+        LOG.info(
+            log_json(
+                msg="wrote dataframe to postgresql",
+                schema=self._schema_name,
+                table=table_name,
+                rows=len(data_frame),
+            )
+        )

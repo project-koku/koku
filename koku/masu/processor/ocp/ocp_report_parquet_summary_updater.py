@@ -69,11 +69,15 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
     def _check_parquet_date_range(self, start_date, end_date):
         """Make sure we don't summarize for a date range we don't have data for."""
-        start_datetime = datetime(start_date.year, start_date.month, start_date.day)
+        start_datetime = datetime(start_date.year, start_date.month, start_date.day, tzinfo=settings.UTC)
         with OCPReportDBAccessor(self._schema) as accessor:
             min_timestamp, __ = accessor.get_max_min_timestamp_from_parquet(self._provider.uuid, start_date, end_date)
-            if min_timestamp > start_datetime:
-                start_date = min_timestamp.date()
+            if min_timestamp:
+                # Normalize to timezone-aware for comparison (handles both Trino naive and PostgreSQL aware)
+                if min_timestamp.tzinfo is None:
+                    min_timestamp = min_timestamp.replace(tzinfo=settings.UTC)
+                if min_timestamp > start_datetime:
+                    start_date = min_timestamp.date()
         return start_date, end_date
 
     def update_summary_tables(self, start_date, end_date, **kwargs):
