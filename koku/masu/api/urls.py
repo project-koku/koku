@@ -58,14 +58,11 @@ urlpatterns = [
     path("update_exchange_rates/", update_exchange_rates, name="update_exchange_rates"),
     path("update_azure_storage_capacity/", update_azure_storage_capacity, name="update_azure_storage_capacity"),
     path("enabled_tags/", EnabledTagView.as_view(), name="enabled_tags"),
-    path("expired_trino_partitions/", expired_trino_partitions, name="expired_trino_partitions"),
     path("expired_data/", expired_data, name="expired_data"),
     path("hcs_report_data/", hcs_report_data, name="hcs_report_data"),
     path("hcs_report_finalization/", hcs_report_finalization, name="hcs_report_finalization"),
     path("report_data/", report_data, name="report_data"),
     path("source_cleanup/", cleanup, name="cleanup"),
-    path("trino/query/", trino_query, name="trino_query"),
-    path("trino/api/", trino_ui, name="trino_ui"),
     path("notification/", notification, name="notification"),
     path("recheck_infra_map/", recheck_infra_map, name="recheck_infra_map"),
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
@@ -76,7 +73,6 @@ urlpatterns = [
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
     path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
     path("bigquery_cost/<uuid:source_uuid>/", bigquery_cost, name="bigquery_cost"),
-    path("purge_trino_files/", purge_trino_files, name="purge_trino_files"),
     path("validate_cost_data/", validate_cost_data, name="validate_cost_data"),
     path("db-performance", db_performance_redirect, name="db_perf_no_slash_redirect"),
     path("db-performance/", db_performance_redirect, name="db_perf_slash_redirect"),
@@ -94,6 +90,14 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += [
         path("ingest_ocp_payload/", ingest_ocp_payload, name="local ocp ingress"),
+    ]
+
+if not settings.ONPREM:
+    urlpatterns += [
+        path("trino/query/", trino_query, name="trino_query"),
+        path("trino/api/", trino_ui, name="trino_ui"),
+        path("expired_trino_partitions/", expired_trino_partitions, name="expired_trino_partitions"),
+        path("purge_trino_files/", purge_trino_files, name="purge_trino_files"),
     ]
 
 urlpatterns += ROUTER.urls

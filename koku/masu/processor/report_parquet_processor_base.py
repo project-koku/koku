@@ -5,14 +5,12 @@
 """Processor for Parquet files."""
 import logging
 
-import pyarrow.parquet as pq
-import trino
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.db import Error
+from django.db import ProgrammingError
 from django_tenants.utils import schema_context
-from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
-from trino.exceptions import TrinoUserError
 
 from api.common import log_json
 from api.models import Provider
@@ -21,6 +19,8 @@ from koku.cache import build_trino_table_exists_key
 from koku.cache import get_value_from_cache
 from koku.cache import set_value_in_cache
 from koku.pg_partition import get_or_create_partition
+from koku.reportdb_accessor import ColumnType
+from koku.reportdb_accessor import get_report_db_accessor
 from masu.util.common import strip_characters_from_column_name
 from reporting.models import PartitionedTable
 from reporting.models import TenantAPIProvider
@@ -33,7 +33,7 @@ class PostgresSummaryTableError(Exception):
 
 
 class ReportParquetProcessorBase:
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, column_types, table_name):
+    def __init__(self, manifest_id, account, s3_path, provider_uuid, column_types, table_name, start_date):
         self._manifest_id = manifest_id
         self._account = account
         # Existing schema will start with acct and we strip that prefix for use later
@@ -42,11 +42,13 @@ class ReportParquetProcessorBase:
             self._schema_name = str(account)
         else:
             self._schema_name = f"acct{account}"
-        self._parquet_path = parquet_local_path
         self._s3_path = s3_path
         self._provider_uuid = provider_uuid
         self._column_types = column_types
         self._table_name = table_name
+        self._start_date = start_date
+        self._year = start_date.strftime("%Y")
+        self._month = start_date.strftime("%m")
 
     @property
     def postgres_summary_table(self):
@@ -56,24 +58,23 @@ class ReportParquetProcessorBase:
     def _execute_trino_sql(self, sql, schema_name: str):  # pragma: no cover
         """Execute Trino SQL."""
         rows = []
-        try:
-            with trino.dbapi.connect(
-                host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="admin", catalog="hive", schema=schema_name
-            ) as conn:
-                cur = conn.cursor()
-                cur.execute(sql)
-                rows = cur.fetchall()
-                LOG.debug(f"_execute_trino_sql rows: {str(rows)}. Type: {type(rows)}")
-        except TrinoUserError as err:
-            LOG.warning(err)
-        except TrinoExternalError as err:
-            if err.error_name in ("HIVE_METASTORE_ERROR", "HIVE_FILESYSTEM_ERROR", "JDBC_ERROR"):
-                LOG.warning(err)
-            else:
-                LOG.error(err)
-        except TrinoQueryError as err:
-            LOG.error(err)
-
+        with get_report_db_accessor().connect(
+            host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="admin", catalog="hive", schema=schema_name
+        ) as conn:
+            with conn.cursor() as cur:
+                try:
+                    cur.execute(sql)
+                    rows = cur.fetchall()
+                    LOG.debug(f"_execute_trino_sql rows: {str(rows)}. Type: {type(rows)}")
+                except ProgrammingError as err:
+                    LOG.warning(err)
+                except TrinoQueryError as err:
+                    if err.error_name in ("HIVE_METASTORE_ERROR", "HIVE_FILESYSTEM_ERROR", "JDBC_ERROR"):
+                        LOG.warning(err)
+                    else:
+                        LOG.error(err)
+                except Error as err:  # TrinoQueryError is the equivalent of Error in Django
+                    LOG.error(err)
         return rows
 
     def _get_provider(self):
@@ -91,7 +92,7 @@ class ReportParquetProcessorBase:
         cache_key = build_trino_schema_exists_key(self._schema_name)
         if result := get_value_from_cache(cache_key):
             return result
-        schema_check_sql = f"SHOW SCHEMAS LIKE '{self._schema_name}'"
+        schema_check_sql = get_report_db_accessor().get_schema_check_sql(self._schema_name)
         exists = bool(self._execute_trino_sql(schema_check_sql, "default"))
         set_value_in_cache(cache_key, exists)
         return exists
@@ -102,7 +103,7 @@ class ReportParquetProcessorBase:
         cache_key = build_trino_table_exists_key(self._schema_name, self._table_name)
         if result := get_value_from_cache(cache_key):
             return result
-        table_check_sql = f"SHOW TABLES LIKE '{self._table_name}'"
+        table_check_sql = get_report_db_accessor().get_table_check_sql(self._table_name, self._schema_name)
         exists = bool(self._execute_trino_sql(table_check_sql, self._schema_name))
         set_value_in_cache(cache_key, exists)
         return exists
@@ -110,64 +111,52 @@ class ReportParquetProcessorBase:
     def create_schema(self):
         """Create Trino schema."""
         LOG.info(log_json(msg="create trino/hive schema sql", schema=self._schema_name))
-        schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {self._schema_name}"
+        schema_create_sql = get_report_db_accessor().get_schema_create_sql(self._schema_name)
         self._execute_trino_sql(schema_create_sql, "default")
         return self._schema_name
 
-    def _generate_column_list(self):
-        """Generate column list based on parquet file."""
-        parquet_file = self._parquet_path
-        return pq.ParquetFile(parquet_file).schema.names
-
-    def _generate_create_table_sql(self, partition_map=None):
+    def _generate_create_table_sql(self, column_names):
         """Generate SQL to create table."""
-        parquet_columns = self._generate_column_list()
-        s3_path = f"{settings.S3_BUCKET_NAME}/{self._s3_path}"
-
-        sql = f"CREATE TABLE IF NOT EXISTS {self._schema_name}.{self._table_name} ("
-        for idx, col in enumerate(parquet_columns):
+        columns = []
+        for col in column_names:
             norm_col = strip_characters_from_column_name(col)
             if norm_col in self._column_types["numeric_columns"]:
-                col_type = "double"
+                column_type = ColumnType.NUMERIC
             elif norm_col in self._column_types["date_columns"]:
-                col_type = "timestamp"
+                column_type = ColumnType.DATE
             elif norm_col in self._column_types["boolean_columns"]:
-                col_type = "boolean"
+                column_type = ColumnType.BOOLEAN
             else:
-                col_type = "varchar"
+                column_type = ColumnType.STRING
+            columns.append((norm_col, column_type))
 
-            sql += f"{norm_col} {col_type}"
-            if idx < (len(parquet_columns) - 1):
-                sql += ","
-        if partition_map:
-            # Add the specified partition columns
-            sql += ", "
-            sql += ",".join([f"{item[0]} {item[1]} " for item in list(partition_map.items())])
-            partition_column_str = ", ".join([f"'{key}'" for key in partition_map.keys()])
-            sql += (
-                f") WITH(external_location = '{settings.TRINO_S3A_OR_S3}://{s3_path}', format = 'PARQUET',"
-                f" partitioned_by=ARRAY[{partition_column_str}])"
-            )
-        else:
-            # Use the default partition columns
-            sql += ",source varchar, year varchar, month varchar"
+        partition_columns = [("source", ColumnType.STRING), ("year", ColumnType.STRING), ("month", ColumnType.STRING)]
 
-            sql += (
-                f") WITH(external_location = '{settings.TRINO_S3A_OR_S3}://{s3_path}', format = 'PARQUET',"
-                " partitioned_by=ARRAY['source', 'year', 'month'])"
-            )
+        sql = get_report_db_accessor().get_table_create_sql(
+            self._table_name, self._schema_name, columns, partition_columns, self._s3_path
+        )
+
         return sql
 
-    def create_table(self, partition_map=None):
+    def create_table(self, column_names):
         """Create Trino SQL table."""
-        sql = self._generate_create_table_sql(partition_map=partition_map)
+        sql = self._generate_create_table_sql(column_names)
         LOG.info(log_json(msg="attempting to create parquet table", table=self._table_name, schema=self._schema_name))
         self._execute_trino_sql(sql, self._schema_name)
         LOG.info(log_json(msg="trino parquet table created", table=self._table_name, schema=self._schema_name))
 
-    def get_or_create_postgres_partition(self, bill_date, **kwargs):
-        """Make sure we have a Postgres partition for a billing period."""
-        table_name = self.postgres_summary_table._meta.db_table
+    def get_or_create_postgres_partition(self, bill_date, model=None, **kwargs):
+        """Make sure we have a Postgres partition for a billing period.
+
+        Args:
+            bill_date: The billing period date
+            model: Optional Django model to create partitions for. If not provided,
+                   uses self.postgres_summary_table (for backward compatibility).
+            **kwargs: Optional overrides for partition_type and partition_column
+        """
+        if model is None:
+            model = self.postgres_summary_table
+        table_name = model._meta.db_table
         partition_type = kwargs.get("partition_type", PartitionedTable.RANGE)
         partition_column = kwargs.get("partition_column", "usage_start")
 
@@ -229,3 +218,15 @@ class ReportParquetProcessorBase:
         sql = "CALL system.sync_partition_metadata('" f"{self._schema_name}', " f"'{self._table_name}', " "'FULL')"
         LOG.info(sql)
         self._execute_trino_sql(sql, self._schema_name)
+
+    def write_to_self_hosted_table(self, data_frame, metadata):
+        """Write dataframe to self-hosted PostgreSQL table.
+
+        This base implementation is a no-op. Subclasses that support on-prem
+        should override this method to write data to PostgreSQL.
+        For SaaS, data is written to S3 parquet files instead.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement write_to_self_hosted_table. "
+            "On-prem is only supported for OCP providers."
+        )

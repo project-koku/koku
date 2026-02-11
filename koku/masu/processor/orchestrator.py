@@ -365,26 +365,40 @@ class Orchestrator:
         if report_tasks:
             if self._summarize_reports:
                 reports_tasks_queued = True
-                hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
                 summary_task = summarize_reports.s(
                     manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
-                LOG.info(
-                    log_json(
-                        "start_manifest_processing",
-                        msg="created summary_task signature",
-                        schema=schema_name,
-                        summary_task=str(summary_task),
-                        hcs_task=str(hcs_task),
+
+                # Skip HCS and SUBS tasks for on-prem deployments
+                if settings.ONPREM:
+                    LOG.info(
+                        log_json(
+                            "start_manifest_processing",
+                            msg="skipping hcs_task and subs_task for on-prem",
+                            schema=schema_name,
+                            summary_task=str(summary_task),
+                        )
                     )
-                )
-                # data source contains fields from applications.extra and metered is the key that gates subs processing.
-                subs_task = extract_subs_data_from_reports.s(data_source.get("metered", "")).set(
-                    queue=SUBS_EXTRACTION_QUEUE
-                )
-                LOG.info(log_json("start_manifest_processing", msg="created subs_task signature", schema=schema_name))
-                # Note that the summary, hcs and subs tasks will excecutue concurrently, so ordering can't be garunteed.
-                async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
+                    async_id = chord(report_tasks, summary_task)()
+                else:
+                    hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
+                    # data source contains fields from applications.extra
+                    # and metered is the key that gates subs processing.
+                    subs_task = extract_subs_data_from_reports.s(data_source.get("metered", "")).set(
+                        queue=SUBS_EXTRACTION_QUEUE
+                    )
+                    LOG.info(
+                        log_json(
+                            "start_manifest_processing",
+                            msg="created summary_task, hcs_task, and subs_task signatures",
+                            schema=schema_name,
+                            summary_task=str(summary_task),
+                            hcs_task=str(hcs_task),
+                        )
+                    )
+                    # Note that the summary, hcs and subs tasks will execute concurrently,
+                    # so ordering can't be guaranteed.
+                    async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
                 LOG.info(
                     log_json(
                         "start_manifest_processing",
