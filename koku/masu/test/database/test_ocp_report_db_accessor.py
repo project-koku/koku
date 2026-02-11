@@ -1342,6 +1342,23 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             mock_psql.assert_not_called()
 
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_virtualization_ui_summary_table")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_gpu_ui_summary_table_with_usage_only")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_populate_ui_summary_tables_skips_virtualization_for_previous_month(
+        self, mock_psql, mock_gpu_populate, mock_virt_populate
+    ):
+        """Test that virtualization UI table is not populated when summarizing previous month (not current month)."""
+        start_date = self.dh.last_month_start.date()
+        end_date = self.dh.last_month_end.date()
+        summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date, summarize_previous_month=True)
+        source_uuid = self.ocp_provider_uuid
+        with self.accessor as acc:
+            acc.populate_ui_summary_tables(summary_range, source_uuid, tables=[])
+        mock_psql.assert_not_called()
+        mock_gpu_populate.assert_called_once()
+        mock_virt_populate.assert_not_called()
+
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
     def test__populate_virtualization_ui_summary_table_no_trino_schema(self, mock_psql, mock_schema_exists):
