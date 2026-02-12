@@ -66,7 +66,7 @@ def worker_abort(worker):
     data = buffer.getvalue()
     buffer.close()
 
-    worker.log.error(f"Killing worker {worker.pid}\n{data}")
+    worker.log.error(f"Killing worker (pid:{worker.pid})\n{data}")
 
 
 def child_exit(server, worker):
