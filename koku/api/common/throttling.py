@@ -4,6 +4,7 @@
 #
 """Custom throttling classes for the Koku API."""
 import logging
+import re
 from datetime import datetime
 
 from rest_framework.throttling import SimpleRateThrottle
@@ -28,6 +29,25 @@ class TagQueryThrottle(SimpleRateThrottle):
     scope = "tag_query"
     rate = "1/43200s"  # 1 request per 12 hours (43200 seconds)
     DAYS_RANGE_LIMIT = 30
+
+    def parse_rate(self, rate):
+        """
+        Parse rate string 'num/duration' where duration is e.g. 43200s or 12h.
+
+        DRF's default only supports a single unit letter (s/m/h/d), so we override
+        to support a numeric prefix like 43200s (43200 seconds).
+        """
+        if rate is None:
+            return (None, None)
+        num, period = rate.split("/")
+        num_requests = int(num)
+        # Match optional digits + single unit: e.g. 43200s, 12h, 1d
+        match = re.match(r"^(\d+)([smhd])$", period.strip().lower())
+        if match:
+            amount, unit = int(match.group(1)), match.group(2)
+            duration = amount * {"s": 1, "m": 60, "h": 3600, "d": 86400}[unit]
+            return (num_requests, duration)
+        return (None, None)
 
     def get_cache_key(self, request, view):
         """
@@ -62,11 +82,13 @@ class TagQueryThrottle(SimpleRateThrottle):
         LOG.debug(f"Tag query throttle check: {cache_key}, date_range: {date_range_days} days")
         return cache_key
 
-    def _extract_tag_keys(self, query_params):
+    @staticmethod
+    def _extract_tag_keys(query_params):
         """Extract tag group-by keys from query parameters."""
         return [key for key in query_params if "group_by" in key and "tag:" in key]
 
-    def _get_date_range_days(self, query_params):
+    @staticmethod
+    def _get_date_range_days(query_params):
         """Calculate the date range in days from query parameters."""
         start_date_str = query_params.get("start_date")
         end_date_str = query_params.get("end_date")
