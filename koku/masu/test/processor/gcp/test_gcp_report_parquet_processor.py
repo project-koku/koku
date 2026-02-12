@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCPReportParquetProcessor."""
+from datetime import date
 from unittest.mock import patch
 
 from django_tenants.utils import schema_context
@@ -29,9 +30,9 @@ class GCPReportProcessorParquetTest(MasuTestCase):
         self.manifest_id = 1
         self.account = "org1234567"
         self.s3_path = "/s3/path"
-        self.local_parquet = "/local/path"
+        self.start_date = date(2024, 1, 15)
         self.processor = GCPReportParquetProcessor(
-            self.manifest_id, self.account, self.s3_path, self.gcp_provider_uuid, self.local_parquet
+            self.manifest_id, self.account, self.s3_path, self.gcp_provider_uuid, self.start_date
         )
 
     def test_gcp_table_name(self):
@@ -40,13 +41,13 @@ class GCPReportProcessorParquetTest(MasuTestCase):
 
         s3_path = "/s3/path/openshift/daily"
         processor = GCPReportParquetProcessor(
-            self.manifest_id, self.account, s3_path, self.gcp_provider_uuid, self.local_parquet
+            self.manifest_id, self.account, s3_path, self.gcp_provider_uuid, self.start_date
         )
         self.assertEqual(processor._table_name, TRINO_OCP_ON_GCP_DAILY_TABLE)
 
         s3_path = "/s3/path/daily"
         processor = GCPReportParquetProcessor(
-            self.manifest_id, self.account, s3_path, self.gcp_provider_uuid, self.local_parquet
+            self.manifest_id, self.account, s3_path, self.gcp_provider_uuid, self.start_date
         )
         self.assertEqual(processor._table_name, TRINO_LINE_ITEM_DAILY_TABLE)
 

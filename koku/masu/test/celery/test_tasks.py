@@ -173,6 +173,9 @@ class TestCeleryTasks(MasuTestCase):
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
     def test_delete_archived_data_ocp_delete_trino_partitions(self, mock_delete, mock_delete_partitions):
         """Test that delete_archived_data correctly interacts with AWS S3."""
+        if not TRINO_MANAGED_TABLES:
+            # Skip in on-prem mode - no Trino tables to delete
+            self.skipTest("TRINO_MANAGED_TABLES is empty in on-prem mode")
         schema_name = "org1234567"
         provider_type = Provider.PROVIDER_OCP
         provider_uuid = "00000000-0000-0000-0000-000000000001"
