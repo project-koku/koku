@@ -41,7 +41,6 @@ do the following:
 
         ONPREM=True
 
-    This disables the Unleash feature flag client and prevents external API calls. See [docs/architecture/feature-flags.md](docs/architecture/feature-flags.md) for details.
 
 2.  Copy [`dev/credentials/aws.example`](dev/credentials/aws.example) into `dev/credentials/aws`, obtain AWS credentials, then update the credentials file:
 
