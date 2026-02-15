@@ -24,6 +24,9 @@ from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
+from sources.api.source_type_mapping import PROVIDER_TYPE_TO_CMMO_ID
+from sources.api.view import DestroySourceMixin
+from sources.api.view import SourceFilter
 from sources.api.view import SourcesViewSet
 
 
@@ -363,3 +366,291 @@ class SourcesViewTests(IamTestCase):
             Provider.PROVIDER_GCP_LOCAL,
         ]
         self.assertEqual(sorted(list(set(excluded))), sorted(list(set(expected))))
+
+
+@override_settings(ROOT_URLCONF="sources.urls")
+class SourceFilterTests(IamTestCase):
+    """Test Cases for SourceFilter custom filters."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        self.test_account = "10001"
+        self.test_org_id = "1234567"
+        user_data = self._create_user_data()
+        customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+        customer_obj = Customer.objects.get(org_id=customer.get("org_id"))
+
+        # Create an OCP source with cluster_id
+        self.ocp_provider = Provider(name="Test OCP", type=Provider.PROVIDER_OCP, customer=customer_obj)
+        self.ocp_provider.save()
+        self.ocp_source = Sources(
+            source_id=10,
+            auth_header=self.request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=10,
+            source_type=Provider.PROVIDER_OCP,
+            name="Test OCP Source",
+            authentication={"credentials": {"cluster_id": "test-cluster-abc"}},
+            source_uuid=self.ocp_provider.uuid,
+        )
+        self.ocp_source.save()
+
+        # Create an Azure source
+        self.azure_provider = Provider(name="Test Azure", type=Provider.PROVIDER_AZURE, customer=customer_obj)
+        self.azure_provider.save()
+        self.azure_source = Sources(
+            source_id=11,
+            auth_header=self.request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=11,
+            source_type=Provider.PROVIDER_AZURE,
+            name="Test Azure Source",
+            authentication={"credentials": {"client_id": "test_client"}},
+            source_uuid=self.azure_provider.uuid,
+        )
+        self.azure_source.save()
+
+        mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
+        SourcesViewSet.url = mock_url
+
+    def test_filter_by_source_type_id_ocp(self):
+        """Test filtering sources by source_type_id for OCP."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(
+            url,
+            {"source_type_id": PROVIDER_TYPE_TO_CMMO_ID[Provider.PROVIDER_OCP]},
+            **self.request_context["request"].META,
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        for source in body["data"]:
+            self.assertEqual(source["source_type"], Provider.PROVIDER_OCP)
+
+    def test_filter_by_source_type_id_azure(self):
+        """Test filtering sources by source_type_id for Azure."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(
+            url,
+            {"source_type_id": PROVIDER_TYPE_TO_CMMO_ID[Provider.PROVIDER_AZURE]},
+            **self.request_context["request"].META,
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        for source in body["data"]:
+            self.assertEqual(source["source_type"], Provider.PROVIDER_AZURE)
+
+    def test_filter_by_source_type_id_invalid(self):
+        """Test filtering sources by invalid source_type_id returns empty."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(
+            url,
+            {"source_type_id": "999"},
+            **self.request_context["request"].META,
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(body["meta"]["count"], 0)
+
+    def test_filter_by_source_ref(self):
+        """Test filtering sources by source_ref (cluster_id)."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(
+            url,
+            {"source_ref": "test-cluster-abc"},
+            **self.request_context["request"].META,
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(body["meta"]["count"], 1)
+        self.assertEqual(body["data"][0]["source_type"], Provider.PROVIDER_OCP)
+
+    def test_filter_by_source_ref_no_match(self):
+        """Test filtering sources by source_ref with no match."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(
+            url,
+            {"source_ref": "nonexistent-cluster"},
+            **self.request_context["request"].META,
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(body["meta"]["count"], 0)
+
+    def test_filter_by_source_type_id_unit(self):
+        """Test SourceFilter.filter_by_source_type_id directly."""
+        queryset = Sources.objects.all()
+        source_filter = SourceFilter()
+        # Valid source_type_id
+        filtered = source_filter.filter_by_source_type_id(queryset, "source_type_id", "1")
+        for source in filtered:
+            self.assertEqual(source.source_type, Provider.PROVIDER_OCP)
+
+        # Invalid source_type_id returns empty
+        filtered = source_filter.filter_by_source_type_id(queryset, "source_type_id", "999")
+        self.assertEqual(filtered.count(), 0)
+
+    def test_filter_by_source_ref_unit(self):
+        """Test SourceFilter.filter_by_source_ref directly."""
+        queryset = Sources.objects.all()
+        source_filter = SourceFilter()
+        filtered = source_filter.filter_by_source_ref(queryset, "source_ref", "test-cluster-abc")
+        self.assertTrue(filtered.exists())
+        for source in filtered:
+            self.assertEqual(
+                source.authentication.get("credentials", {}).get("cluster_id"),
+                "test-cluster-abc",
+            )
+
+
+@override_settings(ROOT_URLCONF="sources.urls")
+class SourcesViewCreateTests(IamTestCase):
+    """Test Cases for the SourcesViewSet.create method."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        self.test_account = "10001"
+        self.test_org_id = "1234567"
+        user_data = self._create_user_data()
+        customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    def test_create_method_success(self, mock_invalidate):
+        """Test the create method calls super and invalidates cache."""
+        viewset = SourcesViewSet()
+        mock_response = Mock(status_code=201)
+
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+
+        with patch.object(SourcesViewSet, "create", wraps=viewset.create) as _:
+            with patch("rest_framework.mixins.CreateModelMixin.create", return_value=mock_response):
+                # Call the method directly - CreateModelMixin.create will be mocked
+                result = SourcesViewSet.create(viewset, request=mock_request)
+                self.assertEqual(result.status_code, 201)
+                mock_invalidate.assert_called_once()
+
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    def test_create_method_storage_error(self, mock_invalidate):
+        """Test the create method raises SourcesException on SourcesStorageError."""
+        from sources.api.view import SourcesException
+        from sources.storage import SourcesStorageError
+
+        viewset = SourcesViewSet()
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+
+        with patch("rest_framework.mixins.CreateModelMixin.create", side_effect=SourcesStorageError("test error")):
+            with self.assertRaises(SourcesException):
+                SourcesViewSet.create(viewset, request=mock_request)
+
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    def test_create_method_dependency_error(self, mock_invalidate):
+        """Test the create method raises SourcesDependencyException on SourcesDependencyError."""
+        from sources.api.serializers import SourcesDependencyError
+        from sources.api.view import SourcesDependencyException
+
+        viewset = SourcesViewSet()
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+
+        with patch("rest_framework.mixins.CreateModelMixin.create", side_effect=SourcesDependencyError("dep error")):
+            with self.assertRaises(SourcesDependencyException):
+                SourcesViewSet.create(viewset, request=mock_request)
+
+
+class DestroySourceMixinTests(IamTestCase):
+    """Test Cases for the DestroySourceMixin.destroy with ONPREM publish."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        self.test_account = "10001"
+        self.test_org_id = "1234567"
+        user_data = self._create_user_data()
+        customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+        customer_obj = Customer.objects.get(org_id=customer.get("org_id"))
+
+        self.provider = Provider(name="Test OCP", type=Provider.PROVIDER_OCP, customer=customer_obj)
+        self.provider.save()
+        self.source = Sources(
+            source_id=20,
+            auth_header=self.request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=20,
+            source_type=Provider.PROVIDER_OCP,
+            name="Test OCP Source",
+            authentication={"credentials": {"cluster_id": "destroy-test-cluster"}},
+            source_uuid=self.provider.uuid,
+            koku_uuid=self.provider.uuid,
+        )
+        self.source.save()
+
+    @patch("sources.api.view.publish_application_destroy_event")
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @override_settings(ONPREM=True)
+    def test_destroy_publishes_kafka_event_when_onprem(self, mock_invalidate, mock_publish):
+        """Test that destroy publishes Kafka event when ONPREM is True."""
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+        mock_request.user.customer.account_id = self.test_account
+        mock_request.user.customer.org_id = self.test_org_id
+        mock_request.user.identity_header = {"encoded": "test-header"}
+
+        # Create a concrete subclass with the mixin for testing
+        class TestDestroyView(DestroySourceMixin):
+            def get_object(self):
+                return self.source
+
+        view = TestDestroyView()
+        view.source = self.source
+
+        with (
+            patch.object(view, "get_object", return_value=self.source),
+            patch("sources.api.view.ProviderBuilder") as mock_builder,
+            patch.object(DestroySourceMixin, "destroy", return_value=Mock(status_code=204)) as _,
+        ):
+            mock_builder.return_value.destroy_provider.return_value = None
+            # Call the destroy directly from DestroySourceMixin
+            with patch("rest_framework.mixins.DestroyModelMixin.destroy", return_value=Mock(status_code=204)):
+                DestroySourceMixin.destroy(view, request=mock_request)
+
+            mock_publish.assert_called_once_with(self.source)
+
+    @patch("sources.api.view.publish_application_destroy_event")
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @override_settings(ONPREM=False)
+    def test_destroy_skips_kafka_event_when_not_onprem(self, mock_invalidate, mock_publish):
+        """Test that destroy does NOT publish Kafka event when ONPREM is False."""
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+        mock_request.user.customer.account_id = self.test_account
+        mock_request.user.customer.org_id = self.test_org_id
+        mock_request.user.identity_header = {"encoded": "test-header"}
+
+        class TestDestroyView(DestroySourceMixin):
+            pass
+
+        view = TestDestroyView()
+
+        with (
+            patch.object(view, "get_object", return_value=self.source),
+            patch("sources.api.view.ProviderBuilder") as mock_builder,
+        ):
+            mock_builder.return_value.destroy_provider.return_value = None
+            with patch("rest_framework.mixins.DestroyModelMixin.destroy", return_value=Mock(status_code=204)):
+                DestroySourceMixin.destroy(view, request=mock_request)
+
+            mock_publish.assert_not_called()
