@@ -306,6 +306,7 @@ services:
       - "./scripts:/koku/scripts:z"
     depends_on:
       - koku-base
+      - kafka
 
   subs-worker:
     container_name: subs_worker
@@ -378,6 +379,7 @@ services:
       - "./dev/credentials:/etc/credentials:z"
     depends_on:
       - koku-base
+      - kafka
 
   sources-client:
     container_name: sources_client
@@ -448,6 +450,7 @@ services:
       - "./dev/credentials:/etc/credentials:z"
     depends_on:
       - koku-base
+      - kafka
 
   koku-beat:
     container_name: koku_beat
@@ -483,6 +486,7 @@ services:
       - "./scripts:/koku/scripts:z"
     depends_on:
       - koku-base
+      - kafka
 
   ### Utilities
 
@@ -736,3 +740,44 @@ services:
       nofile:
         soft: 4096
         hard: 4096
+
+  kafka-zookeeper:
+    container_name: koku-zookeeper
+    image: confluentinc/cp-zookeeper
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=32181
+      - ZOOKEEPER_SERVER_ID=1
+
+  kafka:
+    container_name: koku-kafka
+    image: confluentinc/cp-kafka:7.4.0
+    environment:
+      - KAFKA_ADVERTISED_LISTENERS=DOCKER://kafka:29092,LOCALHOST://localhost:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=DOCKER:PLAINTEXT,LOCALHOST:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=DOCKER
+      - KAFKA_BROKER_ID=1
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_ZOOKEEPER_CONNECT=kafka-zookeeper:32181
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    ports:
+      - 9092:9092
+      - 29092:29092
+    depends_on:
+      - kafka-zookeeper
+
+  init-kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      # blocks until kafka is reachable
+      kafka-topics --bootstrap-server kafka:29092 --list
+
+      echo -e 'Creating kafka topic'
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic platform.sources.event-stream --replication-factor 1 --partitions 1
+
+      echo -e 'Successfully created the following topics:'
+      kafka-topics --bootstrap-server kafka:29092 --list
+      "
+    depends_on:
+      - kafka
