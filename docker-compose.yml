@@ -743,7 +743,7 @@ services:
 
   kafka-zookeeper:
     container_name: koku-zookeeper
-    image: confluentinc/cp-zookeeper
+    image: confluentinc/cp-zookeeper:7.7.7
     environment:
       - ZOOKEEPER_CLIENT_PORT=32181
       - ZOOKEEPER_SERVER_ID=1
