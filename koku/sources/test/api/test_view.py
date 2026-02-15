@@ -14,6 +14,8 @@ import requests_mock
 from django.core.cache import cache
 from django.test.utils import override_settings
 from django.urls import reverse
+from rest_framework import viewsets
+from rest_framework.response import Response
 
 from api.common.permissions import RESOURCE_TYPE_MAP
 from api.common.permissions.aws_access import AwsAccessPermission
@@ -528,17 +530,15 @@ class SourcesViewCreateTests(IamTestCase):
     def test_create_method_success(self, mock_invalidate):
         """Test the create method calls super and invalidates cache."""
         viewset = SourcesViewSet()
-        mock_response = Mock(status_code=201)
-
         mock_request = Mock()
         mock_request.user.customer.schema_name = "test_schema"
 
-        with patch.object(SourcesViewSet, "create", wraps=viewset.create) as _:
-            with patch("rest_framework.mixins.CreateModelMixin.create", return_value=mock_response):
-                # Call the method directly - CreateModelMixin.create will be mocked
-                result = SourcesViewSet.create(viewset, request=mock_request)
-                self.assertEqual(result.status_code, 201)
-                mock_invalidate.assert_called_once()
+        # Mock create on GenericViewSet (which IS in the MRO) since CreateModelMixin
+        # is only added when DEVELOPMENT or ONPREM is True (not the case in tox).
+        with patch.object(viewsets.GenericViewSet, "create", create=True, return_value=Response(status=201)):
+            result = viewset.create(request=mock_request)
+            self.assertEqual(result.status_code, 201)
+            mock_invalidate.assert_called_once()
 
     @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
     def test_create_method_storage_error(self, mock_invalidate):
@@ -550,9 +550,11 @@ class SourcesViewCreateTests(IamTestCase):
         mock_request = Mock()
         mock_request.user.customer.schema_name = "test_schema"
 
-        with patch("rest_framework.mixins.CreateModelMixin.create", side_effect=SourcesStorageError("test error")):
+        with patch.object(
+            viewsets.GenericViewSet, "create", create=True, side_effect=SourcesStorageError("test error")
+        ):
             with self.assertRaises(SourcesException):
-                SourcesViewSet.create(viewset, request=mock_request)
+                viewset.create(request=mock_request)
 
     @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
     def test_create_method_dependency_error(self, mock_invalidate):
@@ -564,9 +566,11 @@ class SourcesViewCreateTests(IamTestCase):
         mock_request = Mock()
         mock_request.user.customer.schema_name = "test_schema"
 
-        with patch("rest_framework.mixins.CreateModelMixin.create", side_effect=SourcesDependencyError("dep error")):
+        with patch.object(
+            viewsets.GenericViewSet, "create", create=True, side_effect=SourcesDependencyError("dep error")
+        ):
             with self.assertRaises(SourcesDependencyException):
-                SourcesViewSet.create(viewset, request=mock_request)
+                viewset.create(request=mock_request)
 
 
 class DestroySourceMixinTests(IamTestCase):
@@ -609,7 +613,6 @@ class DestroySourceMixinTests(IamTestCase):
         mock_request.user.customer.org_id = self.test_org_id
         mock_request.user.identity_header = {"encoded": "test-header"}
 
-        # Create a concrete subclass with the mixin for testing
         class TestDestroyView(DestroySourceMixin):
             def get_object(self):
                 return self.source
@@ -620,12 +623,10 @@ class DestroySourceMixinTests(IamTestCase):
         with (
             patch.object(view, "get_object", return_value=self.source),
             patch("sources.api.view.ProviderBuilder") as mock_builder,
-            patch.object(DestroySourceMixin, "destroy", return_value=Mock(status_code=204)) as _,
+            patch("rest_framework.mixins.DestroyModelMixin.destroy", return_value=Response(status=204)),
         ):
             mock_builder.return_value.destroy_provider.return_value = None
-            # Call the destroy directly from DestroySourceMixin
-            with patch("rest_framework.mixins.DestroyModelMixin.destroy", return_value=Mock(status_code=204)):
-                DestroySourceMixin.destroy(view, request=mock_request)
+            DestroySourceMixin.destroy(view, request=mock_request)
 
             mock_publish.assert_called_once_with(self.source)
 
@@ -641,16 +642,17 @@ class DestroySourceMixinTests(IamTestCase):
         mock_request.user.identity_header = {"encoded": "test-header"}
 
         class TestDestroyView(DestroySourceMixin):
-            pass
+            def get_object(self):
+                return None
 
         view = TestDestroyView()
 
         with (
             patch.object(view, "get_object", return_value=self.source),
             patch("sources.api.view.ProviderBuilder") as mock_builder,
+            patch("rest_framework.mixins.DestroyModelMixin.destroy", return_value=Response(status=204)),
         ):
             mock_builder.return_value.destroy_provider.return_value = None
-            with patch("rest_framework.mixins.DestroyModelMixin.destroy", return_value=Mock(status_code=204)):
-                DestroySourceMixin.destroy(view, request=mock_request)
+            DestroySourceMixin.destroy(view, request=mock_request)
 
             mock_publish.assert_not_called()

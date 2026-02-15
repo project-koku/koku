@@ -244,7 +244,8 @@ class SourcesSerializerFieldsTest(IamTestCase):
     def test_get_source_ref_ocp_no_authentication(self):
         """Test source_ref returns None for OCP source with no authentication."""
         self.ocp_obj.authentication = None
-        self.ocp_obj.save()
+        # Don't save - authentication=None violates the NOT NULL constraint.
+        # Just test serializer behavior with the in-memory object.
         serializer = SourcesSerializer(self.ocp_obj)
         self.assertIsNone(serializer.data["source_ref"])
 
