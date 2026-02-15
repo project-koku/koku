@@ -769,7 +769,6 @@ services:
     image: confluentinc/cp-kafka:7.4.0
     entrypoint: [ '/bin/sh', '-c' ]
     command: |
-      "
       # blocks until kafka is reachable
       kafka-topics --bootstrap-server kafka:29092 --list
 
@@ -778,6 +777,5 @@ services:
 
       echo -e 'Successfully created the following topics:'
       kafka-topics --bootstrap-server kafka:29092 --list
-      "
     depends_on:
       - kafka
