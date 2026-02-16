@@ -96,7 +96,7 @@ WITH cte_unutilized_uptime_hours AS (
         -- count(node_ut.interval_start) * max((node_labels::jsonb->>'nvidia_com_gpu_count')::DECIMAL(33, 15)) as node_uptime_hours,
         -- max(gpu.aggregated_pod_uptime) as pod_uptime,
         count(node_ut.interval_start) * max((node_labels::jsonb->>'nvidia_com_gpu_count')::DECIMAL(33, 15)) - coalesce(max(gpu.aggregated_pod_uptime), 0) as untilized_uptime,
-        replace(node_ut.node_labels::jsonb->>'nvidia_com_gpu_product', '_', ' ') as model,
+        regexp_replace(node_labels->>'nvidia_com_gpu_product', '[^a-zA-Z0-9]+', ' ', 'g') as model,
         node_ut.usage_start as interval_date
     from {{schema | sqlsafe}}.openshift_node_labels_line_items as node_ut
     LEFT JOIN (
@@ -119,7 +119,7 @@ WITH cte_unutilized_uptime_hours AS (
         AND node_ut.month = {{month}}
         AND node_ut.year = {{year}}
         AND node_ut.source = {{source_uuid}}
-    group by node_ut.node, replace(node_labels::jsonb->>'nvidia_com_gpu_product', '_', ' '), node_ut.usage_start
+    group by node_ut.node, regexp_replace(node_labels->>'nvidia_com_gpu_product', '[^a-zA-Z0-9]+', ' ', 'g'), node_ut.usage_start
 )
 SELECT
     uuid_generate_v4() as uuid,
