@@ -5,8 +5,6 @@
 """Kafka event publisher for Sources events."""
 import json
 import logging
-from typing import List
-from typing import Tuple
 
 from api.provider.models import Sources
 from kafka_utils.utils import delivery_callback
@@ -17,7 +15,7 @@ from sources.api.source_type_mapping import COST_MGMT_APP_TYPE_ID
 LOG = logging.getLogger(__name__)
 
 
-def _build_kafka_headers(source: Sources, event_type: str) -> List[Tuple[str, bytes]]:
+def _build_kafka_headers(source: Sources, event_type: str) -> list[tuple[str, bytes]]:
     """Build Kafka message headers.
 
     Args:
@@ -46,7 +44,7 @@ def _build_kafka_headers(source: Sources, event_type: str) -> List[Tuple[str, by
     return headers
 
 
-def _get_message_key_from_headers(headers: List[Tuple[str, bytes]], source_id: int) -> str:
+def _get_message_key_from_headers(headers: list[tuple[str, bytes]], source_id: int) -> str:
     """Extract message key from headers using sources-api-go precedence.
 
     sources-api-go uses this precedence (from kafka/message.go SetKeyFromHeaders):
