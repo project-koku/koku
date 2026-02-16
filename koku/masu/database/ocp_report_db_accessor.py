@@ -602,8 +602,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         msg = f"Skipping {cost_model_key} distribution requires full month"
                         LOG.info(log_json(msg=msg, context={"schema": self.schema, "cost_model_key": cost_model_key}))
                         continue
-                sql_params["start_date"] = summary_range.start_of_month
-                sql_params["end_date"] = summary_range.end_of_month
+                else:
+                    sql_params["start_date"] = summary_range.start_of_month
+                    sql_params["end_date"] = summary_range.end_of_month
 
             report_period = self.report_periods_for_provider_uuid(provider_uuid, sql_params["start_date"])
             if not report_period:
