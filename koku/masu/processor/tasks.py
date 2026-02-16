@@ -6,6 +6,7 @@
 import json
 import logging
 import os
+import time
 from collections import defaultdict
 from decimal import Decimal
 from decimal import InvalidOperation
@@ -942,10 +943,20 @@ def update_cost_model_costs(  # noqa: C901
             rate_limited = rate_limit_tasks(task_name, schema_name)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
-            msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            if rate_limited:
-                msg = f"Schema {schema_name} is currently rate limited. Requeuing."
-            LOG.info(log_json(tracing_id, msg=msg))
+            requeue_destination = queue_name or fallback_queue
+            reason = "rate_limited" if rate_limited else "already_running"
+            LOG.info(
+                log_json(
+                    tracing_id,
+                    msg=f"Task {task_name} requeued",
+                    reason=reason,
+                    schema=schema_name,
+                    provider_uuid=str(provider_uuid),
+                    start_date=str(start_date),
+                    end_date=str(end_date),
+                    destination_queue=requeue_destination,
+                )
+            )
             update_cost_model_costs.s(
                 schema_name,
                 provider_uuid,
@@ -954,7 +965,7 @@ def update_cost_model_costs(  # noqa: C901
                 queue_name=queue_name,
                 synchronous=synchronous,
                 tracing_id=tracing_id,
-            ).apply_async(queue=queue_name or fallback_queue)
+            ).apply_async(queue=requeue_destination)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
@@ -968,6 +979,7 @@ def update_cost_model_costs(  # noqa: C901
     }
     LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
 
+    t1 = time.time()
     try:
         if updater := CostModelCostUpdater(schema_name, provider_uuid, tracing_id):
             updater.update_cost_model_costs(start_date, end_date)
@@ -977,6 +989,11 @@ def update_cost_model_costs(  # noqa: C901
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
         raise ex
+
+    running_time = time.time() - t1
+    LOG.info(
+        log_json(tracing_id, msg="finished updating cost model costs", context=context, running_time=running_time)
+    )
 
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)

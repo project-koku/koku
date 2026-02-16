@@ -4,6 +4,7 @@
 #
 """Updates report summary tables in the database with charge information."""
 import logging
+import time
 from decimal import Decimal
 
 from django.utils import timezone
@@ -536,18 +537,53 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
 
     def distribute_costs_and_update_ui_summary(self, summary_range: SummaryRangeConfig):
         """Distribute cost model costs and update UI summary tables"""
+        context = {
+            "schema": self._schema,
+            "provider_uuid": str(self._provider_uuid),
+            "start_date": str(summary_range.start_date),
+            "end_date": str(summary_range.end_date),
+        }
+        LOG.info(log_json(msg="starting distribute_costs_and_update_ui_summary", context=context))
+        t_total = time.time()
         with OCPReportDBAccessor(self._schema) as accessor:
             summary_range = accessor.populate_distributed_cost_sql(
                 summary_range, self._provider_uuid, self._distribution_info
             )
             for month_range in summary_range.iter_summary_range_by_month():
+                t_month = time.time()
+                LOG.info(
+                    log_json(
+                        msg="populating UI summary tables for month",
+                        schema=self._schema,
+                        provider_uuid=str(self._provider_uuid),
+                        month_start=str(month_range.summary_start),
+                        month_end=str(month_range.summary_end),
+                    )
+                )
                 accessor.populate_ui_summary_tables(month_range, self._provider.uuid)
+                LOG.info(
+                    log_json(
+                        msg="finished UI summary tables for month",
+                        schema=self._schema,
+                        provider_uuid=str(self._provider_uuid),
+                        month_start=str(month_range.summary_start),
+                        month_end=str(month_range.summary_end),
+                        running_time=time.time() - t_month,
+                    )
+                )
 
                 if report_period := accessor.report_periods_for_provider_uuid(
                     self._provider_uuid, month_range.summary_start
                 ):
                     report_period.derived_cost_datetime = timezone.now()
                     report_period.save()
+        LOG.info(
+            log_json(
+                msg="finished distribute_costs_and_update_ui_summary",
+                context=context,
+                running_time=time.time() - t_total,
+            )
+        )
 
     def update_summary_cost_model_costs(self, summary_range: SummaryRangeConfig) -> None:
         """Update the OCP summary table with the charge information.
