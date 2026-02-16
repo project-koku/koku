@@ -43,6 +43,7 @@
   - [Backup & Recovery](#backup--recovery)
   - [Capacity Planning](#capacity-planning)
   - [Runbooks](#runbooks)
+  - [Schema Upgrade Strategy](#schema-upgrade-strategy)
 - [Testing Strategy](#testing-strategy)
 - [Rollout Plan](#rollout-plan)
   - [Phase 1: Wildcard-Only Support](#phase-1-wildcard-only-support-1)
@@ -1883,6 +1884,42 @@ As Koku usage grows, monitor:
 4. Check for resource validation errors
 5. Manually retry sync for affected providers
 6. If persistent, use bulk resync command
+
+### Schema Upgrade Strategy
+
+**Problem**: When a new Koku release ships changes to the Kessel schema (new resource types, relations, or permissions), existing on-prem deployments need a safe upgrade path.
+
+**Design Principle**: All schema changes MUST be **additive**. New definitions, relations, and permissions can be added, but existing ones must never be removed or renamed. This guarantees that existing tuples in SpiceDB remain valid after a schema update.
+
+**Schema Version Tracking**:
+- A `KESSEL_SCHEMA_VERSION` setting tracks which schema version is deployed
+- Each Koku release bumps this version if the schema changed
+
+**Upgrade Workflow**:
+
+```
+┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│  Helm upgrade │────▶│ kessel_update_   │────▶│ kessel_seed_     │
+│  (new Koku)   │     │ schema           │     │ roles --incr     │
+└──────────────┘     └──────────────────┘     └──────────────────┘
+                      │ Checks version   │     │ Seeds only new   │
+                      │ Applies new .zed │     │ roles/perms      │
+                      │ Logs changes     │     │                  │
+```
+
+**Management Command**: `python manage.py kessel_update_schema`
+1. Reads current deployed schema version
+2. If behind the version shipped with this Koku release, applies the new `schema.zed` via `spicedb schema write`
+3. If new roles were added, invokes `kessel_seed_roles --incremental` to seed only new entries
+4. Logs all changes for auditability
+
+**Helm Integration**: The upgrade command runs as a post-upgrade hook in the Helm chart, similar to Django's `migrate`. Operators using manual deployments run it as part of their upgrade procedure.
+
+**Safety Guarantees**:
+- Additive-only policy prevents tuple invalidation
+- Idempotent: running the command multiple times is safe
+- Version check prevents applying the same schema twice
+- If `spicedb schema write` fails, the command exits with an error and the old schema remains active
 
 ---
 
