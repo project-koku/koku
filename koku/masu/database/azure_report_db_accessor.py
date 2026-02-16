@@ -18,6 +18,7 @@ from api.common import log_json
 from api.models import Provider
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
+from koku.reportdb_accessor import get_report_db_accessor
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -89,7 +90,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        sql = pkgutil.get_data("masu.database", "trino_sql/azure/reporting_azurecostentrylineitem_daily_summary.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.trino_sql_folder_name}/azure/reporting_azurecostentrylineitem_daily_summary.sql"
+        )
         sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         sql_params = {
@@ -208,7 +211,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
 
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"trino_sql/azure/openshift/ui_summary/{table_name}.sql")
+            sql = pkgutil.get_data(
+                "masu.database", f"{self.trino_sql_folder_name}/azure/openshift/ui_summary/{table_name}.sql"
+            )
             sql = sql.decode("utf-8")
             sql_params = {
                 "schema": self.schema,
@@ -238,13 +243,15 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                sql = f"""
-                    DELETE FROM hive.{self.schema}.{TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE}
-                        WHERE source = '{az_source}'
-                        AND ocp_source = '{ocp_source}'
-                        AND year = '{year}'
-                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                        AND day = '{day}'"""
+                sql = get_report_db_accessor().get_delete_by_day_ocp_on_cloud_sql(
+                    schema_name=self.schema,
+                    table_name=TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
+                    cloud_source=az_source,
+                    ocp_source=ocp_source,
+                    year=year,
+                    month=month,
+                    day=day,
+                )
                 self._execute_trino_raw_sql_query(
                     sql,
                     context={"year": year, "month": month, "day": day, "table": TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE},
@@ -273,7 +280,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bill_id,
             report_period_id,
         )
-        managed_path = "trino_sql/azure/openshift/populate_daily_summary"
+        managed_path = f"{self.trino_sql_folder_name}/azure/openshift/populate_daily_summary"
         prepare_sql, prepare_params = sql_metadata.prepare_template(
             f"{managed_path}/0_prepare_daily_summary_tables.sql"
         )
@@ -353,7 +360,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self, azure_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
     ):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "trino_sql/azure/openshift/reporting_ocpazure_matched_tags.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"{self.trino_sql_folder_name}/azure/openshift/reporting_ocpazure_matched_tags.sql"
+        )
         sql = sql.decode("utf-8")
 
         days = self.date_helper.list_days(start_date, end_date)

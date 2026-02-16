@@ -17,7 +17,7 @@ from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
 
 
 class AWSReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
+    def __init__(self, manifest_id, account, s3_path, provider_uuid, start_date):
         numeric_columns = [
             "lineitem_normalizationfactor",
             "lineitem_normalizedusageamount",
@@ -55,9 +55,9 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
             account=account,
             s3_path=s3_path,
             provider_uuid=provider_uuid,
-            parquet_local_path=parquet_local_path,
             column_types=column_types,
             table_name=table_name,
+            start_date=start_date,
         )
 
     @property
