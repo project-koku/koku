@@ -1399,7 +1399,19 @@ objects:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoscaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_COST_MODEL_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_COST_MODEL_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_COST_MODEL_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_COST_MODEL_TRIGGER_QUERY}
+            threshold: ${WORKER_COST_MODEL_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -1571,13 +1583,24 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_COST_MODEL_REPLICAS}}
       webServices:
         private:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoscaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_COST_MODEL_XL_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_COST_MODEL_XL_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_COST_MODEL_XL_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_COST_MODEL_XL_TRIGGER_QUERY}
+            threshold: ${WORKER_COST_MODEL_XL_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -1749,13 +1772,24 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_COST_MODEL_XL_REPLICAS}}
       webServices:
         private:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoscaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_COST_MODEL_PENALTY_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_COST_MODEL_PENALTY_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_COST_MODEL_PENALTY_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_COST_MODEL_PENALTY_TRIGGER_QUERY}
+            threshold: ${WORKER_COST_MODEL_PENALTY_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -1927,7 +1961,6 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_COST_MODEL_PENALTY_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -6066,9 +6099,25 @@ parameters:
   name: REDEPLOY_HASH_WORKER_CELERY
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_COST_MODEL_REPLICAS
+  name: WORKER_COST_MODEL_MIN_REPLICAS
+  required: true
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_COST_MODEL_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_COST_MODEL_FALLBACK_REPLICAS
   required: true
   value: "2"
+- displayName: Trigger threshold
+  name: WORKER_COST_MODEL_TRIGGER_THRESHOLD
+  required: true
+  value: "13.5"
+- displayName: Trigger query
+  name: WORKER_COST_MODEL_TRIGGER_QUERY
+  required: true
+  value: koku:celery:cost_model_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_COST_MODEL
   required: true
@@ -6093,9 +6142,25 @@ parameters:
   name: REDEPLOY_HASH_WORKER_COST_MODEL
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_COST_MODEL_XL_REPLICAS
+  name: WORKER_COST_MODEL_XL_MIN_REPLICAS
+  required: true
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_COST_MODEL_XL_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_COST_MODEL_XL_FALLBACK_REPLICAS
   required: true
   value: "2"
+- displayName: Trigger threshold
+  name: WORKER_COST_MODEL_XL_TRIGGER_THRESHOLD
+  required: true
+  value: "26.5"
+- displayName: Trigger query
+  name: WORKER_COST_MODEL_XL_TRIGGER_QUERY
+  required: true
+  value: koku:celery:cost_model_xl_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_COST_MODEL_XL
   required: true
@@ -6120,9 +6185,25 @@ parameters:
   name: REDEPLOY_HASH_WORKER_COST_MODEL_XL
   value: "000000"
 - displayName: Minimum replicas
-  name: WORKER_COST_MODEL_PENALTY_REPLICAS
+  name: WORKER_COST_MODEL_PENALTY_MIN_REPLICAS
+  required: true
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_COST_MODEL_PENALTY_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_COST_MODEL_PENALTY_FALLBACK_REPLICAS
   required: true
   value: "2"
+- displayName: Trigger threshold
+  name: WORKER_COST_MODEL_PENALTY_TRIGGER_THRESHOLD
+  required: true
+  value: "5"
+- displayName: Trigger query
+  name: WORKER_COST_MODEL_PENALTY_TRIGGER_QUERY
+  required: true
+  value: koku:celery:cost_model_penalty_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_COST_MODEL_PENALTY
   required: true
