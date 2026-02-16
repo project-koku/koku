@@ -945,7 +945,7 @@ def update_cost_model_costs(  # noqa: C901
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:
                 msg = f"Schema {schema_name} is currently rate limited. Requeuing."
-            LOG.debug(log_json(tracing_id, msg=msg))
+            LOG.info(log_json(tracing_id, msg=msg))
             update_cost_model_costs.s(
                 schema_name,
                 provider_uuid,
