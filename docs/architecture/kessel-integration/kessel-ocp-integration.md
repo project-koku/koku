@@ -62,7 +62,7 @@ Enable **Kessel (Red Hat's ReBAC platform)** as an optional authorization backen
 - **Provider**: **Standalone OpenShift (OCP) only**
   - ✅ In Scope: Native OCP clusters
   - ❌ Out of Scope: OCP-on-AWS, OCP-on-Azure, OCP-on-GCP (future release)
-- **Deployment**: On-premise only (enabled via `KOKU_ONPREM_DEPLOYMENT` environment variable)
+- **Deployment**: On-premise only (enabled via `ONPREM` environment variable)
 - **Approach**: Two-phase implementation based on existing platform schema capabilities
 
 ### Key Findings
@@ -297,25 +297,33 @@ sequenceDiagram
     Builder->>Postgres: INSERT INTO providers<br/>(type, cluster_id, ...)
     Postgres-->>Builder: Provider created (id=123)
     
-    Note over Builder: Check if KOKU_ONPREM_DEPLOYMENT=true
+    Note over Builder: Check if ONPREM=true
     
     alt On-Premise Deployment
-        Builder->>Reporter: report_ocp_cluster(<br/>cluster_id="prod-east-1",<br/>org_id="acme-corp",<br/>creator="alice")
+        Builder->>Reporter: report_ocp_resources(<br/>cluster_id="prod-east-1",<br/>org_id="acme-corp",<br/>creator="alice")
         activate Reporter
         
+        Note over Reporter: Register all 3 resource types:<br/>cluster, nodes, and namespaces
+
         Reporter->>Kessel: CreateResource(<br/>resource: cost_management/openshift_cluster:prod-east-1)
         Kessel-->>Reporter: OK
         
+        Reporter->>Kessel: CreateResource(<br/>resource: cost_management/openshift_node:{discovered nodes})
+        Kessel-->>Reporter: OK
+
+        Reporter->>Kessel: CreateResource(<br/>resource: cost_management/openshift_project:{discovered namespaces})
+        Kessel-->>Reporter: OK
+
         Reporter->>Kessel: CreateRelation(<br/>subject: cluster:prod-east-1<br/>relation: org<br/>object: rbac/tenant:acme-corp)
         Kessel-->>Reporter: OK
         
         Reporter->>Kessel: CreateRelation(<br/>subject: rbac/principal:alice<br/>relation: owner<br/>object: cluster:prod-east-1)
         Kessel-->>Reporter: OK
         
-        Reporter-->>Builder: ✓ Resource synced
+        Reporter-->>Builder: ✓ Resources synced
         deactivate Reporter
         
-        Note over Builder: Non-blocking:<br/>Provider creation succeeds<br/>even if Kessel fails
+        Note over Builder: Non-blocking:<br/>Provider creation succeeds<br/>even if Kessel fails<br/><br/>Note: Nodes and namespaces<br/>may not be available at<br/>creation time. Any not yet<br/>discovered will be synced<br/>during data processing.
     end
     
     Builder-->>API: Provider created (id=123)
@@ -426,16 +434,16 @@ sequenceDiagram
 
 ### 6. Provider Deletion: Resource Cleanup
 
-**Scenario**: User deletes OCP provider, triggering cascade deletion in Kessel.
+**Scenario**: User deletes OCP provider. Koku completes its own cascade deletion first to confirm success, then removes the resource from Kessel.
 
 ```mermaid
 sequenceDiagram
     participant User
     participant API as Sources<br/>API
     participant Builder as Provider<br/>Builder
+    participant Postgres as Postgres<br/>DB
     participant Reporter as Resource<br/>Reporter
     participant Kessel as Kessel<br/>Relations API
-    participant Postgres as Postgres<br/>DB
     
     User->>API: DELETE /api/v1/sources/123/
     activate API
@@ -445,26 +453,28 @@ sequenceDiagram
     
     Note over Builder: Load provider details<br/>cluster_id: "prod-east-1"
     
+    Builder->>Postgres: DELETE FROM providers<br/>WHERE id=123 (cascade)
+    Postgres-->>Builder: OK (Koku deletion confirmed)
+    
     alt On-Premise Deployment
+        Note over Builder: Koku deletion succeeded.<br/>Now clean up Kessel.
+        
         Builder->>Reporter: remove_ocp_cluster(<br/>cluster_id="prod-east-1")
         activate Reporter
         
         Reporter->>Kessel: DeleteResource(<br/>resource: cost_management/openshift_cluster:prod-east-1)
         activate Kessel
         
-        Note over Kessel: Cascade delete:<br/>- All node relations<br/>- All project relations<br/>- All viewer/owner relations
+        Note over Kessel: Cascade delete:<br/>- All node relations<br/>- All namespace relations<br/>- All viewer/owner relations
         
         Kessel-->>Reporter: OK (cascade complete)
         deactivate Kessel
         
-        Reporter-->>Builder: ✓ Resource removed
+        Reporter-->>Builder: ✓ Resource removed from Kessel
         deactivate Reporter
         
-        Note over Builder: Non-blocking:<br/>DB deletion proceeds<br/>even if Kessel fails
+        Note over Builder: Non-blocking:<br/>Koku deletion already confirmed.<br/>Kessel cleanup failure is logged<br/>but does not revert the deletion.
     end
-    
-    Builder->>Postgres: DELETE FROM providers<br/>WHERE id=123
-    Postgres-->>Builder: OK
     
     Builder-->>API: Provider deleted
     deactivate Builder
@@ -820,7 +830,7 @@ sequenceDiagram
 #### What's Included
 
 ✅ **Authorization Backend Selection**
-- Environment variable `KOKU_ONPREM_DEPLOYMENT=true` enables Kessel
+- Environment variable `ONPREM=true` enables Kessel
 - Fallback to RBAC when Kessel unavailable
 - Transparent switching at authorization service layer
 
@@ -843,7 +853,8 @@ sequenceDiagram
 ❌ Resource ownership or delegation  
 ❌ Schema-based hierarchical relationships  
 ❌ Resource synchronization to Kessel  
-❌ OCP-on-Cloud variants (OCP-on-AWS, OCP-on-Azure, OCP-on-GCP)
+❌ OCP-on-Cloud variants (OCP-on-AWS, OCP-on-Azure, OCP-on-GCP)  
+❌ Sync/migration from existing installations — Phase 1 targets **new installations only**; support for syncing pre-existing Koku deployments with Kessel will be delivered in a future release
 
 #### Architecture
 
@@ -869,8 +880,8 @@ graph TB
     
     View --> PermClass
     PermClass --> AuthService
-    AuthService -.->|KOKU_ONPREM=False| RBACCheck
-    AuthService -.->|KOKU_ONPREM=True| KesselCheck
+    AuthService -.->|ONPREM=False| RBACCheck
+    AuthService -.->|ONPREM=True| KesselCheck
     
     style AuthService fill:#fff3cd
     style RBACCheck fill:#ffebee
@@ -933,7 +944,7 @@ graph TB
 
 6. **Configure Koku** environment variables:
    ```bash
-   KOKU_ONPREM_DEPLOYMENT=true
+   ONPREM=true
    KESSEL_ENDPOINT=kessel.example.com:8443
    KESSEL_TOKEN=your-auth-token
    ```
@@ -958,6 +969,8 @@ graph TB
 5. On-premise operators update schema manually
 
 **Estimated Timeline**: 4-6 weeks for schema + 2-4 weeks for implementation
+
+**Schema Change Principle**: All schema changes MUST be **additive** — only adding new resource definitions, relations, and permissions. This avoids breaking existing Kessel deployments and ensures backward compatibility.
 
 #### Resource Type Definitions Needed
 
@@ -1056,11 +1069,12 @@ The `ProviderBuilder` class manages provider lifecycle based on Sources API even
 Responsible for synchronizing Koku resources to Kessel's resource registry.
 
 **Key Responsibilities:**
-- Report new OCP clusters to Kessel when providers are created
+- Report all 3 OCP resource types (clusters, nodes, namespaces) to Kessel when providers are created
 - Establish resource-to-tenant relationships
 - Create ownership relationships (creator becomes owner)
-- Report nodes and projects with hierarchical relationships
+- Maintain hierarchical relationships (cluster → nodes, cluster → namespaces)
 - Handle resource deletion (cascade to children)
+- Sync newly discovered nodes and namespaces during data processing pipeline
 
 **Methods:**
 - `report_ocp_cluster(cluster_id, org_id, tenant_id, creator_principal)` - Reports cluster and sets creator as owner
@@ -1098,23 +1112,48 @@ Responsible for synchronizing Koku resources to Kessel's resource registry.
 
 **Implementation**: See [kessel-ocp-implementation-guide.md](./kessel-ocp-implementation-guide.md#sources-api-integration)
 
-### Node and Project Discovery
+### Node and Namespace Discovery
 
-**Challenge**: Nodes and projects are discovered during cost data processing, not at provider creation time.
+**Challenge**: Nodes and namespaces are discovered during cost data processing (Trino summarization), not at provider creation time. The sync mechanism must handle resources that appear, disappear, or change between ingestion cycles.
 
 **Solution Options**:
 
-**Option 1: Lazy Synchronization (Recommended)**
-- Report resources to Kessel during first cost data query
-- Cache reported resource IDs to avoid duplicate reports
-- Simple, no new background jobs
+**Option 1: Pipeline-Driven Sync (Recommended)**
+- During the data processing pipeline, when new nodes/namespaces are discovered in the Trino summarization step, record them in a dedicated tracking table (`kessel_synced_resources`) and sync to Kessel.
+- The tracking table provides:
+  - **Idempotency**: Already-synced resources are not re-reported.
+  - **Reconciliation**: Resources with `synced = false` can be retried on the next cycle.
+  - **Auditability**: Clear record of what exists in Kessel and when it was synced.
+- Kessel sync remains **non-blocking**: if Kessel is unavailable during ingestion, the resource is marked as pending and retried on the next processing cycle.
+- Aligns naturally with the existing architecture — the pipeline already processes and stores node/namespace data.
 
-**Option 2: Background Sync Job**
-- Celery task to periodically scan for unreported resources
-- More robust, but adds complexity
-- Useful for large clusters with many nodes/projects
+**Option 2: Lazy Synchronization**
+- Report resources to Kessel during first cost data query.
+- Cache reported resource IDs to avoid duplicate reports.
+- Simple, no new background jobs.
+- **Drawback**: Puts write operations on the read/query path. Kessel may be stale if no queries are run. First-query latency spikes for large clusters.
 
-**Recommendation**: Start with Option 1, add Option 2 if performance issues arise.
+**Option 3: Background Sync Job**
+- Celery task to periodically scan for unreported resources.
+- More robust than lazy sync, but requires periodic diffing (wasteful when nothing changed).
+- Useful as a fallback for edge cases.
+
+**Recommendation**: Use **Option 1 (pipeline-driven sync)** as the primary mechanism. The tracking table naturally enables reconciliation and retry without a separate periodic job. Option 3 can be added later as a safety net if needed.
+
+#### Tracking Table: `kessel_synced_resources`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `resource_type` | CharField | `cluster`, `node`, or `namespace` |
+| `resource_id` | CharField | The cluster ID, node name, or namespace name |
+| `parent_cluster_id` | CharField (nullable) | Parent cluster (for nodes and namespaces) |
+| `kessel_synced` | BooleanField | Whether successfully synced to Kessel |
+| `last_sync_attempt` | DateTimeField (nullable) | Timestamp of last sync attempt |
+| `last_sync_error` | TextField (nullable) | Error message from last failed sync |
+| `discovered_at` | DateTimeField | When the resource was first seen in the pipeline |
+
+**Table**: `kessel_synced_resources` (tenant schema)
 
 ### Synchronization States
 
@@ -1122,10 +1161,10 @@ Responsible for synchronizing Koku resources to Kessel's resource registry.
 |-------|--------|------------------|
 | OCP provider created | Report cluster | `Create cluster resource + owner relationship` |
 | OCP provider updated | Update cluster metadata (if supported) | `Update cluster resource` (future) |
-| OCP provider deleted | Remove cluster | `Delete cluster resource` (cascades to nodes/projects) |
-| Node discovered | Report node | `Create node resource + cluster relationship` |
-| Project discovered | Report project | `Create project resource + cluster relationship` |
-| Cost data queried | Lazy sync (if needed) | `Create missing resources` |
+| OCP provider deleted | Delete from Koku first, then remove from Kessel | `Delete cluster resource` (cascades to nodes/namespaces in Kessel) |
+| Node discovered (pipeline) | Record in tracking table + sync to Kessel | `Create node resource + cluster relationship` |
+| Namespace discovered (pipeline) | Record in tracking table + sync to Kessel | `Create namespace resource + cluster relationship` |
+| Sync failed | Mark `kessel_synced=false` in tracking table | Retry on next processing cycle |
 
 ---
 
@@ -1160,7 +1199,7 @@ AbstractAuthorizationBackend
 
 **Backend Selection:**
 - Singleton pattern for efficiency
-- Selected based on `KOKU_ONPREM_DEPLOYMENT` setting
+- Selected based on `ONPREM` setting
 - Single factory function: `get_authorization_service()`
 
 **Implementation**: See [kessel-ocp-implementation-guide.md](./kessel-ocp-implementation-guide.md#authorization-service)
@@ -1205,22 +1244,22 @@ Minimal modifications to existing provider lifecycle methods to trigger Kessel s
 
 1. **`_report_ocp_cluster_to_kessel(provider, customer)`**
    - Called after successful provider creation
-   - Guards: Only runs if `KOKU_ONPREM_DEPLOYMENT=True` and provider is OCP type
+   - Guards: Only runs if `ONPREM=True` and provider is OCP type
    - Extracts cluster_id from provider credentials
    - Extracts creator username from request context
    - Calls `KesselResourceReporter.report_ocp_cluster()`
    - Logs warnings on failure but doesn't raise exceptions
 
 2. **`_remove_ocp_cluster_from_kessel(provider)`**
-   - Called before provider deletion
-   - Guards: Only runs if `KOKU_ONPREM_DEPLOYMENT=True` and provider is OCP type
+   - Called **after** successful provider deletion in Koku (Postgres cascade confirmed)
+   - Guards: Only runs if `ONPREM=True` and provider is OCP type
    - Extracts cluster_id from provider credentials
    - Calls `KesselResourceReporter.remove_ocp_cluster()`
-   - Logs errors on failure but doesn't block deletion
+   - Logs errors on failure but does not revert the Koku deletion
 
 **Integration Points:**
 - `create_provider_from_source()` - Add call to `_report_ocp_cluster_to_kessel()` after `_create_provider()`
-- `destroy_provider()` - Add call to `_remove_ocp_cluster_from_kessel()` before deletion logic
+- `destroy_provider()` - Add call to `_remove_ocp_cluster_from_kessel()` after successful Postgres deletion
 
 **Key Design Decisions**:
 1. **Non-blocking**: Kessel failures don't prevent provider operations
@@ -1405,7 +1444,7 @@ Audit logs stored in:
 - End-to-end tests with real Kessel instance
 - Permission boundary tests (negative cases)
 
-**Implementation**: See [kessel-ocp-implementation-guide.md](./kessel-ocp-implementation-guide.md#access-management-api)
+**Implementation**: TBD — Access Management API is a Phase 1.5 deliverable. Code examples will be added to the implementation guide when this phase begins.
 
 ---
 
@@ -1935,6 +1974,8 @@ As Koku usage grows, monitor:
 - [ ] Troubleshooting guide
 - [ ] Stage environment deployment
 
+**Important**: Phase 1 targets **new installations only**. Existing Koku deployments that add Kessel after initial setup will require a future sync/migration mechanism (see [Open Questions Q6](#open-questions)).
+
 **Success Criteria**:
 - All existing OCP tests pass with Kessel backend
 - Wildcard permissions work identically to RBAC
@@ -2081,6 +2122,7 @@ As Koku usage grows, monitor:
 - **Decision Needed**: Schema migration strategy
 - **Recommendation**: Follow Red Hat platform schema versioning
 - **Rationale**: Centralized schema management reduces operational burden
+- **Agreed Principle**: All schema changes MUST be **additive** (adding new relations, permissions, resource types) to avoid breaking existing deployments. Removing or renaming existing schema elements is not permitted without a defined migration path.
 
 ---
 
@@ -2135,7 +2177,7 @@ As Koku usage grows, monitor:
 ### Appendix D: Configuration Variables
 
 **Required Environment Variables**:
-- `KOKU_ONPREM_DEPLOYMENT=true` - Enables Kessel authorization backend
+- `ONPREM=true` - Enables Kessel authorization backend
 - `KESSEL_ENDPOINT` - Kessel server endpoint (e.g., `kessel.example.com:8443`)
 - `KESSEL_TOKEN` - Authentication token for Kessel API
 
@@ -2145,7 +2187,7 @@ As Koku usage grows, monitor:
 - `KESSEL_CACHE_TTL` - Cache TTL in seconds (default: 30)
 
 **Django Settings Integration**:
-- Validate required variables when `KOKU_ONPREM_DEPLOYMENT=True`
+- Validate required variables when `ONPREM=True`
 - Build `KESSEL_CONFIG` dictionary from environment
 - Raise error if required settings missing
 
@@ -2175,7 +2217,7 @@ As Koku usage grows, monitor:
 ---
 
 **Document Type**: High Level Design (HLD)  
-**Version**: 1.0  
-**Last Updated**: 2026-01-30  
+**Version**: 1.1  
+**Last Updated**: 2026-02-13  
 **Authors**: Koku Team  
-**Reviewers**: [TBD]
+**Reviewers**: masayag, lcouzens
