@@ -6,6 +6,7 @@
 import json
 import logging
 
+from api.common import log_json
 from api.provider.models import Sources
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
@@ -111,10 +112,11 @@ def publish_application_destroy_event(source: Sources) -> None:
         )
         producer.poll(0)
 
-        LOG.info(f"[publish_application_destroy_event] Published {event_type} event for source_id: {source.source_id}")
+        LOG.info(
+            log_json(msg="published Application.destroy event", source_id=source.source_id, event_type=event_type)
+        )
     except Exception as error:
         # Log error but don't fail - deletion already succeeded
         LOG.error(
-            f"[publish_application_destroy_event] Failed to publish event for source_id: {source.source_id}."
-            f"Error: {error}"
+            log_json(msg="failed to publish Application.destroy event", source_id=source.source_id, error=str(error))
         )
