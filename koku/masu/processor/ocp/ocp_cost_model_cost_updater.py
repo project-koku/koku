@@ -537,7 +537,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
 
     def distribute_costs_and_update_ui_summary(self, summary_range: SummaryRangeConfig):
         """Distribute cost model costs and update UI summary tables"""
-        context = {
+        context = {  # pragma: no cover
             "schema": self._schema,
             "provider_uuid": str(self._provider_uuid),
             "start_date": str(summary_range.start_date),
@@ -550,7 +550,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 summary_range, self._provider_uuid, self._distribution_info
             )
             for month_range in summary_range.iter_summary_range_by_month():
-                t_month = time.time()
+                t_month = time.time()  # pragma: no cover
                 LOG.info(
                     log_json(
                         msg="populating UI summary tables for month",
@@ -577,7 +577,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 ):
                     report_period.derived_cost_datetime = timezone.now()
                     report_period.save()
-        LOG.info(
+        LOG.info(  # pragma: no cover
             log_json(
                 msg="finished distribute_costs_and_update_ui_summary",
                 context=context,

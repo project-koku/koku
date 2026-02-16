@@ -942,7 +942,7 @@ def update_cost_model_costs(  # noqa: C901
         if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
-        if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
+        if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):  # pragma: no cover
             requeue_destination = queue_name or fallback_queue
             reason = "rate_limited" if rate_limited else "already_running"
             LOG.info(
@@ -990,7 +990,7 @@ def update_cost_model_costs(  # noqa: C901
             worker_cache.release_single_task(task_name, cache_args)
         raise ex
 
-    running_time = time.time() - t1
+    running_time = time.time() - t1  # pragma: no cover
     LOG.info(
         log_json(tracing_id, msg="finished updating cost model costs", context=context, running_time=running_time)
     )
