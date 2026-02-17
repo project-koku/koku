@@ -18,7 +18,20 @@ from api.common.filters import SearchFilterResourceTypes
 from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
+from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummaryP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryP
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryP
+from reporting.provider.gcp.openshift.models import OCPGCPCostSummaryP
 from reporting.provider.ocp.models import OCPCostSummaryP
+
+CLOUD_PARAMS = {"aws", "azure", "gcp", "all_cloud"}
+
+CLOUD_MODEL_MAP_CLUSTERS = {
+    "aws": OCPAWSCostSummaryP,
+    "azure": OCPAzureCostSummaryP,
+    "gcp": OCPGCPCostSummaryP,
+    "all_cloud": OCPAllCostLineItemDailySummaryP,
+}
 
 
 class OCPClustersView(generics.ListAPIView):
@@ -42,7 +55,7 @@ class OCPClustersView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Openshift cluster id and displays values related to what the user has access to
-        supported_query_params = ["search", "limit"]
+        supported_query_params = ["search", "limit", "aws", "azure", "gcp", "all_cloud"]
         user_access = None
         error_message = {}
         # Test for only supported query_params
@@ -51,6 +64,23 @@ class OCPClustersView(generics.ListAPIView):
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+        # Check for cloud provider filtering
+        active_cloud_params = [p for p in CLOUD_PARAMS if self.request.query_params.get(p) == "true"]
+        if len(active_cloud_params) > 1:
+            error_message = {
+                p: [{"Only one cloud provider parameter can be supplied at a time."}] for p in active_cloud_params
+            }
+            return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+        if active_cloud_params:
+            model = CLOUD_MODEL_MAP_CLUSTERS[active_cloud_params[0]]
+            self.queryset = (
+                model.objects.annotate(
+                    **{"value": F("cluster_id"), "ocp_cluster_alias": Coalesce(F("cluster_alias"), "cluster_id")}
+                )
+                .values("value", "ocp_cluster_alias")
+                .distinct()
+                .filter(cluster_id__isnull=False)
+            )
         if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         if request.user.access:
