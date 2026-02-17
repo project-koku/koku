@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9-minimal:latest AS base
+FROM registry.access.redhat.com/ubi9/python-311:latest AS base
 
 USER root
 
@@ -28,14 +28,7 @@ LABEL summary="$SUMMARY" \
     version="1" \
     maintainer="Red Hat Cost Management Services <cost-mgmt@redhat.com>"
 
-# Very minimal set of packages
-# glibc-langpack-en is needed to set locale to en_US and disable warning about it
-# gcc to compile some python packages (e.g. ciso8601)
-# shadow-utils to make useradd available
-RUN INSTALL_PKGS="python3.11 python3.11-devel glibc-langpack-en-2.34-231.el9_7.2 glibc-devel-2.34-231.el9_7.2 gcc-c++ shadow-utils" && \
-    microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
-    rpm -V $INSTALL_PKGS && \
-    microdnf -y clean all --enablerepo='*'
+RUN dnf install -y --nodocs --setopt=install_weak_deps=0 shadow-utils && rpm -V shadow-utils && dnf clean all -y
 
 FROM base AS final
 # PIPENV_DEV is set to true in the docker-compose allowing
