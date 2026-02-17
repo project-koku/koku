@@ -435,8 +435,6 @@ class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
             data = dict(kwargs["data"])
             for key in ("filter", "exclude", "group_by"):
                 if key in data and data[key]:
-                    data[key] = _drop_tag_keys_from_param(
-                        dict(data[key]) if isinstance(data[key], dict) else data[key]
-                    )
+                    data[key] = _drop_tag_keys_from_param(data[key])
             kwargs = {**kwargs, "data": data}
         super().__init__(*args, **kwargs)
