@@ -32,7 +32,7 @@ LABEL summary="$SUMMARY" \
 # glibc-langpack-en is needed to set locale to en_US and disable warning about it
 # gcc to compile some python packages (e.g. ciso8601)
 # shadow-utils to make useradd available
-RUN INSTALL_PKGS="python3.11 python3.11-devel glibc-langpack-en gcc-c++ shadow-utils" && \
+RUN INSTALL_PKGS="python3.11 python3.11-devel glibc-langpack-en-2.34-231.el9_7.2 glibc-devel-2.34-231.el9_7.2 gcc-c++ shadow-utils" && \
     microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
     rpm -V $INSTALL_PKGS && \
     microdnf -y clean all --enablerepo='*'
