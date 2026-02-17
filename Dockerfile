@@ -33,7 +33,6 @@ LABEL summary="$SUMMARY" \
 # gcc to compile some python packages (e.g. ciso8601)
 # shadow-utils to make useradd available
 RUN INSTALL_PKGS="python3.11 python3.11-devel glibc-langpack-en gcc-c++ shadow-utils" && \
-    microdnf --nodocs -y upgrade --exclude glibc-minimal-langpack && \
     microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
     rpm -V $INSTALL_PKGS && \
     microdnf -y clean all --enablerepo='*'
