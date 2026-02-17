@@ -369,12 +369,16 @@ class OCPProviderMap(ProviderMap):
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "cluster_instance_counts": {
-                                "capacity_count": Max("node_capacity_cpu_cores"),
+                                "capacity_count": Coalesce(
+                                    Max("node_capacity_cpu_cores"), Value(0, output_field=DecimalField())
+                                ),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "node": {
                                 "capacity": Max("node_capacity_cpu_core_hours"),
-                                "capacity_count": Max("node_capacity_cpu_cores"),
+                                "capacity_count": Coalesce(
+                                    Max("node_capacity_cpu_cores"), Value(0, output_field=DecimalField())
+                                ),
                             },
                         },
                         "default_ordering": {"usage": "desc"},
@@ -496,12 +500,16 @@ class OCPProviderMap(ProviderMap):
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "cluster_instance_counts": {
-                                "capacity_count": Max("node_capacity_memory_gigabytes"),
+                                "capacity_count": Coalesce(
+                                    Max("node_capacity_memory_gigabytes"), Value(0, output_field=DecimalField())
+                                ),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "node": {
                                 "capacity": Max("node_capacity_memory_gigabyte_hours"),
-                                "capacity_count": Max("node_capacity_memory_gigabytes"),
+                                "capacity_count": Coalesce(
+                                    Max("node_capacity_memory_gigabytes"), Value(0, output_field=DecimalField())
+                                ),
                             },
                         },
                         "default_ordering": {"usage": "desc"},
