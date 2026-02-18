@@ -177,7 +177,7 @@
           items:
             - key: gcp-credentials
               path: gcp-credentials.json
-    autoscaler:
+    autoScaler:
       maxReplicaCount: ${{WORKER_COST_MODEL_XL_MAX_REPLICAS}}
       minReplicaCount: ${{WORKER_COST_MODEL_XL_MIN_REPLICAS}}
       fallback:
