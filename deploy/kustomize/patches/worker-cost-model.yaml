@@ -209,7 +209,7 @@
     displayName: Fallback replicas
     name: WORKER_COST_MODEL_FALLBACK_REPLICAS
     required: true
-    value: '2'
+    value: '3'
 - op: add
   path: /parameters/-
   value:

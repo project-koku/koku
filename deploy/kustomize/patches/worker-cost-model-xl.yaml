@@ -209,14 +209,14 @@
     displayName: Fallback replicas
     name: WORKER_COST_MODEL_XL_FALLBACK_REPLICAS
     required: true
-    value: '2'
+    value: '3'
 - op: add
   path: /parameters/-
   value:
     displayName: Trigger threshold
     name: WORKER_COST_MODEL_XL_TRIGGER_THRESHOLD
     required: true
-    value: '26.5'
+    value: '13.5'
 - op: add
   path: /parameters/-
   value:
