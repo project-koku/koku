@@ -18,7 +18,20 @@ from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
+from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummaryP
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummaryP
+from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemProjectDailySummaryP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
+
+CLOUD_PARAMS = {"aws", "azure", "gcp", "all_cloud"}
+
+CLOUD_MODEL_MAP_PROJECTS = {
+    "aws": OCPAWSCostLineItemProjectDailySummaryP,
+    "azure": OCPAzureCostLineItemProjectDailySummaryP,
+    "gcp": OCPGCPCostLineItemProjectDailySummaryP,
+    "all_cloud": OCPAllCostLineItemProjectDailySummaryP,
+}
 
 
 class OCPProjectsView(generics.ListAPIView):
@@ -40,7 +53,7 @@ class OCPProjectsView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Openshift projects namespace,displays values related to the users access
-        supported_query_params = ["search", "limit"]
+        supported_query_params = ["search", "limit", "aws", "azure", "gcp", "all_cloud"]
         error_message = {}
         query_holder = None
         # Test for only supported query_params
@@ -49,6 +62,21 @@ class OCPProjectsView(generics.ListAPIView):
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+        # Check for cloud provider filtering
+        active_cloud_params = [p for p in CLOUD_PARAMS if self.request.query_params.get(p) == "true"]
+        if len(active_cloud_params) > 1:
+            error_message = {
+                p: [{"Only one cloud provider parameter can be supplied at a time."}] for p in active_cloud_params
+            }
+            return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+        if active_cloud_params:
+            model = CLOUD_MODEL_MAP_PROJECTS[active_cloud_params[0]]
+            self.queryset = (
+                model.objects.annotate(**{"value": F("namespace")})
+                .values("value")
+                .distinct()
+                .filter(namespace__isnull=False)
+            )
         if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         if request.user.access:
