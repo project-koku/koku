@@ -403,14 +403,6 @@ class OCPGpuOrderBySerializer(OrderSerializer):
     sup_total = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
-def _drop_tag_keys_from_param(value):
-    """Remove tag-related keys from a filter/exclude/group_by dict for GPU API."""
-    if not value or not isinstance(value, dict):
-        return value
-    tag_prefixes = (TAG_PREFIX, AND_TAG_PREFIX, OR_TAG_PREFIX, EXACT_TAG_PREFIX)
-    return {k: v for k, v in value.items() if not any(k.startswith(p) for p in tag_prefixes)}
-
-
 class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling GPU query parameters."""
 
@@ -429,12 +421,20 @@ class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
     FILTER_SERIALIZER = OCPGpuFilterSerializer
     ORDER_BY_SERIALIZER = OCPGpuOrderBySerializer
 
+    @staticmethod
+    def _drop_tag_keys_from_param(value):
+        """Remove tag-related keys from a filter/exclude/group_by dict for GPU API."""
+        if not value or not isinstance(value, dict):
+            return value
+        tag_prefixes = (TAG_PREFIX, AND_TAG_PREFIX, OR_TAG_PREFIX, EXACT_TAG_PREFIX)
+        return {k: v for k, v in value.items() if not any(k.startswith(p) for p in tag_prefixes)}
+
     def __init__(self, *args, **kwargs):
         """Strip tag keys from filter/exclude/group_by so nested serializers are created with cleaned data."""
         if "data" in kwargs and kwargs["data"]:
             data = dict(kwargs["data"])
             for key in ("filter", "exclude", "group_by"):
                 if key in data and data[key]:
-                    data[key] = _drop_tag_keys_from_param(data[key])
+                    data[key] = self._drop_tag_keys_from_param(data[key])
             kwargs = {**kwargs, "data": data}
         super().__init__(*args, **kwargs)
