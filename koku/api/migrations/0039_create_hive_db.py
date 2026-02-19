@@ -14,6 +14,10 @@ LOG = logging.getLogger(__name__)
 
 
 def create_hive_db(apps, schema_editor):
+    if settings.ONPREM:
+        LOG.info("Skipping hive database creation for on-premises deployment (Trino not used)")
+        return
+
     rolname = settings.HIVE_DATABASE_USER
     datname = settings.HIVE_DATABASE_NAME
     kokudb = settings.DATABASES.get("default").get("NAME")
