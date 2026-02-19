@@ -19,7 +19,7 @@ class TagQueryThrottle(SimpleRateThrottle):
     """
     Throttle large date range tag queries for flagged customers.
 
-    This throttle limits tag group-by queries with date ranges >= 30 days
+    This throttle limits tag group-by queries with date ranges > 30 days
     to one request per 12 hours for customers flagged via Unleash.
 
     Smaller date ranges are always allowed, encouraging customers to
@@ -28,7 +28,7 @@ class TagQueryThrottle(SimpleRateThrottle):
 
     scope = "tag_query"
     rate = "1/43200s"  # 1 request per 12 hours (43200 seconds)
-    DAYS_RANGE_LIMIT = 30
+    DAYS_RANGE_LIMIT = 31
 
     def parse_rate(self, rate):
         """
@@ -41,7 +41,6 @@ class TagQueryThrottle(SimpleRateThrottle):
             return (None, None)
         num, period = rate.split("/")
         num_requests = int(num)
-        # Match optional digits + single unit: e.g. 43200s, 12h, 1d
         match = re.match(r"^(\d+)([smhd])$", period.strip().lower())
         if match:
             amount, unit = int(match.group(1)), match.group(2)
@@ -94,7 +93,7 @@ class TagQueryThrottle(SimpleRateThrottle):
         end_date_str = query_params.get("end_date")
 
         if not start_date_str or not end_date_str:
-            return 0  # Default to not throttling if dates missing
+            return 0
 
         try:
             start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
