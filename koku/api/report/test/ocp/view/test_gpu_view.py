@@ -168,3 +168,14 @@ class OCPGpuViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("data", response.data)
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_gpu_endpoint_accepts_tag_filter_without_error(self, mock_unleash):
+        """GPU API accepts tag filters in query without validation/FieldError; tag filters are dropped."""
+        url = reverse("reports-openshift-gpu")
+        query_params = {"group_by[gpu_model]": "*", "filter[tag:application]": "Istio"}
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        err_msg = f"GPU API must accept tag filter (UI parity). Got: {getattr(response, 'data', response.content)}"
+        self.assertEqual(response.status_code, status.HTTP_200_OK, err_msg)
+        self.assertIn("data", response.data)
