@@ -59,14 +59,14 @@ WITH
     ),
     latest_vm_labels AS (
         SELECT
-            lids.pod_labels::jsonb->>'vm_kubevirt_io_name' AS vm_name,
+            lids.pod_labels->>'vm_kubevirt_io_name' AS vm_name,
             (
-                SELECT jsonb_object_agg(key, value)::text
+                SELECT jsonb_object_agg(key, value)
                 FROM (
                     SELECT DISTINCT ON (key) key, value
                     FROM (
                         SELECT t.key, t.value
-                        FROM unnest(array_agg(COALESCE(lids.pod_labels::jsonb, '{}'::jsonb) || COALESCE(lids.all_labels::jsonb, '{}'::jsonb))) AS obj,
+                        FROM unnest(array_agg(COALESCE(lids.pod_labels, '{}'::jsonb) || COALESCE(lids.all_labels, '{}'::jsonb))) AS obj,
                         LATERAL jsonb_each_text(obj) AS t(key, value)
                     ) all_pairs
                     ORDER BY key, value DESC
@@ -75,14 +75,14 @@ WITH
         FROM
             {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
         JOIN vm_max_interval as max
-            ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = max.vm_name
+            ON lids.pod_labels->>'vm_kubevirt_io_name' = max.vm_name
             AND lids.usage_start = DATE(max.max_interval_start)
         WHERE lids.report_period_id = {{report_period_id}}
             AND lids.data_source = 'Pod'
             AND lids.pod_usage_cpu_core_hours IS NOT NULL
             AND lids.pod_request_cpu_core_hours IS NOT NULL
             AND lids.monthly_cost_type IS NULL
-        GROUP BY lids.pod_labels::jsonb->>'vm_kubevirt_io_name'
+        GROUP BY lids.pod_labels->>'vm_kubevirt_io_name'
     )
 SELECT
     uuid_generate_v4(),
@@ -106,13 +106,13 @@ FROM
     {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN
     vm_usage_summary AS vm_usage
-    ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = vm_usage.vm_name
+    ON lids.pod_labels->>'vm_kubevirt_io_name' = vm_usage.vm_name
     AND lids.usage_start = vm_usage.interval_day
 JOIN
     latest_vm_node_info AS latest
-    ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = latest.name_of_vm
+    ON lids.pod_labels->>'vm_kubevirt_io_name' = latest.name_of_vm
 JOIN latest_vm_labels as labels
-    ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = labels.vm_name
+    ON lids.pod_labels->>'vm_kubevirt_io_name' = labels.vm_name
 WHERE usage_start >= DATE({{start_date}})
     AND usage_start <= DATE({{end_date}})
     AND report_period_id = {{report_period_id}}
