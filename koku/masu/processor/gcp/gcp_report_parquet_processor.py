@@ -14,10 +14,18 @@ from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.gcp.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.gcp.models import TRINO_OCP_ON_GCP_DAILY_TABLE
+from reporting.provider.gcp.self_hosted_models import SELF_HOSTED_DAILY_MODEL_MAP
+from reporting.provider.gcp.self_hosted_models import SELF_HOSTED_MODEL_MAP
 
 
 class GCPReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, start_date):
+        # GCP has separate raw and daily tables
+        self._is_daily = "daily" in s3_path
+
+        # Date column for deriving usage_start (GCP uses usage_start_time)
+        self._date_column = "usage_start_time"
+
         numeric_columns = [
             "cost",
             "currency_conversion_rate",
@@ -26,7 +34,7 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
             "credit_amount",
             "daily_credits",
         ]
-        date_columns = ["usage_start_time", "usage_end_time", "export_time", "partition_time"]
+        date_columns = ["usage_start_time", "usage_end_time", "export_time"]
         boolean_columns = ["ocp_matched"]
         if "openshift" in s3_path:
             table_name = TRINO_OCP_ON_GCP_DAILY_TABLE
@@ -53,6 +61,23 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
     def postgres_summary_table(self):
         """Return the mode for the source specific summary table."""
         return GCPCostEntryLineItemDailySummary
+
+    @property
+    def self_hosted_line_item_model(self):
+        """Return the Django model for line item data (self-hosted/on-prem only)."""
+        table_key = "gcp_line_items"
+        if self._is_daily:
+            return SELF_HOSTED_DAILY_MODEL_MAP.get(table_key)
+        else:
+            return SELF_HOSTED_MODEL_MAP.get(table_key)
+
+    def get_table_names_for_delete(self):
+        """Return all GCP table names (raw, daily, ocp_on_gcp)."""
+        return [TRINO_LINE_ITEM_TABLE, TRINO_LINE_ITEM_DAILY_TABLE, TRINO_OCP_ON_GCP_DAILY_TABLE]
+
+    def _prepare_dataframe_for_write(self, data_frame, metadata):
+        """Add GCP-specific columns before writing to PostgreSQL."""
+        data_frame["manifestid"] = str(self._manifest_id)
 
     def create_bill(self, bill_date):
         """Create bill postgres entry."""
