@@ -5,7 +5,6 @@
     metadata:
       annotations:
         ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
-    replicas: ${{WORKER_OCP_XL_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -182,14 +181,53 @@
           items:
             - key: gcp-credentials
               path: gcp-credentials.json
-
+    autoScaler:
+      maxReplicaCount: ${{WORKER_OCP_XL_MAX_REPLICAS}}
+      minReplicaCount: ${{WORKER_OCP_XL_MIN_REPLICAS}}
+      fallback:
+        failureThreshold: 3
+        replicas: ${{WORKER_OCP_XL_FALLBACK_REPLICAS}}
+        behavior: "currentReplicasIfHigher"
+      triggers:
+      - type: prometheus
+        metadata:
+          query: ${WORKER_OCP_XL_TRIGGER_QUERY}
+          threshold: ${WORKER_OCP_XL_TRIGGER_THRESHOLD}
 - op: add
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: WORKER_OCP_XL_REPLICAS
+    name: WORKER_OCP_XL_MIN_REPLICAS
     required: true
-    value: '2'
+    value: '1'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Maximum replicas
+    name: WORKER_OCP_XL_MAX_REPLICAS
+    required: true
+    value: '10'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Fallback replicas
+    name: WORKER_OCP_XL_FALLBACK_REPLICAS
+    required: true
+    value: '3'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Trigger threshold
+    name: WORKER_OCP_XL_TRIGGER_THRESHOLD
+    required: true
+    value: '13.5'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Trigger query
+    name: WORKER_OCP_XL_TRIGGER_QUERY
+    required: true
+    value: 'koku:celery:ocp_xl_queue'
 - op: add
   path: /parameters/-
   value:
