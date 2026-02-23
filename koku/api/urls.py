@@ -121,9 +121,6 @@ ROUTER = DefaultRouter(trailing_slash=not settings.ONPREM)
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 
 urlpatterns = [
-    path("source_types", SourceTypesView.as_view(), name="source-types"),
-    path("application_types", ApplicationTypesView.as_view(), name="application-types"),
-    path("applications", ApplicationsView.as_view(), name="applications"),
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
     path("currency/", get_currency, name="currency"),
     path("exchange-rates/", get_exchange_rates, name="exchange-rates"),
@@ -554,4 +551,10 @@ urlpatterns = [
     # These endpoints have been removed from the codebase
     path("settings/", SunsetView, name="settings"),
 ]
+if settings.ONPREM:
+    urlpatterns += [
+        path("source_types", SourceTypesView.as_view(), name="source-types"),
+        path("application_types", ApplicationTypesView.as_view(), name="application-types"),
+        path("applications", ApplicationsView.as_view(), name="applications"),
+    ]
 urlpatterns += ROUTER.urls
