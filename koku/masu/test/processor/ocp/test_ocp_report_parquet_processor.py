@@ -140,19 +140,19 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         self.assertIn(TRINO_LINE_ITEM_TABLE_DAILY_MAP[self.report_type], table_names)
 
     @patch("koku.reportdb_accessor.get_report_db_accessor")
-    def test_delete_day_postgres(self, _):
-        """Test delete_day_postgres."""
-        self.processor.delete_day_postgres(self.start_date, reportnumhours=24)
+    def test_delete_old_data_postgres(self, _):
+        """Test delete_old_data_postgres."""
+        self.processor.delete_old_data_postgres(self.start_date, reportnumhours=24)
 
     @patch("koku.reportdb_accessor.get_report_db_accessor")
-    def test_delete_day_postgres_raises_when_data_exists(self, mock_get_accessor):
-        """Test delete_day_postgres raises exception when data exists."""
+    def test_delete_old_data_postgres_raises_when_data_exists(self, mock_get_accessor):
+        """Test delete_old_data_postgres raises exception when data exists."""
         mock_conn = mock_get_accessor.return_value.connect.return_value.__enter__.return_value
         mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
         mock_cursor.rowcount = 0
         mock_cursor.fetchone.return_value = (1,)
         with self.assertRaises(Exception):
-            self.processor.delete_day_postgres(self.start_date, reportnumhours=24)
+            self.processor.delete_old_data_postgres(self.start_date, reportnumhours=24)
 
     def test_is_daily_flag(self):
         """Test that _is_daily is set correctly based on s3_path."""
@@ -188,7 +188,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
     @patch(
         "masu.processor.ocp.ocp_report_parquet_processor.OCPReportParquetProcessor.get_or_create_postgres_partition"
     )
-    @patch("koku.reportdb_accessor.get_report_db_accessor")
+    @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
     def test_write_to_self_hosted_table(self, mock_get_accessor, mock_partition):
         """Test write_to_self_hosted_table writes data correctly."""
         # Create a daily processor (has self_hosted_line_item_model)

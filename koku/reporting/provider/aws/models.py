@@ -761,3 +761,16 @@ class AWSDatabaseSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+
+
+# Import self-hosted models to register them with Django (required for partition table creation)
+from reporting.provider.aws.self_hosted_models import AWSLineItem  # noqa: E402, F401
+from reporting.provider.aws.self_hosted_models import AWSLineItemDaily  # noqa: E402, F401
+from reporting.provider.aws.openshift.self_hosted_models import ManagedAWSOpenShiftDaily  # noqa: E402, F401
+from reporting.provider.aws.openshift.self_hosted_models import ManagedAWSOpenShiftDiskCapacities  # noqa: E402, F401
+from reporting.provider.aws.openshift.self_hosted_models import (  # noqa: E402, F401
+    ManagedOCPAWSCostLineItemProjectDailySummary,
+)
+from reporting.provider.aws.openshift.self_hosted_models import (  # noqa: E402, F401
+    ManagedOCPAWSCostLineItemProjectDailySummaryTemp,
+)

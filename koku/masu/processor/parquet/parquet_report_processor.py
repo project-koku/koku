@@ -701,7 +701,7 @@ class ParquetReportProcessor:
 
         # Processor handles deleting from all relevant tables (raw and daily for OCP)
         processor = self._get_report_processor(daily=False)
-        processor.delete_day_postgres(self.start_date, reportnumhours)
+        processor.delete_old_data_postgres(self.start_date, reportnumhours)
 
     def _delete_old_data_trino(self, filename):
         metadata_key, metadata_value = self.get_metadata_kv(filename.stem)

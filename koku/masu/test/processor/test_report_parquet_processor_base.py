@@ -193,3 +193,26 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.create_schema()
             self.assertIn(expected_log, logger.output)
+
+    def test_self_hosted_line_item_model_base_returns_none(self):
+        """Test that self_hosted_line_item_model returns None in base class."""
+        self.assertIsNone(self.processor.self_hosted_line_item_model)
+
+    def test_prepare_dataframe_for_write_raises_not_implemented(self):
+        """Test that _prepare_dataframe_for_write raises NotImplementedError in base class."""
+        data_frame = pd.DataFrame({"col1": [1, 2]})
+        with self.assertRaises(NotImplementedError):
+            self.processor._prepare_dataframe_for_write(data_frame, {})
+
+    def test_write_to_self_hosted_table_no_model_raises(self):
+        """Test write_to_self_hosted_table raises when no model exists."""
+        data_frame = pd.DataFrame({"col1": [1, 2]})
+        metadata = {}
+
+        with self.assertRaises(NotImplementedError):
+            self.processor.write_to_self_hosted_table(data_frame, metadata)
+
+    def test_get_table_names_for_delete_default(self):
+        """Test that get_table_names_for_delete returns the table name."""
+        table_names = self.processor.get_table_names_for_delete()
+        self.assertEqual(table_names, [self.table_name])

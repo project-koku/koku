@@ -43,14 +43,14 @@ class ReportDBAccessor(ABC):
         pass
 
     @abstractmethod
-    def get_delete_day_by_manifestid_sql(
+    def get_delete_by_manifestid_sql(
         self, schema_name: str, table_name: str, source: str, year: str, month: str, manifestid: str
     ):
         """Return the SQL to delete data where manifestid doesn't match"""
         pass
 
     @abstractmethod
-    def get_delete_day_by_reportnumhours_sql(
+    def get_delete_by_reportnumhours_sql(
         self,
         schema_name: str,
         table_name: str,

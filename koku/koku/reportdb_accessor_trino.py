@@ -86,7 +86,7 @@ class TrinoReportDBAccessor(ReportDBAccessor):
         # This method is not used for Trino, but must exist to satisfy the abstract base class
         return ""
 
-    def get_delete_day_by_manifestid_sql(
+    def get_delete_by_manifestid_sql(
         self, schema_name: str, table_name: str, source: str, year: str, month: str, manifestid: str
     ):
         """Trino delete by manifestid - not used, Trino uses S3 file deletion."""
@@ -95,7 +95,7 @@ class TrinoReportDBAccessor(ReportDBAccessor):
         # This method exists only to satisfy the abstract base class
         return ""
 
-    def get_delete_day_by_reportnumhours_sql(
+    def get_delete_by_reportnumhours_sql(
         self,
         schema_name: str,
         table_name: str,

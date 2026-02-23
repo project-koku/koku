@@ -914,7 +914,7 @@ class TestParquetReportProcessor(MasuTestCase):
     @override_settings(ONPREM=True)
     @patch.object(ParquetReportProcessor, "_get_report_processor")
     def test_delete_old_data_postgres(self, mock_get_processor):
-        """Test _delete_old_data_postgres calls processor.delete_day_postgres."""
+        """Test _delete_old_data_postgres calls processor.delete_old_data_postgres."""
         mock_processor = MagicMock()
         mock_get_processor.return_value = mock_processor
 
@@ -938,4 +938,4 @@ class TestParquetReportProcessor(MasuTestCase):
         )
 
         report_processor._delete_old_data_postgres(filename)
-        mock_processor.delete_day_postgres.assert_called()
+        mock_processor.delete_old_data_postgres.assert_called()

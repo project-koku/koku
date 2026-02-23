@@ -50,17 +50,17 @@ class TestPostgresReportDBAccessor(TestCase):
         self.assertIn(self.table_name, sql)
         self.assertIn(self.schema_name, sql)
 
-    def test_get_delete_day_by_manifestid_sql(self):
+    def test_get_delete_by_manifestid_sql(self):
         """Test delete by manifest ID SQL generation."""
-        sql = self.accessor.get_delete_day_by_manifestid_sql(
+        sql = self.accessor.get_delete_by_manifestid_sql(
             self.schema_name, self.table_name, self.source_uuid, "2024", "01", "123"
         )
         self.assertIn("DELETE FROM", sql)
         self.assertIn("manifestid != '123'", sql)
 
-    def test_get_delete_day_by_reportnumhours_sql(self):
+    def test_get_delete_by_reportnumhours_sql(self):
         """Test delete by reportnumhours SQL generation."""
-        sql = self.accessor.get_delete_day_by_reportnumhours_sql(
+        sql = self.accessor.get_delete_by_reportnumhours_sql(
             self.schema_name,
             self.table_name,
             self.source_uuid,
