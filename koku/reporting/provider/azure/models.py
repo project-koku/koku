@@ -466,3 +466,16 @@ class AzureDatabaseSummaryP(models.Model):
         "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     subscription_name = models.TextField(null=True)
+
+
+from reporting.provider.azure.self_hosted_models import AzureLineItem  # noqa: E402, F401
+from reporting.provider.azure.openshift.self_hosted_models import ManagedAzureOpenShiftDaily  # noqa: E402, F401
+from reporting.provider.azure.openshift.self_hosted_models import (  # noqa: E402, F401
+    ManagedAzureOpenShiftDiskCapacities,
+)
+from reporting.provider.azure.openshift.self_hosted_models import (  # noqa: E402, F401
+    ManagedOCPAzureCostLineItemProjectDailySummary,
+)
+from reporting.provider.azure.openshift.self_hosted_models import (  # noqa: E402, F401
+    ManagedOCPAzureCostLineItemProjectDailySummaryTemp,
+)

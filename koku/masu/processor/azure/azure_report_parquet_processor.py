@@ -13,10 +13,18 @@ from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.azure.models import TRINO_OCP_ON_AZURE_DAILY_TABLE
+from reporting.provider.azure.self_hosted_models import SELF_HOSTED_DAILY_MODEL_MAP
+from reporting.provider.azure.self_hosted_models import SELF_HOSTED_MODEL_MAP
 
 
 class AzureReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, start_date):
+        # Azure uses the same table for raw and daily
+        self._is_daily = "daily" in s3_path
+
+        # Date column for deriving usage_start (Azure uses date)
+        self._date_column = "date"
+
         numeric_columns = [
             "quantity",
             "resourcerate",
@@ -50,6 +58,26 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
     def postgres_summary_table(self):
         """Return the mode for the source specific summary table."""
         return AzureCostEntryLineItemDailySummary
+
+    @property
+    def self_hosted_line_item_model(self):
+        """Return the Django model for line item data (self-hosted/on-prem only)."""
+        # Azure uses the same table for raw and daily
+        table_key = "azure_line_items"
+        if self._is_daily:
+            return SELF_HOSTED_DAILY_MODEL_MAP.get(table_key)
+        else:
+            return SELF_HOSTED_MODEL_MAP.get(table_key)
+
+    def get_table_names_for_delete(self):
+        """Return all Azure table names (raw/daily is same table, ocp_on_azure)."""
+        from masu.util.aws.common import get_table_names_for_delete
+
+        return get_table_names_for_delete("Azure")
+
+    def _prepare_dataframe_for_write(self, data_frame, metadata):
+        """Add Azure-specific columns before writing to PostgreSQL."""
+        data_frame["manifestid"] = str(self._manifest_id)
 
     def create_bill(self, bill_date):
         """Create bill postgres entry."""
