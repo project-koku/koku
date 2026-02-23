@@ -528,3 +528,40 @@ class AWSReportDBAccessorTest(MasuTestCase):
             1, self.aws_provider_uuid, self.ocp_provider_uuid, "2022-04-01", "2022-04-10"
         )
         self.assertEqual([], result)
+
+    @patch("reporting.provider.aws.self_hosted_models.get_self_hosted_models")
+    def test_delete_self_hosted_data_by_source(self, mock_get_models):
+        """Test delete_self_hosted_data_by_source deletes data for provider."""
+        from unittest.mock import MagicMock
+
+        # Create mock models
+        mock_model1 = MagicMock()
+        mock_model1._meta.db_table = "aws_line_items"
+        mock_model1.objects.filter.return_value.delete.return_value = (5, {})
+
+        mock_model2 = MagicMock()
+        mock_model2._meta.db_table = "aws_line_items_daily"
+        mock_model2.objects.filter.return_value.delete.return_value = (3, {})
+
+        mock_get_models.return_value = [mock_model1, mock_model2]
+
+        total_deleted = self.accessor.delete_self_hosted_data_by_source(self.aws_provider_uuid)
+
+        self.assertEqual(total_deleted, 8)
+        mock_model1.objects.filter.assert_called_once_with(source=str(self.aws_provider_uuid))
+        mock_model2.objects.filter.assert_called_once_with(source=str(self.aws_provider_uuid))
+
+    @patch("reporting.provider.aws.self_hosted_models.get_self_hosted_models")
+    def test_delete_self_hosted_data_by_source_no_data(self, mock_get_models):
+        """Test delete_self_hosted_data_by_source returns 0 when no data."""
+        from unittest.mock import MagicMock
+
+        mock_model = MagicMock()
+        mock_model._meta.db_table = "aws_line_items"
+        mock_model.objects.filter.return_value.delete.return_value = (0, {})
+
+        mock_get_models.return_value = [mock_model]
+
+        total_deleted = self.accessor.delete_self_hosted_data_by_source(self.aws_provider_uuid)
+
+        self.assertEqual(total_deleted, 0)

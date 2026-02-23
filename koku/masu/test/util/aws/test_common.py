@@ -688,6 +688,144 @@ class TestAWSUtils(MasuTestCase):
             )
             self.assertEqual(result, start_date)
 
+    @patch("masu.util.aws.common.get_s3_resource")
+    @patch("masu.util.aws.common.settings")
+    def test_get_or_clear_daily_s3_by_date_onprem(self, mock_settings, mock_resource):
+        """Test that onprem skips parquet deletion and only clears CSV files."""
+        mock_settings.ONPREM = True
+        mock_settings.S3_ACCESS_KEY = "fake"
+        mock_settings.S3_SECRET = "fake"
+        mock_settings.S3_REGION = "us-east-1"
+        mock_settings.S3_BUCKET_NAME = "fake-bucket"
+        mock_settings.S3_ENDPOINT = None
+        mock_settings.S3_TIMEOUT = 5
+        start_date = self.dh.this_month_start.replace(year=2019, month=7, day=1).date()
+        end_date = self.dh.this_month_start.replace(year=2019, month=7, day=2).date()
+        with patch(
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
+            return_value=None,
+        ):
+            with patch("masu.util.aws.common.clear_s3_files") as mock_clear_s3:
+                with patch("masu.util.aws.common._clear_csv_only") as mock_clear_csv:
+                    with patch("masu.util.aws.common._delete_old_data_postgres_by_date"):
+                        result = utils.get_or_clear_daily_s3_by_date(
+                            "None",
+                            "provider_uuid",
+                            start_date,
+                            end_date,
+                            1,
+                            {"account": "test", "provider_type": "AWS"},
+                            "request_id",
+                        )
+                        self.assertEqual(result, start_date)
+                        mock_clear_s3.assert_not_called()
+                        mock_clear_csv.assert_called_once()
+
+    def test_get_table_names_for_delete_aws(self):
+        """Test get_table_names_for_delete returns correct tables for AWS."""
+        from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE
+        from reporting.provider.aws.models import TRINO_LINE_ITEM_TABLE
+        from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
+
+        result = utils.get_table_names_for_delete("AWS")
+        self.assertEqual(result, [TRINO_LINE_ITEM_TABLE, TRINO_LINE_ITEM_DAILY_TABLE, TRINO_OCP_ON_AWS_DAILY_TABLE])
+
+    def test_get_table_names_for_delete_aws_local(self):
+        """Test get_table_names_for_delete strips -local suffix for AWS."""
+        result_local = utils.get_table_names_for_delete("AWS-local")
+        result_plain = utils.get_table_names_for_delete("AWS")
+        self.assertEqual(result_local, result_plain)
+
+    def test_get_table_names_for_delete_azure(self):
+        """Test get_table_names_for_delete returns correct tables for Azure."""
+        from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
+        from reporting.provider.azure.models import TRINO_OCP_ON_AZURE_DAILY_TABLE
+
+        result = utils.get_table_names_for_delete("Azure")
+        self.assertEqual(result, [TRINO_LINE_ITEM_TABLE, TRINO_OCP_ON_AZURE_DAILY_TABLE])
+
+    def test_get_table_names_for_delete_unknown(self):
+        """Test get_table_names_for_delete returns empty list for unknown provider."""
+        result = utils.get_table_names_for_delete("GCP")
+        self.assertEqual(result, [])
+
+    @patch("koku.reportdb_accessor.get_report_db_accessor")
+    def test_delete_old_data_postgres_by_date(self, mock_get_accessor):
+        """Test _delete_old_data_postgres_by_date calls correct SQL methods."""
+        mock_accessor = Mock()
+        mock_get_accessor.return_value = mock_accessor
+
+        mock_cursor = Mock()
+        mock_cursor.rowcount = 5
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=False)
+
+        mock_conn = Mock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_conn.__enter__ = Mock(return_value=mock_conn)
+        mock_conn.__exit__ = Mock(return_value=False)
+
+        # First call checks table existence (returns True), second call runs delete
+        mock_accessor.connect.return_value = mock_conn
+        mock_cursor.fetchone.return_value = (1,)
+
+        mock_accessor.get_table_check_sql.return_value = "CHECK SQL"
+        mock_accessor.get_delete_day_by_manifestid_and_date_sql.return_value = "DELETE SQL"
+
+        utils._delete_old_data_postgres_by_date(
+            "test_schema", "provider-uuid", "AWS", "2025", "03", "manifest-1", "2025-03-05"
+        )
+
+        # Should be called for each AWS table (3 tables)
+        self.assertEqual(mock_accessor.get_table_check_sql.call_count, 3)
+        self.assertEqual(mock_accessor.get_delete_day_by_manifestid_and_date_sql.call_count, 3)
+
+    @patch("koku.reportdb_accessor.get_report_db_accessor")
+    def test_delete_old_data_postgres_by_date_table_not_exists(self, mock_get_accessor):
+        """Test _delete_old_data_postgres_by_date skips tables that don't exist."""
+        mock_accessor = Mock()
+        mock_get_accessor.return_value = mock_accessor
+
+        mock_cursor = Mock()
+        mock_cursor.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor.__exit__ = Mock(return_value=False)
+
+        mock_conn = Mock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_conn.__enter__ = Mock(return_value=mock_conn)
+        mock_conn.__exit__ = Mock(return_value=False)
+
+        mock_accessor.connect.return_value = mock_conn
+        mock_cursor.fetchone.return_value = None  # Table doesn't exist
+
+        mock_accessor.get_table_check_sql.return_value = "CHECK SQL"
+
+        utils._delete_old_data_postgres_by_date(
+            "test_schema", "provider-uuid", "AWS", "2025", "03", "manifest-1", "2025-03-05"
+        )
+
+        # Check SQL called for each table, but delete never called
+        self.assertEqual(mock_accessor.get_table_check_sql.call_count, 3)
+        mock_accessor.get_delete_day_by_manifestid_and_date_sql.assert_not_called()
+
+    @patch("masu.util.aws.common.get_s3_resource")
+    def test_clear_csv_only(self, mock_resource):
+        """Test _clear_csv_only deletes CSV files and marks CSV cleared."""
+        manifest_accessor = Mock()
+        manifest = Mock()
+        with patch("masu.util.aws.common.get_s3_objects_not_matching_metadata", return_value=["key1"]) as mock_get:
+            with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
+                utils._clear_csv_only("csv_path", 1, manifest, manifest_accessor, {"account": "test"}, "request_id")
+                mock_get.assert_called_once_with(
+                    "request_id",
+                    "csv_path",
+                    metadata_key="manifestid",
+                    metadata_value_check="1",
+                    context={"account": "test"},
+                )
+                mock_delete.assert_called_once_with("request_id", ["key1"], {"account": "test"})
+                manifest_accessor.mark_s3_csv_cleared.assert_called_once_with(manifest)
+
 
 class AwsArnTest(TestCase):
     """AwnArn class test case."""
