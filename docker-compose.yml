@@ -306,7 +306,6 @@ services:
       - "./scripts:/koku/scripts:z"
     depends_on:
       - koku-base
-      - kafka
 
   subs-worker:
     container_name: subs_worker
@@ -379,7 +378,6 @@ services:
       - "./dev/credentials:/etc/credentials:z"
     depends_on:
       - koku-base
-      - kafka
 
   sources-client:
     container_name: sources_client
@@ -450,7 +448,6 @@ services:
       - "./dev/credentials:/etc/credentials:z"
     depends_on:
       - koku-base
-      - kafka
 
   koku-beat:
     container_name: koku_beat
@@ -486,7 +483,6 @@ services:
       - "./scripts:/koku/scripts:z"
     depends_on:
       - koku-base
-      - kafka
 
   ### Utilities
 
