@@ -685,3 +685,18 @@ class GCPDatabaseSummaryP(models.Model):
     service_alias = models.CharField(max_length=256, null=True, blank=True)
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+
+
+# Import self-hosted models to register them with Django (required for partition table creation)
+from reporting.provider.gcp.self_hosted_models import GCPLineItem  # noqa: E402, F401
+from reporting.provider.gcp.self_hosted_models import GCPLineItemDaily  # noqa: E402, F401
+from reporting.provider.gcp.openshift.self_hosted_models import ManagedGCPOpenShiftDaily  # noqa: E402, F401
+from reporting.provider.gcp.openshift.self_hosted_models import (  # noqa: E402, F401
+    ManagedGCPOpenShiftDiskCapacities,
+)
+from reporting.provider.gcp.openshift.self_hosted_models import (  # noqa: E402, F401
+    ManagedOCPGCPCostLineItemProjectDailySummary,
+)
+from reporting.provider.gcp.openshift.self_hosted_models import (  # noqa: E402, F401
+    ManagedOCPGCPCostLineItemProjectDailySummaryTemp,
+)
