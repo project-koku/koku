@@ -64,6 +64,8 @@ objects:
           value: ${MAX_GROUP_BY_OVERRIDE}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -247,6 +249,8 @@ objects:
           value: ${MAX_GROUP_BY_OVERRIDE}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -482,6 +486,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: KOKU_LOG_LEVEL
           value: ${LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
@@ -640,6 +646,8 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -806,6 +814,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -976,6 +986,8 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: GUNICORN_WORKERS
@@ -1133,6 +1145,8 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
@@ -1273,6 +1287,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1445,6 +1461,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1623,6 +1641,8 @@ objects:
               optional: true
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1801,6 +1821,8 @@ objects:
               optional: true
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1991,6 +2013,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2184,6 +2208,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2377,6 +2403,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2558,6 +2586,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2738,6 +2768,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2918,6 +2950,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3098,6 +3132,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3284,6 +3320,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3470,6 +3508,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3656,6 +3696,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3834,6 +3876,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4012,6 +4056,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4202,6 +4248,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4395,6 +4443,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4588,6 +4638,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4769,6 +4821,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: ENABLE_HCS_DEBUG
           value: ${ENABLE_HCS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -4949,6 +5003,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -5121,6 +5177,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -5466,6 +5524,9 @@ parameters:
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
+- description: toggles onprem data processing logic
+  name: ONPREM
+  value: "False"
 - description: Image tag
   name: IMAGE_TAG
   required: true
@@ -5835,6 +5896,10 @@ parameters:
   name: KOKU_READ_ONLY_DB
   required: true
   value: cost-db-ro
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: KOKU_WRITES_REPLICAS
   required: true
@@ -5862,6 +5927,10 @@ parameters:
 - description: change this value to restart koku-writes
   name: REDEPLOY_HASH_KOKU_WRITES
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: NGINX_REPLICAS
   required: true
@@ -5924,6 +5993,10 @@ parameters:
 - description: change this value to restart listener
   name: REDEPLOY_HASH_LISTENER
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: MASU_REPLICAS
   required: true
@@ -5951,6 +6024,10 @@ parameters:
 - description: change this value to restart masu
   name: REDEPLOY_HASH_MASU
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: SCHEDULER_REPLICAS
   required: true
@@ -5984,6 +6061,10 @@ parameters:
 - description: change this value to restart scheduler
   name: REDEPLOY_HASH_SCHEDULER
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: SOURCES_CLIENT_REPLICAS
   required: true
@@ -6011,6 +6092,10 @@ parameters:
 - description: change this value to restart sources-client
   name: REDEPLOY_HASH_SOURCES_CLIENT
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: SOURCES_LISTENER_REPLICAS
   required: true
@@ -6038,6 +6123,10 @@ parameters:
 - description: change this value to restart sources-listener
   name: REDEPLOY_HASH_SOURCES_LISTENER
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_CELERY_REPLICAS
   required: true
@@ -6065,6 +6154,10 @@ parameters:
 - description: change this value to restart worker-celery
   name: REDEPLOY_HASH_WORKER_CELERY
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_COST_MODEL_REPLICAS
   required: true
@@ -6092,6 +6185,10 @@ parameters:
 - description: change this value to restart worker-cost-model
   name: REDEPLOY_HASH_WORKER_COST_MODEL
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_COST_MODEL_XL_REPLICAS
   required: true
@@ -6119,6 +6216,10 @@ parameters:
 - description: change this value to restart worker-cost-model-xl
   name: REDEPLOY_HASH_WORKER_COST_MODEL_XL
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_COST_MODEL_PENALTY_REPLICAS
   required: true
@@ -6146,6 +6247,10 @@ parameters:
 - description: change this value to restart worker-cost-model-penalty
   name: REDEPLOY_HASH_WORKER_COST_MODEL_PENALTY
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_DOWNLOAD_MIN_REPLICAS
   required: true
@@ -6189,6 +6294,10 @@ parameters:
 - description: change this value to restart worker-download
   name: REDEPLOY_HASH_WORKER_DOWNLOAD
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_DOWNLOAD_XL_MIN_REPLICAS
   required: true
@@ -6232,6 +6341,10 @@ parameters:
 - description: change this value to restart worker-download-xl
   name: REDEPLOY_HASH_WORKER_DOWNLOAD_XL
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_DOWNLOAD_PENALTY_MIN_REPLICAS
   required: true
@@ -6275,6 +6388,10 @@ parameters:
 - description: change this value to restart worker-download-penalty
   name: REDEPLOY_HASH_WORKER_DOWNLOAD_PENALTY
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_OCP_REPLICAS
   required: true
@@ -6302,6 +6419,10 @@ parameters:
 - description: change this value to restart worker-ocp
   name: REDEPLOY_HASH_WORKER_OCP
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_OCP_XL_REPLICAS
   required: true
@@ -6329,6 +6450,10 @@ parameters:
 - description: change this value to restart worker-ocp-xl
   name: REDEPLOY_HASH_WORKER_OCP_XL
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_OCP_PENALTY_REPLICAS
   required: true
@@ -6356,6 +6481,10 @@ parameters:
 - description: change this value to restart worker-ocp-penalty
   name: REDEPLOY_HASH_WORKER_OCP_PENALTY
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_PRIORITY_REPLICAS
   required: true
@@ -6383,6 +6512,10 @@ parameters:
 - description: change this value to restart worker-priority
   name: REDEPLOY_HASH_WORKER_PRIORITY
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_PRIORITY_XL_REPLICAS
   required: true
@@ -6410,6 +6543,10 @@ parameters:
 - description: change this value to restart worker-priority-xl
   name: REDEPLOY_HASH_WORKER_PRIORITY_XL
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_PRIORITY_PENALTY_REPLICAS
   required: true
@@ -6437,6 +6574,10 @@ parameters:
 - description: change this value to restart worker-priority-penalty
   name: REDEPLOY_HASH_WORKER_PRIORITY_PENALTY
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_REFRESH_REPLICAS
   required: true
@@ -6464,6 +6605,10 @@ parameters:
 - description: change this value to restart worker-refresh
   name: REDEPLOY_HASH_WORKER_REFRESH
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_REFRESH_XL_REPLICAS
   required: true
@@ -6491,6 +6636,10 @@ parameters:
 - description: change this value to restart worker-refresh-xl
   name: REDEPLOY_HASH_WORKER_REFRESH_XL
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_REFRESH_PENALTY_REPLICAS
   required: true
@@ -6518,6 +6667,10 @@ parameters:
 - description: change this value to restart worker-refresh-penalty
   name: REDEPLOY_HASH_WORKER_REFRESH_PENALTY
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_SUMMARY_MIN_REPLICAS
   required: true
@@ -6561,6 +6714,10 @@ parameters:
 - description: change this value to restart worker-summary
   name: REDEPLOY_HASH_WORKER_SUMMARY
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_SUMMARY_XL_MIN_REPLICAS
   required: true
@@ -6604,6 +6761,10 @@ parameters:
 - description: change this value to restart worker-summary-xl
   name: REDEPLOY_HASH_WORKER_SUMMARY_XL
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_SUMMARY_PENALTY_MIN_REPLICAS
   required: true
@@ -6647,6 +6808,10 @@ parameters:
 - description: change this value to restart worker-summary-penalty
   name: REDEPLOY_HASH_WORKER_SUMMARY_PENALTY
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_HCS_REPLICAS
   required: true
@@ -6677,6 +6842,10 @@ parameters:
 - description: change this value to restart worker-hcs
   name: REDEPLOY_HASH_WORKER_HCS
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_SUBS_EXTRACTION_REPLICAS
   required: true
@@ -6704,6 +6873,10 @@ parameters:
 - description: change this value to restart worker-subs-extraction
   name: REDEPLOY_HASH_WORKER_SUBS_EXTRACTION
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: WORKER_SUBS_TRANSMISSION_REPLICAS
   required: true
@@ -6731,3 +6904,7 @@ parameters:
 - description: change this value to restart worker-subs-transmission
   name: REDEPLOY_HASH_WORKER_SUBS_TRANSMISSION
   value: "000000"
+- description: toggles on-prem data processing flow
+  name: ONPREM
+  required: true
+  value: "False"

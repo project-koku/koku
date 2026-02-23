@@ -57,6 +57,8 @@
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -229,3 +231,10 @@
     description: change this value to restart worker-ocp-xl
     name: REDEPLOY_HASH_WORKER_OCP_XL
     value: "000000"
+- op: add
+  path: /parameters/-
+  value:
+    description: toggles on-prem data processing flow
+    name: ONPREM
+    required: true
+    value: "False"

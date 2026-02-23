@@ -57,6 +57,8 @@
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: ENABLE_HCS_DEBUG
           value: ${ENABLE_HCS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -235,3 +237,10 @@
     description: change this value to restart worker-hcs
     name: REDEPLOY_HASH_WORKER_HCS
     value: "000000"
+- op: add
+  path: /parameters/-
+  value:
+    description: toggles on-prem data processing flow
+    name: ONPREM
+    required: true
+    value: "False"

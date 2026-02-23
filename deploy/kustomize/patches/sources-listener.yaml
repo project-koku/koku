@@ -69,6 +69,8 @@
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
@@ -200,3 +202,10 @@
     description: change this value to restart sources-listener
     name: REDEPLOY_HASH_SOURCES_LISTENER
     value: "000000"
+- op: add
+  path: /parameters/-
+  value:
+    description: toggles on-prem data processing flow
+    name: ONPREM
+    required: true
+    value: "False"
