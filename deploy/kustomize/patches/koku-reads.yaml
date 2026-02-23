@@ -246,10 +246,3 @@
     name: KOKU_READ_ONLY_DB
     required: true
     value: cost-db-ro
-- op: add
-  path: /parameters/-
-  value:
-    description: toggles on-prem data processing flow
-    name: ONPREM
-    required: true
-    value: "False"
