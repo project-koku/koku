@@ -792,3 +792,15 @@ class OCPGpuQueryParamSerializerTest(IamTestCase):
         self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
         serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid())
+
+    def test_gpu_query_params_tag_filter_dropped(self):
+        """Tag filter keys are dropped so GPU API accepts request without error; GPU cannot filter by tag."""
+        query_params = {
+            "filter": {"gpu_vendor": ["nvidia"], "tag:application": ["Istio"]},
+            "group_by": {"gpu_model": ["*"]},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/gpu/"
+        serializer = OCPGpuQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertNotIn("tag:application", serializer.validated_data.get("filter", {}))
+        self.assertIn("gpu_vendor", serializer.validated_data.get("filter", {}))

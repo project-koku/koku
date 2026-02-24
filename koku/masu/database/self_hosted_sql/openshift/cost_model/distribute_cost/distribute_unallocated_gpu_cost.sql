@@ -16,7 +16,7 @@ WITH unattributed_gpu_cost as (
     SELECT
         sum(cost_model_gpu_cost) as gpu_unallocated_cost,
         node,
-        all_labels::jsonb->>'gpu-model' AS gpu_model,
+        all_labels->>'gpu-model' AS gpu_model,
         cluster_alias,
         cluster_id,
         report_period_id
