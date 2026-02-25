@@ -57,6 +57,8 @@
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: ENABLE_HCS_DEBUG
           value: ${ENABLE_HCS_DEBUG}
         - name: CELERY_LOG_LEVEL
