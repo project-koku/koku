@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the ApplicationTypesView."""
+import unittest
+
+from django.conf import settings
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -10,6 +13,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from sources.api.source_type_mapping import COST_MGMT_APP_TYPE_ID
 
 
+@unittest.skipUnless(settings.ONPREM, "ONPREM-only: application_types endpoint requires ONPREM=True")
 @override_settings(ROOT_URLCONF="koku.urls")
 class ApplicationTypesViewTest(IamTestCase):
     """Test Cases for the application_types endpoint."""

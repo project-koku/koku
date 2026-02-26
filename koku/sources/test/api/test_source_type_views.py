@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the SourceTypesView."""
+import unittest
+
+from django.conf import settings
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -10,6 +13,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from sources.api.source_type_mapping import CMMO_ID_TO_SOURCE_NAME
 
 
+@unittest.skipUnless(settings.ONPREM, "ONPREM-only: source_types endpoint requires ONPREM=True")
 @override_settings(ROOT_URLCONF="koku.urls")
 class SourceTypesViewTest(IamTestCase):
     """Test Cases for the source_types endpoint."""
