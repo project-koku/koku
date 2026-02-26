@@ -282,7 +282,7 @@ jobs:
 
       - name: Run ONPREM sources tests
         if: needs.changed-files.outputs.run_tests == 'true'
-        run: pipenv run python ./koku/manage.py test --noinput --verbosity 2 sources.test
+        run: pipenv run coverage run --append ./koku/manage.py test --noinput --verbosity 2 sources.test
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
           DATABASE_ENGINE: postgresql
