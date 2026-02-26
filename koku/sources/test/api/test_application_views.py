@@ -4,7 +4,9 @@
 #
 """Test the ApplicationsView."""
 import json
+import unittest
 
+from django.conf import settings
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -16,6 +18,7 @@ from koku.middleware import IdentityHeaderMiddleware
 from sources.api.source_type_mapping import COST_MGMT_APP_TYPE_ID
 
 
+@unittest.skipUnless(settings.ONPREM, "ONPREM-only: applications endpoint requires ONPREM=True")
 @override_settings(ROOT_URLCONF="koku.urls")
 class ApplicationsViewTest(IamTestCase):
     """Test Cases for the applications endpoint."""

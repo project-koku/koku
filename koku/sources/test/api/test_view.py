@@ -4,6 +4,7 @@
 #
 """Test the sources view."""
 import json
+import unittest
 from random import randint
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -11,6 +12,7 @@ from unittest.mock import PropertyMock
 from uuid import uuid4
 
 import requests_mock
+from django.conf import settings
 from django.core.cache import cache
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -68,6 +70,10 @@ class SourcesViewTests(IamTestCase):
         mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
         SourcesViewSet.url = mock_url
 
+    @unittest.skipIf(
+        settings.ONPREM or settings.DEVELOPMENT,
+        "SaaS-only: PATCH is allowed when ONPREM or DEVELOPMENT is True",
+    )
     def test_source_patch(self):
         """Test the PATCH endpoint."""
         credentials = {"subscription_id": "subscription-uuid"}
@@ -88,6 +94,10 @@ class SourcesViewTests(IamTestCase):
 
             self.assertEqual(response.status_code, 405)
 
+    @unittest.skipIf(
+        settings.ONPREM or settings.DEVELOPMENT,
+        "SaaS-only: PUT is allowed when ONPREM or DEVELOPMENT is True",
+    )
     def test_source_put(self):
         """Test the PUT endpoint."""
         credentials = {"subscription_id": "subscription-uuid"}
@@ -233,6 +243,10 @@ class SourcesViewTests(IamTestCase):
             response = self.client.get(url, content_type="application/json", **request_context["request"].META)
             self.assertEqual(response.status_code, 404)
 
+    @unittest.skipIf(
+        settings.ONPREM or settings.DEVELOPMENT,
+        "SaaS-only: DELETE is allowed when ONPREM or DEVELOPMENT is True",
+    )
     def test_source_destroy_not_allowed(self):
         """Test access to the destroy endpoint."""
         url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
