@@ -117,7 +117,9 @@ from sources.api.application_views import ApplicationsView
 from sources.api.source_type_views import SourceTypesView
 from sources.api.views import SourcesViewSet
 
-ROUTER = DefaultRouter(trailing_slash=not settings.ONPREM)
+ROUTER = DefaultRouter()
+if settings.ONPREM:
+    ROUTER.trailing_slash = "/?"
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 
 urlpatterns = [
