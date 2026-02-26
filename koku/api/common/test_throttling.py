@@ -89,8 +89,7 @@ class TagQueryThrottleGetCacheKeyTest(TestCase):
         }
         key = throttle.get_cache_key(request, None)
         self.assertIsNotNone(key)
-        self.assertIn("tag_query_throttle:acct123:", key)
-        self.assertIn("group_by[tag:app]", key)
+        self.assertEqual(key, "tag_query_throttle:acct123")
 
 
 class TagQueryThrottleGetDateRangeDaysTest(TestCase):
