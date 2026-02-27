@@ -955,9 +955,7 @@ class OCPProviderMap(ProviderMap):
                                 Coalesce(F("memory_capacity_gb"), Value(0, output_field=DecimalField()))
                             ),
                             "gpu_memory_units": Value("GB", output_field=CharField()),
-                            "gpu_count": Sum(
-                                Coalesce(F("gpu_count"), Value(0, output_field=IntegerField())), distinct=True
-                            ),
+                            "gpu_count": Sum(Coalesce(F("gpu_count"), Value(0, output_field=IntegerField()))),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
                         },
                         "aggregate_ranks_exclusions": [
