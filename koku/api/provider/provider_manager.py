@@ -27,7 +27,7 @@ from cost_models.models import CostModelMap
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import SOURCES_CACHE_PREFIX
 from koku.database import execute_delete_sql
-from masu.util.ocp import common as utils
+from masu.util.ocp.operator_versions import LATEST_OPERATOR_VERSION
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -222,11 +222,10 @@ class ProviderManager:
             base_additional_context["operator_version"] = self.manifest.operator_version
             base_additional_context["operator_airgapped"] = self.manifest.operator_airgapped
             base_additional_context["operator_certified"] = self.manifest.operator_certified
-            latest_version = utils.get_latest_operator_version()
             current_version = self.manifest.operator_version.split(":")[-1].lstrip("v")
             try:
                 base_additional_context["operator_update_available"] = Version(current_version) < Version(
-                    latest_version
+                    LATEST_OPERATOR_VERSION
                 )
                 is_supported = Version(current_version) >= Version("4.0.0")
             except InvalidVersion:
