@@ -810,52 +810,28 @@ class ProviderManagerTest(IamTestCase):
             operator_certified=True,
         )
 
-        with patch("api.provider.provider_manager.utils.get_latest_operator_version") as mock_latest_version:
-            # Scenario 1: Current version is not the latest
-            mock_latest_version.return_value = "4.8.0"
-            manager = ProviderManager(provider.uuid)
-            additional_context = manager.get_additional_context()
+        invalid_version = str(uuid4())
+        test_matrix = [
+            # (operator_version, latest_version, update_available, vm_cpu_core_support)
+            ("4.7.0", "4.8.0", True, True),
+            ("4.7.0", "4.7.0", False, True),
+            ("3.3.2", "3.3.2", False, False),
+            ("4.0.0", "4.0.0", False, True),
+            (invalid_version, invalid_version, False, False),
+        ]
 
-            self.assertIsNotNone(manager.manifest, "Manifest should be loaded by ProviderManager")
-            self.assertEqual(manager.manifest.id, manifest.id)
-            self.assertEqual(additional_context.get("operator_version"), "4.7.0")
-            self.assertEqual(additional_context.get("operator_airgapped"), False)
-            self.assertEqual(additional_context.get("operator_certified"), True)
-            self.assertEqual(additional_context.get("operator_update_available"), True)
-            self.assertEqual(additional_context.get("vm_cpu_core_cost_model_support"), True)
-
-            # Scenario 2: Current version is the latest
-            mock_latest_version.return_value = "4.7.0"
-            manager_updated_ver = ProviderManager(provider.uuid)
-            additional_context_updated = manager_updated_ver.get_additional_context()
-            self.assertEqual(additional_context_updated.get("operator_update_available"), False)
-
-            # Scenario 2a: Operator version just below cpu core cost model threshold ("3.3.2")
-            mock_latest_version.return_value = "3.3.2"
-            manifest.operator_version = "3.3.2"
-            manifest.save()
-            manager_below_threshold = ProviderManager(provider.uuid)
-            additional_context_below = manager_below_threshold.get_additional_context()
-            self.assertEqual(additional_context_below.get("operator_version"), "3.3.2")
-            self.assertEqual(additional_context_below.get("vm_cpu_core_cost_model_support"), False)
-
-            # Scenario 2b: Operator version exactly at the threshold ("4.0.0")
-            mock_latest_version.return_value = "4.0.0"
-            manifest.operator_version = "4.0.0"
-            manifest.save()
-            manager_at_threshold = ProviderManager(provider.uuid)
-            additional_context_at = manager_at_threshold.get_additional_context()
-            self.assertEqual(additional_context_at.get("operator_version"), "4.0.0")
-            self.assertEqual(additional_context_at.get("vm_cpu_core_cost_model_support"), True)
-
-            # Scenario 3: Invalid version
-            invalid_version = str(uuid4())
-            mock_latest_version.return_value = invalid_version
-            manifest.operator_version = invalid_version
-            manifest.save()
-            manager_at_threshold = ProviderManager(provider.uuid)
-            additional_context_at = manager_at_threshold.get_additional_context()
-            self.assertEqual(additional_context_at.get("vm_cpu_core_cost_model_support"), False)
+        for operator_version, latest_version, update_available, vm_support in test_matrix:
+            with self.subTest(operator_version=operator_version, latest_version=latest_version):
+                manifest.operator_version = operator_version
+                manifest.save()
+                with patch("api.provider.provider_manager.LATEST_OPERATOR_VERSION", new=latest_version):
+                    manager = ProviderManager(provider.uuid)
+                    additional_context = manager.get_additional_context()
+                    self.assertEqual(additional_context.get("operator_version"), operator_version)
+                    self.assertEqual(additional_context.get("operator_airgapped"), False)
+                    self.assertEqual(additional_context.get("operator_certified"), True)
+                    self.assertEqual(additional_context.get("operator_update_available"), update_available)
+                    self.assertEqual(additional_context.get("vm_cpu_core_cost_model_support"), vm_support)
 
     def test_get_additional_context_ocp_no_manifest(self):
         """Test get_additional_context for an OCP provider without manifest data."""
