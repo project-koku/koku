@@ -11,7 +11,6 @@ maps those commits to release versions.
 Update this after every operator release:
 https://github.com/project-koku/koku-metrics-operator/releases
 """
-
 from packaging.version import Version
 
 OPERATOR_RELEASES = [
