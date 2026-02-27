@@ -127,6 +127,9 @@ help:
 	@echo "                                         user:     admin"
 	@echo "                                         password: admin12"
 	@echo "  docker-up-min                        run database, koku/masu servers and worker"
+	@echo "  docker-up-kafka                      start Kafka, Zookeeper, and init topics"
+	@echo "  docker-up-onprem                     run on-prem stack (core + kafka, no Trino/S3)"
+	@echo "  docker-up-onprem-no-build            run on-prem stack without building"
 	@echo "  docker-down                          shut down all containers"
 	@echo "  docker-up-min-trino                 start minimum targets for Trino usage"
 	@echo "  docker-up-min-trino-no-build        start minimum targets for Trino usage without building koku base"
@@ -369,6 +372,22 @@ docker-up-db:
 	$(DOCKER_COMPOSE) up -d db
 	$(DOCKER_COMPOSE) up -d unleash
 	$(PYTHON) dev/scripts/setup_unleash.py
+
+docker-up-kafka:
+	$(DOCKER_COMPOSE) up -d kafka-zookeeper kafka
+	@echo "Waiting for Kafka to be ready..."
+	@sleep 5
+	$(DOCKER_COMPOSE) up -d init-kafka
+	@echo "Kafka is ready."
+
+# On-prem development environment (core + kafka, no Trino/S3)
+docker-up-onprem: docker-build docker-up-onprem-no-build
+
+docker-up-onprem-no-build: docker-host-dir-setup docker-up-db docker-up-kafka
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-server masu-server koku-worker koku-beat koku-listener sources-client
+	@echo "Stopping SaaS-only services..."
+	-$(DOCKER_COMPOSE) stop trino hive-metastore minio subs-worker create-parquet-bucket 2>/dev/null || true
+	@echo "On-prem environment ready (core + kafka, no Trino/S3)"
 
 docker-up-db-monitor:
 	$(DOCKER_COMPOSE) up --build -d grafana
