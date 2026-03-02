@@ -64,6 +64,8 @@ objects:
           value: ${MAX_GROUP_BY_OVERRIDE}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -247,6 +249,8 @@ objects:
           value: ${MAX_GROUP_BY_OVERRIDE}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -482,6 +486,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: KOKU_LOG_LEVEL
           value: ${LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
@@ -640,6 +646,8 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -806,6 +814,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -976,6 +986,8 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: GUNICORN_WORKERS
@@ -1133,6 +1145,8 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
@@ -1273,6 +1287,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1457,6 +1473,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1646,6 +1664,8 @@ objects:
               optional: true
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1835,6 +1855,8 @@ objects:
               optional: true
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2024,6 +2046,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2217,6 +2241,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2410,6 +2436,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2603,6 +2631,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2794,6 +2824,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2985,6 +3017,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3164,6 +3198,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3350,6 +3386,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3536,6 +3574,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3722,6 +3762,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3900,6 +3942,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4078,6 +4122,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4268,6 +4314,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4461,6 +4509,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4654,6 +4704,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4835,6 +4887,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: ENABLE_HCS_DEBUG
           value: ${ENABLE_HCS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -5015,6 +5069,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -5187,6 +5243,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ONPREM
+          value: ${ONPREM}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -5532,6 +5590,9 @@ parameters:
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
+- description: toggles onprem data processing logic
+  name: ONPREM
+  value: "False"
 - description: Image tag
   name: IMAGE_TAG
   required: true

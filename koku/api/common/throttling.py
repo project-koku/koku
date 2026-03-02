@@ -74,9 +74,9 @@ class TagQueryThrottle(SimpleRateThrottle):
             # Limit the need to check unleash by calling it last
             return None
 
-        # Build cache key: schema + sorted tag keys
-        tag_keys_str = ",".join(sorted(tag_keys))
-        cache_key = f"tag_query_throttle:{schema_name}:{tag_keys_str}"
+        # One bucket per schema: 1 heavy tag query per 12h total, regardless of which tag key.
+        # (Previously we keyed by schema + tag_keys, allowing 1 per 12h per tag = multiple slots.)
+        cache_key = f"tag_query_throttle:{schema_name}"
 
         LOG.debug(f"Tag query throttle check: {cache_key}, date_range: {date_range_days} days")
         return cache_key
