@@ -1123,7 +1123,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
     def test_populate_distributed_cost_sql_called(
         self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
     ):
-        """Test that distribution is called and  and GPU skipped for current month (not second of month)."""
+        """Test that distribution is called and GPU skipped for current month (not second of month)."""
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
         masu_database, mock_jinja = self._setup_distributed_cost_sql_mocks(start_date, end_date)
