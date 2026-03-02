@@ -1,8 +1,9 @@
 # Kessel/ReBAC Integration for Koku - OCP Provider
 
-**Date**: 2026-01-30  
-**Status**: High Level Design (HLD)  
+**Date**: 2026-01-30 
+**Status**: High Level Design (HLD) 
 **Scope**: OpenShift (OCP) Provider - On-Premise Deployments
+**Last updated**: 2026-03-02 — aligned with implementation (see [kessel-hld-gaps-and-updates.md](./kessel-hld-gaps-and-updates.md) and [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md)).
 
 ---
 
@@ -10,45 +11,45 @@
 
 - [Executive Summary](#executive-summary)
 - [System Architecture](#system-architecture)
-  - [Complete Component Overview](#complete-component-overview)
-  - [Component Responsibilities](#component-responsibilities)
-  - [Critical Design Principle: Dual-Write Pattern](#critical-design-principle-dual-write-pattern)
+ - [Complete Component Overview](#complete-component-overview)
+ - [Component Responsibilities](#component-responsibilities)
+ - [Critical Design Principle: Dual-Write Pattern](#critical-design-principle-dual-write-pattern)
 - [Sequence Diagrams](#sequence-diagrams)
-  - [1. Initial Setup: Role Seeding](#1-initial-setup-role-seeding)
-  - [2. User Access Management: Assign Role to User](#2-user-access-management-assign-role-to-user)
-  - [3. Provider Creation: Resource Synchronization](#3-provider-creation-resource-synchronization)
-  - [4. Authorization Check: Wildcard Permission (Phase 1)](#4-authorization-check-wildcard-permission-phase-1)
-  - [5. Authorization Check: Resource-Specific Permission (Phase 2)](#5-authorization-check-resource-specific-permission-phase-2)
-  - [6. Provider Deletion: Resource Cleanup](#6-provider-deletion-resource-cleanup)
-  - [7. Error Handling: Kessel Unavailable](#7-error-handling-kessel-unavailable)
+ - [1. Initial Setup: Role Seeding](#1-initial-setup-role-seeding)
+ - [2. User Access Management: Assign Role to User](#2-user-access-management-assign-role-to-user)
+ - [3. Provider Creation: Resource Synchronization](#3-provider-creation-resource-synchronization)
+ - [4. Authorization Check: Wildcard Permission (Phase 1)](#4-authorization-check-wildcard-permission-phase-1)
+ - [5. Authorization Check: Resource-Specific Permission (Phase 2)](#5-authorization-check-resource-specific-permission-phase-2)
+ - [6. Provider Deletion: Resource Cleanup](#6-provider-deletion-resource-cleanup)
+ - [7. Error Handling: Kessel Unavailable](#7-error-handling-kessel-unavailable)
 - [Deployment Architecture](#deployment-architecture)
 - [Use Case: OCP Provider](#use-case-ocp-provider)
 - [Current State Analysis](#current-state-analysis)
-  - [What Exists Today](#what-exists-today)
-  - [Gap Analysis](#gap-analysis)
+ - [What Exists Today](#what-exists-today)
+ - [Gap Analysis](#gap-analysis)
 - [Proposed Solution](#proposed-solution)
-  - [Phase 1: Wildcard-Only Support](#phase-1-wildcard-only-support)
-  - [Phase 2: Resource-Specific Permissions](#phase-2-resource-specific-permissions)
+ - [Phase 1: Wildcard-Only Support](#phase-1-wildcard-only-support)
+ - [Phase 2: Resource-Specific Permissions](#phase-2-resource-specific-permissions)
 - [Resource Synchronization Strategy](#resource-synchronization-strategy)
 - [Implementation Details](#implementation-details)
-  - [Authorization Service](#authorization-service)
-  - [Permission Classes](#permission-classes)
-  - [Sources API Integration](#sources-api-integration)
-  - [Access Management API](#access-management-api)
-  - [Access Management UI](#access-management-ui)
+ - [Authorization Service](#authorization-service)
+ - [Permission Classes](#permission-classes)
+ - [Sources API Integration](#sources-api-integration)
+ - [Access Management API](#access-management-api)
+ - [Access Management UI](#access-management-ui)
 - [Operational Considerations](#operational-considerations)
-  - [Monitoring & Observability](#monitoring--observability)
-  - [Troubleshooting Tools](#troubleshooting-tools)
-  - [Logging Strategy](#logging-strategy)
-  - [Backup & Recovery](#backup--recovery)
-  - [Capacity Planning](#capacity-planning)
-  - [Runbooks](#runbooks)
-  - [Schema Upgrade Strategy](#schema-upgrade-strategy)
+ - [Monitoring & Observability](#monitoring--observability)
+ - [Troubleshooting Tools](#troubleshooting-tools)
+ - [Logging Strategy](#logging-strategy)
+ - [Backup & Recovery](#backup--recovery)
+ - [Capacity Planning](#capacity-planning)
+ - [Runbooks](#runbooks)
+ - [Schema Upgrade Strategy](#schema-upgrade-strategy)
 - [Testing Strategy](#testing-strategy)
 - [Rollout Plan](#rollout-plan)
-  - [Phase 1: Wildcard-Only Support](#phase-1-wildcard-only-support-1)
-  - [Phase 1.5: Access Management API & UI](#phase-15-access-management-api--ui)
-  - [Phase 2: Resource-Specific Permissions](#phase-2-resource-specific-permissions-1)
+ - [Phase 1: Wildcard-Only Support](#phase-1-wildcard-only-support-1)
+ - [Phase 1.5: Access Management API & UI](#phase-15-access-management-api--ui)
+ - [Phase 2: Resource-Specific Permissions](#phase-2-resource-specific-permissions-1)
 - [Open Questions](#open-questions)
 - [Appendices](#appendices)
 
@@ -61,8 +62,8 @@ Enable **Kessel (Red Hat's ReBAC platform)** as an optional authorization backen
 
 ### Scope
 - **Provider**: **Standalone OpenShift (OCP) only**
-  - ✅ In Scope: Native OCP clusters
-  - ❌ Out of Scope: OCP-on-AWS, OCP-on-Azure, OCP-on-GCP (future release)
+ - ✅ In Scope: Native OCP clusters
+ - ❌ Out of Scope: OCP-on-AWS, OCP-on-Azure, OCP-on-GCP (future release)
 - **Deployment**: On-premise only (enabled via `ONPREM` environment variable)
 - **Approach**: Two-phase implementation based on existing platform schema capabilities
 
@@ -82,6 +83,8 @@ Enable **Kessel (Red Hat's ReBAC platform)** as an optional authorization backen
 |-------|----------|------------|------------------------|
 | **Phase 1** | Immediate | Wildcard permissions only | None - use existing schema |
 | **Phase 2** | 2-4 months | Resource-specific permissions + ownership | 3 resource definitions (schema PR) |
+
+**Implementation note**: The current implementation delivers Phase 1 and Phase 2 in a single branch. Authorization uses **StreamedListObjects** (Inventory API v1beta2) for per-resource IDs and **Check** as fallback for workspace-level wildcard — not Check-only per resource. Resource lifecycle uses **Inventory API** (ReportResource/DeleteResource) plus **Relations API** (t_workspace tuple create/delete). See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md) and [kessel-hld-gaps-and-updates.md](./kessel-hld-gaps-and-updates.md).
 
 ---
 
@@ -169,27 +172,27 @@ flowchart TB
 **Components Requiring Modification:**
 
 1. **Cost API** - Modified permission classes
-   - File: `koku/api/common/permissions/openshift_access.py`
-   - Update `has_permission()` to use authorization service
-   - Update `has_object_permission()` for resource-specific checks (Phase 2)
-   - Affects: `OpenShiftAccessPermission`, `OpenShiftNodePermission`, `OpenShiftProjectPermission`
+ - File: `koku/api/common/permissions/openshift_access.py`
+ - Update `has_permission()` to use authorization service
+ - Update `has_object_permission()` for resource-specific checks (Phase 2)
+ - Affects: `OpenShiftAccessPermission`, `OpenShiftNodePermission`, `OpenShiftProjectPermission`
 
 2. **Sources API** - Add Kessel resource synchronization
-   - File: `koku/api/provider/provider_builder.py`
-   - Add helper methods to sync cluster resources to Kessel
-   - Modify `create_provider_from_source()` to call Kessel reporter
-   - Modify `destroy_provider()` to remove resources from Kessel
+ - File: `koku/api/provider/provider_builder.py`
+ - Add helper methods to sync cluster resources to Kessel
+ - Modify `create_provider_from_source()` to call Kessel reporter
+ - Modify `destroy_provider()` to remove resources from Kessel
 
 ### Component Responsibilities
 
 | # | Component | Type | Responsibility |
 |---|-----------|------|----------------|
-| 1 | **Authorization Adapter** | NEW | Permission checks via Kessel (replaces RBAC API in on-premise) |
-| 2 | **Resource Reporter** | NEW | Syncs Koku resources (clusters, nodes, projects) to Kessel |
-| 3 | **Sources API** (`provider_builder.py`) | Modified | Dual-write: Store in Postgres **AND** report to Kessel |
-| 4 | **Permission Classes** (`openshift_access.py`) | Modified | Update to use authorization service instead of direct RBAC checks |
-| 5 | **Access Management API** | NEW | REST wrapper around Kessel Relations API for user/role management |
-| 6 | **Access Management UI** | NEW | Admin interface for managing user access and permissions |
+| 1 | **KesselAccessProvider** (`koku_rebac/access_provider.py`) | NEW | StreamedListObjects + Check via Inventory API v1beta2; populates same access map as RBAC |
+| 2 | **Resource Reporter** (`koku_rebac/resource_reporter.py`) | NEW | ReportResource/DeleteResource (Inventory gRPC) + t_workspace tuple create/delete (Relations REST) |
+| 3 | **Sources API** (`provider_builder.py`, `sources/api/view.py`) | Modified | Dual-write: Postgres **AND** Kessel (on_resource_created / on_resource_deleted) |
+| 4 | **Permission Classes** | Unchanged | Middleware fills `request.user.access`; permission classes and query layer unchanged |
+| 5 | **Access Management API** | NEW | **Not implemented** (Phase 1.5 — future work) |
+| 6 | **Access Management UI** | NEW | **Not implemented** (Phase 1.5 — future work) |
 | 7 | **Monitoring & Tooling** | NEW | Health checks, metrics, debugging tools |
 
 ### Critical Design Principle: Dual-Write Pattern
@@ -304,22 +307,15 @@ sequenceDiagram
         Builder->>Reporter: report_ocp_resources(<br/>cluster_id="prod-east-1",<br/>org_id="acme-corp",<br/>creator="alice")
         activate Reporter
         
-        Note over Reporter: Register all 3 resource types:<br/>cluster, nodes, and namespaces
+        Note over Reporter: Dual-phase: (1) Inventory API (gRPC)<br/>(2) Relations API (REST) for t_workspace tuples
 
-        Reporter->>Kessel: CreateResource(<br/>resource: cost_management/openshift_cluster:prod-east-1)
+        Reporter->>Kessel: ReportResource(cluster) — Inventory API gRPC
         Kessel-->>Reporter: OK
         
-        Reporter->>Kessel: CreateResource(<br/>resource: cost_management/openshift_node:{discovered nodes})
+        Reporter->>Kessel: POST t_workspace tuple — Relations API REST
         Kessel-->>Reporter: OK
 
-        Reporter->>Kessel: CreateResource(<br/>resource: cost_management/openshift_project:{discovered namespaces})
-        Kessel-->>Reporter: OK
-
-        Reporter->>Kessel: CreateRelation(<br/>subject: cluster:prod-east-1<br/>relation: org<br/>object: rbac/tenant:acme-corp)
-        Kessel-->>Reporter: OK
-        
-        Reporter->>Kessel: CreateRelation(<br/>subject: rbac/principal:alice<br/>relation: owner<br/>object: cluster:prod-east-1)
-        Kessel-->>Reporter: OK
+        Note over Reporter: Nodes/projects synced similarly;<br/>on-prem has no CDC, so Koku writes tuples directly
         
         Reporter-->>Builder: ✓ Resources synced
         deactivate Reporter
@@ -359,12 +355,12 @@ sequenceDiagram
     
     Note over AuthAdapter: Check cache (30s TTL)
     
-    AuthAdapter->>Kessel: CheckPermission(<br/>subject: rbac/principal:alice<br/>permission: cost_management_openshift_cluster_read<br/>object: rbac/tenant:acme-corp)
+    AuthAdapter->>Kessel: StreamedListObjects + Check fallback<br/>(Inventory API v1beta2)<br/>e.g. Check(principal:alice,<br/>cost_management_openshift_cluster_read,<br/>tenant:acme-corp) for wildcard
     activate Kessel
-    
+
     Note over Kessel: Kessel evaluates:<br/>1. Alice → role_binding<br/>2. role_binding → role<br/>3. role → permission<br/>4. role_binding → tenant
-    
-    Kessel-->>AuthAdapter: ALLOWED ✓
+
+    Kessel-->>AuthAdapter: ALLOWED ✓ (access map populated)
     deactivate Kessel
     
     Note over AuthAdapter: Cache result for 30s
@@ -404,10 +400,10 @@ sequenceDiagram
     PermClass->>AuthAdapter: has_object_permission(<br/>user="bob",<br/>resource_id="prod-east-1",<br/>action="view")
     activate AuthAdapter
     
-    AuthAdapter->>Kessel: CheckPermission(<br/>subject: rbac/principal:bob<br/>permission: view<br/>object: cost_management/openshift_cluster:prod-east-1)
+    AuthAdapter->>Kessel: StreamedListObjects(openshift_cluster)<br/>returns allowed IDs; if empty, Check(tenant) for wildcard<br/>(Inventory API v1beta2)
     activate Kessel
-    
-    Note over Kessel: Kessel evaluates:<br/>1. Bob → viewer → cluster (direct)<br/>2. Bob → owner → cluster (direct)<br/>3. Bob → role → tenant (wildcard)<br/>4. Bob → cluster.owner (hierarchical)
+
+    Note over Kessel: Implementation: per-resource IDs from<br/>StreamedListObjects; Check used for workspace fallback.<br/>No per-resource Check on cluster object.
     
     alt Bob has access
         Kessel-->>AuthAdapter: ALLOWED ✓
@@ -463,13 +459,13 @@ sequenceDiagram
         Builder->>Reporter: remove_ocp_cluster(<br/>cluster_id="prod-east-1")
         activate Reporter
         
-        Reporter->>Kessel: DeleteResource(<br/>resource: cost_management/openshift_cluster:prod-east-1)
+        Reporter->>Kessel: DeleteResource(cluster) — Inventory API gRPC
         activate Kessel
-        
-        Note over Kessel: Cascade delete:<br/>- All node relations<br/>- All namespace relations<br/>- All viewer/owner relations
-        
-        Kessel-->>Reporter: OK (cascade complete)
+        Kessel-->>Reporter: OK
         deactivate Kessel
+        
+        Reporter->>Kessel: DELETE t_workspace tuple — Relations API REST
+        Kessel-->>Reporter: OK
         
         Reporter-->>Builder: ✓ Resource removed from Kessel
         deactivate Reporter
@@ -514,9 +510,9 @@ sequenceDiagram
         
         API-->>User: 200 OK {data: [...]}
     else Cache MISS
-        AuthAdapter->>Kessel: CheckPermission(...)
+        AuthAdapter->>Kessel: StreamedListObjects / Check(...)
         
-        Note over Kessel: Connection timeout<br/>or 503 Service Unavailable
+        Note over Kessel: Connection timeout<br/>or Kessel unavailable
         
         Kessel--xAuthAdapter: ERROR (timeout)
         
@@ -527,7 +523,7 @@ sequenceDiagram
         
         Note over API: Deny access for security
         
-        API-->>User: 503 Service Unavailable<br/>{error: "Authorization service unavailable"}
+        API-->>User: 424 Failed Dependency<br/>(KesselConnectionError; matches RBAC failure behavior)
     end
     
     deactivate API
@@ -560,7 +556,7 @@ sequenceDiagram
 
 **Solution**: Koku provides **role seeding tool** to simplify role instance creation for operators.
 
-**See details**: [kessel-only-role-provisioning.md](./kessel-only-role-provisioning.md)
+**See details**: Role seeding in [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md) §7; deploy scripts in `dev/kessel/` and ros-helm-chart.
 
 ---
 
@@ -825,7 +821,7 @@ sequenceDiagram
 
 ### Phase 1: Wildcard-Only Support
 
-**Timeline**: Immediate (0-1 month)  
+**Timeline**: Immediate (0-1 month) 
 **Goal**: Enable Kessel for on-premise OCP deployments with 100% RBAC compatibility for wildcard permissions
 
 #### What's Included
@@ -850,11 +846,11 @@ sequenceDiagram
 
 #### What's NOT Included
 
-❌ Specific resource IDs (`cluster-1`, `node-a`, `my-namespace`)  
-❌ Resource ownership or delegation  
-❌ Schema-based hierarchical relationships  
-❌ Resource synchronization to Kessel  
-❌ OCP-on-Cloud variants (OCP-on-AWS, OCP-on-Azure, OCP-on-GCP)  
+❌ Specific resource IDs (`cluster-1`, `node-a`, `my-namespace`) 
+❌ Resource ownership or delegation 
+❌ Schema-based hierarchical relationships 
+❌ Resource synchronization to Kessel 
+❌ OCP-on-Cloud variants (OCP-on-AWS, OCP-on-Azure, OCP-on-GCP) 
 ❌ Sync/migration from existing installations — Phase 1 targets **new installations only**; support for syncing pre-existing Koku deployments with Kessel will be delivered in a future release
 
 #### Architecture
@@ -905,17 +901,17 @@ graph TB
    ```
 
 3. **Seed standard Cost Management roles** into Kessel:
-   
-   **Platform Responsibility**: Role instances from `rbac-config/roles/cost-management.json` need to be seeded into Kessel. This is a **platform-level concern** applicable to all Red Hat apps using Kessel, not Koku-specific.
-   
-   **Expected roles to be seeded:**
-   - Cost Administrator (full access)
-   - Cost OpenShift Viewer (OCP read-only)
-   - Cost Price List Administrator (cost model write)
-   - Cost Price List Viewer (cost model read)
-   - Cost Cloud Viewer (AWS/Azure/GCP read-only)
-   
-   **Note**: In SaaS, the RBAC Service auto-seeds these roles. For on-premise Kessel-only deployments, the platform/Kessel team should provide tooling for this. See [Open Questions](#open-questions) for verification status.
+ 
+ **Platform Responsibility**: Role instances from `rbac-config/roles/cost-management.json` need to be seeded into Kessel. This is a **platform-level concern** applicable to all Red Hat apps using Kessel, not Koku-specific.
+ 
+ **Expected roles to be seeded:**
+ - Cost Administrator (full access)
+ - Cost OpenShift Viewer (OCP read-only)
+ - Cost Price List Administrator (cost model write)
+ - Cost Price List Viewer (cost model read)
+ - Cost Cloud Viewer (AWS/Azure/GCP read-only)
+ 
+ **Note**: In SaaS, the RBAC Service auto-seeds these roles. For on-premise Kessel-only deployments, the platform/Kessel team should provide tooling for this. See [Open Questions](#open-questions) for verification status.
 
 4. **Create tenant resource** for organization (if not already exists):
    ```bash
@@ -946,8 +942,10 @@ graph TB
 6. **Configure Koku** environment variables:
    ```bash
    ONPREM=true
-   KESSEL_ENDPOINT=kessel.example.com:8443
-   KESSEL_TOKEN=your-auth-token
+   KESSEL_INVENTORY_HOST=kessel.example.com
+   KESSEL_INVENTORY_PORT=9081
+   KESSEL_RELATIONS_URL=https://kessel.example.com/api/authz/v1beta1
+   # Optional: KESSEL_CA_PATH, KESSEL_AUTH_* for TLS/OIDC
    ```
 
 **Koku Changes Required**: None for deployment prerequisites (configuration only)
@@ -956,7 +954,7 @@ graph TB
 
 ### Phase 2: Resource-Specific Permissions
 
-**Timeline**: 2-4 months  
+**Timeline**: 2-4 months 
 **Goal**: Enable resource-specific permissions and ownership model
 
 #### Prerequisites
@@ -978,19 +976,19 @@ graph TB
 Three resource definitions must be submitted to `rbac-config` repository:
 
 1. **`cost_management/openshift_cluster`**
-   - Relations: `org` (tenant), `viewer` (principals/groups), `owner` (principals/groups)
-   - Permissions: `view`, `manage`
-   - Supports both org-level wildcard and resource-specific access
+ - Relations: `org` (tenant), `viewer` (principals/groups), `owner` (principals/groups)
+ - Permissions: `view`, `manage`
+ - Supports both org-level wildcard and resource-specific access
 
 2. **`cost_management/openshift_node`**
-   - Relations: `org` (tenant), `viewer` (principals/groups), `cluster` (parent cluster)
-   - Permission: `view` (inherits from parent cluster)
+ - Relations: `org` (tenant), `viewer` (principals/groups), `cluster` (parent cluster)
+ - Permission: `view` (inherits from parent cluster)
 
 3. **`cost_management/openshift_project`**
-   - Relations: `org` (tenant), `viewer` (principals/groups), `cluster` (parent cluster)
-   - Permission: `view` (inherits from parent cluster)
+ - Relations: `org` (tenant), `viewer` (principals/groups), `cluster` (parent cluster)
+ - Permission: `view` (inherits from parent cluster)
 
-**Full ZED schema definitions**: See [kessel-ocp-implementation-guide.md](./kessel-ocp-implementation-guide.md#phase-2-zed-schema-definitions)
+**Schema wiring (upstream rbac-config)**: All 23 cost_management permissions must be wired through `rbac/role_binding` and `rbac/tenant`. See [zed-schema-upstream-delta.md](./zed-schema-upstream-delta.md) and FLPATH-3319.
 
 #### What's Included
 
@@ -1065,30 +1063,19 @@ The `ProviderBuilder` class manages provider lifecycle based on Sources API even
 
 ### Kessel Resource Reporter
 
-**New Component**: `koku/kessel/resource_reporter.py`
+**Implementation**: `koku/koku_rebac/resource_reporter.py`
 
-Responsible for synchronizing Koku resources to Kessel's resource registry.
+Uses **two Kessel APIs**: (1) **Inventory API** (gRPC): ReportResource / DeleteResource for resource metadata; (2) **Relations API** (REST): create/delete **t_workspace** tuples only. On-prem has no CDC pipeline, so Koku writes and deletes tuples directly.
 
-**Key Responsibilities:**
-- Report all 3 OCP resource types (clusters, nodes, namespaces) to Kessel when providers are created
-- Establish resource-to-tenant relationships
-- Create ownership relationships (creator becomes owner)
-- Maintain hierarchical relationships (cluster → nodes, cluster → namespaces)
-- Handle resource deletion (cascade to children)
-- Sync newly discovered nodes and namespaces during data processing pipeline
+**Key responsibilities:**
+- On resource creation: call ReportResource (Inventory API), then POST t_workspace tuple (Relations API).
+- On resource deletion: call DeleteResource (Inventory API), then DELETE t_workspace tuple (Relations API).
+- Track sync state in `KesselSyncedResource` model (resource_type, resource_id, org_id, kessel_synced, last_synced_at).
+- Cleanup orphaned Kessel resources when cost data expires (e.g. from remove_expired pipeline).
 
-**Methods:**
-- `report_ocp_cluster(cluster_id, org_id, tenant_id, creator_principal)` - Reports cluster and sets creator as owner
-- `report_ocp_node(node_id, cluster_id, org_id, tenant_id)` - Reports node with parent cluster relationship
-- `report_ocp_project(project_id, cluster_id, org_id, tenant_id)` - Reports project with parent cluster relationship
-- `remove_ocp_cluster(cluster_id)` - Removes cluster (cascades to nodes/projects)
+**Error handling:** Non-blocking; Kessel failures do not prevent provider operations. All operations logged.
 
-**Error Handling:**
-- Non-blocking: Kessel failures do not prevent provider operations
-- All operations logged for troubleshooting
-- Returns boolean success status for optional retry logic
-
-**Implementation**: See [kessel-ocp-implementation-guide.md](./kessel-ocp-implementation-guide.md#resource-reporter)
+**Implementation**: See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md) §6 and [kessel-authorization-delegation-dd.md](./kessel-authorization-delegation-dd.md) §6.4.
 
 ### Integration with ProviderBuilder
 
@@ -1122,9 +1109,9 @@ Responsible for synchronizing Koku resources to Kessel's resource registry.
 **Option 1: Pipeline-Driven Sync (Recommended)**
 - During the data processing pipeline, when new nodes/namespaces are discovered in the Trino summarization step, record them in a dedicated tracking table (`kessel_synced_resources`) and sync to Kessel.
 - The tracking table provides:
-  - **Idempotency**: Already-synced resources are not re-reported.
-  - **Reconciliation**: Resources with `synced = false` can be retried on the next cycle.
-  - **Auditability**: Clear record of what exists in Kessel and when it was synced.
+ - **Idempotency**: Already-synced resources are not re-reported.
+ - **Reconciliation**: Resources with `synced = false` can be retried on the next cycle.
+ - **Auditability**: Clear record of what exists in Kessel and when it was synced.
 - Kessel sync remains **non-blocking**: if Kessel is unavailable during ingestion, the resource is marked as pending and retried on the next processing cycle.
 - Aligns naturally with the existing architecture — the pipeline already processes and stores node/namespace data.
 
@@ -1141,31 +1128,30 @@ Responsible for synchronizing Koku resources to Kessel's resource registry.
 
 **Recommendation**: Use **Option 1 (pipeline-driven sync)** as the primary mechanism. The tracking table naturally enables reconciliation and retry without a separate periodic job. Option 3 can be added later as a safety net if needed.
 
-#### Tracking Table: `kessel_synced_resources`
+#### Tracking Model: `KesselSyncedResource`
+
+**Implementation**: `koku/koku_rebac/models.py`; table `kessel_synced_resource` (public schema).
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `id` | UUID | Primary key |
-| `resource_type` | CharField | `cluster`, `node`, or `namespace` |
-| `resource_id` | CharField | The cluster ID, node name, or namespace name |
-| `parent_cluster_id` | CharField (nullable) | Parent cluster (for nodes and namespaces) |
-| `kessel_synced` | BooleanField | Whether successfully synced to Kessel |
-| `last_sync_attempt` | DateTimeField (nullable) | Timestamp of last sync attempt |
-| `last_sync_error` | TextField (nullable) | Error message from last failed sync |
-| `discovered_at` | DateTimeField | When the resource was first seen in the pipeline |
+| `id` | AutoField | Primary key |
+| `resource_type` | CharField | e.g. `openshift_cluster`, `openshift_node`, `openshift_project` |
+| `resource_id` | CharField | The cluster ID, node name, or project/namespace name |
+| `org_id` | CharField | Organization ID |
+| `kessel_synced` | BooleanField | Whether both ReportResource and t_workspace tuple succeeded |
+| `last_synced_at` | DateTimeField (nullable) | Timestamp of last sync attempt |
+| `created_at` / `updated_at` | DateTimeField | Auto-managed |
 
-**Table**: `kessel_synced_resources` (tenant schema)
+Unique on `(resource_type, resource_id, org_id)`.
 
 ### Synchronization States
 
 | Event | Action | Kessel Operation |
 |-------|--------|------------------|
-| OCP provider created | Report cluster | `Create cluster resource + owner relationship` |
-| OCP provider updated | Update cluster metadata (if supported) | `Update cluster resource` (future) |
-| OCP provider deleted | Delete from Koku first, then remove from Kessel | `Delete cluster resource` (cascades to nodes/namespaces in Kessel) |
-| Node discovered (pipeline) | Record in tracking table + sync to Kessel | `Create node resource + cluster relationship` |
-| Namespace discovered (pipeline) | Record in tracking table + sync to Kessel | `Create namespace resource + cluster relationship` |
-| Sync failed | Mark `kessel_synced=false` in tracking table | Retry on next processing cycle |
+| OCP provider created | Report cluster | ReportResource (Inventory API) + POST t_workspace (Relations API) |
+| OCP provider deleted | Delete from Koku first, then remove from Kessel | DeleteResource (Inventory API) + DELETE t_workspace (Relations API) |
+| Node/project discovered (pipeline) | Record in tracking table + sync to Kessel | ReportResource + POST t_workspace |
+| Sync failed | Mark `kessel_synced=false` | Retry on next cycle; cleanup_orphaned_kessel_resources for expired data |
 
 ---
 
@@ -1173,37 +1159,18 @@ Responsible for synchronizing Koku resources to Kessel's resource registry.
 
 ### Authorization Service
 
-**New Component**: `koku/kessel/authorization_service.py`
+**Implementation**: `koku/koku_rebac/access_provider.py` (`KesselAccessProvider`) and middleware in `koku/koku/middleware.py`.
 
-Implements an adapter pattern to support both RBAC and Kessel authorization backends transparently.
+Implements an adapter pattern: the same `request.user.access` shape is produced by either RBAC or Kessel. Middleware calls the access provider (RbacService or KesselAccessProvider) and fills the access map; permission classes and query layer are unchanged.
 
 **Architecture:**
 
-```
-AbstractAuthorizationBackend
-├── RBACAuthorizationBackend (existing system)
-└── KesselAuthorizationBackend (new Kessel integration)
-```
+- **RBAC path (SaaS)**: `RbacService` — `request.user.access` populated by RBAC Service API middleware.
+- **Kessel path (on-prem)**: `KesselAccessProvider` — uses **Inventory API v1beta2** gRPC: **StreamedListObjects** for per-resource IDs, **Check** for workspace-level (e.g. settings) and fallback when StreamedListObjects returns empty. Same access map shape as RBAC.
 
-**`RBACAuthorizationBackend`** (SaaS - Current System)
-- Checks `request.user.access` dictionary populated by RBAC Service API middleware
-- **Note**: Not used in on-premise deployments (Kessel-only architecture)
-- Supports wildcard (`*`) and specific resource ID checks
-- No external API calls (uses pre-fetched access data)
+**Backend selection:** Based on `ONPREM` env var; `ONPREM=true` forces `AUTHORIZATION_BACKEND=rebac`. Resolved in `koku_rebac/config.py`.
 
-**`KesselAuthorizationBackend`** (New System)
-- Initializes Kessel SDK client with endpoint and credentials
-- Maps RBAC resource types to Kessel permission names
-- Phase 1: Checks org-level permissions on tenant
-- Phase 2: Checks resource-specific permissions
-- Handles connection failures with fail-closed strategy
-
-**Backend Selection:**
-- Singleton pattern for efficiency
-- Selected based on `ONPREM` setting
-- Single factory function: `get_authorization_service()`
-
-**Implementation**: See [kessel-ocp-implementation-guide.md](./kessel-ocp-implementation-guide.md#authorization-service)
+**Implementation details**: See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md) and [kessel-hld-gaps-and-updates.md](./kessel-hld-gaps-and-updates.md).
 
 ### Permission Classes
 
@@ -1219,14 +1186,14 @@ Updates existing Django REST Framework permission classes to use the authorizati
 **Modifications:**
 
 1. **`has_permission()` method** (view-level check)
-   - Called before view execution
-   - Gets authorization service via `get_authorization_service()`
-   - Calls `has_permission()` with resource_type and verb (wildcard check)
+ - Called before view execution
+ - Gets authorization service via `get_authorization_service()`
+ - Calls `has_permission()` with resource_type and verb (wildcard check)
 
 2. **`has_object_permission()` method** (object-level check, Phase 2)
-   - Called when accessing specific resource objects
-   - Extracts resource ID from object (`cluster_id`, `node_id`, `namespace`)
-   - Calls `has_permission()` with resource_type, verb, and resource_id
+ - Called when accessing specific resource objects
+ - Extracts resource ID from object (`cluster_id`, `node_id`, `namespace`)
+ - Calls `has_permission()` with resource_type, verb, and resource_id
 
 **Backward Compatibility:**
 - No changes to API views or URL patterns
@@ -1244,19 +1211,19 @@ Minimal modifications to existing provider lifecycle methods to trigger Kessel s
 **New Helper Methods:**
 
 1. **`_report_ocp_cluster_to_kessel(provider, customer)`**
-   - Called after successful provider creation
-   - Guards: Only runs if `ONPREM=True` and provider is OCP type
-   - Extracts cluster_id from provider credentials
-   - Extracts creator username from request context
-   - Calls `KesselResourceReporter.report_ocp_cluster()`
-   - Logs warnings on failure but doesn't raise exceptions
+ - Called after successful provider creation
+ - Guards: Only runs if `ONPREM=True` and provider is OCP type
+ - Extracts cluster_id from provider credentials
+ - Extracts creator username from request context
+ - Calls `KesselResourceReporter.report_ocp_cluster()`
+ - Logs warnings on failure but doesn't raise exceptions
 
 2. **`_remove_ocp_cluster_from_kessel(provider)`**
-   - Called **after** successful provider deletion in Koku (Postgres cascade confirmed)
-   - Guards: Only runs if `ONPREM=True` and provider is OCP type
-   - Extracts cluster_id from provider credentials
-   - Calls `KesselResourceReporter.remove_ocp_cluster()`
-   - Logs errors on failure but does not revert the Koku deletion
+ - Called **after** successful provider deletion in Koku (Postgres cascade confirmed)
+ - Guards: Only runs if `ONPREM=True` and provider is OCP type
+ - Extracts cluster_id from provider credentials
+ - Calls `KesselResourceReporter.remove_ocp_cluster()`
+ - Logs errors on failure but does not revert the Koku deletion
 
 **Integration Points:**
 - `create_provider_from_source()` - Add call to `_report_ocp_cluster_to_kessel()` after `_create_provider()`
@@ -1462,15 +1429,15 @@ Provide operators with a user-friendly interface to manage access in Kessel-only
 **Phase 1: Essential Access Management**
 
 1. **Role Management Dashboard**
-   - View all available Cost Management roles
-   - See role descriptions and permissions
-   - Role assignment counts (how many users have each role)
+ - View all available Cost Management roles
+ - See role descriptions and permissions
+ - Role assignment counts (how many users have each role)
 
 2. **User Access Management**
-   - Search for users by email/ID
-   - View user's current role assignments
-   - Assign/revoke roles for users
-   - Filter by organization/tenant
+ - Search for users by email/ID
+ - View user's current role assignments
+ - Assign/revoke roles for users
+ - Filter by organization/tenant
 
 3. **Role Assignment Workflow**
    ```
@@ -1478,26 +1445,26 @@ Provide operators with a user-friendly interface to manage access in Kessel-only
    ```
 
 4. **Audit Log Viewer**
-   - View recent access changes
-   - Filter by user, date, action type
-   - Export audit logs for compliance
+ - View recent access changes
+ - Filter by user, date, action type
+ - Export audit logs for compliance
 
 **Phase 2: Advanced Features**
 
 5. **Resource-Specific Permissions**
-   - Grant cluster-specific access
-   - View cluster access matrix (who can access which clusters)
-   - Bulk permission management
+ - Grant cluster-specific access
+ - View cluster access matrix (who can access which clusters)
+ - Bulk permission management
 
 6. **Group Management**
-   - Create and manage user groups
-   - Assign roles to groups (affects all members)
-   - View group membership
+ - Create and manage user groups
+ - Assign roles to groups (affects all members)
+ - View group membership
 
 7. **Permission Visualization**
-   - Visual diagram of user's effective permissions
-   - "Why can this user access X?" troubleshooting tool
-   - Permission inheritance tree
+ - Visual diagram of user's effective permissions
+ - "Why can this user access X?" troubleshooting tool
+ - Permission inheritance tree
 
 #### UI Wireframes (Conceptual)
 
@@ -1666,28 +1633,28 @@ const assignRole = async (userId: string, roleId: string, tenantId: string) => {
 **Key Metrics to Track**:
 
 1. **Kessel Health**
-   - Connection status (up/down)
-   - Request latency (p50, p95, p99)
-   - Error rate (by error type)
-   - Connection pool utilization
+ - Connection status (up/down)
+ - Request latency (p50, p95, p99)
+ - Error rate (by error type)
+ - Connection pool utilization
 
 2. **Permission Check Performance**
-   - Average permission check latency
-   - Cache hit rate
-   - Cache miss rate spike (indicates Kessel issues)
-   - Slow query rate (>500ms)
+ - Average permission check latency
+ - Cache hit rate
+ - Cache miss rate spike (indicates Kessel issues)
+ - Slow query rate (>500ms)
 
 3. **Resource Synchronization**
-   - Sync success rate
-   - Sync failures (by reason: timeout, validation, etc.)
-   - Sync lag (time between provider creation and Kessel sync)
-   - Pending sync queue depth
+ - Sync success rate
+ - Sync failures (by reason: timeout, validation, etc.)
+ - Sync lag (time between provider creation and Kessel sync)
+ - Pending sync queue depth
 
 4. **Access Management API**
-   - Role assignment rate
-   - Failed assignments (by reason)
-   - Audit log growth rate
-   - Admin API latency
+ - Role assignment rate
+ - Failed assignments (by reason)
+ - Audit log growth rate
+ - Admin API latency
 
 **Dashboards**:
 
@@ -1814,8 +1781,8 @@ All Kessel-related logs include:
 If Kessel data is lost or corrupted:
 
 1. **Role Recovery**: Use platform-provided role seeding tooling
-   - Platform team should provide mechanism to re-seed roles from `rbac-config/roles/cost-management.json`
-   - Until platform tooling is available, manual recreation via Kessel API is required
+ - Platform team should provide mechanism to re-seed roles from `rbac-config/roles/cost-management.json`
+ - Until platform tooling is available, manual recreation via Kessel API is required
 
 2. **Resource Recovery**: Bulk resync all providers
    ```bash
@@ -1823,9 +1790,9 @@ If Kessel data is lost or corrupted:
    ```
 
 3. **User Access Recovery**: Requires manual restoration from audit logs
-   - Export audit logs from Postgres
-   - Replay role assignments via Access Management API
-   - Verify with permission checks
+ - Export audit logs from Postgres
+ - Replay role assignments via Access Management API
+ - Verify with permission checks
 
 **Data Consistency Checks**:
 
@@ -2121,9 +2088,9 @@ As Koku usage grows, monitor:
 - **Context**: In SaaS, RBAC Service auto-seeds these roles. On-premise Kessel-only deployments lack this automation.
 - **Platform Responsibility**: This is a platform-level concern affecting all Red Hat apps using Kessel
 - **Action Required**: Verify with Kessel/Platform team if they provide:
-  - Built-in role seeding mechanism
-  - CLI tool for bootstrapping roles
-  - Bulk import from `rbac-config` JSON files
+ - Built-in role seeding mechanism
+ - CLI tool for bootstrapping roles
+ - Bulk import from `rbac-config` JSON files
 - **Temporary Workaround**: Manual role creation via Kessel Relations API if no platform tooling exists
 - **Impact**: Blocks deployment until resolved
 
@@ -2136,17 +2103,17 @@ As Koku usage grows, monitor:
 
 **Q4: Who becomes the cluster owner when provider is created?**
 - **Options**: 
-  1. User who creates provider
-  2. Organization admin
-  3. No default owner (explicit assignment required)
+ 1. User who creates provider
+ 2. Organization admin
+ 3. No default owner (explicit assignment required)
 - **Recommendation**: User who creates provider
 - **Rationale**: Matches intuitive ownership model
 
 **Q5: How to handle node/project discovery synchronization?**
 - **Options**:
-  1. Lazy sync during first query
-  2. Background Celery job
-  3. Event-driven sync during data processing
+ 1. Lazy sync during first query
+ 2. Background Celery job
+ 3. Event-driven sync during data processing
 - **Recommendation**: Start with lazy sync (Option 1)
 - **Rationale**: Simpler, no new background jobs
 
@@ -2253,8 +2220,8 @@ As Koku usage grows, monitor:
 
 ---
 
-**Document Type**: High Level Design (HLD)  
-**Version**: 1.1  
-**Last Updated**: 2026-02-13  
-**Authors**: Koku Team  
+**Document Type**: High Level Design (HLD) 
+**Version**: 1.1 
+**Last Updated**: 2026-02-13 
+**Authors**: Koku Team 
 **Reviewers**: masayag, lcouzens
