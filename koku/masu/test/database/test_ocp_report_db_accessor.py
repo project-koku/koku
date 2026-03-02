@@ -1126,17 +1126,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Test that distribution is called and GPU skipped for current month (not second of month)."""
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
-        masu_database, mock_jinja = self._setup_distributed_cost_sql_mocks(start_date, end_date)
-
         # Testing 1st and 3rd (previous window GPU finalization window) alongside 15th
         days_to_test = [1, 3, 15]
 
         for day in days_to_test:
             with self.subTest(day=day):
+                masu_database, mock_jinja = self._setup_distributed_cost_sql_mocks(start_date, end_date)
                 mock_data_get.reset_mock()
                 mock_sql_execute.reset_mock()
                 mock_trino_execute.reset_mock()
-
                 with (
                     self.accessor as acc,
                     patch("masu.database.ocp_report_db_accessor.DateHelper") as mock_dh_class,
