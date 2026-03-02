@@ -1135,6 +1135,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             with self.subTest(day=day):
                 mock_data_get.reset_mock()
                 mock_sql_execute.reset_mock()
+                mock_trino_execute.reset_mock()
 
                 with (
                     self.accessor as acc,
@@ -1142,7 +1143,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 ):
                     mock_dh = Mock()
                     mock_dh.parse_to_date.return_value = start_date
-                    # Set the current "now" to the specific day being tested
                     mock_dh.now_utc = self.dh.now.replace(day=day)
                     mock_dh_class.return_value = mock_dh
 
@@ -1158,7 +1158,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     # Validate that standard SQL distributions (Platform/Worker) still run
                     mock_sql_execute.assert_called()
 
-                    # GPU should NOT be called since it's not the 2nd of the month
+                    # Validate that no Trino distributions (GPU) are called on these days
+                    mock_trino_execute.assert_not_called()
+
+                    # Double check the specific GPU SQL file was never requested
                     gpu_call = call(
                         masu_database,
                         "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
