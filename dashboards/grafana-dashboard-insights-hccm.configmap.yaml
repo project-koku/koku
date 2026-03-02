@@ -4642,6 +4642,32 @@ data:
           "type": "gauge"
         },
         {
+          "collapsed": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "iLX_mMBnk"
+          },
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 123
+          },
+          "id": 28,
+          "panels": [],
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "iLX_mMBnk"
+              },
+              "refId": "A"
+            }
+          ],
+          "title": "RDS Database",
+          "type": "row"
+        },
+        {
           "aliasColors": {},
           "bars": false,
           "dashLength": 10,
@@ -5087,32 +5113,6 @@ data:
           "yaxis": {
             "align": false
           }
-        },
-        {
-          "collapsed": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "iLX_mMBnk"
-          },
-          "gridPos": {
-            "h": 1,
-            "w": 24,
-            "x": 0,
-            "y": 123
-          },
-          "id": 28,
-          "panels": [],
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "iLX_mMBnk"
-              },
-              "refId": "A"
-            }
-          ],
-          "title": "RDS Database",
-          "type": "row"
         },
         {
           "collapsed": false,
