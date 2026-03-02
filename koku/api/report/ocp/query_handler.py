@@ -268,9 +268,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     query_order_by[-1] = "rank"
 
             # Populate the 'total' section of the API response
-            if query.exists():
-                aggregates = self._mapper.report_type_map.get("aggregates")
-                metric_sum = query.aggregate(**aggregates)
+            # Note: aggregate() returns a dict with None values if no data exists,
+            # avoiding the need for an extra exists() query
+            aggregates = self._mapper.report_type_map.get("aggregates")
+            metric_sum = query.aggregate(**aggregates)
+            if any(v is not None for v in metric_sum.values()):
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             query_data, total_capacity = self.get_capacity(query_data)
