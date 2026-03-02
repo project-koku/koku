@@ -1,0 +1,365 @@
+/**
+ * Cost Management ZED schema for Kessel/SpiceDB.
+ *
+ * Defines the authorization model used by Koku's ReBAC integration.
+ * Relations match the role definitions in dev/kessel/seed-roles.yaml.
+ *
+ * Permission names align with the upstream SaaS KSL compound convention:
+ *   _view = _read + _all + all_read + all_all + all_all_all
+ *   _edit = _write + _all + all_write + all_all + all_all_all
+ *
+ * Deploy with:  relations-api loads this via SPICEDB_SCHEMA_FILE env var.
+ */
+
+definition kessel/lock {
+    permission version = t_version
+    relation t_version: kessel/lockversion
+}
+
+definition kessel/lockversion {}
+
+definition rbac/principal {}
+
+definition rbac/group {
+    permission member = t_member
+    relation t_member: rbac/principal | rbac/group#member
+}
+
+definition rbac/role {
+    /* Wildcard (all resources, all verbs) */
+    relation t_cost_management_all_all: rbac/principal:*
+    permission cost_management_all_all = t_cost_management_all_all
+
+    /* KSL wildcards (app-level verb wildcards + global wildcard) */
+    relation t_cost_management_all_read: rbac/principal:*
+    permission cost_management_all_read = t_cost_management_all_read
+
+    relation t_cost_management_all_write: rbac/principal:*
+    permission cost_management_all_write = t_cost_management_all_write
+
+    relation t_all_all_all: rbac/principal:*
+    permission all_all_all = t_all_all_all
+
+    /* AWS */
+    relation t_cost_management_aws_account_all: rbac/principal:*
+    permission cost_management_aws_account_all = t_cost_management_aws_account_all
+
+    relation t_cost_management_aws_account_read: rbac/principal:*
+    permission cost_management_aws_account_read = t_cost_management_aws_account_read
+
+    permission cost_management_aws_account_view = cost_management_aws_account_read + cost_management_aws_account_all + cost_management_all_read + cost_management_all_all + all_all_all
+
+    relation t_cost_management_aws_organizational_unit_all: rbac/principal:*
+    permission cost_management_aws_organizational_unit_all = t_cost_management_aws_organizational_unit_all
+
+    relation t_cost_management_aws_organizational_unit_read: rbac/principal:*
+    permission cost_management_aws_organizational_unit_read = t_cost_management_aws_organizational_unit_read
+
+    permission cost_management_aws_organizational_unit_view = cost_management_aws_organizational_unit_read + cost_management_aws_organizational_unit_all + cost_management_all_read + cost_management_all_all + all_all_all
+
+    /* GCP */
+    relation t_cost_management_gcp_account_all: rbac/principal:*
+    permission cost_management_gcp_account_all = t_cost_management_gcp_account_all
+
+    relation t_cost_management_gcp_account_read: rbac/principal:*
+    permission cost_management_gcp_account_read = t_cost_management_gcp_account_read
+
+    permission cost_management_gcp_account_view = cost_management_gcp_account_read + cost_management_gcp_account_all + cost_management_all_read + cost_management_all_all + all_all_all
+
+    relation t_cost_management_gcp_project_all: rbac/principal:*
+    permission cost_management_gcp_project_all = t_cost_management_gcp_project_all
+
+    relation t_cost_management_gcp_project_read: rbac/principal:*
+    permission cost_management_gcp_project_read = t_cost_management_gcp_project_read
+
+    permission cost_management_gcp_project_view = cost_management_gcp_project_read + cost_management_gcp_project_all + cost_management_all_read + cost_management_all_all + all_all_all
+
+    /* Azure */
+    relation t_cost_management_azure_subscription_guid_all: rbac/principal:*
+    permission cost_management_azure_subscription_guid_all = t_cost_management_azure_subscription_guid_all
+
+    relation t_cost_management_azure_subscription_guid_read: rbac/principal:*
+    permission cost_management_azure_subscription_guid_read = t_cost_management_azure_subscription_guid_read
+
+    permission cost_management_azure_subscription_guid_view = cost_management_azure_subscription_guid_read + cost_management_azure_subscription_guid_all + cost_management_all_read + cost_management_all_all + all_all_all
+
+    /* OpenShift */
+    relation t_cost_management_openshift_cluster_all: rbac/principal:*
+    permission cost_management_openshift_cluster_all = t_cost_management_openshift_cluster_all
+
+    relation t_cost_management_openshift_cluster_read: rbac/principal:*
+    permission cost_management_openshift_cluster_read = t_cost_management_openshift_cluster_read
+
+    permission cost_management_openshift_cluster_view = cost_management_openshift_cluster_read + cost_management_openshift_cluster_all + cost_management_all_read + cost_management_all_all + all_all_all
+
+    relation t_cost_management_openshift_node_all: rbac/principal:*
+    permission cost_management_openshift_node_all = t_cost_management_openshift_node_all
+
+    relation t_cost_management_openshift_node_read: rbac/principal:*
+    permission cost_management_openshift_node_read = t_cost_management_openshift_node_read
+
+    permission cost_management_openshift_node_view = cost_management_openshift_node_read + cost_management_openshift_node_all + cost_management_all_read + cost_management_all_all + all_all_all
+
+    relation t_cost_management_openshift_project_all: rbac/principal:*
+    permission cost_management_openshift_project_all = t_cost_management_openshift_project_all
+
+    relation t_cost_management_openshift_project_read: rbac/principal:*
+    permission cost_management_openshift_project_read = t_cost_management_openshift_project_read
+
+    permission cost_management_openshift_project_view = cost_management_openshift_project_read + cost_management_openshift_project_all + cost_management_all_read + cost_management_all_all + all_all_all
+
+    /* Cost models (read + write) */
+    relation t_cost_management_cost_model_all: rbac/principal:*
+    permission cost_management_cost_model_all = t_cost_management_cost_model_all
+
+    relation t_cost_management_cost_model_read: rbac/principal:*
+    permission cost_management_cost_model_read = t_cost_management_cost_model_read
+
+    relation t_cost_management_cost_model_write: rbac/principal:*
+    permission cost_management_cost_model_write = t_cost_management_cost_model_write
+
+    permission cost_management_cost_model_view = cost_management_cost_model_read + cost_management_cost_model_all + cost_management_all_read + cost_management_all_all + all_all_all
+    permission cost_management_cost_model_edit = cost_management_cost_model_write + cost_management_cost_model_all + cost_management_all_write + cost_management_all_all + all_all_all
+
+    /* Settings (read + write) */
+    relation t_cost_management_settings_all: rbac/principal:*
+    permission cost_management_settings_all = t_cost_management_settings_all
+
+    relation t_cost_management_settings_read: rbac/principal:*
+    permission cost_management_settings_read = t_cost_management_settings_read
+
+    relation t_cost_management_settings_write: rbac/principal:*
+    permission cost_management_settings_write = t_cost_management_settings_write
+
+    permission cost_management_settings_view = cost_management_settings_read + cost_management_settings_all + cost_management_all_read + cost_management_all_all + all_all_all
+    permission cost_management_settings_edit = cost_management_settings_write + cost_management_settings_all + cost_management_all_write + cost_management_all_all + all_all_all
+}
+
+definition rbac/role_binding {
+    relation t_granted: rbac/role
+    permission granted = t_granted
+
+    relation t_subject: rbac/principal | rbac/group#member
+    permission subject = t_subject
+
+    /* Wildcard */
+    permission cost_management_all_all = (subject & t_granted->cost_management_all_all)
+
+    /* KSL wildcards */
+    permission cost_management_all_read = (subject & t_granted->cost_management_all_read)
+    permission cost_management_all_write = (subject & t_granted->cost_management_all_write)
+    permission all_all_all = (subject & t_granted->all_all_all)
+
+    /* AWS */
+    permission cost_management_aws_account_all = (subject & t_granted->cost_management_aws_account_all)
+    permission cost_management_aws_account_read = (subject & t_granted->cost_management_aws_account_read)
+    permission cost_management_aws_account_view = (subject & t_granted->cost_management_aws_account_view)
+    permission cost_management_aws_organizational_unit_all = (subject & t_granted->cost_management_aws_organizational_unit_all)
+    permission cost_management_aws_organizational_unit_read = (subject & t_granted->cost_management_aws_organizational_unit_read)
+    permission cost_management_aws_organizational_unit_view = (subject & t_granted->cost_management_aws_organizational_unit_view)
+
+    /* GCP */
+    permission cost_management_gcp_account_all = (subject & t_granted->cost_management_gcp_account_all)
+    permission cost_management_gcp_account_read = (subject & t_granted->cost_management_gcp_account_read)
+    permission cost_management_gcp_account_view = (subject & t_granted->cost_management_gcp_account_view)
+    permission cost_management_gcp_project_all = (subject & t_granted->cost_management_gcp_project_all)
+    permission cost_management_gcp_project_read = (subject & t_granted->cost_management_gcp_project_read)
+    permission cost_management_gcp_project_view = (subject & t_granted->cost_management_gcp_project_view)
+
+    /* Azure */
+    permission cost_management_azure_subscription_guid_all = (subject & t_granted->cost_management_azure_subscription_guid_all)
+    permission cost_management_azure_subscription_guid_read = (subject & t_granted->cost_management_azure_subscription_guid_read)
+    permission cost_management_azure_subscription_guid_view = (subject & t_granted->cost_management_azure_subscription_guid_view)
+
+    /* OpenShift */
+    permission cost_management_openshift_cluster_all = (subject & t_granted->cost_management_openshift_cluster_all)
+    permission cost_management_openshift_cluster_read = (subject & t_granted->cost_management_openshift_cluster_read)
+    permission cost_management_openshift_cluster_view = (subject & t_granted->cost_management_openshift_cluster_view)
+    permission cost_management_openshift_node_all = (subject & t_granted->cost_management_openshift_node_all)
+    permission cost_management_openshift_node_read = (subject & t_granted->cost_management_openshift_node_read)
+    permission cost_management_openshift_node_view = (subject & t_granted->cost_management_openshift_node_view)
+    permission cost_management_openshift_project_all = (subject & t_granted->cost_management_openshift_project_all)
+    permission cost_management_openshift_project_read = (subject & t_granted->cost_management_openshift_project_read)
+    permission cost_management_openshift_project_view = (subject & t_granted->cost_management_openshift_project_view)
+
+    /* Cost models */
+    permission cost_management_cost_model_all = (subject & t_granted->cost_management_cost_model_all)
+    permission cost_management_cost_model_read = (subject & t_granted->cost_management_cost_model_read)
+    permission cost_management_cost_model_write = (subject & t_granted->cost_management_cost_model_write)
+    permission cost_management_cost_model_view = (subject & t_granted->cost_management_cost_model_view)
+    permission cost_management_cost_model_edit = (subject & t_granted->cost_management_cost_model_edit)
+
+    /* Settings */
+    permission cost_management_settings_all = (subject & t_granted->cost_management_settings_all)
+    permission cost_management_settings_read = (subject & t_granted->cost_management_settings_read)
+    permission cost_management_settings_write = (subject & t_granted->cost_management_settings_write)
+    permission cost_management_settings_view = (subject & t_granted->cost_management_settings_view)
+    permission cost_management_settings_edit = (subject & t_granted->cost_management_settings_edit)
+}
+
+definition rbac/tenant {
+    relation t_binding: rbac/role_binding
+    permission binding = t_binding
+
+    relation t_platform: rbac/tenant
+    permission platform = t_platform
+
+    /* Wildcard */
+    permission cost_management_all_all = t_binding->cost_management_all_all + t_platform->cost_management_all_all
+
+    /* KSL wildcards */
+    permission cost_management_all_read = t_binding->cost_management_all_read + t_platform->cost_management_all_read
+    permission cost_management_all_write = t_binding->cost_management_all_write + t_platform->cost_management_all_write
+    permission all_all_all = t_binding->all_all_all + t_platform->all_all_all
+
+    /* AWS */
+    permission cost_management_aws_account_all = t_binding->cost_management_aws_account_all + t_platform->cost_management_aws_account_all
+    permission cost_management_aws_account_read = t_binding->cost_management_aws_account_read + t_platform->cost_management_aws_account_read
+    permission cost_management_aws_account_view = t_binding->cost_management_aws_account_view + t_platform->cost_management_aws_account_view
+    permission cost_management_aws_organizational_unit_all = t_binding->cost_management_aws_organizational_unit_all + t_platform->cost_management_aws_organizational_unit_all
+    permission cost_management_aws_organizational_unit_read = t_binding->cost_management_aws_organizational_unit_read + t_platform->cost_management_aws_organizational_unit_read
+    permission cost_management_aws_organizational_unit_view = t_binding->cost_management_aws_organizational_unit_view + t_platform->cost_management_aws_organizational_unit_view
+
+    /* GCP */
+    permission cost_management_gcp_account_all = t_binding->cost_management_gcp_account_all + t_platform->cost_management_gcp_account_all
+    permission cost_management_gcp_account_read = t_binding->cost_management_gcp_account_read + t_platform->cost_management_gcp_account_read
+    permission cost_management_gcp_account_view = t_binding->cost_management_gcp_account_view + t_platform->cost_management_gcp_account_view
+    permission cost_management_gcp_project_all = t_binding->cost_management_gcp_project_all + t_platform->cost_management_gcp_project_all
+    permission cost_management_gcp_project_read = t_binding->cost_management_gcp_project_read + t_platform->cost_management_gcp_project_read
+    permission cost_management_gcp_project_view = t_binding->cost_management_gcp_project_view + t_platform->cost_management_gcp_project_view
+
+    /* Azure */
+    permission cost_management_azure_subscription_guid_all = t_binding->cost_management_azure_subscription_guid_all + t_platform->cost_management_azure_subscription_guid_all
+    permission cost_management_azure_subscription_guid_read = t_binding->cost_management_azure_subscription_guid_read + t_platform->cost_management_azure_subscription_guid_read
+    permission cost_management_azure_subscription_guid_view = t_binding->cost_management_azure_subscription_guid_view + t_platform->cost_management_azure_subscription_guid_view
+
+    /* OpenShift */
+    permission cost_management_openshift_cluster_all = t_binding->cost_management_openshift_cluster_all + t_platform->cost_management_openshift_cluster_all
+    permission cost_management_openshift_cluster_read = t_binding->cost_management_openshift_cluster_read + t_platform->cost_management_openshift_cluster_read
+    permission cost_management_openshift_cluster_view = t_binding->cost_management_openshift_cluster_view + t_platform->cost_management_openshift_cluster_view
+    permission cost_management_openshift_node_all = t_binding->cost_management_openshift_node_all + t_platform->cost_management_openshift_node_all
+    permission cost_management_openshift_node_read = t_binding->cost_management_openshift_node_read + t_platform->cost_management_openshift_node_read
+    permission cost_management_openshift_node_view = t_binding->cost_management_openshift_node_view + t_platform->cost_management_openshift_node_view
+    permission cost_management_openshift_project_all = t_binding->cost_management_openshift_project_all + t_platform->cost_management_openshift_project_all
+    permission cost_management_openshift_project_read = t_binding->cost_management_openshift_project_read + t_platform->cost_management_openshift_project_read
+    permission cost_management_openshift_project_view = t_binding->cost_management_openshift_project_view + t_platform->cost_management_openshift_project_view
+
+    /* Cost models */
+    permission cost_management_cost_model_all = t_binding->cost_management_cost_model_all + t_platform->cost_management_cost_model_all
+    permission cost_management_cost_model_read = t_binding->cost_management_cost_model_read + t_platform->cost_management_cost_model_read
+    permission cost_management_cost_model_write = t_binding->cost_management_cost_model_write + t_platform->cost_management_cost_model_write
+    permission cost_management_cost_model_view = t_binding->cost_management_cost_model_view + t_platform->cost_management_cost_model_view
+    permission cost_management_cost_model_edit = t_binding->cost_management_cost_model_edit + t_platform->cost_management_cost_model_edit
+
+    /* Settings */
+    permission cost_management_settings_all = t_binding->cost_management_settings_all + t_platform->cost_management_settings_all
+    permission cost_management_settings_read = t_binding->cost_management_settings_read + t_platform->cost_management_settings_read
+    permission cost_management_settings_write = t_binding->cost_management_settings_write + t_platform->cost_management_settings_write
+    permission cost_management_settings_view = t_binding->cost_management_settings_view + t_platform->cost_management_settings_view
+    permission cost_management_settings_edit = t_binding->cost_management_settings_edit + t_platform->cost_management_settings_edit
+}
+
+definition rbac/workspace {
+    relation t_parent: rbac/workspace | rbac/tenant
+    relation t_binding: rbac/role_binding
+
+    /* Wildcard */
+    permission cost_management_all_all = t_binding->cost_management_all_all + t_parent->cost_management_all_all
+
+    /* KSL wildcards */
+    permission cost_management_all_read = t_binding->cost_management_all_read + t_parent->cost_management_all_read
+    permission cost_management_all_write = t_binding->cost_management_all_write + t_parent->cost_management_all_write
+    permission all_all_all = t_binding->all_all_all + t_parent->all_all_all
+
+    /* AWS */
+    permission cost_management_aws_account_view = t_binding->cost_management_aws_account_view + t_parent->cost_management_aws_account_view
+    permission cost_management_aws_account_all = t_binding->cost_management_aws_account_all + t_parent->cost_management_aws_account_all
+    permission cost_management_aws_account_read = t_binding->cost_management_aws_account_read + t_parent->cost_management_aws_account_read
+    permission cost_management_aws_organizational_unit_view = t_binding->cost_management_aws_organizational_unit_view + t_parent->cost_management_aws_organizational_unit_view
+    permission cost_management_aws_organizational_unit_all = t_binding->cost_management_aws_organizational_unit_all + t_parent->cost_management_aws_organizational_unit_all
+    permission cost_management_aws_organizational_unit_read = t_binding->cost_management_aws_organizational_unit_read + t_parent->cost_management_aws_organizational_unit_read
+
+    /* GCP */
+    permission cost_management_gcp_account_view = t_binding->cost_management_gcp_account_view + t_parent->cost_management_gcp_account_view
+    permission cost_management_gcp_account_all = t_binding->cost_management_gcp_account_all + t_parent->cost_management_gcp_account_all
+    permission cost_management_gcp_account_read = t_binding->cost_management_gcp_account_read + t_parent->cost_management_gcp_account_read
+    permission cost_management_gcp_project_view = t_binding->cost_management_gcp_project_view + t_parent->cost_management_gcp_project_view
+    permission cost_management_gcp_project_all = t_binding->cost_management_gcp_project_all + t_parent->cost_management_gcp_project_all
+    permission cost_management_gcp_project_read = t_binding->cost_management_gcp_project_read + t_parent->cost_management_gcp_project_read
+
+    /* Azure */
+    permission cost_management_azure_subscription_guid_view = t_binding->cost_management_azure_subscription_guid_view + t_parent->cost_management_azure_subscription_guid_view
+    permission cost_management_azure_subscription_guid_all = t_binding->cost_management_azure_subscription_guid_all + t_parent->cost_management_azure_subscription_guid_all
+    permission cost_management_azure_subscription_guid_read = t_binding->cost_management_azure_subscription_guid_read + t_parent->cost_management_azure_subscription_guid_read
+
+    /* OpenShift */
+    permission cost_management_openshift_cluster_view = t_binding->cost_management_openshift_cluster_view + t_parent->cost_management_openshift_cluster_view
+    permission cost_management_openshift_cluster_all = t_binding->cost_management_openshift_cluster_all + t_parent->cost_management_openshift_cluster_all
+    permission cost_management_openshift_cluster_read = t_binding->cost_management_openshift_cluster_read + t_parent->cost_management_openshift_cluster_read
+    permission cost_management_openshift_node_view = t_binding->cost_management_openshift_node_view + t_parent->cost_management_openshift_node_view
+    permission cost_management_openshift_node_all = t_binding->cost_management_openshift_node_all + t_parent->cost_management_openshift_node_all
+    permission cost_management_openshift_node_read = t_binding->cost_management_openshift_node_read + t_parent->cost_management_openshift_node_read
+    permission cost_management_openshift_project_view = t_binding->cost_management_openshift_project_view + t_parent->cost_management_openshift_project_view
+    permission cost_management_openshift_project_all = t_binding->cost_management_openshift_project_all + t_parent->cost_management_openshift_project_all
+    permission cost_management_openshift_project_read = t_binding->cost_management_openshift_project_read + t_parent->cost_management_openshift_project_read
+
+    /* Cost models (read + write) */
+    permission cost_management_cost_model_view = t_binding->cost_management_cost_model_view + t_parent->cost_management_cost_model_view
+    permission cost_management_cost_model_all = t_binding->cost_management_cost_model_all + t_parent->cost_management_cost_model_all
+    permission cost_management_cost_model_read = t_binding->cost_management_cost_model_read + t_parent->cost_management_cost_model_read
+    permission cost_management_cost_model_write = t_binding->cost_management_cost_model_write + t_parent->cost_management_cost_model_write
+    permission cost_management_cost_model_edit = t_binding->cost_management_cost_model_edit + t_parent->cost_management_cost_model_edit
+
+    /* Settings (read + write) */
+    permission cost_management_settings_view = t_binding->cost_management_settings_view + t_parent->cost_management_settings_view
+    permission cost_management_settings_all = t_binding->cost_management_settings_all + t_parent->cost_management_settings_all
+    permission cost_management_settings_read = t_binding->cost_management_settings_read + t_parent->cost_management_settings_read
+    permission cost_management_settings_write = t_binding->cost_management_settings_write + t_parent->cost_management_settings_write
+    permission cost_management_settings_edit = t_binding->cost_management_settings_edit + t_parent->cost_management_settings_edit
+}
+
+definition cost_management/openshift_cluster {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_openshift_cluster_read + t_workspace->cost_management_openshift_cluster_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
+}
+
+definition cost_management/openshift_node {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_openshift_node_read + t_workspace->cost_management_openshift_node_all + t_workspace->cost_management_openshift_cluster_read + t_workspace->cost_management_openshift_cluster_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
+}
+
+definition cost_management/openshift_project {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_openshift_project_read + t_workspace->cost_management_openshift_project_all + t_workspace->cost_management_openshift_node_read + t_workspace->cost_management_openshift_node_all + t_workspace->cost_management_openshift_cluster_read + t_workspace->cost_management_openshift_cluster_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
+}
+
+definition cost_management/aws_account {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_aws_account_read + t_workspace->cost_management_aws_account_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
+}
+
+definition cost_management/aws_organizational_unit {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_aws_organizational_unit_read + t_workspace->cost_management_aws_organizational_unit_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
+}
+
+definition cost_management/gcp_account {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_gcp_account_read + t_workspace->cost_management_gcp_account_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
+}
+
+definition cost_management/gcp_project {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_gcp_project_read + t_workspace->cost_management_gcp_project_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
+}
+
+definition cost_management/azure_subscription_guid {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_azure_subscription_guid_read + t_workspace->cost_management_azure_subscription_guid_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
+}
+
+definition cost_management/cost_model {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_cost_model_read + t_workspace->cost_management_cost_model_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
+    permission write = t_workspace->cost_management_cost_model_write + t_workspace->cost_management_cost_model_all + t_workspace->cost_management_all_write + t_workspace->cost_management_all_all + t_workspace->all_all_all
+}

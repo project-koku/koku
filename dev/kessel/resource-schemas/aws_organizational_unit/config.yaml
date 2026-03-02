@@ -1,0 +1,3 @@
+resource_type: aws_organizational_unit
+resource_reporters:
+  - cost_management
