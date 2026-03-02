@@ -13,6 +13,7 @@ from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
 from api.report.ocp.serializers import OCPGpuQueryParamSerializer
 from api.report.ocp.serializers import OCPInventoryQueryParamSerializer
+from api.report.ocp.serializers import OCPMigProfilesQueryParamSerializer
 from api.report.ocp.serializers import OCPVirtualMachinesQueryParamSerializer
 from api.report.view import ReportView
 from masu.processor import is_feature_flag_enabled_by_schema
@@ -78,6 +79,26 @@ class OCPGpuView(OCPView):
 
     def get(self, request, **kwargs):
         """Get GPU report data with Unleash flag protection."""
+        schema = request.user.customer.schema_name
+
+        if not is_feature_flag_enabled_by_schema(schema, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        return super().get(request, **kwargs)
+
+
+class OCPMigProfilesView(OCPView):
+    """Get OpenShift MIG (Multi-Instance GPU) profile data.
+
+    This endpoint returns MIG profile information without costs.
+    Requires filter by vendor, model, and node.
+    """
+
+    report = "mig_profiles"
+    serializer = OCPMigProfilesQueryParamSerializer
+
+    def get(self, request, **kwargs):
+        """Get MIG profiles data with Unleash flag protection."""
         schema = request.user.customer.schema_name
 
         if not is_feature_flag_enabled_by_schema(schema, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True):

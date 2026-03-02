@@ -309,9 +309,16 @@ GPU_USAGE_COLUMNS = {
     "gpu_vendor_name",
     "gpu_memory_capacity_mib",
     "gpu_pod_uptime",
+    # MIG (Multi-Instance GPU) fields
+    "mig_instance_uuid",
+    "mig_profile",
+    "mig_slice_count",
+    "parent_gpu_max_slices",
+    "parent_gpu_uuid",
+    "mig_memory_capacity_mib",
 }
 
-GPU_GROUP_BY = ["node", "namespace", "pod", "gpu_uuid"]
+GPU_GROUP_BY = ["node", "namespace", "pod", "gpu_uuid", "mig_instance_uuid"]
 
 GPU_AGG = {
     "report_period_start": ["max"],
@@ -320,6 +327,12 @@ GPU_AGG = {
     "gpu_vendor_name": ["max"],
     "gpu_memory_capacity_mib": ["max"],
     "gpu_pod_uptime": ["sum"],
+    # MIG aggregations (mig_instance_uuid is in GROUP_BY, so not included here)
+    "mig_profile": ["max"],
+    "mig_slice_count": ["max"],
+    "parent_gpu_max_slices": ["max"],
+    "parent_gpu_uuid": ["max"],
+    "mig_memory_capacity_mib": ["max"],
 }
 
 # new_required_columns are columns that appear in new operator reports.
