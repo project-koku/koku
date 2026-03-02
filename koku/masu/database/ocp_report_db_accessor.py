@@ -28,6 +28,7 @@ from api.utils import DateHelper
 from cost_models.sql_parameters import BaseCostModelParams
 from koku.database import SQLScriptAtomicExecutorMixin
 from koku.reportdb_accessor import get_report_db_accessor
+from koku_rebac.resource_reporter import on_resource_created
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -1038,6 +1039,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     LOG.info(log_json(msg="running populate_tag_usage_default_costs SQL", context=ctx))
                     self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
+    @staticmethod
+    def _report_ocp_resources_to_kessel(provider, nodes, projects):
+        """Report OCP nodes and projects to Kessel Inventory.
+
+        Gracefully skips reporting when no nodes/projects are present.
+        on_resource_created is itself a no-op when AUTHORIZATION_BACKEND != "rebac".
+        """
+        if not nodes and not projects:
+            return
+        org_id = getattr(provider, "org_id", None) or ""
+        for node in nodes:
+            on_resource_created("openshift_node", node, org_id)
+        for project in projects:
+            on_resource_created("openshift_project", project, org_id)
+
     def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
         """Populate the cluster, node, PVC, and project tables for the cluster."""
         cluster_table = self.populate_cluster_table(provider, cluster_id, cluster_alias)
@@ -1049,6 +1065,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self.populate_node_table(cluster_table, nodes)
         self.populate_pvc_table(cluster_table, pvcs)
         self.populate_project_table(cluster_table, projects)
+        self._report_ocp_resources_to_kessel(provider, nodes, projects)
 
     def populate_cluster_table(self, provider, cluster_id, cluster_alias):
         """Get or create an entry in the OCP cluster table."""

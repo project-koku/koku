@@ -3,10 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Source type mapping for CMMO compatibility."""
+import os
+
 from api.provider.models import Provider
 
-# Cost Management is the only supported application type in on-prem
-COST_MGMT_APP_TYPE_ID = "0"
+COST_MGMT_APP_TYPE_ID = os.environ.get("COST_APPLICATION_TYPE_ID", "0")
 
 # CMMO ID -> Koku provider type (e.g., "1" -> "OCP")
 CMMO_ID_TO_PROVIDER_TYPE = {

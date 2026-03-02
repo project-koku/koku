@@ -22,6 +22,7 @@ from api.provider.serializers import ProviderSerializer
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import SOURCES_CACHE_PREFIX
 from koku.middleware import IdentityHeaderMiddleware
+from koku_rebac.resource_reporter import on_resource_created
 
 LOG = logging.getLogger(__name__)
 
@@ -51,6 +52,11 @@ class ProviderBuilder:
         except ValueError:
             db_dict = {}
         return db_dict
+
+    @staticmethod
+    def _report_ocp_resource(cluster_id: str, org_id: str) -> None:
+        """Report an OCP cluster to Kessel Inventory."""
+        on_resource_created("openshift_cluster", cluster_id, org_id)
 
     def _build_credentials_auth(self, provider_type, authentication):
         credentials = authentication.get("credentials")
@@ -133,6 +139,8 @@ class ProviderBuilder:
         try:
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
+                if provider_type.lower().startswith("ocp"):
+                    self._report_ocp_resource(str(instance.uuid), self.org_id)
         finally:
             invalidate_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
             connection.set_schema_to_public()

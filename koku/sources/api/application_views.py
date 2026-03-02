@@ -3,11 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Applications (CMMO compatibility)."""
+from django.conf import settings
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.common.permissions.settings_access import SettingsAccessPermission
 from api.provider.models import Sources
 from sources.api.source_type_mapping import COST_MGMT_APP_TYPE_ID
 
@@ -20,7 +22,7 @@ class ApplicationsView(APIView):
     this is handled entirely in the API layer without database storage.
     """
 
-    permission_classes = (AllowAny,)
+    permission_classes = (SettingsAccessPermission,) if settings.ONPREM else (AllowAny,)
 
     def get(self, request):
         """List applications with optional filter[source_id] and filter[application_type_id] support."""

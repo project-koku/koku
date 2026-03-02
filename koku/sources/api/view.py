@@ -33,6 +33,7 @@ from rest_framework.serializers import ValidationError
 from api.common.filters import CharListFilter
 from api.common.pagination import ListPaginator
 from api.common.permissions import RESOURCE_TYPE_MAP
+from api.common.permissions.settings_access import SettingsAccessPermission
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
@@ -160,7 +161,7 @@ class SourcesViewSet(*MIXIN_LIST):
 
     lookup_fields = ("source_id", "source_uuid")
     queryset = Sources.objects.all()
-    permission_classes = (AllowAny,)
+    permission_classes = (SettingsAccessPermission,) if settings.ONPREM else (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
     http_method_names = HTTP_METHOD_LIST
