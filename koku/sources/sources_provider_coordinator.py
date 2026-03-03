@@ -5,8 +5,10 @@
 """Sources-Provider Coordinator."""
 import logging
 
+from django.db import IntegrityError
 from rest_framework.exceptions import ValidationError
 
+from api.models import Provider
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_builder import ProviderBuilderError
 from sources.storage import add_provider_koku_uuid
@@ -39,6 +41,26 @@ class SourcesProviderCoordinator:
             LOG.info(f"Creating Provider for Source ID: {str(self._source_id)}")
             provider = self._provider_builder.create_provider_from_source(source)
             add_provider_koku_uuid(self._source_id, provider.uuid)
+        except IntegrityError as integrity_err:
+            if source.source_uuid and "api_provider" in str(integrity_err).lower():
+                try:
+                    provider = Provider.objects.get(uuid=source.source_uuid)
+                    if provider.customer and provider.customer.org_id == source.org_id:
+                        LOG.info(
+                            f"Provider {provider.uuid} already exists for source_id {self._source_id}. "
+                            "Linking source to existing provider."
+                        )
+                        add_provider_koku_uuid(self._source_id, provider.uuid)
+                        return provider
+                    else:
+                        LOG.warning(
+                            f"Provider {provider.uuid} exists but belongs to different org. "
+                            f"Expected org_id {source.org_id}, found "
+                            f"{provider.customer.org_id if provider.customer else None}."
+                        )
+                except Provider.DoesNotExist:
+                    pass
+            raise SourcesProviderCoordinatorError(str(integrity_err))
         except ProviderBuilderError as provider_err:
             raise SourcesProviderCoordinatorError(str(provider_err))
         return provider
