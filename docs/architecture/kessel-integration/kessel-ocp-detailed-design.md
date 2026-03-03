@@ -388,6 +388,8 @@ Key design details:
 
 Returning explicit ID lists instead of `"*"` means the query layer always applies `WHERE uuid IN (...)` filters. For users with access to many resources, this is functionally equivalent to no filter but marginally less efficient. This is an acceptable trade-off for correctness and deployment-agnostic behavior. Optimization (e.g., query-layer awareness of "all resources" case) can be added later if needed.
 
+> **Design rationale**: The adapter pattern (bulk-fetch access, filter locally) was chosen over per-resource `Check()` calls because Koku's query layer needs a **set of allowed IDs** to build SQL `WHERE` clauses -- not a boolean per resource. `StreamedListObjects` answers this in O(1) calls per type versus O(N) `Check()` calls. See [Authorization Delegation DD §5 -- "Why fetch all access, intersect locally"](./kessel-authorization-delegation-dd.md#why-fetch-all-access-intersect-locally----not-check-per-resource) for the full analysis.
+
 ### 5.4 Koku-to-Kessel Type Mapping
 
 Defined as a constant in [`koku/koku_rebac/access_provider.py`](../../../koku/koku_rebac/access_provider.py):

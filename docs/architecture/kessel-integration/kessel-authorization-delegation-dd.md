@@ -232,6 +232,65 @@ permissions. Koku trusts these results completely. The local filtering is
 simply the mechanism for applying those results to SQL queries -- it is not
 re-interpreting or overriding Kessel's decisions.
 
+### Why "fetch all access, intersect locally" -- not Check() per resource
+
+The adapter pattern exists because **Koku needs a set of allowed resource IDs
+to build SQL queries**, not a yes/no answer for a single resource. The query
+pipeline works as follows:
+
+1. Middleware calls the access provider and caches the result.
+2. [`QueryParameters._set_access()`](../../../koku/api/query_params.py) reads
+   the ID list for each resource type from `request.user.access`.
+3. [`ReportQueryHandler`](../../../koku/api/report/queries.py) builds
+   `WHERE cluster_id IN ('id-1', 'id-2', ...)` into the SQL query.
+
+Using `Check()` per resource would invert this flow: Koku would first have to
+query the database for **all** clusters/nodes/projects in the org, then call
+`Check()` on each one, then discard the unauthorized rows. For an org with 100
+clusters that is 100 gRPC round-trips versus a single `StreamedListObjects`
+call.
+
+#### Historical context: the RBAC Service shaped the architecture
+
+The SaaS RBAC Service exposes a single bulk endpoint
+(`GET /v1/access/?application=cost-management`) that returns every ACL for a
+user in one response. There is no per-resource `Check()` API.
+[`RbacService.get_access_for_user()`](../../../koku/koku/rbac.py) calls that
+endpoint once, and the rest of Koku -- permission classes, `_set_access()`,
+`has_wildcard()`, `QueryFilter` -- was designed around this bulk-fetch model.
+The Kessel adapter produces the same dict shape so none of that code changes.
+
+#### How the three user categories are handled
+
+| User category | What happens | Kessel calls |
+|---|---|---|
+| **Org admin** (`ENHANCED_ORG_ADMIN`) | Middleware returns `{}` (empty dict = full access). No Kessel call at all. | 0 |
+| **Wildcard role** (e.g. cost-administrator bound to the tenant) | `StreamedListObjects` returns every resource ID in the org. Access map contains explicit IDs, functionally equivalent to `["*"]`. | 1 per resource type |
+| **Per-resource access** (specific tuples for individual clusters) | `StreamedListObjects` returns only the authorized IDs. Access map contains `["id-1", "id-2"]`. | 1 per resource type |
+
+In all three cases the downstream code receives the same dict shape and applies
+the same filtering logic. The authorization backend is invisible to the query
+layer.
+
+#### Why Check() alone would not work
+
+`Check()` answers: *"Can user X perform action Y on resource Z?"* -- a boolean.
+
+Koku's query pattern is: *"Which resources can user X perform action Y on?"*
+-- a list of IDs.
+
+To bridge that gap with `Check()` only, you would need to:
+
+1. Query the database for all possible resource IDs in the org.
+2. Call `Check()` for each one -- O(N) gRPC calls.
+3. Intersect the results back into the SQL query.
+
+`StreamedListObjects` answers the second question directly in O(1) calls per
+resource type. `Check()` is still used where it is the right tool:
+workspace-level capabilities like `settings` (where there is no per-resource
+dimension) and as a fallback when `StreamedListObjects` returns empty (to
+distinguish "no resources registered" from "no access").
+
 ---
 
 ## 6. Workspace Cardinality and Tuple Lifecycle

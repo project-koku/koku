@@ -1172,6 +1172,8 @@ Implements an adapter pattern: the same `request.user.access` shape is produced 
 
 **Implementation details**: See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md) and [kessel-hld-gaps-and-updates.md](./kessel-hld-gaps-and-updates.md).
 
+**Design rationale**: Koku resolves all access for a user in one batch (`StreamedListObjects` per resource type + `Check` for workspace-level permissions), caches the result, and applies it locally in the query layer via SQL `WHERE` clauses. This avoids O(N) per-resource `Check()` calls and keeps application-specific logic (write-grants-read, settings asymmetry, wildcard detection) in Koku rather than the ZED schema. See [Authorization Delegation DD §5](./kessel-authorization-delegation-dd.md#why-fetch-all-access-intersect-locally----not-check-per-resource) for the full analysis of why this pattern was chosen over per-resource Check().
+
 ### Permission Classes
 
 **Modification**: `koku/api/common/permissions/openshift_access.py`
