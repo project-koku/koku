@@ -42,7 +42,7 @@ class SourcesProviderCoordinator:
             provider = self._provider_builder.create_provider_from_source(source)
             add_provider_koku_uuid(self._source_id, provider.uuid)
         except IntegrityError as integrity_err:
-            if source.source_uuid and "api_provider" in str(integrity_err).lower():
+            if source.source_uuid:
                 try:
                     provider = Provider.objects.get(uuid=source.source_uuid)
                     if provider.customer and provider.customer.org_id == source.org_id:
