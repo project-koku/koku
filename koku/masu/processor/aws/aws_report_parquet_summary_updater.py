@@ -17,6 +17,7 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.processor import is_feature_cost_4403_ec2_compute_cost_enabled
 from masu.util.common import date_range_pair
+from masu.util.timezone_utils import sanitize_timezone_for_sql
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -55,9 +56,12 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
         try:
             from api.provider.models import Provider  # noqa: PLC0415
 
-            return Provider.objects.get(uuid=self._provider.uuid).timezone or "UTC"
+            raw = Provider.objects.get(uuid=self._provider.uuid).timezone or "UTC"
         except Exception:
-            return "UTC"
+            raw = "UTC"
+        # Sanitize before the value ever reaches a Trino SQL template (second layer
+        # of defence after serializer-level IANA validation on write).
+        return sanitize_timezone_for_sql(raw)
 
     def update_summary_tables(self, start_date, end_date, **kwargs):
         """Populate the summary tables for reporting.
@@ -117,6 +121,13 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                     start, end, self._provider.uuid, current_bill_id, markup_value,
                     provider_timezone=self._get_provider_timezone_name(),
                 )
+                # COST-3358 (constant currency): usage_start now reflects the
+                # provider-local billing date, so exchange-rate lookups by date
+                # are aligned to the correct local calendar day.
+                # If exchange rates are themselves keyed by UTC date (sources at
+                # UTC midnight) there may be a residual one-day skew for
+                # America/New_York and similar regions.  Verify exchange-rate
+                # source timezone if off-by-one-day discrepancies are observed.
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.populate_category_summary_table(bill_ids, start_date, end_date)

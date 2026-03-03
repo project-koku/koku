@@ -205,6 +205,16 @@ class DateHelper:
         timezone so that month boundaries are computed on the local calendar rather
         than always on UTC midnight.
 
+        **Budget boundary note (COST-219):**
+        Budget period start/end dates are currently interpreted as UTC calendar
+        dates.  For a provider in America/New_York, the UTC and local midnight do
+        not coincide and a few hours each month may be misattributed.  Callers
+        that need provider-local budget periods should use this method instead of
+        ``month_start_utc``.
+        Follow-up ticket: decide whether budget periods should be in UTC or
+        provider-local time and whether a ``?timezone=`` query parameter should
+        be accepted by the report API.
+
         Args:
             in_date: Any date/datetime/str accepted by :meth:`month_start`.
             provider_tz (str): IANA timezone name (e.g. ``'America/New_York'``).

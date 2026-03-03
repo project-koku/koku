@@ -159,7 +159,7 @@ class OCPReportDBCleanerTest(MasuTestCase):
 
     def test_purge_expired_report_data_both_args(self):
         """Test that the provider_uuid deletes all data for the provider."""
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
         cleaner = OCPReportDBCleaner(self.schema)
         with self.assertRaises(OCPReportDBCleanerError):
             cleaner.purge_expired_report_data(expired_date=now, provider_uuid=self.ocp_provider_uuid)

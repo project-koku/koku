@@ -126,6 +126,17 @@ def utc_range_for_provider_local_day(
 def aws_region_to_tz(region_code: str) -> str:
     """Map an AWS region code to an IANA timezone string.
 
+    **Design note — best-effort inference:**
+    Region codes are the most reliable per-provider signal available without
+    customer-provided metadata.  However, billing timezone is technically
+    where the *account was created*, which is not always the same as the
+    deployment region.  Treat this mapping as a best-effort starting point;
+    the Provider.timezone field can be overridden via the API or management
+    command if the inferred value is wrong.
+
+    Follow-up: request infra/ops to verify inferred timezones for all
+    production accounts before enabling non-UTC summarisation.
+
     Args:
         region_code: e.g. 'us-east-1'
 

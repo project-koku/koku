@@ -27,6 +27,13 @@ class SummarySqlMetadata:
     # IANA timezone from Provider.timezone; propagated into Trino SQL templates
     # so date truncation happens relative to the provider's local billing calendar.
     provider_timezone: str = "UTC"
+    # NOTE — price list / cost model effective dates (COST-575):
+    # CostModel.rates effective_start / effective_end are stored as UTC-aware datetimes
+    # (Django USE_TZ=True).  After this feature, usage_start reflects the provider-local
+    # billing date.  The two dates are now aligned when the billing-region offset is
+    # accounted for via provider_timezone.  If cost model rates are ever intended to be
+    # entered in the customer's local timezone, a follow-up product decision is needed
+    # to convert effective dates before comparison.
     days_tup: tuple = field(init=False)
     year: str = field(init=False)
     month: str = field(init=False)

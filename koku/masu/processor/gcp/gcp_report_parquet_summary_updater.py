@@ -16,6 +16,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.util.common import date_range_pair
+from masu.util.timezone_utils import sanitize_timezone_for_sql
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -50,9 +51,12 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         try:
             from api.provider.models import Provider  # noqa: PLC0415
 
-            return Provider.objects.get(uuid=self._provider.uuid).timezone or "UTC"
+            raw = Provider.objects.get(uuid=self._provider.uuid).timezone or "UTC"
         except Exception:
-            return "UTC"
+            raw = "UTC"
+        # Sanitize before the value ever reaches a Trino SQL template (second layer
+        # of defence after serializer-level IANA validation on write).
+        return sanitize_timezone_for_sql(raw)
 
     def update_summary_tables(self, start_date, end_date, **kwargs):
         """Populate the summary tables for reporting.
