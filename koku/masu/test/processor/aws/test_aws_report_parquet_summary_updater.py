@@ -115,12 +115,12 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
             ]
         )
         mock_insert_daily_summary.assert_called_with(
-            expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
+            expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value, provider_timezone="UTC"
         )
         mock_tag_update.assert_called_with(bill_ids, start, end)
         mock_category_update.assert_called_with(bill_ids, start, end)
         mock_insert_ec2_compute_summary.assert_called_with(
-            self.aws_provider.uuid, expected_start, current_bill_id, markup_value
+            self.aws_provider.uuid, expected_start, current_bill_id, markup_value, provider_timezone="UTC"
         )
 
         self.assertEqual(start_return, start)
@@ -175,7 +175,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
             self.aws_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
         )
         mock_insert_daily_summary.assert_called_with(
-            expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
+            expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value, provider_timezone="UTC"
         )
         mock_tag_update.assert_called_with(bill_ids, start, end)
         mock_category_update.assert_called_with(bill_ids, start, end)
