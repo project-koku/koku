@@ -45,26 +45,28 @@ class GetProviderTimezoneTest(TestCase):
         """Returns the timezone stored on the Provider model."""
         mock_provider = MagicMock()
         mock_provider.timezone = "America/Chicago"
-        with patch("masu.util.timezone_utils.Provider") as MockProvider:
+        # Provider is imported inside get_provider_timezone to avoid circular
+        # imports, so we patch it at its definition site.
+        with patch("api.provider.models.Provider") as MockProvider:
             MockProvider.objects.get.return_value = mock_provider
             result = get_provider_timezone("some-uuid")
-        self.assertEqual(result, "America/Chicago")
+        self.assertEqual(result, ZoneInfo("America/Chicago"))
 
     def test_fallback_to_utc_when_blank(self):
         """Falls back to UTC when timezone field is empty."""
         mock_provider = MagicMock()
         mock_provider.timezone = ""
-        with patch("masu.util.timezone_utils.Provider") as MockProvider:
+        with patch("api.provider.models.Provider") as MockProvider:
             MockProvider.objects.get.return_value = mock_provider
             result = get_provider_timezone("some-uuid")
-        self.assertEqual(result, "UTC")
+        self.assertEqual(result, ZoneInfo("UTC"))
 
     def test_fallback_to_utc_on_exception(self):
-        """Falls back to UTC when the DB lookup raises."""
-        with patch("masu.util.timezone_utils.Provider") as MockProvider:
+        """Falls back to UTC when the DB lookup raises any unexpected error."""
+        with patch("api.provider.models.Provider") as MockProvider:
             MockProvider.objects.get.side_effect = Exception("db error")
             result = get_provider_timezone("some-uuid")
-        self.assertEqual(result, "UTC")
+        self.assertEqual(result, ZoneInfo("UTC"))
 
 
 class NormalizeDatetimeTest(TestCase):

@@ -76,9 +76,6 @@ def get_provider_timezone(provider_uuid: str) -> ZoneInfo:
         provider = Provider.objects.get(uuid=provider_uuid)
         tz_name = provider.timezone or "UTC"
         return ZoneInfo(tz_name)
-    except Provider.DoesNotExist:
-        LOG.warning(log_json(msg="provider not found for timezone lookup", provider_uuid=str(provider_uuid)))
-        return ZoneInfo("UTC")
     except ZoneInfoNotFoundError:
         LOG.warning(
             log_json(
@@ -86,6 +83,9 @@ def get_provider_timezone(provider_uuid: str) -> ZoneInfo:
                 provider_uuid=str(provider_uuid),
             )
         )
+        return ZoneInfo("UTC")
+    except Exception:  # noqa: BLE001 — covers DoesNotExist and unexpected DB errors
+        LOG.warning(log_json(msg="provider timezone lookup failed, falling back to UTC", provider_uuid=str(provider_uuid)))
         return ZoneInfo("UTC")
 
 
