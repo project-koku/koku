@@ -269,9 +269,9 @@ The Kessel integration branch (`FLPATH-3294/kessel-rebac-integration`) needs a P
 
 ### 6.4 HIGH: ZED Schema Upstream PR ([FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319))
 
-The production ZED schema in [`rbac-config`](https://github.com/RedHatInsights/rbac-config) needs a PR to wire `cost_management_*` permissions through `rbac/role_binding` and `rbac/tenant`. **The PR has NOT been opened yet.**
+The production ZED schema in [`rbac-config`](https://github.com/RedHatInsights/rbac-config) needs a PR to wire **all 23** `cost_management_*` permissions (13 OCP + 10 cloud) through `rbac/role_binding` and `rbac/tenant`. **The PR has NOT been opened yet.** Cloud permissions are included so Koku and SaaS are ready when SaaS onboards Kessel.
 
-The exact ZED additions (13 permissions on `rbac/role_binding` + 13 on `rbac/tenant`) are specified in [zed-schema-upstream-delta.md](./zed-schema-upstream-delta.md) Section 2, Gap G-1, with copy-paste-ready schema blocks.
+The exact ZED additions (23 permissions on `rbac/role_binding` + 23 on `rbac/tenant`) are specified in [zed-schema-upstream-delta.md](./zed-schema-upstream-delta.md) Section 2, Gap G-1, with copy-paste-ready schema blocks.
 
 **This blocks E2E testing on production-like schemas.** Currently, all tests use the local development schema in `dev/kessel/schema.zed`.
 

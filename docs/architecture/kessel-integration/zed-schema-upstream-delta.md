@@ -11,7 +11,7 @@
 **Seed command**: [`koku_rebac/management/commands/kessel_seed_roles.py`](../../koku/koku_rebac/management/commands/kessel_seed_roles.py)
 
 **Jira**: [FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319)
-**Last updated**: 2026-02-13
+**Last updated**: 2026-03-02
 
 ---
 
@@ -23,7 +23,7 @@
 | G-2 | [Permission naming divergence](#g-2-permission-naming-divergence) | **Must-fix** before upstream PR | On-prem team | **Resolved** |
 | G-3 | [Structural type divergence (workspace vs tenant)](#g-3-structural-type-divergence) | Design decision | On-prem team | **Resolved** |
 | G-4 | [Wildcard `_all` verb permissions not in local schema](#g-4-wildcard-_all-verb-permissions-not-in-local-schema) | Medium | On-prem team | **Resolved** |
-| G-5 | [Cloud permissions deferred](#g-5-cloud-permissions-deferred) | Low (Phase 1) | SaaS onboarding | Deferred |
+| G-5 | [Cloud permissions](#g-5-cloud-permissions) | Low (Phase 1) | Upstream PR to `rbac-config` | **In scope** — include in same PR as G-1 so Koku/SaaS are ready when SaaS onboards |
 
 ---
 
@@ -35,13 +35,13 @@ The SaaS production schema declares 23 `cost_management_*` permissions on `rbac/
 
 Our local `dev/kessel/schema.zed` has the full wiring (via `rbac/workspace`), proving the pattern works. The upstream schema needs equivalent wiring in `rbac/role_binding` and `rbac/tenant`.
 
-**What must be added upstream** (13 OCP-scoped permissions, Phase 1):
+**What must be added upstream** (all 23 cost_management permissions — 13 OCP + 10 cloud):
 
 ```zed
 definition rbac/role_binding {
     // ... existing permissions for other services ...
 
-    // Cost Management OCP-scoped (Phase 1)
+    // Cost Management OCP-scoped (13)
     permission cost_management_all_all = (subject & t_role->cost_management_all_all)
     permission cost_management_openshift_cluster_all = (subject & t_role->cost_management_openshift_cluster_all)
     permission cost_management_openshift_cluster_read = (subject & t_role->cost_management_openshift_cluster_read)
@@ -55,12 +55,23 @@ definition rbac/role_binding {
     permission cost_management_settings_all = (subject & t_role->cost_management_settings_all)
     permission cost_management_settings_read = (subject & t_role->cost_management_settings_read)
     permission cost_management_settings_write = (subject & t_role->cost_management_settings_write)
+    // Cost Management cloud (10) — wire now so Koku/SaaS are ready when SaaS onboards Kessel
+    permission cost_management_aws_account_all = (subject & t_role->cost_management_aws_account_all)
+    permission cost_management_aws_account_read = (subject & t_role->cost_management_aws_account_read)
+    permission cost_management_aws_organizational_unit_all = (subject & t_role->cost_management_aws_organizational_unit_all)
+    permission cost_management_aws_organizational_unit_read = (subject & t_role->cost_management_aws_organizational_unit_read)
+    permission cost_management_azure_subscription_guid_all = (subject & t_role->cost_management_azure_subscription_guid_all)
+    permission cost_management_azure_subscription_guid_read = (subject & t_role->cost_management_azure_subscription_guid_read)
+    permission cost_management_gcp_account_all = (subject & t_role->cost_management_gcp_account_all)
+    permission cost_management_gcp_account_read = (subject & t_role->cost_management_gcp_account_read)
+    permission cost_management_gcp_project_all = (subject & t_role->cost_management_gcp_project_all)
+    permission cost_management_gcp_project_read = (subject & t_role->cost_management_gcp_project_read)
 }
 
 definition rbac/tenant {
     // ... existing permissions for other services ...
 
-    // Cost Management OCP-scoped (Phase 1)
+    // Cost Management OCP-scoped (13)
     permission cost_management_all_all = t_binding->cost_management_all_all + t_platform->cost_management_all_all
     permission cost_management_openshift_cluster_all = t_binding->cost_management_openshift_cluster_all + t_platform->cost_management_openshift_cluster_all
     permission cost_management_openshift_cluster_read = t_binding->cost_management_openshift_cluster_read + t_platform->cost_management_openshift_cluster_read
@@ -74,6 +85,17 @@ definition rbac/tenant {
     permission cost_management_settings_all = t_binding->cost_management_settings_all + t_platform->cost_management_settings_all
     permission cost_management_settings_read = t_binding->cost_management_settings_read + t_platform->cost_management_settings_read
     permission cost_management_settings_write = t_binding->cost_management_settings_write + t_platform->cost_management_settings_write
+    // Cost Management cloud (10)
+    permission cost_management_aws_account_all = t_binding->cost_management_aws_account_all + t_platform->cost_management_aws_account_all
+    permission cost_management_aws_account_read = t_binding->cost_management_aws_account_read + t_platform->cost_management_aws_account_read
+    permission cost_management_aws_organizational_unit_all = t_binding->cost_management_aws_organizational_unit_all + t_platform->cost_management_aws_organizational_unit_all
+    permission cost_management_aws_organizational_unit_read = t_binding->cost_management_aws_organizational_unit_read + t_platform->cost_management_aws_organizational_unit_read
+    permission cost_management_azure_subscription_guid_all = t_binding->cost_management_azure_subscription_guid_all + t_platform->cost_management_azure_subscription_guid_all
+    permission cost_management_azure_subscription_guid_read = t_binding->cost_management_azure_subscription_guid_read + t_platform->cost_management_azure_subscription_guid_read
+    permission cost_management_gcp_account_all = t_binding->cost_management_gcp_account_all + t_platform->cost_management_gcp_account_all
+    permission cost_management_gcp_account_read = t_binding->cost_management_gcp_account_read + t_platform->cost_management_gcp_account_read
+    permission cost_management_gcp_project_all = t_binding->cost_management_gcp_project_all + t_platform->cost_management_gcp_project_all
+    permission cost_management_gcp_project_read = t_binding->cost_management_gcp_project_read + t_platform->cost_management_gcp_project_read
 }
 ```
 
@@ -160,19 +182,19 @@ The `STANDARD_ROLES` definitions continue to list individual `_read`/`_write` pe
 
 ---
 
-### G-5: Cloud Permissions Deferred
+### G-5: Cloud Permissions
 
-10 cloud provider permissions exist in the SaaS schema but are deferred from Phase 1 (OCP-only scope):
+10 cloud provider permissions exist in the SaaS schema. They are now **in scope** for the same upstream PR as G-1 so that when SaaS is ready to use Kessel for cost management, Koku and the schema are already aligned.
 
 | Permission | Verb variants | Status |
 |---|---|---|
-| `cost_management_aws_account` | `_all`, `_read` | Deferred |
-| `cost_management_aws_organizational_unit` | `_all`, `_read` | Deferred |
-| `cost_management_azure_subscription_guid` | `_all`, `_read` | Deferred |
-| `cost_management_gcp_account` | `_all`, `_read` | Deferred |
-| `cost_management_gcp_project` | `_all`, `_read` | Deferred |
+| `cost_management_aws_account` | `_all`, `_read` | **Included** in G-1 PR |
+| `cost_management_aws_organizational_unit` | `_all`, `_read` | **Included** in G-1 PR |
+| `cost_management_azure_subscription_guid` | `_all`, `_read` | **Included** in G-1 PR |
+| `cost_management_gcp_account` | `_all`, `_read` | **Included** in G-1 PR |
+| `cost_management_gcp_project` | `_all`, `_read` | **Included** in G-1 PR |
 
-These are included in our local `schema.zed` (for completeness) and in the seed command's `STANDARD_ROLES`, but the upstream wiring PR (G-1) intentionally omits them. They will be wired upstream when SaaS onboards Kessel for cost management.
+Our local `schema.zed` and seed command already define all 23 permissions. The upstream PR (G-1) now wires all 23 through `rbac/role_binding` and `rbac/tenant`.
 
 ---
 
@@ -232,15 +254,15 @@ All 11 `_all` verb permissions added to `schema.zed` (role, role_binding, worksp
 
 ### Step 3: Submit Upstream PR (G-1) -- Blocking
 
-PR to `rbac-config` adding permission propagation through `rbac/role_binding` and `rbac/tenant` for the 13 OCP-scoped permissions.
+PR to `rbac-config` adding permission propagation through `rbac/role_binding` and `rbac/tenant` for **all 23** cost_management permissions (13 OCP-scoped + 10 cloud). Copy-paste-ready ZED is in Section 2, G-1 above.
 
 ### Step 4: E2E Testing Against Production Schema
 
 Once the upstream PR lands, switch E2E tests to use the production schema (fetched from `rbac-config`) instead of the local `dev/kessel/schema.zed`. The local schema remains for contract tests as a self-contained fixture.
 
-### Step 5: Wire Cloud Permissions (G-5) -- Deferred
+### ~~Step 5: Wire Cloud Permissions (G-5)~~ -- In scope
 
-When SaaS onboards Kessel for cost management, add the remaining 10 cloud permission arrows to the upstream schema.
+Cloud permissions (10) are included in the same PR as G-1 so Koku and SaaS are ready when SaaS onboards Kessel.
 
 ---
 
@@ -252,3 +274,4 @@ When SaaS onboards Kessel for cost management, add the remaining 10 cloud permis
 | 2026-02-13 | G-2 resolved: renamed all abbreviated permission names to match upstream | On-prem team |
 | 2026-02-13 | G-4 resolved: added all 11 `_all` wildcard verb permissions | On-prem team |
 | 2026-02-13 | G-3 resolved: replaced `rbac/workspace` with `rbac/tenant`, aligned relation names | On-prem team |
+| 2026-03-02 | G-5 in scope: added 10 cloud permissions to upstream PR (G-1); all 23 permissions wired in one PR so Koku/SaaS are ready when SaaS onboards Kessel | On-prem team |

@@ -5,7 +5,7 @@
 | Jira          | [FLPATH-3294](https://issues.redhat.com/browse/FLPATH-3294)          |
 | Parent story  | [FLPATH-2690](https://issues.redhat.com/browse/FLPATH-2690)          |
 | Epic          | [FLPATH-2799](https://issues.redhat.com/browse/FLPATH-2799)          |
-| HLD           | [kessel-ocp-integration.md](./kessel-ocp-integration.md)             |
+| HLD           | [kessel-ocp-integration.md](./kessel-ocp-integration.md) (updated to match implementation; see [kessel-hld-gaps-and-updates.md](./kessel-hld-gaps-and-updates.md)) |
 | Author        | Jordi Gil                                                             |
 | Status        | Draft                                                                 |
 | Created       | 2026-02-18                                                           |
@@ -856,13 +856,13 @@ Key methods on `KesselInventoryServiceStub`:
 
 The production ZED schema in [`rbac-config`](https://github.com/RedHatInsights/rbac-config) (`configs/prod/schemas/schema.zed`) defines 23 `cost_management_*` permissions on `rbac/role` but does **not** propagate them through `rbac/role_binding` or `rbac/tenant`. This means `StreamedListObjects()` and `Check()` cannot evaluate cost management permissions even when role bindings exist.
 
-**Scope: OCP-only (13 of 23 permissions).** The initial PR targets on-prem OCP environments only. Cloud permissions (AWS, Azure, GCP) are deferred until SaaS onboarding.
+**Scope: All 23 permissions (13 OCP + 10 cloud).** The PR wires all cost_management permissions so Koku and SaaS are ready when SaaS onboards Kessel. Cloud permissions (AWS, Azure, GCP) are included in the same PR.
 
 **Jira:** [FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319)
 
-**Required changes** (PR to [`RedHatInsights/rbac-config`](https://github.com/RedHatInsights/rbac-config)):
+**Required changes** (PR to [`RedHatInsights/rbac-config`](https://github.com/RedHatInsights/rbac-config)): Wire all 23 permissions through `rbac/role_binding` and `rbac/tenant`. Copy-paste-ready ZED (including the 10 cloud permissions) is in [`zed-schema-upstream-delta.md`](./zed-schema-upstream-delta.md) Section 2, Gap G-1.
 
-1. `rbac/role_binding` -- add 13 OCP-scoped permission arrows using the existing pattern `(subject & t_role->X)`:
+1. `rbac/role_binding` -- add 23 permission arrows using the existing pattern `(subject & t_role->X)` (13 OCP + 10 cloud; see delta doc for full block):
    ```zed
    definition rbac/role_binding {
        // ... existing permissions for other services ...
@@ -882,7 +882,7 @@ The production ZED schema in [`rbac-config`](https://github.com/RedHatInsights/r
    }
    ```
 
-2. `rbac/tenant` -- add 13 OCP-scoped permission arrows using the existing pattern `t_binding->X + t_platform->X`:
+2. `rbac/tenant` -- add 23 permission arrows using the existing pattern `t_binding->X + t_platform->X` (13 OCP + 10 cloud; see delta doc for full block):
    ```zed
    definition rbac/tenant {
        // ... existing permissions for other services ...
@@ -902,8 +902,6 @@ The production ZED schema in [`rbac-config`](https://github.com/RedHatInsights/r
    }
    ```
 
-**Deferred (SaaS follow-up):** The remaining 10 cloud permissions (`cost_management_aws_account_*`, `cost_management_aws_organizational_unit_*`, `cost_management_azure_subscription_guid_*`, `cost_management_gcp_account_*`, `cost_management_gcp_project_*`) will be added when SaaS onboards Kessel for cost management.
-
 Until this PR lands, the E2E flow (`principal -> role_binding -> role -> tenant -> resource`) will not resolve for cost management permissions. Unit and integration tests (which mock gRPC) are unaffected.
 
 **Additional gaps identified**: Beyond the wiring gap, there are permission naming divergences and missing `_all` verb permissions between our local schema and upstream. See [`zed-schema-upstream-delta.md`](./zed-schema-upstream-delta.md) for the full delta tracking, comparison matrix, and reconciliation plan.
@@ -919,7 +917,7 @@ Until this PR lands, the E2E flow (`principal -> role_binding -> role -> tenant 
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| **ZED schema gap: cost_management permissions not wired through role_binding/tenant** | `StreamedListObjects` / `Check` will not return results even with correct role bindings because the authorization chain is incomplete | [FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319): Submit PR to `rbac-config` adding 13 OCP-scoped `cost_management_*` permission propagation through `rbac/role_binding` and `rbac/tenant`. Cloud permissions (10) deferred to SaaS onboarding. Full delta in [`zed-schema-upstream-delta.md`](./zed-schema-upstream-delta.md). **Blocking external dependency** |
+| **ZED schema gap: cost_management permissions not wired through role_binding/tenant** | `StreamedListObjects` / `Check` will not return results even with correct role bindings because the authorization chain is incomplete | [FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319): Submit PR to `rbac-config` adding all 23 `cost_management_*` permissions (13 OCP + 10 cloud) through `rbac/role_binding` and `rbac/tenant`. Full delta and copy-paste ZED in [`zed-schema-upstream-delta.md`](./zed-schema-upstream-delta.md). **Blocking external dependency** |
 | ~~**ZED schema naming divergence**~~ | ~~Local schema used abbreviated permission names~~ | **Resolved**: All local names aligned to upstream convention (G-2). See [delta doc](./zed-schema-upstream-delta.md#g-2-permission-naming-divergence) |
 | **gRPC in Django WSGI process** | Thread-safety concerns with gRPC channels | Lazy singleton with `threading.Lock`; verify in load tests |
 | **Performance: many Inventory API calls** | 9 `Check` calls + 3 `StreamedListObjects` calls = 12 gRPC calls per cache miss (derived from `RESOURCE_TYPES` in `rbac.py`) | Cache aggressively (300s default); batch where SDK supports it |

@@ -315,12 +315,12 @@ sequenceDiagram
         Reporter->>Kessel: POST t_workspace tuple — Relations API REST
         Kessel-->>Reporter: OK
 
-        Note over Reporter: Nodes/projects synced similarly.<br/>On-prem has no CDC, so Koku<br/>writes tuples directly.
+        Note over Reporter: Nodes/projects synced similarly;<br/>on-prem has no CDC, so Koku writes tuples directly
         
         Reporter-->>Builder: ✓ Resources synced
         deactivate Reporter
         
-        Note over Builder: Non-blocking:<br/>Provider creation succeeds<br/>even if Kessel fails.<br/>Nodes and namespaces may not<br/>be available at creation time.<br/>Any not yet discovered will be<br/>synced during data processing.
+        Note over Builder: Non-blocking:<br/>Provider creation succeeds<br/>even if Kessel fails<br/><br/>Note: Nodes and namespaces<br/>may not be available at<br/>creation time. Any not yet<br/>discovered will be synced<br/>during data processing.
     end
     
     Builder-->>API: Provider created (id=123)
@@ -400,10 +400,10 @@ sequenceDiagram
     PermClass->>AuthAdapter: has_object_permission(<br/>user="bob",<br/>resource_id="prod-east-1",<br/>action="view")
     activate AuthAdapter
     
-    AuthAdapter->>Kessel: StreamedListObjects(openshift_cluster)<br/>returns allowed IDs. If empty,<br/>Check(tenant) for wildcard<br/>(Inventory API v1beta2)
+    AuthAdapter->>Kessel: StreamedListObjects(openshift_cluster)<br/>returns allowed IDs; if empty, Check(tenant) for wildcard<br/>(Inventory API v1beta2)
     activate Kessel
 
-    Note over Kessel: Implementation: per-resource IDs from<br/>StreamedListObjects. Check used for<br/>workspace fallback. No per-resource<br/>Check on cluster object.
+    Note over Kessel: Implementation: per-resource IDs from<br/>StreamedListObjects; Check used for workspace fallback.<br/>No per-resource Check on cluster object.
     
     alt Bob has access
         Kessel-->>AuthAdapter: ALLOWED ✓
@@ -523,7 +523,7 @@ sequenceDiagram
         
         Note over API: Deny access for security
         
-        API-->>User: 424 Failed Dependency<br/>(KesselConnectionError,<br/>matches RBAC failure behavior)
+        API-->>User: 424 Failed Dependency<br/>(KesselConnectionError; matches RBAC failure behavior)
     end
     
     deactivate API
