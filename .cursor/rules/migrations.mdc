@@ -1,0 +1,48 @@
+---
+description: Django migration patterns for partitioned tables
+globs: "**/migrations/*.py"
+alwaysApply: false
+---
+
+# Migration Patterns
+
+## Partitioned Tables
+
+All partitioned tables use RANGE partitioning on `usage_start` (monthly) and have `_p` or `_P` suffix.
+
+### Creating New Partitioned Tables
+
+```python
+migrations.RunPython(code=set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
+migrations.CreateModel(
+    name="NewSummaryP",
+    fields=[...],
+    options={"db_table": "reporting_new_summary_p"},
+),
+migrations.AddIndex(model_name="newsummaryp", index=...),
+migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
+```
+
+### Adding Columns to Existing Partitioned Tables
+
+Standard `AddField` - no `set_pg_extended_mode` needed:
+
+```python
+migrations.AddField(
+    model_name="ocpusagelineitemdailysummary",
+    name="new_column",
+    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+),
+```
+
+## Running Migrations
+
+Migrations run with `migrate_schemas` (django-tenants multiprocessing executor):
+
+```bash
+pipenv run python koku/manage.py migrate_schemas
+```
+
+## Trino/Hive Tables
+
+NOT managed by Django migrations. Created at runtime by masu processors.
