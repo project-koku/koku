@@ -992,14 +992,16 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         self.assertTrue(Provider.objects.filter(uuid=provider_source.source_uuid).exists())
 
         source = Sources.objects.get(source_id=source_id)
-        self.assertEqual(source.koku_uuid, created_provider.uuid)
+        self.assertEqual(source.koku_uuid, str(created_provider.uuid))
 
         source.koku_uuid = None
         source.save()
 
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+        with patch.object(
+            ProviderBuilder, "create_provider_from_source", side_effect=IntegrityError("duplicate key value")
+        ):
             recovered_provider = builder.create_account(source)
 
         self.assertEqual(recovered_provider.uuid, created_provider.uuid)
         source.refresh_from_db()
-        self.assertEqual(source.koku_uuid, created_provider.uuid)
+        self.assertEqual(source.koku_uuid, str(created_provider.uuid))
