@@ -1,0 +1,57 @@
+---
+description: Django multi-tenancy patterns with schema_context and tenant_context
+alwaysApply: true
+---
+
+# Multi-Tenancy (Critical)
+
+Koku uses schema-per-tenant via `django-tenants`. This is the #1 source of bugs.
+
+## Shared vs Tenant Models
+
+| Scope | Apps | Schema |
+|-------|------|--------|
+| SHARED | `api`, `sources`, `reporting_common`, `masu` | `public` |
+| TENANT | `reporting`, `cost_models` | `org{org_id}` |
+
+## Required Context for Tenant Models
+
+```python
+# ✅ CORRECT - querying tenant models
+from django_tenants.utils import schema_context
+with schema_context(self.schema):  # string like "org1234567"
+    rows = OCPUsageLineItemDailySummary.objects.filter(...)
+
+# ✅ CORRECT - in API query handlers
+from django_tenants.utils import tenant_context
+with tenant_context(self.tenant):  # Tenant model instance
+    query = self.query_table.objects.filter(...)
+
+# ❌ WRONG - no context, causes ProgrammingError
+rows = OCPUsageLineItemDailySummary.objects.filter(...)
+```
+
+## Public Models (No Context Needed)
+
+```python
+# These live in public schema - no context required
+Provider.objects.filter(...)
+Customer.objects.filter(...)
+Sources.objects.filter(...)
+```
+
+## Common Gotcha: TenantAPIProvider FK
+
+```python
+# ❌ WRONG - provider is FK to TenantAPIProvider, not Provider
+OCPUsageReportPeriod.objects.filter(provider=self.ocp_provider)
+
+# ✅ CORRECT - filter by UUID
+OCPUsageReportPeriod.objects.filter(provider_id=self.ocp_provider_uuid)
+```
+
+## Test Schema
+
+- Test schema: `org1234567`
+- Test account: `10001`
+- Test org_id: `1234567`
