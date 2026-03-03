@@ -193,3 +193,20 @@ class AwsTagQueryThrottleGetCacheKeyTest(TestCase):
         key = throttle.get_cache_key(request, None)
         self.assertIsNotNone(key)
         self.assertEqual(key, "tag_query_throttle:aws:acct99")
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_month_minus_2_and_minus_3_are_heavy(self, mock_flag):
+        """Month scope with -2 or -3 (2 or 3 months) is also considered heavy."""
+        throttle = AwsTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct123"
+        for value in ("-2", "-3"):
+            with self.subTest(time_scope_value=value):
+                request.query_params = {
+                    "filter[tag:env]": "prod",
+                    "time_scope_units": "month",
+                    "time_scope_value": value,
+                }
+                key = throttle.get_cache_key(request, None)
+                self.assertIsNotNone(key, f"time_scope_value={value} should be heavy")
+                self.assertEqual(key, "tag_query_throttle:aws:acct123")

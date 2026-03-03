@@ -173,10 +173,11 @@ class AwsTagQueryThrottle(SimpleRateThrottle):
         Return True if the request uses a heavy time scope (>= 31 days equivalent).
 
         For AWS reports we use time_scope_units and time_scope_value.
-        Consider heavy when time_scope_units=month and time_scope_value=-1 (1 month).
+        Consider heavy when time_scope_units=month and time_scope_value is -1, -2, or -3
+        (1, 2, or 3 months of data; API allows these per TIME_SCOPE_VALUES_MONTHLY).
         """
         units = (query_params.get("time_scope_units") or "").strip().lower()
         value_str = (query_params.get("time_scope_value") or "").strip()
-        if units == "month" and value_str == "-1":
+        if units == "month" and value_str in ("-1", "-2", "-3"):
             return True
         return False
