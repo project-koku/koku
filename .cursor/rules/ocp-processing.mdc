@@ -1,0 +1,60 @@
+---
+description: OpenShift data processing patterns and report types
+globs: "**/ocp/**/*.py"
+alwaysApply: false
+---
+
+# OpenShift Processing Patterns
+
+## Report Types
+
+OCP has multiple report types, each with raw and daily table variants:
+- `pod_usage` - CPU, memory usage per pod
+- `storage_usage` - Persistent volume claims
+- `node_labels` - Node metadata and labels
+- `namespace_labels` - Namespace metadata
+- `gpu_usage` - GPU utilization (NVIDIA)
+
+## Table Name Mappings
+
+```python
+TRINO_LINE_ITEM_TABLE_MAP = {
+    "pod_usage": "openshift_pod_usage_line_items",
+    "gpu_usage": "openshift_gpu_usage_line_items",
+    ...
+}
+
+TRINO_LINE_ITEM_TABLE_DAILY_MAP = {
+    "pod_usage": "openshift_pod_usage_line_items_daily",
+    "gpu_usage": "openshift_gpu_usage_line_items_daily",
+    ...
+}
+```
+
+Daily tables are identified by `/daily` in the S3 path.
+
+## GPU Processing
+
+GPU data includes:
+- `gpu_uuid` - Physical GPU identifier
+- `mig_instance_uuid` - MIG (Multi-Instance GPU) partition ID
+- `mig_slice_count` / `parent_gpu_max_slices` - For fractional GPU billing
+- `gpu_pod_uptime` - Seconds of GPU utilization
+
+MIG cost formula:
+```
+cost = (rate / days_in_month) * (uptime / 86400) * (slice_count / max_slices)
+```
+
+## Cost Model Application
+
+Cost models apply rates via SQL templates:
+1. `monthly_cost_*.sql` - Calculate costs from rates
+2. `distribute_cost/*.sql` - Distribute unallocated costs
+3. UI summary tables aggregate for display
+
+## Cluster Identification
+
+- `cluster_id` - Unique cluster identifier
+- `cluster_alias` - Human-readable name (from Provider.name)
+- `source_uuid` - Provider UUID linking to sources table
