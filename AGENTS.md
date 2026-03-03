@@ -4,16 +4,85 @@ This document captures hard-won knowledge about the Koku codebase.
 Follow it precisely. Never take shortcuts, never skip steps, never weaken
 assertions or silently swallow errors to make things pass.
 
+> **Version note:** Check `Pipfile`, `go.mod`, and `package.json` for current
+> dependency versions rather than relying on version numbers in this document.
+
+---
+
+## Table of Contents
+
+- [Quick Reference](#quick-reference)
+- [Ecosystem Overview](#ecosystem-overview)
+- [Koku Backend](#koku-backend)
+  - [Multi-Tenancy Architecture](#multi-tenancy-architecture)
+  - [Key Models](#key-models)
+  - [API Layer](#api-layer)
+  - [Data Pipeline (Celery)](#data-pipeline-celery)
+  - [Cost Model System](#cost-model-system)
+  - [Common Utilities](#common-utilities)
+  - [Django ORM Gotchas](#django-orm-gotchas)
+- [Testing](#testing)
+- [Agent Guidelines](#agent-guidelines)
+  - [When to Ask vs. Proceed](#when-to-ask-vs-proceed)
+  - [Never Take Shortcuts](#never-take-shortcuts)
+  - [Always Go the Extra Mile](#always-go-the-extra-mile)
+  - [PR and Commit Conventions](#pr-and-commit-conventions)
+- [Environment and Infrastructure](#environment-and-infrastructure)
+- [Full Development Environment](#full-development-environment-on-prem--postgresql-only)
+- [Cross-Cutting Patterns](#cross-cutting-patterns)
+- [Koku-UI Frontend](#koku-ui-frontend)
+- [Koku-Metrics-Operator](#koku-metrics-operator)
+
+---
+
+## Quick Reference
+
+**Test schema:** `org1234567` | **Test account:** `10001` | **Test org_id:** `1234567`
+
+**Start dev environment:**
+```bash
+# On-prem (OCP only, faster)
+ONPREM=True docker compose up -d db valkey koku-server masu-server koku-worker koku-beat
+
+# SaaS (all providers, Trino)
+make docker-up-min-trino
+```
+
+**Run tests:**
+```bash
+pipenv run tox -- koku.masu.test.path.to.test_module
+```
+
+**Identity header (base64):**
+```bash
+echo -n '{"identity":{"account_number":"10001","org_id":"1234567","type":"User","user":{"username":"user_dev","email":"user_dev@foo.com","is_org_admin":true,"access":{}}},"entitlements":{"cost_management":{"is_entitled":true}}}' | base64 -w0
+```
+
+**Tenant-scoped queries:**
+```python
+from django_tenants.utils import schema_context
+with schema_context(self.schema):
+    rows = OCPUsageLineItemDailySummary.objects.filter(...)
+```
+
+**SQL template directories:**
+- `masu/database/sql/` — PostgreSQL (both modes): UI summaries, tags, cost model ops
+- `masu/database/trino_sql/` — Trino (SaaS only): Parquet aggregation
+- `masu/database/self_hosted_sql/` — PostgreSQL (on-prem only): parallel to `trino_sql/`
+
 ---
 
 ## Ecosystem Overview
 
 Koku is the upstream of Red Hat Lightspeed Cost Management, an open-source
-FinOps tool. The workspace contains three repositories under `~/dev/koku/`:
+FinOps tool. The ecosystem spans three repositories:
 
-- **koku** (`~/dev/koku/koku/`) — Django backend (API, data pipeline, Celery workers)
-- **koku-ui** (`~/dev/koku/koku-ui/`) — React frontend (monorepo: HCCM, ROS, on-prem shell)
-- **koku-metrics-operator** (`~/dev/koku/koku-metrics-operator/`) — Go OpenShift operator
+- **koku** (this repo) — Django backend (API, data pipeline, Celery workers)
+- **koku-ui** — React frontend (monorepo: HCCM, ROS, on-prem shell)
+- **koku-metrics-operator** — Go OpenShift operator
+
+> **Path convention:** This document uses `$KOKU_ROOT` to refer to the koku repo root,
+> and `$WORKSPACE` for the parent directory containing sibling repos (koku-ui, nise, etc.).
 
 ### Data Flow
 
@@ -36,25 +105,56 @@ Cloud Providers --> [AWS CUR / Azure API / GCP BigQuery] ------> Koku Backend (C
 3. **OCI is deprecated/removed** — do not implement OCI support.
 4. **Feature flags** (Unleash): Only gate features behind flags when explicitly required.
 5. **Supported providers**: AWS, Azure, GCP, OpenShift (and OCP-on-cloud: OCP_AWS, OCP_Azure, OCP_GCP).
-6. **Default to on-prem mode**: Unless explicitly told otherwise, always start Cost Management services (koku-server, masu-server, koku-worker, koku-beat, etc.) with `ONPREM=True`. This uses the PostgreSQL-only code path and avoids requiring Trino, Hive Metastore, or other cloud-only infrastructure. In practice this means exporting `ONPREM=True` before running `docker compose up` (e.g. `export ONPREM=True && export USER_ID=$(id -u) && export GROUP_ID=$(id -g) && docker compose up -d ...`). Without this flag the ingestion pipeline will fail trying to connect to Trino.
+
+### Choosing Your Development Mode
+
+Most features require changes that work in **both** execution paths. Choose your mode based on what you're testing:
+
+| Mode | Command | Use When |
+|------|---------|----------|
+| **On-prem** | `ONPREM=True docker compose up -d db valkey koku-server masu-server koku-worker koku-beat` | Testing OCP-only features, PostgreSQL SQL changes, quick iteration |
+| **SaaS/Cloud** | `make docker-up-min-trino` | Testing AWS/Azure/GCP data, Trino SQL changes, full pipeline |
+
+**On-prem mode** (PostgreSQL-only):
+- Faster startup, fewer services
+- Only processes OCP data (AWS/Azure/GCP throw `NotImplementedError`)
+- Uses `self_hosted_sql/` templates
+- Good for: OCP features, API changes, cost model logic
+
+**SaaS/Cloud mode** (PostgreSQL + Trino):
+- Requires Trino + Hive Metastore + MinIO
+- Processes all provider types
+- Uses `trino_sql/` for aggregation, `sql/` for summaries
+- Good for: Cloud provider features, Parquet processing, full integration tests
+
+> **⚠️ Dual-path requirement**: When modifying SQL or data processing, verify your
+> changes work in BOTH modes.
+>
+> | Directory | Used By | Purpose |
+> |-----------|---------|---------|
+> | `masu/database/sql/` | Both modes | UI summaries, tag summaries, cost model operations |
+> | `masu/database/trino_sql/` | SaaS only | Trino aggregation of Parquet data |
+> | `masu/database/self_hosted_sql/` | On-prem only | PostgreSQL replacements for Trino operations |
+>
+> **Key rule:** `trino_sql/` and `self_hosted_sql/` are parallel. Changes to one likely need mirroring in the other.
 
 ---
 
-# KOKU BACKEND (`~/dev/koku/koku/`)
+# KOKU BACKEND
 
 ## Tech Stack
 
-| Component      | Technology                                        |
-|----------------|---------------------------------------------------|
-| Framework      | Django 5.2 + Django REST Framework 3.14+          |
-| Database       | PostgreSQL 16 with `django-tenants` (schema-per-tenant) |
-| Task Queue     | Celery + Redis/Valkey broker                      |
-| Caching        | Redis (django-redis) — default, api, rbac, worker |
-| Object Storage | S3/MinIO (CSV/Parquet files)                      |
-| Analytics      | Trino (Hive catalog) — cloud only                 |
-| Feature Flags  | Unleash                                           |
-| Python         | 3.11                                              |
-| Dependencies   | `Pipfile` / `pipenv` (no `requirements.txt`)      |
+| Component      | Technology                                        | Version Source |
+|----------------|---------------------------------------------------|----------------|
+| Framework      | Django + Django REST Framework                    | `Pipfile`      |
+| Database       | PostgreSQL with `django-tenants` (schema-per-tenant) | `docker-compose.yml` |
+| Task Queue     | Celery + Redis/Valkey broker                      | `Pipfile`      |
+| Caching        | Redis (django-redis) — default, api, rbac, worker | —              |
+| Object Storage | S3/MinIO (CSV/Parquet files)                      | —              |
+| Analytics      | Trino (Hive catalog) — cloud only                 | `docker-compose.yml` |
+| Feature Flags  | Unleash                                           | —              |
+| Python         | See `.python-version` or `Pipfile`                | `Pipfile`      |
+| Dependencies   | `Pipfile` / `pipenv` (no `requirements.txt`)      | —              |
 
 ## Repository Layout
 
@@ -514,7 +614,22 @@ SET search_path TO org1234567;
 
 ---
 
-## Behavioral Rules for AI Agents
+## Agent Guidelines
+
+### When to Ask vs. Proceed
+
+**Pause and ask the user when:**
+- The task requires changing more than 5 files or touches multiple subsystems
+- Business logic is ambiguous (e.g., "should unallocated GPU cost include MIG slices?")
+- Multiple valid approaches exist with meaningful trade-offs
+- You're about to delete or significantly refactor existing functionality
+- A test failure suggests the expected behavior might be wrong (not just missing fixtures)
+
+**Proceed autonomously when:**
+- The task is well-defined and scoped (e.g., "add column X to table Y")
+- You're fixing a clear bug with obvious root cause
+- You're adding test coverage for existing functionality
+- The change follows an established pattern in the codebase
 
 ### Never Take Shortcuts
 
@@ -529,6 +644,28 @@ SET search_path TO org1234567;
 - When mocking external services, mock at the most precise level and only mock what is genuinely unavailable.
 - When an assertion seems wrong, trace through the production code and SQL to understand WHY before changing it.
 - Before modifying any test, read the production code it tests. Before modifying SQL, run it manually against the test DB. Before changing an assertion, verify the expected values by querying the database.
+
+### PR and Commit Conventions
+
+**Commit messages:**
+- Use imperative mood: "Add GPU cost distribution" not "Added GPU cost distribution"
+- Reference JIRA/GitHub issues when applicable: "COST-1234: Add MIG slice support"
+- Keep the first line under 72 characters
+
+**PR descriptions should include:**
+- Summary of what changed and why
+- Testing performed (manual verification, new unit tests)
+- Migration notes if schema changes are involved
+
+**What requires a migration:**
+- Adding/removing/renaming model fields
+- Adding/removing indexes
+- Creating new tables
+
+**What does NOT require a migration:**
+- Changes to SQL templates (Jinja2 files)
+- Changes to Celery tasks
+- Changes to serializers or views
 
 ---
 
@@ -574,16 +711,28 @@ make docker-up-min-trino # Minimal + Trino
 
 ---
 
-## Full Development Environment (On-Prem / PostgreSQL-Only)
+## Full Development Environment
 
-This section describes how to bring up the entire Cost Management stack for local
+This section describes how to bring up the Cost Management stack for local
 development and testing, generate fake data, and verify the UI end-to-end.
+
+### Mode Selection
+
+| I'm working on... | Start with |
+|-------------------|------------|
+| OCP cost models, distribution, UI summaries | On-prem mode |
+| AWS/Azure/GCP data processing | SaaS mode (Trino) |
+| API changes, serializers, views | Either (on-prem is faster) |
+| New report endpoint for cloud provider | SaaS mode (need data) |
+| SQL template changes | **Both** (test each mode) |
+
+### On-Prem Mode (PostgreSQL-Only)
 
 ### Prerequisites
 
-- Docker / Podman with docker-compose support
-- The three repos cloned under `~/dev/koku/`: `koku`, `koku-ui`, `nise`
-- `USER_ID` and `GROUP_ID` set in `koku/.env` (run `id -u` and `id -g`)
+- Docker or Podman with Compose support (this doc uses `docker compose` syntax)
+- The repos cloned as siblings: `koku/`, `koku-ui/`, `nise/`
+- `USER_ID` and `GROUP_ID` set in `.env` (run `id -u` and `id -g`)
 
 ### Step 1: Start Backend Services
 
@@ -592,7 +741,7 @@ The minimal on-prem stack needs: `db`, `valkey`, `unleash`, `koku-server`,
 ingestion (see Step 3).
 
 ```bash
-cd ~/dev/koku/koku
+cd $KOKU_ROOT  # or your koku repo path
 
 # Ensure .env has USER_ID and GROUP_ID
 grep -q USER_ID .env || echo "USER_ID=$(id -u)" >> .env
@@ -675,11 +824,11 @@ docker run --rm --network koku_default --entrypoint sh minio/mc:latest -c "
 
 #### 3b. Generate OCP data with nise
 
-The nise repo (`~/dev/koku/nise/`) has example YAMLs under `examples/`. Use them
-as templates with updated dates.
+The nise repo has example YAMLs under `examples/`. Use them as templates with
+updated dates.
 
 ```bash
-cd ~/dev/koku/nise
+cd $WORKSPACE/nise  # sibling to koku repo
 
 # Create a date-adapted YAML (copy from examples/ocp_on_aws/ocp_static_data.yml,
 # update start_date/end_date to current month range)
@@ -710,7 +859,7 @@ S3_BUCKET_NAME=ocp-ingress \
 - `S3_SECRET_KEY` — MinIO secret key (`kokuminiosecret`)
 - `S3_BUCKET_NAME` — Target bucket (`ocp-ingress`)
 
-**Nise example YAMLs** (`~/dev/koku/nise/examples/`):
+**Nise example YAMLs** (`$WORKSPACE/nise/examples/`):
 - `ocp_on_aws/ocp_static_data.yml` — OCP cluster (4 nodes, 6 namespaces, no GPUs)
 - `ocp_on_aws/aws_static_data.yml` — Matching AWS infrastructure (EC2, EBS, S3, RDS, etc.)
 - `ocp_on_azure/` — OCP + Azure variants
@@ -778,15 +927,30 @@ Ingestion is complete when you see `manifest marked complete` in the worker logs
 docker compose stop minio
 ```
 
-### Step 4: Generate AWS/Azure/GCP Local Data (Cloud Providers)
+### SaaS Mode (Trino Stack)
 
-**On-prem limitation:** In `ONPREM=True` mode, only OCP data can be processed.
-AWS-local, Azure-local, and GCP-local processors throw `NotImplementedError:
-...does not implement write_to_self_hosted_table`. Cloud-local data works only
-in the full Trino stack.
+Use SaaS mode when working on AWS/Azure/GCP features or testing the full data pipeline.
 
-For the full (non-on-prem) stack, cloud data goes to local directories mapped
-into the worker container:
+#### Starting SaaS Mode
+
+```bash
+cd $KOKU_ROOT
+
+# Start the full stack with Trino
+make docker-up-min-trino
+
+# Or manually:
+docker compose up -d db valkey minio trino hive-metastore koku-server masu-server koku-worker koku-beat
+```
+
+This starts additional services:
+- **Trino** (port 8080) — SQL analytics engine for Parquet aggregation
+- **Hive Metastore** (port 9083) — Schema registry for Trino
+- **MinIO** (port 9000) — S3-compatible storage for Parquet files
+
+#### Generate AWS/Azure/GCP Test Data
+
+Cloud data goes to local directories mapped into the worker container:
 
 | Provider   | Host path                                    | Container path             |
 |------------|----------------------------------------------|----------------------------|
@@ -795,16 +959,36 @@ into the worker container:
 | GCP-local  | `testing/local_providers/gcp_local/`         | `/tmp/gcp_local_bucket`    |
 
 ```bash
-# Generate AWS data (writes directly to local directory)
-cd ~/dev/koku/nise
+# Generate AWS data
+cd $WORKSPACE/nise
 .venv/bin/nise report aws \
   --static-report-file /tmp/aws_static_data.yml \
   --aws-s3-report-name None \
-  --aws-s3-bucket-name ~/dev/koku/koku/testing/local_providers/aws_local
+  --aws-s3-bucket-name $KOKU_ROOT/testing/local_providers/aws_local
 
-# Trigger download for AWS
+# Trigger download and processing
 curl -s "http://localhost:5042/api/cost-management/v1/download/?provider_uuid=<AWS_PROVIDER_UUID>"
 ```
+
+#### Verifying Trino Is Working
+
+```bash
+# Check Trino is healthy
+curl -s http://localhost:8080/v1/info | python3 -m json.tool
+
+# Connect to Trino CLI (optional)
+docker compose exec trino trino --catalog hive --schema org1234567
+```
+
+#### When Trino SQL Changes
+
+After modifying `trino_sql/` templates:
+1. Restart the worker to pick up changes: `docker compose restart koku-worker`
+2. Trigger a re-summarization or re-ingest to execute the new SQL
+3. Check worker logs for SQL errors: `docker compose logs koku-worker | grep -i error`
+
+> **Note:** On-prem mode (`ONPREM=True`) cannot process AWS/Azure/GCP data.
+> Those processors throw `NotImplementedError: ...does not implement write_to_self_hosted_table`.
 
 ### Step 5: Set Up Cost Models
 
@@ -872,7 +1056,7 @@ Pre-built cost model JSON files are in `dev/scripts/cost_models/`:
 ### Step 6: Start the Frontend
 
 ```bash
-cd ~/dev/koku/koku-ui
+cd $WORKSPACE/koku-ui
 
 # Build the identity token
 IDENTITY=$(echo -n '{"identity":{"account_number":"10001","org_id":"1234567","type":"User","user":{"username":"user_dev","email":"user_dev@foo.com","is_org_admin":true,"access":{}}},"entitlements":{"cost_management":{"is_entitled":true}}}' | base64 -w0)
@@ -966,7 +1150,7 @@ However, explicit headers are needed for the frontend proxy and direct API calls
 
 ```bash
 # 1. Start backend
-cd ~/dev/koku/koku
+cd $KOKU_ROOT
 docker compose up -d db valkey unleash koku-server masu-server koku-worker koku-beat
 
 # 2. Generate + ingest OCP data (stop frontend first if running)
@@ -976,7 +1160,7 @@ docker compose up -d minio
 docker compose stop minio
 
 # 3. Start frontend
-cd ~/dev/koku/koku-ui
+cd $WORKSPACE/koku-ui
 IDENTITY=$(echo -n '...' | base64 -w0)
 API_PROXY_URL=http://localhost:8000 API_TOKEN=$IDENTITY npm run start --workspace apps/koku-ui-onprem
 
@@ -1020,7 +1204,7 @@ Forgetting step 2 or 3 is the #1 cause of "I fixed it but it's still broken".
 ### Resuming After a Reboot
 
 ```bash
-cd ~/dev/koku/koku
+cd $KOKU_ROOT
 
 # Start the backend stack
 docker compose up -d db valkey unleash koku-server masu-server koku-worker koku-beat
@@ -1036,7 +1220,7 @@ IDENTITY=$(echo -n '{"identity":{"account_number":"10001","org_id":"1234567","ty
 curl -s -H "x-rh-identity: $IDENTITY" http://localhost:8000/api/cost-management/v1/reports/openshift/costs/ | python3 -c "import json,sys; d=json.load(sys.stdin); print('API OK, total:', d['meta']['total']['cost']['total']['value'])"
 
 # Start the frontend (on-prem mode)
-cd ~/dev/koku/koku-ui
+cd $WORKSPACE/koku-ui
 # Kill anything on port 9000 first
 lsof -ti :9000 | xargs kill 2>/dev/null || true
 API_TOKEN=$(echo -n '{"identity":{"account_number":"10001","org_id":"1234567","type":"User","user":{"username":"user_dev","email":"user_dev@foo.com","is_org_admin":true,"access":{}}},"entitlements":{"cost_management":{"is_entitled":true}}}' | base64 -w0) npx webpack serve --config apps/koku-ui-onprem/webpack.config.ts &
@@ -1112,22 +1296,53 @@ ORDER BY id DESC LIMIT 10;
 - On-prem: Direct PostgreSQL SQL aggregation (no Trino)
 - Trino tables created at runtime by `masu/processor/report_parquet_processor_base.py`
 
+**SQL directory structure:**
+
+| Directory | Used By | Purpose | Examples |
+|-----------|---------|---------|----------|
+| `sql/` | Both modes | PostgreSQL operations shared by both paths | UI summaries, tag summaries, `usage_costs.sql`, distribution |
+| `trino_sql/` | SaaS only | Trino aggregation queries | `reporting_*_daily_summary.sql`, OCP-on-cloud population |
+| `self_hosted_sql/` | On-prem only | PostgreSQL replacements for `trino_sql/` | Same files, PostgreSQL syntax |
+
+**Key rule:** `trino_sql/` and `self_hosted_sql/` are **parallel directories**. If you add/modify a file in one, you likely need the equivalent change in the other.
+
+**Ensuring dual-path compatibility:**
+
+1. **SQL changes**:
+   - `sql/` changes apply to both modes automatically
+   - `trino_sql/` changes need parallel `self_hosted_sql/` changes (and vice versa)
+2. **Column additions**: Add to both PostgreSQL models AND Trino table definitions
+3. **Testing**:
+   - Run unit tests (mock Trino, test PostgreSQL path)
+   - Manually test on-prem mode with OCP data
+   - Manually test SaaS mode with cloud provider data (if applicable)
+4. **Common SQL dialect differences**:
+
+| Operation | PostgreSQL | Trino |
+|-----------|------------|-------|
+| UUID generation | `uuid_generate_v4()` | `uuid()` |
+| JSON extract | `col::jsonb->>'key'` | `json_extract_scalar(col, '$.key')` |
+| Return inserted | `RETURNING 1;` | Not supported (remove) |
+| Date cast | `DATE(col)` | `date(col)` |
+| Regex replace | `regexp_replace(col, pat, rep, 'g')` | `regexp_replace(col, pat, rep)` |
+| Schema prefix | `{{schema \| sqlsafe}}.table` | `hive.{{schema \| sqlsafe}}.table` or `postgres.{{schema \| sqlsafe}}.table` |
+
 ---
 
-# KOKU-UI FRONTEND (`~/dev/koku/koku-ui/`)
+# KOKU-UI FRONTEND
 
 ## Tech Stack
 
-| Layer          | Technology                                   |
-|----------------|----------------------------------------------|
-| Framework      | React 18 + TypeScript                        |
-| State          | Redux + Redux Toolkit + Redux Thunk          |
-| UI Library     | PatternFly 6 (Red Hat design system)         |
-| Routing        | react-router-dom v6                          |
-| HTTP Client    | Axios                                        |
-| i18n           | react-intl + FormatJS                        |
-| Build          | fec (frontend-components-config) / Webpack 5 |
-| Feature Flags  | Unleash (@unleash/proxy-client-react)        |
+| Layer          | Technology                                   | Version Source   |
+|----------------|----------------------------------------------|------------------|
+| Framework      | React + TypeScript                           | `package.json`   |
+| State          | Redux + Redux Toolkit + Redux Thunk          | `package.json`   |
+| UI Library     | PatternFly (Red Hat design system)           | `package.json`   |
+| Routing        | react-router-dom                             | `package.json`   |
+| HTTP Client    | Axios                                        | `package.json`   |
+| i18n           | react-intl + FormatJS                        | `package.json`   |
+| Build          | fec (frontend-components-config) / Webpack   | `package.json`   |
+| Feature Flags  | Unleash (@unleash/proxy-client-react)        | `package.json`   |
 
 ## Monorepo Structure
 
@@ -1157,16 +1372,16 @@ API base URL: `/api/cost-management/v1/` (Axios instance in `api/api.ts`)
 
 ---
 
-# KOKU-METRICS-OPERATOR (`~/dev/koku/koku-metrics-operator/`)
+# KOKU-METRICS-OPERATOR
 
 ## Tech Stack
 
-| Component          | Technology                                |
-|--------------------|-------------------------------------------|
-| Language           | Go 1.25                                   |
-| Operator SDK       | v1.41.1 (Kubebuilder v4)                 |
-| Controller Runtime | sigs.k8s.io/controller-runtime v0.23.1   |
-| Min OpenShift      | 4.12                                      |
+| Component          | Technology                                | Version Source |
+|--------------------|-------------------------------------------|----------------|
+| Language           | Go                                        | `go.mod`       |
+| Operator SDK       | Kubebuilder-based                         | `go.mod`       |
+| Controller Runtime | sigs.k8s.io/controller-runtime            | `go.mod`       |
+| Min OpenShift      | See operator documentation                | —              |
 
 ## CRD: CostManagementMetricsConfig
 
