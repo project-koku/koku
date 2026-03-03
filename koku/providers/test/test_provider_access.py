@@ -13,6 +13,9 @@ from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
 from providers.azure.provider import AzureProvider
 from providers.azure_local.provider import AzureLocalProvider
+from providers.aks.provider import AKSProvider
+from providers.eks.provider import EKSProvider
+from providers.gke.provider import GKEProvider
 from providers.ocp.provider import OCPProvider
 from providers.provider_access import ProviderAccessor
 from providers.provider_access import ProviderAccessorError
@@ -126,3 +129,24 @@ class ProviderAccessorTestCase(TestCase):
 
         with self.assertRaises(ValidationError):
             interface.infrastructure_key_list({}, {})
+
+    def test_establish_eks_provider(self):
+        """Verify that an EKS service is created."""
+        provider_name = Provider.PROVIDER_EKS
+        interface = ProviderAccessor(provider_name)
+        self.assertIsNotNone(interface.service)
+        self.assertTrue(isinstance(interface.service, EKSProvider))
+
+    def test_establish_aks_provider(self):
+        """Verify that an AKS service is created."""
+        provider_name = Provider.PROVIDER_AKS
+        interface = ProviderAccessor(provider_name)
+        self.assertIsNotNone(interface.service)
+        self.assertTrue(isinstance(interface.service, AKSProvider))
+
+    def test_establish_gke_provider(self):
+        """Verify that a GKE service is created."""
+        provider_name = Provider.PROVIDER_GKE
+        interface = ProviderAccessor(provider_name)
+        self.assertIsNotNone(interface.service)
+        self.assertTrue(isinstance(interface.service, GKEProvider))

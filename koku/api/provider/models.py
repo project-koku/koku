@@ -121,6 +121,10 @@ class Provider(models.Model):
     PROVIDER_AWS_LOCAL = "AWS-local"
     PROVIDER_AZURE_LOCAL = "Azure-local"
     PROVIDER_GCP_LOCAL = "GCP-local"
+    # Third-party managed Kubernetes service providers
+    PROVIDER_EKS = "EKS"
+    PROVIDER_AKS = "AKS"
+    PROVIDER_GKE = "GKE"
     # The following constants are not provider types
     OCP_ALL = "OCP_All"
     OCP_AWS = "OCP_AWS"
@@ -135,6 +139,9 @@ class Provider(models.Model):
         "aws-local": PROVIDER_AWS_LOCAL,
         "azure-local": PROVIDER_AZURE_LOCAL,
         "gcp-local": PROVIDER_GCP_LOCAL,
+        "eks": PROVIDER_EKS,
+        "aks": PROVIDER_AKS,
+        "gke": PROVIDER_GKE,
         "ocp-aws": OCP_AWS,
         "ocp-azure": OCP_AZURE,
     }
@@ -147,6 +154,9 @@ class Provider(models.Model):
         (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
         (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
         (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL),
+        (PROVIDER_EKS, PROVIDER_EKS),
+        (PROVIDER_AKS, PROVIDER_AKS),
+        (PROVIDER_GKE, PROVIDER_GKE),
     )
     CLOUD_PROVIDER_CHOICES = (
         (PROVIDER_AWS, PROVIDER_AWS),
@@ -177,6 +187,13 @@ class Provider(models.Model):
         PROVIDER_GCP,
         PROVIDER_GCP_LOCAL,
     ]
+    # KUBERNETES_PROVIDER_LIST encompasses all Kubernetes-based provider types,
+    # including OpenShift and third-party managed Kubernetes services (EKS, AKS, GKE).
+    # Use this list when logic should apply broadly to any Kubernetes workload.
+    KUBERNETES_PROVIDER_LIST = [PROVIDER_OCP, PROVIDER_EKS, PROVIDER_AKS, PROVIDER_GKE]
+    # THIRD_PARTY_KUBERNETES_PROVIDER_LIST contains only non-OpenShift managed
+    # Kubernetes providers. Use this list when behaviour differs from OpenShift.
+    THIRD_PARTY_KUBERNETES_PROVIDER_LIST = [PROVIDER_EKS, PROVIDER_AKS, PROVIDER_GKE]
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.CharField(max_length=256, null=False)
