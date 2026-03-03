@@ -59,7 +59,7 @@ class SourcesProviderCoordinator:
                             f"{provider.customer.org_id if provider.customer else None}."
                         )
                 except Provider.DoesNotExist:
-                    pass
+                    LOG.warning(f"Provider with uuid {source.source_uuid} not found despite IntegrityError, potential race condition.")
             raise SourcesProviderCoordinatorError(str(integrity_err))
         except ProviderBuilderError as provider_err:
             raise SourcesProviderCoordinatorError(str(provider_err))
