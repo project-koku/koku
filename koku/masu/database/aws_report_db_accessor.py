@@ -100,12 +100,15 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 operation="DELETE/INSERT",
             )
 
-    def populate_line_item_daily_summary_table_trino(self, start_date, end_date, source_uuid, bill_id, markup_value):
+    def populate_line_item_daily_summary_table_trino(
+        self, start_date, end_date, source_uuid, bill_id, markup_value, provider_timezone="UTC"
+    ):
         """Populate the daily aggregated summary of line items table.
 
         Args:
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
+            provider_timezone (str): IANA timezone for AT TIME ZONE conversion in Trino SQL.
 
         Returns
             (None)
@@ -126,6 +129,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "month": start_date.strftime("%m"),
             "markup": markup_value or 0,
             "bill_id": bill_id,
+            "provider_timezone": provider_timezone or "UTC",
         }
 
         self._execute_trino_raw_sql_query(
@@ -485,7 +489,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return False
         return True
 
-    def populate_ec2_compute_summary_table_trino(self, source_uuid, start_date, bill_id, markup_value):
+    def populate_ec2_compute_summary_table_trino(self, source_uuid, start_date, bill_id, markup_value, provider_timezone="UTC"):
         """
         Populate the monthly aggregated summary table for EC2 compute line items via Trino.
 
@@ -494,6 +498,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             start_date (datetime.date): The date representing the start of the billing period to populate.
             bill_id (int): The billing entry ID associated with the data being populated.
             markup_value (float): The markup value to apply to the costs, if any.
+            provider_timezone (str): IANA timezone for AT TIME ZONE conversion in Trino SQL.
 
         Returns
             (None)
@@ -520,6 +525,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "month": month,
             "markup": markup_value or 0,
             "bill_id": bill_id,
+            "provider_timezone": provider_timezone or "UTC",
         }
 
         self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")

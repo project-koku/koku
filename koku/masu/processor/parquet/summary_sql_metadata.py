@@ -4,6 +4,7 @@ from dataclasses import field
 from datetime import date
 from decimal import Decimal
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from dateutil.parser import parse
 from django.conf import settings
@@ -23,6 +24,9 @@ class SummarySqlMetadata:
     matched_tag_strs: list[str]
     bill_id: int
     report_period_id: int
+    # IANA timezone from Provider.timezone; propagated into Trino SQL templates
+    # so date truncation happens relative to the provider's local billing calendar.
+    provider_timezone: str = "UTC"
     days_tup: tuple = field(init=False)
     year: str = field(init=False)
     month: str = field(init=False)
@@ -38,11 +42,12 @@ class SummarySqlMetadata:
         self._generate_sql_params()
 
     def _check_date_parameters_format(self):
-        """Checks to make sure the date parameters are in the correct format"""
+        """Checks to make sure the date parameters are in the correct format."""
+        tz = ZoneInfo(self.provider_timezone) if self.provider_timezone else ZoneInfo("UTC")
         if isinstance(self.start_date, str):
-            self.start_date = parse(self.start_date).astimezone(tz=settings.UTC)
+            self.start_date = parse(self.start_date).astimezone(tz)
         if isinstance(self.end_date, str):
-            self.end_date = parse(self.end_date).astimezone(tz=settings.UTC)
+            self.end_date = parse(self.end_date).astimezone(tz)
 
     def _generate_sql_params(self):
         """Populates additional SQL parameters options"""
@@ -108,6 +113,7 @@ class SummarySqlMetadata:
             "days": self.days_tup,
             "report_period_id": self.report_period_id,
             "bill_id": self.bill_id,
+            "provider_timezone": self.provider_timezone,
         }
         for key, value in extra_params.items():
             base_params[key] = value

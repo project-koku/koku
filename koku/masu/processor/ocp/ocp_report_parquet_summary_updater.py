@@ -75,6 +75,8 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             if min_timestamp:
                 # Normalize to timezone-aware for comparison (handles both Trino naive and PostgreSQL aware)
                 if min_timestamp.tzinfo is None:
+                    # OCP timestamps are sourced from Prometheus which always reports in UTC —
+                    # safe to stamp directly without conversion.
                     min_timestamp = min_timestamp.replace(tzinfo=settings.UTC)
                 if min_timestamp > start_datetime:
                     start_date = min_timestamp.date()

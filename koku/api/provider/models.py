@@ -199,6 +199,22 @@ class Provider(models.Model):
     active = models.BooleanField(default=True)
     paused = models.BooleanField(default=False)
 
+    # IANA timezone for the provider's billing region (e.g. 'America/New_York').
+    # Used to convert UTC cloud timestamps to local billing-calendar dates so costs
+    # are attributed to the day they were actually incurred.  Defaults to UTC for
+    # backwards-compatible behaviour with all existing providers.
+    timezone = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        default="UTC",
+        help_text=(
+            "IANA timezone for provider's billing region. "
+            "Examples: 'America/New_York', 'Europe/Paris', 'Asia/Tokyo'. "
+            "Defaults to UTC for backwards compatibility."
+        ),
+    )
+
     # This field applies to OpenShift providers and identifies
     # which (if any) cloud provider the cluster is on
     infrastructure = models.ForeignKey("ProviderInfrastructureMap", null=True, on_delete=models.SET_NULL)

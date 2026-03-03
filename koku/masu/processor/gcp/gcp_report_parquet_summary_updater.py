@@ -40,6 +40,20 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
+    def _get_provider_timezone_name(self) -> str:
+        """Return the IANA timezone name stored on the Provider, fallback to UTC.
+
+        Keeping this a simple DB hit (rather than caching) mirrors how other
+        per-provider lookups are handled in summary updaters.  The value is only
+        fetched once per summarization run so the overhead is negligible.
+        """
+        try:
+            from api.provider.models import Provider  # noqa: PLC0415
+
+            return Provider.objects.get(uuid=self._provider.uuid).timezone or "UTC"
+        except Exception:
+            return "UTC"
+
     def update_summary_tables(self, start_date, end_date, **kwargs):
         """Populate the summary tables for reporting.
 
@@ -105,7 +119,8 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                         self._provider.uuid, start, end, filters
                     )
                     accessor.populate_line_item_daily_summary_table_trino(
-                        start, end, self._provider.uuid, current_bill_id, markup_value, invoice_month
+                        start, end, self._provider.uuid, current_bill_id, markup_value, invoice_month,
+                        provider_timezone=self._get_provider_timezone_name(),
                     )
                     accessor.populate_ui_summary_tables(start, end, self._provider.uuid, invoice_month)
                     accessor.populate_gcp_topology_information_tables(

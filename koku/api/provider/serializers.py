@@ -12,6 +12,9 @@ from django_tenants.utils import schema_context
 from rest_framework import serializers
 from rest_framework.fields import empty
 
+from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfoNotFoundError
+
 from api.common import error_obj
 from api.iam.serializers import AdminCustomerSerializer
 from api.iam.serializers import CustomerSerializer
@@ -202,6 +205,13 @@ class ProviderSerializer(serializers.ModelSerializer):
     created_by = UserSerializer(read_only=True)
     active = serializers.BooleanField(read_only=True)
     paused = serializers.BooleanField(required=False)
+    timezone = serializers.CharField(
+        max_length=64,
+        required=False,
+        allow_null=True,
+        default="UTC",
+        help_text="IANA timezone for provider billing region (e.g. 'America/New_York').",
+    )
 
     class Meta:
         """Metadata for the serializer."""
@@ -218,7 +228,20 @@ class ProviderSerializer(serializers.ModelSerializer):
             "created_timestamp",
             "active",
             "paused",
+            "timezone",
         )
+
+    def validate_timezone(self, value):
+        """Validate that value is a recognised IANA timezone name."""
+        if value:
+            try:
+                ZoneInfo(value)
+            except ZoneInfoNotFoundError:
+                raise serializers.ValidationError(
+                    f"'{value}' is not a valid IANA timezone. "
+                    "Use standard names like 'America/New_York' or 'Europe/London'."
+                )
+        return value or "UTC"
 
     def __init__(self, instance=None, data=empty, **kwargs):
         """Initialize the Provider Serializer.
