@@ -592,9 +592,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             # Handle distributions that require full month data
             if config.requires_full_month:
                 if summary_range.is_current_month:
-                    # Trigger distribution for previous month during a window of the current
-                    # month
-                    if dh.now_utc.day in [1, 2, 3]:
+                    # Trigger distribution for previous month on the second of the current month
+                    if dh.now_utc.day == 2:
                         sql_params["start_date"] = summary_range.start_of_previous_month
                         sql_params["end_date"] = summary_range.end_of_previous_month
                         summary_range.summarize_previous_month = True
