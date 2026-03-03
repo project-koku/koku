@@ -123,6 +123,20 @@ def utc_range_for_provider_local_day(
     return local_midnight.astimezone(timezone.utc), next_midnight.astimezone(timezone.utc)
 
 
+def get_provider_timezone_name(provider_uuid: str) -> str:
+    """Return the sanitized IANA timezone name stored on the Provider.
+
+    Falls back to 'UTC' on any DB or lookup error.
+    """
+    try:
+        from api.provider.models import Provider  # noqa: PLC0415
+
+        raw = Provider.objects.get(uuid=provider_uuid).timezone or "UTC"
+    except Exception:  # noqa: BLE001
+        raw = "UTC"
+    return sanitize_timezone_for_sql(raw)
+
+
 def aws_region_to_tz(region_code: str) -> str:
     """Map an AWS region code to an IANA timezone string.
 

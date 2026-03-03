@@ -52,9 +52,7 @@ def _infer_timezone(provider) -> str:
     """
     if provider.type in _REGION_PROVIDER_TYPES:
         region = getattr(provider, "region", None) or ""
-        tz = aws_region_to_tz(region)
-        if tz != "UTC" or region.upper() == "UTC":
-            return tz
+        return aws_region_to_tz(region)
     return "UTC"
 
 

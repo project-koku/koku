@@ -52,9 +52,9 @@ class SummarySqlMetadata:
         """Checks to make sure the date parameters are in the correct format."""
         tz = ZoneInfo(self.provider_timezone) if self.provider_timezone else ZoneInfo("UTC")
         if isinstance(self.start_date, str):
-            self.start_date = parse(self.start_date).astimezone(tz)
+            self.start_date = parse(self.start_date).replace(tzinfo=tz)
         if isinstance(self.end_date, str):
-            self.end_date = parse(self.end_date).astimezone(tz)
+            self.end_date = parse(self.end_date).replace(tzinfo=tz)
 
     def _generate_sql_params(self):
         """Populates additional SQL parameters options"""

@@ -10,7 +10,7 @@ from koku.pg_partition import PartitionHandlerMixin
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.util.common import date_range_pair
-from masu.util.timezone_utils import sanitize_timezone_for_sql
+from masu.util.timezone_utils import get_provider_timezone_name
 from reporting.provider.azure.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -37,23 +37,6 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
             end_date = ciso8601.parse_datetime(end_date).date()
 
         return start_date, end_date
-
-    def _get_provider_timezone_name(self) -> str:
-        """Return the IANA timezone name stored on the Provider, fallback to UTC.
-
-        Keeping this a simple DB hit (rather than caching) mirrors how other
-        per-provider lookups are handled in summary updaters.  The value is only
-        fetched once per summarization run so the overhead is negligible.
-        """
-        try:
-            from api.provider.models import Provider  # noqa: PLC0415
-
-            raw = Provider.objects.get(uuid=self._provider.uuid).timezone or "UTC"
-        except Exception:
-            raw = "UTC"
-        # Sanitize before the value ever reaches a Trino SQL template (second layer
-        # of defence after serializer-level IANA validation on write).
-        return sanitize_timezone_for_sql(raw)
 
     def update_summary_tables(self, start_date, end_date, **kwargs):
         """Populate the summary tables for reporting.
@@ -109,7 +92,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                 )
                 accessor.populate_line_item_daily_summary_table_trino(
                     start, end, self._provider.uuid, current_bill_id, markup_value,
-                    provider_timezone=self._get_provider_timezone_name(),
+                    provider_timezone=get_provider_timezone_name(self._provider.uuid),
                 )
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
