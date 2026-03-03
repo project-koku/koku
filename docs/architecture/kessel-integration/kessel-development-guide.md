@@ -97,7 +97,7 @@ pipenv run python -m pytest koku/koku_rebac/test/test_client.py \
 Contract tests validate gRPC calls against the live Kessel stack:
 
 ```bash
-ENABLE_KESSEL_TEST=True \
+ENABLE_KESSEL_TEST=1 \
 KESSEL_INVENTORY_HOST=localhost \
 KESSEL_INVENTORY_PORT=9081 \
 ONPREM=True \
@@ -109,7 +109,7 @@ pipenv run python -m pytest koku/koku_rebac/test/test_contract.py -v
 Integration tests exercise the middleware and access provider against live Kessel:
 
 ```bash
-ENABLE_KESSEL_TEST=True \
+ENABLE_KESSEL_TEST=1 \
 ONPREM=True \
 pipenv run python koku/manage.py test koku_rebac.test.test_integration -v 2
 ```
@@ -119,7 +119,7 @@ pipenv run python koku/manage.py test koku_rebac.test.test_integration -v 2
 E2E tests exercise full Koku views with Kessel authorization:
 
 ```bash
-ENABLE_KESSEL_TEST=True \
+ENABLE_KESSEL_TEST=1 \
 ONPREM=True \
 pipenv run python koku/manage.py test koku_rebac.test.test_e2e_regression -v 2
 ```
@@ -143,7 +143,7 @@ podman compose -f dev/kessel/docker-compose.yml restart relations-api
 3. Run contract tests to validate the schema resolves correctly:
 
 ```bash
-ENABLE_KESSEL_TEST=True KESSEL_INVENTORY_HOST=localhost KESSEL_INVENTORY_PORT=9081 ONPREM=True \
+ENABLE_KESSEL_TEST=1 KESSEL_INVENTORY_HOST=localhost KESSEL_INVENTORY_PORT=9081 ONPREM=True \
 pipenv run python -m pytest koku/koku_rebac/test/test_contract.py -v
 ```
 
@@ -232,8 +232,8 @@ The `-v` flag removes volumes (database data). Omit it to preserve data between 
 | `KESSEL_CA_PATH` | `""` | Path to CA cert for TLS; empty = plaintext/insecure |
 | `KESSEL_RELATIONS_URL` | `http://localhost:8100` | Relations API HTTP base URL |
 | `KESSEL_CACHE_TIMEOUT` | `300` | Access cache TTL in seconds |
-| `ENHANCED_ORG_ADMIN` | `False` | Org admin bypass; docker-compose overrides to `True` for convenience. Set `False` to exercise Kessel auth. |
-| `ENABLE_KESSEL_TEST` | (unset) | Any non-empty value enables live-stack tests (e.g. `True`) |
+| `ENHANCED_ORG_ADMIN` | `True` | Org admin bypass; set `False` to exercise Kessel auth |
+| `ENABLE_KESSEL_TEST` | (unset) | When set (e.g. `1`), enables live-stack tests |
 | `INSIGHTS_KAFKA_HOST` | `kafka` | Kafka broker host (set to `localhost` when running outside compose) |
 | `INSIGHTS_KAFKA_PORT` | `29092` | Kafka broker port |
 | `KAFKA_CONNECT` | `True` | Enables Kafka connectivity in Koku |
@@ -249,8 +249,8 @@ The `-v` flag removes volumes (database data). Omit it to preserve data between 
 | `connection refused` on port 9081 | Inventory API not ready | Wait: `podman compose -f dev/kessel/docker-compose.yml ps` |
 | `Check` returns `ALLOWED_FALSE` | Missing tuples in the chain | Verify the full chain: role has `t_*_read` → principal, role_binding has `t_granted` → role and `t_subject` → principal, tenant has `t_default_binding` → role_binding |
 | `StreamedListObjects` returns empty | Resource not linked to workspace | Verify `t_workspace` tuple exists on the resource |
-| CT/IT/E2E skipped with "Kessel stack not available" | `ENABLE_KESSEL_TEST` not set | Set `ENABLE_KESSEL_TEST=True` |
-| Kessel auth not exercised (admin gets full access without tuples) | `ENHANCED_ORG_ADMIN=True` (docker-compose default) bypasses Kessel for admin users | Set `ENHANCED_ORG_ADMIN=False` to exercise the Kessel auth path |
+| CT/IT/E2E skipped with "Kessel stack not available" | `ENABLE_KESSEL_TEST` not set | Set `ENABLE_KESSEL_TEST=1` |
+| All requests return 403 | `ENHANCED_ORG_ADMIN=True` bypasses all authorization (no Kessel calls made) | Set `ENHANCED_ORG_ADMIN=False` to exercise the Kessel auth path |
 | TLS handshake error on startup | `KESSEL_CA_PATH` set but stack uses plaintext | Unset `KESSEL_CA_PATH` for local dev |
 | Schema changes not taking effect | Relations API caches schema | Restart: `podman compose -f dev/kessel/docker-compose.yml restart relations-api` |
 | Source destroy fails / Kafka publish error | Kafka not running | Start Kafka: `podman compose --profile onprem up -d kafka` |
