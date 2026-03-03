@@ -80,8 +80,8 @@ SELECT uuid() as uuid,
     cast(savingsplan_effective_cost * {{markup | sqlsafe}} AS decimal(33,15)) as markup_cost_savingsplan,
     cast(calculated_amortized_cost * {{markup | sqlsafe}} AS decimal(33,9)) as markup_cost_amortized
 FROM (
-    SELECT date(lineitem_usagestartdate) as usage_start,
-        date(lineitem_usagestartdate) as usage_end,
+    SELECT date(lineitem_usagestartdate AT TIME ZONE '{{provider_timezone | sqlsafe}}') as usage_start,
+        date(lineitem_usagestartdate AT TIME ZONE '{{provider_timezone | sqlsafe}}') as usage_end,
         CASE
             WHEN bill_billingentity='AWS Marketplace' THEN coalesce(nullif(product_productname, ''), nullif(lineitem_productcode, ''))
             ELSE nullif(lineitem_productcode, '')
@@ -130,7 +130,7 @@ FROM (
         AND month = '{{month | sqlsafe}}'
         AND lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-    GROUP BY date(lineitem_usagestartdate),
+    GROUP BY date(lineitem_usagestartdate AT TIME ZONE '{{provider_timezone | sqlsafe}}'),
         bill_billingentity,
         lineitem_productcode,
         product_productname,

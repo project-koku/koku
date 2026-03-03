@@ -111,8 +111,8 @@ SELECT uuid() as uuid,
     INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
     aa.id as account_alias_id
 FROM (
-    SELECT min(date(lineitem_usagestartdate)) as usage_start,
-        max(date(lineitem_usagestartdate)) as usage_end,
+    SELECT min(date(lineitem_usagestartdate AT TIME ZONE '{{provider_timezone | sqlsafe}}')) as usage_start,
+        max(date(lineitem_usagestartdate AT TIME ZONE '{{provider_timezone | sqlsafe}}')) as usage_end,
         max(lineitem_usageaccountid) as usage_account_id,
         lineitem_resourceid as resource_id,
         max(nullif(product_operatingsystem, '')) as operating_system,
