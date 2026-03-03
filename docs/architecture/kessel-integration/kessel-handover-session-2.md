@@ -434,23 +434,23 @@ env $COMMON_ENV .venv-test/bin/python koku/manage.py test --noinput -v 2 \
   koku_rebac.test.test_urls
 
 # Tier 2: Integration Tests (23 tests, ~12s, needs live Kessel + DB)
-env $COMMON_ENV ENABLE_KESSEL_TEST=1 \
+env $COMMON_ENV ENABLE_KESSEL_TEST=True \
   .venv-test/bin/python koku/manage.py test --noinput -v 2 \
   koku_rebac.test.test_integration
 
 # Tier 3: Contract Tests (8 tests, ~5s, needs live Kessel)
-env $COMMON_ENV ENABLE_KESSEL_TEST=1 \
+env $COMMON_ENV ENABLE_KESSEL_TEST=True \
   .venv-test/bin/python koku/manage.py test --noinput -v 2 \
   koku_rebac.test.test_contract
 
 # Tier 4: End-to-End Tests (61 tests, ~22s, needs live Kessel + DB + Redis)
-env $COMMON_ENV ENABLE_KESSEL_TEST=1 \
+env $COMMON_ENV ENABLE_KESSEL_TEST=True \
   .venv-test/bin/python koku/manage.py test --noinput -v 2 \
   koku_rebac.test.test_e2e_regression
 ```
 
 **Important notes:**
-- `ENABLE_KESSEL_TEST=1` is required for IT, CT, and E2E tiers (tests skip without it).
+- `ENABLE_KESSEL_TEST=True` is required for IT, CT, and E2E tiers (tests skip without it).
 - `ONPREM=True` must be set at **process start**, not via `@override_settings`, because Sources viewset mixins are resolved at import time.
 - Use `manage.py test`, not `pytest`, for IT and E2E tiers. Django's `KokuTestRunner` creates tenant schema tables needed by `IamTestCase`.
 - `REDIS_HOST=localhost` is required because Koku's `settings.py` defaults to `"redis"` (container networking hostname).
