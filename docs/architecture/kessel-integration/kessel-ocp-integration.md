@@ -3,7 +3,7 @@
 **Date**: 2026-01-30 
 **Status**: High Level Design (HLD) 
 **Scope**: OpenShift (OCP) Provider - On-Premise Deployments
-**Last updated**: 2026-03-02 — aligned with implementation (see [kessel-hld-gaps-and-updates.md](./kessel-hld-gaps-and-updates.md) and [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md)).
+**Last updated**: 2026-03-02 — aligned with implementation (see [kessel-hld-gaps-and-updates.md](./kessel-hld-gaps-and-updates.md) and [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md)). For the on-prem workspace management strategy (team workspaces, cross-team sharing, Keycloak automation), see [onprem-workspace-management-adr.md](./onprem-workspace-management-adr.md).
 
 ---
 

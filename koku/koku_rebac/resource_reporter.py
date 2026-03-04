@@ -107,6 +107,12 @@ def on_resource_created(resource_type: str, resource_id: str, org_id: str) -> No
       1. ReportResource on Inventory API (registers metadata)
       2. Create t_workspace tuple on Relations API (enables discoverability)
 
+    The org_id (from the cost management metrics operator) is used as the
+    workspace_id for the primary t_workspace tuple.  This tuple makes the
+    resource visible to org-level admins.  Team-level visibility is managed
+    separately via additional t_workspace tuples written directly to SpiceDB
+    by the on-prem admin tooling — those tuples are never touched here.
+
     This is a no-op when AUTHORIZATION_BACKEND != "rebac".
     gRPC/HTTP errors are logged but never propagated to the caller.
     """
