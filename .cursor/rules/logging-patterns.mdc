@@ -1,0 +1,54 @@
+---
+description: Structured logging patterns using log_json
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Logging Patterns
+
+## Structured Logging
+
+Use `log_json()` for consistent, parseable logs:
+```python
+from koku.log import log_json
+
+# ✅ GOOD
+LOG.info(log_json(
+    msg="Processing started",
+    tracing_id=tracing_id,
+    context={"provider": str(provider_uuid), "report_type": report_type}
+))
+
+# ❌ BAD - Unstructured, hard to parse
+LOG.info(f"Processing started for {provider_uuid}")
+```
+
+## Tracing ID
+
+Include `tracing_id` for request correlation across services:
+```python
+LOG.info(log_json(
+    msg="Task completed",
+    tracing_id=context.get("tracing_id"),
+    context={"elapsed_ms": elapsed}
+))
+```
+
+## Log Levels
+
+- `DEBUG` - Detailed diagnostic info (loop iterations, intermediate values)
+- `INFO` - Normal operations (task start/complete, processing milestones)
+- `WARNING` - Unexpected but handled conditions (missing optional data, fallbacks)
+- `ERROR` - Failures requiring attention (exceptions, data integrity issues)
+
+## Context Fields
+
+Include relevant identifiers for searchability:
+```python
+context={
+    "provider_uuid": str(provider_uuid),
+    "schema": schema_name,
+    "manifest_id": manifest_id,
+    "report_type": report_type,
+}
+```
