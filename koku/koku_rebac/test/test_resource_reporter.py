@@ -410,7 +410,7 @@ class TestDeleteResourceTuples(SimpleTestCase):
         self.assertEqual(call_kwargs[1]["params"]["filter.resource_namespace"], "cost_management")
         self.assertEqual(call_kwargs[1]["params"]["filter.resource_type"], "openshift_cluster")
         self.assertEqual(call_kwargs[1]["params"]["filter.resource_id"], "cluster-1")
-        self.assertEqual(call_kwargs[1]["params"]["filter.relation"], "t_workspace")
+        self.assertNotIn("filter.relation", call_kwargs[1]["params"])
 
     @override_settings(KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples")
     @patch("koku_rebac.resource_reporter.http_requests")

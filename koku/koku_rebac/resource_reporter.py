@@ -284,19 +284,18 @@ def _delete_from_kessel(client: KesselClient, resource_type: str, resource_id: s
 
 
 def _delete_resource_tuples(resource_type: str, resource_id: str) -> bool:
-    """Delete the SpiceDB t_workspace tuple for a resource via Relations API.
+    """Delete all SpiceDB tuples for a resource via Relations API.
 
     StreamedListObjects is purely SpiceDB-backed, so the Inventory API's
     DeleteResource alone does NOT revoke discoverability.  This function
-    removes the ``cost_management/<type>:<id>#t_workspace`` relationship
-    from SpiceDB to complete the cleanup.
+    removes ALL ``cost_management/<type>:<id>`` relationships from SpiceDB
+    (t_workspace, has_cluster, has_project, etc.) to complete the cleanup.
     """
     url = _get_tuples_url()
     params = {
         "filter.resource_namespace": RESOURCE_NAMESPACE,
         "filter.resource_type": resource_type,
         "filter.resource_id": resource_id,
-        "filter.relation": RELATION_T_WORKSPACE,
     }
     try:
         resp = http_requests.delete(url, params=params, timeout=10)
