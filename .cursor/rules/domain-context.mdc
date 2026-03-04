@@ -1,0 +1,49 @@
+---
+description: Koku cost management domain concepts and terminology
+alwaysApply: true
+---
+
+# Koku Domain Context
+
+Koku is a cost management service for hybrid cloud infrastructure (OpenShift, AWS, Azure, GCP).
+
+## Core Concepts
+
+- **Provider** - A cloud account or OpenShift cluster that sends cost data
+- **Source** - Connection configuration for a provider (credentials, bucket info)
+- **Manifest** - Metadata about an incoming cost report batch
+- **Cost Model** - Customer-defined rates applied to usage (CPU, memory, storage, GPU)
+
+## Data Flow
+
+1. **Ingestion** - Reports downloaded from S3/Azure Blob/GCP buckets
+2. **Processing** - CSV/Parquet files parsed, validated, stored
+3. **Summarization** - Daily aggregations computed for UI
+4. **Cost Application** - Cost models apply rates to usage data
+
+## Database Architecture
+
+- **PostgreSQL** - Customer tenant schemas (`acct*`), reporting tables
+- **Trino/Hive** - Parquet data in S3 for historical queries
+- **Self-hosted** - On-premise deployments use PostgreSQL only
+
+## Schema Patterns
+
+- Each customer has isolated schema: `org1234567`, `org2222222`, etc.
+- Use `schema_context(schema_name)` for tenant-aware queries
+- Cross-schema queries use `{{schema | sqlsafe}}` in SQL templates
+
+## Report Types by Provider
+
+| Provider | Report Types |
+|----------|-------------|
+| OCP | pod_usage, storage_usage, node_labels, namespace_labels, gpu_usage |
+| AWS | CUR (Cost and Usage Report) |
+| Azure | Cost exports |
+| GCP | BigQuery billing exports |
+
+## Key Tables
+
+- `reporting_ocpusagelineitem_daily_summary` - OCP daily costs
+- `openshift_gpu_usage_line_items_daily` - GPU usage data
+- `reporting_ocp_cost_category_namespace` - Cost allocation rules
