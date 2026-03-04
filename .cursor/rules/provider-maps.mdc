@@ -1,0 +1,55 @@
+---
+description: Provider map patterns for API query handlers and aggregations
+globs: "**/provider_map.py"
+alwaysApply: false
+---
+
+# Provider Map Patterns
+
+Provider maps configure how API queries aggregate and filter data for each provider type (OCP, AWS, Azure, GCP).
+
+## Structure
+
+Each `ProviderMap` subclass defines:
+- `REPORT_TYPE_MAP` - Maps report types to query configurations
+- Cost calculation methods using Django ORM expressions
+- Filter and group-by field mappings
+
+## Cost Model Cost Pattern
+
+Use `Coalesce` with `Value(0)` defaults to handle null costs:
+```python
+def __cost_model_cost(self, cost_model_rate_type=None):
+    return Sum(
+        (
+            Coalesce(F("cost_model_cpu_cost"), Value(0, output_field=DecimalField()))
+            + Coalesce(F("cost_model_memory_cost"), Value(0, output_field=DecimalField()))
+            + Coalesce(F("cost_model_volume_cost"), Value(0, output_field=DecimalField()))
+            + Coalesce(F("cost_model_gpu_cost"), Value(0, output_field=DecimalField()))
+        )
+        * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
+    )
+```
+
+## Rate Type Filtering
+
+Use `Case/When` for conditional aggregation by rate type:
+```python
+Sum(
+    Case(
+        When(
+            cost_model_rate_type=cost_model_rate_type,
+            then=Coalesce(F("cost_model_cpu_cost"), Value(0, output_field=DecimalField())),
+        ),
+        default=Value(0, output_field=DecimalField()),
+    )
+)
+```
+
+## Adding New Report Types
+
+1. Create summary table model in `reporting/provider/*/models.py`
+2. Add table mapping in `REPORT_TYPE_MAP`
+3. Define aggregations, filters, and group-by fields
+4. Add API view and URL route
+5. Update serializer if new query params needed
