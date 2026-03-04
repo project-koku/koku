@@ -2089,3 +2089,67 @@ class OCPReportQueryHandlerTest(IamTestCase):
             response = client.get(url, **self.headers)
 
             self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_efficiency_score_cpu_no_group_by(self):
+        """Test that CPU report without group-by includes total_score."""
+        url = "?"
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        total = query_output.get("total")
+        self.assertIn("total_score", total)
+        total_score = total["total_score"]
+        self.assertIn("usage_efficiency", total_score)
+        self.assertIn("wasted_cost", total_score)
+
+    def test_efficiency_score_cpu_single_group_by(self):
+        """Test that CPU report with single group-by includes total_score and per-row score."""
+        for group_by in ["cluster", "node", "project"]:
+            with self.subTest(group_by=group_by):
+                url = f"?group_by[{group_by}]=*"
+                query_params = self.mocked_query_params(url, OCPCpuView)
+                handler = OCPReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                total = query_output.get("total")
+                self.assertIn("total_score", total)
+                self.assertIn("usage_efficiency", total["total_score"])
+                self.assertIn("wasted_cost", total["total_score"])
+
+    def test_efficiency_score_memory_report(self):
+        """Test that memory report includes total_score."""
+        url = "?group_by[project]=*"
+        query_params = self.mocked_query_params(url, OCPMemoryView)
+        handler = OCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        total = query_output.get("total")
+        self.assertIn("total_score", total)
+        total_score = total["total_score"]
+        self.assertIn("usage_efficiency", total_score)
+        self.assertIn("wasted_cost", total_score)
+
+    def test_efficiency_score_multi_group_by_returns_empty(self):
+        """Test that multi group-by returns empty total_score."""
+        url = "?group_by[cluster]=*&group_by[project]=*"
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        total = query_output.get("total")
+        self.assertEqual(total.get("total_score"), {})
+
+    def test_efficiency_score_cost_report_excluded(self):
+        """Test that cost report does not include total_score."""
+        url = "?"
+        query_params = self.mocked_query_params(url, OCPCostView)
+        handler = OCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        total = query_output.get("total")
+        self.assertNotIn("total_score", total)
+
+    def test_efficiency_score_volume_report_excluded(self):
+        """Test that volume report does not include total_score."""
+        url = "?"
+        query_params = self.mocked_query_params(url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        total = query_output.get("total")
+        self.assertNotIn("total_score", total)

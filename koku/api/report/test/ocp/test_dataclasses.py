@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the dataclasses."""
+from decimal import Decimal
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
@@ -10,6 +11,7 @@ from django_tenants.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
+from api.report.ocp.capacity.cluster_capacity import calculate_efficiency_score
 from api.report.ocp.capacity.cluster_capacity import ClusterCapacity
 from api.report.ocp.capacity.node_capacity import NodeCapacity
 from api.report.ocp.provider_map import OCPProviderMap
@@ -306,3 +308,85 @@ class NodeCapacityDataclassTest(IamTestCase):
                         result_value = node_capacity.capacity_by_date_node.get(usage_start, {}).get(node)
                         self.assertEqual(result_value, expected_capacity)
                     self.assertEqual(expected_total_capacity, node_capacity.capacity_total)
+
+
+class CalculateEfficiencyScoreTest(IamTestCase):
+    """Tests for the calculate_efficiency_score function."""
+
+    def test_normal_calculation(self):
+        """Test efficiency score with usage < request."""
+        row = {"usage": Decimal("450"), "request": Decimal("675"), "cost_total": Decimal("1000")}
+        calculate_efficiency_score(row)
+        score = row.get("score")
+        self.assertIsNotNone(score)
+        self.assertEqual(score["usage_efficiency"], 67)
+        expected_waste = Decimal("1000") * (Decimal("1") - Decimal("450") / Decimal("675"))
+        self.assertAlmostEqual(score["wasted_cost"], expected_waste, places=2)
+
+    def test_usage_exceeds_request(self):
+        """Test that wasted_cost is 0 when usage > request."""
+        row = {"usage": Decimal("150"), "request": Decimal("100"), "cost_total": Decimal("500")}
+        calculate_efficiency_score(row)
+        score = row.get("score")
+        self.assertEqual(score["usage_efficiency"], 150)
+        self.assertEqual(score["wasted_cost"], Decimal("0"))
+
+    def test_usage_equals_request(self):
+        """Test usage = request gives 100% efficiency and 0 waste."""
+        row = {"usage": Decimal("100"), "request": Decimal("100"), "cost_total": Decimal("1000")}
+        calculate_efficiency_score(row)
+        score = row.get("score")
+        self.assertEqual(score["usage_efficiency"], 100)
+        self.assertEqual(score["wasted_cost"], Decimal("0"))
+
+    def test_request_zero(self):
+        """Test request = 0 returns 0 for both fields."""
+        row = {"usage": Decimal("50"), "request": Decimal("0"), "cost_total": Decimal("1000")}
+        calculate_efficiency_score(row)
+        score = row.get("score")
+        self.assertEqual(score["usage_efficiency"], 0)
+        self.assertEqual(score["wasted_cost"], Decimal("0"))
+
+    def test_zero_usage(self):
+        """Test 0 usage gives 0% efficiency and full wasted cost."""
+        row = {"usage": Decimal("0"), "request": Decimal("100"), "cost_total": Decimal("1000")}
+        calculate_efficiency_score(row)
+        score = row.get("score")
+        self.assertEqual(score["usage_efficiency"], 0)
+        self.assertEqual(score["wasted_cost"], Decimal("1000"))
+
+    def test_missing_usage(self):
+        """Test that no score is added when usage is missing."""
+        row = {"request": Decimal("100"), "cost_total": Decimal("1000")}
+        calculate_efficiency_score(row)
+        self.assertNotIn("score", row)
+
+    def test_missing_request(self):
+        """Test that no score is added when request is missing."""
+        row = {"usage": Decimal("50"), "cost_total": Decimal("1000")}
+        calculate_efficiency_score(row)
+        self.assertNotIn("score", row)
+
+    def test_missing_cost_total(self):
+        """Test that no score is added when cost_total is missing."""
+        row = {"usage": Decimal("50"), "request": Decimal("100")}
+        calculate_efficiency_score(row)
+        self.assertNotIn("score", row)
+
+    def test_scenario_table(self):
+        """Test multiple scenarios from the PRD examples."""
+        scenarios = [
+            (Decimal("5"), Decimal("100"), Decimal("1000"), 5, Decimal("950")),
+            (Decimal("30"), Decimal("100"), Decimal("1000"), 30, Decimal("700")),
+            (Decimal("60"), Decimal("100"), Decimal("1000"), 60, Decimal("400")),
+            (Decimal("80"), Decimal("100"), Decimal("1000"), 80, Decimal("200")),
+            (Decimal("110"), Decimal("100"), Decimal("1000"), 110, Decimal("0")),
+            (Decimal("250"), Decimal("100"), Decimal("1000"), 250, Decimal("0")),
+        ]
+        for usage, request, cost, expected_eff, expected_waste in scenarios:
+            with self.subTest(usage=usage, request=request):
+                row = {"usage": usage, "request": request, "cost_total": cost}
+                calculate_efficiency_score(row)
+                score = row["score"]
+                self.assertEqual(score["usage_efficiency"], expected_eff)
+                self.assertEqual(score["wasted_cost"], expected_waste)
