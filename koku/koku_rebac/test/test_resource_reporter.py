@@ -502,6 +502,92 @@ class TestCreateResourceTuples(SimpleTestCase):
         self.assertTrue(payload["upsert"])
 
 
+class TestCreateStructuralTuple(SimpleTestCase):
+    """create_structural_tuple writes cross-type relationship tuples to SpiceDB."""
+
+    @override_settings(AUTHORIZATION_BACKEND="rbac")
+    def test_no_op_when_rbac(self):
+        from koku_rebac.resource_reporter import create_structural_tuple
+
+        result = create_structural_tuple("openshift_cluster", "c-1", "has_project", "openshift_project", "payments")
+        self.assertTrue(result)
+
+    @override_settings(
+        AUTHORIZATION_BACKEND="rebac",
+        KESSEL_RELATIONS_URL="http://kessel-relations:8100",
+        KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples",
+    )
+    @patch("koku_rebac.resource_reporter.http_requests")
+    def test_sends_correct_structural_payload(self, mock_requests):
+        mock_requests.post.return_value = MagicMock(ok=True)
+
+        from koku_rebac.resource_reporter import create_structural_tuple
+
+        result = create_structural_tuple("openshift_cluster", "c-1", "has_project", "openshift_project", "payments")
+        self.assertTrue(result)
+        mock_requests.post.assert_called_once()
+
+        payload = mock_requests.post.call_args[1]["json"]
+        self.assertTrue(payload["upsert"])
+        t = payload["tuples"][0]
+        self.assertEqual(t["resource"]["type"]["namespace"], "cost_management")
+        self.assertEqual(t["resource"]["type"]["name"], "openshift_cluster")
+        self.assertEqual(t["resource"]["id"], "c-1")
+        self.assertEqual(t["relation"], "has_project")
+        self.assertEqual(t["subject"]["subject"]["type"]["namespace"], "cost_management")
+        self.assertEqual(t["subject"]["subject"]["type"]["name"], "openshift_project")
+        self.assertEqual(t["subject"]["subject"]["id"], "payments")
+
+    @override_settings(
+        AUTHORIZATION_BACKEND="rebac",
+        KESSEL_RELATIONS_URL="http://kessel-relations:8100",
+        KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples",
+    )
+    @patch("koku_rebac.resource_reporter.http_requests")
+    def test_integration_has_cluster_tuple(self, mock_requests):
+        mock_requests.post.return_value = MagicMock(ok=True)
+
+        from koku_rebac.resource_reporter import create_structural_tuple
+
+        result = create_structural_tuple("integration", "src-uuid", "has_cluster", "openshift_cluster", "provider-uuid")
+        self.assertTrue(result)
+
+        t = mock_requests.post.call_args[1]["json"]["tuples"][0]
+        self.assertEqual(t["resource"]["type"]["name"], "integration")
+        self.assertEqual(t["relation"], "has_cluster")
+        self.assertEqual(t["subject"]["subject"]["type"]["name"], "openshift_cluster")
+
+    @override_settings(
+        AUTHORIZATION_BACKEND="rebac",
+        KESSEL_RELATIONS_URL="http://kessel-relations:8100",
+        KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples",
+    )
+    @patch("koku_rebac.resource_reporter.http_requests")
+    def test_returns_false_on_http_error(self, mock_requests):
+        mock_requests.post.return_value = MagicMock(ok=False, status_code=500)
+
+        from koku_rebac.resource_reporter import create_structural_tuple
+
+        result = create_structural_tuple("openshift_cluster", "c-1", "has_project", "openshift_project", "payments")
+        self.assertFalse(result)
+
+
+class TestIntegrationResourceType(SimpleTestCase):
+    """Integration is a valid IMMEDIATE_WRITE resource type."""
+
+    def test_integration_in_immediate_write_types(self):
+        from koku_rebac.resource_reporter import IMMEDIATE_WRITE_TYPES
+
+        self.assertIn("integration", IMMEDIATE_WRITE_TYPES)
+
+    def test_integration_report_request(self):
+        from koku_rebac.resource_reporter import _build_report_request
+
+        req = _build_report_request("integration", "src-uuid-1", "org-42")
+        self.assertEqual(req.type, "integration")
+        self.assertEqual(req.inventory_id, "org-42/integration/src-uuid-1")
+
+
 class TestRemoveExpiredDataKesselHook(SimpleTestCase):
     """_remove_expired_data calls Kessel cleanup after data purge."""
 

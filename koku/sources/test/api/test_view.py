@@ -789,19 +789,19 @@ class SourcesViewPermissionClassTests(IamTestCase):
     """Test Cases for SourcesViewSet and ApplicationsView permission_classes conditional."""
 
     def test_sources_viewset_permission_class_conditional(self):
-        """Verify SourcesViewSet permission_classes references SettingsAccessPermission when ONPREM."""
+        """Verify SourcesViewSet uses SourcesAccessPermission when ONPREM."""
         import inspect
         from sources.api import view as view_module
 
         source_code = inspect.getsource(view_module)
-        self.assertIn("SettingsAccessPermission", source_code)
+        self.assertIn("SourcesAccessPermission", source_code)
         self.assertIn("settings.ONPREM", source_code)
 
     def test_applications_view_permission_class_conditional(self):
-        """Verify ApplicationsView permission_classes references SettingsAccessPermission when ONPREM."""
+        """Verify ApplicationsView uses SourcesAccessPermission when ONPREM."""
         import inspect
         from sources.api import application_views as app_module
 
         source_code = inspect.getsource(app_module)
-        self.assertIn("SettingsAccessPermission", source_code)
+        self.assertIn("SourcesAccessPermission", source_code)
         self.assertIn("settings.ONPREM", source_code)

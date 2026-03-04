@@ -25,6 +25,10 @@
 - [Re-Ingestion Safety](#re-ingestion-safety)
 - [Resource Deletion and Multi-Workspace Cleanup](#resource-deletion-and-multi-workspace-cleanup)
 - [Why Direct SpiceDB for Admin Operations](#why-direct-spicedb-for-admin-operations)
+- [Integration as First-Class Kessel Resource](#integration-as-first-class-kessel-resource)
+  - [Computed Permissions and Structural Relationships](#computed-permissions-and-structural-relationships)
+  - [Authorization Cascade Example](#authorization-cascade-example)
+  - [Kessel Gap Inventory](#kessel-gap-inventory)
 - [SaaS Compatibility Analysis](#saas-compatibility-analysis)
 - [Alternatives Considered](#alternatives-considered)
 - [Risks and Mitigations](#risks-and-mitigations)
@@ -67,7 +71,7 @@ These requirements must be met **without changing Koku's application layer** (`a
 | Constraint | Rationale |
 |---|---|
 | **Koku's `KesselAccessProvider` must be unchanged** | Same code runs in SaaS and on-prem. It calls `StreamedListObjects` and `Check` — it must not know about workspace topology. |
-| **ZED schema must be compatible with upstream `rbac-config`** | No new `definition` or `relation` types. The on-prem schema is the canonical schema plus resource type definitions ([FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319)). |
+| **ZED schema must be a superset of upstream `rbac-config`** | Existing definitions (`rbac/role`, `rbac/workspace`, etc.) are not modified. On-prem adds the `cost_management/integration` type and structural relations (`has_cluster`, `has_project`) to enable computed permissions. |
 | **One `workspace_id` per resource in Kessel Inventory API** | `ReportResource` accepts a single `workspace_id` in representations. The Inventory API's contract is one workspace per resource. |
 | **SpiceDB allows multiple `t_workspace` tuples per resource** | SpiceDB itself has no single-workspace constraint. Multiple `t_workspace` tuples are valid and permission resolution uses union (`+`). |
 | **On-prem does not use Kessel's CDC pipeline** | The CDC-to-consumer pipeline that automatically creates tuples from Inventory API events is disabled on-prem. Koku writes tuples directly. |
@@ -282,7 +286,11 @@ The infra-member gains access only when the resource has a `t_workspace → work
 | `role_binding #t_subject → group#member` | Admin tooling / Keycloak sync | SpiceDB direct | Group binding | On-prem only |
 | `group #t_member → principal` | Keycloak sync | SpiceDB direct | User added to group | On-prem only |
 
-`resource_reporter.py` manages **only** the primary org-level `t_workspace` tuple. All workspace hierarchy, role bindings, and group management tuples are managed by the on-prem admin plane.
+| `integration #t_workspace → workspace:org123` | `resource_reporter.py` | Relations API | Source creation (via `ProviderBuilder`) | Yes |
+| `integration #has_cluster → openshift_cluster` | `resource_reporter.py` | Relations API | Source creation (via `ProviderBuilder`) | On-prem only (no-op when backend != rebac) |
+| `openshift_cluster #has_project → openshift_project` | `resource_reporter.py` | Relations API | Data ingestion (cluster info population) | On-prem only (no-op when backend != rebac) |
+
+`resource_reporter.py` manages the primary org-level `t_workspace` tuples and structural relationship tuples (`has_cluster`, `has_project`). All workspace hierarchy, role bindings, and group management tuples are managed by the on-prem admin plane.
 
 ---
 
@@ -389,6 +397,108 @@ The Inventory API remains in the stack because `KesselAccessProvider` depends on
 
 ---
 
+## Integration as First-Class Kessel Resource
+
+### Why This Type Exists
+
+The `cost_management/integration` resource type is a **Koku-API-specific construct** that does not exist in the upstream Kessel or KSL schema. It was created to solve a visibility problem unique to Koku's data model:
+
+Koku exposes a `/api/cost-management/v1/sources/` endpoint (the "Integrations" page in the UI) that lists configured data sources. This endpoint is **independent** from the cost report endpoints — it queries the `Sources` Django model, not the cost data tables. Without a dedicated Kessel resource backing it, the sources endpoint had no way to determine per-user source visibility:
+
+- **Before**: The endpoint used `SettingsAccessPermission`, a blunt workspace-level capability check that grants all-or-nothing access to all sources. This made per-team source filtering impossible.
+- **After**: Each source is registered as a `cost_management/integration` resource in Kessel. The sources endpoint calls `StreamedListObjects("integration")` to get the list of source UUIDs the user can see, then filters the queryset by `source_uuid__in=...`.
+
+**The integration resource is purely a computed visibility resource.** No role bindings are ever created on it. Its `read` permission is entirely derived from the structural containment chain (`has_cluster → has_project → t_workspace`). Admin never grants access to an integration directly — they grant access to namespaces or clusters, and SpiceDB computes integration visibility automatically.
+
+This is a new construct that must be documented as a Kessel gap: the upstream schema has no concept of application-specific "container" resources whose visibility is computed from child resource access. If Kessel adopts a similar pattern, the on-prem integration type could converge with the upstream schema.
+
+### Why Not Business Logic Instead?
+
+An alternative was considered: skip the integration resource type entirely and compute source visibility in Koku's business logic by joining the Sources table against the user's cluster/account access lists (the "Option A" approach). For OCP-only, this produces the same result with less schema machinery.
+
+However, Koku supports multiple provider types — AWS (accounts, organizational units), Azure (subscription GUIDs), GCP (accounts, projects), and OCP (clusters). Each has different resource types and different join logic. Without the integration type, the sources endpoint would need type-specific filtering for every provider:
+
+```python
+# Without integration type — grows with each provider type
+ocp_sources = Sources.filter(source_type="OCP", koku_uuid__in=cluster_access)
+aws_sources = Sources.filter(source_type="AWS", koku_uuid__in=aws_account_access)
+azure_sources = Sources.filter(source_type="Azure", koku_uuid__in=azure_sub_access)
+# ... and so on for every new provider type
+```
+
+With the integration type, the sources endpoint is always one generic query regardless of provider type:
+
+```python
+# With integration type — provider-agnostic, never changes
+integration_access = user.access["integration"]["read"]
+return Sources.objects.filter(source_uuid__in=integration_access)
+```
+
+The provider-specific containment (`has_cluster`, `has_account`, `has_subscription`) lives in the SpiceDB schema, not in Koku's business logic. This keeps the sources-api code generic and ensures new provider types only require schema additions, not application code changes.
+
+### Computed Permissions and Structural Relationships
+
+The [ZED schema](../../../dev/kessel/schema.zed) defines cross-type structural relations that enable permission cascading:
+
+```
+cost_management/integration
+    ├── has_cluster → cost_management/openshift_cluster
+    │                     ├── has_project → cost_management/openshift_project
+    │                     └── read permission cascades from has_project->read
+    └── read permission cascades from has_cluster->read
+```
+
+This hierarchy means:
+- **Project access** cascades upward to cluster visibility (via `has_project->read`)
+- **Cluster visibility** cascades upward to integration visibility (via `has_cluster->read`)
+- Admin only needs to grant namespace-level access; integration and cluster visibility is computed by SpiceDB
+
+Structural tuples are written by Koku during data ingestion:
+
+| Structural Tuple | Written by | When |
+|---|---|---|
+| `integration:<source_uuid>#has_cluster → openshift_cluster:<provider_uuid>` | `ProviderBuilder.create_provider_from_source` | OCP source creation |
+| `openshift_cluster:<provider_uuid>#has_project → openshift_project:<name>` | `_report_ocp_resources_to_kessel` | Data ingestion (cluster info population) |
+
+These tuples are deterministic and idempotent: the same source always produces the same structural relationships. Re-ingestion is safe because `create_structural_tuple` uses upsert mode.
+
+### Authorization Cascade Example
+
+**Scenario**: Admin grants user `test` access to namespace `payments`.
+
+**Admin actions** (management plane only):
+```
+openshift_project:payments → t_workspace → rbac/workspace:team-a
+rbac/role_binding:rb-test binds test to cost-openshift-viewer on team-a
+```
+
+**SpiceDB automatically computes** (via schema, zero admin action):
+- `test` can view `openshift_project:payments` (direct workspace permission)
+- `test` can view `openshift_cluster:cluster-A` (because `cluster-A#has_project → payments`)
+- `test` can view `openshift_cluster:cluster-B` (because `cluster-B#has_project → payments`)
+- `test` can view `integration:source-A` (because `source-A#has_cluster → cluster-A`)
+- `test` can view `integration:source-B` (because `source-B#has_cluster → cluster-B`)
+
+**Result**: User sees source-A and source-B on the integrations page; cost reports show only `payments` namespace data from both clusters.
+
+**What test cannot see**: Other namespaces, cluster-wide costs, or integrations that don't contain the `payments` namespace.
+
+### Kessel Gap Inventory
+
+The following operations bypass the Kessel Inventory/Relations APIs and access SpiceDB directly. Each represents a gap that the Kessel team should address:
+
+| Gap | Operation | Current Workaround | Proposed Kessel API |
+|---|---|---|---|
+| **Workspace management** | Create/delete `rbac/workspace` resources and `t_parent` relations | Direct SpiceDB `WriteRelationships` | Workspace CRUD endpoints on Inventory API |
+| **Role binding management** | Bind roles to users/groups on workspaces | Direct SpiceDB `WriteRelationships` | Role binding CRUD endpoints on Inventory API |
+| **Structural relationships** | Write `has_cluster`, `has_project` cross-type relations | `create_structural_tuple` via Relations API (REST POST) | `ReportResource` should support declaring structural relationships alongside metadata |
+| **Schema deployment** | Deploy/update the `.zed` schema | Direct SpiceDB schema write or `SPICEDB_SCHEMA_FILE` env var | Schema management API or versioned schema registry |
+| **CDC pipeline** | Auto-create `t_workspace` tuples from Inventory events | Disabled on-prem; Koku writes tuples via Relations API directly | On-prem CDC support or explicit `ReportResource` option to create tuples synchronously |
+| **Computed permissions** | Cross-type permission resolution (`has_cluster->read`, `has_project->read`) | Custom schema additions to the on-prem `.zed` file | Upstream KSL schema support for structural resource relationships |
+| **Application-specific computed-visibility resources** | `cost_management/integration` — a resource whose `read` permission is entirely derived from child resource access, not direct role bindings. Created because Koku's `/sources/` API is a separate endpoint that needs per-user filtering independent of cost report access. | Custom `integration` type in on-prem `.zed` schema; Koku registers integration resources and structural tuples during source creation and data ingestion | Upstream support for application-defined "container" resource types with computed visibility, or a generic mechanism for API endpoints to derive per-user resource lists from child access grants |
+
+---
+
 ## SaaS Compatibility Analysis
 
 | Aspect | SaaS | On-Prem | Compatible? |
@@ -398,10 +508,12 @@ The Inventory API remains in the stack because `KesselAccessProvider` depends on
 | `resource_reporter.py` | `on_resource_created` writes primary tuple | Same — always uses `org_id` from metrics operator | **Yes** — identical upsert behavior |
 | Workspace topology | Single org-level workspace (RBAC v2 manages hierarchy) | Team workspace hierarchy (admin tooling manages) | **Compatible** — Koku is unaware of topology |
 | Multiple `t_workspace` per resource | Not used (CDC creates one) | Used for cross-team sharing | **SpiceDB-compatible** — Inventory API unaffected (reads, not writes) |
-| ZED schema | Canonical `rbac-config` | Same canonical schema + resource definitions ([FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319)) | **Yes** — no new definitions or relations |
+| ZED schema | Canonical `rbac-config` | Canonical schema + resource definitions + `integration` type + structural relations (`has_cluster`, `has_project`) | **Compatible** — additions are on-prem only, do not modify upstream definitions |
+| `integration` resource type | Not used | Sources registered as Kessel `integration` resources; visibility computed via structural relations | **Safe** — `StreamedListObjects("integration")` returns empty on SaaS (no resources registered). Sources view ONPREM-gated. |
+| Structural tuples (`has_cluster`, `has_project`) | Not used | Written during source creation and data ingestion via Relations API | **Safe** — `create_structural_tuple` is a no-op when `AUTHORIZATION_BACKEND != "rebac"` |
 | Role/group management | RBAC v2 API | Admin tooling / Keycloak sync → SpiceDB | **Compatible** — different management plane, same SpiceDB model |
 
-**Key insight**: The divergence is entirely in the **tuple management plane** (how tuples are created and by whom), not in the **authorization evaluation plane** (how permissions are checked). Koku's application code is identical in both environments.
+**Key insight**: The divergence spans two layers: the **tuple management plane** (how tuples are created and by whom) and the **schema layer** (on-prem adds structural relations for computed permissions). Koku's shared application code remains generic — the sources-api changes are gated by `settings.ONPREM`, and the access provider addition (`integration` type) is a no-op on SaaS.
 
 ---
 
@@ -447,7 +559,8 @@ Use the Relations API for both `resource_reporter` and admin operations.
 | **Direct SpiceDB access bypasses future Relations API validation** | Low | On-prem controls the upgrade cycle. If the Relations API adds write-side validation in the future, the admin tooling can be updated. Currently the Relations API is a pass-through. |
 | **Workspace hierarchy management complexity** | Medium | Keycloak-driven automation (Option E) handles workspace/binding lifecycle. Admin tooling provides CLI and API for manual operations. |
 | **Re-ingestion writes a duplicate tuple** | Negligible | `on_resource_created` upserts with the same `org_id` every time — idempotent no-op at the SpiceDB level. |
-| **Schema drift between on-prem and upstream `rbac-config`** | Medium | On-prem schema is a strict superset (adds resource definitions only, per [FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319)). No modifications to existing definitions. Tracked in [zed-schema-upstream-delta.md](./zed-schema-upstream-delta.md). |
+| **Schema drift between on-prem and upstream `rbac-config`** | Medium | On-prem schema is a superset: adds resource type definitions ([FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319)), the `integration` type, and structural relations (`has_cluster`, `has_project`). No existing definitions are modified. Tracked in [zed-schema-upstream-delta.md](./zed-schema-upstream-delta.md). |
+| **Structural relations diverge from upstream schema** | Medium | `has_cluster` and `has_project` are on-prem additions enabling computed permissions. These are documented as Kessel gaps and proposed for upstream adoption. If upstream adopts them, the on-prem schema converges. If not, the additions remain isolated to on-prem. |
 
 ---
 
@@ -458,7 +571,16 @@ Use the Relations API for both `resource_reporter` and admin operations.
 | `KesselSyncedResource` tracking model | **Implemented** | [models.py](../../../koku/koku_rebac/models.py) |
 | `on_resource_created()` — primary `t_workspace` tuple (always `org_id`) | **Implemented** | [resource_reporter.py](../../../koku/koku_rebac/resource_reporter.py) |
 | `on_resource_deleted()` — cleanup primary tuple | **Implemented** | [resource_reporter.py](../../../koku/koku_rebac/resource_reporter.py) |
-| Unit tests (create, delete, idempotency) | **Implemented** | [test_resource_reporter.py](../../../koku/koku_rebac/test/test_resource_reporter.py) |
+| `create_structural_tuple()` — cross-type relations | **Implemented** | [resource_reporter.py](../../../koku/koku_rebac/resource_reporter.py) |
+| `integration` resource reporting on source create | **Implemented** | [provider_builder.py](../../../koku/api/provider/provider_builder.py) |
+| `integration` resource deletion on source destroy | **Implemented** | [sources/api/view.py](../../../koku/sources/api/view.py) |
+| `has_project` structural tuples during ingestion | **Implemented** | [ocp_report_db_accessor.py](../../../koku/masu/database/ocp_report_db_accessor.py) |
+| `integration` in access provider type map | **Implemented** | [access_provider.py](../../../koku/koku_rebac/access_provider.py) |
+| `SourcesAccessPermission` (integration-based) | **Implemented** | [sources_access.py](../../../koku/api/common/permissions/sources_access.py) |
+| Sources queryset filter by integration access | **Implemented** | [sources/api/view.py](../../../koku/sources/api/view.py) |
+| `AccountSettings` read access for ONPREM | **Implemented** | [api/settings/views.py](../../../koku/api/settings/views.py) |
+| ZED schema — `integration` type + structural relations | **Implemented** | [schema.zed](../../../dev/kessel/schema.zed) |
+| Unit tests (create, delete, idempotency, structural tuples) | **Implemented** | [test_resource_reporter.py](../../../koku/koku_rebac/test/test_resource_reporter.py), [test_sources_access.py](../../../koku/api/common/permissions/test/test_sources_access.py) |
 | Django migration | **Implemented** | [0001_initial.py](../../../koku/koku_rebac/migrations/0001_initial.py) |
 | Admin tooling (workspace CRUD, SpiceDB direct) | **Not started** | — |
 | Keycloak group sync automation | **Not started** | — |

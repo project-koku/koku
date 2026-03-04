@@ -33,7 +33,8 @@ from rest_framework.serializers import ValidationError
 from api.common.filters import CharListFilter
 from api.common.pagination import ListPaginator
 from api.common.permissions import RESOURCE_TYPE_MAP
-from api.common.permissions.settings_access import SettingsAccessPermission
+from api.common.permissions.sources_access import SourcesAccessPermission
+from koku_rebac.resource_reporter import on_resource_deleted
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
@@ -72,10 +73,10 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
                 LOG.error(msg)
                 return Response(msg, status=500)
             else:
-                # Publish destroy event to Kafka before deleting the source model
-                # This ensures downstream services (e.g., ros-ocp-backend) are notified
                 if settings.ONPREM:
                     publish_application_destroy_event(source)
+                    if source.source_uuid:
+                        on_resource_deleted("integration", str(source.source_uuid), org_id)
                 result = super().destroy(request, *args, **kwargs)
                 invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
                 return result
@@ -161,7 +162,7 @@ class SourcesViewSet(*MIXIN_LIST):
 
     lookup_fields = ("source_id", "source_uuid")
     queryset = Sources.objects.all()
-    permission_classes = (SettingsAccessPermission,) if settings.ONPREM else (AllowAny,)
+    permission_classes = (SourcesAccessPermission,) if settings.ONPREM else (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
     http_method_names = HTTP_METHOD_LIST
@@ -215,6 +216,10 @@ class SourcesViewSet(*MIXIN_LIST):
 
         Restricts the returned Sources to the associated org_id,
         by filtering against a `org_id` in the request.
+
+        On ONPREM, sources are Kessel ``integration`` resources.  The
+        access dict's ``integration.read`` list (populated from
+        StreamedListObjects) contains source UUIDs the user can see.
         """
         queryset = Sources.objects.none()
         org_id = self.request.user.customer.org_id
@@ -223,8 +228,30 @@ class SourcesViewSet(*MIXIN_LIST):
             queryset = Sources.objects.filter(org_id=org_id).exclude(source_type__in=excludes)
         except Sources.DoesNotExist:
             LOG.error("No sources found for org id %s.", org_id)
+            return queryset
+
+        if settings.ONPREM:
+            queryset = self._filter_by_integration_access(queryset)
 
         return queryset
+
+    def _filter_by_integration_access(self, queryset):
+        """Filter sources by Kessel integration resource access.
+
+        The access dict's ``integration.read`` contains source UUIDs
+        returned by StreamedListObjects via computed permissions in SpiceDB.
+        Wildcard (["*"]) means the user has org-level integration access.
+        """
+        resource_access = getattr(self.request.user, "access", None) or {}
+        integration_access = resource_access.get("integration", {}).get("read", [])
+
+        if not integration_access:
+            return Sources.objects.none()
+
+        if integration_access == ["*"]:
+            return queryset
+
+        return queryset.filter(source_uuid__in=integration_access)
 
     def get_object(self):
         queryset = self.get_queryset()

@@ -28,6 +28,7 @@ from api.utils import DateHelper
 from cost_models.sql_parameters import BaseCostModelParams
 from koku.database import SQLScriptAtomicExecutorMixin
 from koku.reportdb_accessor import get_report_db_accessor
+from koku_rebac.resource_reporter import create_structural_tuple
 from koku_rebac.resource_reporter import on_resource_created
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -1048,16 +1049,22 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         SQL queries return tuples (node_name, resource_id, ...) so we extract
         the first column as the resource identifier.
+
+        Also writes structural tuples (openshift_cluster#has_project) so that
+        SpiceDB can cascade project-level access up to cluster and integration
+        visibility via computed permissions.
         """
         if not nodes and not projects:
             return
         org_id = getattr(provider, "org_id", None) or ""
+        cluster_id = str(provider.uuid)
         for node_row in nodes:
             node_name = node_row[0] if isinstance(node_row, (tuple, list)) else str(node_row)
             on_resource_created("openshift_node", node_name, org_id)
         for project_row in projects:
             project_name = project_row[0] if isinstance(project_row, (tuple, list)) else str(project_row)
             on_resource_created("openshift_project", project_name, org_id)
+            create_structural_tuple("openshift_cluster", cluster_id, "has_project", "openshift_project", project_name)
 
     def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
         """Populate the cluster, node, PVC, and project tables for the cluster."""

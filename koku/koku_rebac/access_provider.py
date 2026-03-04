@@ -46,6 +46,7 @@ KOKU_TO_KESSEL_TYPE_MAP: dict[str, str] = {
     "openshift.cluster": "openshift_cluster",
     "openshift.node": "openshift_node",
     "openshift.project": "openshift_project",
+    "integration": "integration",
     "cost_model": "cost_model",
     "settings": "settings",
 }

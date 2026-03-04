@@ -51,6 +51,7 @@ WORKSPACE_NAMESPACE = "rbac"
 WORKSPACE_TYPE = "workspace"
 
 IMMEDIATE_WRITE_TYPES = frozenset({
+    "integration",
     "openshift_cluster",
     "openshift_node",
     "openshift_project",
@@ -183,6 +184,69 @@ def _create_resource_tuples(resource_type: str, resource_id: str, org_id: str) -
                 msg="Relations API tuple create error",
                 resource_type=resource_type,
                 resource_id=resource_id,
+            ),
+            exc_info=True,
+        )
+        return False
+
+
+def create_structural_tuple(
+    resource_type: str, resource_id: str, relation: str, subject_type: str, subject_id: str
+) -> bool:
+    """Create a cross-type structural relationship tuple via Relations API.
+
+    Used to declare containment hierarchies:
+      integration#has_cluster -> openshift_cluster
+      openshift_cluster#has_project -> openshift_project
+
+    These enable SpiceDB computed permissions to cascade access upward:
+    project access -> cluster visibility -> integration visibility.
+    """
+    if settings.AUTHORIZATION_BACKEND != "rebac":
+        return True
+
+    url = _get_tuples_url()
+    payload = {
+        "upsert": True,
+        "tuples": [
+            {
+                "resource": {
+                    "type": {"namespace": RESOURCE_NAMESPACE, "name": resource_type},
+                    "id": resource_id,
+                },
+                "relation": relation,
+                "subject": {
+                    "subject": {
+                        "type": {"namespace": RESOURCE_NAMESPACE, "name": subject_type},
+                        "id": subject_id,
+                    }
+                },
+            }
+        ],
+    }
+    try:
+        resp = http_requests.post(url, json=payload, timeout=10)
+        if not resp.ok:
+            LOG.warning(
+                log_json(
+                    msg="Structural tuple create failed",
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                    relation=relation,
+                    subject_type=subject_type,
+                    subject_id=subject_id,
+                    status=resp.status_code,
+                )
+            )
+            return False
+        return True
+    except http_requests.RequestException:
+        LOG.warning(
+            log_json(
+                msg="Structural tuple create error",
+                resource_type=resource_type,
+                resource_id=resource_id,
+                relation=relation,
             ),
             exc_info=True,
         )
