@@ -61,7 +61,7 @@ class CostSummary(models.Model):
     monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
 
-class CostSummaryP(models.Model):
+class OCPPodSummaryP(models.Model):
     """A partitioned summary table of OCP pod-level costs for UI/API queries."""
 
     class PartitionInfo:
@@ -69,7 +69,7 @@ class CostSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        db_table = "reporting_ocp_pod_summary_p"
+        db_table = "reporting_ocppodsummary_p"
         indexes = [
             models.Index(fields=["usage_start"], name="ocppodsumm_usage_start_idx"),
             models.Index(fields=["namespace"], name="ocppodsumm_namespace_idx", opclasses=["varchar_pattern_ops"]),
