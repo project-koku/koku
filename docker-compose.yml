@@ -740,6 +740,7 @@ services:
   kafka-zookeeper:
     container_name: koku-zookeeper
     image: confluentinc/cp-zookeeper:7.8.6
+    profiles: ["onprem"]
     environment:
       - ZOOKEEPER_CLIENT_PORT=32181
       - ZOOKEEPER_SERVER_ID=1
@@ -747,6 +748,7 @@ services:
   kafka:
     container_name: koku-kafka
     image: confluentinc/cp-kafka:7.8.6
+    profiles: ["onprem"]
     environment:
       - KAFKA_ADVERTISED_LISTENERS=DOCKER://kafka:29092,LOCALHOST://localhost:9092
       - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=DOCKER:PLAINTEXT,LOCALHOST:PLAINTEXT
@@ -763,6 +765,7 @@ services:
 
   init-kafka:
     image: confluentinc/cp-kafka:7.8.6
+    profiles: ["onprem"]
     entrypoint: [ '/bin/sh', '-c' ]
     command: |
       # blocks until kafka is reachable
