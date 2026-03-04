@@ -445,6 +445,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         end_date = DateHelper().parse_to_date(end_date)
 
         storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
+        quota_exists = trino_table_exists(self.schema, "openshift_quota_labels_line_items_daily")
+        if not quota_exists:
+            LOG.info(log_json(msg="quota labels table does not exist; quota columns will be NULL", schema=self.schema))
 
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
@@ -469,6 +472,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "month": month,
             "days": days_tup,
             "storage_exists": storage_exists,
+            "quota_exists": quota_exists,
         }
 
         try:

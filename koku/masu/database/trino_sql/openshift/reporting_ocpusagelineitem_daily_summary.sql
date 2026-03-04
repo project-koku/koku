@@ -41,11 +41,31 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_
     infrastructure_usage_cost varchar,
     csi_volume_handle varchar,
     cost_category_id int,
+    quota_name varchar,
+    quota_type varchar,
     source varchar,
     year varchar,
     month varchar,
     day varchar
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month', 'day'])
+;
+
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.openshift_quota_labels_line_items_daily (
+    report_period_start timestamp,
+    interval_start      timestamp,
+    interval_end        timestamp,
+    namespace           varchar,
+    quota_name          varchar,
+    quota_type          varchar,
+    source              varchar,
+    year                varchar,
+    month               varchar
+)
+WITH (
+    external_location = 's3a://{{s3_bucket | sqlsafe}}/data/parquet/{{schema | sqlsafe}}/openshift/quota_labels/{{source | sqlsafe}}/{{year | sqlsafe}}/{{month | sqlsafe}}/',
+    format = 'PARQUET',
+    partitioned_by = ARRAY['source', 'year', 'month']
+)
 ;
 
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
@@ -86,6 +106,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     infrastructure_usage_cost,
     csi_volume_handle,
     cost_category_id,
+    quota_name,
+    quota_type,
     source,
     year,
     month,
@@ -139,6 +161,19 @@ cte_ocp_namespace_label_line_item_daily AS (
         nli.namespace,
         3 -- needs to match the labels cardinality
 ),
+{% if quota_exists %}
+cte_ocp_quota_label_line_item_daily AS (
+    SELECT
+        namespace,
+        max_by(quota_name, interval_start) AS quota_name,
+        max_by(quota_type, interval_start) AS quota_type
+    FROM hive.{{schema | sqlsafe}}.openshift_quota_labels_line_items_daily
+    WHERE source = {{source}}
+      AND year = {{year}}
+      AND month = {{month}}
+    GROUP BY namespace
+),
+{% endif %}
 -- Daily sum of cluster CPU and memory capacity
 cte_ocp_node_capacity AS (
     SELECT date(nc.interval_start) as usage_start,
@@ -253,6 +288,8 @@ SELECT null as uuid,
     '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
     NULL as csi_volume_handle,
     pua.cost_category_id,
+    {% if quota_exists %}pua.quota_name{% else %}CAST(null AS varchar){% endif %} AS quota_name,
+    {% if quota_exists %}pua.quota_type{% else %}CAST(null AS varchar){% endif %} AS quota_type,
     {{source}} as source,
     cast(year(pua.usage_start) as varchar) as year,
     cast(month(pua.usage_start) as varchar) as month,
@@ -263,6 +300,8 @@ FROM (
         li.node,
         max(cat_ns.cost_category_id) as cost_category_id,
         li.source as source_uuid,
+        {% if quota_exists %}ql.quota_name{% else %}CAST(null AS varchar){% endif %} AS quota_name,
+        {% if quota_exists %}ql.quota_type{% else %}CAST(null AS varchar){% endif %} AS quota_type,
         map_concat(
             cast(coalesce(nli.node_labels, cast(map(array[], array[]) as json)) as map(varchar, varchar)),
             cast(coalesce(nsli.namespace_labels, cast(map(array[], array[]) as json)) as map(varchar, varchar)),
@@ -301,6 +340,10 @@ FROM (
         ON cc.usage_start = date(li.interval_start)
     LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
         ON li.namespace LIKE cat_ns.namespace
+    {% if quota_exists %}
+    LEFT JOIN cte_ocp_quota_label_line_item_daily AS ql
+        ON ql.namespace = li.namespace
+    {% endif %}
     WHERE li.source = {{source}}
         AND li.year = {{year}}
         AND li.month = {{month}}
@@ -311,8 +354,10 @@ FROM (
         li.namespace,
         li.node,
         li.source,
-        6  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE map_filter EXPRESSION */
+        {% if quota_exists %}ql.quota_name, ql.quota_type,{% endif %}
+        8  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE map_filter EXPRESSION */
             /* The map_filter expression was too complex for trino to use */
+            /* quota_name and quota_type are at positions 6 and 7 */
 ) as pua
 
 {% if storage_exists %}
@@ -377,6 +422,8 @@ SELECT null as uuid,
     '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
     sua.csi_volume_handle,
     sua.cost_category_id,
+    CAST(null AS varchar) AS quota_name,
+    CAST(null AS varchar) AS quota_type,
     {{source}} as source,
     cast(year(sua.usage_start) as varchar) as year,
     cast(month(sua.usage_start) as varchar) as month,
@@ -617,7 +664,9 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     infrastructure_usage_cost,
-    cost_category_id
+    cost_category_id,
+    quota_name,
+    quota_type
 )
 SELECT uuid(),
     report_period_id,
@@ -658,7 +707,9 @@ SELECT uuid(),
     persistentvolumeclaim_usage_gigabyte_months,
     cast(source_uuid as UUID),
     json_parse(infrastructure_usage_cost),
-    cost_category_id
+    cost_category_id,
+    quota_name,
+    quota_type
 FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}

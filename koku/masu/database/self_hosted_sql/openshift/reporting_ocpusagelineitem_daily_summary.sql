@@ -61,6 +61,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_stagin
     infrastructure_usage_cost,
     csi_volume_handle,
     cost_category_id,
+    quota_name,
+    quota_type,
     source,
     year,
     month,
@@ -102,6 +104,19 @@ cte_ocp_namespace_label_line_item_daily AS (
         nli.namespace,
         3
 ),
+{% if quota_exists %}
+cte_ocp_quota_label_line_item_daily AS (
+    SELECT DISTINCT ON (namespace)
+        namespace,
+        quota_name,
+        quota_type
+    FROM {{schema | sqlsafe}}.openshift_quota_labels_line_items_daily
+    WHERE source = {{source}}
+      AND year = {{year}}
+      AND month = {{month}}
+    ORDER BY namespace, interval_start DESC
+),
+{% endif %}
 cte_ocp_node_capacity AS (
     SELECT nc.usage_start,
         nc.node,
@@ -218,6 +233,8 @@ SELECT null as uuid,
     '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
     NULL as csi_volume_handle,
     pua.cost_category_id,
+    {% if quota_exists %}pua.quota_name,{% else %}NULL::text AS quota_name,{% endif %}
+    {% if quota_exists %}pua.quota_type,{% else %}NULL::text AS quota_type,{% endif %}
     {{source}} as source,
     EXTRACT(YEAR FROM pua.usage_start)::text as year,
     EXTRACT(MONTH FROM pua.usage_start)::text as month,
@@ -227,6 +244,7 @@ FROM (
         li.namespace,
         li.node,
         max(cat_ns.cost_category_id) as cost_category_id,
+        {% if quota_exists %}ql.quota_name, ql.quota_type,{% else %}NULL::text AS quota_name, NULL::text AS quota_type,{% endif %}
         li.source as source_uuid,
         COALESCE(
             COALESCE(nli.node_labels, '{}'::jsonb) ||
@@ -264,6 +282,10 @@ FROM (
         ON cc.usage_start = li.usage_start
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
         ON li.namespace LIKE cat_ns.namespace
+    {% if quota_exists %}
+    LEFT JOIN cte_ocp_quota_label_line_item_daily AS ql
+        ON ql.namespace = li.namespace
+    {% endif %}
     WHERE li.source = {{source}}
         AND li.year = {{year}}
         AND li.month = {{month}}
@@ -274,7 +296,8 @@ FROM (
         li.namespace,
         li.node,
         li.source,
-        6  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE pod_labels EXPRESSION */
+        {% if quota_exists %}ql.quota_name, ql.quota_type,{% endif %}
+        8  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE pod_labels EXPRESSION */
             /* The pod_labels expression was too complex for PostgreSQL to use */
 ) as pua
 
@@ -340,6 +363,8 @@ SELECT null as uuid,
     '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
     sua.csi_volume_handle,
     sua.cost_category_id,
+    NULL::text AS quota_name,
+    NULL::text AS quota_type,
     {{source}} as source,
     EXTRACT(YEAR FROM sua.usage_start)::text as year,
     EXTRACT(MONTH FROM sua.usage_start)::text as month,
@@ -575,7 +600,9 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     infrastructure_usage_cost,
-    cost_category_id
+    cost_category_id,
+    quota_name,
+    quota_type
 )
 SELECT uuid_generate_v4(),
     report_period_id,
@@ -613,7 +640,9 @@ SELECT uuid_generate_v4(),
     persistentvolumeclaim_usage_gigabyte_months,
     source_uuid::uuid,
     infrastructure_usage_cost::jsonb,
-    cost_category_id
+    cost_category_id,
+    quota_name,
+    quota_type
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_staging AS lids
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}

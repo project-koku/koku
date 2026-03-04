@@ -42,19 +42,20 @@ def order_by_field_requires_group_by(data, order_name, group_by_keys):
 class OCPGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ("project", "cluster", "node", "persistentvolumeclaim", "storageclass")
+    _opfields = ("project", "cluster", "node", "persistentvolumeclaim", "storageclass", "quota")
 
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
     persistentvolumeclaim = StringOrListField(child=serializers.CharField(), required=False)
     storageclass = StringOrListField(child=serializers.CharField(), required=False)
+    quota = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("project", "cluster", "node", "date", "distributed_cost")
+    _opfields = ("project", "cluster", "node", "date", "distributed_cost", "quota")
     _op_mapping = DISTRIBUTED_COST_INTERNAL
 
     cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
@@ -64,6 +65,7 @@ class OCPOrderBySerializer(OrderSerializer):
     cost_total_distributed = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     persistentvolumeclaim = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     storage_class = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    quota = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
 class InventoryOrderBySerializer(OCPOrderBySerializer):
@@ -81,7 +83,7 @@ class OCPFilterSerializer(BaseFilterSerializer):
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"), ("gcp", "gcp"))
 
-    _opfields = ("project", "cluster", "node", "infrastructures", "category", "persistentvolumeclaim", "storageclass")
+    _opfields = ("project", "cluster", "node", "infrastructures", "category", "persistentvolumeclaim", "storageclass", "quota", "quota_type")
 
     project = StringOrListField(child=serializers.CharField(), required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
@@ -90,6 +92,8 @@ class OCPFilterSerializer(BaseFilterSerializer):
     category = StringOrListField(child=serializers.CharField(), required=False)
     persistentvolumeclaim = StringOrListField(child=serializers.CharField(), required=False)
     storageclass = StringOrListField(child=serializers.CharField(), required=False)
+    quota = StringOrListField(child=serializers.CharField(), required=False)
+    quota_type = serializers.ChoiceField(choices=(("project", "project"), ("cluster", "cluster")), required=False)
 
     def validate(self, data):
         """Validate incoming data.
@@ -186,6 +190,7 @@ class OCPQueryParamSerializer(ReportQueryParamSerializer):
 
         order_by_field_requires_group_by(data, "storage_class", ["persistentvolumeclaim", "storageclass"])
         order_by_field_requires_group_by(data, "persistentvolumeclaim", "persistentvolumeclaim")
+        order_by_field_requires_group_by(data, "quota", "quota")
         if data.get("delta") == DISTRIBUTED_COST_INTERNAL["distributed_cost"] and "project" not in data.get(
             "group_by", {}
         ):
