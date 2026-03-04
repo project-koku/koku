@@ -14,6 +14,7 @@ from django.utils.decorators import method_decorator
 from django.utils.encoding import force_str
 from django.views.decorators.cache import cache_page
 from django.views.decorators.cache import never_cache
+from django.views.decorators.vary import vary_on_headers
 from django_filters import CharFilter
 from django_filters import FilterSet
 from django_filters.rest_framework import DjangoFilterBackend
@@ -30,6 +31,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import UUIDField
 from rest_framework.serializers import ValidationError
 
+from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.filters import CharListFilter
 from api.common.pagination import ListPaginator
 from api.common.permissions import RESOURCE_TYPE_MAP
@@ -307,6 +309,7 @@ class SourcesViewSet(*MIXIN_LIST):
         except SourcesDependencyError as error:
             raise SourcesDependencyException(str(error))
 
+    @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     @method_decorator(
         cache_page(settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=SOURCES_CACHE_PREFIX)
     )
