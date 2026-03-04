@@ -1045,14 +1045,19 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         Gracefully skips reporting when no nodes/projects are present.
         on_resource_created is itself a no-op when AUTHORIZATION_BACKEND != "rebac".
+
+        SQL queries return tuples (node_name, resource_id, ...) so we extract
+        the first column as the resource identifier.
         """
         if not nodes and not projects:
             return
         org_id = getattr(provider, "org_id", None) or ""
-        for node in nodes:
-            on_resource_created("openshift_node", node, org_id)
-        for project in projects:
-            on_resource_created("openshift_project", project, org_id)
+        for node_row in nodes:
+            node_name = node_row[0] if isinstance(node_row, (tuple, list)) else str(node_row)
+            on_resource_created("openshift_node", node_name, org_id)
+        for project_row in projects:
+            project_name = project_row[0] if isinstance(project_row, (tuple, list)) else str(project_row)
+            on_resource_created("openshift_project", project_name, org_id)
 
     def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
         """Populate the cluster, node, PVC, and project tables for the cluster."""
