@@ -3135,9 +3135,8 @@
                         "description": "ID of source to get",
                         "required": true,
                         "schema": {
-                            "type": "integer",
-                            "format": "int64",
-                            "example": 1
+                            "type": "string",
+                            "example": "1"
                         }
                     },
                     {
@@ -4189,9 +4188,8 @@
                         "description": "ID of source to get",
                         "required": true,
                         "schema": {
-                            "type": "integer",
-                            "format": "int64",
-                            "example": 1
+                            "type": "string",
+                            "example": "1"
                         }
                     }
                 ],
@@ -4251,9 +4249,8 @@
                         "description": "ID of source to get",
                         "required": true,
                         "schema": {
-                            "type": "integer",
-                            "format": "int64",
-                            "example": 1
+                            "type": "string",
+                            "example": "1"
                         }
                     }
                 ],
@@ -7638,9 +7635,8 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer",
-                                "format": "int64",
-                                "example": 1
+                                "type": "string",
+                                "example": "1"
                             },
                             "uuid": {
                                 "type": "string",
