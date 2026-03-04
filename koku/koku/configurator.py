@@ -7,6 +7,8 @@ Handler module for gathering configuration data.
 """
 import pathlib
 
+from app_common_python.types import KafkaSASLConfig
+
 from .env import ENVIRONMENT
 
 
@@ -221,13 +223,13 @@ class EnvConfigurator(Configurator):
         mechanism = ENVIRONMENT.get_value("KAFKA_SASL_MECHANISM", default="")
         if not mechanism:
             return {}
-        from types import SimpleNamespace
-
-        return SimpleNamespace(
-            securityProtocol=ENVIRONMENT.get_value("KAFKA_SECURITY_PROTOCOL", default="SASL_SSL"),
-            saslMechanism=mechanism,
-            username=ENVIRONMENT.get_value("KAFKA_SASL_USERNAME", default=""),
-            password=ENVIRONMENT.get_value("KAFKA_SASL_PASSWORD", default=""),
+        return KafkaSASLConfig.dictToObject(
+            {
+                "securityProtocol": ENVIRONMENT.get_value("KAFKA_SECURITY_PROTOCOL", default="SASL_SSL"),
+                "saslMechanism": mechanism,
+                "username": ENVIRONMENT.get_value("KAFKA_SASL_USERNAME", default=""),
+                "password": ENVIRONMENT.get_value("KAFKA_SASL_PASSWORD", default=""),
+            }
         )
 
     @staticmethod
