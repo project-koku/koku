@@ -235,7 +235,7 @@ class EnvConfigurator(Configurator):
     @staticmethod
     def get_kafka_cacert():
         """Obtain kafka CA Certificate from environment variables."""
-        return ENVIRONMENT.get_value("KAFKA_SSL_CA_LOCATION", default=None) or None
+        return ENVIRONMENT.get_value("KAFKA_SSL_CA_LOCATION", default=None)
 
     @staticmethod
     def get_kafka_authtype():
