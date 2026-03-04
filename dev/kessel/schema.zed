@@ -108,6 +108,15 @@ definition rbac/role {
 
     permission cost_management_openshift_project_view = cost_management_openshift_project_read + cost_management_openshift_project_all + cost_management_all_read + cost_management_all_all + all_all_all
 
+    /* OpenShift Virtualization (future — PRD12 future expansion) */
+    relation t_cost_management_openshift_vm_all: rbac/principal:*
+    permission cost_management_openshift_vm_all = t_cost_management_openshift_vm_all
+
+    relation t_cost_management_openshift_vm_read: rbac/principal:*
+    permission cost_management_openshift_vm_read = t_cost_management_openshift_vm_read
+
+    permission cost_management_openshift_vm_view = cost_management_openshift_vm_read + cost_management_openshift_vm_all + cost_management_all_read + cost_management_all_all + all_all_all
+
     /* Integration (on-prem source visibility) */
     relation t_cost_management_integration_all: rbac/principal:*
     permission cost_management_integration_all = t_cost_management_integration_all
@@ -191,6 +200,11 @@ definition rbac/role_binding {
     permission cost_management_openshift_project_read = (subject & t_granted->cost_management_openshift_project_read)
     permission cost_management_openshift_project_view = (subject & t_granted->cost_management_openshift_project_view)
 
+    /* OpenShift Virtualization */
+    permission cost_management_openshift_vm_all = (subject & t_granted->cost_management_openshift_vm_all)
+    permission cost_management_openshift_vm_read = (subject & t_granted->cost_management_openshift_vm_read)
+    permission cost_management_openshift_vm_view = (subject & t_granted->cost_management_openshift_vm_view)
+
     /* Integration */
     permission cost_management_integration_all = (subject & t_granted->cost_management_integration_all)
     permission cost_management_integration_read = (subject & t_granted->cost_management_integration_read)
@@ -258,6 +272,11 @@ definition rbac/tenant {
     permission cost_management_openshift_project_read = t_binding->cost_management_openshift_project_read + t_platform->cost_management_openshift_project_read
     permission cost_management_openshift_project_view = t_binding->cost_management_openshift_project_view + t_platform->cost_management_openshift_project_view
 
+    /* OpenShift Virtualization */
+    permission cost_management_openshift_vm_all = t_binding->cost_management_openshift_vm_all + t_platform->cost_management_openshift_vm_all
+    permission cost_management_openshift_vm_read = t_binding->cost_management_openshift_vm_read + t_platform->cost_management_openshift_vm_read
+    permission cost_management_openshift_vm_view = t_binding->cost_management_openshift_vm_view + t_platform->cost_management_openshift_vm_view
+
     /* Integration */
     permission cost_management_integration_all = t_binding->cost_management_integration_all + t_platform->cost_management_integration_all
     permission cost_management_integration_read = t_binding->cost_management_integration_read + t_platform->cost_management_integration_read
@@ -322,6 +341,11 @@ definition rbac/workspace {
     permission cost_management_openshift_project_all = t_binding->cost_management_openshift_project_all + t_parent->cost_management_openshift_project_all
     permission cost_management_openshift_project_read = t_binding->cost_management_openshift_project_read + t_parent->cost_management_openshift_project_read
 
+    /* OpenShift Virtualization */
+    permission cost_management_openshift_vm_view = t_binding->cost_management_openshift_vm_view + t_parent->cost_management_openshift_vm_view
+    permission cost_management_openshift_vm_all = t_binding->cost_management_openshift_vm_all + t_parent->cost_management_openshift_vm_all
+    permission cost_management_openshift_vm_read = t_binding->cost_management_openshift_vm_read + t_parent->cost_management_openshift_vm_read
+
     /* Integration */
     permission cost_management_integration_view = t_binding->cost_management_integration_view + t_parent->cost_management_integration_view
     permission cost_management_integration_all = t_binding->cost_management_integration_all + t_parent->cost_management_integration_all
@@ -344,8 +368,17 @@ definition rbac/workspace {
 
 definition cost_management/integration {
     relation t_workspace: rbac/workspace
+
+    /* Structural containment: integration "owns" child resources per provider type.
+       Granting access to any child resource cascades upward to integration visibility. */
     relation has_cluster: cost_management/openshift_cluster
-    permission read = t_workspace->cost_management_integration_read + t_workspace->cost_management_integration_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all + has_cluster->read
+    relation has_account: cost_management/aws_account
+    relation has_organizational_unit: cost_management/aws_organizational_unit
+    relation has_subscription: cost_management/azure_subscription_guid
+    relation has_gcp_account: cost_management/gcp_account
+    relation has_gcp_project: cost_management/gcp_project
+
+    permission read = t_workspace->cost_management_integration_read + t_workspace->cost_management_integration_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all + has_cluster->read + has_account->read + has_organizational_unit->read + has_subscription->read + has_gcp_account->read + has_gcp_project->read
 }
 
 definition cost_management/openshift_cluster {
@@ -361,7 +394,13 @@ definition cost_management/openshift_node {
 
 definition cost_management/openshift_project {
     relation t_workspace: rbac/workspace
-    permission read = t_workspace->cost_management_openshift_project_read + t_workspace->cost_management_openshift_project_all + t_workspace->cost_management_openshift_node_read + t_workspace->cost_management_openshift_node_all + t_workspace->cost_management_openshift_cluster_read + t_workspace->cost_management_openshift_cluster_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
+    relation has_vm: cost_management/openshift_vm
+    permission read = t_workspace->cost_management_openshift_project_read + t_workspace->cost_management_openshift_project_all + t_workspace->cost_management_openshift_node_read + t_workspace->cost_management_openshift_node_all + t_workspace->cost_management_openshift_cluster_read + t_workspace->cost_management_openshift_cluster_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all + has_vm->read
+}
+
+definition cost_management/openshift_vm {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_openshift_vm_read + t_workspace->cost_management_openshift_vm_all + t_workspace->cost_management_openshift_project_read + t_workspace->cost_management_openshift_project_all + t_workspace->cost_management_openshift_node_read + t_workspace->cost_management_openshift_node_all + t_workspace->cost_management_openshift_cluster_read + t_workspace->cost_management_openshift_cluster_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
 }
 
 definition cost_management/aws_account {
@@ -371,12 +410,14 @@ definition cost_management/aws_account {
 
 definition cost_management/aws_organizational_unit {
     relation t_workspace: rbac/workspace
-    permission read = t_workspace->cost_management_aws_organizational_unit_read + t_workspace->cost_management_aws_organizational_unit_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
+    relation has_account: cost_management/aws_account
+    permission read = t_workspace->cost_management_aws_organizational_unit_read + t_workspace->cost_management_aws_organizational_unit_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all + has_account->read
 }
 
 definition cost_management/gcp_account {
     relation t_workspace: rbac/workspace
-    permission read = t_workspace->cost_management_gcp_account_read + t_workspace->cost_management_gcp_account_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all
+    relation has_project: cost_management/gcp_project
+    permission read = t_workspace->cost_management_gcp_account_read + t_workspace->cost_management_gcp_account_all + t_workspace->cost_management_all_read + t_workspace->cost_management_all_all + t_workspace->all_all_all + has_project->read
 }
 
 definition cost_management/gcp_project {

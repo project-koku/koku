@@ -29,6 +29,13 @@
   - [Computed Permissions and Structural Relationships](#computed-permissions-and-structural-relationships)
   - [Authorization Cascade Example](#authorization-cascade-example)
   - [Kessel Gap Inventory](#kessel-gap-inventory)
+- [PRD12 Requirements Coverage](#prd12-requirements-coverage)
+  - [Current Permissions — Full Coverage](#current-permissions--full-coverage)
+  - [Intersection](#intersection)
+  - [Inheritance](#inheritance)
+  - [Scope and Relationships (Multi-Group Membership)](#scope-and-relationships-multi-group-membership)
+  - [Future Expansion — Pre-Provisioned Schema](#future-expansion--pre-provisioned-schema)
+  - [Future Expansion — Split Metering/Cost/Recommendations](#future-expansion--split-meteringcostrecommendations)
 - [SaaS Compatibility Analysis](#saas-compatibility-analysis)
 - [Alternatives Considered](#alternatives-considered)
 - [Risks and Mitigations](#risks-and-mitigations)
@@ -496,6 +503,214 @@ The following operations bypass the Kessel Inventory/Relations APIs and access S
 | **CDC pipeline** | Auto-create `t_workspace` tuples from Inventory events | Disabled on-prem; Koku writes tuples via Relations API directly | On-prem CDC support or explicit `ReportResource` option to create tuples synchronously |
 | **Computed permissions** | Cross-type permission resolution (`has_cluster->read`, `has_project->read`) | Custom schema additions to the on-prem `.zed` file | Upstream KSL schema support for structural resource relationships |
 | **Application-specific computed-visibility resources** | `cost_management/integration` — a resource whose `read` permission is entirely derived from child resource access, not direct role bindings. Created because Koku's `/sources/` API is a separate endpoint that needs per-user filtering independent of cost report access. | Custom `integration` type in on-prem `.zed` schema; Koku registers integration resources and structural tuples during source creation and data ingestion | Upstream support for application-defined "container" resource types with computed visibility, or a generic mechanism for API endpoints to derive per-user resource lists from child access grants |
+
+---
+
+## PRD12 Requirements Coverage
+
+This section maps each requirement from [PRD12 COST-7292](https://docs.google.com/document/d/1kZoRADs0-wAalFDC4MkSFV8RxpXb1YER1UXNn-5EvdE/edit?tab=t.0#heading=h.4tv3gbbbc9rd) ("Kessel integration") to the current Kessel on-prem implementation, confirming full coverage of existing RBAC v1 capabilities and documenting the plan for future expansions.
+
+### Current Permissions — Full Coverage
+
+PRD12 requires that **no current RBAC v1 permission capability is lost**. All 10 resource-type read permissions plus cost model and settings read/write are supported:
+
+| PRD Permission | Kessel Resource Type | In [Schema](../../../dev/kessel/schema.zed) | In [Access Provider](../../../koku/koku_rebac/access_provider.py) | One / Many / All |
+|---|---|---|---|---|
+| Read AWS account | `aws_account` | Yes | Yes | Wildcard via org workspace; specific via team workspace tuples |
+| Read AWS organizational unit | `aws_organizational_unit` | Yes | Yes | Same |
+| Read Azure subscription | `azure_subscription_guid` | Yes | Yes | Same |
+| Read GCP account | `gcp_account` | Yes | Yes | Same |
+| Read GCP project | `gcp_project` | Yes | Yes | Same |
+| Read OpenShift cluster | `openshift_cluster` | Yes | Yes | Same |
+| Read OpenShift node | `openshift_node` | Yes | Yes | Same |
+| Read OpenShift project | `openshift_project` | Yes | Yes | Same |
+| Read/Write cost model | `cost_model` | Yes | Yes | Same |
+| Read/Write settings | `settings` | Yes | Yes | Same |
+
+**"Automagically handled"** (PRD language for dynamic resource discovery): When a user has wildcard (`*`) access via the org-level workspace, new resources appear automatically because `resource_reporter.py` assigns them `t_workspace → org-workspace` on creation. For specific-resource access via team workspaces, new resources require explicit admin assignment — identical to RBAC v1's behavior with resource definitions.
+
+### Intersection
+
+PRD12 requires: *"it must be possible to say a user (group) only has permissions on namespace X when running on cluster Y on AWS account Z, excluding everything else."*
+
+**This is handled identically to RBAC v1** — it is a Koku application-layer concern, not an authorization backend concern.
+
+`StreamedListObjects` returns per-type access lists:
+```
+user.access = {
+    "openshift.cluster": {"read": ["cluster-Y"]},
+    "openshift.project": {"read": ["namespace-X"]},
+    "aws.account":       {"read": ["account-Z"]},
+}
+```
+
+Koku's views and serializers apply the intersection in SQL WHERE clauses: cost data must match the user's allowed cluster IDs AND project names AND account IDs. This logic is unchanged between RBAC v1 and Kessel — the access provider populates the same `user.access` dict regardless of backend.
+
+**No SpiceDB-level intersection is needed.** SpiceDB grants access per type independently. The intersection semantics live in Koku's data query layer, where they have always lived.
+
+### Inheritance
+
+PRD12 requires: *"if you have read permissions on one cluster, you can also see all of the nodes and projects in that cluster."*
+
+This is handled by **two complementary mechanisms**:
+
+1. **Downward inheritance (Koku business logic, unchanged from RBAC v1)**: When a user has cluster-level access, Koku's SQL queries return all nodes and projects for that cluster. The `openshift_node` and `openshift_project` resource definitions in SpiceDB include the cluster-level permissions in their `read` computation:
+
+```
+definition cost_management/openshift_project {
+    permission read = ... + t_workspace->cost_management_openshift_cluster_read + ...
+}
+```
+
+This means: if a user has `openshift_cluster_read` on the resource's workspace, they can also read projects in that workspace. This is a SpiceDB-level inheritance that mirrors the RBAC v1 behavior.
+
+2. **Upward cascade (structural relations, on-prem addition)**: Access to a project cascades upward to cluster and integration visibility via `has_project->read` and `has_cluster->read`. This is the reverse direction — it enables the sources endpoint to show integrations that contain resources the user can access.
+
+Both directions are covered. Downward is the same as RBAC v1. Upward is a new on-prem addition.
+
+### Scope and Relationships (Multi-Group Membership)
+
+PRD12 explicitly states: *"Limiting one resource to one workspace is not acceptable since it would lead to the creation of artificial workspaces only for the purpose of ReBAC."*
+
+And gives the example:
+- Role R1: clusters A, B, C
+- Role R2: clusters D, E, F
+- Role R3: clusters C, D
+
+**This is a core design decision** of this ADR: multiple `t_workspace` tuples per resource in SpiceDB. Cluster C gets `t_workspace → team-1` and `t_workspace → team-3`. Cluster D gets `t_workspace → team-2` and `t_workspace → team-3`. SpiceDB resolves all paths via union (`+`).
+
+See [Cross-Team Resource Sharing](#cross-team-resource-sharing) for the full design.
+
+### Future Expansion — Pre-Provisioned Schema
+
+PRD12 mentions future resource types and structural relationships. The [ZED schema](../../../dev/kessel/schema.zed) pre-provisions these so they are ready when Koku onboards each provider or feature:
+
+**OpenShift Virtualization VMs** (PRD12: *"Explicit read permission on OpenShift Virtualization VMs"*):
+
+```
+definition cost_management/openshift_vm {
+    relation t_workspace: rbac/workspace
+    permission read = ... (inherits from project, node, cluster, and all-level permissions)
+}
+
+definition cost_management/openshift_project {
+    relation has_vm: cost_management/openshift_vm    ← VM access cascades upward
+}
+```
+
+Full permission chain is wired through `rbac/role`, `rbac/role_binding`, `rbac/tenant`, and `rbac/workspace`. When Koku adds VM support, only application code (resource reporting, access provider type map) needs updating — the schema is ready.
+
+**AWS structural containment** (integration → accounts, OUs → accounts):
+
+```
+definition cost_management/integration {
+    relation has_account: cost_management/aws_account
+    relation has_organizational_unit: cost_management/aws_organizational_unit
+}
+
+definition cost_management/aws_organizational_unit {
+    relation has_account: cost_management/aws_account    ← account access cascades to OU visibility
+}
+```
+
+**Azure structural containment** (integration → subscriptions):
+
+```
+definition cost_management/integration {
+    relation has_subscription: cost_management/azure_subscription_guid
+}
+```
+
+**GCP structural containment** (integration → accounts → projects):
+
+```
+definition cost_management/integration {
+    relation has_gcp_account: cost_management/gcp_account
+    relation has_gcp_project: cost_management/gcp_project
+}
+
+definition cost_management/gcp_account {
+    relation has_project: cost_management/gcp_project    ← project access cascades to account visibility
+}
+```
+
+These structural relations enable the same computed-permission cascade pattern proven with OCP: granting access to a leaf resource (e.g., a GCP project) automatically makes the parent resources (GCP account, integration) visible to that user. No code changes to Koku's application layer are needed — only `resource_reporter.py` additions to write the structural tuples during provider-specific data ingestion.
+
+### Future Expansion — Split Metering/Cost/Recommendations
+
+PRD12 mentions: *"it should be possible to say 'this user is able to see the cost data for a project but not the resource optimization recommendations' (or viceversa)."*
+
+Currently, a single `read` permission on a resource type grants access to all data aspects (metering, cost, recommendations). To split these, the recommended approach is **aspect-based capability types** — orthogonal to resource access, modeled similarly to `settings`:
+
+**Recommended design: Workspace-scoped capability resources**
+
+```
+definition cost_management/metering_capability {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_metering_capability_read + ...
+}
+
+definition cost_management/cost_capability {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_cost_capability_read + ...
+}
+
+definition cost_management/recommendations_capability {
+    relation t_workspace: rbac/workspace
+    permission read = t_workspace->cost_management_recommendations_capability_read + ...
+}
+```
+
+**How it works**: A user's effective access is the intersection of two dimensions:
+
+| Dimension | What it controls | How it's checked |
+|---|---|---|
+| **Resource access** (existing) | Which clusters/projects/accounts can the user see? | `StreamedListObjects` per resource type |
+| **Aspect capability** (new) | What data types can the user see for those resources? | `StreamedListObjects("metering_capability")` etc. |
+
+The Koku view layer checks both: *"does the user have access to this cluster?"* AND *"does the user have the metering capability?"*
+
+**Per-workspace granularity**: Because capabilities are workspace-scoped, an admin can grant different aspect access per team:
+- `team-full`: role with metering + cost + recommendations capabilities
+- `team-cost-only`: role with cost capability only
+
+A user in `team-cost-only` who has access to cluster-A (via that workspace) sees cost data but not metering or recommendations for cluster-A.
+
+**Why this approach**:
+
+| Alternative | Problem |
+|---|---|
+| New permission verbs per resource type (`read_metering`, `read_cost`, `read_recommendations`) | 3 verbs × 10+ types = 30+ new role relations. Schema explosion. |
+| Application-level flags (no SpiceDB involvement) | Not Kessel-native. Cannot be managed by the admin tooling alongside resource access. |
+| Capability types (recommended) | 3 new types following the `settings` pattern. Koku views already separate metering/cost/recommendations endpoints. The intersection with resource access happens naturally. |
+
+**Implementation status**: Not yet implemented. The schema additions are minimal (3 new types + role/workspace propagation), and no existing definitions need modification. This can be added when Koku's roadmap prioritizes split data access.
+
+### PRD12 Summary Matrix
+
+| PRD Requirement | Status | Mechanism |
+|---|---|---|
+| Read AWS account (one / many / all, dynamic) | **Covered** | `aws_account` type + `StreamedListObjects` |
+| Read AWS organizational unit (one / many / all, dynamic) | **Covered** | `aws_organizational_unit` type + `StreamedListObjects` |
+| Read Azure subscription (one / many / all, dynamic) | **Covered** | `azure_subscription_guid` type + `StreamedListObjects` |
+| Read GCP account (one / many / all, dynamic) | **Covered** | `gcp_account` type + `StreamedListObjects` |
+| Read GCP project (one / many / all, dynamic) | **Covered** | `gcp_project` type + `StreamedListObjects` |
+| Read OpenShift cluster (one / many / all, dynamic) | **Covered** | `openshift_cluster` type + `StreamedListObjects` |
+| Read OpenShift node (one / many / all, dynamic) | **Covered** | `openshift_node` type + `StreamedListObjects` |
+| Read OpenShift project (one / many / all, dynamic) | **Covered** | `openshift_project` type + `StreamedListObjects` |
+| Read/Write cost models | **Covered** | `cost_model` type + `StreamedListObjects` |
+| Read/Write settings | **Covered** | `settings` type + `SettingsAccessPermission` / `IsAuthenticated` |
+| Intersection (namespace X on cluster Y on account Z) | **Covered** | Koku SQL layer applies per-type access list intersection (unchanged from RBAC v1) |
+| Inheritance (cluster access → see nodes/projects) | **Covered** | SpiceDB schema (child types include parent-level permissions) + Koku SQL layer |
+| Multi-group resource membership (one resource in multiple roles/groups) | **Covered** | Multiple `t_workspace` tuples per resource in SpiceDB |
+| Dynamic add/delete of resources | **Covered** | `resource_reporter.py` creates/deletes tuples during ingestion; wildcard roles auto-include new resources |
+| Workspace restriction (1:1) is unacceptable | **Addressed** | Core design decision: multiple `t_workspace` tuples, documented in ADR |
+| OpenShift Virtualization VMs | **Schema ready** | `openshift_vm` type + `openshift_project#has_vm` pre-provisioned; awaiting Koku application code |
+| AWS structural containment | **Schema ready** | `integration#has_account`, `aws_organizational_unit#has_account` pre-provisioned |
+| Azure structural containment | **Schema ready** | `integration#has_subscription` pre-provisioned |
+| GCP structural containment | **Schema ready** | `integration#has_gcp_account`, `integration#has_gcp_project`, `gcp_account#has_project` pre-provisioned |
+| Split metering / cost / recommendations | **Designed** | Aspect-based capability types (see above); schema additions needed when Koku prioritizes |
+| API-only vs UI-only users | **Future** | Application-layer concern (route middleware); no SpiceDB changes needed |
 
 ---
 
