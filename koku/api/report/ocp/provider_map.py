@@ -908,8 +908,7 @@ class OCPProviderMap(ProviderMap):
                                 "node",
                                 output_field=TextField(),  # Specify output field type
                             ),
-                            "gpu_mode": F("gpu_mode"),
-                            "mig_profile": F("mig_profile"),
+                            # Note: gpu_mode and mig_profile are model fields, not annotations
                         },
                         "group_by_options": [
                             "cluster",
@@ -971,7 +970,7 @@ class OCPProviderMap(ProviderMap):
                                 Coalesce(F("gpu_count"), Value(0, output_field=IntegerField())), distinct=True
                             ),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
-                            # MIG fields
+                            # MIG fields - these work here because they're applied after .values()
                             "gpu_mode": F("gpu_mode"),
                             "mig_profile": F("mig_profile"),
                             "mig_slice_count": Max(
@@ -1019,7 +1018,6 @@ class OCPProviderMap(ProviderMap):
                         "default_ordering": {"mig_profile": "asc"},
                         "capacity_aggregate": {},
                         "annotations": {
-                            "node": F("node"),
                             "gpu_model": F("model_name"),
                             "gpu_vendor": F("vendor_name"),
                             "gpu_name": Concat(
@@ -1030,6 +1028,8 @@ class OCPProviderMap(ProviderMap):
                                 "node",
                                 output_field=TextField(),
                             ),
+                            # MIG fields - these work here because they're applied after .values()
+                            "node": F("node"),
                             "mig_profile": F("mig_profile"),
                             "parent_gpu_uuid": F("parent_gpu_uuid"),
                             "mig_slice_count": Max(
@@ -1049,7 +1049,7 @@ class OCPProviderMap(ProviderMap):
                             "mig_profile",
                         ],
                         "delta_key": {},
-                        "filter": [{"field": "mig_profile__isnull", "operation": "exact", "parameter": False}],
+                        "filter": [{"field": "mig_profile", "operation": "isnull", "parameter": False}],
                         "group_by": ["mig_profile"],
                         "cost_units_key": "raw_currency",
                         "sum_columns": [],

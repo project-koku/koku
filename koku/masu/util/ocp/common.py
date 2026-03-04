@@ -252,13 +252,16 @@ GPU_USAGE_COLUMNS = {
     "gpu_vendor_name",
     "gpu_memory_capacity_mib",
     "gpu_pod_uptime",
-    # MIG (Multi-Instance GPU) fields
-    "mig_instance_uuid",
-    "mig_profile",
-    "mig_slice_count",
-    "parent_gpu_max_slices",
-    "parent_gpu_uuid",
-    "mig_memory_capacity_mib",
+}
+
+# MIG (Multi-Instance GPU) columns - optional, may not be present in older operator versions
+GPU_USAGE_NEWV_COLUMNS_AND_TYPES = {
+    "mig_instance_uuid": pd.StringDtype(storage="pyarrow"),
+    "mig_profile": pd.StringDtype(storage="pyarrow"),
+    "mig_slice_count": pd.Int64Dtype(),
+    "parent_gpu_max_slices": pd.Int64Dtype(),
+    "parent_gpu_uuid": pd.StringDtype(storage="pyarrow"),
+    "mig_memory_capacity_mib": pd.Int64Dtype(),
 }
 
 GPU_GROUP_BY = ["node", "namespace", "pod", "gpu_uuid", "mig_instance_uuid"]
@@ -326,7 +329,7 @@ OCP_REPORT_TYPES = {
         "enum": OCPReportTypes.GPU_USAGE,
         "group_by": GPU_GROUP_BY,
         "agg": GPU_AGG,
-        "new_required_columns": {},
+        "new_required_columns": GPU_USAGE_NEWV_COLUMNS_AND_TYPES,
     },
 }
 
