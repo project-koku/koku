@@ -226,6 +226,7 @@ FROM (
     SELECT li.usage_start,
         li.namespace,
         li.node,
+        li.pod,
         max(cat_ns.cost_category_id) as cost_category_id,
         li.source as source_uuid,
         COALESCE(
@@ -273,6 +274,7 @@ FROM (
     GROUP BY li.usage_start,
         li.namespace,
         li.node,
+        li.pod,
         li.source,
         6  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE pod_labels EXPRESSION */
             /* The pod_labels expression was too complex for PostgreSQL to use */
