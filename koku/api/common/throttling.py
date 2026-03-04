@@ -178,6 +178,6 @@ class AwsTagQueryThrottle(SimpleRateThrottle):
         """
         units = (query_params.get("time_scope_units") or "").strip().lower()
         value_str = (query_params.get("time_scope_value") or "").strip()
-        if units == "month" and value_str in ("-1", "-2", "-3"):
+        if units == TIME_SCOPE_UNITS_MONTHLY and value in TIME_SCOPE_VALUES_MONTHLY
             return True
         return False
