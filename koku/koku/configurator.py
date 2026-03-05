@@ -7,6 +7,8 @@ Handler module for gathering configuration data.
 """
 import pathlib
 
+from app_common_python.types import KafkaSASLConfig
+
 from .env import ENVIRONMENT
 
 
@@ -217,13 +219,23 @@ class EnvConfigurator(Configurator):
 
     @staticmethod
     def get_kafka_sasl():
-        """Obtain kafka sasl"""
-        return {}
+        """Obtain kafka sasl from environment variables."""
+        mechanism = ENVIRONMENT.get_value("KAFKA_SASL_MECHANISM", default="")
+        if not mechanism:
+            return {}
+        return KafkaSASLConfig.dictToObject(
+            {
+                "securityProtocol": ENVIRONMENT.get_value("KAFKA_SECURITY_PROTOCOL", default="SASL_SSL"),
+                "saslMechanism": mechanism,
+                "username": ENVIRONMENT.get_value("KAFKA_SASL_USERNAME", default=""),
+                "password": ENVIRONMENT.get_value("KAFKA_SASL_PASSWORD", default=""),
+            }
+        )
 
     @staticmethod
     def get_kafka_cacert():
-        """Obtain kafka CA Certificate"""
-        return None
+        """Obtain kafka CA Certificate from environment variables."""
+        return ENVIRONMENT.get_value("KAFKA_SSL_CA_LOCATION", default=None)
 
     @staticmethod
     def get_kafka_authtype():

@@ -53,7 +53,12 @@ UNIQUE_USER_COUNTER = Counter("hccm_unique_user", "Unique User Counter", ["accou
 
 def is_no_auth(request):
     """Check condition for needing to authenticate the user."""
-    no_auth_list = ["/status", "openapi.json"]
+    # Paths that don't require authentication:
+    # - /status: health check endpoint
+    # - openapi.json: API documentation
+    # - application_types: sources-compatible endpoint for ROS housekeeper
+    # - source_types: sources-compatible endpoint
+    no_auth_list = ["/status", "openapi.json", "application_types", "source_types"]
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth or MASU or SOURCES
 
