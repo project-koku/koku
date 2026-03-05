@@ -45,6 +45,8 @@ roles:
         kessel_relation: t_cost_management_settings_read
       - rbac_permission: "cost-management:settings:write"
         kessel_relation: t_cost_management_settings_write
+      - rbac_permission: "cost-management:integration:read"
+        kessel_relation: t_cost_management_integration_read
 
   - slug: cost-cloud-viewer
     name: Cost Cloud Viewer
