@@ -47,15 +47,21 @@ def calculate_efficiency_score(row):
     usage_efficiency = round((usage / request) * 100)
     wasted_cost = max(cost_total * (1 - usage/request), 0)
     """
-    usage = row.get("usage")
-    request = row.get("request")
-    cost_total = row.get("cost_total")
-    if usage is None or request is None or cost_total is None:
-        return
+    raw_usage = row.get("usage")
+    raw_request = row.get("request")
+    raw_cost_total = row.get("cost_total")
 
-    usage = Decimal(str(usage)) if not isinstance(usage, Decimal) else usage
-    request = Decimal(str(request)) if not isinstance(request, Decimal) else request
-    cost_total = Decimal(str(cost_total)) if not isinstance(cost_total, Decimal) else cost_total
+    usage = Decimal(str(raw_usage)) if raw_usage and not isinstance(raw_usage, Decimal) else (raw_usage or Decimal(0))
+    request = (
+        Decimal(str(raw_request))
+        if raw_request and not isinstance(raw_request, Decimal)
+        else (raw_request or Decimal(0))
+    )
+    cost_total = (
+        Decimal(str(raw_cost_total))
+        if raw_cost_total and not isinstance(raw_cost_total, Decimal)
+        else (raw_cost_total or Decimal(0))
+    )
 
     if request <= 0:
         row["score"] = {"usage_efficiency": 0, "wasted_cost": Decimal(0)}

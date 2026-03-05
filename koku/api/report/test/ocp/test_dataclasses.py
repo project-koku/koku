@@ -356,22 +356,36 @@ class CalculateEfficiencyScoreTest(IamTestCase):
         self.assertEqual(score["wasted_cost"], Decimal("1000"))
 
     def test_missing_usage(self):
-        """Test that no score is added when usage is missing."""
+        """Test that None usage is treated as 0 — full waste."""
         row = {"request": Decimal("100"), "cost_total": Decimal("1000")}
         calculate_efficiency_score(row)
-        self.assertNotIn("score", row)
+        score = row["score"]
+        self.assertEqual(score["usage_efficiency"], 0)
+        self.assertEqual(score["wasted_cost"], Decimal("1000"))
 
     def test_missing_request(self):
-        """Test that no score is added when request is missing."""
+        """Test that None request is treated as 0 — zero efficiency, zero waste."""
         row = {"usage": Decimal("50"), "cost_total": Decimal("1000")}
         calculate_efficiency_score(row)
-        self.assertNotIn("score", row)
+        score = row["score"]
+        self.assertEqual(score["usage_efficiency"], 0)
+        self.assertEqual(score["wasted_cost"], Decimal(0))
 
     def test_missing_cost_total(self):
-        """Test that no score is added when cost_total is missing."""
+        """Test that None cost_total is treated as 0 — zero waste."""
         row = {"usage": Decimal("50"), "request": Decimal("100")}
         calculate_efficiency_score(row)
-        self.assertNotIn("score", row)
+        score = row["score"]
+        self.assertEqual(score["usage_efficiency"], 50)
+        self.assertEqual(score["wasted_cost"], Decimal(0))
+
+    def test_all_none(self):
+        """Test that all None values produce zero score."""
+        row = {}
+        calculate_efficiency_score(row)
+        score = row["score"]
+        self.assertEqual(score["usage_efficiency"], 0)
+        self.assertEqual(score["wasted_cost"], Decimal(0))
 
     def test_scenario_table(self):
         """Test multiple scenarios from the PRD examples."""
