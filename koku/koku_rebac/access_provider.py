@@ -154,25 +154,28 @@ class KesselAccessProvider:
     def _resolve_per_resource_access(
         self, client, access: dict, koku_type: str, kessel_type: str, workspace_id: str, user_id: str,
     ) -> None:
-        """Use StreamedListObjects with Check fallback for per-resource types.
+        """Use StreamedListObjects with workspace-level Check for per-resource types.
 
-        1. StreamedListObjects for each operation (read, write)
-        2. If IDs returned -> use them (per-resource access)
-        3. If empty -> fall back to workspace-level Check:
-           a. ALLOWED -> ["*"] (wildcard: user has permission, resources not registered)
-           b. DENIED  -> []   (no access)
-        4. Write access also grants read (write-grants-read parity)
+        1. Check workspace-level permission first.
+        2. If ALLOWED -> ["*"] (wildcard: user has blanket permission on this type).
+        3. If DENIED  -> fall back to StreamedListObjects for per-resource IDs.
+        4. Write access also grants read (write-grants-read parity).
+
+        The workspace Check runs first so that users with org-wide roles
+        (e.g. cost-administrator) always get wildcard access, even when
+        the access-provider response is cached and new resources have been
+        registered since the last cache fill.
         """
         for operation in RESOURCE_TYPES.get(koku_type, ["read"]):
-            resource_ids = self._streamed_list_objects(client, kessel_type, operation, user_id)
+            suffix = PERMISSION_SUFFIX_MAP.get(operation, operation)
+            permission = f"cost_management_{kessel_type}_{suffix}"
 
-            if resource_ids:
-                access[koku_type][operation] = resource_ids
+            if self._check_workspace_permission(client, workspace_id, permission, user_id):
+                access[koku_type][operation] = ["*"]
             else:
-                suffix = PERMISSION_SUFFIX_MAP.get(operation, operation)
-                permission = f"cost_management_{kessel_type}_{suffix}"
-                if self._check_workspace_permission(client, workspace_id, permission, user_id):
-                    access[koku_type][operation] = ["*"]
+                resource_ids = self._streamed_list_objects(client, kessel_type, operation, user_id)
+                if resource_ids:
+                    access[koku_type][operation] = resource_ids
 
             if operation == "write" and access[koku_type].get("write"):
                 write_ids = access[koku_type]["write"]
