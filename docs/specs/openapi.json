@@ -7584,12 +7584,22 @@
                 ],
                 "properties": {
                     "id": {
-                        "type": "integer",
-                        "example": "Platform source identifier"
+                        "type": "string",
+                        "example": "1"
                     },
                     "source_type": {
                         "type": "string",
                         "example": "AWS"
+                    },
+                    "source_type_id": {
+                        "type": "string",
+                        "description": "CMMO-compatible source type identifier",
+                        "example": "1"
+                    },
+                    "source_ref": {
+                        "type": "string",
+                        "description": "Source reference (e.g., cluster ID for OCP sources)",
+                        "example": "my-ocp-cluster"
                     }
                 }
             },
