@@ -34,4 +34,4 @@ class SourcesAccessPermission(permissions.BasePermission):
             return bool(resource_access)
 
         setting_write = resource_access.get("settings", {}).get("write", [])
-        return "*" in setting_write
+        return bool(setting_write)
