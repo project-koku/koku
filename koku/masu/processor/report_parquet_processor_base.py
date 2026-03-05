@@ -219,14 +219,127 @@ class ReportParquetProcessorBase:
         LOG.info(sql)
         self._execute_trino_sql(sql, self._schema_name)
 
-    def write_to_self_hosted_table(self, data_frame, metadata):
-        """Write dataframe to self-hosted PostgreSQL table.
+    @property
+    def self_hosted_line_item_model(self):
+        """Return the Django model for line item data (self-hosted/on-prem only).
 
-        This base implementation is a no-op. Subclasses that support on-prem
-        should override this method to write data to PostgreSQL.
-        For SaaS, data is written to S3 parquet files instead.
+        Subclasses must override this property to return the appropriate model.
+        """
+        return None
+
+    def _prepare_dataframe_for_write(self, data_frame, metadata):
+        """Hook for subclasses to add provider-specific columns before writing.
+
+        Subclasses should override this to add tracking columns like:
+        - OCP: manifestid, reportnumhours
+        - AWS/Azure/GCP: manifestid
         """
         raise NotImplementedError(
-            f"{self.__class__.__name__} does not implement write_to_self_hosted_table. "
-            "On-prem is only supported for OCP providers."
+            f"{self.__class__.__name__} must implement _prepare_dataframe_for_write. "
+            "Add provider-specific columns (e.g., manifestid, reportnumhours) here."
+        )
+
+    def write_to_self_hosted_table(self, data_frame, metadata):
+        """Write dataframe to PostgreSQL for on-prem using Django model infrastructure.
+
+        This method is only called for on-prem deployments. SaaS writes to S3 parquet files instead.
+        Uses the standard partition naming convention (tablename_YYYY_MM) and the existing
+        partition infrastructure (get_or_create_postgres_partition).
+
+        Requires subclass to set:
+        - self._date_column: Column name to derive usage_start from (e.g., 'interval_start', 'lineitem_usagestartdate')
+        - self.self_hosted_line_item_model: Property returning Django model for the line item table
+        - _prepare_dataframe_for_write(): Method to add provider-specific columns
+        """
+        import pandas as pd
+        from uuid import uuid4
+
+        from sqlalchemy import create_engine
+
+        model = self.self_hosted_line_item_model
+        if not model:
+            raise NotImplementedError(
+                f"{self.__class__.__name__} does not have a self_hosted_line_item_model. "
+                "On-prem requires Django models for all supported providers."
+            )
+
+        # Let subclass add provider-specific columns (manifestid, reportnumhours, etc.)
+        self._prepare_dataframe_for_write(data_frame, metadata)
+
+        # Ensure partitions exist using the standard infrastructure
+        self.get_or_create_postgres_partition(self._start_date, model=model)
+
+        table_name = model._meta.db_table
+
+        # Add partition tracking columns
+        data_frame["year"] = self._year
+        data_frame["month"] = self._month
+        data_frame["source"] = str(self._provider_uuid)
+
+        # Add usage_start as date (derived from _date_column) for partition column
+        # PostgreSQL uses this to route rows to the correct partition automatically
+        date_column = getattr(self, "_date_column", None)
+        if date_column and date_column in data_frame.columns:
+            data_frame["usage_start"] = pd.to_datetime(data_frame[date_column]).dt.date
+
+        # Generate UUIDs for each row (required for partitioned tables)
+        data_frame["id"] = [uuid4() for _ in range(len(data_frame))]
+
+        # Write to the parent table - PostgreSQL routes to correct partition based on usage_start
+        with get_report_db_accessor().connect() as connection:
+            engine = create_engine("postgresql://", creator=lambda: connection.getConnection())
+            data_frame.to_sql(name=table_name, con=engine, schema=self._schema_name, if_exists="append", index=False)
+
+        LOG.info(
+            log_json(
+                msg="wrote dataframe to postgresql",
+                schema=self._schema_name,
+                table=table_name,
+                rows=len(data_frame),
+            )
+        )
+
+    def get_table_names_for_delete(self):
+        """Return list of table names to delete from. Override in subclass if needed."""
+        return [self._table_name]
+
+    def delete_day_postgres(self, start_date, reportnumhours=None):
+        """Delete old data for this source/year/month (non-OCP).
+
+        Uses manifestid-based deletion for AWS/Azure/GCP providers.
+        OCP overrides this method to use reportnumhours-based deletion.
+        """
+        # Get all table names to delete from (may include daily tables)
+        table_names = self.get_table_names_for_delete()
+
+        # Filter to only existing tables
+        existing_tables = []
+        for table_name in table_names:
+            check_table_sql = get_report_db_accessor().get_table_check_sql(table_name, self._schema_name)
+
+            with get_report_db_accessor().connect() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(check_table_sql)
+                    if cursor.fetchone():
+                        existing_tables.append(table_name)
+                    else:
+                        LOG.debug(log_json(msg="table does not exist, skipping delete", table=table_name))
+
+        # Delete from existing tables
+        total_deleted = 0
+        for table_name in existing_tables:
+            delete_sql = get_report_db_accessor().get_delete_day_by_manifestid_sql(
+                self._schema_name, table_name, self._provider_uuid, self._year, self._month, str(self._manifest_id)
+            )
+
+            with get_report_db_accessor().connect(schema=self._schema_name) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(delete_sql)
+                    total_deleted += cursor.rowcount
+
+        LOG.info(
+            log_json(
+                msg="deleted old data from postgres",
+                deleted_rows=total_deleted,
+            )
         )
