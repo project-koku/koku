@@ -507,13 +507,13 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_unattributed_network_cost
                             + self.distributed_unallocated_gpu_cost,
                             "usage": Sum(
-                                Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
+                                "pod_usage_memory_gigabyte_hours", default=Value(0, output_field=DecimalField())
                             ),
                             "request": Sum(
-                                Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
+                                "pod_request_memory_gigabyte_hours", default=Value(0, output_field=DecimalField())
                             ),
                             "limit": Sum(
-                                Coalesce(F("pod_limit_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
+                                "pod_limit_memory_gigabyte_hours", default=Value(0, output_field=DecimalField())
                             ),
                         },
                         "capacity_aggregate": {
