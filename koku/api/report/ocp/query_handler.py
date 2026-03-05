@@ -37,34 +37,7 @@ from reporting.provider.ocp.models import OCPGpuSummaryP
 
 LOG = logging.getLogger(__name__)
 
-# Table name for GPU summary used in unique GPU count subquery (COST-7257).
-GPU_SUMMARY_TABLE = OCPGpuSummaryP._meta.db_table
-
-
-def _unique_gpu_count_annotation(start_dt, end_dt, filter_by_namespace, resolution):
-    """Return a RawSQL annotation for unique GPU count (Sum of Max per location)."""
-    if resolution == "daily":
-        return None
-    namespace_predicate = f" AND p2.namespace = {GPU_SUMMARY_TABLE}.namespace" if filter_by_namespace else ""
-    start_date = start_dt.date() if start_dt else None
-    end_date = end_dt.date() if end_dt else None
-    if start_date is None or end_date is None:
-        return RawSQL("0", [], output_field=IntegerField())
-    date_predicate = " AND p2.usage_start >= %s AND p2.usage_start <= %s"
-    params = [start_date, end_date]
-    sql = f"""
-    (SELECT COALESCE(SUM(m), 0) FROM (
-        SELECT MAX(p2.gpu_count) AS m
-        FROM {GPU_SUMMARY_TABLE} p2
-        WHERE p2.vendor_name = {GPU_SUMMARY_TABLE}.vendor_name
-          AND p2.model_name = {GPU_SUMMARY_TABLE}.model_name
-          AND p2.node = {GPU_SUMMARY_TABLE}.node
-          {namespace_predicate}
-          {date_predicate}
-        GROUP BY p2.namespace, p2.node
-    ) t)
-    """
-    return RawSQL(sql.strip(), params, output_field=IntegerField())
+_GPU_TABLE = f'"{OCPGpuSummaryP._meta.db_table}"'
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -196,15 +169,43 @@ class OCPReportQueryHandler(ReportQueryHandler):
         base = self._mapper.report_type_map.get("annotations", {})
         if self._report_type != "gpu":
             return base
-        gpu_count_annotation = _unique_gpu_count_annotation(
-            self.start_datetime,
-            self.end_datetime,
-            is_grouped_by_project(self.parameters),
-            self.resolution,
-        )
-        if gpu_count_annotation is not None:
-            return {**base, "gpu_count": gpu_count_annotation}
+        gpu_ann = self._gpu_count_annotation()
+        if gpu_ann is not None:
+            return {**base, "gpu_count": gpu_ann}
         return base
+
+    def _gpu_count_annotation(self):
+        """Build a RawSQL annotation for unique GPU count that respects active ORM filters."""
+        if self.resolution == "daily":
+            return None
+
+        qs = self.query_table.objects.filter(self.query_filter)
+        if self.query_exclusions:
+            qs = qs.exclude(self.query_exclusions)
+
+        compiler = qs.query.get_compiler(using="default")
+        where_sql, where_params = qs.query.where.as_sql(compiler, compiler.connection)
+
+        filter_clause = ""
+        if where_sql:
+            p2_ref = '"p2"'
+            filter_clause = f" AND {where_sql.replace(_GPU_TABLE, p2_ref)}"
+
+        namespace_corr = ""
+        if is_grouped_by_project(self.parameters):
+            namespace_corr = f' AND "p2"."namespace" = {_GPU_TABLE}."namespace"'
+
+        sql = f"""(SELECT COALESCE(SUM(m), 0) FROM (
+            SELECT MAX("p2"."gpu_count") AS m
+            FROM {_GPU_TABLE} AS "p2"
+            WHERE "p2"."vendor_name" = {_GPU_TABLE}."vendor_name"
+              AND "p2"."model_name" = {_GPU_TABLE}."model_name"
+              AND "p2"."node" = {_GPU_TABLE}."node"
+              {namespace_corr}
+              {filter_clause}
+            GROUP BY "p2"."namespace", "p2"."node"
+        ) t)"""
+        return RawSQL(sql, list(where_params), output_field=IntegerField())
 
     @cached_property
     def source_to_currency_map(self):
