@@ -518,7 +518,7 @@ For a new team, read in this order:
 | # | Document | Location | Why |
 |---|---|---|---|
 | 1 | **This handoff** | You're reading it | Big picture, what's done, what's pending |
-| 2 | **On-prem authorization backend** | [`koku/docs/architecture/onprem-authorization-backend.md`](../onprem-authorization-backend.md) | Decision doc: Kessel vs RBAC v1 vs RBAC v2 for on-prem |
+| 2 | **On-prem authorization backend** | [`koku/docs/architecture/onprem-authorization-backend.md`](onprem-authorization-backend.md) | Decision doc: Kessel vs RBAC v1 vs RBAC v2 for on-prem |
 | 3 | **Authorization delegation DD** | [`kessel-authorization-delegation-dd.md`](./kessel-authorization-delegation-dd.md) | Adapter vs full delegation, workspace tuple lifecycle |
 | 4 | **Koku detailed design** | [`kessel-ocp-detailed-design.md`](./kessel-ocp-detailed-design.md) | Full architecture spec for the Koku side |
 | 5 | **Koku test plan** | [`kessel-ocp-test-plan.md`](./kessel-ocp-test-plan.md) | 203 scenarios, IEEE 829 format, all implemented |

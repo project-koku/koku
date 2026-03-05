@@ -3,7 +3,7 @@
 | Field         | Value                                                                 |
 |---------------|-----------------------------------------------------------------------|
 | Jira          | [FLPATH-3294](https://issues.redhat.com/browse/FLPATH-3294)          |
-| Parent HLD    | [onprem-authorization-backend.md](../onprem-authorization-backend.md) |
+| Parent HLD    | [onprem-authorization-backend.md](onprem-authorization-backend.md) |
 | Author        | Jordi Gil                                                             |
 | Status        | Decision                                                              |
 | Created       | 2026-02-26                                                           |
@@ -24,7 +24,7 @@
 ## 1. Purpose and Context
 
 With Kessel selected as the on-prem authorization backend
-([Scenario A](../onprem-authorization-backend.md#2-scenario-a-kessel-rebac)),
+([Scenario A](onprem-authorization-backend.md#2-scenario-a-kessel-rebac)),
 a secondary design question arises: **how deeply should Koku integrate with
 Kessel for authorization decisions?**
 
@@ -43,7 +43,7 @@ lifecycle.
 
 ### Relationship to the HLD
 
-The [HLD](../onprem-authorization-backend.md) decided **which** backend to use
+The [HLD](onprem-authorization-backend.md) decided **which** backend to use
 (Kessel). This document decides **how** Koku integrates with that backend.
 The [Detailed Design](./kessel-ocp-detailed-design.md) captures the
 implementation of whichever option is chosen here.
@@ -455,7 +455,7 @@ This is symmetric with the existing `_delete_resource_tuples()` for cleanup.
 
 | Resource | Path |
 |----------|------|
-| On-prem authorization backend HLD | [onprem-authorization-backend.md](../onprem-authorization-backend.md) |
+| On-prem authorization backend HLD | [onprem-authorization-backend.md](onprem-authorization-backend.md) |
 | Kessel detailed design | [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md) |
 | Kessel test plan | [kessel-ocp-test-plan.md](./kessel-ocp-test-plan.md) |
 | RBAC overview and permission classes | [docs/rbac.md](../../rbac.md) |

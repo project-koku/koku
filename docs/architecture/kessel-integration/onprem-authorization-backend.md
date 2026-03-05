@@ -21,7 +21,7 @@ to which backend resolved the permissions.
 This document compares deployment scenarios (A, B, C with two variants), their
 requirements, effort, and trade-offs.
 For deep-dive evidence behind these findings, see the
-[archived feasibility analysis](archive/insights-rbac-kessel-onprem-feasibility.md).
+[archived feasibility analysis](insights-rbac-kessel-onprem-feasibility.md).
 For permission and role definitions applicable to both paths, see
 [rbac-config-reuse-for-onprem.md](rbac-config-reuse-for-onprem.md).
 
@@ -622,7 +622,7 @@ architectural direction and operational complexity tolerance, not timeline.
 | Resource | Path |
 |----------|------|
 | Kessel integration test plan (UT/IT/CT/E2E) | [kessel-integration/kessel-ocp-test-plan.md](kessel-integration/kessel-ocp-test-plan.md) |
-| Archived feasibility analysis (deep-dive) | [archive/insights-rbac-kessel-onprem-feasibility.md](archive/insights-rbac-kessel-onprem-feasibility.md) |
+| Archived feasibility analysis (deep-dive) | [insights-rbac-kessel-onprem-feasibility.md](insights-rbac-kessel-onprem-feasibility.md) |
 | RBAC permission/role reuse analysis | [rbac-config-reuse-for-onprem.md](rbac-config-reuse-for-onprem.md) |
 | Kessel detailed design | [kessel-integration/kessel-ocp-detailed-design.md](kessel-integration/kessel-ocp-detailed-design.md) |
 | Authorization delegation strategy DD | [kessel-integration/kessel-authorization-delegation-dd.md](kessel-integration/kessel-authorization-delegation-dd.md) |
