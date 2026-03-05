@@ -1576,7 +1576,7 @@ Coverage target: >80% on `koku/koku_rebac/` module.
 
 ### Retired UT Scenarios
 
-See [kessel-ocp-test-plan-retired.md](./kessel-ocp-test-plan-retired.md) for full scenario text.
+Retired scenarios were removed during the Inventory API v1beta2 migration.
 
 | ID | Title | Reason |
 |----|-------|--------|
@@ -2235,7 +2235,7 @@ See [kessel-ocp-test-plan-retired.md](./kessel-ocp-test-plan-retired.md) for ful
 
 ### Retired IT Scenarios
 
-See [kessel-ocp-test-plan-retired.md](./kessel-ocp-test-plan-retired.md) for full scenario text.
+Retired scenarios were removed during the Inventory API v1beta2 migration.
 
 | ID | Title | Reason |
 |----|-------|--------|
@@ -2568,7 +2568,7 @@ See [kessel-ocp-test-plan-retired.md](./kessel-ocp-test-plan-retired.md) for ful
 
 ### Retired CT Scenarios
 
-See [kessel-ocp-test-plan-retired.md](./kessel-ocp-test-plan-retired.md) for full scenario text.
+Retired scenarios were removed during the Inventory API v1beta2 migration.
 
 | ID | Title | Reason |
 |----|-------|--------|
@@ -4299,7 +4299,7 @@ Priority breakdown: **P0: 32**, **P1: 25**, **P2: 4**
 
 | Change | Count |
 |--------|-------|
-| Retired | 46 (management plane externalized, Relations API removed) — see [archive](./kessel-ocp-test-plan-retired.md) |
+| Retired | 46 (management plane externalized, Relations API removed) |
 | Updated | 12 (Relations API -> Inventory API v1beta2) |
 | New | 29 (workspace resolver, _view/_edit, StreamedListObjects, write_visibility, TLS/CA, config) + 2 (CT-CLEANUP: resource lifecycle verification) |
 | Tuple lifecycle (TW) | 26 (15 UT: _create_resource_tuples + delete functions, 5 IT: two-phase creation/deletion integration, 4 CT: creation/lifecycle round-trip, 2 E2E: creation visibility + deletion removal) |
@@ -4349,7 +4349,7 @@ Covered by active UT scenarios:
 - `models.py` -- UT-KESSEL-MDL-001 (1 scenario: uniqueness constraint)
 - `settings.py` configuration -- UT-SETTINGS-CFG-001 through CFG-005 (5 scenarios: ONPREM derivation, defaults, auth settings, RBAC_V2_URL, dead config removal)
 
-Retired UT scenarios (27): SEED-001 through SEED-007, SCHEMA-001/002, VIEW-001 through VIEW-004, GRP-001 through GRP-012, AP-007, RR-005 — [full text in archive](./kessel-ocp-test-plan-retired.md)
+Retired UT scenarios (27): SEED-001 through SEED-007, SCHEMA-001/002, VIEW-001 through VIEW-004, GRP-001 through GRP-012, AP-007, RR-005 (retired during Inventory API v1beta2 migration)
 
 ### 6.5 Integration Test Coverage
 
@@ -4365,7 +4365,7 @@ Covered by active IT scenarios:
 - `sources/api/view.py` -- IT-SRC-RETAIN-001 (1 scenario: source deletion preserves Kessel resources)
 - `sources/api/view.py` -- IT-SRC-ONPREM-001, IT-SRC-ONPREM-002 (2 scenarios: CRUD gate and read-only default)
 
-Retired IT scenarios (7): URL-001 through URL-005, AUTH-009, AUTH-011 — [full text in archive](./kessel-ocp-test-plan-retired.md)
+Retired IT scenarios (7): URL-001 through URL-005, AUTH-009, AUTH-011 (retired during Inventory API v1beta2 migration)
 
 ### 6.6 Contract Test Coverage
 
@@ -4376,7 +4376,7 @@ Covered by active CT scenarios:
 - Creation Lifecycle -- CT-CREATION-001 through CREATION-003 (3 scenarios, Phase 3: ReportResource + tuple visibility, idempotent tuple creation, negative proof without tuple)
 - Full Lifecycle -- CT-LIFECYCLE-001 (1 scenario, Phase 3: create-then-delete round-trip through Koku code paths)
 
-Retired CT scenarios (12): REL-001 through REL-008, LOOKUP-001 through LOOKUP-004 — [full text in archive](./kessel-ocp-test-plan-retired.md)
+Retired CT scenarios (12): REL-001 through REL-008, LOOKUP-001 through LOOKUP-004 (retired during Inventory API v1beta2 migration)
 
 ### 6.7 E2E Test Coverage
 

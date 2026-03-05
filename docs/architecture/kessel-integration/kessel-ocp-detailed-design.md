@@ -5,7 +5,7 @@
 | Jira          | [FLPATH-3294](https://issues.redhat.com/browse/FLPATH-3294)          |
 | Parent story  | [FLPATH-2690](https://issues.redhat.com/browse/FLPATH-2690)          |
 | Epic          | [FLPATH-2799](https://issues.redhat.com/browse/FLPATH-2799)          |
-| HLD           | [kessel-ocp-integration.md](./kessel-ocp-integration.md) (updated to match implementation; see [kessel-hld-gaps-and-updates.md](./kessel-hld-gaps-and-updates.md)) |
+| HLD           | [kessel-ocp-integration.md](./kessel-ocp-integration.md) |
 | Author        | Jordi Gil                                                             |
 | Status        | Draft                                                                 |
 | Created       | 2026-02-18                                                           |

@@ -3,7 +3,7 @@
 **Date**: 2026-01-30 
 **Status**: High Level Design (HLD) 
 **Scope**: OpenShift (OCP) Provider - On-Premise Deployments
-**Last updated**: 2026-03-02 — aligned with implementation (see [kessel-hld-gaps-and-updates.md](./kessel-hld-gaps-and-updates.md) and [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md)). For the on-prem workspace management strategy (team workspaces, cross-team sharing, Keycloak automation), see [onprem-workspace-management-adr.md](./onprem-workspace-management-adr.md).
+**Last updated**: 2026-03-02 — aligned with implementation (see [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md)). For the on-prem workspace management strategy (team workspaces, cross-team sharing, Keycloak automation), see [onprem-workspace-management-adr.md](./onprem-workspace-management-adr.md).
 
 ---
 
@@ -84,7 +84,7 @@ Enable **Kessel (Red Hat's ReBAC platform)** as an optional authorization backen
 | **Phase 1** | Immediate | Wildcard permissions only | None - use existing schema |
 | **Phase 2** | 2-4 months | Resource-specific permissions + ownership | 3 resource definitions (schema PR) |
 
-**Implementation note**: The current implementation delivers Phase 1 and Phase 2 in a single branch. Authorization uses **StreamedListObjects** (Inventory API v1beta2) for per-resource IDs and **Check** as fallback for workspace-level wildcard — not Check-only per resource. Resource lifecycle uses **Inventory API** (ReportResource/DeleteResource) plus **Relations API** (t_workspace tuple create/delete). See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md) and [kessel-hld-gaps-and-updates.md](./kessel-hld-gaps-and-updates.md).
+**Implementation note**: The current implementation delivers Phase 1 and Phase 2 in a single branch. Authorization uses **StreamedListObjects** (Inventory API v1beta2) for per-resource IDs and **Check** as fallback for workspace-level wildcard — not Check-only per resource. Resource lifecycle uses **Inventory API** (ReportResource/DeleteResource) plus **Relations API** (t_workspace tuple create/delete). See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md).
 
 ---
 
@@ -1098,7 +1098,7 @@ Uses **two Kessel APIs**: (1) **Inventory API** (gRPC): ReportResource / DeleteR
 - Provider creation/deletion succeeds even if Kessel operation fails
 - Manual resync command available for recovery scenarios
 
-**Implementation**: See [kessel-ocp-implementation-guide.md](./kessel-ocp-implementation-guide.md#sources-api-integration)
+**Implementation**: See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md)
 
 ### Node and Namespace Discovery
 
@@ -1170,7 +1170,7 @@ Implements an adapter pattern: the same `request.user.access` shape is produced 
 
 **Backend selection:** Based on `ONPREM` env var; `ONPREM=true` forces `AUTHORIZATION_BACKEND=rebac`. Resolved in `koku_rebac/config.py`.
 
-**Implementation details**: See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md) and [kessel-hld-gaps-and-updates.md](./kessel-hld-gaps-and-updates.md).
+**Implementation details**: See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md).
 
 **Design rationale**: Koku resolves all access for a user in one batch (`StreamedListObjects` per resource type + `Check` for workspace-level permissions), caches the result, and applies it locally in the query layer via SQL `WHERE` clauses. This avoids O(N) per-resource `Check()` calls and keeps application-specific logic (write-grants-read, settings asymmetry, wildcard detection) in Koku rather than the ZED schema. See [Authorization Delegation DD §5](./kessel-authorization-delegation-dd.md#why-fetch-all-access-intersect-locally----not-check-per-resource) for the full analysis of why this pattern was chosen over per-resource Check().
 
@@ -1202,7 +1202,7 @@ Updates existing Django REST Framework permission classes to use the authorizati
 - Permission class names and behavior unchanged
 - Falls back to wildcard check if no resource_id available
 
-**Implementation**: See [kessel-ocp-implementation-guide.md](./kessel-ocp-implementation-guide.md#permission-classes)
+**Implementation**: See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md)
 
 ### Sources API Integration
 
@@ -1237,7 +1237,7 @@ Minimal modifications to existing provider lifecycle methods to trigger Kessel s
 3. **Creator tracking**: User who creates provider becomes owner in Kessel
 4. **Idempotent**: Safe to retry resource reporting operations
 
-**Implementation**: See [kessel-ocp-implementation-guide.md](./kessel-ocp-implementation-guide.md#sources-api-integration)
+**Implementation**: See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md)
 
 ---
 
@@ -1939,7 +1939,7 @@ As Koku usage grows, monitor:
 - Test resource removal and cascading deletion
 - Test lazy synchronization during queries
 
-**Test code examples**: See [kessel-ocp-implementation-guide.md](./kessel-ocp-implementation-guide.md#testing-examples)
+**Test code examples**: See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md)
 
 ### End-to-End Testing
 
@@ -2146,7 +2146,7 @@ As Koku usage grows, monitor:
 - Resource deletion (with cascade support)
 - Connection configuration (endpoint, credentials, timeout)
 
-**Code examples**: See [kessel-ocp-implementation-guide.md](./kessel-ocp-implementation-guide.md#kessel-sdk-usage)
+**Code examples**: See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md)
 
 ### Appendix B: Red Hat RBAC Config Repository
 
@@ -2197,7 +2197,7 @@ As Koku usage grows, monitor:
 - Build `KESSEL_CONFIG` dictionary from environment
 - Raise error if required settings missing
 
-**Full configuration code**: See [kessel-ocp-implementation-guide.md](./kessel-ocp-implementation-guide.md#configuration)
+**Full configuration code**: See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md)
 
 ### Appendix E: Useful Links
 
