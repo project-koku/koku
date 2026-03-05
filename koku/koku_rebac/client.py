@@ -11,6 +11,7 @@ from django.conf import settings
 from kessel.inventory.v1beta2 import inventory_service_pb2_grpc
 
 from api.common import log_json
+from koku_rebac.kessel_auth import get_grpc_call_credentials
 
 LOG = logging.getLogger(__name__)
 
@@ -44,11 +45,29 @@ class KesselClient:
 
     @staticmethod
     def _build_channel(config: dict, ca_path: str) -> grpc.Channel:
-        """Create a gRPC channel to the Kessel Inventory API."""
+        """Create a gRPC channel to the Kessel Inventory API.
+
+        When KESSEL_AUTH_ENABLED is True the channel carries per-RPC
+        call credentials (OAuth2 Bearer token) so the Inventory API
+        can verify the caller's identity.
+        """
         target = f"{config['host']}:{config['port']}"
+        call_creds = get_grpc_call_credentials()
+
         if ca_path:
-            creds = _build_channel_credentials(ca_path)
-            return grpc.secure_channel(target, creds)
+            channel_creds = _build_channel_credentials(ca_path)
+            if call_creds:
+                channel_creds = grpc.composite_channel_credentials(channel_creds, call_creds)
+            return grpc.secure_channel(target, channel_creds)
+
+        if call_creds:
+            # Auth enabled but no TLS -- use local credentials so
+            # call_credentials can ride on an otherwise-insecure channel.
+            channel_creds = grpc.composite_channel_credentials(
+                grpc.local_channel_credentials(), call_creds
+            )
+            return grpc.secure_channel(target, channel_creds)
+
         return grpc.insecure_channel(target)
 
 
