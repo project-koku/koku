@@ -504,6 +504,38 @@ The following operations bypass the Kessel Inventory/Relations APIs and access S
 | **Computed permissions** | Cross-type permission resolution (`has_cluster->read`, `has_project->read`) | Custom schema additions to the on-prem `.zed` file | Upstream KSL schema support for structural resource relationships |
 | **Application-specific computed-visibility resources** | `cost_management/integration` — a resource whose `read` permission is entirely derived from child resource access, not direct role bindings. Created because Koku's `/sources/` API is a separate endpoint that needs per-user filtering independent of cost report access. | Custom `integration` type in on-prem `.zed` schema; Koku registers integration resources and structural tuples during source creation and data ingestion | Upstream support for application-defined "container" resource types with computed visibility, or a generic mechanism for API endpoints to derive per-user resource lists from child access grants |
 
+### Kessel API Authentication Hardening
+
+The Relations API and Inventory API both support JWT-based authentication but ship with auth **disabled** by default. In the initial on-prem deployment, inter-service calls rely on network-level isolation (ClusterIP services, no external Routes) as the sole access control.
+
+#### Unauthenticated Paths (before hardening)
+
+| Caller | Target API | Protocol | Risk |
+|---|---|---|---|
+| Koku `resource_reporter.py` | Relations API | HTTP REST `:8000` | Any pod in the cluster can write/delete authorization tuples |
+| Koku `client.py` | Inventory API | gRPC `:9000` | Any pod can perform Check/StreamedListObjects/ReportResource |
+| Inventory API | Relations API | gRPC `:9000` | Internal authz calls are unauthenticated |
+
+#### Authentication Design
+
+When `kessel.auth.enabled=true` in the Helm chart (or `KESSEL_API_AUTH_ENABLED=true` for deploy scripts):
+
+- **Two dedicated Keycloak service account clients** are created via the `KeycloakRealmImport` CR in `deploy-rhbk.sh`:
+  - `cost-management-koku` — used by Koku pods for Relations API (HTTP) and Inventory API (gRPC) calls
+  - `cost-management-inventory` — used by the Inventory API pod for its outbound Relations API (gRPC) calls
+- **Relations API** enables JWT validation via `ENABLEAUTH=true` + `JWKSURL` pointing to Keycloak's JWKS endpoint
+- **Inventory API** switches from `allow-unauthenticated: true` to an OIDC authenticator chain, and enables `enable-oidc-auth: true` for its outbound Relations API calls with SA credentials
+- **Koku** uses a thread-safe `TokenProvider` ([`koku_rebac/kessel_auth.py`](../../../koku/koku_rebac/kessel_auth.py)) that acquires tokens via client_credentials grant and caches them until 30s before expiry
+- **SpiceDB** remains secured by preshared key (unchanged)
+
+#### Deployment
+
+Kessel API authentication is **mandatory** — there is no unauthenticated mode. The deployment scripts enforce this:
+1. `deploy-rhbk.sh` creates the Keycloak service account clients and extracts their secrets
+2. `install-helm-chart.sh` copies `kessel-koku-client` to the cost-onprem namespace and `kessel-inventory-client` to the kessel namespace — **fails hard** if either secret is missing
+3. `deploy-kessel.sh` configures Relations API with `ENABLEAUTH=true` and Inventory API with OIDC authentication — **fails hard** if the Inventory client secret is missing
+4. Koku pods always set `KESSEL_AUTH_ENABLED=True` and mount the `kessel-koku-client` secret
+
 ---
 
 ## PRD12 Requirements Coverage
