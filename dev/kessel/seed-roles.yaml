@@ -19,6 +19,8 @@ roles:
     name: Cost Administrator
     system: true
     permissions:
+      - rbac_permission: "cost-management:*:*"
+        kessel_relation: t_cost_management_all_all
       - rbac_permission: "cost-management:aws.account:read"
         kessel_relation: t_cost_management_aws_account_read
       - rbac_permission: "cost-management:aws.organizational_unit:read"
