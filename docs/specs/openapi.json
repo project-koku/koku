@@ -3135,8 +3135,9 @@
                         "description": "ID of source to get",
                         "required": true,
                         "schema": {
-                            "type": "string",
-                            "example": "1"
+                            "type": "integer",
+                            "format": "int64",
+                            "example": 1
                         }
                     },
                     {
@@ -4188,8 +4189,9 @@
                         "description": "ID of source to get",
                         "required": true,
                         "schema": {
-                            "type": "string",
-                            "example": "1"
+                            "type": "integer",
+                            "format": "int64",
+                            "example": 1
                         }
                     }
                 ],
@@ -4249,8 +4251,9 @@
                         "description": "ID of source to get",
                         "required": true,
                         "schema": {
-                            "type": "string",
-                            "example": "1"
+                            "type": "integer",
+                            "format": "int64",
+                            "example": 1
                         }
                     }
                 ],
@@ -7584,8 +7587,8 @@
                 ],
                 "properties": {
                     "id": {
-                        "type": "string",
-                        "example": "1"
+                        "type": "integer",
+                        "example": 1
                     },
                     "source_type": {
                         "type": "string",
@@ -7645,8 +7648,9 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "string",
-                                "example": "1"
+                                "type": "integer",
+                                "format": "int64",
+                                "example": 1
                             },
                             "uuid": {
                                 "type": "string",
