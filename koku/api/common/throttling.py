@@ -9,6 +9,8 @@ from datetime import datetime
 
 from rest_framework.throttling import SimpleRateThrottle
 
+from api.report.constants import TIME_SCOPE_UNITS_MONTHLY
+from api.report.constants import TIME_SCOPE_VALUES_MONTHLY
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import TAG_QUERY_RATE_LIMIT_FLAG
 
