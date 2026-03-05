@@ -14,10 +14,21 @@ from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.aws.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
+from reporting.provider.aws.self_hosted_models import SELF_HOSTED_DAILY_MODEL_MAP
+from reporting.provider.aws.self_hosted_models import SELF_HOSTED_MODEL_MAP
 
 
 class AWSReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, start_date):
+        # Track if this is daily data for self-hosted model lookup
+        if "daily" in s3_path:
+            self._is_daily = True
+        else:
+            self._is_daily = False
+
+        # Date column for deriving usage_start (AWS uses lineitem_usagestartdate)
+        self._date_column = "lineitem_usagestartdate"
+
         numeric_columns = [
             "lineitem_normalizationfactor",
             "lineitem_normalizedusageamount",
@@ -64,6 +75,28 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
     def postgres_summary_table(self):
         """Return the mode for the source specific summary table."""
         return AWSCostEntryLineItemDailySummary
+
+    @property
+    def self_hosted_line_item_model(self):
+        """Return the Django model for line item data (self-hosted/on-prem only).
+
+        This leverages Django models instead of raw SQL table creation,
+        enabling automatic migrations and consistent partition management.
+        """
+        # AWS uses a single table type key unlike OCP which has pod_usage, storage_usage, etc.
+        table_key = "aws_line_items"
+        if self._is_daily:
+            return SELF_HOSTED_DAILY_MODEL_MAP.get(table_key)
+        else:
+            return SELF_HOSTED_MODEL_MAP.get(table_key)
+
+    def get_table_names_for_delete(self):
+        """Return all AWS table names (raw, daily, ocp_on_aws)."""
+        return [TRINO_LINE_ITEM_TABLE, TRINO_LINE_ITEM_DAILY_TABLE, TRINO_OCP_ON_AWS_DAILY_TABLE]
+
+    def _prepare_dataframe_for_write(self, data_frame, metadata):
+        """Add AWS-specific columns before writing to PostgreSQL."""
+        data_frame["manifestid"] = str(self._manifest_id)
 
     def create_bill(self, bill_date):
         """Create bill postgres entry."""
