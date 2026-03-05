@@ -4,7 +4,7 @@
 #
 """View for OpenShift on All infrastructure Usage Reports."""
 from api.common.permissions.openshift_all_access import OpenshiftAllAccessPermission
-from api.common.throttling import TagQueryThrottle
+from api.common.throttling import OcpTagQueryThrottle
 from api.models import Provider
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
 from api.report.all.openshift.serializers import OCPAllQueryParamSerializer
@@ -15,7 +15,7 @@ class OCPAllView(ReportView):
     """OCP on All Infrastructure Base View."""
 
     permission_classes = [OpenshiftAllAccessPermission]
-    throttle_classes = [TagQueryThrottle]
+    throttle_classes = [OcpTagQueryThrottle]
     provider = Provider.OCP_ALL
     serializer = OCPAllQueryParamSerializer
     query_handler = OCPAllReportQueryHandler

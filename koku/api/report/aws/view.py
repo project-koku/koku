@@ -7,6 +7,7 @@ from rest_framework.exceptions import NotFound
 
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.aws_access import AWSOUAccessPermission
+from api.common.throttling import AwsTagQueryThrottle
 from api.models import Provider
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import AWSEC2ComputeQueryParamSerializer
@@ -23,6 +24,7 @@ class AWSView(ReportView):
     serializer = AWSQueryParamSerializer
     query_handler = AWSReportQueryHandler
     tag_providers = [Provider.PROVIDER_AWS]
+    throttle_classes = [AwsTagQueryThrottle]
 
 
 class AWSCostView(AWSView):
