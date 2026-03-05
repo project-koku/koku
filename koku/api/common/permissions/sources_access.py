@@ -8,9 +8,9 @@ On-prem sources are first-class Kessel ``integration`` resources whose
 visibility is computed by SpiceDB from workspace and structural
 relationships (integration -> cluster -> project).
 
-Read access is granted when the user has any ``integration`` read
-access (populated by StreamedListObjects in the access provider).
-Write operations require ``settings`` write access.
+Read access is granted when the user has any Kessel role (non-empty
+access dict).  The view's queryset filter handles per-integration
+visibility.  Write operations require ``settings`` write access.
 """
 from django.conf import settings
 from rest_framework import permissions
@@ -31,8 +31,7 @@ class SourcesAccessPermission(permissions.BasePermission):
             return False
 
         if request.method in permissions.SAFE_METHODS:
-            integration_read = resource_access.get("integration", {}).get("read", [])
-            return bool(integration_read)
+            return bool(resource_access)
 
         setting_write = resource_access.get("settings", {}).get("write", [])
         return "*" in setting_write
