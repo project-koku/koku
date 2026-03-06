@@ -913,11 +913,12 @@ class OCPProviderMap(ProviderMap):
                         "group_by_options": [
                             "cluster",
                             "project",
+                            "node",
                             "gpu_vendor",
                             "gpu_model",
                             "gpu_name",
                             "gpu_mode",
-                            "mig_profile",
+                            # "mig_profile",
                         ],
                         "tag_column": "all_labels",
                         "aggregates": {
@@ -972,16 +973,16 @@ class OCPProviderMap(ProviderMap):
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
                             # MIG fields - these work here because they're applied after .values()
                             "gpu_mode": F("gpu_mode"),
-                            "mig_profile": F("mig_profile"),
-                            "mig_slice_count": Max(
-                                Coalesce(F("mig_slice_count"), Value(0, output_field=IntegerField()))
-                            ),
-                            "parent_gpu_max_slices": Max(
-                                Coalesce(F("parent_gpu_max_slices"), Value(0, output_field=IntegerField()))
-                            ),
-                            "mig_memory_capacity_gb": Max(
-                                Coalesce(F("mig_memory_capacity_gb"), Value(0, output_field=DecimalField()))
-                            ),
+                            # "mig_profile": F("mig_profile"),
+                            # "mig_slice_count": Max(
+                            #     Coalesce(F("mig_slice_count"), Value(0, output_field=IntegerField()))
+                            # ),
+                            # "parent_gpu_max_slices": Max(
+                            #     Coalesce(F("parent_gpu_max_slices"), Value(0, output_field=IntegerField()))
+                            # ),
+                            # "mig_memory_capacity_gb": Max(
+                            #     Coalesce(F("mig_memory_capacity_gb"), Value(0, output_field=DecimalField()))
+                            # ),
                         },
                         "aggregate_ranks_exclusions": [
                             "gpu_model",

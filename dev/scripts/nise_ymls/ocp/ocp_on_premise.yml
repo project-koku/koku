@@ -416,8 +416,29 @@ generators:
                     labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
                     capacity_gig: 20
         - node:
+          node_name: compute_a100_dedicated
+          node_labels: label_instance-type:gpu-a100|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:A100|nvidia_com_gpu_present:True
+          cpu_cores: 8
+          memory_gig: 64
+          namespaces:
+            deep-learning:
+              namespace_labels: team:research
+              pods:
+                - pod:
+                  pod_name: training_dedicated
+                  cpu_request: 4
+                  mem_request_gig: 16
+                  cpu_limit: 8
+                  mem_limit_gig: 32
+                  pod_seconds: 14400
+                  labels: label_application:PyTorch|label_stage:Training|label_group:Research
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 81920
+        - node:
           node_name: compute_mig
-          node_labels: label_instance-type:gpu-mig|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:A100-80GB|nvidia_com_gpu_present:True|nvidia_com_mig_strategy:single
+          node_labels: label_instance-type:gpu-mig|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:A100|nvidia_com_gpu_present:True|nvidia_com_mig_strategy:single
           cpu_cores: 8
           memory_gig: 64
           namespaces:
@@ -434,7 +455,7 @@ generators:
                   labels: label_application:PyTorch|label_stage:Training|label_group:DataScience
                   gpus:
                     - gpu:
-                      gpu_model: "A100-80GB"
+                      gpu_model: "A100"
                       gpu_memory_capacity_mib: 81920
                       gpu_max_slices: 7
                       mig_instances:
@@ -455,7 +476,7 @@ generators:
                   labels: label_application:TensorRT|label_stage:Production|label_group:MLOps
                   gpus:
                     - gpu:
-                      gpu_model: "A100-80GB"
+                      gpu_model: "A100"
                       gpu_memory_capacity_mib: 81920
                       gpu_max_slices: 7
                       mig_instances:
@@ -473,7 +494,7 @@ generators:
                   labels: label_application:TensorRT|label_stage:Production|label_group:MLOps
                   gpus:
                     - gpu:
-                      gpu_model: "A100-80GB"
+                      gpu_model: "A100"
                       gpu_memory_capacity_mib: 81920
                       gpu_max_slices: 7
                       mig_instances:
@@ -494,7 +515,7 @@ generators:
                   labels: label_application:Triton|label_stage:Production|label_group:Platform
                   gpus:
                     - gpu:
-                      gpu_model: "A100-80GB"
+                      gpu_model: "A100"
                       gpu_memory_capacity_mib: 81920
                       gpu_max_slices: 7
                       mig_instances:
