@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
-from api.common.throttling import TagQueryThrottle
+from api.common.throttling import OcpTagQueryThrottle
 from api.models import Provider
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
@@ -23,7 +23,7 @@ class OCPView(ReportView):
     """OCP Base View."""
 
     permission_classes = [OpenShiftAccessPermission]
-    throttle_classes = [TagQueryThrottle]
+    throttle_classes = [OcpTagQueryThrottle]
     provider = Provider.PROVIDER_OCP
     serializer = OCPInventoryQueryParamSerializer
     query_handler = OCPReportQueryHandler
