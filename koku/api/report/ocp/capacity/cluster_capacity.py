@@ -51,17 +51,9 @@ def calculate_efficiency_score(row):
     raw_request = row.get("request")
     raw_cost_total = row.get("cost_total")
 
-    usage = Decimal(str(raw_usage)) if raw_usage and not isinstance(raw_usage, Decimal) else (raw_usage or Decimal(0))
-    request = (
-        Decimal(str(raw_request))
-        if raw_request and not isinstance(raw_request, Decimal)
-        else (raw_request or Decimal(0))
-    )
-    cost_total = (
-        Decimal(str(raw_cost_total))
-        if raw_cost_total and not isinstance(raw_cost_total, Decimal)
-        else (raw_cost_total or Decimal(0))
-    )
+    usage = raw_usage if isinstance(raw_usage, Decimal) else Decimal(str(raw_usage or 0))
+    request = raw_request if isinstance(raw_request, Decimal) else Decimal(str(raw_request or 0))
+    cost_total = raw_cost_total if isinstance(raw_cost_total, Decimal) else Decimal(str(raw_cost_total or 0))
 
     if request <= 0:
         row["score"] = {"usage_efficiency": 0, "wasted_cost": Decimal(0)}
