@@ -215,11 +215,11 @@ class SourcesSerializerFieldsTest(IamTestCase):
         )
         self.aws_obj.save()
 
-    def test_get_source_id_returns_string(self):
-        """Test that get_source_id returns source_id as a string."""
+    def test_get_source_id_returns_integer(self):
+        """Test that get_source_id returns source_id as an integer."""
         serializer = SourcesSerializer(self.ocp_obj)
-        self.assertEqual(serializer.data["id"], str(self.ocp_obj.source_id))
-        self.assertIsInstance(serializer.data["id"], str)
+        self.assertEqual(serializer.data["id"], self.ocp_obj.source_id)
+        self.assertIsInstance(serializer.data["id"], int)
 
     def test_get_source_type_id_ocp(self):
         """Test that source_type_id is correctly mapped for OCP."""
