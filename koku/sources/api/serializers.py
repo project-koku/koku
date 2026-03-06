@@ -78,7 +78,7 @@ class SourcesSerializer(serializers.ModelSerializer):
 
     def get_source_id(self, obj):
         """Get the source_id."""
-        return obj.source_id
+        return str(obj.source_id)
 
     def get_source_uuid(self, obj):
         """Get the source_uuid."""
