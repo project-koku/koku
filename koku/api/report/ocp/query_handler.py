@@ -22,6 +22,7 @@ from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
 from api.models import Provider
+from api.report.ocp.capacity.cluster_capacity import calculate_efficiency_score
 from api.report.ocp.capacity.cluster_capacity import calculate_unused
 from api.report.ocp.capacity.cluster_capacity import ClusterCapacity
 from api.report.ocp.capacity.node_capacity import NodeCapacity
@@ -224,6 +225,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         output["data"] = self.query_data
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
+        if "score" in self.query_sum:
+            self.query_sum["total_score"] = self.query_sum.pop("score")
         output["total"] = self.query_sum
 
         if self._delta:
@@ -277,6 +280,18 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if total_capacity:
                 query_sum.update(total_capacity)
                 calculate_unused(query_sum)
+
+            if self._report_type in ("cpu", "memory"):
+                has_tag_interaction = self._tag_group_by or self.get_tag_filter_keys()
+                should_compute = not has_tag_interaction and len(group_by_value) <= 1
+                if should_compute:
+                    calculate_efficiency_score(query_sum)
+                    for row in query_data:
+                        calculate_efficiency_score(row)
+                else:
+                    query_sum["score"] = {}
+                    for row in query_data:
+                        row["score"] = {}
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
