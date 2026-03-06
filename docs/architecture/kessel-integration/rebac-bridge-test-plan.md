@@ -65,7 +65,7 @@ Based on IEEE 829-2008 Standard for Software and System Test Documentation.
 | REF-7 | Koku Resource Reporter | [resource_reporter.py](../../../koku/koku_rebac/resource_reporter.py) |
 | REF-8 | insights-rbac v1 API | [RedHatInsights/insights-rbac](https://github.com/RedHatInsights/insights-rbac) |
 | REF-9 | insights-rbac-ui | [RedHatInsights/insights-rbac-ui](https://github.com/RedHatInsights/insights-rbac-ui) |
-| REF-10 | authzed-go Client Library | [authzed/authzed-go](https://github.com/authzed/authzed-go) |
+| REF-10 | authzed-go Client Library (bridge-specific; ros-ocp-backend uses `project-kessel/relations-api` instead) | [authzed/authzed-go](https://github.com/authzed/authzed-go) |
 | REF-11 | IEEE 829-2008 | IEEE Standard for Software and System Test Documentation |
 
 ---
@@ -331,14 +331,14 @@ The 80% coverage target is a **floor, not a ceiling**, and applies to meaningful
 |---|---|---|---|---|
 | AUTH-01 | No `x-rh-identity` header: 401 AND the response body does not leak internal details (no stack trace, no SpiceDB endpoint) | Status 401, body contains only a generic auth error, no sensitive information | Unit | P0 |
 | AUTH-02 | Malformed identity: invalid base64 → 401; valid base64 but missing `identity.org_id` → 401; missing `identity.user.username` → 401 | Three subtests, each returns 401 with an error message that indicates the specific missing field | Unit | P0 |
-| AUTH-03 | Viewer user (no admin role) can read all list endpoints: `/roles/`, `/groups/`, `/principals/`, `/access/`, `/permissions/` | For each endpoint: status 200, `data` array is present. Proves read access is not restricted to admins | Integration | P0 |
+| AUTH-03 | Viewer user (no admin role) is denied all bridge admin endpoints | For GET `/roles/`, `/groups/`, `/principals/`, `/access/`, `/permissions/`: status 403 for each. The bridge requires `cost_management_all_read` (granted by `cost-administrator` via `t_cost_management_all_all`); `cost-openshift-viewer` does not have this permission. Regular users use Koku's `/user-access/` endpoint for their own permissions, not the bridge | Integration | P0 |
 | AUTH-04 | Admin user (cost-administrator) can execute all write endpoints | For POST `/groups/`, POST `/groups/{uuid}/roles/`, POST `/groups/{uuid}/principals/`, POST `/groups/{uuid}/resources/`: status 2xx, operation succeeds, state changes confirmed | Integration | P0 |
 | AUTH-05 | Viewer user attempting POST `/groups/`: 403, AND no group created in PG, AND no workspace created in SpiceDB | Status 403, verify zero side effects by checking PG group count and SpiceDB tuple count are unchanged from before the attempt | Integration | P0 |
 | AUTH-06 | Admin check ignores `is_org_admin` header field: identity with `is_org_admin: true` but no SpiceDB admin role → 403 | Craft identity with `is_org_admin: true` for a user who has no admin role binding in SpiceDB. POST: 403. Proves the bridge uses SpiceDB `CheckPermission`, not the header field | Integration | P0 |
 | AUTH-07 | Identity without `is_org_admin` field (matching on-prem Envoy filter output): admin user still passes | Standard on-prem identity (no `is_org_admin` key at all). Admin user with SpiceDB role binding: POST succeeds. Proves the field is truly not required | Unit | P0 |
 | AUTH-08 | Bootstrap admin: user granted via `kessel-admin.sh do_grant` tuple structure can create groups | Setup: create the 5 role binding tuples that `do_grant` creates (directly in SpiceDB). User with those tuples: POST `/groups/` succeeds | Integration | P0 |
-| AUTH-09 | `cost-administrator`'s `t_cost_management_all_all` resolves to both `cost_management_all_read` AND `cost_management_all_write` | `CheckPermission(rbac/workspace:{org_id}, cost_management_all_read, admin)` → ALLOWED. `CheckPermission(rbac/workspace:{org_id}, cost_management_all_write, admin)` → ALLOWED. Both permissions from a single relation, proving the ZED schema wildcard resolution works | Integration | P0 |
-| AUTH-10 | User with `cost-openshift-viewer` only: GET `/roles/` succeeds (200), POST `/groups/` fails (403) | Viewer can read, cannot write. Proves the boundary between read and write authorization | Integration | P0 |
+| AUTH-09 | `cost-administrator`'s `t_cost_management_all_all` resolves to both `cost_management_all_read` AND `cost_management_all_write` via computed permissions | `CheckPermission(rbac/workspace:{org_id}, cost_management_all_read, admin)` → ALLOWED. `CheckPermission(rbac/workspace:{org_id}, cost_management_all_write, admin)` → ALLOWED. Resolution chain: `rbac/role.cost_management_all_read = t_cost_management_all_read + t_cost_management_all_all + t_all_all_all` — cost-administrator seeds `t_cost_management_all_all`, which satisfies the computed permission. Same pattern as individual type `_view`/`_edit` permissions | Integration | P0 |
+| AUTH-10 | User with `cost-openshift-viewer` only: GET `/roles/` returns 403, POST `/groups/` returns 403 | Viewer is denied both read and write on bridge admin endpoints. Both require permissions that `cost-openshift-viewer` does not have (`cost_management_all_read` / `cost_management_all_write`). The bridge is an admin-only surface | Integration | P0 |
 | AUTH-11 | Admin check resolves through full chain: admin_user → group:admins (t_member) → role_binding (t_subject/t_granted) → role:cost-administrator → cost_management_all_write | Setup admin_user in a group with cost-administrator role bound to org workspace. POST `/groups/` succeeds. Then remove admin_user from the group: POST `/groups/` now returns 403. Proves the full chain resolution, not just a hardcoded check | Integration | P0 |
 | AUTH-12 | Org isolation: admin of org-A cannot write to bridge for org-B | Craft identity with `org_id: "9999999"` (different org). POST `/groups/`: either 403 (org-B has no admin bindings for this user) or the group is created in org-B's scope (not org-A's). Either way, org-A's data is unaffected | Integration | P0 |
 
@@ -896,10 +896,13 @@ func TestRoleAssignment_AuthorizationChain(t *testing.T) {
         "rbac/role_binding:"+bindingID,
     )
 
-    // POSTCONDITION 4: no tenant-level binding was created (only workspace-level)
+    // POSTCONDITION 4: bridge creates workspace-level bindings, NOT tenant-level.
+    // Note: kessel-admin.sh do_grant creates a tenant-level t_binding (tuple 5)
+    // for the bootstrap admin — that's a deployment-time grant, not a bridge operation.
+    // The bridge always scopes to the team workspace, not the tenant.
     tenantBindings := readRelationships(t, spiceClient,
         "rbac/tenant:"+orgID, "t_binding", "rbac/role_binding:"+bindingID)
-    require.Len(t, tenantBindings, 0, "must not create tenant-level binding")
+    require.Len(t, tenantBindings, 0, "bridge must not create tenant-level binding (only workspace-level)")
 
     // INVERSE: remove role, alice loses access
     removeRole(t, groupUUID, "cost-openshift-viewer")

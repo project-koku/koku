@@ -61,6 +61,14 @@
   - [Kessel Stack](#kessel-stack)
   - [insights-rbac-ui Extraction](#insights-rbac-ui-extraction)
 - [Development Plan](#development-plan)
+- [Test Plan](#test-plan)
+  - [1. Authentication Tests (AuthN)](#1-authentication-tests-authn--identity-validation)
+  - [2. Authorization Tests (AuthZ)](#2-authorization-tests-authz--permission-enforcement)
+  - [3. Org Isolation Tests](#3-org-isolation-tests)
+  - [4. Role Lifecycle and Dynamic Permission Tests](#4-role-lifecycle-and-dynamic-permission-tests)
+  - [5. Functional Tests](#5-functional-tests)
+  - [6. Integration Tests (E2E)](#6-integration-tests-e2e)
+  - [7. Negative and Edge-Case Tests](#7-negative-and-edge-case-tests)
 - [Risks and Mitigations](#risks-and-mitigations)
 - [Disposability](#disposability)
 - [Open Questions](#open-questions)
@@ -316,6 +324,8 @@ rbac/group:{group_uuid}#t_member → rbac/principal:redhat/{username}
 
 The bridge validates that the principal exists in Keycloak before creating the tuple. The `redhat/` prefix is a fixed convention from the upstream Kessel principal format (matching what `KesselAccessProvider` uses in `access_provider.py`). It is not derived from the Keycloak realm name.
 
+> **Principal format fragility**: The `redhat/` prefix is currently hardcoded in three independent codebases: Koku (`_build_subject_ref`), ros-ocp-backend (`principalID`), and kessel-admin.sh (`create_tuples`). The bridge will be the fourth. If this prefix ever changes, all four must be updated simultaneously. Consider extracting it to a shared configuration value (e.g., `KESSEL_PRINCIPAL_PREFIX` environment variable) in a future iteration.
+
 ### Group Roles
 
 Assign roles to groups. This creates a role binding scoped to the group's workspace.
@@ -413,9 +423,9 @@ This endpoint reads all resources in the org workspace (via `ReadRelationships` 
 | `azure_subscription_guid` | `cost_management/azure_subscription_guid` |
 | `gcp_account` | `cost_management/gcp_account` |
 | `gcp_project` | `cost_management/gcp_project` |
-| `openshift_vm` | `cost_management/openshift_vm` |
+| `openshift_vm` | `cost_management/openshift_vm` | **Placeholder** — defined in ZED schema but not yet in Koku's `KOKU_TO_KESSEL_TYPE_MAP` or `IMMEDIATE_WRITE_TYPES`. No `t_workspace` tuples exist for VMs until Koku's data pipeline adds support. The bridge accepts this type for forward compatibility, but `/available/` will return no VM resources until Koku reports them. |
 
-> **Why not `cost_model` or `settings`?** These resource types are not appropriate for team-scoped workspace assignment. `settings` is a capability permission (checked via `CHECK_ONLY_TYPES` in `access_provider.py`, not via resource listing). `cost_model` is org-wide and scoped by its own provider mapping (`CostModelMap`), not by workspace visibility. Both remain valid permissions in Roles and the Permissions browser — they are only excluded from the Group Resources assignment endpoints.
+> **Why not `cost_model` or `settings`?** These resource types are not appropriate for team-scoped workspace assignment. `settings` is a capability permission (checked via `CHECK_ONLY_TYPES` in `access_provider.py`, not via resource listing). `cost_model` is resolved via Koku's `_resolve_per_resource_access` (StreamedListObjects) and could technically support team-scoped assignment, but it is excluded because cost models are created and managed at the org level through the Koku cost model UI, not through team-based resource assignment. Both remain valid permissions in Roles and the Permissions browser — they are only excluded from the Group Resources assignment endpoints.
 
 ### Principals
 
@@ -577,9 +587,8 @@ func (c *SpiceDBClient) Check(ctx context.Context, resource, relation, subject s
 1. **Performance**: Native gRPC avoids the HTTP/JSON serialization overhead of the Relations API REST layer. Batch `WriteRelationships` calls are more efficient than individual REST requests.
 2. **Stability**: The Relations API is under active development (v1beta1) and its REST surface may change. SpiceDB's gRPC API (`authzed.api.v1`) is stable and well-documented.
 3. **Feature access**: Direct access to SpiceDB features like `CheckPermission` (used for admin authorization), streaming `ReadRelationships`, and `WriteRelationships` with preconditions — not all of which are exposed via the Relations API REST layer.
-4. **Precedent**: The existing `ros-ocp-backend` Go service already uses SpiceDB gRPC directly for authorization queries in the same on-prem stack.
 
-> **Note**: Koku's `resource_reporter.py` continues to use the Relations API REST endpoints for `t_workspace` tuple creation. The bridge's use of direct SpiceDB gRPC is an independent choice — both paths write to the same underlying SpiceDB instance. The `deploy-kessel.sh` script already creates the SpiceDB pre-shared key, which the bridge reads from its configuration.
+> **Note on other services**: `ros-ocp-backend` previously used `authzed-go` (direct SpiceDB gRPC) but has since migrated to the Kessel Relations API gRPC clients (`project-kessel/relations-api` v1beta1 `KesselCheckServiceClient` / `KesselLookupServiceClient`). Koku's `resource_reporter.py` uses the Relations API REST endpoints for `t_workspace` tuple creation. The bridge's choice of direct SpiceDB gRPC is deliberate — the bridge needs `WriteRelationships` with batch semantics, streaming `ReadRelationships` for tuple enumeration, and `CheckPermission` for admin authorization checks. These requirements exceed what the Relations API currently exposes. Both paths write to the same underlying SpiceDB instance. The `deploy-kessel.sh` script already creates the SpiceDB pre-shared key, which the bridge reads from its configuration.
 
 ### Group Creation
 
@@ -782,7 +791,31 @@ The reconciler runs inside the bridge process (a goroutine with a ticker), not a
 
 ## Authentication and Authorization
 
-### Identity Resolution
+**Every request to the bridge MUST be authenticated and authorized.** Without enforcement, any client that can reach the bridge's REST API can list all groups, roles, principals, and resources — or modify them. This section describes the mandatory middleware that prevents unauthenticated and unauthorized access.
+
+### Middleware Pipeline
+
+All requests pass through a mandatory middleware chain before reaching any handler:
+
+```mermaid
+flowchart LR
+    Request["Incoming Request"]
+    AuthN["1. AuthN Middleware<br/><small>Extract + validate X-Rh-Identity</small>"]
+    OrgScope["2. Org Scoping<br/><small>Set org_id from identity</small>"]
+    AuthZ["3. AuthZ Middleware<br/><small>Check SpiceDB permissions<br/>for write operations</small>"]
+    Handler["Handler"]
+
+    Request --> AuthN
+    AuthN -->|"401 if missing/invalid"| Request
+    AuthN --> OrgScope
+    OrgScope --> AuthZ
+    AuthZ -->|"403 if denied"| Request
+    AuthZ --> Handler
+```
+
+No handler executes without a validated identity. There are no public endpoints except `/healthz` and `/readyz`.
+
+### Step 1: Authentication (X-Rh-Identity Validation)
 
 The bridge reads the `x-rh-identity` header (same format as Koku, generated by the Envoy gateway from a validated Keycloak JWT):
 
@@ -800,12 +833,37 @@ The bridge reads the `x-rh-identity` header (same format as Koku, generated by t
 }
 ```
 
-> **Important**: The on-prem `x-rh-identity` header **does not include `is_org_admin`**. The Envoy Lua filter in the gateway intentionally omits this field. The bridge must not rely on it.
+The middleware MUST reject the request with the appropriate error if any of the following conditions are true:
 
-### Who Can Use the Bridge
+| Condition | HTTP Status | Error |
+|---|---|---|
+| `x-rh-identity` header missing | `401 Unauthorized` | `{"errors": [{"detail": "Missing x-rh-identity header", "status": "401", "source": "rebac-bridge"}]}` |
+| Header is not valid base64 | `401 Unauthorized` | `{"errors": [{"detail": "Malformed x-rh-identity header", "status": "401", "source": "rebac-bridge"}]}` |
+| Decoded JSON is missing `identity.org_id` | `401 Unauthorized` | `{"errors": [{"detail": "Missing org_id in identity", "status": "401", "source": "rebac-bridge"}]}` |
+| Decoded JSON is missing `identity.user.username` | `401 Unauthorized` | `{"errors": [{"detail": "Missing username in identity", "status": "401", "source": "rebac-bridge"}]}` |
+| `identity.type` is not `"User"` | `401 Unauthorized` | `{"errors": [{"detail": "Unsupported identity type", "status": "401", "source": "rebac-bridge"}]}` |
 
-- **Read operations** (GET): Any authenticated user in the organization.
-- **Write operations** (POST, PUT, DELETE): The bridge checks whether the calling user has admin permissions by querying SpiceDB directly via gRPC:
+> **Important**: The on-prem `x-rh-identity` header **does not include `is_org_admin`**. The Envoy Lua filter in the gateway intentionally omits this field. The bridge MUST NOT rely on it for any authorization decision.
+
+### Step 2: Org Scoping
+
+After authentication, the middleware extracts `org_id` from the identity and injects it into the request context. All downstream queries (PostgreSQL and SpiceDB) MUST be scoped to this `org_id`. A user from `org_id=111` MUST NOT be able to read or write data belonging to `org_id=222`.
+
+| Data store | Scoping mechanism |
+|---|---|
+| PostgreSQL | `WHERE org_id = {identity.org_id}` on all queries |
+| SpiceDB | All tuple reads/writes use `rbac/workspace:{identity.org_id}` as the root workspace |
+
+### Step 3: Authorization (SpiceDB Permission Check)
+
+After authentication, the bridge checks whether the caller has permission for the requested operation:
+
+| Operation type | Required permission | Check mechanism |
+|---|---|---|
+| **Read** (GET on any endpoint) | `cost_management_all_read` | SpiceDB `CheckPermission` on `rbac/workspace:{org_id}` |
+| **Write** (POST, PUT, DELETE) | `cost_management_all_write` | SpiceDB `CheckPermission` on `rbac/workspace:{org_id}` |
+
+The SpiceDB check for write operations:
 
 ```
 Check(
@@ -815,11 +873,72 @@ Check(
 )
 ```
 
-If the Check returns `ALLOWED`, the user has admin-level write access. This approach is consistent with the on-prem design philosophy of delegating all authorization decisions to Kessel/SpiceDB rather than relying on identity header claims. It also means admin privileges are managed through the same role/group mechanism as everything else — a user is an admin because they have a role binding that grants `cost_management_all_write` on the org workspace.
+The SpiceDB check for read operations:
 
-The `cost_management_all_write` permission resolves via the ZED schema: `role.cost_management_all_write = t_cost_management_all_write + t_cost_management_all_all + all_all_all`. The `cost-administrator` role seeds `t_cost_management_all_all` (the wildcard), which grants both `cost_management_all_read` and `cost_management_all_write`. See [seed-roles.yaml](../../../dev/kessel/seed-roles.yaml).
+```
+Check(
+  resource:  "rbac/workspace:{org_id}",
+  relation:  "cost_management_all_read",
+  subject:   "rbac/principal:redhat/{username}"
+)
+```
 
-The initial "bootstrap admin" (the first user who needs admin access before the UI is available) is granted access via `kessel-admin.sh do_grant` during deployment, creating the necessary role binding tuples in SpiceDB.
+If the check returns `NOT_ALLOWED`, the bridge responds with:
+
+```
+403 Forbidden
+{"errors": [{"detail": "User does not have permission to perform this action", "status": "403", "source": "rebac-bridge"}]}
+```
+
+**Why read operations also require a permission check**: Without it, any authenticated user in the org could enumerate all groups, roles, principals, and resource assignments. Read access should be restricted to users who have at least a `cost_management_all_read` permission (granted by the `cost-administrator` role's wildcard or any role with `_all_read`). Regular users (e.g. `cost-openshift-viewer`) should use the Koku `/user-access/` endpoint to see their own permissions, not the bridge's admin endpoints.
+
+The `cost_management_all_write` permission resolves via the ZED schema's computed permission on `rbac/role`: `cost_management_all_write = t_cost_management_all_write + t_cost_management_all_all + t_all_all_all`. The `cost-administrator` role seeds `t_cost_management_all_all` (the wildcard), which satisfies the computed `cost_management_all_read` and `cost_management_all_write` permissions. This pattern mirrors how individual resource type permissions use `_view`/`_edit` computed permissions that include `all_all`. See [schema.zed](../../../dev/kessel/schema.zed) lines 34-38 and [seed-roles.yaml](../../../dev/kessel/seed-roles.yaml).
+
+### Error Response Format
+
+All authentication and authorization errors follow the RBAC v1 error response format for compatibility with existing clients (UI and CLI). **Note**: the `errors` array format below differs from the `{"detail": "..."}` format used by Koku/DRF. The bridge uses the RBAC v1 convention because it implements the RBAC v1 API surface.
+
+```json
+{
+  "errors": [
+    {
+      "detail": "Human-readable error message",
+      "status": "401",
+      "source": "rebac-bridge"
+    }
+  ]
+}
+```
+
+### Gateway Integration
+
+In production, the Envoy gateway validates the Keycloak JWT and injects the `x-rh-identity` header before the request reaches the bridge. The bridge's auth middleware is a **defense-in-depth layer** — it validates the header even though the gateway already authenticated the user. This protects against:
+
+1. **Direct access**: If the bridge's ClusterIP service is reachable from within the cluster (e.g., from a compromised pod), the middleware prevents unauthenticated access.
+2. **Gateway misconfiguration**: If the gateway route is accidentally configured without JWT validation, the bridge still rejects unauthenticated requests.
+3. **Testing**: In development, requests may bypass the gateway entirely.
+
+### Bootstrap Admin
+
+The initial "bootstrap admin" (the first user who needs admin access before the UI is available) is granted access via `kessel-admin.sh do_grant` during deployment, creating the necessary role binding tuples in SpiceDB. Without this bootstrap step, no user can access the bridge's endpoints — the SpiceDB permission check will deny all requests.
+
+### Authorization Check Divergence: Tenant vs. Workspace
+
+Different services in the on-prem stack perform top-level authorization checks against different resource types, though both approaches ultimately resolve through the same ZED schema hierarchy:
+
+| Service | Authorization target | Why |
+|---|---|---|
+| **Koku** (`KesselAccessProvider`) | `rbac/workspace:{org_id}` | Koku checks `CheckPermission` against the org-level workspace. This aligns with how resources are linked via `t_workspace` tuples — the workspace is the authorization pivot. |
+| **ros-ocp-backend** | `rbac/tenant:{org_id}` | ROS checks `CheckPermission` against the tenant for wildcard access. The ZED schema propagates workspace permissions up to the tenant via `t_parent`, so the check resolves correctly. |
+| **ReBAC Bridge** | `rbac/workspace:{org_id}` | The bridge follows Koku's pattern (workspace-level), since it manages workspace-scoped resources and role bindings directly. |
+
+Both approaches yield equivalent authorization outcomes for the 5 system roles because the on-prem ZED schema links `workspace:{org_id}` to `tenant:{org_id}` via `t_parent`, and permissions flow bidirectionally through this chain. However, there is a subtle fragility difference:
+
+- **Koku** checks `_view`/`_edit` computed permissions on `rbac/workspace`. These are computed from `_read + _all + all_read + all_all + all_all_all`, so a role with only `t_cost_management_all_all` (the wildcard) correctly resolves.
+- **ROS** checks raw `_read` relations (e.g., `cost_management_openshift_cluster_read`) on `rbac/tenant`. These are NOT computed — they resolve only from `t_cost_management_openshift_cluster_read` on the role. This works for the 5 system roles because `cost-administrator` explicitly seeds all individual read relations in `seed-roles.yaml`. However, a **custom role** with only `t_cost_management_all_all` would fail ROS's check even though the user SHOULD have access.
+- **The bridge** follows Koku's pattern (computed permissions on workspace), avoiding this fragility.
+
+If the workspace hierarchy changes (e.g., sub-org workspaces are added), the tenant-level check may also grant broader access than intended. The bridge and Koku's workspace-level approach is more future-proof.
 
 ---
 
@@ -983,7 +1102,7 @@ The bridge has **zero responsibility** for integration resources. Integrations a
 | **Creation** | `resource_reporter.py` via `ProviderBuilder` | `ReportResource` to Inventory API when a source is created |
 | **Structural linking** | `resource_reporter.py` | `integration#has_cluster → cluster` tuple written during source creation |
 | **Visibility** | SpiceDB computed permissions | `integration.read = has_cluster->read + has_project->read` |
-| **Deletion** | `resource_reporter.py` via `on_resource_deleted` | `DeleteResource` when cost data is fully purged (retention expiry) |
+| **Deletion** | `resource_reporter.py` via `on_resource_deleted` | Integration: deleted on source deletion AND retention expiry. OCP/cloud types: deleted on retention expiry only |
 
 The bridge never creates, modifies, or deletes integration resources or their structural tuples.
 
@@ -1060,7 +1179,7 @@ flowchart LR
     style never fill:#ffebee,stroke:#c62828
 ```
 
-**When is an integration removed?** Only when Koku's `on_resource_deleted` fires — which happens when cost data is **fully purged** from PostgreSQL due to retention expiry after a source has been deleted. This is a Koku lifecycle event, not a management plane action. Removing a user from a group, or revoking a group's access to a cluster, never deletes the integration — it only changes who can see it.
+**When is an integration removed?** Koku's `on_resource_deleted` fires in two cases: (1) when the source is deleted on-prem (`DestroySourceMixin.destroy()` calls `on_resource_deleted("integration", source_uuid, org_id)`), and (2) when cost data is fully purged from PostgreSQL due to retention expiry. Both are Koku lifecycle events, not management plane actions. Removing a user from a group, or revoking a group's access to a cluster, never deletes the integration — it only changes who can see it.
 
 ---
 
@@ -1092,7 +1211,7 @@ flowchart TB
     subgraph koku_pipe ["Koku Pipeline (automatic)"]
         Reporter["Resource reporting to Kessel"]
         Structural["Structural tuple creation"]
-        Cleanup["Resource cleanup on retention expiry"]
+        Cleanup["Resource cleanup on source deletion / retention expiry"]
     end
 
     helm -->|"one-time setup"| bridge
@@ -1117,7 +1236,7 @@ flowchart TB
 | **Custom role creation** | `kessel-admin.sh` (CLI) | **ReBAC Bridge + Admin UI** |
 | **Access / permission browsing** | `kessel-admin.sh` (CLI) | **ReBAC Bridge + Admin UI** |
 | **Resource reporting to Kessel** | Koku pipeline | Koku pipeline (unchanged) |
-| **Resource deletion (retention)** | Koku pipeline | Koku pipeline (unchanged) |
+| **Resource deletion (source deletion / retention)** | Koku pipeline | Koku pipeline (unchanged) |
 
 **`kessel-admin.sh` is deprecated** for user, group, and role management once the bridge is deployed. It remains available as a low-level debugging tool for operators who need to inspect or manipulate raw SpiceDB tuples, but it is no longer the recommended management interface.
 
@@ -1242,6 +1361,256 @@ rebac-bridge/
 ├── go.mod
 └── go.sum
 ```
+
+---
+
+## Test Plan
+
+> **Note**: This section is a summary of the test plan. The authoritative, detailed version with ~165 test cases is in the standalone [ReBAC Bridge Test Plan](./rebac-bridge-test-plan.md) (IEEE 829 format). When the two documents diverge, the standalone test plan takes precedence.
+
+### 1. Authentication Tests (AuthN) — Identity Validation
+
+These tests validate the first middleware layer. Every test in this section targets the identity header parsing logic. The bridge MUST reject requests before any handler or SpiceDB call occurs.
+
+#### 1.1 Missing or Absent Identity
+
+| # | Test | Method | Path | Setup | Expected |
+|---|---|---|---|---|---|
+| A1 | No header at all | GET | `/api/rbac/v1/roles/` | Omit `x-rh-identity` entirely | `401` `{"errors": [{"detail": "Missing x-rh-identity header", "status": "401", "source": "rebac-bridge"}]}` |
+| A2 | No header on write | POST | `/api/rbac/v1/groups/` | Omit header | `401` |
+| A3 | Empty header value | GET | `/api/rbac/v1/roles/` | `x-rh-identity: ` (empty string) | `401` |
+| A4 | Header present on health endpoint | GET | `/healthz` | No header | `200 OK` (health checks are public) |
+| A5 | Header present on readiness endpoint | GET | `/readyz` | No header | `200 OK` (readiness checks are public) |
+
+#### 1.2 Malformed Identity
+
+| # | Test | Method | Path | Setup | Expected |
+|---|---|---|---|---|---|
+| A6 | Invalid base64 | GET | `/api/rbac/v1/roles/` | `x-rh-identity: not-valid-base64!!!` | `401` `{"errors": [{"detail": "Malformed x-rh-identity header", "status": "401", "source": "rebac-bridge"}]}` |
+| A7 | Valid base64, not JSON | GET | `/api/rbac/v1/roles/` | `x-rh-identity: base64("this is plain text")` | `401` |
+| A8 | Valid JSON, missing `identity` key | GET | `/api/rbac/v1/roles/` | `base64({"other": {}})` | `401` |
+| A9 | Missing `org_id` | GET | `/api/rbac/v1/roles/` | Identity JSON with `org_id` omitted | `401` `{"errors": [{"detail": "Missing org_id in identity", "status": "401", "source": "rebac-bridge"}]}` |
+| A10 | Empty `org_id` | GET | `/api/rbac/v1/roles/` | `"org_id": ""` | `401` |
+| A11 | Missing `user.username` | GET | `/api/rbac/v1/roles/` | Identity JSON with `user` block but no `username` | `401` `{"errors": [{"detail": "Missing username in identity", "status": "401", "source": "rebac-bridge"}]}` |
+| A12 | Empty `username` | GET | `/api/rbac/v1/roles/` | `"username": ""` | `401` |
+| A13 | Missing `user` block entirely | GET | `/api/rbac/v1/roles/` | Identity JSON with no `user` key | `401` |
+| A14 | Unsupported identity type | GET | `/api/rbac/v1/roles/` | `"type": "ServiceAccount"` | `401` `{"errors": [{"detail": "Unsupported identity type", "status": "401", "source": "rebac-bridge"}]}` |
+| A15 | Numeric org_id still valid | GET | `/api/rbac/v1/roles/` | `"org_id": "1234567"` (string) | Passes AuthN (proceeds to AuthZ) |
+
+#### 1.3 Identity Spoofing Resistance
+
+| # | Test | Method | Path | Setup | Expected |
+|---|---|---|---|---|---|
+| A16 | `is_org_admin: true` in header is ignored | POST | `/api/rbac/v1/groups/` | Viewer user identity with `"is_org_admin": true` injected | `403` — the field is ignored; SpiceDB check determines access |
+| A17 | Extra fields in identity do not grant access | POST | `/api/rbac/v1/groups/` | Viewer identity with `"is_internal": true, "is_active": true` | `403` — no effect on authorization |
+| A18 | Forged username does not work | GET | `/api/rbac/v1/groups/` | Identity with `"username": "admin"` but no matching SpiceDB tuples for that principal | `403` — SpiceDB is the authority, not the header |
+
+### 2. Authorization Tests (AuthZ) — Permission Enforcement
+
+These tests validate that every endpoint checks SpiceDB permissions. The test users map to the following Keycloak / SpiceDB personas:
+
+| Persona | Keycloak user | SpiceDB role binding | `cost_management_all_read` | `cost_management_all_write` |
+|---|---|---|---|---|
+| Admin | `admin` | `cost-administrator` at org workspace | yes | yes |
+| Viewer | `test` | `cost-openshift-viewer` at team workspace | no | no |
+| Price List Admin | `price_admin` | `cost-price-list-administrator` at org workspace | no | no |
+| No roles | `noroles` | No role bindings | no | no |
+
+#### 2.1 Read Endpoint Coverage (GET)
+
+Every GET endpoint must check `cost_management_all_read`. Admin succeeds; all others are denied.
+
+| # | Path | Admin | Viewer | No-roles | Notes |
+|---|---|---|---|---|---|
+| Z1 | `/api/rbac/v1/roles/` | `200` | `403` | `403` | |
+| Z2 | `/api/rbac/v1/roles/{uuid}/` | `200` | `403` | `403` | |
+| Z3 | `/api/rbac/v1/groups/` | `200` | `403` | `403` | |
+| Z4 | `/api/rbac/v1/groups/{uuid}/` | `200` | `403` | `403` | |
+| Z5 | `/api/rbac/v1/groups/{uuid}/principals/` | `200` | `403` | `403` | |
+| Z6 | `/api/rbac/v1/groups/{uuid}/roles/` | `200` | `403` | `403` | |
+| Z7 | `/api/rbac/v1/groups/{uuid}/resources/` | `200` | `403` | `403` | |
+| Z8 | `/api/rbac/v1/groups/{uuid}/resources/available/` | `200` | `403` | `403` | |
+| Z9 | `/api/rbac/v1/principals/` | `200` | `403` | `403` | |
+| Z10 | `/api/rbac/v1/access/` | `200` | `403` | `403` | |
+| Z11 | `/api/rbac/v1/permissions/` | `200` | `403` | `403` | |
+| Z12 | `/api/rbac/v1/permissions/options/?field=application` | `200` | `403` | `403` | |
+
+#### 2.2 Write Endpoint Coverage (POST, PUT, DELETE)
+
+Every mutating endpoint must check `cost_management_all_write`. Admin succeeds; all others are denied.
+
+| # | Method | Path | Admin | Viewer | No-roles |
+|---|---|---|---|---|---|
+| Z13 | POST | `/api/rbac/v1/roles/` | `201` | `403` | `403` |
+| Z14 | PUT | `/api/rbac/v1/roles/{uuid}/` | `200` | `403` | `403` |
+| Z15 | DELETE | `/api/rbac/v1/roles/{uuid}/` | `204` | `403` | `403` |
+| Z16 | POST | `/api/rbac/v1/groups/` | `201` | `403` | `403` |
+| Z17 | PUT | `/api/rbac/v1/groups/{uuid}/` | `200` | `403` | `403` |
+| Z18 | DELETE | `/api/rbac/v1/groups/{uuid}/` | `204` | `403` | `403` |
+| Z19 | POST | `/api/rbac/v1/groups/{uuid}/principals/` | `200` | `403` | `403` |
+| Z20 | DELETE | `/api/rbac/v1/groups/{uuid}/principals/` | `200` | `403` | `403` |
+| Z21 | POST | `/api/rbac/v1/groups/{uuid}/roles/` | `200` | `403` | `403` |
+| Z22 | DELETE | `/api/rbac/v1/groups/{uuid}/roles/` | `200` | `403` | `403` |
+| Z23 | POST | `/api/rbac/v1/groups/{uuid}/resources/` | `201` | `403` | `403` |
+| Z24 | DELETE | `/api/rbac/v1/groups/{uuid}/resources/{type}/{id}/` | `204` | `403` | `403` |
+
+#### 2.3 Privilege Escalation Prevention
+
+| # | Test | Setup | Action | Expected |
+|---|---|---|---|---|
+| Z25 | Viewer cannot self-promote via group creation | `test` (viewer) is authenticated | POST `/groups/` with `test` as member, assign `cost-administrator` role | `403` on the POST `/groups/` — blocked before any tuple creation |
+| Z26 | Viewer cannot add themselves to admin group | Admin-created group with `cost-administrator` role exists | `test` calls POST `/groups/{admin-group}/principals/` with `{"principals": [{"username":"test"}]}` | `403` — write endpoint blocked |
+| Z27 | Viewer cannot assign admin role to existing group | `test` is member of a group | POST `/groups/{group}/roles/` with `{"roles": ["cost-administrator"]}` | `403` |
+| Z28 | Custom role cannot grant bridge admin access | Admin creates custom role with `cost-management:*:*` | Assign custom role to group; verify user does NOT gain bridge admin access unless `cost_management_all_write` resolves for them at the org workspace | Custom role permissions apply to data resources, not bridge admin endpoints — the bridge checks at the org workspace level |
+
+#### 2.4 SpiceDB Unavailability During Auth
+
+| # | Test | Setup | Expected |
+|---|---|---|---|
+| Z29 | SpiceDB down, read request | Stop SpiceDB, send GET `/roles/` with valid admin identity | `503 Service Unavailable` (fail-closed, not fail-open) |
+| Z30 | SpiceDB down, write request | Stop SpiceDB, send POST `/groups/` with valid admin identity | `503 Service Unavailable` |
+| Z31 | SpiceDB recovers, requests resume | Restart SpiceDB after Z29/Z30 | Next request returns `200`/`201` as expected |
+
+### 3. Org Isolation Tests
+
+These tests validate that the org scoping middleware prevents cross-tenant data access. Requires two org workspaces seeded in SpiceDB.
+
+| # | Test | Method | Path | Setup | Expected |
+|---|---|---|---|---|---|
+| O1 | Admin from org A sees only org A groups | GET | `/groups/` | Groups exist in both `org_A` and `org_B` | `200` with only `org_A` groups |
+| O2 | Admin from org A cannot read org B group by UUID | GET | `/groups/{org_b_uuid}/` | Group UUID belongs to `org_B` | `404 Not Found` |
+| O3 | Admin from org A cannot update org B group | PUT | `/groups/{org_b_uuid}/` | Target group in `org_B` | `404 Not Found` |
+| O4 | Admin from org A cannot delete org B group | DELETE | `/groups/{org_b_uuid}/` | Target group in `org_B` | `404 Not Found` |
+| O5 | Admin from org A cannot add principal to org B group | POST | `/groups/{org_b_uuid}/principals/` | Target group in `org_B` | `404 Not Found` |
+| O6 | Admin from org A cannot assign resource in org B | POST | `/groups/{org_b_uuid}/resources/` | Target group in `org_B` | `404 Not Found` |
+| O7 | Admin from org A sees only org A roles | GET | `/roles/` | Custom roles exist in both orgs | `200` with only `org_A` custom roles (system roles visible to all) |
+| O8 | Admin from org A sees only org A principals | GET | `/principals/` | Users exist in both orgs in Keycloak | `200` with only `org_A` principals |
+| O9 | SpiceDB tuples are org-scoped | — | — | Directly inspect SpiceDB: group from org A has `t_parent → workspace:org_A`, not `workspace:org_B` | Tuple verification |
+
+### 4. Role Lifecycle and Dynamic Permission Tests
+
+These tests validate that permission changes take effect immediately — no caching, no stale sessions.
+
+| # | Test | Description | Expected |
+|---|---|---|---|
+| D1 | Grant admin role, immediate effect | User `test` has no admin access → admin assigns `cost-administrator` role to test's group → test immediately gets `200` on GET `/roles/` | Access granted on next request |
+| D2 | Revoke admin role, immediate denial | User `test` has admin access → admin removes `cost-administrator` from test's group → test immediately gets `403` on GET `/roles/` | Access revoked on next request |
+| D3 | Delete group revokes all access | User `test` is in group with admin role → admin deletes the group → test immediately gets `403` | Group deletion cascades to permission loss |
+| D4 | Remove principal from group revokes access | User `test` is in admin group → admin removes `test` from group → test gets `403` | Membership removal cascades |
+| D5 | Add to second group grants additional access | User `test` is viewer-only → admin adds `test` to a new group with admin role → test gets `200` on admin endpoints | Union of permissions across groups |
+
+### 5. Functional Tests
+
+#### 5.1 Roles
+
+| # | Test | Description |
+|---|---|---|
+| R1 | List returns all seeded system roles | GET `/roles/` returns cost-administrator, cost-openshift-viewer, cost-cloud-viewer, cost-price-list-administrator, cost-price-list-viewer |
+| R2 | System role detail includes permissions | GET `/roles/cost-administrator/` returns `access` array with `cost-management:*:*` |
+| R3 | System roles are immutable | PUT `/roles/cost-administrator/` returns `400`; DELETE returns `400` |
+| R4 | Create custom role | POST `/roles/` with specific permissions → role appears in list, SpiceDB tuples created |
+| R5 | Update custom role permissions | PUT `/roles/{uuid}/` to add/remove permissions → SpiceDB tuples updated atomically |
+| R6 | Delete custom role cleans up | DELETE `/roles/{uuid}/` → PG row gone, SpiceDB tuples gone |
+| R7 | Delete role in use by a group | DELETE `/roles/{uuid}/` where the role is assigned to a group → returns `409 Conflict` or cascades binding removal |
+
+#### 5.2 Groups Lifecycle
+
+| # | Test | Description |
+|---|---|---|
+| G1 | Create group creates workspace | POST `/groups/` → SpiceDB has `rbac/workspace:{uuid}` with `t_parent → workspace:{org_id}` |
+| G2 | Create group returns correct response shape | Response matches insights-rbac v1 format: `uuid`, `name`, `description`, `created`, `modified` |
+| G3 | List groups with pagination | Create 15 groups, GET `/groups/?limit=5&offset=0` returns 5, `meta.count=15` |
+| G4 | Delete group cascades all tuples | Delete group → verify workspace, role_binding, t_parent, t_binding, t_workspace, t_member tuples all removed |
+| G5 | Delete group cascades PG data | Delete group → `rebac_bridge.groups` row gone, `resource_assignments` rows gone |
+| G6 | Update group metadata | PUT `/groups/{uuid}/` with new name/description → PG updated, SpiceDB tuples unchanged |
+
+#### 5.3 Group Principals
+
+| # | Test | Description |
+|---|---|---|
+| P1 | Add principal creates t_member tuple | POST `/groups/{uuid}/principals/` → `rbac/group:{uuid}#t_member → rbac/principal:redhat/{username}` |
+| P2 | Add non-existent principal rejected | POST with username not in Keycloak → `404` or `400` |
+| P3 | Add duplicate principal is idempotent | POST same principal twice → no error, single tuple exists |
+| P4 | Remove principal deletes t_member tuple | DELETE → tuple gone, user loses group permissions |
+| P5 | List principals returns Keycloak-enriched data | GET `/groups/{uuid}/principals/` → response includes username, email from Keycloak |
+
+#### 5.4 Group Roles
+
+| # | Test | Description |
+|---|---|---|
+| GR1 | Assign role creates 3 tuples | POST → `role_binding:{id}#t_subject`, `role_binding:{id}#t_granted`, `workspace:{uuid}#t_binding` |
+| GR2 | Assign same role twice is idempotent | No error, no duplicate tuples |
+| GR3 | Remove role deletes binding tuples | DELETE → all 3 tuples for that binding removed |
+| GR4 | Assign invalid role slug rejected | POST with `{"roles": ["nonexistent-role"]}` → `404` or `400` |
+
+#### 5.5 Group Resources
+
+| # | Test | Description |
+|---|---|---|
+| RS1 | Assign resource creates t_workspace tuple | POST → `cost_management/{type}:{id}#t_workspace → rbac/workspace:{group_uuid}` |
+| RS2 | Assign same resource twice is idempotent | No error, single tuple |
+| RS3 | Revoke resource deletes only team tuple | DELETE → team `t_workspace` tuple gone, org-level `t_workspace` tuple untouched |
+| RS4 | List resources shows assigned resources | GET `/groups/{uuid}/resources/` → returns assigned resources with `assigned_at` |
+| RS5 | Available resources excludes already-assigned | GET `/groups/{uuid}/resources/available/` → org resources minus group-assigned ones |
+| RS6 | Cross-team sharing: same resource in two groups | Assign `cluster-prod` to group A and group B → both have `t_workspace` tuples, independent revocation |
+| RS7 | Invalid resource type rejected | POST with `"resource_type": "invalid_type"` → `400` |
+
+#### 5.6 Access Resolution
+
+| # | Test | Description |
+|---|---|---|
+| AC1 | Admin access returns full permission set | GET `/access/?application=cost-management` → `cost-management:*:*` and all individual permissions |
+| AC2 | Viewer access returns scoped permissions | User in viewer group → only `openshift.cluster:read`, `openshift.node:read`, `openshift.project:read` |
+| AC3 | Multi-group user gets union of permissions | User in OCP-viewer group + cloud-viewer group → combined OCP + cloud read permissions |
+| AC4 | User with no groups gets empty access | Authenticated user with no group membership → `200` with empty `data` array |
+
+### 6. Integration Tests (E2E)
+
+These tests run against a live deployment (SpiceDB + PostgreSQL + Keycloak + Koku + ROS) and validate the full request flow end-to-end through the gateway.
+
+#### 6.1 Gateway-Level Auth
+
+| # | Test | Description |
+|---|---|---|
+| E1 | No JWT → gateway rejects | Request to bridge route without Authorization header → `401` from Envoy gateway |
+| E2 | Expired JWT → gateway rejects | Request with expired Keycloak token → `401` from gateway |
+| E3 | Valid JWT → gateway injects x-rh-identity | Request with valid JWT → bridge receives base64-encoded identity header |
+| E4 | Valid JWT, viewer user → bridge rejects write | Viewer obtains JWT, calls POST `/groups/` → `403` from bridge (not gateway) |
+
+#### 6.2 Full Lifecycle Through Gateway
+
+| # | Test | Description |
+|---|---|---|
+| E5 | Admin creates group via gateway | Admin JWT → POST `/groups/` → `201` → SpiceDB has workspace and t_parent |
+| E6 | Admin adds member via gateway | Admin JWT → POST `/groups/{uuid}/principals/` → `200` → SpiceDB has t_member |
+| E7 | Admin assigns role via gateway | Admin JWT → POST `/groups/{uuid}/roles/` → `200` → SpiceDB has 3 binding tuples |
+| E8 | Admin assigns resource via gateway | Admin JWT → POST `/groups/{uuid}/resources/` → `201` → SpiceDB has t_workspace |
+| E9 | Group member sees resource in Koku | After E6-E8, member calls Koku API → assigned cluster is visible |
+| E10 | Admin revokes resource via gateway | Admin JWT → DELETE `/groups/{uuid}/resources/cluster/prod/` → `204` → member no longer sees cluster in Koku |
+| E11 | Admin deletes group via gateway | Admin JWT → DELETE `/groups/{uuid}/` → `204` → all tuples cleaned up |
+
+#### 6.3 Cross-Service Authorization Consistency
+
+| # | Test | Description |
+|---|---|---|
+| E12 | Bridge and Koku agree on visibility | Assign cluster to group via bridge → both Koku `/reports/openshift/costs/` and bridge `/groups/{uuid}/resources/` show the cluster |
+| E13 | Bridge and ROS agree on visibility | Assign cluster to group via bridge → ROS `/recommendations/openshift` shows recommendations for that cluster for the group member |
+| E14 | Permission revocation propagates to Koku | Remove user from admin group via bridge → Koku's `KesselAccessProvider` denies admin-level access on next request |
+| E15 | Permission revocation propagates to ROS | Remove user from group via bridge → ROS denies access to that group's resources |
+
+### 7. Negative and Edge-Case Tests
+
+| # | Test | Description | Expected |
+|---|---|---|---|
+| N1 | Request body too large | POST `/groups/` with 10 MB body | `413 Payload Too Large` or `400` |
+| N2 | Unknown endpoint | GET `/api/rbac/v1/nonexistent/` | `404 Not Found` |
+| N3 | Wrong HTTP method | PATCH `/api/rbac/v1/groups/` | `405 Method Not Allowed` |
+| N4 | Invalid UUID in path | GET `/groups/not-a-uuid/` | `400` or `404` |
+| N5 | Concurrent group creation (same name) | Two parallel POST `/groups/` with same name | Both succeed (names are not unique constraints) or one fails with `409` — document behavior |
+| N6 | Delete already-deleted group | DELETE `/groups/{uuid}/` twice | First: `204`, second: `404` |
+| N7 | Assign resource that doesn't exist in SpiceDB | POST resource assignment for a cluster ID with no org-level `t_workspace` tuple | `404` or `400` with clear error |
+| N8 | Keycloak down during principal add | POST `/groups/{uuid}/principals/` while Keycloak is unreachable | `503` with `{"errors": [{"detail": "Keycloak unavailable", "status": "503", "source": "rebac-bridge"}]}` |
+| N9 | PostgreSQL down during group creation | SpiceDB write succeeds, PG INSERT fails | Reconciler creates PG row later; API returns `503` |
 
 ---
 
