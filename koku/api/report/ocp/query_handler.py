@@ -28,6 +28,7 @@ from api.report.ocp.capacity.node_capacity import NodeCapacity
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import is_grouped_by_node
 from api.report.queries import is_grouped_by_project
+from api.report.queries import is_grouped_by_quota
 from api.report.queries import ReportQueryHandler
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
@@ -140,6 +141,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 annotations["project"] = Coalesce(F("cost_category__name"), F("namespace"), output_field=CharField())
             else:
                 annotations["project"] = F("namespace")
+
+        if is_grouped_by_quota(self.parameters):
+            annotations["quota"] = F("quota_name")
 
         if is_grouped_by_node(self.parameters):
             # This adds the instance counts to the node group by.

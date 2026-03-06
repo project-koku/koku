@@ -18,6 +18,7 @@ TRINO_LINE_ITEM_TABLE_MAP = {
     "namespace_labels": "openshift_namespace_labels_line_items",
     "vm_usage": "openshift_vm_usage_line_items",
     "gpu_usage": "openshift_gpu_usage_line_items",
+    "quota_labels": "openshift_quota_labels_line_items",
 }
 
 TRINO_LINE_ITEM_TABLE_DAILY_MAP = {
@@ -27,6 +28,7 @@ TRINO_LINE_ITEM_TABLE_DAILY_MAP = {
     "namespace_labels": "openshift_namespace_labels_line_items_daily",
     "vm_usage": "openshift_vm_usage_line_items_daily",
     "gpu_usage": "openshift_gpu_usage_line_items_daily",
+    "quota_labels": "openshift_quota_labels_line_items_daily",
 }
 
 VIEWS = (
@@ -56,6 +58,7 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_network_summary_by_node_p",
     "reporting_ocp_network_summary_by_project_p",
     "reporting_ocp_gpu_summary_p",
+    "reporting_ocp_cost_summary_by_quota_p",
 )
 
 # Note the reporting_ocp_vm_summary_p is populated separately.
@@ -132,6 +135,7 @@ class OCPUsageLineItemDailySummary(models.Model):
             GinIndex(fields=["all_labels"], name="all_labels_idx"),
             GinIndex(fields=["pod_labels"], name="pod_labels_idx"),
             GinIndex(fields=["volume_labels"], name="volume_labels_idx"),
+            models.Index(fields=["quota_name"], name="summary_quota_name_idx"),
         ]
 
     uuid = models.UUIDField(primary_key=True)
@@ -204,6 +208,9 @@ class OCPUsageLineItemDailySummary(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
     raw_currency = models.TextField(null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    quota_name = models.CharField(max_length=253, null=True)
+    quota_type = models.CharField(max_length=10, null=True)
 
 
 class OCPTagsValues(models.Model):
@@ -683,6 +690,47 @@ class OCPCostSummaryByNodeP(models.Model):
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
+
+
+class OCPCostSummaryByQuotaP(models.Model):
+    """OCP cost summary grouped by quota name and type."""
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        db_table = "reporting_ocp_cost_summary_by_quota_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocp_cost_quota_ustart_idx"),
+            models.Index(fields=["quota_name"], name="ocp_cost_quota_name_idx"),
+            models.Index(fields=["quota_type"], name="ocp_cost_quota_type_idx"),
+        ]
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    quota_name = models.CharField(max_length=253, null=True)
+    quota_type = models.CharField(max_length=10, null=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_model_rate_type = models.TextField(null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    raw_currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "reporting.TenantAPIProvider",
+        on_delete=models.CASCADE,
+        unique=False,
+        null=True,
+        db_column="source_uuid",
+    )
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
 
 
 class OCPPodSummaryP(models.Model):

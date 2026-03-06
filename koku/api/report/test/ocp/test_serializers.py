@@ -4,6 +4,7 @@
 #
 """Test the Report serializers."""
 from unittest import TestCase
+from unittest.mock import patch
 
 from rest_framework import serializers
 
@@ -804,3 +805,42 @@ class OCPGpuQueryParamSerializerTest(IamTestCase):
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertNotIn("tag:application", serializer.validated_data.get("filter", {}))
         self.assertIn("gpu_vendor", serializer.validated_data.get("filter", {}))
+
+
+class OCPQuotaSerializerTest(IamTestCase):
+    """Tests for quota-related serializer validation."""
+
+    def test_group_by_quota_valid(self):
+        """Test that group_by[quota] is a valid field."""
+        group_params = {"quota": ["quota1"]}
+        serializer = OCPGroupBySerializer(data=group_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_filter_quota_valid(self):
+        """Test that filter[quota] is a valid field."""
+        filter_params = {"quota": ["quota1"]}
+        serializer = OCPFilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_filter_quota_type_valid(self):
+        """Test that filter[quota_type] accepts valid choices."""
+        filter_params = {"quota_type": "project"}
+        serializer = OCPFilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    @patch("api.report.serializers.get_currency", return_value="USD")
+    def test_order_by_quota_requires_group_by(self, _):
+        """Test that order_by[quota] requires group_by[quota]."""
+        self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
+        query_params = {"order_by": {"quota": "asc"}}
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    @patch("api.report.serializers.get_currency", return_value="USD")
+    def test_order_by_quota_with_group_by(self, _):
+        """Test that order_by[quota] works with group_by[quota]."""
+        self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
+        query_params = {"group_by": {"quota": ["*"]}, "order_by": {"quota": "asc"}}
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid(raise_exception=True))

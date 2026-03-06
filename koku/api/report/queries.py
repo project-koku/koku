@@ -106,6 +106,11 @@ def is_grouped_by_node(parameters):
     return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["node", "and:node", "or:node"])
 
 
+def is_grouped_by_quota(parameters):
+    """Determine if grouped by quota."""
+    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["quota", "and:quota", "or:quota"])
+
+
 def check_if_valid_date_str(date_str):
     """Check to see if a valid date has been passed in."""
     try:
@@ -437,6 +442,8 @@ class ReportQueryHandler(QueryHandler):
                 continue
 
             filter_ = self.parameters.get_filter(q_param, list())
+            if isinstance(filter_, str):
+                filter_ = [filter_]
             list_ = list(set(group_by + filter_))  # uniquify the list
             if isinstance(filt, list):
                 for _filt in filt:
