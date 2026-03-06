@@ -30,12 +30,14 @@ definition rbac/role {
     relation t_cost_management_all_all: rbac/principal:*
     permission cost_management_all_all = t_cost_management_all_all
 
-    /* KSL wildcards (app-level verb wildcards + global wildcard) */
+    /* KSL wildcards (app-level verb wildcards + global wildcard).
+       Computed permissions include all_all so that cost-administrator
+       (which seeds only t_cost_management_all_all) resolves these. */
     relation t_cost_management_all_read: rbac/principal:*
-    permission cost_management_all_read = t_cost_management_all_read
+    permission cost_management_all_read = t_cost_management_all_read + t_cost_management_all_all + t_all_all_all
 
     relation t_cost_management_all_write: rbac/principal:*
-    permission cost_management_all_write = t_cost_management_all_write
+    permission cost_management_all_write = t_cost_management_all_write + t_cost_management_all_all + t_all_all_all
 
     relation t_all_all_all: rbac/principal:*
     permission all_all_all = t_all_all_all
