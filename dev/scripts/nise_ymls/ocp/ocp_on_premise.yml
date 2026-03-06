@@ -73,7 +73,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_2
-          node_labels: label_instance-type:small|label_kubernetes_io_arch:arm64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:A100|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1
+          node_labels: label_instance-type:small|label_kubernetes_io_arch:arm64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:A100|nvidia_com_gpu_present:True|nvidia_com_gpu_replicas:1|nvidia_com_mig_strategy:mixed
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -91,6 +91,20 @@ generators:
                     - gpu:
                       gpu_model: "A100"
                       gpu_memory_capacity_mib: 40960
+                      gpu_max_slices: 7
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "1g.5gb"
+                          mig_slice_count: 1
+                          mig_memory_capacity_mib: 5120
+                        - mig_instance:
+                          mig_profile: "2g.10gb"
+                          mig_slice_count: 2
+                          mig_memory_capacity_mib: 10240
+                        - mig_instance:
+                          mig_profile: "4g.20gb"
+                          mig_slice_count: 4
+                          mig_memory_capacity_mib: 20480
               volumes:
                 - volume:
                   volume_name: pvc-volume_3
@@ -401,6 +415,170 @@ generators:
                     pod_name: multi_pvc
                     labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
                     capacity_gig: 20
+        - node:
+          node_name: compute_a100_dedicated
+          node_labels: label_instance-type:gpu-a100|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:A100|nvidia_com_gpu_present:True
+          cpu_cores: 8
+          memory_gig: 64
+          namespaces:
+            deep-learning:
+              namespace_labels: team:research
+              pods:
+                - pod:
+                  pod_name: training_dedicated
+                  cpu_request: 4
+                  mem_request_gig: 16
+                  cpu_limit: 8
+                  mem_limit_gig: 32
+                  pod_seconds: 14400
+                  labels: label_application:PyTorch|label_stage:Training|label_group:Research
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 81920
+        - node:
+          node_name: compute_mig
+          node_labels: label_instance-type:gpu-mig|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:A100|nvidia_com_gpu_present:True|nvidia_com_mig_strategy:single
+          cpu_cores: 8
+          memory_gig: 64
+          namespaces:
+            ml-training:
+              namespace_labels: team:data-science
+              pods:
+                - pod:
+                  pod_name: training_job_1
+                  cpu_request: 2
+                  mem_request_gig: 8
+                  cpu_limit: 4
+                  mem_limit_gig: 16
+                  pod_seconds: 7200
+                  labels: label_application:PyTorch|label_stage:Training|label_group:DataScience
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 81920
+                      gpu_max_slices: 7
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "4g.40gb"
+                          mig_slice_count: 4
+                          mig_memory_capacity_mib: 40960
+            ml-inference:
+              namespace_labels: team:ml-ops
+              pods:
+                - pod:
+                  pod_name: inference_service_1
+                  cpu_request: 1
+                  mem_request_gig: 4
+                  cpu_limit: 2
+                  mem_limit_gig: 8
+                  pod_seconds: 21600
+                  labels: label_application:TensorRT|label_stage:Production|label_group:MLOps
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 81920
+                      gpu_max_slices: 7
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "1g.10gb"
+                          mig_slice_count: 1
+                          mig_memory_capacity_mib: 10240
+                - pod:
+                  pod_name: inference_service_2
+                  cpu_request: 1
+                  mem_request_gig: 4
+                  cpu_limit: 2
+                  mem_limit_gig: 8
+                  pod_seconds: 21600
+                  labels: label_application:TensorRT|label_stage:Production|label_group:MLOps
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 81920
+                      gpu_max_slices: 7
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "1g.10gb"
+                          mig_slice_count: 1
+                          mig_memory_capacity_mib: 10240
+            model-serving:
+              namespace_labels: team:platform
+              pods:
+                - pod:
+                  pod_name: serving_endpoint
+                  cpu_request: 1
+                  mem_request_gig: 4
+                  cpu_limit: 2
+                  mem_limit_gig: 8
+                  pod_seconds: 7200
+                  labels: label_application:Triton|label_stage:Production|label_group:Platform
+                  gpus:
+                    - gpu:
+                      gpu_model: "A100"
+                      gpu_memory_capacity_mib: 81920
+                      gpu_max_slices: 7
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "1g.10gb"
+                          mig_slice_count: 1
+                          mig_memory_capacity_mib: 10240
+        - node:
+          node_name: compute_h100_mig
+          node_labels: label_instance-type:gpu-h100-mig|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:H100|nvidia_com_gpu_present:True|nvidia_com_mig_strategy:mixed
+          cpu_cores: 16
+          memory_gig: 128
+          namespaces:
+            llm-training:
+              namespace_labels: team:ai-research
+              pods:
+                - pod:
+                  pod_name: llm_finetuning
+                  cpu_request: 4
+                  mem_request_gig: 32
+                  cpu_limit: 8
+                  mem_limit_gig: 64
+                  pod_seconds: 14400
+                  labels: label_application:LLaMA|label_stage:Training|label_group:AIResearch
+                  gpus:
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
+                      gpu_max_slices: 7
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "3g.40gb"
+                          mig_slice_count: 3
+                          mig_memory_capacity_mib: 40960
+                        - mig_instance:
+                          mig_profile: "2g.20gb"
+                          mig_slice_count: 2
+                          mig_memory_capacity_mib: 20480
+            llm-serving:
+              namespace_labels: team:ai-platform
+              pods:
+                - pod:
+                  pod_name: llm_inference_api
+                  cpu_request: 2
+                  mem_request_gig: 16
+                  cpu_limit: 4
+                  mem_limit_gig: 32
+                  pod_seconds: 28800
+                  labels: label_application:vLLM|label_stage:Production|label_group:AIPlatform
+                  gpus:
+                    - gpu:
+                      gpu_model: "H100"
+                      gpu_memory_capacity_mib: 81920
+                      gpu_max_slices: 7
+                      mig_instances:
+                        - mig_instance:
+                          mig_profile: "1g.10gb"
+                          mig_slice_count: 1
+                          mig_memory_capacity_mib: 10240
+                        - mig_instance:
+                          mig_profile: "1g.10gb"
+                          mig_slice_count: 1
+                          mig_memory_capacity_mib: 10240
         - node:
           node_name: master_1
           cpu_cores: 4

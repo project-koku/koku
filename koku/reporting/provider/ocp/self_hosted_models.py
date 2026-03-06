@@ -347,6 +347,14 @@ class OCPGPUUsageLineItem(OCPLineItemBase):
     gpu_memory_capacity_mib = models.FloatField(null=True)
     gpu_pod_uptime = models.FloatField(null=True)
 
+    # MIG (Multi-Instance GPU) fields
+    mig_instance_uuid = models.CharField(max_length=256, null=True)
+    mig_profile = models.CharField(max_length=64, null=True)
+    mig_slice_count = models.IntegerField(null=True)
+    parent_gpu_max_slices = models.IntegerField(null=True)
+    parent_gpu_uuid = models.CharField(max_length=256, null=True)
+    mig_memory_capacity_mib = models.FloatField(null=True)
+
 
 class OCPGPUUsageLineItemDaily(OCPLineItemBase):
     """Model for openshift_gpu_usage_line_items_daily table."""
@@ -368,6 +376,14 @@ class OCPGPUUsageLineItemDaily(OCPLineItemBase):
     # GPU metrics
     gpu_memory_capacity_mib = models.FloatField(null=True)
     gpu_pod_uptime = models.FloatField(null=True)
+
+    # MIG (Multi-Instance GPU) fields
+    mig_instance_uuid = models.CharField(max_length=256, null=True)
+    mig_profile = models.CharField(max_length=64, null=True)
+    mig_slice_count = models.IntegerField(null=True)
+    parent_gpu_max_slices = models.IntegerField(null=True)
+    parent_gpu_uuid = models.CharField(max_length=256, null=True)
+    mig_memory_capacity_mib = models.FloatField(null=True)
 
 
 class OCPUsageLineItemDailySummaryStaging(models.Model):

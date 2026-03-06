@@ -9,6 +9,8 @@ from api.common import log_json
 from api.models import Provider
 from masu.util.common import populate_enabled_tag_rows_with_false
 from masu.util.common import safe_float
+from masu.util.common import safe_float_or_none
+from masu.util.common import safe_int_or_none
 from masu.util.ocp.common import OCP_REPORT_TYPES
 from masu.util.ocp.common import THRESHOLDS
 
@@ -129,6 +131,10 @@ class OCPPostProcessor:
             "vm_disk_allocated_size_byte_seconds": safe_float,
             "gpu_memory_capacity_mib": safe_float,
             "gpu_pod_uptime": safe_float,
+            # MIG fields - convert empty strings to None for nullable columns
+            "mig_slice_count": safe_int_or_none,
+            "parent_gpu_max_slices": safe_int_or_none,
+            "mig_memory_capacity_mib": safe_float_or_none,
             "pod_labels": process_openshift_labels_to_json,
             "persistentvolume_labels": process_openshift_labels_to_json,
             "persistentvolumeclaim_labels": process_openshift_labels_to_json,
