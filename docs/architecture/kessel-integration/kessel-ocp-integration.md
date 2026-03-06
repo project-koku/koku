@@ -84,7 +84,7 @@ Enable **Kessel (Red Hat's ReBAC platform)** as an optional authorization backen
 | **Phase 1** | Immediate | Wildcard permissions only | None - use existing schema |
 | **Phase 2** | 2-4 months | Resource-specific permissions + ownership | 3 resource definitions (schema PR) |
 
-**Implementation note**: The current implementation delivers Phase 1 and Phase 2 in a single branch. Authorization uses **StreamedListObjects** (Inventory API v1beta2) for per-resource IDs and **Check** as fallback for workspace-level wildcard — not Check-only per resource. Resource lifecycle uses **Inventory API** (ReportResource/DeleteResource) plus **Relations API** (t_workspace tuple create/delete). See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md).
+**Implementation note**: The current implementation delivers Phase 1 and Phase 2 in a single branch. Authorization uses a **workspace Check first** pattern: for each resource type, a `Check` against `rbac/workspace:{org_id}` determines whether the user has org-wide access (wildcard `["*"]`). Only when the workspace Check denies does **StreamedListObjects** run as a fallback to discover per-resource IDs. Resource lifecycle uses **Inventory API** (ReportResource/DeleteResource) plus **Relations API** (t_workspace tuple create/delete). See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md).
 
 ---
 
@@ -355,7 +355,7 @@ sequenceDiagram
     
     Note over AuthAdapter: Check cache (30s TTL)
     
-    AuthAdapter->>Kessel: StreamedListObjects + Check fallback<br/>(Inventory API v1beta2)<br/>e.g. Check(principal:alice,<br/>cost_management_openshift_cluster_read,<br/>tenant:acme-corp) for wildcard
+    AuthAdapter->>Kessel: Check workspace first, SLO fallback<br/>(Inventory API v1beta2)<br/>e.g. Check(principal:alice,<br/>cost_management_openshift_cluster_view,<br/>workspace:{org_id}) for wildcard
     activate Kessel
 
     Note over Kessel: Kessel evaluates:<br/>1. Alice → role_binding<br/>2. role_binding → role<br/>3. role → permission<br/>4. role_binding → tenant
@@ -400,10 +400,10 @@ sequenceDiagram
     PermClass->>AuthAdapter: has_object_permission(<br/>user="bob",<br/>resource_id="prod-east-1",<br/>action="view")
     activate AuthAdapter
     
-    AuthAdapter->>Kessel: StreamedListObjects(openshift_cluster)<br/>returns allowed IDs; if empty, Check(tenant) for wildcard<br/>(Inventory API v1beta2)
+    AuthAdapter->>Kessel: Check(workspace:{org_id},<br/>cost_management_openshift_cluster_view) first;<br/>if denied, StreamedListObjects(openshift_cluster)<br/>(Inventory API v1beta2)
     activate Kessel
 
-    Note over Kessel: Implementation: per-resource IDs from<br/>StreamedListObjects; Check used for workspace fallback.<br/>No per-resource Check on cluster object.
+    Note over Kessel: Implementation: workspace Check first<br/>for wildcard; StreamedListObjects fallback<br/>for per-resource IDs.
     
     alt Bob has access
         Kessel-->>AuthAdapter: ALLOWED ✓
@@ -1166,7 +1166,7 @@ Implements an adapter pattern: the same `request.user.access` shape is produced 
 **Architecture:**
 
 - **RBAC path (SaaS)**: `RbacService` — `request.user.access` populated by RBAC Service API middleware.
-- **Kessel path (on-prem)**: `KesselAccessProvider` — uses **Inventory API v1beta2** gRPC: **StreamedListObjects** for per-resource IDs, **Check** for workspace-level (e.g. settings) and fallback when StreamedListObjects returns empty. Same access map shape as RBAC.
+- **Kessel path (on-prem)**: `KesselAccessProvider` — uses **Inventory API v1beta2** gRPC: **workspace `Check` first** (returns wildcard `["*"]` if allowed), **StreamedListObjects** as fallback for per-resource IDs when workspace Check denies. `CHECK_ONLY_TYPES` (settings) use Check only. Same access map shape as RBAC.
 
 **Backend selection:** Based on `ONPREM` env var; `ONPREM=true` forces `AUTHORIZATION_BACKEND=rebac`. Resolved in `koku_rebac/config.py`.
 
@@ -1901,7 +1901,7 @@ As Koku usage grows, monitor:
 **Authorization Service** (`koku/kessel/test/test_authorization_service.py`):
 - Test wildcard cluster access with mocked Kessel response
 - Test denied cluster access
-- Test Kessel unavailability with fail-closed behavior
+- Test Kessel unavailability with fail-open per-type behavior (no access for affected type, other types proceed)
 - Test permission mapping (RBAC resource types → Kessel permissions)
 - Test RBAC backend wildcard and specific resource checks
 
@@ -2076,9 +2076,8 @@ As Koku usage grows, monitor:
 ### Phase 1
 
 **Q1: What happens when Kessel is unavailable?**
-- **Decision Needed**: Fail open (allow all) or fail closed (deny all)?
-- **Recommendation**: Fail closed with cached permissions (if available)
-- **Rationale**: Security over availability, but cache prevents total outage
+- **Resolved**: Fail-open per-type. The current `KesselAccessProvider` catches all exceptions internally — each failed type returns no access (empty list), but other types proceed. Users see no data for affected types (not incorrect data). Cache (300s TTL) mitigates most transient outages.
+- **Note**: The original recommendation was fail-closed (HTTP 424). The implementation chose fail-open per-type for resilience. `KesselConnectionError` is defined but unused; the middleware handler exists as a safety net for future explicit raises.
 
 **Q2: Should we cache Kessel permission checks?**
 - **Decision Needed**: Cache TTL and invalidation strategy

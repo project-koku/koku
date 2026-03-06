@@ -5,7 +5,7 @@
 | Jira          | [FLPATH-3294](https://issues.redhat.com/browse/FLPATH-3294)          |
 | Parent HLD    | [onprem-authorization-backend.md](onprem-authorization-backend.md) |
 | Author        | Jordi Gil                                                             |
-| Status        | Decision                                                              |
+| Status        | Decision — **Resolved**: Option A (Adapter Pattern) was selected and implemented. See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md) for the full implementation design and [ReBAC Bridge Design](./rebac-bridge-design.md) for runtime management. |
 | Created       | 2026-02-26                                                           |
 | Last updated  | 2026-02-26                                                           |
 

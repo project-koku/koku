@@ -4,7 +4,7 @@
 **Status**: Proposed
 **Authors**: Cost Management On-Prem Team
 **Reviewers**: Kessel Team, Cost Management SaaS Team
-**Related**: [kessel-ocp-integration.md](./kessel-ocp-integration.md), [FLPATH-3294](https://issues.redhat.com/browse/FLPATH-3294), [FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319)
+**Related**: [kessel-ocp-integration.md](./kessel-ocp-integration.md), [FLPATH-3294](https://issues.redhat.com/browse/FLPATH-3294), [FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319), [ReBAC Bridge Design](./rebac-bridge-design.md)
 
 ---
 
@@ -336,12 +336,11 @@ params = {
     "filter.resource_namespace": "cost_management",
     "filter.resource_type": resource_type,
     "filter.resource_id": resource_id,
-    "filter.relation": "t_workspace",
 }
 # DELETE /api/authz/v1beta1/tuples?filter.*=...
 ```
 
-The filter matches on `resource_namespace + resource_type + resource_id + relation` but does **not** specify a subject (workspace). This means the DELETE removes **every** `t_workspace` tuple for that resource, regardless of which workspace it points to.
+The filter matches on `resource_namespace + resource_type + resource_id` only — it does **not** specify a relation or subject. This means the DELETE removes **all** tuples for that resource (`t_workspace`, `has_cluster`, `has_project`, etc.), regardless of which workspace they point to or what relation type they are.
 
 ### Deletion Sequence
 
@@ -370,10 +369,12 @@ on_resource_deleted("openshift_cluster", "cluster-prod", "org123")
 
 ### When Deletion Does NOT Happen
 
-`on_resource_deleted` fires only when cost data is **fully purged** (retention expiry after a source has been deleted). It does **not** fire when:
+`on_resource_deleted` fires in two scenarios:
 
-- A source is deleted (historical data must remain queryable until retention expires)
-- Data is re-processed or corrected
+1. **Retention expiry**: When cost data is fully purged from PostgreSQL after retention expires
+2. **Source deletion (integration only)**: When a source is deleted on-prem, `DestroySourceMixin.destroy()` calls `on_resource_deleted("integration", source_uuid, org_id)` — the integration resource represents the source itself and should be cleaned up
+
+It does **not** fire for OCP clusters, nodes, or projects when a source is deleted — historical cost data must remain queryable until retention expires. It also does not fire for data re-processing or correction.
 - An admin removes the resource from a specific workspace (that's a targeted tuple delete via admin tooling, not resource deletion)
 
 This distinction is important: **admin workspace management (adding/removing team assignments) is separate from resource lifecycle (creation/deletion)**. Admin operations modify individual `t_workspace` tuples. Resource deletion removes the resource entirely.
@@ -544,7 +545,7 @@ This section maps each requirement from [PRD12 COST-7292](https://docs.google.co
 
 ### Current Permissions — Full Coverage
 
-PRD12 requires that **no current RBAC v1 permission capability is lost**. All 10 resource-type read permissions plus cost model and settings read/write are supported:
+PRD12 requires that **no current RBAC v1 permission capability is lost**. All 11 resource-type read permissions plus cost model and settings read/write are supported:
 
 | PRD Permission | Kessel Resource Type | In [Schema](../../../dev/kessel/schema.zed) | In [Access Provider](../../../koku/koku_rebac/access_provider.py) | One / Many / All |
 |---|---|---|---|---|
@@ -845,4 +846,4 @@ Use the Relations API for both `resource_reporter` and admin operations.
 
 4. **Default workspace for new resources**: Should new resources be assigned to the org-level workspace (admin-only visibility, current implementation) or to a configurable default team workspace?
 
-5. **Resource deletion cleanup**: When `on_resource_deleted` fires, it deletes ALL `t_workspace` tuples for the resource (including admin-managed ones) via a filter on `resource_type + resource_id + relation` without specifying a workspace subject. This is correct: if the resource's cost data has been purged from PostgreSQL, it should not remain discoverable in any workspace. No code changes needed.
+5. **Resource deletion cleanup**: When `on_resource_deleted` fires, it deletes ALL tuples for the resource (including admin-managed `t_workspace`, `has_cluster`, `has_project`, etc.) via a filter on `resource_namespace + resource_type + resource_id` without specifying a relation or workspace subject. This is correct: if the resource's cost data has been purged from PostgreSQL, it should not remain discoverable in any workspace. No code changes needed.
