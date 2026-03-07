@@ -63,7 +63,7 @@ class AzureReportDBCleanerTest(MasuTestCase):
 
     def test_purge_expired_report_data_both_args(self):
         """Test that the provider_uuid deletes all data for the provider."""
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
         cleaner = AzureReportDBCleaner(self.schema)
         with self.assertRaises(AzureReportDBCleanerError):
             cleaner.purge_expired_report_data(expired_date=now, provider_uuid=self.azure_provider_uuid)

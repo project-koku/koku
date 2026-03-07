@@ -191,7 +191,47 @@ class DateHelper:
 
     def month_start_utc(self, in_date):
         """Datetime of midnight on the 1st of in_date month with a UTC timezone included."""
-        return self.month_start(in_date).replace(tzinfo=settings.UTC)
+        ms = self.month_start(in_date)
+        # If month_start returns a tz-aware datetime (e.g. the caller passed one in)
+        # convert rather than overwrite, so the UTC stamp is always correct.
+        if isinstance(ms, datetime.datetime) and ms.tzinfo is not None:
+            return ms.astimezone(settings.UTC)
+        return ms.replace(tzinfo=settings.UTC)
+
+    def provider_local_month_start(self, in_date, provider_tz: str) -> datetime.datetime:
+        """Datetime of midnight on the 1st of in_date month expressed in *provider_tz*.
+
+        This mirrors ``month_start_utc`` but honours the provider's billing-region
+        timezone so that month boundaries are computed on the local calendar rather
+        than always on UTC midnight.
+
+        **Budget boundary note (COST-219):**
+        Budget period start/end dates are currently interpreted as UTC calendar
+        dates.  For a provider in America/New_York, the UTC and local midnight do
+        not coincide and a few hours each month may be misattributed.  Callers
+        that need provider-local budget periods should use this method instead of
+        ``month_start_utc``.
+        Follow-up ticket: decide whether budget periods should be in UTC or
+        provider-local time and whether a ``?timezone=`` query parameter should
+        be accepted by the report API.
+
+        Args:
+            in_date: Any date/datetime/str accepted by :meth:`month_start`.
+            provider_tz (str): IANA timezone name (e.g. ``'America/New_York'``).
+
+        Returns:
+            datetime.datetime: tz-aware midnight on the 1st in *provider_tz*, then
+            converted to UTC for consistent downstream handling.
+        """
+        from zoneinfo import ZoneInfo  # noqa: PLC0415
+
+        tz = ZoneInfo(provider_tz)
+        ms = self.month_start(in_date)
+        if isinstance(ms, datetime.date) and not isinstance(ms, datetime.datetime):
+            ms = datetime.datetime(ms.year, ms.month, ms.day)
+        # Attach the provider timezone, then normalise to UTC.
+        local_midnight = ms.replace(tzinfo=tz)
+        return local_midnight.astimezone(settings.UTC)
 
     def month_end(self, in_date):
         """Datetime of midnight on the last day of the in_date month."""
@@ -458,7 +498,9 @@ class DateHelper:
             (datetime.datetime)
         """
         if isinstance(bill_date, str):
-            bill_date = ciso8601.parse_datetime(bill_date).replace(tzinfo=settings.UTC)
+            bill_dt = ciso8601.parse_datetime(bill_date)
+            # Preserve any offset already carried by the string; otherwise assume UTC.
+            bill_date = bill_dt.astimezone(settings.UTC) if bill_dt.tzinfo else bill_dt.replace(tzinfo=settings.UTC)
         date_obj = bill_date.strftime("%Y%m")
         return date_obj
 
@@ -466,7 +508,8 @@ class DateHelper:
         """Find the year from date."""
 
         if isinstance(date, str):
-            date = ciso8601.parse_datetime(date).replace(tzinfo=settings.UTC)
+            dt = ciso8601.parse_datetime(date)
+            date = dt.astimezone(settings.UTC) if dt.tzinfo else dt.replace(tzinfo=settings.UTC)
         date_obj = date.strftime("%Y")
         return date_obj
 
@@ -474,7 +517,8 @@ class DateHelper:
         """Find the month from date."""
 
         if isinstance(date, str):
-            date = ciso8601.parse_datetime(date).replace(tzinfo=settings.UTC)
+            dt = ciso8601.parse_datetime(date)
+            date = dt.astimezone(settings.UTC) if dt.tzinfo else dt.replace(tzinfo=settings.UTC)
         date_obj = date.strftime("%m")
         return date_obj
 

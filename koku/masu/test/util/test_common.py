@@ -9,6 +9,7 @@ import types
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from decimal import Decimal
 from os.path import exists
 from unittest.mock import patch
@@ -57,7 +58,7 @@ class CommonUtilTests(MasuTestCase):
 
     def test_stringify_json_data_list(self):
         """Test that each element of JSON is returned as a string."""
-        data = [{"datetime": datetime.utcnow(), "float": 1.2, "int": 1, "str": "string"}, {"Decimal": Decimal("1.2")}]
+        data = [{"datetime": datetime.now(tz=timezone.utc), "float": 1.2, "int": 1, "str": "string"}, {"Decimal": Decimal("1.2")}]
 
         with self.assertRaises(TypeError):
             json.dumps(data)
@@ -72,7 +73,7 @@ class CommonUtilTests(MasuTestCase):
 
     def test_stringify_json_data_dict(self):
         """Test that the dict block is covered."""
-        data = {"datetime": datetime.utcnow(), "float": 1.2, "int": 1, "str": "string", "Decimal": Decimal("1.2")}
+        data = {"datetime": datetime.now(tz=timezone.utc), "float": 1.2, "int": 1, "str": "string", "Decimal": Decimal("1.2")}
 
         with self.assertRaises(TypeError):
             json.dumps(data)
@@ -205,7 +206,7 @@ class CommonUtilTests(MasuTestCase):
         account = "10001"
         provider_type = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        start_date = datetime.utcnow().date()
+        start_date = datetime.now(tz=timezone.utc).date()
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         expected_path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
@@ -237,7 +238,7 @@ class CommonUtilTests(MasuTestCase):
         # Test with partition daily
         provider_type = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        start_date = datetime.utcnow().date()
+        start_date = datetime.now(tz=timezone.utc).date()
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         day = start_date.strftime("%d")

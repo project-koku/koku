@@ -90,7 +90,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                     self._provider.uuid, start, end, filters
                 )
                 accessor.populate_line_item_daily_summary_table_trino(
-                    start, end, self._provider.uuid, current_bill_id, markup_value
+                    start, end, self._provider.uuid, current_bill_id, markup_value,
                 )
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)

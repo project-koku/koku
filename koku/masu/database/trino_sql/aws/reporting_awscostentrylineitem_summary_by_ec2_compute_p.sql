@@ -111,6 +111,7 @@ SELECT uuid() as uuid,
     INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
     aa.id as account_alias_id
 FROM (
+    -- AWS CUR timestamps are UTC — no AT TIME ZONE offset needed.
     SELECT min(date(lineitem_usagestartdate)) as usage_start,
         max(date(lineitem_usagestartdate)) as usage_end,
         max(lineitem_usageaccountid) as usage_account_id,

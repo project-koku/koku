@@ -100,7 +100,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 operation="DELETE/INSERT",
             )
 
-    def populate_line_item_daily_summary_table_trino(self, start_date, end_date, source_uuid, bill_id, markup_value):
+    def populate_line_item_daily_summary_table_trino(
+        self, start_date, end_date, source_uuid, bill_id, markup_value
+    ):
         """Populate the daily aggregated summary of line items table.
 
         Args:
