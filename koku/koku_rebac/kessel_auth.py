@@ -51,7 +51,9 @@ class _TokenProvider:
             return self._token
 
     def _refresh(self) -> None:
-        token_url = f"{settings.KESSEL_AUTH_OIDC_ISSUER}/protocol/openid-connect/token"
+        token_url = getattr(settings, "KESSEL_AUTH_TOKEN_URL", "") or (
+            f"{settings.KESSEL_AUTH_OIDC_ISSUER}/protocol/openid-connect/token"
+        )
         try:
             resp = requests.post(
                 token_url,
