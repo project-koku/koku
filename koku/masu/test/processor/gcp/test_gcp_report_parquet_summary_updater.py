@@ -103,7 +103,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
             self.gcp_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
         )
         mock_trino.assert_called_with(
-            expected_start, expected_end, self.gcp_provider.uuid, current_bill_id, markup_value, invoice_month, provider_timezone="UTC"
+            expected_start, expected_end, self.gcp_provider.uuid, current_bill_id, markup_value, invoice_month
         )
         mock_tag_update.assert_called_with(bill_ids, start, end)
 
@@ -144,7 +144,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         mock_date_range.assert_called_with(start_date, end_date, step=unittest.mock.ANY)
 
         mock_gcp_instance.populate_line_item_daily_summary_table_trino.assert_called_with(
-            start_date, end_date, self.gcp_provider.uuid, 100, 0.1, "202512", provider_timezone="UTC"
+            start_date, end_date, self.gcp_provider.uuid, 100, 0.1, "202512"
         )
 
     def test_determine_if_full_summary_update_needed_false(self):

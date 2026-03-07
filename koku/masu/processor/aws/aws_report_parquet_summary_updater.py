@@ -17,7 +17,6 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.processor import is_feature_cost_4403_ec2_compute_cost_enabled
 from masu.util.common import date_range_pair
-from masu.util.timezone_utils import get_provider_timezone_name
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -102,15 +101,7 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                 )
                 accessor.populate_line_item_daily_summary_table_trino(
                     start, end, self._provider.uuid, current_bill_id, markup_value,
-                    provider_timezone=get_provider_timezone_name(self._provider.uuid),
                 )
-                # COST-3358 (constant currency): usage_start now reflects the
-                # provider-local billing date, so exchange-rate lookups by date
-                # are aligned to the correct local calendar day.
-                # If exchange rates are themselves keyed by UTC date (sources at
-                # UTC midnight) there may be a residual one-day skew for
-                # America/New_York and similar regions.  Verify exchange-rate
-                # source timezone if off-by-one-day discrepancies are observed.
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.populate_category_summary_table(bill_ids, start_date, end_date)
@@ -135,7 +126,6 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                 # Populate EC2 compute summary table
                 accessor.populate_ec2_compute_summary_table_trino(
                     self._provider.uuid, start_date, current_bill_id, markup_value,
-                    provider_timezone=get_provider_timezone_name(self._provider.uuid),
                 )
 
                 # Update mapped tags in EC2 compute summary table

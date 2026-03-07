@@ -10,12 +10,9 @@ from zoneinfo import ZoneInfo
 
 from django.test import TestCase
 
-from masu.util.timezone_utils import aws_region_to_tz
 from masu.util.timezone_utils import get_provider_timezone
 from masu.util.timezone_utils import normalize_datetime_to_provider_tz
 from masu.util.timezone_utils import sanitize_timezone_for_sql
-from masu.util.timezone_utils import trino_date_expr
-from masu.util.timezone_utils import utc_range_for_provider_local_day
 
 
 class SanitizeTimezoneForSqlTest(TestCase):
@@ -87,55 +84,3 @@ class NormalizeDatetimeTest(TestCase):
         self.assertEqual(result.tzinfo.key, "America/New_York")
         self.assertEqual(result.hour, 23)
 
-
-class UtcRangeForProviderLocalDayTest(TestCase):
-    """Validate UTC window generation for a provider-local calendar day."""
-
-    def test_utc_range_standard(self):
-        """UTC window for a standard timezone day."""
-        tz = ZoneInfo("America/New_York")
-        # New York is UTC-4 in summer (EDT)
-        local_day = datetime.date(2024, 7, 4)
-        start, end = utc_range_for_provider_local_day(local_day, tz)
-        # Midnight EDT == 04:00 UTC; next-day midnight == 04:00 UTC next day
-        self.assertEqual(start.utcoffset(), datetime.timedelta(0))
-        self.assertLess(start, end)
-        self.assertEqual((end - start).days, 1)
-
-    def test_utc_range_utc_timezone(self):
-        """UTC window for a UTC provider is exactly a 24-hour day."""
-        tz = ZoneInfo("UTC")
-        local_day = datetime.date(2024, 1, 31)
-        start, end = utc_range_for_provider_local_day(local_day, tz)
-        self.assertEqual(start, datetime.datetime(2024, 1, 31, 0, 0, tzinfo=ZoneInfo("UTC")))
-        self.assertEqual(end, datetime.datetime(2024, 2, 1, 0, 0, tzinfo=ZoneInfo("UTC")))
-
-
-class AwsRegionToTzTest(TestCase):
-    """Validate AWS region → IANA timezone mapping."""
-
-    def test_known_region(self):
-        """Known AWS regions return their IANA timezone string."""
-        self.assertEqual(aws_region_to_tz("us-east-1"), "America/New_York")
-        self.assertEqual(aws_region_to_tz("eu-west-1"), "Europe/Dublin")
-        self.assertEqual(aws_region_to_tz("ap-northeast-1"), "Asia/Tokyo")
-
-    def test_unknown_region_returns_utc(self):
-        """Unknown regions fall back to UTC."""
-        self.assertEqual(aws_region_to_tz("unknown-region-99"), "UTC")
-
-
-class TrinoDateExprTest(TestCase):
-    """Validate Trino SQL fragment generation."""
-
-    def test_non_utc_timezone_uses_at_time_zone(self):
-        """Non-UTC timezones produce an AT TIME ZONE expression."""
-        expr = trino_date_expr("lineitem_usagestartdate", "America/New_York")
-        self.assertIn("AT TIME ZONE", expr)
-        self.assertIn("America/New_York", expr)
-
-    def test_utc_timezone_is_plain_date(self):
-        """UTC timezone produces a simple date() call without AT TIME ZONE."""
-        expr = trino_date_expr("lineitem_usagestartdate", "UTC")
-        self.assertNotIn("AT TIME ZONE", expr)
-        self.assertTrue(expr.startswith("date("))

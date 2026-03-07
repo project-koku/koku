@@ -93,14 +93,13 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return GCPCostEntryBill.objects.filter(billing_period_start__lte=date)
 
     def populate_line_item_daily_summary_table_trino(
-        self, start_date, end_date, source_uuid, bill_id, markup_value, invoice_month, provider_timezone="UTC"
+        self, start_date, end_date, source_uuid, bill_id, markup_value, invoice_month
     ):
         """Populate the daily aggregated summary of line items table.
 
         Args:
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
-            provider_timezone (str): IANA timezone for AT TIME ZONE conversion in Trino SQL.
 
         Returns
             (None)
@@ -122,7 +121,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "invoice_month": invoice_month,
             "markup": markup_value or 0,
             "bill_id": bill_id,
-            "provider_timezone": provider_timezone or "UTC",
         }
 
         self._execute_trino_raw_sql_query(

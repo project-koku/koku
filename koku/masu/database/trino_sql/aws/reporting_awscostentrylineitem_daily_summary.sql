@@ -79,9 +79,13 @@ SELECT uuid() as uuid,
     cast(blended_cost * {{markup | sqlsafe}} AS decimal(33,15)) as markup_cost_blended,
     cast(savingsplan_effective_cost * {{markup | sqlsafe}} AS decimal(33,15)) as markup_cost_savingsplan,
     cast(calculated_amortized_cost * {{markup | sqlsafe}} AS decimal(33,9)) as markup_cost_amortized
+-- AWS CUR timestamps (lineitem_usagestartdate) are always UTC per the AWS CUR
+-- data dictionary (billing_period format YYYY-MM-DDTHH:mm:ssZ). No AT TIME
+-- ZONE offset is applied. provider_timezone field is retained on Provider for
+-- future OpenShift / display features.
 FROM (
-    SELECT date(lineitem_usagestartdate AT TIME ZONE '{{provider_timezone | sqlsafe}}') as usage_start,
-        date(lineitem_usagestartdate AT TIME ZONE '{{provider_timezone | sqlsafe}}') as usage_end,
+    SELECT date(lineitem_usagestartdate) as usage_start,
+        date(lineitem_usagestartdate) as usage_end,
         CASE
             WHEN bill_billingentity='AWS Marketplace' THEN coalesce(nullif(product_productname, ''), nullif(lineitem_productcode, ''))
             ELSE nullif(lineitem_productcode, '')
@@ -130,7 +134,7 @@ FROM (
         AND month = '{{month | sqlsafe}}'
         AND lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-    GROUP BY date(lineitem_usagestartdate AT TIME ZONE '{{provider_timezone | sqlsafe}}'),
+    GROUP BY date(lineitem_usagestartdate),
         bill_billingentity,
         lineitem_productcode,
         product_productname,

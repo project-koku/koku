@@ -2,9 +2,9 @@ import pkgutil
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import date
+from datetime import timezone as dt_timezone
 from decimal import Decimal
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from dateutil.parser import parse
 from django.conf import settings
@@ -24,16 +24,11 @@ class SummarySqlMetadata:
     matched_tag_strs: list[str]
     bill_id: int
     report_period_id: int
-    # IANA timezone from Provider.timezone; propagated into Trino SQL templates
-    # so date truncation happens relative to the provider's local billing calendar.
-    provider_timezone: str = "UTC"
     # NOTE — price list / cost model effective dates (COST-575):
     # CostModel.rates effective_start / effective_end are stored as UTC-aware datetimes
-    # (Django USE_TZ=True).  After this feature, usage_start reflects the provider-local
-    # billing date.  The two dates are now aligned when the billing-region offset is
-    # accounted for via provider_timezone.  If cost model rates are ever intended to be
-    # entered in the customer's local timezone, a follow-up product decision is needed
-    # to convert effective dates before comparison.
+    # (Django USE_TZ=True).  Cloud billing timestamps are also UTC, so date alignment
+    # is correct by default.  If cost model rates are ever intended to be entered in
+    # a customer's local timezone, a follow-up product decision is needed.
     days_tup: tuple = field(init=False)
     year: str = field(init=False)
     month: str = field(init=False)
@@ -50,11 +45,10 @@ class SummarySqlMetadata:
 
     def _check_date_parameters_format(self):
         """Checks to make sure the date parameters are in the correct format."""
-        tz = ZoneInfo(self.provider_timezone) if self.provider_timezone else ZoneInfo("UTC")
         if isinstance(self.start_date, str):
-            self.start_date = parse(self.start_date).replace(tzinfo=tz)
+            self.start_date = parse(self.start_date).replace(tzinfo=dt_timezone.utc)
         if isinstance(self.end_date, str):
-            self.end_date = parse(self.end_date).replace(tzinfo=tz)
+            self.end_date = parse(self.end_date).replace(tzinfo=dt_timezone.utc)
 
     def _generate_sql_params(self):
         """Populates additional SQL parameters options"""
@@ -120,7 +114,6 @@ class SummarySqlMetadata:
             "days": self.days_tup,
             "report_period_id": self.report_period_id,
             "bill_id": self.bill_id,
-            "provider_timezone": self.provider_timezone,
         }
         for key, value in extra_params.items():
             base_params[key] = value

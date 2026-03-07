@@ -19,7 +19,9 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily
     subscription_name
 )
 WITH cte_line_items AS (
-    SELECT date(date AT TIME ZONE '{{provider_timezone | sqlsafe}}') as usage_date,
+    -- Azure Cost Details 'date' field is UTC (documented in Microsoft Cost
+    -- Management cost details field reference). No AT TIME ZONE offset needed.
+    SELECT date(date) as usage_date,
         INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
         coalesce(nullif(subscriptionid, ''), subscriptionguid) as subscription_guid,
         resourcelocation as resource_location,

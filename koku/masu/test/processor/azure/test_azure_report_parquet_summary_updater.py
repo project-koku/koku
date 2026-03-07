@@ -94,7 +94,7 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
             self.azure_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
         )
         mock_trino.assert_called_with(
-            expected_start, expected_end, self.azure_provider.uuid, current_bill_id, markup_value, provider_timezone="UTC"
+            expected_start, expected_end, self.azure_provider.uuid, current_bill_id, markup_value
         )
         mock_tag_update.assert_called_with(bill_ids, start, end)
 

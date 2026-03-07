@@ -16,7 +16,6 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.util.common import date_range_pair
-from masu.util.timezone_utils import get_provider_timezone_name
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -107,7 +106,6 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     )
                     accessor.populate_line_item_daily_summary_table_trino(
                         start, end, self._provider.uuid, current_bill_id, markup_value, invoice_month,
-                        provider_timezone=get_provider_timezone_name(self._provider.uuid),
                     )
                     accessor.populate_ui_summary_tables(start, end, self._provider.uuid, invoice_month)
                     accessor.populate_gcp_topology_information_tables(

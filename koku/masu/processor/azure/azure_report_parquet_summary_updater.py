@@ -10,7 +10,6 @@ from koku.pg_partition import PartitionHandlerMixin
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.util.common import date_range_pair
-from masu.util.timezone_utils import get_provider_timezone_name
 from reporting.provider.azure.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -92,7 +91,6 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                 )
                 accessor.populate_line_item_daily_summary_table_trino(
                     start, end, self._provider.uuid, current_bill_id, markup_value,
-                    provider_timezone=get_provider_timezone_name(self._provider.uuid),
                 )
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)

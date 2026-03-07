@@ -11,11 +11,11 @@ Usage
     python manage.py populate_provider_timezones [--dry-run]
 
 The command inspects every Provider whose ``timezone`` field is empty or
-``None`` and attempts to infer the correct IANA timezone from:
+``None`` and sets it to ``'UTC'``.
 
-1. The provider's ``region`` (if present) — AWS/Azure region codes are mapped
-   via :func:`masu.util.timezone_utils.aws_region_to_tz`.
-2. A hard-coded UTC fallback for any provider whose region is unknown.
+AWS CUR, GCP BigQuery billing export, and Azure Cost Details all publish
+timestamps in UTC.  There is no region-specific local-time offset to apply,
+so all cloud providers default to UTC.
 
 All changes are wrapped in a single database transaction so a failure rolls
 back every partial update.
@@ -27,33 +27,8 @@ from django.db import transaction
 
 from api.common import log_json
 from api.provider.models import Provider
-from masu.util.timezone_utils import aws_region_to_tz
 
 LOG = logging.getLogger(__name__)
-
-# Provider types that carry a billing region we can map to a timezone.
-_REGION_PROVIDER_TYPES = {
-    Provider.PROVIDER_AWS,
-    Provider.PROVIDER_AWS_LOCAL,
-    Provider.PROVIDER_AZURE,
-    Provider.PROVIDER_AZURE_LOCAL,
-    Provider.PROVIDER_GCP,
-    Provider.PROVIDER_GCP_LOCAL,
-}
-
-
-def _infer_timezone(provider) -> str:
-    """Infer likely IANA timezone for *provider*.
-
-    Strategy:
-    - Cloud providers: map ``provider.region`` via :func:`aws_region_to_tz`
-      (the same mapping works as a best-effort guess for Azure/GCP regions too).
-    - All other cases: return ``'UTC'`` to preserve existing behaviour.
-    """
-    if provider.type in _REGION_PROVIDER_TYPES:
-        region = getattr(provider, "region", None) or ""
-        return aws_region_to_tz(region)
-    return "UTC"
 
 
 class Command(BaseCommand):
@@ -83,7 +58,9 @@ class Command(BaseCommand):
 
         updates: list[Provider] = []
         for provider in candidates.iterator():
-            tz = _infer_timezone(provider)
+            # All major cloud providers (AWS, GCP, Azure) report billing data in UTC.
+            # Default every provider to "UTC".
+            tz = "UTC"
             msg = "would set" if dry_run else "setting"
             context = {
                 "provider_uuid": str(provider.uuid),
