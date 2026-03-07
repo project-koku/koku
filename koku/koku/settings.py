@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     "cost_models",
     "sources",
     "subs",
+    "koku_rebac",
 ]
 
 SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
@@ -104,6 +105,7 @@ SHARED_APPS = (
     "django.contrib.messages",
     "rest_framework",
     "sources",
+    "koku_rebac",
 )
 
 TENANT_APPS = ("reporting", "cost_models")
@@ -134,6 +136,34 @@ MIDDLEWARE = [
 MIDDLEWARE_TIME_TO_LIVE = ENVIRONMENT.int("MIDDLEWARE_TIME_TO_LIVE", default=900)  # in seconds (default = 15 minutes)
 
 DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
+
+from koku_rebac.config import resolve_authorization_backend as _resolve_auth_backend  # noqa: E402
+
+AUTHORIZATION_BACKEND = _resolve_auth_backend(
+    onprem=ONPREM,
+    env_value=ENVIRONMENT.get_value("AUTHORIZATION_BACKEND", default="rbac"),
+)
+
+KESSEL_INVENTORY_CONFIG = {
+    "host": ENVIRONMENT.get_value("KESSEL_INVENTORY_HOST", default="localhost"),
+    "port": int(ENVIRONMENT.get_value("KESSEL_INVENTORY_PORT", default="9081")),
+}
+
+KESSEL_CA_PATH = ENVIRONMENT.get_value("KESSEL_CA_PATH", default="")
+
+KESSEL_AUTH_ENABLED = ENVIRONMENT.bool("KESSEL_AUTH_ENABLED", default=ONPREM)
+KESSEL_AUTH_CLIENT_ID = ENVIRONMENT.get_value("KESSEL_AUTH_CLIENT_ID", default="")
+KESSEL_AUTH_CLIENT_SECRET = ENVIRONMENT.get_value("KESSEL_AUTH_CLIENT_SECRET", default="")
+KESSEL_AUTH_OIDC_ISSUER = ENVIRONMENT.get_value("KESSEL_AUTH_OIDC_ISSUER", default="")
+KESSEL_AUTH_TOKEN_URL = ENVIRONMENT.get_value(
+    "KESSEL_AUTH_TOKEN_URL",
+    default=f"{KESSEL_AUTH_OIDC_ISSUER}/protocol/openid-connect/token" if KESSEL_AUTH_OIDC_ISSUER else "",
+)
+
+KESSEL_RELATIONS_URL = ENVIRONMENT.get_value("KESSEL_RELATIONS_URL", default="http://localhost:8100")
+KESSEL_TUPLES_PATH = ENVIRONMENT.get_value("KESSEL_TUPLES_PATH", default="/api/authz/v1beta1/tuples")
+
+RBAC_V2_URL = ENVIRONMENT.get_value("RBAC_V2_URL", default="http://localhost:8000")
 SCHEMA_SUFFIX = re.sub("[^a-zA-Z0-9_]", "_", ENVIRONMENT.get_value("SCHEMA_SUFFIX", default=""))
 print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
 if DEVELOPMENT:
@@ -232,6 +262,7 @@ class CacheEnum(StrEnum):
     default = "default"
     api = "api"
     rbac = "rbac"
+    kessel = "kessel"
     worker = "worker"
 
 
@@ -256,6 +287,11 @@ if "test" in sys.argv:
         CacheEnum.rbac: {
             "BACKEND": "django.core.cache.backends.dummy.DummyCache",
             "KEY_PREFIX": "rbac",
+            "LOCATION": TEST_CACHE_LOCATION,
+        },
+        CacheEnum.kessel: {
+            "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+            "KEY_PREFIX": "kessel",
             "LOCATION": TEST_CACHE_LOCATION,
         },
         CacheEnum.worker: {
@@ -298,6 +334,18 @@ else:
             "KEY_PREFIX": "rbac",
             "LOCATION": REDIS_URL,
             "TIMEOUT": ENVIRONMENT.get_value("RBAC_CACHE_TIMEOUT", default=300),
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "IGNORE_EXCEPTIONS": True,
+                "MAX_ENTRIES": 1_000,
+                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+            },
+        },
+        CacheEnum.kessel: {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "KEY_PREFIX": "kessel",
+            "LOCATION": REDIS_URL,
+            "TIMEOUT": ENVIRONMENT.get_value("KESSEL_CACHE_TIMEOUT", default=300),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,

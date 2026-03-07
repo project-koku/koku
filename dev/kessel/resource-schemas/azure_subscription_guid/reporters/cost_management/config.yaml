@@ -1,0 +1,3 @@
+resource_type: azure_subscription_guid
+reporter_name: cost_management
+namespace: cost_management

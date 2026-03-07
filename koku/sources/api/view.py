@@ -6,6 +6,7 @@
 import logging
 
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -13,8 +14,11 @@ from django.utils.decorators import method_decorator
 from django.utils.encoding import force_str
 from django.views.decorators.cache import cache_page
 from django.views.decorators.cache import never_cache
+from django.views.decorators.vary import vary_on_headers
+from django_filters import CharFilter
 from django_filters import FilterSet
 from django_filters.rest_framework import DjangoFilterBackend
+from querystring_parser import parser
 from rest_framework import mixins
 from rest_framework import permissions
 from rest_framework import status
@@ -27,13 +31,17 @@ from rest_framework.response import Response
 from rest_framework.serializers import UUIDField
 from rest_framework.serializers import ValidationError
 
+from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.filters import CharListFilter
 from api.common.pagination import ListPaginator
 from api.common.permissions import RESOURCE_TYPE_MAP
+from api.common.permissions.sources_access import SourcesAccessPermission
+from koku_rebac.resource_reporter import on_resource_deleted
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
+from api.report.constants import URL_ENCODED_SAFE
 from koku.cache import CacheEnum
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import SOURCES_CACHE_PREFIX
@@ -41,6 +49,8 @@ from masu.util.aws.common import get_available_regions
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
+from sources.api.source_type_mapping import get_provider_type
+from sources.kafka_publisher import publish_application_destroy_event
 from sources.storage import SourcesStorageError
 
 
@@ -65,6 +75,10 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
                 LOG.error(msg)
                 return Response(msg, status=500)
             else:
+                if settings.ONPREM:
+                    publish_application_destroy_event(source)
+                    if source.source_uuid:
+                        on_resource_deleted("integration", str(source.source_uuid), org_id)
                 result = super().destroy(request, *args, **kwargs)
                 invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
                 return result
@@ -76,7 +90,7 @@ LOG = logging.getLogger(__name__)
 MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet]
 HTTP_METHOD_LIST = ["get", "head"]
 
-if settings.DEVELOPMENT:
+if settings.ONPREM or settings.DEVELOPMENT:
     MIXIN_LIST.extend([mixins.CreateModelMixin, mixins.UpdateModelMixin, DestroySourceMixin])
     HTTP_METHOD_LIST.extend(["post", "patch", "delete"])
 
@@ -86,10 +100,39 @@ class SourceFilter(FilterSet):
 
     name = CharListFilter(field_name="name", lookup_expr="name__icontains")
     type = CharListFilter(field_name="source_type", lookup_expr="source_type__icontains")
+    source_type_id = CharFilter(method="filter_by_source_type_id")
+    source_ref = CharFilter(method="filter_by_source_ref")
 
     class Meta:
         model = Sources
-        fields = ["source_type", "name"]
+        fields = ["source_type", "name", "source_type_id", "source_ref"]
+
+    def filter_by_source_type_id(self, queryset, name, value):
+        """Filter by CMMO source_type_id (e.g., "1" -> OCP)."""
+        provider_type = get_provider_type(value)
+        if provider_type:
+            return queryset.filter(source_type=provider_type)
+        return queryset.none()
+
+    def filter_by_source_ref(self, queryset, name, value):
+        """Filter by source_ref (cluster_id for OCP sources)."""
+        return queryset.filter(authentication__credentials__cluster_id=value)
+
+    def filter_queryset(self, queryset):
+        """Override to support filter[field] syntax for CMMO compatibility."""
+        if self.request:
+            query_params = parser.parse(self.request.query_params.urlencode(safe=URL_ENCODED_SAFE))
+            filter_params = query_params.get("filter", {})
+
+            for name, value in filter_params.items():
+                if name in self.filters:
+                    try:
+                        self.filters[name].field.validate(value)
+                        self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
+                    except DjangoValidationError:
+                        pass
+
+        return super().filter_queryset(queryset)
 
 
 class SourcesException(APIException):
@@ -121,7 +164,7 @@ class SourcesViewSet(*MIXIN_LIST):
 
     lookup_fields = ("source_id", "source_uuid")
     queryset = Sources.objects.all()
-    permission_classes = (AllowAny,)
+    permission_classes = (SourcesAccessPermission,) if settings.ONPREM else (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
     http_method_names = HTTP_METHOD_LIST
@@ -175,6 +218,10 @@ class SourcesViewSet(*MIXIN_LIST):
 
         Restricts the returned Sources to the associated org_id,
         by filtering against a `org_id` in the request.
+
+        On ONPREM, sources are Kessel ``integration`` resources.  The
+        access dict's ``integration.read`` list (populated from
+        StreamedListObjects) contains source UUIDs the user can see.
         """
         queryset = Sources.objects.none()
         org_id = self.request.user.customer.org_id
@@ -183,8 +230,30 @@ class SourcesViewSet(*MIXIN_LIST):
             queryset = Sources.objects.filter(org_id=org_id).exclude(source_type__in=excludes)
         except Sources.DoesNotExist:
             LOG.error("No sources found for org id %s.", org_id)
+            return queryset
+
+        if settings.ONPREM:
+            queryset = self._filter_by_integration_access(queryset)
 
         return queryset
+
+    def _filter_by_integration_access(self, queryset):
+        """Filter sources by Kessel integration resource access.
+
+        The access dict's ``integration.read`` contains source UUIDs
+        returned by StreamedListObjects via computed permissions in SpiceDB.
+        Wildcard (["*"]) means the user has org-level integration access.
+        """
+        resource_access = getattr(self.request.user, "access", None) or {}
+        integration_access = resource_access.get("integration", {}).get("read", [])
+
+        if not integration_access:
+            return Sources.objects.none()
+
+        if integration_access == ["*"]:
+            return queryset
+
+        return queryset.filter(source_uuid__in=integration_access)
 
     def get_object(self):
         queryset = self.get_queryset()
@@ -215,6 +284,19 @@ class SourcesViewSet(*MIXIN_LIST):
         return (account_id, tenant)
 
     @method_decorator(never_cache)
+    def create(self, request, *args, **kwargs):
+        """Create a Source."""
+        schema_name = request.user.customer.schema_name
+        try:
+            response = super().create(request=request, args=args, kwargs=kwargs)
+            invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
+            return response
+        except (SourcesStorageError, ParseError) as error:
+            raise SourcesException(str(error))
+        except SourcesDependencyError as error:
+            raise SourcesDependencyException(str(error))
+
+    @method_decorator(never_cache)
     def update(self, request, *args, **kwargs):
         """Update a Source."""
         schema_name = request.user.customer.schema_name
@@ -227,6 +309,7 @@ class SourcesViewSet(*MIXIN_LIST):
         except SourcesDependencyError as error:
             raise SourcesDependencyException(str(error))
 
+    @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     @method_decorator(
         cache_page(settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=SOURCES_CACHE_PREFIX)
     )

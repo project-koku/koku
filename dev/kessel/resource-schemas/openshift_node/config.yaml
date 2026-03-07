@@ -1,0 +1,3 @@
+resource_type: openshift_node
+resource_reporters:
+  - cost_management
