@@ -280,6 +280,22 @@ jobs:
           MIDDLEWARE_TIME_TO_LIVE: 0
           ENHANCED_ORG_ADMIN: True
 
+      - name: Run ONPREM sources tests
+        if: needs.changed-files.outputs.run_tests == 'true'
+        run: pipenv run coverage run --append ./koku/manage.py test --noinput --verbosity 2 sources.test
+        env:
+          DATABASE_SERVICE_NAME: POSTGRES_SQL
+          DATABASE_ENGINE: postgresql
+          DATABASE_NAME: postgres
+          DATABASE_USER: postgres
+          DATABASE_PASSWORD: postgres
+          POSTGRES_SQL_SERVICE_HOST: localhost
+          POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
+          PROMETHEUS_MULTIPROC_DIR: /tmp
+          MIDDLEWARE_TIME_TO_LIVE: 0
+          ENHANCED_ORG_ADMIN: True
+          ONPREM: True
+
       - name: Show test status
         if: needs.changed-files.outputs.run_tests == 'true'
         id: show_test_status
