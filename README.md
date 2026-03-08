@@ -20,6 +20,8 @@ This project is developed using Python 3.11. Make sure you have at least this ve
 
 - Docker or Rancher Desktop
 - (macOS only) [Install Homebrew](https://brew.sh/)
+- (Linux/WSL) Install required system tools used by helper scripts and `make` targets:
+    - sudo apt-get install -y postgresql-client jq
 
 ## Development
 
@@ -33,17 +35,17 @@ This project is developed using the Django web framework. Many
 configuration settings can be read in from a `.env` file. To configure,
 do the following:
 
-1.  Copy [`.env.example`](.env.example) into a `.env` and update the following in your `.env`:
+1.  Copy [`.env.example`](.env.example) into a `.env` and update required values before starting containers:
+
+        cp .env.example .env
 
         AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
+        AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY_ID
+        AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_ACCESS_KEY
 
-2.  Copy [`dev/credentials/aws.example`](dev/credentials/aws.example) into `dev/credentials/aws`, obtain AWS credentials, then update the credentials file:
+    `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` must be non-empty for local development. Some components (including Trino) fail at runtime when these values are empty.
 
-        [default]
-        aws_access_key_id=YOUR_AWS_ACCESS_KEY_ID
-        aws_secret_access_key=YOUR_AWS_SECRET_ACCESS_KEY
-
-3.  (macOS only) Install libraries for building wheels on ARM:
+2.  (macOS only) Install libraries for building wheels on ARM:
 
         brew install openssl librdkafka postgresql@16
 
@@ -82,6 +84,13 @@ This will explain how to start the server and its dependencies using Docker (or 
 > **Note**
 >
 > In order for the `koku_base` image to build correctly, buildkit must be enabled by setting `DOCKER_BUILDKIT=1`. This is set in the `.env` file, but if you are having issues building the `koku_base` image, make sure buildkit is enabled.
+
+> **WSL note**
+>
+> If you run Docker inside WSL, export your host UID/GID before starting the stack so container file permissions map correctly:
+>
+>     export USER_ID=$(id -u)
+>     export GROUP_ID=$(id -g)
 
 1.  Start the containers:
 
