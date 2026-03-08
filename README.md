@@ -20,8 +20,9 @@ This project is developed using Python 3.11. Make sure you have at least this ve
 
 - Docker or Rancher Desktop
 - (macOS only) [Install Homebrew](https://brew.sh/)
-- (Linux/WSL) Install required system tools used by helper scripts and `make` targets:
-    - sudo apt-get install -y postgresql-client jq
+- (Linux/WSL) Install required system tools used by helper scripts and `make` targets. The command depends on your distribution:
+    - **For Debian/Ubuntu:** `sudo apt-get install -y postgresql-client jq`
+    - **For Fedora/RHEL:** `sudo dnf install -y postgresql jq`
 
 ## Development
 
@@ -35,9 +36,11 @@ This project is developed using the Django web framework. Many
 configuration settings can be read in from a `.env` file. To configure,
 do the following:
 
-1.  Copy [`.env.example`](.env.example) into a `.env` and update required values before starting containers:
+1.  Copy [`.env.example`](.env.example) into a `.env` file:
 
         cp .env.example .env
+
+    Then, update the following required values in the new `.env` file before starting containers:
 
         AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
         AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY_ID
