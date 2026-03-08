@@ -24,7 +24,16 @@
 - [Tuple Management: Who Writes What](#tuple-management-who-writes-what)
 - [Re-Ingestion Safety](#re-ingestion-safety)
 - [Resource Deletion and Multi-Workspace Cleanup](#resource-deletion-and-multi-workspace-cleanup)
-- [Why Direct SpiceDB for Admin Operations](#why-direct-spicedb-for-admin-operations)
+- [Kessel API Layer Separation](#kessel-api-layer-separation)
+  - [Why Two APIs, Not One](#why-two-apis-not-one)
+  - [What Each Component Uses](#what-each-component-uses)
+- [Inventory API Design Notes](#inventory-api-design-notes)
+  - [Inventory API Single-Workspace-Per-Resource](#inventory-api-single-workspace-per-resource)
+  - [Workspace Lifecycle via Relations API](#workspace-lifecycle-via-relations-api)
+  - [Relations API ReadTuples — REST vs gRPC](#relations-api-readtuples--rest-vs-grpc)
+  - [Business Case: Opt-In Access Model](#business-case-opt-in-access-model)
+  - [Upstream Improvements Summary](#upstream-improvements-summary)
+    - [Thin IAM Convenience Layer (Longer-Term)](#thin-iam-convenience-layer-longer-term)
 - [Integration as First-Class Kessel Resource](#integration-as-first-class-kessel-resource)
   - [Computed Permissions and Structural Relationships](#computed-permissions-and-structural-relationships)
   - [Authorization Cascade Example](#authorization-cascade-example)
@@ -87,7 +96,13 @@ These requirements must be met **without changing Koku's application layer** (`a
 
 ## Decision
 
-**Team Workspaces with Inheritance + Keycloak-Driven Automation + Direct SpiceDB for Admin Operations.**
+**Team Workspaces with Inheritance + Keycloak-Driven Automation + Pure Kessel APIs.**
+
+All operations go through the Kessel stack — no component accesses SpiceDB
+directly. The Kessel Inventory API handles resource lifecycle and
+authorization queries; the Kessel Relations API handles RBAC primitive
+tuple CRUD (workspaces, role bindings, groups, resource-to-workspace
+assignments).
 
 Specifically:
 
@@ -95,13 +110,13 @@ Specifically:
 
 2. **Default visibility**: New resources are assigned to the org-level workspace by `resource_reporter.py`. Only users bound at the org-level workspace (admins) see newly registered resources. Regular users are bound at team workspaces and do not inherit upward.
 
-3. **Team-based grants**: Admin assigns resources to team workspace(s) by writing `t_workspace` tuples directly to SpiceDB. Team members (bound at the team workspace via `role_binding`) can then see those resources.
+3. **Team-based grants**: Admin assigns resources to team workspace(s) by writing `t_workspace` tuples via the Relations API gRPC. Team members (bound at the team workspace via `role_binding`) can then see those resources.
 
-4. **Cross-team sharing**: A resource can have multiple `t_workspace` tuples (one per team workspace). This exceeds Kessel Inventory API's single-workspace contract but is valid in SpiceDB. The additional tuples are managed by the admin tooling, not by Koku's `resource_reporter`.
+4. **Cross-team sharing**: A resource can have multiple `t_workspace` tuples (one per team workspace). The primary org-level tuple is managed by `resource_reporter.py` (via Inventory API). Additional team-workspace tuples are managed by admin tooling (via Relations API gRPC). The two never conflict.
 
 5. **Re-ingestion safety**: The `org_id` comes from the cost management metrics operator and is immutable for a given cluster. Since `resource_reporter.py` always upserts the primary `t_workspace` tuple using the same `org_id`, re-ingestion is inherently idempotent. Admin-managed additional tuples (team workspace assignments) are never touched by `resource_reporter`.
 
-6. **Keycloak automation**: On-prem admin tooling syncs Keycloak groups to SpiceDB: group creation → workspace + role_binding creation, group membership changes → `t_subject` tuple updates.
+6. **Keycloak automation**: On-prem admin tooling syncs Keycloak groups via the Relations API: group creation → workspace + role_binding tuples, group membership changes → `t_subject` / `t_member` tuple updates.
 
 ---
 
@@ -109,41 +124,56 @@ Specifically:
 
 ### Layer Separation
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    KOKU APPLICATION LAYER                     │
-│                                                               │
-│  Views / Serializers / Middleware                             │
-│       │                                                       │
-│       ▼                                                       │
-│  KesselAccessProvider (access_provider.py)                    │
-│       │  StreamedListObjects()  →  list of resource IDs      │
-│       │  Check()                →  wildcard or denied         │
-│       ▼                                                       │
-│  Kessel Inventory API (gRPC)                                 │
-│                                                               │
-│  ┄┄┄┄┄┄┄┄┄  SaaS-compatible boundary  ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄   │
-│                                                               │
-│  resource_reporter.py                                        │
-│       │  ReportResource()       →  Inventory API             │
-│       │  t_workspace tuple      →  Relations API             │
-│       │  (always uses org_id — idempotent on re-ingestion)   │
-│                                                               │
-├─────────────────────────────────────────────────────────────┤
-│              ON-PREM MANAGEMENT PLANE                         │
-│                                                               │
-│  Admin Tooling / Keycloak Automation                         │
-│       │  Create/delete workspaces                            │
-│       │  Create/delete role_bindings                         │
-│       │  Assign resources to team workspaces (t_workspace)   │
-│       │  Sync Keycloak groups to SpiceDB                     │
-│       ▼                                                       │
-│  SpiceDB (gRPC — direct, bypasses Relations API)             │
-│                                                               │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph koku_layer ["Koku Application Layer (SaaS-compatible)"]
+        direction TB
+        Views["Views / Serializers / Middleware"]
+        AccessProvider["KesselAccessProvider<br/><small>access_provider.py</small>"]
+        Reporter["resource_reporter.py"]
+
+        Views --> AccessProvider
+    end
+
+    subgraph mgmt_layer ["On-Prem Management Plane"]
+        direction TB
+        Bridge["ReBAC Bridge / Admin Tooling<br/><small>Keycloak Automation</small>"]
+    end
+
+    subgraph kessel ["Kessel Stack"]
+        direction TB
+        InventoryAPI["Kessel Inventory API<br/><small>gRPC (TLS)</small>"]
+        RelationsAPI["Kessel Relations API<br/><small>gRPC (port 9000) + REST (port 8000)</small>"]
+        SpiceDB["SpiceDB<br/><small>backend — never accessed directly</small>"]
+
+        InventoryAPI --> SpiceDB
+        RelationsAPI --> SpiceDB
+    end
+
+    AccessProvider -->|"Check, StreamedListObjects<br/>(gRPC)"| InventoryAPI
+    Reporter -->|"ReportResource (gRPC)<br/>t_workspace tuple (REST)"| InventoryAPI
+    Reporter -->|"t_workspace, structural tuples<br/>(REST)"| RelationsAPI
+
+    Bridge -->|"CreateTuples, DeleteTuples,<br/>ReadTuples, Check (gRPC)"| RelationsAPI
+
+    style koku_layer fill:#fff3e0,stroke:#e65100
+    style mgmt_layer fill:#e8f5e9,stroke:#2e7d32
+    style kessel fill:#e3f2fd,stroke:#1565c0
 ```
 
-The SaaS-compatible boundary separates code that runs identically in both environments (above) from on-prem-specific admin operations (below). Koku's application layer has **zero awareness** of workspace topology, team workspaces, or Keycloak groups.
+The SaaS-compatible boundary separates code that runs identically in both environments (Koku application layer) from on-prem-specific admin operations (management plane). Koku's application layer has **zero awareness** of workspace topology, team workspaces, or Keycloak groups. All components interact with SpiceDB exclusively through Kessel APIs (Inventory API or Relations API).
+
+**Which Kessel API for what:**
+
+| Object type | Operation | Service | Protocol | Why |
+|---|---|---|---|---|
+| Resources (`cost_management/*`) | Report / delete | **Inventory API** | gRPC | Resource lifecycle — "this thing exists" |
+| Resources (`cost_management/*`) | Check / list visible | **Inventory API** | gRPC | Authorization queries on inventory resources |
+| Resources (`cost_management/*`) | Assign to team workspace | **Relations API** | gRPC | Authorization relationship — not a lifecycle event |
+| RBAC primitives (`rbac/workspace`) | Create / delete / list | **Relations API** | gRPC | Workspaces are authorization constructs, not inventory |
+| RBAC primitives (`rbac/role_binding`) | Create / delete | **Relations API** | gRPC | Authorization binding |
+| RBAC primitives (`rbac/group`) | Add/remove members | **Relations API** | gRPC | Group membership |
+| Any | Enumerate existing tuples | **Relations API** | gRPC | `ReadTuples` (streaming) |
 
 ### Permission Resolution Flow
 
@@ -163,7 +193,7 @@ SpiceDB resolves:
 Returns: [cluster IDs where alice has read permission]
 ```
 
-This resolution is identical regardless of whether the `t_workspace` tuple was created by `resource_reporter.py` (via Relations API) or by admin tooling (via direct SpiceDB write). SpiceDB does not distinguish tuple origin.
+This resolution is identical regardless of whether the `t_workspace` tuple was created by `resource_reporter.py` (via Relations API REST) or by the ReBAC Bridge (via Relations API gRPC). SpiceDB does not distinguish tuple origin — both paths write to the same backend.
 
 ### Default Visibility Model
 
@@ -284,14 +314,14 @@ The infra-member gains access only when the resource has a `t_workspace → work
 
 ## Tuple Management: Who Writes What
 
-| Tuple | Written by | Via | When | SaaS-compatible? |
-|---|---|---|---|---|
-| `resource #t_workspace → workspace:org123` | `resource_reporter.py` | Relations API | Resource creation / data ingestion | Yes |
-| `resource #t_workspace → workspace:team-X` | Admin tooling | SpiceDB direct | Admin grants team access | On-prem only |
-| `workspace:team-X #t_parent → workspace:org123` | Admin tooling | SpiceDB direct | Team workspace creation | On-prem only |
-| `role_binding #t_granted → role` | Admin tooling | SpiceDB direct | Role assignment | On-prem only |
-| `role_binding #t_subject → group#member` | Admin tooling / Keycloak sync | SpiceDB direct | Group binding | On-prem only |
-| `group #t_member → principal` | Keycloak sync | SpiceDB direct | User added to group | On-prem only |
+| Tuple | Written by | Kessel API | Protocol | When | SaaS-compatible? |
+|---|---|---|---|---|---|
+| `resource #t_workspace → workspace:org123` | `resource_reporter.py` | Relations API | REST | Resource creation / data ingestion | Yes |
+| `resource #t_workspace → workspace:team-X` | ReBAC Bridge / admin tooling | Relations API | gRPC | Admin grants team access | On-prem only |
+| `workspace:team-X #t_parent → workspace:org123` | ReBAC Bridge / admin tooling | Relations API | gRPC | Team workspace creation | On-prem only |
+| `role_binding #t_granted → role` | ReBAC Bridge / admin tooling | Relations API | gRPC | Role assignment | On-prem only |
+| `role_binding #t_subject → group#member` | ReBAC Bridge / Keycloak sync | Relations API | gRPC | Group binding | On-prem only |
+| `group #t_member → principal` | ReBAC Bridge / Keycloak sync | Relations API | gRPC | User added to group | On-prem only |
 
 | `integration #t_workspace → workspace:org123` | `resource_reporter.py` | Relations API | Source creation (via `ProviderBuilder`) | Yes |
 | `integration #has_cluster → openshift_cluster` | `resource_reporter.py` | Relations API | Source creation (via `ProviderBuilder`) | On-prem only (no-op when backend != rebac) |
@@ -309,17 +339,17 @@ When Koku processes new data for an existing cluster, `on_resource_created` is c
 
 The primary `t_workspace` tuple always uses `org_id` as the workspace. Since the metrics operator always sends the same `org_id` for a given cluster, re-ingestion upserts the identical tuple — effectively a no-op. There is no risk of overwriting a different workspace because the `org_id` never changes.
 
-Admin-managed team workspace tuples (written directly to SpiceDB) are completely separate from the primary tuple. `resource_reporter.py` does not know about them, does not query for them, and never modifies them.
+Admin-managed team workspace tuples (written via the Relations API gRPC) are completely separate from the primary tuple. `resource_reporter.py` does not know about them, does not query for them, and never modifies them.
 
 ### What happens during re-ingestion
 
 | Tuple | Written by | Re-ingestion behavior |
 |---|---|---|
 | `cluster #t_workspace → workspace:org123` | `resource_reporter.py` | Upsert with same `org_id` — **idempotent no-op** |
-| `cluster #t_workspace → workspace:team-infra` | Admin tooling (SpiceDB direct) | **Untouched** — `resource_reporter` does not know about it |
-| `cluster #t_workspace → workspace:team-fin` | Admin tooling (SpiceDB direct) | **Untouched** — `resource_reporter` does not know about it |
+| `cluster #t_workspace → workspace:team-infra` | ReBAC Bridge (Relations API gRPC) | **Untouched** — `resource_reporter` does not know about it |
+| `cluster #t_workspace → workspace:team-fin` | ReBAC Bridge (Relations API gRPC) | **Untouched** — `resource_reporter` does not know about it |
 
-This separation is inherent to the architecture: `resource_reporter.py` manages the **org-level primary tuple** (deterministic, always `org_id`), and the **admin tooling manages team assignments** (additive tuples in SpiceDB). The two never conflict.
+This separation is inherent to the architecture: `resource_reporter.py` manages the **org-level primary tuple** (deterministic, always `org_id`), and the **admin tooling manages team assignments** (additive tuples via the Relations API). The two never conflict.
 
 ---
 
@@ -381,27 +411,393 @@ This distinction is important: **admin workspace management (adding/removing tea
 
 ---
 
-## Why Direct SpiceDB for Admin Operations
+## Kessel API Layer Separation
 
-The Kessel Relations API is a REST-to-gRPC translator for SpiceDB tuple CRUD. On-prem, it provides:
+The Kessel stack exposes two API layers, each designed for a distinct
+purpose. All on-prem operations go through one of these layers — no
+component accesses SpiceDB directly.
 
-| Feature | Relations API | SpiceDB Direct |
+```mermaid
+flowchart LR
+    subgraph inventory ["Inventory API — Resource Lifecycle"]
+        direction TB
+        RP["ReportResource / DeleteResource"]
+        AQ["Check / StreamedListObjects"]
+    end
+
+    subgraph relations ["Relations API — Authorization Primitives"]
+        direction TB
+        Write["CreateTuples / DeleteTuples<br/><small>gRPC + REST</small>"]
+        Read["ReadTuples<br/><small>gRPC only (streaming)</small>"]
+        Chk["Check<br/><small>gRPC + REST</small>"]
+    end
+
+    subgraph engine ["SpiceDB (backend)"]
+        DB["Never accessed directly"]
+    end
+
+    inventory --> engine
+    relations --> engine
+
+    style inventory fill:#fff3e0,stroke:#e65100
+    style relations fill:#e8f5e9,stroke:#2e7d32
+    style engine fill:#e3f2fd,stroke:#1565c0
+```
+
+| Layer | Purpose | Used by | Protocol |
+|---|---|---|---|
+| **Inventory API** | Resource lifecycle ("what exists") + authorization queries | Koku (`KesselAccessProvider`, `resource_reporter.py`) | gRPC (TLS) |
+| **Relations API** | RBAC primitive CRUD ("who can do what") | ReBAC Bridge, `kessel-admin.sh`, `resource_reporter.py` (tuples) | gRPC (port 9000) + REST (port 8000) |
+| **SpiceDB** | Backend engine | Neither — accessed only through the APIs above | — |
+
+### Why Two APIs, Not One
+
+The distinction matters because resources and authorization primitives
+have different lifecycles and ownership:
+
+- **Resources** (`cost_management/openshift_cluster`, `integration`, etc.)
+  are created by data pipelines (Koku's `resource_reporter.py`). The
+  Inventory API tracks their existence, sets their primary workspace, and
+  provides authorization queries (`Check`, `StreamedListObjects`).
+
+- **Authorization primitives** (`rbac/workspace`, `rbac/role_binding`,
+  `rbac/group`) are created by admin operations. They define the
+  authorization topology — who can see what. The Relations API manages
+  these as raw tuples.
+
+- **Team-workspace assignments** (`resource #t_workspace → workspace:team-X`)
+  are authorization decisions, not resource lifecycle events. The resource
+  already exists (reported via Inventory API). Assigning it to a team is
+  an authorization change — the correct layer is the Relations API.
+
+### What Each Component Uses
+
+| Component | Inventory API | Relations API |
 |---|---|---|
-| Tuple create/delete | Yes | Yes |
-| Batch operations | Limited | Yes (`WriteRelationships` accepts batches) |
-| Read existing tuples | Yes | Yes (`ReadRelationships` with filters) |
-| Schema validation | Delegated to SpiceDB | SpiceDB validates natively |
-| CDC pipeline integration | Yes (SaaS) / No (on-prem) | N/A |
-| Additional write-side logic | None currently | N/A |
+| **Koku `KesselAccessProvider`** | `Check`, `StreamedListObjects` (gRPC) | — |
+| **Koku `resource_reporter.py`** | `ReportResource`, `DeleteResource` (gRPC) | `CreateTuples`, `DeleteTuples` (REST) for `t_workspace` and structural tuples |
+| **ReBAC Bridge** | — | `CreateTuples`, `DeleteTuples`, `ReadTuples`, `Check` (gRPC) |
+| **`kessel-admin.sh`** | — | `CreateTuples`, `DeleteTuples`, `Check` (REST) |
 
-On-prem, the Relations API adds no value for admin operations. Direct SpiceDB access provides:
+The Inventory API remains in the stack because `KesselAccessProvider`
+depends on it for `StreamedListObjects` and `Check`. The Relations API
+handles all RBAC primitive management and team-workspace assignments.
 
-1. **Batch writes** — Create multiple tuples in a single `WriteRelationships` call (workspace + bindings + resource assignments).
-2. **Read capabilities** — `ReadRelationships` with filters enables admin UIs to show "who has access to what".
-3. **Reduced dependencies** — One less service to deploy and maintain for write operations.
-4. **Full SpiceDB flexibility** — Multiple `t_workspace` tuples per resource without any middleware constraint.
+---
 
-The Inventory API remains in the stack because `KesselAccessProvider` depends on it for `StreamedListObjects` and `Check`.
+## Inventory API Design Notes
+
+This section documents two Inventory API design characteristics that are
+relevant to the on-prem architecture. Neither requires SpiceDB bypass —
+both are handled through the Relations API, which is the correct Kessel
+layer for authorization primitive management.
+
+### Inventory API Single-Workspace-Per-Resource
+
+**Layer**: Kessel Inventory API (`SetWorkspace()` in
+[`kessel.go`](https://github.com/project-kessel/inventory-api/blob/main/internal/authz/kessel/kessel.go))
+
+**What it is**: When `ReportResource` is called, the Inventory API's
+`SetWorkspace()` method creates exactly one `t_workspace` tuple for the
+resource. The code contains a `TODO: remove previous tuple for workspace`
+comment, indicating the **intended** design is to _replace_ the workspace
+assignment, not accumulate multiple ones.
+
+**Why it matters for cross-team sharing**: Per-team resource visibility
+requires a resource to belong to multiple team workspaces simultaneously:
+
+```mermaid
+flowchart LR
+    Cluster["openshift_cluster:cluster-1"]
+    OrgWS["workspace:org123<br/><small>primary — Inventory API</small>"]
+    TeamA["workspace:team-infra<br/><small>added — Relations API</small>"]
+    TeamB["workspace:team-platform<br/><small>added — Relations API</small>"]
+
+    Cluster -->|"t_workspace"| OrgWS
+    Cluster -->|"t_workspace"| TeamA
+    Cluster -->|"t_workspace"| TeamB
+
+    style OrgWS fill:#fff3e0,stroke:#e65100
+    style TeamA fill:#e8f5e9,stroke:#2e7d32
+    style TeamB fill:#e8f5e9,stroke:#2e7d32
+```
+
+The Inventory API's `ReportResource` creates the primary org-level tuple.
+It cannot create the additional team-workspace tuples.
+
+**Why this is not a blocker**: Team-workspace `t_workspace` tuples are
+authorization relationships, not resource lifecycle events. The correct
+Kessel layer for these is the **Relations API**, which can create any tuple
+valid in the schema — including multiple `t_workspace` tuples on the same
+resource. The [ReBAC Bridge](./rebac-bridge-design.md) uses
+`CreateTuples` (gRPC) for this purpose.
+
+**Risk to monitor**: Today, `SetWorkspace()` does not yet implement the
+removal TODO — multiple `t_workspace` tuples coexist in SpiceDB. If the
+Kessel team implements the TODO, `ReportResource` would delete tuples it
+didn't create (the team-workspace tuples written by the Relations API).
+This would break cross-team sharing. However, this risk only applies if
+the Inventory API starts deleting tuples based on `t_workspace` relation
+filters broadly rather than scoping the deletion to tuples it originally
+created. The ideal upstream fix is a dedicated `AssignWorkspace` RPC
+(tracked in [FLPATH-3405](https://issues.redhat.com/browse/FLPATH-3405)).
+
+**Our approach**: Koku's `resource_reporter.py` uses `ReportResource` for
+the primary workspace tuple (org-level, one per resource — safe). The
+ReBAC Bridge uses the Relations API gRPC to create additional team-workspace
+tuples. Each layer uses the correct Kessel API for its purpose.
+
+### Workspace Lifecycle via Relations API
+
+**Layer**: Kessel Inventory API (service definition)
+
+The Inventory API has no `CreateWorkspace`, `ListWorkspaces`, or
+`DeleteWorkspace` endpoints. Its protobuf service definition
+([`inventory_service.proto`](https://github.com/project-kessel/inventory-api/blob/main/api/kessel/inventory/v1beta2/inventory_service.proto))
+exposes resource-oriented RPCs (`ReportResource`, `DeleteResource`,
+`Check`, `StreamedListObjects`) but does not manage `rbac/workspace`
+objects.
+
+**Why this is not a constraint**: Workspaces (`rbac/workspace`) are
+authorization primitives, not inventory resources. They belong to the
+**Relations API** layer, not the Inventory API. Creating a workspace means
+writing tuples — `t_parent` for hierarchy, `t_binding` for role bindings —
+which is exactly what the Relations API's `CreateTuples` does:
+
+```mermaid
+sequenceDiagram
+    participant Bridge as ReBAC Bridge
+    participant Relations as Relations API (gRPC)
+    participant SpiceDB as SpiceDB
+
+    Bridge->>Relations: CreateTuples (gRPC)
+    Note right of Relations: workspace:team-infra#t_parent<br/>→ workspace:org123
+    Relations->>SpiceDB: WriteRelationships
+    SpiceDB-->>Relations: OK
+    Relations-->>Bridge: OK
+```
+
+The [ReBAC Bridge](./rebac-bridge-design.md) handles workspace lifecycle
+(create, list, delete, set parent) entirely through the Relations API gRPC.
+The `kessel-admin.sh` script does the same via the Relations API REST
+endpoints (`POST /api/authz/v1beta1/tuples`).
+
+If the Kessel team adds dedicated workspace management endpoints in the
+future (tracked in [FLPATH-3405](https://issues.redhat.com/browse/FLPATH-3405)),
+the bridge could migrate to them, but the current Relations API approach is
+architecturally correct — not a workaround.
+
+### Relations API `ReadTuples` — REST vs gRPC
+
+The Relations API exposes `ReadTuples` as a **server-streaming gRPC** RPC.
+The HTTP gateway (Kratos) does not register routes for streaming RPCs, so
+`GET /api/authz/v1beta1/tuples` returns **404** over REST. This only
+affects `curl`-based tooling (`kessel-admin.sh`). The ReBAC Bridge uses
+the gRPC endpoint (port 9000) for `ReadTuples`, which works correctly.
+
+An upstream fix (non-streaming HTTP endpoint for tuple reads) is desirable
+for general REST tooling and is tracked in
+[FLPATH-3405](https://issues.redhat.com/browse/FLPATH-3405).
+
+### Business Case: Opt-In Access Model
+
+The on-prem deployment requires an **opt-in** access model: users see
+nothing until an administrator explicitly grants them access to specific
+resources via team workspaces. This is the core justification for
+multi-workspace support and the reason the Inventory API's
+single-workspace-per-resource assumption is a risk.
+
+#### Current State (flat — everyone sees everything)
+
+```
+resource_reporter.py (Koku):
+  cost_management/openshift_cluster:cluster-A  #t_workspace → workspace:org123
+  cost_management/openshift_cluster:cluster-B  #t_workspace → workspace:org123
+
+kessel-admin.sh (bootstrap):
+  workspace:org123                  #t_parent  → tenant:org123
+  workspace:org123                  #t_binding → role_binding:org123--alice--cost-administrator
+  workspace:org123                  #t_binding → role_binding:org123--bob--cost-administrator
+
+Result: Alice sees cluster-A AND cluster-B.  Bob sees cluster-A AND cluster-B.
+        No scoping is possible.
+```
+
+All resources land in the org workspace. All users are bound at the org
+workspace. SpiceDB's union semantics on `t_workspace→read` grant every
+user access to every resource. This is suitable for single-team
+deployments but unacceptable for multi-team environments.
+
+#### Reference Scenario (opt-in — groups, workspaces, namespace scoping)
+
+The following scenario is implemented by `kessel-admin.sh demo` and exercises
+all three access dimensions: role-based, workspace-based, and group-based.
+
+**Resources** (created by Koku's `resource_reporter` → Inventory API):
+
+| Cluster | Namespaces | Primary workspace |
+|---|---|---|
+| cluster-a | demo | org123 |
+| cluster-b | demo, payment | org123 |
+| cluster-c | test, payment | org123 |
+
+**Workspace hierarchy** (created by admin / ReBAC Bridge → Relations API):
+
+```mermaid
+flowchart TD
+  tenant["tenant:org123"]
+  orgWS["workspace:org123"]
+  wsInfra["workspace:ws-infra"]
+  wsDemo["workspace:ws-demo"]
+  wsPayment["workspace:ws-payment"]
+  wsTest1["workspace:ws-test1"]
+
+  orgWS -->|t_parent| tenant
+  wsInfra -->|t_parent| orgWS
+  wsDemo -->|t_parent| orgWS
+  wsPayment -->|t_parent| orgWS
+  wsTest1 -->|t_parent| orgWS
+```
+
+**Groups and membership:**
+
+| Group | Members | Workspace | Role |
+|---|---|---|---|
+| demo | test1 | ws-demo | cost-openshift-viewer |
+| infra | test2 | ws-infra | cost-openshift-viewer |
+| payment | test3 | ws-payment | cost-openshift-viewer |
+
+**Direct user bindings:**
+
+| User | Workspace | Role | Reason |
+|---|---|---|---|
+| admin | org123 + tenant | cost-administrator | Org admin — sees everything |
+| test1 | ws-test1 | cost-openshift-viewer | Personal access to Cluster B |
+
+**Resource → team workspace assignments** (additional `t_workspace` tuples):
+
+| Workspace | Cluster-level | Namespace-level | Rationale |
+|---|---|---|---|
+| ws-infra | cluster-a, cluster-c | demo-a, test-c, payment-c | Full Clusters A and C |
+| ws-demo | cluster-a | demo-a | Full Cluster A |
+| ws-payment | — | payment-b, payment-c | Namespace-level only |
+| ws-test1 | cluster-b | demo-b, payment-b | Full Cluster B (test1 direct) |
+
+**Expected verification matrix:**
+
+| Resource | admin | test1 | test2 | test3 |
+|---|---|---|---|---|
+| cluster-a | read | read (ws-demo) | read (ws-infra) | DENIED |
+| cluster-b | read | read (ws-test1) | DENIED | read (has_project) |
+| cluster-c | read | DENIED | read (ws-infra) | read (has_project) |
+| ns demo-a | read | read (ws-demo) | read (ws-infra) | DENIED |
+| ns demo-b | read | read (ws-test1) | DENIED | DENIED |
+| ns payment-b | read | read (ws-test1) | DENIED | read (ws-payment) |
+| ns test-c | read | DENIED | read (ws-infra) | DENIED |
+| ns payment-c | read | DENIED | read (ws-infra) | read (ws-payment) |
+
+**Key schema behaviors demonstrated:**
+
+1. **Workspace scoping** — users only see resources assigned to their workspace(s)
+2. **Group access** — group members inherit workspace bindings via
+   `role_binding#t_subject → group#member`
+3. **Direct access** — test1 has personal workspace `ws-test1` for Cluster B
+4. **Namespace-level scoping** — test3 sees payment namespaces but not
+   demo/test namespaces in the same clusters
+5. **`has_project` cascade** — test3 sees clusters B and C through namespace
+   access (`openshift_cluster.read` includes `has_project->read`)
+6. **Koku needs zero changes** — `resource_reporter.py` is unchanged
+
+#### Why Koku Needs Zero Changes
+
+| Component | Why it works as-is |
+|---|---|
+| `resource_reporter.py` | Still reports resources with `workspace_id = org_id`. The primary `t_workspace → workspace:org_id` tuple is unchanged. Team-workspace tuples are additive. |
+| `access_provider.py` | Calls `StreamedListObjects(resource_type, relation, subject)` — this is workspace-agnostic. SpiceDB evaluates all `t_workspace` tuples on each resource and returns it if any path grants the permission. |
+| Schema (`schema.zed`) | `permission read = t_workspace->...read + ...` uses **union** semantics. Multiple `t_workspace` relations are evaluated — if any workspace grants the user access, the resource is visible. |
+| Koku business logic | Never references workspace IDs. It asks "can user X see resource Y?" and Kessel resolves it through the SpiceDB graph. |
+
+#### What Changes (Authorization Layer Only)
+
+| Component | Change |
+|---|---|
+| `kessel-admin.sh` | `do_sync` only binds admin users at org level. New commands: `create-workspace`, `assign-resource`, `grant`, `grant-group`, `add-group-member`, `link-resource`. Full demo via `kessel-admin.sh demo`. |
+| ReBAC Bridge | Provides REST API for team workspace CRUD, resource assignment, group and user binding. Delegates to Relations API gRPC. |
+| Admin workflow | Opt-in: admin creates team workspaces and groups → assigns resources to workspaces → grants groups/users to workspaces. Users start with zero access. |
+
+#### Why Multi-Workspace Per Resource Is Required
+
+The opt-in model requires each resource to have **at minimum two**
+`t_workspace` tuples:
+
+1. **Primary** (`workspace:org_id`) — created by `resource_reporter.py`
+   via the Inventory API. Makes the resource visible to org-level admins.
+2. **Team** (`workspace:team-X`) — created by the ReBAC Bridge or
+   `kessel-admin.sh` via the Relations API. Makes the resource visible
+   to users scoped to that team.
+
+If the Inventory API's `SetWorkspace()` TODO is implemented to enforce
+one-workspace-per-resource, it would delete the team-workspace tuples on
+every `ReportResource` call, breaking the opt-in model entirely. This is
+the **single critical constraint** that must not change, and the primary
+justification for requesting an `AssignWorkspace` RPC on the Inventory
+API (tracked in [FLPATH-3405](https://issues.redhat.com/browse/FLPATH-3405)).
+
+### Upstream Improvements Summary
+
+| Area | Current state | Ideal upstream change | Impact | Tracked |
+|---|---|---|---|---|
+| Multi-workspace per resource | Relations API handles team-workspace tuples correctly | `AssignWorkspace` RPC on Inventory API (eliminates risk of future `SetWorkspace` cleanup breaking team tuples) | Eliminates risk, not a blocker | [FLPATH-3405](https://issues.redhat.com/browse/FLPATH-3405) |
+| Workspace lifecycle | Relations API `CreateTuples`/`DeleteTuples`/`ReadTuples` handles all operations | Dedicated workspace CRUD endpoints (convenience, not necessity) | Convenience, not a blocker | [FLPATH-3405](https://issues.redhat.com/browse/FLPATH-3405) |
+| Tuple reads over REST | `ReadTuples` gRPC works; REST returns 404 | Non-streaming HTTP endpoint for tuple reads | Convenience for REST tooling, not a blocker | [FLPATH-3405](https://issues.redhat.com/browse/FLPATH-3405) |
+| Thin IAM convenience layer | Every consumer (SaaS `insights-rbac`, on-prem ReBAC Bridge) re-implements the same tuple-construction logic for standard `rbac/*` patterns | Kessel-native semantic API for common IAM operations (see below) | Eliminates cross-consumer duplication, not a blocker | [FLPATH-3405](https://issues.redhat.com/browse/FLPATH-3405) |
+
+**None of these are blockers.** The on-prem architecture operates entirely
+within the Kessel stack using the correct API layer for each operation
+type. The upstream improvements would add convenience and reduce risk but
+are not required for the architecture to function.
+
+#### Thin IAM Convenience Layer (Longer-Term)
+
+Kessel's Relations API exposes generic tuple CRUD — it has no knowledge of
+the `rbac/*` schema semantics. Every consumer ends up building the same
+IAM management layer on top of raw tuple operations:
+
+- **SaaS**: `insights-rbac` (Django, PostgreSQL, Kafka, Redis)
+- **On-prem**: ReBAC Bridge (Go)
+- **Any future consumer**: same boilerplate
+
+The common operations are always the same tuple patterns derived from the
+KSL `rbac/*` schema:
+
+| Operation | Tuples constructed |
+|---|---|
+| `CreateWorkspace(id, parent)` | `workspace:id#t_parent → workspace:parent` |
+| `DeleteWorkspace(id)` | delete all tuples on `workspace:id` |
+| `AssignWorkspace(resource, workspace)` | `resource#t_workspace → workspace:id` |
+| `RemoveWorkspace(resource, workspace)` | delete that `t_workspace` tuple |
+| `CreateRoleBinding(workspace, role, subject)` | `role_binding#t_granted → role`, `role_binding#t_subject → subject`, `workspace#t_binding → role_binding` |
+| `DeleteRoleBinding(workspace, role, subject)` | delete those 3 tuples |
+| `AddGroupMember(group, principal)` | `group#t_member → principal` |
+| `RemoveGroupMember(group, principal)` | delete that `t_member` tuple |
+| `ListWorkspaceBindings(workspace)` | `ReadTuples` filter on `workspace` `t_binding` |
+| `ListGroupMembers(group)` | `ReadTuples` filter on `group` `t_member` |
+
+A Kessel-native thin IAM API implementing these standard KSL tuple
+patterns would:
+
+1. **Eliminate duplicate tuple-construction logic** across all consumers
+2. **Subsume the workspace CRUD and `AssignWorkspace` RPC** requests above
+3. **Keep Kessel as an authorization engine** (no identity storage, no
+   metadata, no Keycloak integration)
+4. **Leave app-specific concerns to consuming apps** (UI, display metadata,
+   business rules, IdP integration)
+
+This is **not** a full IAM system — it is a semantic convenience layer
+over the Relations API for standard `rbac/*` schema patterns. App-specific
+bridges (like the ReBAC Bridge) would still exist for REST compatibility,
+metadata storage, and IdP integration, but their core tuple logic would
+delegate to this API instead of reimplementing it.
 
 ---
 
@@ -493,17 +889,21 @@ rbac/role_binding:rb-test binds test to cost-openshift-viewer on team-a
 
 ### Kessel Gap Inventory
 
-The following operations bypass the Kessel Inventory/Relations APIs and access SpiceDB directly. Each represents a gap that the Kessel team should address:
+The following operations use the Relations API (not the Inventory API) because no higher-level semantic API exists. Some also represent upstream Kessel gaps:
 
-| Gap | Operation | Current Workaround | Proposed Kessel API |
+| Gap | Operation | Current Kessel API | Proposed Improvement |
 |---|---|---|---|
-| **Workspace management** | Create/delete `rbac/workspace` resources and `t_parent` relations | Direct SpiceDB `WriteRelationships` | Workspace CRUD endpoints on Inventory API |
-| **Role binding management** | Bind roles to users/groups on workspaces | Direct SpiceDB `WriteRelationships` | Role binding CRUD endpoints on Inventory API |
-| **Structural relationships** | Write `has_cluster`, `has_project` cross-type relations | `create_structural_tuple` via Relations API (REST POST) | `ReportResource` should support declaring structural relationships alongside metadata |
-| **Schema deployment** | Deploy/update the `.zed` schema | Direct SpiceDB schema write or `SPICEDB_SCHEMA_FILE` env var | Schema management API or versioned schema registry |
+| **Workspace management** | Create/delete `rbac/workspace` resources and `t_parent` relations | Relations API `CreateTuples`/`DeleteTuples` (gRPC) | Dedicated workspace CRUD endpoints (convenience) |
+| **Role binding management** | Bind roles to users/groups on workspaces | Relations API `CreateTuples`/`DeleteTuples` (gRPC) | Role binding CRUD endpoints (convenience) |
+| **Multi-workspace assignment** | Assign resources to additional team workspaces | Relations API `CreateTuples` (gRPC) | `AssignWorkspace` RPC on Inventory API (reduces risk) |
+| **Tuple enumeration** | List existing tuples for admin queries | Relations API `ReadTuples` (gRPC — streaming) | Non-streaming HTTP endpoint for REST tooling |
+| **Structural relationships** | Write `has_cluster`, `has_project` cross-type relations | Relations API `CreateTuples` (REST) | `ReportResource` should support declaring structural relationships alongside metadata |
+| **Schema deployment** | Deploy/update the `.zed` schema | SpiceDB `SPICEDB_SCHEMA_FILE` env var (deployment-time) | Schema management API or versioned schema registry |
 | **CDC pipeline** | Auto-create `t_workspace` tuples from Inventory events | Disabled on-prem; Koku writes tuples via Relations API directly | On-prem CDC support or explicit `ReportResource` option to create tuples synchronously |
 | **Computed permissions** | Cross-type permission resolution (`has_cluster->read`, `has_project->read`) | Custom schema additions to the on-prem `.zed` file | Upstream KSL schema support for structural resource relationships |
-| **Application-specific computed-visibility resources** | `cost_management/integration` — a resource whose `read` permission is entirely derived from child resource access, not direct role bindings. Created because Koku's `/sources/` API is a separate endpoint that needs per-user filtering independent of cost report access. | Custom `integration` type in on-prem `.zed` schema; Koku registers integration resources and structural tuples during source creation and data ingestion | Upstream support for application-defined "container" resource types with computed visibility, or a generic mechanism for API endpoints to derive per-user resource lists from child access grants |
+| **Application-specific computed-visibility resources** | `cost_management/integration` — visibility derived from child resource access | Custom `integration` type in on-prem `.zed` schema; Koku registers via Inventory API | Upstream support for application-defined "container" resource types with computed visibility |
+
+> **Note**: Schema deployment is the only operation that touches SpiceDB directly (via the `SPICEDB_SCHEMA_FILE` environment variable at container startup). This is a deployment-time operation handled by `deploy-kessel.sh`, not a runtime operation. All runtime operations go through Kessel APIs.
 
 ### Kessel API Authentication Hardening
 
@@ -795,7 +1195,7 @@ Create a role_binding per resource, not per workspace.
 
 Use the Relations API for both `resource_reporter` and admin operations.
 
-- **Partially accepted**: `resource_reporter.py` continues to use the Relations API for the primary `t_workspace` tuple (SaaS-compatible path). Admin operations use SpiceDB directly for batch writes, read capabilities, and multiple `t_workspace` tuples. See [Why Direct SpiceDB](#why-direct-spicedb-for-admin-operations).
+- **Accepted**: All operations go through Kessel APIs. `resource_reporter.py` uses the Inventory API (`ReportResource`) for resource lifecycle and the Relations API (REST) for tuples. The ReBAC Bridge uses the Relations API (gRPC) for all RBAC primitive management. See [Kessel API Layer Separation](#kessel-api-layer-separation).
 
 ---
 
@@ -803,8 +1203,8 @@ Use the Relations API for both `resource_reporter` and admin operations.
 
 | Risk | Severity | Mitigation |
 |---|---|---|
-| **Multiple `t_workspace` tuples diverge from Kessel Inventory API contract** | Medium | Only the admin tooling creates additional tuples. `resource_reporter.py` writes one tuple (Kessel-compatible). Inventory API reads are unaffected — `StreamedListObjects` and `Check` resolve through SpiceDB regardless of tuple count. |
-| **Direct SpiceDB access bypasses future Relations API validation** | Low | On-prem controls the upgrade cycle. If the Relations API adds write-side validation in the future, the admin tooling can be updated. Currently the Relations API is a pass-through. |
+| **Multiple `t_workspace` tuples diverge from Kessel Inventory API contract** | Medium | Only the ReBAC Bridge creates additional team-workspace tuples (via Relations API gRPC). `resource_reporter.py` writes one tuple per resource (Kessel-compatible). Inventory API reads are unaffected — `StreamedListObjects` and `Check` resolve through SpiceDB regardless of tuple count. |
+| **Inventory API `SetWorkspace` TODO may delete team-workspace tuples** | Low | If the Kessel team implements the `TODO: remove previous tuple for workspace`, `ReportResource` could delete tuples created by the Relations API. Mitigated by: (a) the TODO targets tuples created by the Inventory API, not arbitrary `t_workspace` tuples; (b) on-prem controls the Kessel version; (c) tracked in [FLPATH-3405](https://issues.redhat.com/browse/FLPATH-3405) for a proper `AssignWorkspace` RPC. |
 | **Workspace hierarchy management complexity** | Medium | Keycloak-driven automation (Option E) handles workspace/binding lifecycle. Admin tooling provides CLI and API for manual operations. |
 | **Re-ingestion writes a duplicate tuple** | Negligible | `on_resource_created` upserts with the same `org_id` every time — idempotent no-op at the SpiceDB level. |
 | **Schema drift between on-prem and upstream `rbac-config`** | Medium | On-prem schema is a superset: adds resource type definitions ([FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319)), the `integration` type, and structural relations (`has_cluster`, `has_project`). No existing definitions are modified. Tracked in [zed-schema-upstream-delta.md](./zed-schema-upstream-delta.md). |
@@ -830,7 +1230,7 @@ Use the Relations API for both `resource_reporter` and admin operations.
 | ZED schema — `integration` type + structural relations | **Implemented** | [schema.zed](../../../dev/kessel/schema.zed) |
 | Unit tests (create, delete, idempotency, structural tuples) | **Implemented** | [test_resource_reporter.py](../../../koku/koku_rebac/test/test_resource_reporter.py), [test_sources_access.py](../../../koku/api/common/permissions/test/test_sources_access.py) |
 | Django migration | **Implemented** | [0001_initial.py](../../../koku/koku_rebac/migrations/0001_initial.py) |
-| Admin tooling (workspace CRUD, SpiceDB direct) | **Not started** | — |
+| Admin tooling (workspace CRUD, Relations API gRPC) | **Not started** | [rebac-bridge-design.md](./rebac-bridge-design.md) |
 | Keycloak group sync automation | **Not started** | — |
 | Admin API endpoints | **Not started** | — |
 

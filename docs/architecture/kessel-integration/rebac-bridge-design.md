@@ -32,10 +32,10 @@
   - [Access and Permissions](#access-and-permissions)
 - [Data Model](#data-model)
   - [PostgreSQL Metadata Tables](#postgresql-metadata-tables)
-  - [SpiceDB as Source of Truth](#spicedb-as-source-of-truth)
+  - [SpiceDB as Source of Truth (via Relations API)](#spicedb-as-source-of-truth)
   - [What Lives Where](#what-lives-where)
-- [Translation Layer: API to SpiceDB Tuples](#translation-layer-api-to-spicedb-tuples)
-  - [SpiceDB Client](#spicedb-client)
+- [Translation Layer: API to Kessel Tuples](#translation-layer-api-to-kessel-tuples)
+  - [Relations API gRPC Client](#relations-api-grpc-client)
   - [Group Creation](#group-creation)
   - [Role Assignment to Group](#role-assignment-to-group)
   - [Resource Assignment to Group](#resource-assignment-to-group)
@@ -86,7 +86,7 @@ The missing piece is the **management plane**: how on-prem administrators manage
 
 These tools require deep knowledge of SpiceDB tuple structure and are unsuitable for day-to-day administration by non-technical operators. The [insights-rbac-ui](https://github.com/RedHatInsights/insights-rbac-ui) provides a proven admin UI in SaaS, but the analysis in the [feasibility study](./insights-rbac-kessel-onprem-feasibility.md) concluded that deploying insights-rbac on-prem introduces significant infrastructure overhead (PostgreSQL, Redis, Kafka, Principal Proxy) and that the UI is tightly coupled to the SaaS shell (`insights-chrome`).
 
-This document describes a lightweight Go service — the **ReBAC Bridge** — that exposes insights-rbac v1 compatible REST endpoints backed by SpiceDB, enabling the UI team to extract and reuse insights-rbac-ui components with minimal adaptation.
+This document describes a lightweight Go service — the **ReBAC Bridge** — that exposes insights-rbac v1 compatible REST endpoints backed by the Kessel Relations API (which fronts SpiceDB), enabling the UI team to extract and reuse insights-rbac-ui components with minimal adaptation.
 
 ---
 
@@ -102,7 +102,7 @@ On-prem administrators need to:
 
 These operations must:
 
-- Translate into SpiceDB tuple CRUD operations via direct [SpiceDB gRPC](https://github.com/authzed/authzed-go).
+- Translate into SpiceDB tuple CRUD operations via the [Kessel Relations API gRPC](https://github.com/project-kessel/relations-api).
 - Expose REST endpoints compatible with insights-rbac v1 to maximize UI code reuse.
 - Have minimal memory and infrastructure footprint (this service is temporary).
 - Not require Kafka, Debezium, or insights-rbac deployment.
@@ -116,7 +116,7 @@ Build a **standalone Go microservice** that:
 1. Exposes insights-rbac v1 compatible REST endpoints for roles, groups, principals, and permissions.
 2. Adds new endpoints for group-level resource assignments (not in insights-rbac v1).
 3. Uses a thin PostgreSQL schema (in Koku's existing database) for display metadata (role names, group descriptions).
-4. Communicates with SpiceDB directly via gRPC for all authorization tuple operations.
+4. Communicates with SpiceDB via the Kessel Relations API gRPC for all authorization tuple operations.
 5. Resolves principals from Keycloak.
 
 ### Why Go
@@ -147,7 +147,7 @@ The service is intentionally temporary — it will be replaced when a permanent 
 ### Non-Goals
 
 - Full insights-rbac v2 API (workspaces are internal, not exposed).
-- Kessel Inventory API integration (the bridge talks directly to SpiceDB, not Inventory).
+- Kessel Inventory API integration (the bridge uses the Relations API, not the Inventory API).
 - SaaS deployment (this service is on-prem only).
 - Long-term maintenance (explicitly designed to be replaced).
 
@@ -166,9 +166,9 @@ flowchart TB
         end
 
         subgraph kessel ["Kessel Stack"]
-            RelationsAPI["Relations API<br/><small>REST — tuple CRUD</small>"]
+            RelationsAPI["Relations API<br/><small>gRPC (port 9000) + REST (port 8000)</small>"]
             InventoryAPI["Inventory API<br/><small>gRPC — Check, ListObjects</small>"]
-            SpiceDB["SpiceDB"]
+            SpiceDB["SpiceDB<br/><small>backend — never accessed directly</small>"]
         end
 
         subgraph data ["Data Layer"]
@@ -183,7 +183,7 @@ flowchart TB
         end
 
         AdminUI -->|"REST"| Bridge
-        Bridge -->|"gRPC: WriteRelationships,<br/>ReadRelationships, Check"| SpiceDB
+        Bridge -->|"gRPC: CreateTuples,<br/>DeleteTuples, ReadTuples, Check"| RelationsAPI
         Bridge -->|"metadata read/write"| PG
         Bridge -->|"principal resolution"| Keycloak
         RelationsAPI --> SpiceDB
@@ -199,7 +199,7 @@ flowchart TB
     style koku fill:#fff3e0,stroke:#e65100
 ```
 
-**Key separation**: Koku's request-path authorization (`KesselAccessProvider`) talks to the Kessel Inventory API via gRPC. The ReBAC Bridge talks to SpiceDB directly via gRPC. They share SpiceDB as the underlying data store but are otherwise completely decoupled.
+**Key separation**: Koku's request-path authorization (`KesselAccessProvider`) talks to the Kessel Inventory API via gRPC. The ReBAC Bridge talks to the Kessel Relations API via gRPC. Both APIs front SpiceDB — no component accesses SpiceDB directly. The bridge and Koku are otherwise completely decoupled.
 
 ### Request Flow
 
@@ -210,18 +210,18 @@ sequenceDiagram
     participant UI as Admin UI
     participant Bridge as ReBAC Bridge
     participant PG as PostgreSQL
-    participant DB as SpiceDB
+    participant Relations as Relations API
 
     UI->>Bridge: POST /api/rbac/v1/groups/
     Note over Bridge: Generate group_uuid
-    Bridge->>DB: gRPC WriteRelationships<br/>(workspace:{uuid} #t_parent → workspace:{org_id})
-    DB-->>Bridge: OK
+    Bridge->>Relations: gRPC CreateTuples<br/>(workspace:{uuid} #t_parent → workspace:{org_id})
+    Relations-->>Bridge: OK
     Bridge->>PG: INSERT rebac_bridge.groups<br/>(uuid, name, description, org_id)
     PG-->>Bridge: OK
     Bridge-->>UI: 201 Created { uuid, name, ... }
 ```
 
-Note the write ordering: SpiceDB first (authorization), PostgreSQL second (display metadata). If the SpiceDB write succeeds but PostgreSQL fails, an orphaned workspace exists (harmless — reconciler cleans up). If the SpiceDB write fails, nothing is created. See [Consistency Model](#consistency-model).
+Note the write ordering: Relations API first (authorization tuples), PostgreSQL second (display metadata). If the Relations API write succeeds but PostgreSQL fails, an orphaned workspace exists (harmless — reconciler cleans up). If the Relations API write fails, nothing is created. See [Consistency Model](#consistency-model).
 
 ### Workspace Abstraction
 
@@ -229,8 +229,8 @@ Kessel workspaces (`rbac/workspace`) are internal authorization primitives — t
 
 | Admin action | ReBAC Bridge translates to |
 |---|---|
-| Create group "team-infra" | 1. Generate UUID<br/>2. Create `rbac/workspace:{uuid}` + `t_parent → workspace:{org_id}` in SpiceDB<br/>3. Create `rebac_bridge.groups` row in PostgreSQL |
-| Delete group "team-infra" | 1. Delete `rebac_bridge.groups` row (PG first)<br/>2. Delete role bindings on workspace (SpiceDB)<br/>3. Delete resource assignments (`t_workspace` tuples pointing to workspace)<br/>4. Delete `t_parent` tuple<br/>5. Delete workspace<br/>6. Delete `rbac/group:{uuid}` tuples |
+| Create group "team-infra" | 1. Generate UUID<br/>2. Create `rbac/workspace:{uuid}` + `t_parent → workspace:{org_id}` via Relations API<br/>3. Create `rebac_bridge.groups` row in PostgreSQL |
+| Delete group "team-infra" | 1. Delete `rebac_bridge.groups` row (PG first)<br/>2. Delete role bindings on workspace (Relations API)<br/>3. Delete resource assignments (`t_workspace` tuples pointing to workspace)<br/>4. Delete `t_parent` tuple<br/>5. Delete workspace<br/>6. Delete `rbac/group:{uuid}` tuples |
 | Assign resource to group | Create `resource #t_workspace → rbac/workspace:{group-workspace}` tuple |
 | Remove resource from group | Delete `resource #t_workspace → rbac/workspace:{group-workspace}` tuple |
 
@@ -281,12 +281,12 @@ Roles represent named permission bundles. System roles (seeded from [rbac-config
 **Implementation**:
 
 - System roles: read from `rebac_bridge.roles` (seeded at startup from [seed-roles.yaml](../../../dev/kessel/seed-roles.yaml)).
-- Custom roles: CRUD in `rebac_bridge.roles` + SpiceDB tuple creation for the role's permission relations.
+- Custom roles: CRUD in `rebac_bridge.roles` + tuple creation via Relations API for the role's permission relations.
 - Custom role creation writes tuples: `rbac/role:{slug}#t_cost_management_{type}_{verb} → rbac/principal:*` for each permission.
 
 ### Groups
 
-Groups represent teams of users. Each group has an implicit SpiceDB workspace used for scoping role bindings and resource assignments.
+Groups represent teams of users. Each group has an implicit Kessel workspace (managed via the Relations API) used for scoping role bindings and resource assignments.
 
 | Method | Path | Description |
 |---|---|---|
@@ -296,17 +296,17 @@ Groups represent teams of users. Each group has an implicit SpiceDB workspace us
 | PUT | `/groups/{uuid}/` | Update group metadata |
 | DELETE | `/groups/{uuid}/` | Delete group (cascades: role bindings, resource assignments, workspace) |
 
-**On creation**, the bridge creates (SpiceDB first, PostgreSQL second — see [write ordering](#write-ordering-principle)):
+**On creation**, the bridge creates (Relations API first, PostgreSQL second — see [write ordering](#write-ordering-principle)):
 
-1. `rbac/workspace:{uuid}` with `t_parent → rbac/workspace:{org_id}` (SpiceDB)
-2. `rbac/group:{uuid}` (SpiceDB — implicit on first relation write)
+1. `rbac/workspace:{uuid}` with `t_parent → rbac/workspace:{org_id}` (via Relations API gRPC)
+2. `rbac/group:{uuid}` (implicit on first relation write)
 3. `rebac_bridge.groups` row (PostgreSQL)
 
 The `t_parent` relation ensures that org-level admins (bound at the org workspace) inherit visibility into all resources assigned to this group's workspace. See the [workspace hierarchy design](./onprem-workspace-management-adr.md#workspace-hierarchy-design) in the ADR.
 
 ### Group Principals
 
-Manage group membership. Members are resolved from Keycloak and stored as SpiceDB `t_member` tuples on the group.
+Manage group membership. Members are resolved from Keycloak and stored as `t_member` tuples (via Relations API) on the group.
 
 | Method | Path | Description |
 |---|---|---|
@@ -373,7 +373,7 @@ This is an additive tuple. The resource's primary `t_workspace` tuple (pointing 
 
 **Revoke resource access** deletes that specific `t_workspace` tuple. It never touches the primary org-level tuple.
 
-**List resources** reads tuples from SpiceDB where `relation=t_workspace` and `subject=rbac/workspace:{group_uuid}`.
+**List resources** reads tuples via the Relations API (`ReadTuples` gRPC) where `relation=t_workspace` and `subject=rbac/workspace:{group_uuid}`.
 
 **Available resources** (for the resource picker UI):
 
@@ -441,11 +441,11 @@ Read-only endpoints for browsing the permission model.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/access/` | Get calling user's effective access (reads SpiceDB via `ReadRelationships`) |
+| GET | `/access/` | Get calling user's effective access (reads tuples via Relations API `ReadTuples`) |
 | GET | `/permissions/` | List all cost-management permissions (including `integration:read`) |
 | GET | `/permissions/options/?field={application\|resource_type\|verb}` | List distinct values for the given field — used by the role builder UI for dropdown population |
 
-The `/access/` endpoint reconstructs the same `user.access` data structure that Koku's `KesselAccessProvider` produces, but exposed via REST for the UI to display. It queries SpiceDB via `ReadRelationships` (gRPC), not via the Kessel Inventory API.
+The `/access/` endpoint reconstructs the same `user.access` data structure that Koku's `KesselAccessProvider` produces, but exposed via REST for the UI to display. It queries the Relations API via `ReadTuples` (gRPC), not the Kessel Inventory API.
 
 ---
 
@@ -520,7 +520,7 @@ flowchart LR
         Assignments["<b>rebac_bridge.resource_assignments</b><br/>group_uuid, resource_type<br/>resource_id, assigned_at"]
     end
 
-    subgraph spice ["SpiceDB (via gRPC)"]
+    subgraph spice ["SpiceDB (via Relations API gRPC)"]
         direction TB
         Role["rbac/role:{slug}<br/>#t_cost_management_* → principal:*"]
         Group["rbac/group:{uuid}<br/>#t_member → principal:{user}"]
@@ -538,57 +538,97 @@ flowchart LR
 
 ---
 
-## Translation Layer: API to SpiceDB Tuples
+## Translation Layer: API to Kessel Tuples
 
-The core of the bridge is the translation between high-level RBAC operations (the UI's mental model) and low-level SpiceDB tuples (the authorization engine's data model).
+The core of the bridge is the translation between high-level RBAC operations (the UI's mental model) and low-level authorization tuples (managed via the Kessel Relations API, stored in SpiceDB).
 
-### SpiceDB Client
+### Relations API gRPC Client
 
-The bridge communicates directly with SpiceDB via gRPC using the [authzed-go](https://github.com/authzed/authzed-go) client library:
+The bridge communicates with SpiceDB via the Kessel Relations API gRPC
+endpoint (port 9000). It uses the Go gRPC stubs generated from the
+[`project-kessel/relations-api`](https://github.com/project-kessel/relations-api)
+protobuf definitions. This is the same approach used by `ros-ocp-backend`
+(`KesselCheckServiceClient` / `KesselLookupServiceClient`).
 
 ```go
-type SpiceDBClient struct {
-    client *authzed.Client
+import (
+    pb "github.com/project-kessel/relations-api/api/kessel/relations/v1beta1"
+)
+
+type RelationsClient struct {
+    tuples pb.KesselTupleServiceClient
+    check  pb.KesselCheckServiceClient
+    lookup pb.KesselLookupServiceClient
 }
 
-func (c *SpiceDBClient) WriteTuples(ctx context.Context, tuples []*v1.RelationshipUpdate) (*v1.WriteRelationshipsResponse, error) {
-    return c.client.WriteRelationships(ctx, &v1.WriteRelationshipsRequest{
-        Updates: tuples,
-    })
-}
-
-func (c *SpiceDBClient) ReadTuples(ctx context.Context, filter *v1.RelationshipFilter) ([]*v1.Relationship, error) {
-    resp, err := c.client.ReadRelationships(ctx, &v1.ReadRelationshipsRequest{
-        RelationshipFilter: filter,
-    })
-    // stream collect ...
-    return relationships, err
-}
-
-func (c *SpiceDBClient) DeleteTuples(ctx context.Context, filter *v1.RelationshipFilter) error {
-    _, err := c.client.DeleteRelationships(ctx, &v1.DeleteRelationshipsRequest{
-        RelationshipFilter: filter,
+func (c *RelationsClient) WriteTuples(ctx context.Context, tuples []*pb.Relationship) error {
+    _, err := c.tuples.CreateTuples(ctx, &pb.CreateTuplesRequest{
+        Upsert: true,
+        Tuples: tuples,
     })
     return err
 }
 
-func (c *SpiceDBClient) Check(ctx context.Context, resource, relation, subject string) (bool, error) {
-    resp, err := c.client.CheckPermission(ctx, &v1.CheckPermissionRequest{
-        Resource:   parseRef(resource),
-        Permission: relation,
-        Subject:    &v1.SubjectReference{Object: parseRef(subject)},
+func (c *RelationsClient) ReadTuples(ctx context.Context, filter *pb.RelationTupleFilter) ([]*pb.Relationship, error) {
+    stream, err := c.tuples.ReadTuples(ctx, &pb.ReadTuplesRequest{
+        Filter: filter,
     })
-    return resp.GetPermissionship() == v1.CheckPermissionResponse_PERMISSIONSHIP_HAS_PERMISSION, err
+    if err != nil {
+        return nil, err
+    }
+    var results []*pb.Relationship
+    for {
+        resp, err := stream.Recv()
+        if err == io.EOF {
+            break
+        }
+        if err != nil {
+            return nil, err
+        }
+        results = append(results, resp.Tuple)
+    }
+    return results, nil
+}
+
+func (c *RelationsClient) DeleteTuples(ctx context.Context, filter *pb.RelationTupleFilter) error {
+    _, err := c.tuples.DeleteTuples(ctx, &pb.DeleteTuplesRequest{
+        Filter: filter,
+    })
+    return err
+}
+
+func (c *RelationsClient) Check(ctx context.Context, resource, relation, subject string) (bool, error) {
+    resp, err := c.check.Check(ctx, &pb.CheckRequest{
+        Resource: parseObjectRef(resource),
+        Relation: relation,
+        Subject:  &pb.SubjectReference{Subject: parseObjectRef(subject)},
+    })
+    if err != nil {
+        return false, err
+    }
+    return resp.Allowed == pb.CheckResponse_ALLOWED_TRUE, nil
 }
 ```
 
-**Why direct SpiceDB gRPC instead of the Kessel Relations API**: The Relations API is a thin REST-to-gRPC translation layer over SpiceDB — it does not provide higher-level user, group, or role management APIs. All semantics (groups, roles, role bindings) are constructed by the bridge regardless of which client is used. Direct SpiceDB gRPC provides:
+**Why the Relations API gRPC (not REST, not direct SpiceDB)**:
 
-1. **Performance**: Native gRPC avoids the HTTP/JSON serialization overhead of the Relations API REST layer. Batch `WriteRelationships` calls are more efficient than individual REST requests.
-2. **Stability**: The Relations API is under active development (v1beta1) and its REST surface may change. SpiceDB's gRPC API (`authzed.api.v1`) is stable and well-documented.
-3. **Feature access**: Direct access to SpiceDB features like `CheckPermission` (used for admin authorization), streaming `ReadRelationships`, and `WriteRelationships` with preconditions — not all of which are exposed via the Relations API REST layer.
+The bridge uses the Relations API gRPC endpoint (port 9000) rather than
+the REST endpoint (port 8000) or direct SpiceDB access because:
 
-> **Note on other services**: `ros-ocp-backend` previously used `authzed-go` (direct SpiceDB gRPC) but has since migrated to the Kessel Relations API gRPC clients (`project-kessel/relations-api` v1beta1 `KesselCheckServiceClient` / `KesselLookupServiceClient`). Koku's `resource_reporter.py` uses the Relations API REST endpoints for `t_workspace` tuple creation. The bridge's choice of direct SpiceDB gRPC is deliberate — the bridge needs `WriteRelationships` with batch semantics, streaming `ReadRelationships` for tuple enumeration, and `CheckPermission` for admin authorization checks. These requirements exceed what the Relations API currently exposes. Both paths write to the same underlying SpiceDB instance. The `deploy-kessel.sh` script already creates the SpiceDB pre-shared key, which the bridge reads from its configuration.
+1. **gRPC over REST**: The REST gateway does not support `ReadTuples`
+   (a server-streaming RPC — returns 404 over REST). The gRPC endpoint
+   supports all operations including streaming reads.
+2. **Relations API over direct SpiceDB**: All on-prem components interact
+   with SpiceDB exclusively through Kessel APIs (see
+   [Kessel API Layer Separation](./onprem-workspace-management-adr.md#kessel-api-layer-separation)).
+   The Relations API is the correct Kessel layer for RBAC primitive
+   management. Using it keeps the bridge within the Kessel stack and
+   avoids requiring direct SpiceDB network access or credentials.
+3. **Consistency with `ros-ocp-backend`**: ROS already uses the Relations
+   API gRPC clients. The bridge follows the same pattern.
+4. **Batch support**: `CreateTuples` with `upsert: true` accepts multiple
+   tuples in a single call, matching the bridge's need for atomic group
+   creation (workspace + role_binding + membership tuples).
 
 ### Group Creation
 
@@ -600,8 +640,8 @@ Input: { "name": "Infrastructure Team", "description": "Infra engineers" }
 Step 1: Generate UUID
   group_uuid = gen_random_uuid()
 
-Step 2: SpiceDB (gRPC WriteRelationships) — write authorization state first
-  WriteRelationships([
+Step 2: Relations API (gRPC CreateTuples) — write authorization state first
+  CreateTuples([
     // Create workspace for this group, linked to org workspace
     { resource: "rbac/workspace:{group_uuid}",
       relation: "t_parent",
@@ -615,7 +655,7 @@ Step 3: PostgreSQL — write display metadata second
 Output: 201 Created, { "uuid": "{group_uuid}", "name": "Infrastructure Team", ... }
 ```
 
-This follows the [write ordering principle](#write-ordering-principle): SpiceDB first for creates, so the worst-case failure mode is an orphaned workspace (harmless, cleaned up by the reconciler) rather than a group visible in the API with no authorization backing.
+This follows the [write ordering principle](#write-ordering-principle): Relations API first for creates, so the worst-case failure mode is an orphaned workspace (harmless, cleaned up by the reconciler) rather than a group visible in the API with no authorization backing.
 
 ### Role Assignment to Group
 
@@ -625,17 +665,17 @@ When `POST /api/rbac/v1/groups/{uuid}/roles/` is called with `{ "roles": ["cost-
 sequenceDiagram
     participant UI as Admin UI
     participant Bridge as ReBAC Bridge
-    participant DB as SpiceDB
+    participant Relations as Relations API
 
     UI->>Bridge: POST /groups/{uuid}/roles/<br/>{ "roles": ["cost-openshift-viewer"] }
 
     Note over Bridge: binding_id = {group}-{role}-{org}
 
-    Bridge->>DB: gRPC WriteRelationships (3 tuples)
-    Note right of DB: role_binding:{id} #t_subject<br/>→ group:{uuid}#member
-    Note right of DB: role_binding:{id} #t_granted<br/>→ role:cost-openshift-viewer
-    Note right of DB: workspace:{group_uuid} #t_binding<br/>→ role_binding:{id}
-    DB-->>Bridge: OK
+    Bridge->>Relations: gRPC CreateTuples (3 tuples)
+    Note right of Relations: role_binding:{id} #t_subject<br/>→ group:{uuid}#member
+    Note right of Relations: role_binding:{id} #t_granted<br/>→ role:cost-openshift-viewer
+    Note right of Relations: workspace:{group_uuid} #t_binding<br/>→ role_binding:{id}
+    Relations-->>Bridge: OK
     Bridge-->>UI: 200 OK
 ```
 
@@ -669,12 +709,12 @@ When `POST /api/rbac/v1/groups/{uuid}/resources/` is called with `{ "resource_ty
 sequenceDiagram
     participant UI as Admin UI
     participant Bridge as ReBAC Bridge
-    participant DB as SpiceDB
+    participant Relations as Relations API
 
     UI->>Bridge: POST /groups/{uuid}/resources/<br/>{ type: "openshift_cluster", id: "cluster-prod-01" }
-    Bridge->>DB: gRPC WriteRelationships (1 tuple)
-    Note right of DB: openshift_cluster:cluster-prod-01<br/>#t_workspace → workspace:{group_uuid}
-    DB-->>Bridge: OK
+    Bridge->>Relations: gRPC CreateTuples (1 tuple)
+    Note right of Relations: openshift_cluster:cluster-prod-01<br/>#t_workspace → workspace:{group_uuid}
+    Relations-->>Bridge: OK
     Bridge-->>UI: 201 Created
 ```
 
@@ -718,14 +758,14 @@ When `POST /api/rbac/v1/groups/{uuid}/principals/` is called with `{ "principals
 For each principal:
   1. Validate principal exists in Keycloak (GET /admin/realms/{realm}/users?username=alice)
 
-  2. WriteRelationships([
+  2. CreateTuples([
        { resource: "rbac/group:{group_uuid}",
          relation: "t_member",
          subject:  "rbac/principal:redhat/alice" },
      ])
 ```
 
-The principal ID format is `redhat/{username}` — a fixed convention from upstream Kessel (matching what `KesselAccessProvider.access_provider.py` uses: `f"redhat/{user_id}"`). The `redhat` prefix is **not** derived from the Keycloak realm name (`kubernetes`). The bridge validates that the user exists in Keycloak (using the configured realm), but always constructs the SpiceDB principal ID with the `redhat/` prefix.
+The principal ID format is `redhat/{username}` — a fixed convention from upstream Kessel (matching what `KesselAccessProvider.access_provider.py` uses: `f"redhat/{user_id}"`). The `redhat` prefix is **not** derived from the Keycloak realm name (`kubernetes`). The bridge validates that the user exists in Keycloak (using the configured realm), but always constructs the principal ID with the `redhat/` prefix.
 
 ### Access Resolution
 
@@ -733,7 +773,7 @@ When `GET /api/rbac/v1/access/?application=cost-management` is called:
 
 ```
 1. Extract principal from x-rh-identity header
-2. ReadRelationships with filters to find:
+2. ReadTuples (Relations API gRPC) with filters to find:
    a. Which groups the principal belongs to (t_member tuples)
    b. Which role bindings exist for those groups
    c. Which roles are granted by those bindings
@@ -753,37 +793,37 @@ This endpoint is informational (for the UI to display user permissions). The act
 
 ## Consistency Model
 
-The bridge writes to two systems: PostgreSQL (metadata) and SpiceDB (authorization tuples). Since there is no distributed transaction, the bridge uses a write ordering convention to minimize inconsistency windows.
+The bridge writes to two systems: PostgreSQL (metadata) and SpiceDB via the Relations API (authorization tuples). Since there is no distributed transaction, the bridge uses a write ordering convention to minimize inconsistency windows.
 
 ### Write Ordering Principle
 
 | Operation type | Write order | Rationale |
 |---|---|---|
-| **Create** (group, role, binding) | SpiceDB first, PostgreSQL second | If SpiceDB write succeeds but PG fails, SpiceDB has orphan tuples but they're harmless (no matching metadata). Retry creates the PG row. If SpiceDB fails, nothing is created — no cleanup needed. |
-| **Delete** (group, role, binding) | PostgreSQL first, SpiceDB second | If PG delete succeeds but SpiceDB fails, the entity disappears from the API but stale tuples remain in SpiceDB. The reconciler cleans these up. If PG fails, nothing is deleted — the entity remains fully consistent. |
+| **Create** (group, role, binding) | Relations API first, PostgreSQL second | If the Relations API write succeeds but PG fails, orphan tuples exist but are harmless (no matching metadata). Retry creates the PG row. If the Relations API fails, nothing is created — no cleanup needed. |
+| **Delete** (group, role, binding) | PostgreSQL first, Relations API second | If PG delete succeeds but the Relations API fails, the entity disappears from the API but stale tuples remain. The reconciler cleans these up. If PG fails, nothing is deleted — the entity remains fully consistent. |
 
-**Critical insight**: Most operations that matter for authorization are **SpiceDB-only** (resource assignments, principal membership, role bindings). The PostgreSQL writes are for display metadata only. Authorization correctness depends on SpiceDB alone.
+**Critical insight**: Most operations that matter for authorization are **Relations API-only** (resource assignments, principal membership, role bindings). The PostgreSQL writes are for display metadata only. Authorization correctness depends on SpiceDB (accessed via the Relations API) alone.
 
 ### Per-Operation Consistency Strategy
 
-| Operation | PostgreSQL | SpiceDB | Failure mode |
+| Operation | PostgreSQL | Relations API | Failure mode |
 |---|---|---|---|
 | List roles | Read | - | N/A (read-only) |
-| Create custom role | Write (role metadata) | Write (permission tuples) | SpiceDB first: if PG fails, role works for auth but not visible in list. Reconciler fills PG. |
-| Create group | Write (group metadata) | Write (workspace + t_parent) | SpiceDB first: if PG fails, workspace exists but group not listable. Reconciler fills PG. |
-| Add principal to group | - | Write (t_member tuple) | SpiceDB-only: atomic, no cross-system concern. |
-| Assign role to group | - | Write (3 role_binding tuples) | SpiceDB-only: atomic within single `WriteRelationships` call. |
-| Assign resource to group | Write (resource_assignments row) | Write (t_workspace tuple) | SpiceDB first: if PG fails, resource is accessible but `assigned_at` is missing. Reconciler fills PG. |
-| Delete group | Delete PG row | Delete tuples (workspace, bindings, assignments) | PG first: if SpiceDB cleanup fails, group disappears from list but stale tuples remain. Reconciler cleans up. |
-| List access | - | Read (tuples) | SpiceDB-only: consistent read. |
-| List principals | - | Read (tuples) + Keycloak | If Keycloak unavailable, return SpiceDB-known principals only. |
+| Create custom role | Write (role metadata) | Write (permission tuples) | Relations API first: if PG fails, role works for auth but not visible in list. Reconciler fills PG. |
+| Create group | Write (group metadata) | Write (workspace + t_parent) | Relations API first: if PG fails, workspace exists but group not listable. Reconciler fills PG. |
+| Add principal to group | - | Write (t_member tuple) | Relations API-only: atomic, no cross-system concern. |
+| Assign role to group | - | Write (3 role_binding tuples) | Relations API-only: atomic within single `CreateTuples` call. |
+| Assign resource to group | Write (resource_assignments row) | Write (t_workspace tuple) | Relations API first: if PG fails, resource is accessible but `assigned_at` is missing. Reconciler fills PG. |
+| Delete group | Delete PG row | Delete tuples (workspace, bindings, assignments) | PG first: if Relations API cleanup fails, group disappears from list but stale tuples remain. Reconciler cleans up. |
+| List access | - | Read (tuples) | Relations API-only: consistent read. |
+| List principals | - | Read (tuples) + Keycloak | If Keycloak unavailable, return Relations API-known principals only. |
 
 ### Background Reconciler
 
-A lightweight periodic task (every 5 minutes) checks for divergence between PostgreSQL and SpiceDB:
+A lightweight periodic task (every 5 minutes) checks for divergence between PostgreSQL and SpiceDB (via the Relations API):
 
-1. **Orphaned SpiceDB entities**: Workspaces/groups that exist in SpiceDB but not in PostgreSQL (from failed PG writes during creation). Action: create PG metadata row.
-2. **Stale SpiceDB tuples**: Workspaces/groups that exist in SpiceDB but were deleted from PostgreSQL (from failed SpiceDB cleanup during deletion). Action: delete SpiceDB tuples.
+1. **Orphaned tuples**: Workspaces/groups that exist in SpiceDB (found via Relations API `ReadTuples`) but not in PostgreSQL (from failed PG writes during creation). Action: create PG metadata row.
+2. **Stale tuples**: Workspaces/groups that exist in SpiceDB but were deleted from PostgreSQL (from failed Relations API cleanup during deletion). Action: delete tuples via Relations API `DeleteTuples`.
 
 The reconciler runs inside the bridge process (a goroutine with a ticker), not as a separate job.
 
@@ -802,7 +842,7 @@ flowchart LR
     Request["Incoming Request"]
     AuthN["1. AuthN Middleware<br/><small>Extract + validate X-Rh-Identity</small>"]
     OrgScope["2. Org Scoping<br/><small>Set org_id from identity</small>"]
-    AuthZ["3. AuthZ Middleware<br/><small>Check SpiceDB permissions<br/>for write operations</small>"]
+    AuthZ["3. AuthZ Middleware<br/><small>Check permissions via Relations API<br/>for write operations</small>"]
     Handler["Handler"]
 
     Request --> AuthN
@@ -854,16 +894,16 @@ After authentication, the middleware extracts `org_id` from the identity and inj
 | PostgreSQL | `WHERE org_id = {identity.org_id}` on all queries |
 | SpiceDB | All tuple reads/writes use `rbac/workspace:{identity.org_id}` as the root workspace |
 
-### Step 3: Authorization (SpiceDB Permission Check)
+### Step 3: Authorization (Permission Check via Relations API)
 
 After authentication, the bridge checks whether the caller has permission for the requested operation:
 
 | Operation type | Required permission | Check mechanism |
 |---|---|---|
-| **Read** (GET on any endpoint) | `cost_management_all_read` | SpiceDB `CheckPermission` on `rbac/workspace:{org_id}` |
-| **Write** (POST, PUT, DELETE) | `cost_management_all_write` | SpiceDB `CheckPermission` on `rbac/workspace:{org_id}` |
+| **Read** (GET on any endpoint) | `cost_management_all_read` | Relations API `Check` (gRPC) on `rbac/workspace:{org_id}` |
+| **Write** (POST, PUT, DELETE) | `cost_management_all_write` | Relations API `Check` (gRPC) on `rbac/workspace:{org_id}` |
 
-The SpiceDB check for write operations:
+The Relations API check for write operations:
 
 ```
 Check(
@@ -873,7 +913,7 @@ Check(
 )
 ```
 
-The SpiceDB check for read operations:
+The Relations API check for read operations:
 
 ```
 Check(
@@ -920,7 +960,7 @@ In production, the Envoy gateway validates the Keycloak JWT and injects the `x-r
 
 ### Bootstrap Admin
 
-The initial "bootstrap admin" (the first user who needs admin access before the UI is available) is granted access via `kessel-admin.sh do_grant` during deployment, creating the necessary role binding tuples in SpiceDB. Without this bootstrap step, no user can access the bridge's endpoints — the SpiceDB permission check will deny all requests.
+The initial "bootstrap admin" (the first user who needs admin access before the UI is available) is granted access via `kessel-admin.sh do_grant` during deployment, creating the necessary role binding tuples via the Relations API. Without this bootstrap step, no user can access the bridge's endpoints — the permission check will deny all requests.
 
 ### Authorization Check Divergence: Tenant vs. Workspace
 
@@ -996,14 +1036,9 @@ spec:
           env:
             - name: DATABASE_URL
               value: postgres://postgres:postgres@db:5432/postgres?search_path=rebac_bridge
-            - name: SPICEDB_URL
-              value: spicedb:50051
-            - name: SPICEDB_PRESHARED_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: kessel-config
-                  key: spicedb-preshared-key
-            - name: SPICEDB_INSECURE
+            - name: RELATIONS_API_URL
+              value: kessel-relations-api.kessel.svc.cluster.local:9000
+            - name: RELATIONS_API_INSECURE
               value: "true"
             - name: KEYCLOAK_URL
               value: http://keycloak:8080
@@ -1042,9 +1077,8 @@ Compared to insights-rbac on-prem (from the [feasibility analysis](./insights-rb
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `DATABASE_URL` | Yes | - | PostgreSQL connection string, pointing to Koku's database |
-| `SPICEDB_URL` | Yes | - | SpiceDB gRPC endpoint (e.g. `spicedb:50051`) |
-| `SPICEDB_PRESHARED_KEY` | Yes | - | SpiceDB pre-shared key for authentication (from `kessel-config` secret, key `spicedb-preshared-key` — created by `deploy-kessel.sh` and copied to cost management namespace by `install-helm-chart.sh`) |
-| `SPICEDB_INSECURE` | No | `true` | Disable TLS for SpiceDB connection (development/on-prem) |
+| `RELATIONS_API_URL` | Yes | - | Kessel Relations API gRPC endpoint (e.g. `kessel-relations-api.kessel.svc.cluster.local:9000`) |
+| `RELATIONS_API_INSECURE` | No | `true` | Disable TLS for Relations API gRPC connection (development/on-prem) |
 | `KEYCLOAK_URL` | Yes | - | Keycloak base URL for principal resolution |
 | `KEYCLOAK_REALM` | No | `kubernetes` | Keycloak realm name (on-prem uses `kubernetes`, deployed by `deploy-rhbk.sh`) |
 | `LISTEN_ADDR` | No | `:8080` | HTTP listen address |
@@ -1056,8 +1090,8 @@ Compared to insights-rbac on-prem (from the [feasibility analysis](./insights-rb
 
 | Endpoint | Checks |
 |---|---|
-| `GET /healthz` | PostgreSQL ping + SpiceDB gRPC reachability |
-| `GET /readyz` | Same as healthz + org workspace exists in SpiceDB + system roles loaded |
+| `GET /healthz` | PostgreSQL ping + Relations API gRPC reachability |
+| `GET /readyz` | Same as healthz + org workspace exists (via Relations API `ReadTuples`) + system roles loaded |
 
 ### Prerequisites
 
@@ -1070,8 +1104,8 @@ The bridge assumes the following have been completed **before** it starts:
 
 On startup and at each `/readyz` probe, the bridge verifies:
 
-1. **Org workspace exists**: `ReadRelationships` for `rbac/workspace:{org_id}` returns at least one tuple.
-2. **System roles exist**: For each role in `seed-roles.yaml`, at least one permission tuple exists in SpiceDB (e.g. `rbac/role:cost-administrator#t_cost_management_all_all`).
+1. **Org workspace exists**: `ReadTuples` (Relations API gRPC) for `rbac/workspace:{org_id}` returns at least one tuple.
+2. **System roles exist**: For each role in `seed-roles.yaml`, at least one permission tuple exists (e.g. `rbac/role:cost-administrator#t_cost_management_all_all`), verified via `ReadTuples`.
 
 If either check fails, the bridge fails the `/readyz` probe and logs a clear error:
 
@@ -1248,7 +1282,7 @@ flowchart TB
 
 ### Koku Application Layer
 
-The ReBAC Bridge has **zero coupling** to Koku's application code. Koku's `KesselAccessProvider` talks to the Kessel Inventory API via gRPC. The bridge talks to SpiceDB directly via gRPC. They share SpiceDB as the underlying data store, but neither knows about the other.
+The ReBAC Bridge has **zero coupling** to Koku's application code. Koku's `KesselAccessProvider` talks to the Kessel Inventory API via gRPC. The bridge talks to the Kessel Relations API via gRPC. Both APIs front SpiceDB as the underlying data store, but the bridge and Koku are completely decoupled from each other.
 
 This separation is intentional: when the bridge is decommissioned, no Koku code changes are needed.
 
@@ -1258,7 +1292,8 @@ This separation is intentional: when the bridge is decommissioned, no Koku code 
 |---|---|---|
 | Inventory API (gRPC) | Yes (Check, StreamedListObjects, ReportResource) | No |
 | Relations API (REST) | Yes (resource_reporter.py for t_workspace tuples) | No |
-| SpiceDB (gRPC) | Indirectly (via Inventory/Relations APIs) | Yes — direct gRPC (WriteRelationships, ReadRelationships, CheckPermission) |
+| Relations API (gRPC) | No | Yes — CreateTuples, DeleteTuples, ReadTuples, Check |
+| SpiceDB | Indirectly (via Inventory/Relations APIs) | Indirectly (via Relations API) |
 
 ### insights-rbac-ui Extraction
 
@@ -1304,7 +1339,7 @@ The 5 Chrome adapter hooks (`usePlatformAuth`, `usePlatformTracking`, `usePlatfo
 | HTTP | `net/http` + `chi` router (lightweight, stdlib-compatible) |
 | PostgreSQL | `jackc/pgx/v5` (connection pooling, prepared statements) |
 | JSON | `encoding/json` (stdlib) |
-| SpiceDB client | `authzed/authzed-go` (official SpiceDB Go client) |
+| Relations API client | `project-kessel/relations-api` (Kessel gRPC stubs) |
 | HTTP client | `net/http` (stdlib, for Keycloak REST calls) |
 | Configuration | Environment variables (12-factor) |
 | Logging | `log/slog` (stdlib structured logging) |
@@ -1341,7 +1376,7 @@ rebac-bridge/
 │   │   ├── access.go
 │   │   ├── permissions.go
 │   │   └── middleware.go        # Identity extraction, org admin check
-│   ├── spicedb/                 # SpiceDB gRPC client wrapper
+│   ├── relations/               # Kessel Relations API gRPC client wrapper
 │   │   ├── client.go
 │   │   └── tuples.go            # Tuple construction helpers
 │   ├── keycloak/                # Keycloak API client
@@ -1401,7 +1436,7 @@ These tests validate the first middleware layer. Every test in this section targ
 
 | # | Test | Method | Path | Setup | Expected |
 |---|---|---|---|---|---|
-| A16 | `is_org_admin: true` in header is ignored | POST | `/api/rbac/v1/groups/` | Viewer user identity with `"is_org_admin": true` injected | `403` — the field is ignored; SpiceDB check determines access |
+| A16 | `is_org_admin: true` in header is ignored | POST | `/api/rbac/v1/groups/` | Viewer user identity with `"is_org_admin": true` injected | `403` — the field is ignored; Relations API check determines access |
 | A17 | Extra fields in identity do not grant access | POST | `/api/rbac/v1/groups/` | Viewer identity with `"is_internal": true, "is_active": true` | `403` — no effect on authorization |
 | A18 | Forged username does not work | GET | `/api/rbac/v1/groups/` | Identity with `"username": "admin"` but no matching SpiceDB tuples for that principal | `403` — SpiceDB is the authority, not the header |
 
@@ -1467,9 +1502,9 @@ Every mutating endpoint must check `cost_management_all_write`. Admin succeeds; 
 
 | # | Test | Setup | Expected |
 |---|---|---|---|
-| Z29 | SpiceDB down, read request | Stop SpiceDB, send GET `/roles/` with valid admin identity | `503 Service Unavailable` (fail-closed, not fail-open) |
-| Z30 | SpiceDB down, write request | Stop SpiceDB, send POST `/groups/` with valid admin identity | `503 Service Unavailable` |
-| Z31 | SpiceDB recovers, requests resume | Restart SpiceDB after Z29/Z30 | Next request returns `200`/`201` as expected |
+| Z29 | Relations API down, read request | Stop Relations API, send GET `/roles/` with valid admin identity | `503 Service Unavailable` (fail-closed, not fail-open) |
+| Z30 | Relations API down, write request | Stop Relations API, send POST `/groups/` with valid admin identity | `503 Service Unavailable` |
+| Z31 | Relations API recovers, requests resume | Restart Relations API after Z29/Z30 | Next request returns `200`/`201` as expected |
 
 ### 3. Org Isolation Tests
 
@@ -1608,9 +1643,9 @@ These tests run against a live deployment (SpiceDB + PostgreSQL + Keycloak + Kok
 | N4 | Invalid UUID in path | GET `/groups/not-a-uuid/` | `400` or `404` |
 | N5 | Concurrent group creation (same name) | Two parallel POST `/groups/` with same name | Both succeed (names are not unique constraints) or one fails with `409` — document behavior |
 | N6 | Delete already-deleted group | DELETE `/groups/{uuid}/` twice | First: `204`, second: `404` |
-| N7 | Assign resource that doesn't exist in SpiceDB | POST resource assignment for a cluster ID with no org-level `t_workspace` tuple | `404` or `400` with clear error |
+| N7 | Assign resource that doesn't exist | POST resource assignment for a cluster ID with no org-level `t_workspace` tuple | `404` or `400` with clear error |
 | N8 | Keycloak down during principal add | POST `/groups/{uuid}/principals/` while Keycloak is unreachable | `503` with `{"errors": [{"detail": "Keycloak unavailable", "status": "503", "source": "rebac-bridge"}]}` |
-| N9 | PostgreSQL down during group creation | SpiceDB write succeeds, PG INSERT fails | Reconciler creates PG row later; API returns `503` |
+| N9 | PostgreSQL down during group creation | Relations API write succeeds, PG INSERT fails | Reconciler creates PG row later; API returns `503` |
 
 ---
 
@@ -1618,7 +1653,7 @@ These tests run against a live deployment (SpiceDB + PostgreSQL + Keycloak + Kok
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| SpiceDB unavailable | Medium | Bridge returns 503 for write operations; reads from PG metadata still work | Health check monitors SpiceDB gRPC connection. Bridge returns clear error messages. CLI fallback available. |
+| Relations API / SpiceDB unavailable | Medium | Bridge returns 503 for write operations; reads from PG metadata still work | Health check monitors Relations API gRPC connection. Bridge returns clear error messages. CLI fallback available. |
 | Keycloak unavailable | Medium | Cannot validate principals or list users | Principal add operations fail with 503. Group/role operations unaffected. |
 | PostgreSQL metadata diverges from SpiceDB | Low | API shows stale metadata, but authorization is correct (SpiceDB is source of truth) | Background reconciler runs every 5 minutes. Manual reconcile endpoint available. |
 | insights-rbac-ui API incompatibility | Medium | Extracted UI components need unexpected changes | Bridge implements the exact v1 response shapes; integration tests validate against the UI's expected API contracts. |
@@ -1635,9 +1670,9 @@ The ReBAC Bridge is explicitly designed to be replaced. When a permanent solutio
    - `DROP SCHEMA rebac_bridge CASCADE` to remove metadata tables.
    - No Koku code changes needed (Koku doesn't know the bridge exists).
 
-2. **SpiceDB data persists**: All authorization tuples in SpiceDB are managed independently. The replacement solution reads and writes the same tuples, in the same format, via SpiceDB gRPC or the Relations API. No data migration needed.
+2. **SpiceDB data persists**: All authorization tuples in SpiceDB are managed independently. The replacement solution reads and writes the same tuples, in the same format, via the Relations API. No data migration needed.
 
-3. **No lock-in**: The bridge writes standard SpiceDB tuples following the [rbac-config schema](https://github.com/RedHatInsights/rbac-config). Any tool that understands this schema can replace the bridge.
+3. **No lock-in**: The bridge writes standard Kessel tuples following the [rbac-config schema](https://github.com/RedHatInsights/rbac-config) through the Relations API. Any tool that uses the same Kessel APIs can replace the bridge.
 
 ---
 
@@ -1645,7 +1680,7 @@ The ReBAC Bridge is explicitly designed to be replaced. When a permanent solutio
 
 | # | Question | Context |
 |---|---|---|
-| 1 | Should custom role creation write SpiceDB tuples immediately or defer to the existing `deploy-kessel.sh` seeding flow? | Immediate write is simpler for the UI flow; deferred is more consistent with the existing Helm-based seeding. |
+| 1 | Should custom role creation write tuples (via Relations API) immediately or defer to the existing `deploy-kessel.sh` seeding flow? | Immediate write is simpler for the UI flow; deferred is more consistent with the existing Helm-based seeding. |
 | 2 | Should the bridge's PostgreSQL schema be created by the bridge's own migration tool, or by Koku's Django migrations? | Bridge-owned migrations are simpler (Go binary manages its own schema). Django migrations keep all DB state in one place. |
-| 3 | Should the `/access/` endpoint query SpiceDB directly (via `ReadRelationships` + permission assembly) or proxy to Kessel Inventory API's `CheckSelf`? | Direct SpiceDB is more flexible; Inventory API's `CheckSelf` is what the UI in SaaS uses. |
+| 3 | Should the `/access/` endpoint query the Relations API (via `ReadTuples` + permission assembly) or proxy to Kessel Inventory API's `CheckSelf`? | Relations API `ReadTuples` is more flexible; Inventory API's `CheckSelf` is what the UI in SaaS uses. |
 | 4 | What is the permanent replacement for the bridge? ACM-provided admin UI, Kessel-native management plane, or something else? | Affects how much polish the bridge needs vs. keeping it minimal. |
