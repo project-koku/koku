@@ -201,6 +201,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             WHERE "p2"."vendor_name" = {_GPU_TABLE}."vendor_name"
               AND "p2"."model_name" = {_GPU_TABLE}."model_name"
               AND "p2"."node" = {_GPU_TABLE}."node"
+              AND "p2"."cluster_id" = {_GPU_TABLE}."cluster_id"
               {namespace_corr}
               {filter_clause}
             GROUP BY "p2"."namespace", "p2"."node"
