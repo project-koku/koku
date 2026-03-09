@@ -2974,7 +2974,9 @@ class AWSReportQueryTest(IamTestCase):
         """Test that the exclude feature works for all options."""
         exclude_opt = "org_unit_id"
         parent_org_unit = "R_001"
-        child_org_unit = "OU_005"
+        # Use OU_001 which has accounts (9999999999991, 9999999999992) with actual cost data.
+        # OU_005 has no accounts and thus no cost data, causing flaky test failures.
+        child_org_unit = "OU_001"
         for view in [AWSCostView, AWSStorageView, AWSInstanceTypeView]:
             with self.subTest(view=view):
                 # Grab overall value
