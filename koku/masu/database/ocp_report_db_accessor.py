@@ -115,6 +115,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params["month"] = start_date.strftime("%m")
 
         self._populate_gpu_ui_summary_table_with_usage_only(sql_params)
+        self._populate_pod_summary_by_pod_table(sql_params)
         if summary_range.summarize_previous_month and not summary_range.is_current_month:
             # Don't resummarize virtualization UI table if we are summarizing previous month
             return
@@ -162,6 +163,27 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         populate_gpu_usage_info = populate_gpu_usage_info.decode("utf-8")
         self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
+
+    def _populate_pod_summary_by_pod_table(self, params):
+        """Populate the per-pod summary table for self-hosted deployments."""
+        sql_params = copy.deepcopy(params)
+        cluster_id = get_cluster_id_from_provider(sql_params.get("source_uuid"))
+        if not cluster_id:
+            LOG.info(
+                log_json(
+                    msg="No cluster_id found for source, skipping pod summary by pod population.", context=sql_params
+                )
+            )
+            return
+        sql_params["cluster_id"] = cluster_id
+        sql_params["cluster_alias"] = get_cluster_alias_from_cluster_id(cluster_id)
+        sql_params["source_uuid"] = str(sql_params["source_uuid"])
+        sql = pkgutil.get_data(
+            "masu.database",
+            f"{self.get_sql_folder_name()}/openshift/ui_summary/reporting_ocp_pod_summary_by_pod_p.sql",
+        )
+        sql = sql.decode("utf-8")
+        self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def _populate_virtualization_ui_summary_table(self, params):
         """

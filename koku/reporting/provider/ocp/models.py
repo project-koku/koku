@@ -865,6 +865,51 @@ class OCPPodSummaryByNodeP(models.Model):
     cost_model_rate_type = models.TextField(null=True)
 
 
+class OCPPodSummaryByPodP(models.Model):
+    """A summarized partitioned table for per-pod granularity.
+
+    This table preserves pod-level detail before aggregation.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for OCPPodSummaryByPodP."""
+
+        db_table = "reporting_ocp_pod_summary_by_pod_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocppodsumm_pod_usage_start"),
+            models.Index(fields=["namespace"], name="ocppodsumm_pod_namespace"),
+            models.Index(fields=["node"], name="ocppodsumm_pod_node"),
+            models.Index(fields=["pod"], name="ocppodsumm_pod_pod"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    cluster_id = models.TextField()
+    cluster_alias = models.TextField(null=True)
+    namespace = models.CharField(max_length=253, null=True)
+    node = models.CharField(max_length=253, null=True)
+    pod = models.CharField(max_length=253, null=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    pod_usage_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_request_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_limit_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    source_uuid = models.ForeignKey(
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
 class OCPVolumeSummaryP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
 
