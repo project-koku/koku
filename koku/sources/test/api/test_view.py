@@ -273,6 +273,7 @@ class SourcesViewTests(IamTestCase):
         self.assertIsNotNone(body)
         self.assertTrue(body.get("data"))
         self.assertFalse(body.get("data")[0]["provider_linked"])
+        self.assertIsNone(body.get("data")[0]["created_timestamp"])
 
     @patch("sources.api.view.ProviderManager")
     def test_source_list_provider_success(self, mock_provider_manager):
@@ -287,6 +288,7 @@ class SourcesViewTests(IamTestCase):
         self.assertTrue(body.get("data"))
         self.assertTrue(body.get("data")[0]["provider_linked"])
         self.assertTrue(body.get("data")[0]["active"])
+        self.assertIsNotNone(body.get("data")[0]["created_timestamp"])
 
     @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
     def test_source_retrieve_error(self, _):
@@ -298,6 +300,7 @@ class SourcesViewTests(IamTestCase):
         self.assertIsNotNone(body)
         self.assertFalse(body["provider_linked"])
         self.assertFalse(body["active"])
+        self.assertIsNone(body["created_timestamp"])
 
     @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
     def test_source_get_stats_error(self, _):

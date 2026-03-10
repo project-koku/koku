@@ -7737,6 +7737,13 @@
                                 "example": {
                                     "crawl_heirarchy": "False"
                                 }
+                            },
+                            "created_timestamp": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true,
+                                "description": "Timestamp of when the provider was created.",
+                                "example": "2026-01-15 12:30:00"
                             }
                         }
                     }

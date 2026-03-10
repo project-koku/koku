@@ -304,6 +304,7 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["previous_month_data"] = False
                 source["last_payload_received_at"] = False
                 source["last_polling_time"] = False
+                source["created_timestamp"] = None
                 source["status"] = {}
                 source["has_data"] = False
                 source["infrastructure"] = {}
@@ -317,6 +318,7 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["previous_month_data"] = manager.get_previous_month_data_exists()
                 source["last_payload_received_at"] = manager.get_last_received_data_datetime()
                 source["last_polling_time"] = manager.get_last_polling_time()
+                source["created_timestamp"] = manager.get_created_timestamp()
                 source["status"] = manager.get_state()  # This holds the download/processing/summary states
                 source["has_data"] = manager.get_any_data_exists()
                 source["infrastructure"] = manager.get_infrastructure_info()
@@ -344,6 +346,7 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["previous_month_data"] = False
             response.data["last_payload_received_at"] = False
             response.data["last_polling_time"] = False
+            response.data["created_timestamp"] = None
             response.data["status"] = {}
             response.data["has_data"] = False
             response.data["infrastructure"] = {}
@@ -357,6 +360,7 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["previous_month_data"] = manager.get_previous_month_data_exists()
             response.data["last_payload_received_at"] = manager.get_last_received_data_datetime()
             response.data["last_polling_time"] = manager.get_last_polling_time()
+            response.data["created_timestamp"] = manager.get_created_timestamp()
             response.data["status"] = manager.get_state()  # This holds the download/processing/summary states
             response.data["has_data"] = manager.get_any_data_exists()
             response.data["infrastructure"] = manager.get_infrastructure_info()
