@@ -430,7 +430,7 @@ generators:
                   mem_request_gig: 16
                   cpu_limit: 8
                   mem_limit_gig: 32
-                  pod_seconds: 14400
+                  pod_seconds: 1800
                   labels: label_application:PyTorch|label_stage:Training|label_group:Research
                   gpus:
                     - gpu:
@@ -451,7 +451,7 @@ generators:
                   mem_request_gig: 8
                   cpu_limit: 4
                   mem_limit_gig: 16
-                  pod_seconds: 7200
+                  pod_seconds: 1500
                   labels: label_application:PyTorch|label_stage:Training|label_group:DataScience
                   gpus:
                     - gpu:
@@ -472,7 +472,7 @@ generators:
                   mem_request_gig: 4
                   cpu_limit: 2
                   mem_limit_gig: 8
-                  pod_seconds: 21600
+                  pod_seconds: 3000
                   labels: label_application:TensorRT|label_stage:Production|label_group:MLOps
                   gpus:
                     - gpu:
@@ -490,7 +490,7 @@ generators:
                   mem_request_gig: 4
                   cpu_limit: 2
                   mem_limit_gig: 8
-                  pod_seconds: 21600
+                  pod_seconds: 3000
                   labels: label_application:TensorRT|label_stage:Production|label_group:MLOps
                   gpus:
                     - gpu:
@@ -511,7 +511,7 @@ generators:
                   mem_request_gig: 4
                   cpu_limit: 2
                   mem_limit_gig: 8
-                  pod_seconds: 7200
+                  pod_seconds: 1500
                   labels: label_application:Triton|label_stage:Production|label_group:Platform
                   gpus:
                     - gpu:
