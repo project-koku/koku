@@ -1041,7 +1041,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     @staticmethod
-    def _report_ocp_resources_to_kessel(provider, nodes, projects):
+    def _report_ocp_resources_to_kessel(provider, cluster_id, nodes, projects):
         """Report OCP nodes and projects to Kessel Inventory.
 
         Gracefully skips reporting when no nodes/projects are present.
@@ -1057,7 +1057,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if not nodes and not projects:
             return
         org_id = getattr(provider, "org_id", None) or ""
-        cluster_id = str(provider.uuid)
         for node_row in nodes:
             node_name = node_row[0] if isinstance(node_row, (tuple, list)) else str(node_row)
             on_resource_created("openshift_node", node_name, org_id)
@@ -1077,7 +1076,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self.populate_node_table(cluster_table, nodes)
         self.populate_pvc_table(cluster_table, pvcs)
         self.populate_project_table(cluster_table, projects)
-        self._report_ocp_resources_to_kessel(provider, nodes, projects)
+        self._report_ocp_resources_to_kessel(provider, cluster_id, nodes, projects)
 
     def populate_cluster_table(self, provider, cluster_id, cluster_alias):
         """Get or create an entry in the OCP cluster table."""
