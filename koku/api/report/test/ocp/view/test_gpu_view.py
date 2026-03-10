@@ -197,9 +197,9 @@ class OCPGpuViewTest(IamTestCase):
     def test_mig_profiles_endpoint_requires_filters(self, mock_unleash):
         """Test that MIG profiles endpoint requires vendor, model, and node filters."""
         url = reverse("reports-openshift-gpu-mig-profiles")
-        # Without required filters, should still return 200 but with empty data
+        # Without required filters, endpoint returns 400
         response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
     def test_gpu_endpoint_includes_gpu_mode_field(self, mock_unleash):

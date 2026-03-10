@@ -1630,8 +1630,10 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.get_cluster_id_from_provider")
     @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_sql_folder_name")
+    @patch("reporting.provider.ocp.self_hosted_models.OCPGPUUsageLineItem")
     def test_populate_gpu_ui_summary_table_onprem_no_gpu_data(
         self,
+        mock_gpu_model,
         mock_get_sql_folder,
         mock_cost_model_accessor,
         mock_get_cluster_id,
@@ -1639,13 +1641,11 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
     ):
         """Test that GPU UI table is not populated in on-prem mode when no GPU data exists."""
         mock_get_sql_folder.return_value = "self_hosted_sql"
+        mock_gpu_model.objects.filter.return_value.exists.return_value = False
         with (
-            patch("masu.database.ocp_report_db_accessor.OCPGPUUsageLineItem") as mock_gpu_model,
             patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as mock_psql_exec,
             self.accessor as acc,
         ):
-            # Simulate no GPU data in PostgreSQL
-            mock_gpu_model.objects.filter.return_value.exists.return_value = False
             acc._populate_gpu_ui_summary_table_with_usage_only(self.sql_params)
             mock_psql_exec.assert_not_called()
 
@@ -1653,8 +1653,10 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.get_cluster_id_from_provider")
     @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_sql_folder_name")
+    @patch("reporting.provider.ocp.self_hosted_models.OCPGPUUsageLineItem")
     def test_populate_gpu_ui_summary_table_onprem_with_gpu_data(
         self,
+        mock_gpu_model,
         mock_get_sql_folder,
         mock_cost_model_accessor,
         mock_get_cluster_id,
@@ -1667,13 +1669,11 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
         mock_cost_model_accessor.return_value = mock_cost_model_instance
         mock_get_cluster_id.return_value = "test-cluster-id"
         mock_get_cluster_alias.return_value = "test-cluster-alias"
+        mock_gpu_model.objects.filter.return_value.exists.return_value = True
         with (
-            patch("masu.database.ocp_report_db_accessor.OCPGPUUsageLineItem") as mock_gpu_model,
             patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as mock_psql_exec,
             self.accessor as acc,
         ):
-            # Simulate GPU data exists in PostgreSQL
-            mock_gpu_model.objects.filter.return_value.exists.return_value = True
             acc._populate_gpu_ui_summary_table_with_usage_only(self.sql_params)
             mock_psql_exec.assert_called_once()
 
@@ -1681,8 +1681,10 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.get_cluster_id_from_provider")
     @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_sql_folder_name")
+    @patch("reporting.provider.ocp.self_hosted_models.OCPGPUUsageLineItem")
     def test_populate_gpu_ui_summary_table_onprem_with_cost_model(
         self,
+        mock_gpu_model,
         mock_get_sql_folder,
         mock_cost_model_accessor,
         mock_get_cluster_id,
@@ -1697,13 +1699,11 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
         mock_cost_model_accessor.return_value = mock_cost_model_instance
         mock_get_cluster_id.return_value = "test-cluster-id"
         mock_get_cluster_alias.return_value = "test-cluster-alias"
+        mock_gpu_model.objects.filter.return_value.exists.return_value = True
         with (
-            patch("masu.database.ocp_report_db_accessor.OCPGPUUsageLineItem") as mock_gpu_model,
             patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as mock_psql_exec,
             self.accessor as acc,
         ):
-            # Simulate GPU data exists in PostgreSQL
-            mock_gpu_model.objects.filter.return_value.exists.return_value = True
             acc._populate_gpu_ui_summary_table_with_usage_only(self.sql_params)
             # Should not execute SQL because cost model exists
             mock_psql_exec.assert_not_called()
@@ -1711,8 +1711,10 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.get_cluster_id_from_provider")
     @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_sql_folder_name")
+    @patch("reporting.provider.ocp.self_hosted_models.OCPGPUUsageLineItem")
     def test_populate_gpu_ui_summary_table_onprem_no_cluster_id(
         self,
+        mock_gpu_model,
         mock_get_sql_folder,
         mock_cost_model_accessor,
         mock_get_cluster_id,
@@ -1723,13 +1725,11 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
         mock_cost_model_instance.metric_to_tag_params_map = {}
         mock_cost_model_accessor.return_value = mock_cost_model_instance
         mock_get_cluster_id.return_value = None  # No cluster ID
+        mock_gpu_model.objects.filter.return_value.exists.return_value = True
         with (
-            patch("masu.database.ocp_report_db_accessor.OCPGPUUsageLineItem") as mock_gpu_model,
             patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as mock_psql_exec,
             self.accessor as acc,
         ):
-            # Simulate GPU data exists in PostgreSQL
-            mock_gpu_model.objects.filter.return_value.exists.return_value = True
             acc._populate_gpu_ui_summary_table_with_usage_only(self.sql_params)
             mock_psql_exec.assert_not_called()
 
