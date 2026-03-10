@@ -37,6 +37,14 @@ do the following:
 
         AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
 
+    **For on-premise deployments** without access to Red Hat SaaS services, also set:
+
+        ONPREM=True
+
+    This enables the Kessel (ReBAC) authorization backend. See the
+    [Kessel development guide](docs/architecture/kessel-integration/kessel-development-guide.md)
+    for local setup, running tests, and troubleshooting.
+
 2.  Copy [`dev/credentials/aws.example`](dev/credentials/aws.example) into `dev/credentials/aws`, obtain AWS credentials, then update the credentials file:
 
         [default]

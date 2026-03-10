@@ -1,0 +1,3 @@
+resource_type: gcp_account
+reporter_name: cost_management
+namespace: cost_management

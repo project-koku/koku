@@ -1,0 +1,3 @@
+resource_type: settings
+resource_reporters:
+  - cost_management

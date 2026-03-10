@@ -32,6 +32,7 @@ RESOURCE_TYPES = OrderedDict(
         ("openshift.cluster", ["read"]),
         ("openshift.node", ["read"]),
         ("openshift.project", ["read"]),
+        ("integration", ["read"]),
         ("cost_model", ["read", "write"]),
         ("settings", ["read", "write"]),
     ]

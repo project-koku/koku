@@ -1,0 +1,91 @@
+# Kessel role seed data for Cost Management.
+#
+# Single source of truth for standard roles and their RBAC-to-Kessel
+# permission mappings.  Consumed by:
+#   - deploy-kessel.sh          (via `zed` CLI for initial provisioning)
+#   - Helm post-install hooks   (applies this file at deploy time)
+#
+# Each role maps RBAC permissions to Kessel relation names on rbac/role.
+# The relation name is the key used in schema.zed (prefixed with t_).
+#
+# Format:
+#   roles[].slug          - unique role identifier (rbac/role object id)
+#   roles[].name          - human-readable display name
+#   roles[].system        - true for system-defined roles
+#   roles[].permissions[] - list of {rbac_permission, kessel_relation} pairs
+
+roles:
+  - slug: cost-administrator
+    name: Cost Administrator
+    system: true
+    permissions:
+      - rbac_permission: "cost-management:*:*"
+        kessel_relation: t_cost_management_all_all
+      - rbac_permission: "cost-management:aws.account:read"
+        kessel_relation: t_cost_management_aws_account_read
+      - rbac_permission: "cost-management:aws.organizational_unit:read"
+        kessel_relation: t_cost_management_aws_organizational_unit_read
+      - rbac_permission: "cost-management:gcp.account:read"
+        kessel_relation: t_cost_management_gcp_account_read
+      - rbac_permission: "cost-management:gcp.project:read"
+        kessel_relation: t_cost_management_gcp_project_read
+      - rbac_permission: "cost-management:azure.subscription_guid:read"
+        kessel_relation: t_cost_management_azure_subscription_guid_read
+      - rbac_permission: "cost-management:openshift.cluster:read"
+        kessel_relation: t_cost_management_openshift_cluster_read
+      - rbac_permission: "cost-management:openshift.node:read"
+        kessel_relation: t_cost_management_openshift_node_read
+      - rbac_permission: "cost-management:openshift.project:read"
+        kessel_relation: t_cost_management_openshift_project_read
+      - rbac_permission: "cost-management:cost_model:read"
+        kessel_relation: t_cost_management_cost_model_read
+      - rbac_permission: "cost-management:cost_model:write"
+        kessel_relation: t_cost_management_cost_model_write
+      - rbac_permission: "cost-management:settings:read"
+        kessel_relation: t_cost_management_settings_read
+      - rbac_permission: "cost-management:settings:write"
+        kessel_relation: t_cost_management_settings_write
+      - rbac_permission: "cost-management:integration:read"
+        kessel_relation: t_cost_management_integration_read
+
+  - slug: cost-cloud-viewer
+    name: Cost Cloud Viewer
+    system: true
+    permissions:
+      - rbac_permission: "cost-management:aws.account:read"
+        kessel_relation: t_cost_management_aws_account_read
+      - rbac_permission: "cost-management:aws.organizational_unit:read"
+        kessel_relation: t_cost_management_aws_organizational_unit_read
+      - rbac_permission: "cost-management:gcp.account:read"
+        kessel_relation: t_cost_management_gcp_account_read
+      - rbac_permission: "cost-management:gcp.project:read"
+        kessel_relation: t_cost_management_gcp_project_read
+      - rbac_permission: "cost-management:azure.subscription_guid:read"
+        kessel_relation: t_cost_management_azure_subscription_guid_read
+
+  - slug: cost-openshift-viewer
+    name: Cost OpenShift Viewer
+    system: true
+    permissions:
+      - rbac_permission: "cost-management:openshift.cluster:read"
+        kessel_relation: t_cost_management_openshift_cluster_read
+      - rbac_permission: "cost-management:openshift.node:read"
+        kessel_relation: t_cost_management_openshift_node_read
+      - rbac_permission: "cost-management:openshift.project:read"
+        kessel_relation: t_cost_management_openshift_project_read
+
+  - slug: cost-price-list-administrator
+    name: Cost Price List Administrator
+    system: true
+    permissions:
+      - rbac_permission: "cost-management:cost_model:read"
+        kessel_relation: t_cost_management_cost_model_read
+      - rbac_permission: "cost-management:cost_model:write"
+        kessel_relation: t_cost_management_cost_model_write
+
+  - slug: cost-price-list-viewer
+    name: Cost Price List Viewer
+    system: true
+    permissions:
+      - rbac_permission: "cost-management:cost_model:read"
+        kessel_relation: t_cost_management_cost_model_read

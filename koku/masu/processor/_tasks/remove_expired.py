@@ -36,6 +36,19 @@ def _remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
         status_msg = "Expired Data" if simulate else "Removed Data"
         LOG.info(log_json(msg=status_msg, removed_data=removed_data, context=context))
 
+    if provider_uuid and not simulate:
+        _cleanup_kessel_resources(schema_name, provider_uuid)
+
+
+def _cleanup_kessel_resources(schema_name, provider_uuid):
+    """Clean up Kessel Inventory resources when a provider's data has been fully purged."""
+    from koku_rebac.resource_reporter import cleanup_orphaned_kessel_resources
+
+    org_id = schema_name.removeprefix("acct").removeprefix("org")
+    cleaned = cleanup_orphaned_kessel_resources(provider_uuid, org_id)
+    if cleaned:
+        LOG.info(log_json(msg="Kessel cleanup after data expiry", provider_uuid=provider_uuid, cleaned=cleaned))
+
 
 def _remove_expired_trino_partitions(schema_name, provider_type, simulate):
     """

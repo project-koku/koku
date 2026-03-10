@@ -1,0 +1,3 @@
+resource_type: gcp_project
+reporter_name: cost_management
+namespace: cost_management
