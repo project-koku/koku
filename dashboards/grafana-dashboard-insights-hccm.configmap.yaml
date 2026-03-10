@@ -4642,6 +4642,32 @@ data:
           "type": "gauge"
         },
         {
+          "collapsed": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "iLX_mMBnk"
+          },
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 107
+          },
+          "id": 28,
+          "panels": [],
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "iLX_mMBnk"
+              },
+              "refId": "A"
+            }
+          ],
+          "title": "RDS Database",
+          "type": "row"
+        },
+        {
           "aliasColors": {},
           "bars": false,
           "dashLength": 10,
@@ -4661,7 +4687,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 107
+            "y": 108
           },
           "hiddenSeries": false,
           "id": 24,
@@ -4797,7 +4823,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 107
+            "y": 108
           },
           "hiddenSeries": false,
           "id": 22,
@@ -4894,7 +4920,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 115
+            "y": 116
           },
           "hiddenSeries": false,
           "id": 20,
@@ -4986,7 +5012,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 115
+            "y": 116
           },
           "hiddenSeries": false,
           "id": 26,
@@ -5087,32 +5113,6 @@ data:
           "yaxis": {
             "align": false
           }
-        },
-        {
-          "collapsed": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "iLX_mMBnk"
-          },
-          "gridPos": {
-            "h": 1,
-            "w": 24,
-            "x": 0,
-            "y": 123
-          },
-          "id": 28,
-          "panels": [],
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "iLX_mMBnk"
-              },
-              "refId": "A"
-            }
-          ],
-          "title": "RDS Database",
-          "type": "row"
         },
         {
           "collapsed": false,
