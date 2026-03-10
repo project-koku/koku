@@ -13,7 +13,16 @@ django.setup()
 
 from unittest.mock import MagicMock, patch, PropertyMock  # noqa: E402
 
+import grpc  # noqa: E402
+
 from django.test import SimpleTestCase, override_settings  # noqa: E402
+
+
+def _make_grpc_error(code):
+    """Create a grpc.RpcError with a .code() method returning the given StatusCode."""
+    err = grpc.RpcError()
+    err.code = lambda: code
+    return err
 
 
 class TestAccessProviderImport(SimpleTestCase):
@@ -387,6 +396,124 @@ class TestKesselAccessProvider(SimpleTestCase):
             self.assertEqual(req.object.reporter.type, "rbac")
             self.assertIsNotNone(req.subject.resource.reporter)
             self.assertEqual(req.subject.resource.reporter.type, "rbac")
+
+    @patch("koku_rebac.access_provider.get_workspace_resolver")
+    @patch("koku_rebac.access_provider.get_kessel_client")
+    def test_total_grpc_failure_raises_kessel_connection_error(self, mock_get_client, mock_get_resolver):
+        """When every gRPC call fails, get_access_for_user raises KesselConnectionError."""
+        from koku_rebac.access_provider import KesselAccessProvider
+        from koku_rebac.exceptions import KesselConnectionError
+
+        mock_client = MagicMock()
+        mock_client.inventory_stub.Check.side_effect = Exception("connection refused")
+        mock_client.inventory_stub.StreamedListObjects.side_effect = Exception("connection refused")
+        mock_get_client.return_value = mock_client
+
+        mock_resolver = MagicMock()
+        mock_resolver.resolve.return_value = "org1"
+        mock_get_resolver.return_value = mock_resolver
+
+        provider = KesselAccessProvider()
+        with self.assertRaises(KesselConnectionError):
+            provider.get_access_for_user(self._make_user())
+
+    @patch("koku_rebac.access_provider.get_workspace_resolver")
+    @patch("koku_rebac.access_provider.get_kessel_client")
+    def test_partial_grpc_failure_does_not_raise(self, mock_get_client, mock_get_resolver):
+        """When some gRPC calls succeed, no KesselConnectionError is raised."""
+        from koku_rebac.access_provider import KesselAccessProvider
+
+        mock_client = MagicMock()
+
+        def fake_check(request, **kwargs):
+            if request.relation == "cost_management_aws_account_view":
+                return self._make_check_response(True)
+            raise Exception("connection refused")
+
+        mock_client.inventory_stub.Check.side_effect = fake_check
+        mock_client.inventory_stub.StreamedListObjects.side_effect = Exception("connection refused")
+        mock_get_client.return_value = mock_client
+
+        mock_resolver = MagicMock()
+        mock_resolver.resolve.return_value = "org1"
+        mock_get_resolver.return_value = mock_resolver
+
+        provider = KesselAccessProvider()
+        result = provider.get_access_for_user(self._make_user())
+
+        self.assertEqual(result["aws.account"]["read"], ["*"])
+
+    @patch("koku_rebac.access_provider.time.sleep")
+    @patch("koku_rebac.access_provider.get_workspace_resolver")
+    @patch("koku_rebac.access_provider.get_kessel_client")
+    def test_check_retries_on_transient_grpc_error(self, mock_get_client, mock_get_resolver, mock_sleep):
+        """Check retries on UNAVAILABLE and succeeds on second attempt."""
+        from koku_rebac.access_provider import KesselAccessProvider
+
+        mock_client = MagicMock()
+        unavailable = _make_grpc_error(grpc.StatusCode.UNAVAILABLE)
+
+        check_call_count = 0
+
+        def fake_check(request, **kwargs):
+            nonlocal check_call_count
+            check_call_count += 1
+            if request.relation == "cost_management_aws_account_view":
+                if check_call_count <= 1:
+                    raise unavailable
+                return self._make_check_response(True)
+            return self._make_check_response(False)
+
+        mock_client.inventory_stub.Check.side_effect = fake_check
+        mock_client.inventory_stub.StreamedListObjects.side_effect = lambda *a, **kw: iter([])
+        mock_get_client.return_value = mock_client
+
+        mock_resolver = MagicMock()
+        mock_resolver.resolve.return_value = "org1"
+        mock_get_resolver.return_value = mock_resolver
+
+        provider = KesselAccessProvider()
+        result = provider.get_access_for_user(self._make_user())
+
+        self.assertEqual(result["aws.account"]["read"], ["*"])
+        mock_sleep.assert_called()
+
+    @patch("koku_rebac.access_provider.time.sleep")
+    @patch("koku_rebac.access_provider.get_workspace_resolver")
+    @patch("koku_rebac.access_provider.get_kessel_client")
+    def test_streamed_list_retries_on_transient_grpc_error(self, mock_get_client, mock_get_resolver, mock_sleep):
+        """StreamedListObjects retries on UNAVAILABLE and returns IDs on second attempt."""
+        from koku_rebac.access_provider import KesselAccessProvider
+
+        mock_client = MagicMock()
+        unavailable = _make_grpc_error(grpc.StatusCode.UNAVAILABLE)
+        mock_client.inventory_stub.Check.return_value = self._make_check_response(False)
+
+        cluster_stream_calls = 0
+        mock_response = MagicMock()
+        mock_response.object.resource_id = "cluster-abc"
+
+        def fake_stream(request, **kwargs):
+            nonlocal cluster_stream_calls
+            if request.object_type.resource_type == "openshift_cluster":
+                cluster_stream_calls += 1
+                if cluster_stream_calls <= 1:
+                    raise unavailable
+                return iter([mock_response])
+            return iter([])
+
+        mock_client.inventory_stub.StreamedListObjects.side_effect = fake_stream
+        mock_get_client.return_value = mock_client
+
+        mock_resolver = MagicMock()
+        mock_resolver.resolve.return_value = "org1"
+        mock_get_resolver.return_value = mock_resolver
+
+        provider = KesselAccessProvider()
+        result = provider.get_access_for_user(self._make_user())
+
+        self.assertIn("cluster-abc", result["openshift.cluster"]["read"])
+        mock_sleep.assert_called()
 
     def test_cache_ttl_returns_integer(self):
         from koku_rebac.access_provider import KesselAccessProvider

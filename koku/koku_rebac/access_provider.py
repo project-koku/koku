@@ -16,7 +16,9 @@ or no access at all.
 from __future__ import annotations
 
 import logging
+import time
 
+import grpc
 from django.conf import settings
 from kessel.inventory.v1beta2 import (
     allowed_pb2,
@@ -33,6 +35,7 @@ from koku.rbac import RESOURCE_TYPES
 from koku.rbac import RbacService
 
 from .client import get_kessel_client
+from .exceptions import KesselConnectionError
 from .workspace import get_workspace_resolver
 
 LOG = logging.getLogger(__name__)
@@ -57,6 +60,33 @@ PERMISSION_SUFFIX_MAP = {
     "read": "view",
     "write": "edit",
 }
+
+GRPC_MAX_RETRIES = 3
+GRPC_BACKOFF_BASE = 0.1  # seconds; delays: 0.1s, 0.5s
+_RETRYABLE_CODES = frozenset({grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED})
+
+
+def _is_retryable_grpc_error(exc: BaseException) -> bool:
+    return isinstance(exc, grpc.RpcError) and hasattr(exc, "code") and exc.code() in _RETRYABLE_CODES
+
+
+def _retry_grpc(fn, max_retries: int = GRPC_MAX_RETRIES, backoff_base: float = GRPC_BACKOFF_BASE):
+    """Call *fn* with retry on transient gRPC errors.
+
+    Retries up to *max_retries* total attempts with exponential backoff.
+    Re-raises the last exception if all attempts fail.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(max_retries):
+        try:
+            return fn()
+        except Exception as exc:
+            if not _is_retryable_grpc_error(exc):
+                raise
+            last_exc = exc
+            if attempt < max_retries - 1:
+                time.sleep(backoff_base * (5 ** attempt))
+    raise last_exc  # type: ignore[misc]
 
 
 def _init_empty_access() -> dict:
@@ -123,7 +153,11 @@ class KesselAccessProvider:
         self._workspace_resolver = get_workspace_resolver()
 
     def get_access_for_user(self, user) -> dict:
-        """Get resource access for a user from Kessel."""
+        """Get resource access for a user from Kessel.
+
+        Raises KesselConnectionError when every gRPC call fails, so the
+        middleware can return HTTP 424 instead of caching an empty dict.
+        """
         client = get_kessel_client()
         access = _init_empty_access()
         org_id = user.customer.org_id
@@ -131,29 +165,48 @@ class KesselAccessProvider:
 
         workspace_id = self._workspace_resolver.resolve(org_id)
 
+        call_count = 0
+        error_count = 0
+
         for koku_type, kessel_type in KOKU_TO_KESSEL_TYPE_MAP.items():
             if koku_type in CHECK_ONLY_TYPES:
-                self._resolve_workspace_access(client, access, koku_type, kessel_type, workspace_id, user_id)
+                calls, errors = self._resolve_workspace_access(client, access, koku_type, kessel_type, workspace_id, user_id)
             else:
-                self._resolve_per_resource_access(client, access, koku_type, kessel_type, workspace_id, user_id)
+                calls, errors = self._resolve_per_resource_access(client, access, koku_type, kessel_type, workspace_id, user_id)
+            call_count += calls
+            error_count += errors
+
+        if call_count > 0 and error_count == call_count:
+            raise KesselConnectionError(
+                f"All {error_count} Kessel gRPC calls failed -- service may be unreachable"
+            )
 
         return access
 
     def _resolve_workspace_access(
         self, client, access: dict, koku_type: str, kessel_type: str, workspace_id: str, user_id: str,
-    ) -> None:
-        """Use Check for workspace-level capabilities. Grants wildcard on success."""
+    ) -> tuple[int, int]:
+        """Use Check for workspace-level capabilities. Grants wildcard on success.
+
+        Returns (call_count, error_count) for total-failure detection.
+        """
+        calls = errors = 0
         for operation in RESOURCE_TYPES.get(koku_type, ["read"]):
             suffix = PERMISSION_SUFFIX_MAP.get(operation, operation)
             permission = f"cost_management_{kessel_type}_{suffix}"
-            if self._check_workspace_permission(client, workspace_id, permission, user_id):
+            allowed, ok = self._check_workspace_permission(client, workspace_id, permission, user_id)
+            calls += 1
+            if not ok:
+                errors += 1
+            elif allowed:
                 access[koku_type][operation] = ["*"]
                 if operation == "write":
                     access[koku_type]["read"] = ["*"]
+        return calls, errors
 
     def _resolve_per_resource_access(
         self, client, access: dict, koku_type: str, kessel_type: str, workspace_id: str, user_id: str,
-    ) -> None:
+    ) -> tuple[int, int]:
         """Use StreamedListObjects with workspace-level Check for per-resource types.
 
         1. Check workspace-level permission first.
@@ -165,16 +218,26 @@ class KesselAccessProvider:
         (e.g. cost-administrator) always get wildcard access, even when
         the access-provider response is cached and new resources have been
         registered since the last cache fill.
+
+        Returns (call_count, error_count) for total-failure detection.
         """
+        calls = errors = 0
         for operation in RESOURCE_TYPES.get(koku_type, ["read"]):
             suffix = PERMISSION_SUFFIX_MAP.get(operation, operation)
             permission = f"cost_management_{kessel_type}_{suffix}"
 
-            if self._check_workspace_permission(client, workspace_id, permission, user_id):
+            allowed, check_ok = self._check_workspace_permission(client, workspace_id, permission, user_id)
+            calls += 1
+            if not check_ok:
+                errors += 1
+            elif allowed:
                 access[koku_type][operation] = ["*"]
             else:
-                resource_ids = self._streamed_list_objects(client, kessel_type, operation, user_id)
-                if resource_ids:
+                resource_ids, list_ok = self._streamed_list_objects(client, kessel_type, operation, user_id)
+                calls += 1
+                if not list_ok:
+                    errors += 1
+                elif resource_ids:
                     access[koku_type][operation] = resource_ids
 
             if operation == "write" and access[koku_type].get("write"):
@@ -185,33 +248,45 @@ class KesselAccessProvider:
                 elif read_ids != ["*"]:
                     merged = list(dict.fromkeys(read_ids + write_ids))
                     access[koku_type]["read"] = merged
+        return calls, errors
 
-    def _streamed_list_objects(self, client, kessel_type, operation, user_id) -> list[str]:
-        """Call StreamedListObjects and return the list of resource IDs."""
+    def _streamed_list_objects(self, client, kessel_type, operation, user_id) -> tuple[list[str], bool]:
+        """Call StreamedListObjects and return (resource_ids, success).
+
+        Returns ([], False) on error so callers can track total failures.
+        Retries on transient gRPC errors.
+        """
         request = _build_streamed_list_request(kessel_type, operation, user_id)
         try:
-            resource_ids = []
-            for response in client.inventory_stub.StreamedListObjects(request):
-                if response.object and response.object.resource_id:
-                    resource_ids.append(response.object.resource_id)
-            return resource_ids
+            def _do_stream():
+                resource_ids = []
+                for response in client.inventory_stub.StreamedListObjects(request):
+                    if response.object and response.object.resource_id:
+                        resource_ids.append(response.object.resource_id)
+                return resource_ids
+
+            return _retry_grpc(_do_stream), True
         except Exception:
             LOG.exception(
                 log_json(msg="Kessel StreamedListObjects failed", resource_type=kessel_type, operation=operation)
             )
-            return []
+            return [], False
 
-    def _check_workspace_permission(self, client, workspace_id, permission, user_id) -> bool:
-        """Check a single workspace-level permission. Returns True if ALLOWED."""
+    def _check_workspace_permission(self, client, workspace_id, permission, user_id) -> tuple[bool, bool]:
+        """Check a single workspace-level permission.
+
+        Returns (allowed, success) so callers can distinguish
+        'denied' from 'gRPC error'.  Retries on transient gRPC errors.
+        """
         request = _build_check_request(workspace_id, permission, user_id)
         try:
-            resp = client.inventory_stub.Check(request)
-            return resp.allowed == allowed_pb2.ALLOWED_TRUE
+            resp = _retry_grpc(lambda: client.inventory_stub.Check(request))
+            return resp.allowed == allowed_pb2.ALLOWED_TRUE, True
         except Exception:
             LOG.exception(
                 log_json(msg="Kessel Check failed", permission=permission)
             )
-            return False
+            return False, False
 
     def get_cache_ttl(self) -> int:
         return int(settings.CACHES.get("kessel", {}).get("TIMEOUT", 300))
