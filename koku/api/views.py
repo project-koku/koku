@@ -68,6 +68,7 @@ from api.resource_types.openshift_gpus.view import OCPGpuModelsView
 from api.resource_types.openshift_gpus.view import OCPGpuVendorsView
 from api.resource_types.openshift_nodes.view import OCPNodesView
 from api.resource_types.openshift_projects.view import OCPProjectsView
+from api.resource_types.openshift_quotas.view import OCPQuotasView
 from api.resource_types.openshift_virtual_machines.view import OCPVirtualMachinesView
 from api.resource_types.view import ResourceTypeView
 from api.settings.aws_category_keys.view import SettingsAWSCategoryKeyView

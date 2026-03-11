@@ -370,6 +370,34 @@ class OCPGPUUsageLineItemDaily(OCPLineItemBase):
     gpu_pod_uptime = models.FloatField(null=True)
 
 
+class OCPQuotaLabelsLineItem(OCPLineItemBase):
+    """Raw quota label line items from operator CSV reports (on-prem)."""
+
+    class Meta:
+        db_table = "openshift_quota_labels_line_items"
+        indexes = [
+            models.Index(fields=["source", "year", "month"], name="ocp_quota_lbl_src_yr_mo_idx"),
+        ]
+
+    namespace = models.CharField(max_length=253, null=True)
+    quota_name = models.CharField(max_length=253, null=True)
+    quota_type = models.CharField(max_length=10, null=True)
+
+
+class OCPQuotaLabelsLineItemDaily(OCPLineItemBase):
+    """Daily aggregated quota label line items (on-prem)."""
+
+    class Meta:
+        db_table = "openshift_quota_labels_line_items_daily"
+        indexes = [
+            models.Index(fields=["source", "year", "month"], name="ocp_quota_lbl_dy_src_yr_mo_idx"),
+        ]
+
+    namespace = models.CharField(max_length=253, null=True)
+    quota_name = models.CharField(max_length=253, null=True)
+    quota_type = models.CharField(max_length=10, null=True)
+
+
 class OCPUsageLineItemDailySummaryStaging(models.Model):
     """Staging table for OCP daily summary aggregation (self-hosted/on-prem only).
 
@@ -436,6 +464,10 @@ class OCPUsageLineItemDailySummaryStaging(models.Model):
     csi_volume_handle = models.CharField(max_length=256, null=True)
     cost_category_id = models.IntegerField(null=True)
 
+    # Quota columns
+    quota_name = models.CharField(max_length=253, null=True)
+    quota_type = models.CharField(max_length=10, null=True)
+
     # Partition columns (for compatibility with existing SQL)
     year = models.CharField(max_length=4, null=True)
     month = models.CharField(max_length=2, null=True)
@@ -450,6 +482,7 @@ SELF_HOSTED_MODEL_MAP = {
     "namespace_labels": OCPNamespaceLabelsLineItem,
     "vm_usage": OCPVMUsageLineItem,
     "gpu_usage": OCPGPUUsageLineItem,
+    "quota_labels": OCPQuotaLabelsLineItem,
 }
 
 SELF_HOSTED_DAILY_MODEL_MAP = {
@@ -459,6 +492,7 @@ SELF_HOSTED_DAILY_MODEL_MAP = {
     "namespace_labels": OCPNamespaceLabelsLineItemDaily,
     "vm_usage": OCPVMUsageLineItemDaily,
     "gpu_usage": OCPGPUUsageLineItemDaily,
+    "quota_labels": OCPQuotaLabelsLineItemDaily,
 }
 
 

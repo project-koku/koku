@@ -2089,3 +2089,29 @@ class OCPReportQueryHandlerTest(IamTestCase):
             response = client.get(url, **self.headers)
 
             self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_costs_group_by_quota(self):
+        """Test that group_by[quota]=* on costs endpoint returns 200."""
+        url = reverse("reports-openshift-costs")
+        params = {
+            "group_by[quota]": "*",
+            "filter[time_scope_value]": "-1",
+            "filter[time_scope_units]": "month",
+        }
+        url = f"{url}?{urlencode(params)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_costs_filter_by_quota(self):
+        """Test that filter[quota]=value on costs endpoint returns 200."""
+        url = reverse("reports-openshift-costs")
+        params = {
+            "filter[quota]": "test-quota",
+            "filter[time_scope_value]": "-1",
+            "filter[time_scope_units]": "month",
+        }
+        url = f"{url}?{urlencode(params)}"
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

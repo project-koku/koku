@@ -1503,6 +1503,44 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # Should not call SQL execution when flag is disabled
             mock_trino_exec.assert_not_called()
 
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    def test_populate_line_item_daily_summary_table_quota_exists_true(self, mock_trino_table_exists):
+        """Test that quota_exists is passed as True when the quota table exists."""
+        mock_trino_table_exists.return_value = True
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.today.date()
+        with (
+            OCPReportDBAccessor(self.schema) as accessor,
+            patch.object(accessor, "_execute_trino_multipart_sql_query") as mock_exec,
+        ):
+            accessor.populate_line_item_daily_summary_table_trino(
+                start_date, end_date, self.ocp_provider_uuid, self.ocp_provider_uuid,
+                self.ocp_cluster_id, self.ocp_cluster_id, self.ocp_provider_uuid
+            )
+            if mock_exec.called:
+                call_kwargs = mock_exec.call_args
+                bind_params = call_kwargs[1].get("bind_params", call_kwargs[0][1] if len(call_kwargs[0]) > 1 else {})
+                self.assertTrue(bind_params.get("quota_exists"))
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    def test_populate_line_item_daily_summary_table_quota_exists_false(self, mock_trino_table_exists):
+        """Test that quota_exists is passed as False when the quota table does not exist."""
+        mock_trino_table_exists.side_effect = lambda schema, table: table != "openshift_quota_labels_line_items_daily"
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.today.date()
+        with (
+            OCPReportDBAccessor(self.schema) as accessor,
+            patch.object(accessor, "_execute_trino_multipart_sql_query") as mock_exec,
+        ):
+            accessor.populate_line_item_daily_summary_table_trino(
+                start_date, end_date, self.ocp_provider_uuid, self.ocp_provider_uuid,
+                self.ocp_cluster_id, self.ocp_cluster_id, self.ocp_provider_uuid
+            )
+            if mock_exec.called:
+                call_kwargs = mock_exec.call_args
+                bind_params = call_kwargs[1].get("bind_params", call_kwargs[0][1] if len(call_kwargs[0]) > 1 else {})
+                self.assertFalse(bind_params.get("quota_exists"))
+
 
 class OCPReportDBAccessorGPUUITest(MasuTestCase):
     """Test Cases for GPU UI summary table population."""

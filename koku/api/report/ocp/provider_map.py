@@ -27,6 +27,7 @@ from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
+from reporting.provider.ocp.models import OCPCostSummaryByQuotaP
 from reporting.provider.ocp.models import OCPCostSummaryP
 from reporting.provider.ocp.models import OCPGpuSummaryP
 from reporting.provider.ocp.models import OCPNetworkSummaryByNodeP
@@ -177,6 +178,8 @@ class OCPProviderMap(ProviderMap):
                     "storageclass": {"field": "storageclass", "operation": "icontains"},
                     "pod": {"field": "pod", "operation": "icontains"},
                     "node": {"field": "node", "operation": "icontains"},
+                    "quota": {"field": "quota_name", "operation": "icontains"},
+                    "quota_type": {"field": "quota_type", "operation": "exact"},
                     "vm_name": {"field": "vm_name", "operation": "icontains"},
                     "gpu_vendor": {"field": "vendor_name", "operation": "icontains"},
                     "gpu_model": {"field": "model_name", "operation": "icontains"},
@@ -186,7 +189,7 @@ class OCPProviderMap(ProviderMap):
                         "custom": ProviderAccessor(Provider.PROVIDER_OCP).infrastructure_key_list,
                     },
                 },
-                "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim", "storageclass"],
+                "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim", "storageclass", "quota"],
                 "tag_column": "pod_labels",  # default for if a report type does not have a tag_column
                 "report_type": {
                     "costs": {
@@ -1141,6 +1144,10 @@ class OCPProviderMap(ProviderMap):
                 ("cluster",): OCPCostSummaryP,
                 ("node",): OCPCostSummaryByNodeP,
                 ("cluster", "node"): OCPCostSummaryByNodeP,
+                ("quota",): OCPCostSummaryByQuotaP,
+                ("quota", "quota_type"): OCPCostSummaryByQuotaP,
+                ("cluster", "quota"): OCPCostSummaryByQuotaP,
+                ("cluster", "quota", "quota_type"): OCPCostSummaryByQuotaP,
             },
             "costs_by_project": {
                 "default": OCPCostSummaryByProjectP,
