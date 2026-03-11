@@ -480,6 +480,7 @@ class ParquetReportProcessor:
 
             isOnPrem = settings.ONPREM
 
+            # fake comment
             with pd.read_csv(
                 csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:
