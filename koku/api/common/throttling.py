@@ -45,6 +45,13 @@ class BaseTagQueryThrottle(SimpleRateThrottle):
             return None
 
         flag_enabled = is_feature_flag_enabled_by_schema(schema_name, TAG_QUERY_RATE_LIMIT_FLAG)
+        scope = getattr(self, "cache_key_label", None) or "ocp"
+        LOG.info(
+            "Tag query throttle: schema=%s scope=%s flag_enabled=%s",
+            schema_name,
+            scope,
+            flag_enabled,
+        )
         if not flag_enabled:
             return None
 
