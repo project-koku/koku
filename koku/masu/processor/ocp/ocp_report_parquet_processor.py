@@ -35,6 +35,9 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
 
         self._report_type = report_type
 
+        # Date column for deriving usage_start (OCP uses interval_start)
+        self._date_column = "interval_start"
+
         numeric_columns = [
             "pod_usage_cpu_core_seconds",
             "pod_request_cpu_core_seconds",
@@ -224,59 +227,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
                 bill.cluster_alias = cluster_alias
                 bill.save(update_fields=["cluster_alias"])
 
-    def write_to_self_hosted_table(self, data_frame, metadata):
-        """Write dataframe to PostgreSQL for on-prem using Django model infrastructure.
-
-        This method is only called for on-prem deployments. SaaS writes to S3 parquet files instead.
-        Uses the standard partition naming convention (tablename_YYYY_MM) and the existing
-        partition infrastructure (get_or_create_postgres_partition).
-        """
-        import pandas as pd
-        from uuid import uuid4
-
-        from sqlalchemy import create_engine
-
-        from koku.reportdb_accessor import get_report_db_accessor
-
+    def _prepare_dataframe_for_write(self, data_frame, metadata):
+        """Add OCP-specific columns before writing to PostgreSQL."""
+        data_frame["manifestid"] = str(self._manifest_id)
         data_frame["reportnumhours"] = metadata["ReportNumHours"]
-
-        model = self.self_hosted_line_item_model
-        if not model:
-            raise NotImplementedError(
-                f"No Django model found for OCP report type '{self._report_type}'. "
-                "On-prem requires Django models for all supported report types."
-            )
-
-        # Ensure partitions exist using the standard infrastructure
-        # This is the same partitioning structure we utilize in the SaaS for
-        # our postgresql summary tables.
-        self.get_or_create_postgres_partition(self._start_date, model=model)
-
-        table_name = model._meta.db_table
-
-        # Add partition tracking columns
-        data_frame["year"] = self._year
-        data_frame["month"] = self._month
-        data_frame["source"] = str(self._provider_uuid)  # Store as string for SQL join compatibility
-
-        # Add usage_start as date (derived from interval_start) for partition column
-        # PostgreSQL uses this to route rows to the correct partition automatically
-        if "interval_start" in data_frame.columns:
-            data_frame["usage_start"] = pd.to_datetime(data_frame["interval_start"]).dt.date
-
-        # Generate UUIDs for each row (required for partitioned tables)
-        data_frame["id"] = [uuid4() for _ in range(len(data_frame))]
-
-        # Write to the parent table - PostgreSQL routes to correct partition based on usage_start
-        with get_report_db_accessor().connect() as connection:
-            engine = create_engine("postgresql://", creator=lambda: connection.getConnection())
-            data_frame.to_sql(name=table_name, con=engine, schema=self._schema_name, if_exists="append", index=False)
-
-        LOG.info(
-            log_json(
-                msg="wrote dataframe to postgresql",
-                schema=self._schema_name,
-                table=table_name,
-                rows=len(data_frame),
-            )
-        )
