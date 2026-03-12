@@ -976,3 +976,32 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             storage_callback("", local_source)
             _, msg = PROCESS_QUEUE.get_nowait()
             self.assertEqual(msg.get("operation"), "destroy")
+
+    def test_create_account_recovers_from_duplicate_provider(self):
+        """Test that create_account recovers when provider already exists with same UUID."""
+        source_id = self.source_ids.get(Provider.PROVIDER_AWS)
+        provider_source = Sources(**self.sources.get(Provider.PROVIDER_AWS))
+        provider_source.save()
+
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            builder = SourcesProviderCoordinator(
+                source_id, provider_source.auth_header, provider_source.account_id, provider_source.org_id
+            )
+            created_provider = builder.create_account(provider_source)
+
+        self.assertTrue(Provider.objects.filter(uuid=provider_source.source_uuid).exists())
+
+        source = Sources.objects.get(source_id=source_id)
+        self.assertEqual(source.koku_uuid, str(created_provider.uuid))
+
+        source.koku_uuid = None
+        source.save()
+
+        with patch.object(
+            ProviderBuilder, "create_provider_from_source", side_effect=IntegrityError("duplicate key value")
+        ):
+            recovered_provider = builder.create_account(source)
+
+        self.assertEqual(recovered_provider.uuid, created_provider.uuid)
+        source.refresh_from_db()
+        self.assertEqual(source.koku_uuid, str(created_provider.uuid))
