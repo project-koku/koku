@@ -128,8 +128,8 @@ class AwsTagQueryThrottleGetCacheKeyTest(TestCase):
         }
         self.assertIsNone(throttle.get_cache_key(request, None))
 
-    def test_get_cache_key_no_tag_returns_none(self):
-        """When query has no tag in filter or group_by, return None."""
+    def test_get_cache_key_no_tag_or_aws_category_returns_none(self):
+        """When query has no tag or aws_category in filter or group_by, return None."""
         throttle = AwsTagQueryThrottle()
         request = Mock()
         request.user.customer.schema_name = "acct123"
@@ -210,3 +210,18 @@ class AwsTagQueryThrottleGetCacheKeyTest(TestCase):
                 key = throttle.get_cache_key(request, None)
                 self.assertIsNotNone(key, f"time_scope_value={value} should be heavy")
                 self.assertEqual(key, "tag_query_throttle:aws:acct123")
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_aws_category_filter_returns_key(self, mock_flag):
+        """Requests with filter[aws_category:...] and heavy time scope are throttled."""
+        throttle = AwsTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct7049367"
+        request.query_params = {
+            "filter[aws_category:CostCenter]": "106,665,706",
+            "time_scope_units": "month",
+            "time_scope_value": "-1",
+        }
+        key = throttle.get_cache_key(request, None)
+        self.assertIsNotNone(key, "aws_category filter with month scope should be throttled")
+        self.assertEqual(key, "tag_query_throttle:aws:acct7049367")

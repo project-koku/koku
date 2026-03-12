@@ -44,7 +44,8 @@ class BaseTagQueryThrottle(SimpleRateThrottle):
         if not self._is_heavy_query(request.query_params):
             return None
 
-        if not is_feature_flag_enabled_by_schema(schema_name, TAG_QUERY_RATE_LIMIT_FLAG):
+        flag_enabled = is_feature_flag_enabled_by_schema(schema_name, TAG_QUERY_RATE_LIMIT_FLAG)
+        if not flag_enabled:
             return None
 
         cache_key = self._build_cache_key(schema_name)
@@ -144,7 +145,7 @@ class OcpTagQueryThrottle(BaseTagQueryThrottle):
 
 class AwsTagQueryThrottle(BaseTagQueryThrottle):
     """
-    Throttle heavy AWS report queries that use tag (filter or group_by) and large time scope.
+    Throttle heavy AWS report queries that use tag or aws_category (filter or group_by) and large time scope.
 
     Limits such requests to one per 12 hours per schema for customers flagged via
     the same Unleash flag as OcpTagQueryThrottle (cost-management.backend.rate-limit-tag-queries).
@@ -153,9 +154,20 @@ class AwsTagQueryThrottle(BaseTagQueryThrottle):
     scope = "aws_tag_query"
     cache_key_label = "aws"
 
+    @staticmethod
+    def _get_param_keys_with_tag_or_aws_category(query_params):
+        """
+        Return query param keys that contain 'tag:' or 'aws_category' in a filter or group_by context.
+        """
+        return [
+            key
+            for key in query_params
+            if ("filter" in key or "group_by" in key) and ("tag:" in key or "aws_category" in key)
+        ]
+
     def _has_tag_query(self, query_params):
-        """AWS: any param with tag in filter or group_by."""
-        return bool(self._get_param_keys_with_tag(query_params))
+        """AWS: any param with tag or aws_category in filter or group_by."""
+        return bool(self._get_param_keys_with_tag_or_aws_category(query_params))
 
     def _is_heavy_query(self, query_params):
         """AWS: heavy when time_scope_units=month and time_scope_value in (-1, -2, -3)."""
