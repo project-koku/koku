@@ -154,20 +154,11 @@ class AwsTagQueryThrottle(BaseTagQueryThrottle):
     scope = "aws_tag_query"
     cache_key_label = "aws"
 
-    @staticmethod
-    def _get_param_keys_with_tag_or_aws_category(query_params):
-        """
-        Return query param keys that contain 'tag:' or 'aws_category' in a filter or group_by context.
-        """
-        return [
-            key
-            for key in query_params
-            if ("filter" in key or "group_by" in key) and ("tag:" in key or "aws_category" in key)
-        ]
-
     def _has_tag_query(self, query_params):
         """AWS: any param with tag or aws_category in filter or group_by."""
-        return bool(self._get_param_keys_with_tag_or_aws_category(query_params))
+        return any(
+            ("filter" in key or "group_by" in key) and ("tag:" in key or "aws_category" in key) for key in query_params
+        )
 
     def _is_heavy_query(self, query_params):
         """AWS: heavy when time_scope_units=month and time_scope_value in (-1, -2, -3)."""
