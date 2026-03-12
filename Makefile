@@ -21,6 +21,7 @@ scale = 1
 export DOCKER_BUILDKIT = 1
 export USER_ID ?= $(shell id -u)
 export GROUP_ID ?= $(shell id -g)
+export PROMETHEUS_MULTIPROC_DIR ?= $(PROMETHEUS_MULTIPROC_DIR)
 
 # Prefer Docker Compose v2
 DOCKER_COMPOSE_CHECK := $(shell $(DOCKER) compose version >/dev/null 2>&1 ; echo $$?)
