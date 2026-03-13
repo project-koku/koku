@@ -159,6 +159,12 @@ class AwsTagQueryThrottle(BaseTagQueryThrottle):
 
     def _is_heavy_query(self, query_params):
         """AWS: heavy when time_scope_units=month and time_scope_value in (-1, -2, -3)."""
-        units = (query_params.get("time_scope_units") or "").strip().lower()
-        value_str = (query_params.get("time_scope_value") or "").strip()
+        units = (
+            (query_params.get("time_scope_units") or query_params.get("filter[time_scope_units]") or "")
+            .strip()
+            .lower()
+        )
+        value_str = (
+            query_params.get("time_scope_value") or query_params.get("filter[time_scope_value]") or ""
+        ).strip()
         return units == TIME_SCOPE_UNITS_MONTHLY and value_str in TIME_SCOPE_VALUES_MONTHLY
