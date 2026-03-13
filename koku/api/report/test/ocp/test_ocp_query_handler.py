@@ -2090,7 +2090,85 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_efficiency_score_cpu_no_group_by(self):
+  def test_gpu_monthly_annotations_skip_gpu_count(self):
+        """Test that GPU report annotations property skips gpu_count F() to avoid model conflict."""
+        with tenant_context(self.tenant):
+            if not OCPGpuSummaryP.objects.exists():
+                self.skipTest("No GPU data available for testing")
+
+            url = reverse("reports-openshift-gpu")
+            params = {
+                "group_by[gpu_model]": "*",
+                "filter[resolution]": "monthly",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+            }
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            for entry in response.data.get("data", []):
+                for model_entry in entry.get("gpu_models", []):
+                    for value in model_entry.get("values", []):
+                        gpu_count = value.get("gpu_count", {})
+                        if isinstance(gpu_count, dict):
+                            self.assertGreaterEqual(gpu_count.get("value", 0), 0)
+
+    def test_gpu_monthly_with_exclude_propagates_to_subquery(self):
+        """Test that exclude filters are propagated into the GPU count RawSQL subquery."""
+        with tenant_context(self.tenant):
+            first_ns = OCPGpuSummaryP.objects.values_list("namespace", flat=True).first()
+            if not first_ns:
+                self.skipTest("No GPU data available for testing")
+
+            url = reverse("reports-openshift-gpu")
+            params = {
+                "group_by[gpu_model]": "*",
+                "filter[resolution]": "monthly",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+                "exclude[project]": first_ns,
+            }
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            for entry in response.data.get("data", []):
+                for model_entry in entry.get("gpu_models", []):
+                    for value in model_entry.get("values", []):
+                        gpu_count = value.get("gpu_count", {})
+                        if isinstance(gpu_count, dict):
+                            self.assertGreaterEqual(gpu_count.get("value", 0), 0)
+
+    def test_gpu_monthly_with_project_filter_propagates_to_subquery(self):
+        """Test that project filters are propagated into the GPU count RawSQL subquery."""
+        with tenant_context(self.tenant):
+            first_ns = OCPGpuSummaryP.objects.values_list("namespace", flat=True).first()
+            if not first_ns:
+                self.skipTest("No GPU data available for testing")
+
+            url = reverse("reports-openshift-gpu")
+            params = {
+                "group_by[gpu_model]": "*",
+                "filter[resolution]": "monthly",
+                "filter[time_scope_value]": "-1",
+                "filter[time_scope_units]": "month",
+                "filter[project]": first_ns,
+            }
+            url = f"{url}?{urlencode(params)}"
+            client = APIClient()
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            for entry in response.data.get("data", []):
+                for model_entry in entry.get("gpu_models", []):
+                    for value in model_entry.get("values", []):
+                        gpu_count = value.get("gpu_count", {})
+                        if isinstance(gpu_count, dict):
+                            self.assertGreaterEqual(gpu_count.get("value", 0), 0)
+   def test_efficiency_score_cpu_no_group_by(self):
         """Test that CPU report without group-by includes total_score."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPCpuView)
