@@ -107,7 +107,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
 
         sql = pkgutil.get_data(
-            "masu.database", f"{self.trino_sql_folder_name}/gcp/reporting_gcpcostentrylineitem_daily_summary.sql"
+            "masu.database", f"{self.get_sql_folder_name()}/gcp/reporting_gcpcostentrylineitem_daily_summary.sql"
         )
         sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
@@ -129,7 +129,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def fetch_invoice_month_dates(self, start_date, end_date, invoice_month, source_uuid):
         """Get extended valid date range for given invoice_month and start/end."""
-        sql = pkgutil.get_data("masu.database", f"{self.trino_sql_folder_name}/gcp/get_invoice_month_dates.sql")
+        sql = pkgutil.get_data("masu.database", f"{self.get_sql_folder_name()}/gcp/get_invoice_month_dates.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
@@ -314,7 +314,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bill_id,
             report_period_id,
         )
-        managed_path = f"{self.trino_sql_folder_name}/gcp/openshift/populate_daily_summary/"
+        managed_path = f"{self.get_sql_folder_name()}/gcp/openshift/populate_daily_summary/"
         prepare_sql, prepare_params = sql_metadata.prepare_template(
             f"{managed_path}/0_prepare_daily_summary_tables.sql", {"unattributed_storage": enable_unattributed_storage}
         )
@@ -377,7 +377,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         for table_name in tables:
             sql = pkgutil.get_data(
-                "masu.database", f"{self.trino_sql_folder_name}/gcp/openshift/ui_summary/{table_name}.sql"
+                "masu.database", f"{self.get_sql_folder_name()}/gcp/openshift/ui_summary/{table_name}.sql"
             )
             sql = sql.decode("utf-8")
             sql_params = {
@@ -441,7 +441,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Return a list of matched tags."""
         invoice_month_date = kwargs.get("invoice_month_date")
         sql = pkgutil.get_data(
-            "masu.database", f"{self.trino_sql_folder_name}/gcp/openshift/reporting_ocpgcp_matched_tags.sql"
+            "masu.database", f"{self.get_sql_folder_name()}/gcp/openshift/reporting_ocpgcp_matched_tags.sql"
         )
         sql = sql.decode("utf-8")
 
@@ -550,3 +550,33 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.info(log_json(msg="no matching enabled keys for OCP on GCP", schema=self.schema))
                 return False
         return True
+
+    def delete_self_hosted_data_by_source(self, provider_uuid):
+        """Delete data from all self-hosted tables by source UUID (for on-prem).
+
+        This deletes data from the line item tables when a source is deleted.
+
+        Args:
+            provider_uuid: The provider UUID to delete data for
+        """
+        from reporting.provider.gcp.self_hosted_models import get_self_hosted_models
+
+        provider_uuid_str = str(provider_uuid)
+        total_deleted = 0
+
+        with schema_context(self.schema):
+            for model in get_self_hosted_models():
+                deleted_count, _ = model.objects.filter(source=provider_uuid_str).delete()
+
+                if deleted_count:
+                    LOG.info(
+                        log_json(
+                            msg="deleted self-hosted data by source",
+                            table=model._meta.db_table,
+                            provider_uuid=provider_uuid_str,
+                            deleted_count=deleted_count,
+                        )
+                    )
+                    total_deleted += deleted_count
+
+        return total_deleted
