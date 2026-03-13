@@ -81,6 +81,26 @@ class PostgresReportDBAccessor(ReportDBAccessor):
               AND manifestid != '{manifestid}'
         """
 
+    def get_delete_day_by_manifestid_and_date_sql(
+        self,
+        schema_name: str,
+        table_name: str,
+        source: str,
+        year: str,
+        month: str,
+        manifestid: str,
+        processing_date: str,
+    ):
+        """Return the SQL to delete data where manifestid doesn't match, scoped to dates >= processing_date."""
+        return f"""
+            DELETE FROM "{schema_name}"."{table_name}"
+            WHERE source = '{source}'
+              AND year = '{year}'
+              AND month = '{month}'
+              AND manifestid != '{manifestid}'
+              AND {DATE_COLUMN} >= DATE '{processing_date}'
+        """
+
     def get_delete_day_by_reportnumhours_sql(
         self,
         schema_name: str,

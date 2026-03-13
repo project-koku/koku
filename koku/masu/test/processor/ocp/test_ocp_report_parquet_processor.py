@@ -188,7 +188,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
     @patch(
         "masu.processor.ocp.ocp_report_parquet_processor.OCPReportParquetProcessor.get_or_create_postgres_partition"
     )
-    @patch("koku.reportdb_accessor.get_report_db_accessor")
+    @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
     def test_write_to_self_hosted_table(self, mock_get_accessor, mock_partition):
         """Test write_to_self_hosted_table writes data correctly."""
         # Create a daily processor (has self_hosted_line_item_model)
