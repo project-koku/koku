@@ -2153,3 +2153,27 @@ class OCPReportQueryHandlerTest(IamTestCase):
         query_output = handler.execute_query()
         total = query_output.get("total")
         self.assertNotIn("total_score", total)
+
+    def test_order_by_usage_efficiency(self):
+        """Test that compute and memory reports can be ordered by usage_efficiency."""
+        for view in [OCPCpuView, OCPMemoryView]:
+            for direction in ["asc", "desc"]:
+                with self.subTest(view=view, direction=direction):
+                    url = f"?group_by[project]=*&order_by[usage_efficiency]={direction}"
+                    query_params = self.mocked_query_params(url, view)
+                    handler = OCPReportQueryHandler(query_params)
+                    query_output = handler.execute_query()
+                    self.assertIsNotNone(query_output.get("data"))
+                    self.assertIsNotNone(query_output.get("total"))
+
+    def test_order_by_wasted_cost(self):
+        """Test that compute and memory reports can be ordered by wasted_cost."""
+        for view in [OCPCpuView, OCPMemoryView]:
+            for direction in ["asc", "desc"]:
+                with self.subTest(view=view, direction=direction):
+                    url = f"?group_by[project]=*&order_by[wasted_cost]={direction}"
+                    query_params = self.mocked_query_params(url, view)
+                    handler = OCPReportQueryHandler(query_params)
+                    query_output = handler.execute_query()
+                    self.assertIsNotNone(query_output.get("data"))
+                    self.assertIsNotNone(query_output.get("total"))

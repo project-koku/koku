@@ -293,10 +293,21 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     for row in query_data:
                         row["score"] = {}
 
+            if self._report_type in ("cpu", "memory"):
+                for row in query_data:
+                    score = row.get("score") or {}
+                    row["usage_efficiency"] = score.get("usage_efficiency")
+                    row["wasted_cost"] = score.get("wasted_cost")
+
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
             query_data = self.order_by(query_data, query_order_by)
+
+            if self._report_type in ("cpu", "memory"):
+                for row in query_data:
+                    row.pop("usage_efficiency", None)
+                    row.pop("wasted_cost", None)
 
             for row in query_data:
                 if tag_iterable := row.get("tags"):
