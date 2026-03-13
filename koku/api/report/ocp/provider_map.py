@@ -361,9 +361,11 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_unattributed_storage_cost
                             + self.distributed_unattributed_network_cost
                             + self.distributed_unallocated_gpu_cost,
-                            "usage": Sum("pod_usage_cpu_core_hours"),
-                            "request": Sum("pod_request_cpu_core_hours"),
-                            "limit": Sum("pod_limit_cpu_core_hours"),
+                            "usage": Sum("pod_usage_cpu_core_hours", default=Value(0, output_field=DecimalField())),
+                            "request": Sum(
+                                "pod_request_cpu_core_hours", default=Value(0, output_field=DecimalField())
+                            ),
+                            "limit": Sum("pod_limit_cpu_core_hours", default=Value(0, output_field=DecimalField())),
                         },
                         "capacity_aggregate": {
                             "cluster": {
@@ -410,9 +412,15 @@ class OCPProviderMap(ProviderMap):
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage_units": Value("Core-Hours", output_field=CharField()),
-                            "usage": Sum("pod_usage_cpu_core_hours"),
-                            "request": Sum("pod_request_cpu_core_hours"),
-                            "limit": Sum("pod_limit_cpu_core_hours"),
+                            "usage": Sum(
+                                Coalesce(F("pod_usage_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                            ),
+                            "request": Sum(
+                                Coalesce(F("pod_request_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                            ),
+                            "limit": Sum(
+                                Coalesce(F("pod_limit_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                            ),
                             "capacity": Max("cluster_capacity_cpu_core_hours"),  # overwritten in capacity aggregation
                             "clusters": ArrayAgg(
                                 Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
@@ -425,8 +433,12 @@ class OCPProviderMap(ProviderMap):
                             ),
                         },
                         "delta_key": {
-                            "usage": Sum("pod_usage_cpu_core_hours"),
-                            "request": Sum("pod_request_cpu_core_hours"),
+                            "usage": Sum(
+                                Coalesce(F("pod_usage_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                            ),
+                            "request": Sum(
+                                Coalesce(F("pod_request_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                            ),
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
                             "cost_total_distributed": self.cloud_infrastructure_cost
                             + self.markup_cost
@@ -492,9 +504,15 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_unattributed_storage_cost
                             + self.distributed_unattributed_network_cost
                             + self.distributed_unallocated_gpu_cost,
-                            "usage": Sum("pod_usage_memory_gigabyte_hours"),
-                            "request": Sum("pod_request_memory_gigabyte_hours"),
-                            "limit": Sum("pod_limit_memory_gigabyte_hours"),
+                            "usage": Sum(
+                                "pod_usage_memory_gigabyte_hours", default=Value(0, output_field=DecimalField())
+                            ),
+                            "request": Sum(
+                                "pod_request_memory_gigabyte_hours", default=Value(0, output_field=DecimalField())
+                            ),
+                            "limit": Sum(
+                                "pod_limit_memory_gigabyte_hours", default=Value(0, output_field=DecimalField())
+                            ),
                         },
                         "capacity_aggregate": {
                             "cluster": {
@@ -542,9 +560,15 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_unallocated_gpu_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "usage": Sum("pod_usage_memory_gigabyte_hours"),
-                            "request": Sum("pod_request_memory_gigabyte_hours"),
-                            "limit": Sum("pod_limit_memory_gigabyte_hours"),
+                            "usage": Sum(
+                                Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
+                            ),
+                            "request": Sum(
+                                Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
+                            ),
+                            "limit": Sum(
+                                Coalesce(F("pod_limit_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
+                            ),
                             "capacity": Max(
                                 "cluster_capacity_memory_gigabyte_hours"
                             ),  # This is to keep the order, overwritten with capacity aggregate
@@ -560,8 +584,12 @@ class OCPProviderMap(ProviderMap):
                             ),
                         },
                         "delta_key": {
-                            "usage": Sum("pod_usage_memory_gigabyte_hours"),
-                            "request": Sum("pod_request_memory_gigabyte_hours"),
+                            "usage": Sum(
+                                Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
+                            ),
+                            "request": Sum(
+                                Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
+                            ),
                             "cost_total": self.cloud_infrastructure_cost
                             + self.markup_cost
                             + self.cost_model_memory_cost,
@@ -967,9 +995,7 @@ class OCPProviderMap(ProviderMap):
                                 Coalesce(F("memory_capacity_gb"), Value(0, output_field=DecimalField()))
                             ),
                             "gpu_memory_units": Value("GB", output_field=CharField()),
-                            "gpu_count": Sum(
-                                Coalesce(F("gpu_count"), Value(0, output_field=IntegerField())), distinct=True
-                            ),
+                            "gpu_count": Sum("gpu_count", default=Value(0, output_field=IntegerField())),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
                             # MIG fields - these work here because they're applied after .values()
                             "gpu_mode": F("gpu_mode"),
