@@ -155,7 +155,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             manifest_id=self.manifest_id,
-            context={"start_date": datetime.datetime.utcnow()},
+            context={"start_date": datetime.datetime.now(tz=datetime.timezone.utc)},
         )
         self.assertIsInstance(report_processor.start_date, datetime.date)
 

@@ -79,6 +79,10 @@ SELECT uuid() as uuid,
     cast(blended_cost * {{markup | sqlsafe}} AS decimal(33,15)) as markup_cost_blended,
     cast(savingsplan_effective_cost * {{markup | sqlsafe}} AS decimal(33,15)) as markup_cost_savingsplan,
     cast(calculated_amortized_cost * {{markup | sqlsafe}} AS decimal(33,9)) as markup_cost_amortized
+-- AWS CUR timestamps (lineitem_usagestartdate) are always UTC per the AWS CUR
+-- data dictionary (billing_period format YYYY-MM-DDTHH:mm:ssZ). No AT TIME
+-- ZONE offset is applied. provider_timezone field is retained on Provider for
+-- future OpenShift / display features.
 FROM (
     SELECT date(lineitem_usagestartdate) as usage_start,
         date(lineitem_usagestartdate) as usage_end,

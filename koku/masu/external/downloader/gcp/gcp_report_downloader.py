@@ -261,7 +261,14 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             """
             eq_result = client.query(export_partition_date_query).result()
             for row in eq_result:
-                mapping[row[0]] = row[1].replace(tzinfo=settings.UTC)
+                dt = row[1]
+                # BigQuery DATETIME columns are returned as naive datetime objects; stamp
+                # them UTC.  If the driver ever returns a tz-aware value, use astimezone
+                # so we don't silently overwrite existing offset information.
+                if isinstance(dt, datetime.datetime):
+                    mapping[row[0]] = dt.astimezone(settings.UTC) if dt.tzinfo else dt.replace(tzinfo=settings.UTC)
+                else:
+                    mapping[row[0]] = dt
         except GoogleCloudError as err:
             msg = "could not query table for partition date information"
             extra_context = {"schema": self.customer_name, "response": err.message}

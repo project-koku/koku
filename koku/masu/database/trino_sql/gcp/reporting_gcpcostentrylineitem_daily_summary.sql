@@ -38,6 +38,8 @@ SELECT uuid() as uuid,
     max(service_description) as service_alias,
     sku_id,
     max(sku_description) as sku_alias,
+    -- GCP BigQuery billing export timestamps are UTC (Timestamp type in schema).
+    -- No AT TIME ZONE offset required.
     date(usage_start_time) as usage_start,
     date(usage_start_time) as usage_end,
     nullif(location_region, '') as region,
