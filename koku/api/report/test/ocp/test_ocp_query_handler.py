@@ -2090,7 +2090,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-  def test_gpu_monthly_annotations_skip_gpu_count(self):
+    def test_gpu_monthly_annotations_skip_gpu_count(self):
         """Test that GPU report annotations property skips gpu_count F() to avoid model conflict."""
         with tenant_context(self.tenant):
             if not OCPGpuSummaryP.objects.exists():
@@ -2168,7 +2168,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
                         gpu_count = value.get("gpu_count", {})
                         if isinstance(gpu_count, dict):
                             self.assertGreaterEqual(gpu_count.get("value", 0), 0)
-   def test_efficiency_score_cpu_no_group_by(self):
+
+    def test_efficiency_score_cpu_no_group_by(self):
         """Test that CPU report without group-by includes total_score."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPCpuView)
