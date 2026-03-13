@@ -255,16 +255,18 @@ GPU_USAGE_COLUMNS = {
 }
 
 # MIG (Multi-Instance GPU) columns - optional, may not be present in older operator versions
+# Note: mig_memory_capacity_mib and parent_gpu_max_slices are derived in post-processor
+# from mig_profile and gpu_model_name, so they're not expected from the operator
 GPU_USAGE_NEWV_COLUMNS_AND_TYPES = {
-    "mig_instance_uuid": pd.StringDtype(storage="pyarrow"),
+    "mig_instance_id": pd.StringDtype(storage="pyarrow"),
     "mig_profile": pd.StringDtype(storage="pyarrow"),
     "mig_slice_count": pd.Int64Dtype(),
+    # These are derived in post-processor, not from operator:
     "parent_gpu_max_slices": pd.Int64Dtype(),
-    "parent_gpu_uuid": pd.StringDtype(storage="pyarrow"),
     "mig_memory_capacity_mib": pd.Int64Dtype(),
 }
 
-GPU_GROUP_BY = ["node", "namespace", "pod", "gpu_uuid", "mig_instance_uuid"]
+GPU_GROUP_BY = ["node", "namespace", "pod", "gpu_uuid", "mig_instance_id"]
 
 GPU_AGG = {
     "report_period_start": ["max"],
@@ -273,12 +275,26 @@ GPU_AGG = {
     "gpu_vendor_name": ["max"],
     "gpu_memory_capacity_mib": ["max"],
     "gpu_pod_uptime": ["sum"],
-    # MIG aggregations (mig_instance_uuid is in GROUP_BY, so not included here)
+    # MIG aggregations (mig_instance_id is in GROUP_BY, so not included here)
     "mig_profile": ["max"],
     "mig_slice_count": ["max"],
     "parent_gpu_max_slices": ["max"],
-    "parent_gpu_uuid": ["max"],
     "mig_memory_capacity_mib": ["max"],
+}
+
+# MIG (Multi-Instance GPU) configuration
+# Max slices by GPU model - used to determine parent_gpu_max_slices
+GPU_MAX_SLICES_BY_MODEL = {
+    "A100": 7,
+    "A100-40GB": 7,
+    "A100-80GB": 7,
+    "A100-PCIE": 7,
+    "A100-SXM": 7,
+    "H100": 7,
+    "H100-80GB": 7,
+    "H100-PCIE": 7,
+    "H100-SXM": 7,
+    "A30": 4,
 }
 
 # new_required_columns are columns that appear in new operator reports.

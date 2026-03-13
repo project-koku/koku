@@ -13,7 +13,9 @@ import pandas as pd
 from dateutil.parser import ParserError
 
 from masu.test import MasuTestCase
+from masu.util.ocp.ocp_post_processor import get_gpu_max_slices
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
+from masu.util.ocp.ocp_post_processor import parse_mig_profile
 
 
 class TestOCPPostProcessor(MasuTestCase):
@@ -351,3 +353,304 @@ class TestOCPPostProcessor(MasuTestCase):
         post_processor = OCPPostProcessor(self.schema, "storage_usage")
         processed_df = post_processor._generate_daily_data(df)
         self.assertTrue(processed_df.empty)
+
+    def test_populate_mig_fields_from_profile(self):
+        """Test that MIG fields are populated from profile."""
+        data = [
+            {
+                "node": "gpu-node-1",
+                "namespace": "ml-training",
+                "pod": "training-pod",
+                "gpu_uuid": "GPU-123",
+                "gpu_model_name": "A100",
+                "gpu_vendor_name": "nvidia",
+                "gpu_memory_capacity_mib": 81920,
+                "gpu_pod_uptime": 3600,
+                "mig_instance_id": "MIG-456",
+                "mig_profile": "4g.40gb",
+            },
+            {
+                "node": "gpu-node-1",
+                "namespace": "inference",
+                "pod": "inference-pod",
+                "gpu_uuid": "GPU-123",
+                "gpu_model_name": "A100",
+                "gpu_vendor_name": "nvidia",
+                "gpu_memory_capacity_mib": 81920,
+                "gpu_pod_uptime": 7200,
+                "mig_instance_id": "MIG-789",
+                "mig_profile": "1g.10gb",
+            },
+        ]
+        df = pd.DataFrame(data)
+        post_processor = OCPPostProcessor(self.schema, "gpu_usage")
+        processed_df = post_processor._populate_mig_fields_from_profile(df)
+
+        # Check that mig_slice_count was populated from profile
+        self.assertEqual(processed_df.at[0, "mig_slice_count"], 4)
+        self.assertEqual(processed_df.at[1, "mig_slice_count"], 1)
+
+        # Check that mig_memory_capacity_mib was populated from profile
+        self.assertEqual(processed_df.at[0, "mig_memory_capacity_mib"], 40960)
+        self.assertEqual(processed_df.at[1, "mig_memory_capacity_mib"], 10240)
+
+        # Check that parent_gpu_max_slices was populated from GPU model
+        self.assertEqual(processed_df.at[0, "parent_gpu_max_slices"], 7)
+        self.assertEqual(processed_df.at[1, "parent_gpu_max_slices"], 7)
+
+    def test_populate_mig_fields_non_gpu_report(self):
+        """Test that MIG field population is skipped for non-GPU reports."""
+        data = [{"node": "node-1", "namespace": "default", "pod": "pod-1"}]
+        df = pd.DataFrame(data)
+        post_processor = OCPPostProcessor(self.schema, "pod_usage")
+        processed_df = post_processor._populate_mig_fields_from_profile(df)
+
+        # Should return unchanged dataframe
+        pd.testing.assert_frame_equal(df, processed_df)
+
+    def test_populate_mig_fields_no_mig_profile(self):
+        """Test that MIG field population is skipped when no mig_profile column exists."""
+        data = [
+            {
+                "node": "gpu-node-1",
+                "namespace": "default",
+                "pod": "pod-1",
+                "gpu_uuid": "GPU-123",
+                "gpu_model_name": "Tesla T4",
+            }
+        ]
+        df = pd.DataFrame(data)
+        post_processor = OCPPostProcessor(self.schema, "gpu_usage")
+        processed_df = post_processor._populate_mig_fields_from_profile(df)
+
+        # Should return unchanged dataframe
+        pd.testing.assert_frame_equal(df, processed_df)
+
+    def test_populate_mig_fields_empty_mig_profile(self):
+        """Test that MIG field population handles empty mig_profile values."""
+        data = [
+            {
+                "node": "gpu-node-1",
+                "namespace": "default",
+                "pod": "pod-1",
+                "gpu_uuid": "GPU-123",
+                "gpu_model_name": "Tesla T4",
+                "mig_profile": "",
+            },
+            {
+                "node": "gpu-node-2",
+                "namespace": "default",
+                "pod": "pod-2",
+                "gpu_uuid": "GPU-456",
+                "gpu_model_name": "Tesla T4",
+                "mig_profile": None,
+            },
+        ]
+        df = pd.DataFrame(data)
+        post_processor = OCPPostProcessor(self.schema, "gpu_usage")
+        processed_df = post_processor._populate_mig_fields_from_profile(df)
+
+        # Should not add MIG fields for rows without valid mig_profile
+        self.assertFalse("mig_slice_count" in processed_df.columns and processed_df["mig_slice_count"].notna().any())
+
+    def test_populate_mig_fields_preserves_existing_values(self):
+        """Test that existing MIG field values are not overwritten."""
+        data = [
+            {
+                "node": "gpu-node-1",
+                "namespace": "ml-training",
+                "pod": "training-pod",
+                "gpu_uuid": "GPU-123",
+                "gpu_model_name": "A100",
+                "mig_profile": "4g.40gb",
+                "mig_slice_count": 4,  # Already set
+                "mig_memory_capacity_mib": 40960,  # Already set
+                "parent_gpu_max_slices": 7,  # Already set
+            },
+        ]
+        df = pd.DataFrame(data)
+        post_processor = OCPPostProcessor(self.schema, "gpu_usage")
+        processed_df = post_processor._populate_mig_fields_from_profile(df)
+
+        # Existing values should be preserved
+        self.assertEqual(processed_df.at[0, "mig_slice_count"], 4)
+        self.assertEqual(processed_df.at[0, "mig_memory_capacity_mib"], 40960)
+        self.assertEqual(processed_df.at[0, "parent_gpu_max_slices"], 7)
+
+
+class MIGProfileParsingTest(MasuTestCase):
+    """Test the MIG profile parsing utility functions."""
+
+    def test_parse_mig_profile_valid(self):
+        """Test parsing valid MIG profiles."""
+        test_cases = [
+            ("1g.5gb", (1, 5120)),
+            ("1g.10gb", (1, 10240)),
+            ("2g.10gb", (2, 10240)),
+            ("2g.20gb", (2, 20480)),
+            ("3g.20gb", (3, 20480)),
+            ("3g.40gb", (3, 40960)),
+            ("4g.20gb", (4, 20480)),
+            ("4g.40gb", (4, 40960)),
+            ("7g.40gb", (7, 40960)),
+            ("7g.80gb", (7, 81920)),
+        ]
+        for profile, expected in test_cases:
+            with self.subTest(profile=profile):
+                result = parse_mig_profile(profile)
+                self.assertEqual(result, expected)
+
+    def test_parse_mig_profile_case_insensitive(self):
+        """Test that MIG profile parsing is case insensitive."""
+        test_cases = [
+            ("1G.5GB", (1, 5120)),
+            ("1g.5GB", (1, 5120)),
+            ("1G.5gb", (1, 5120)),
+        ]
+        for profile, expected in test_cases:
+            with self.subTest(profile=profile):
+                result = parse_mig_profile(profile)
+                self.assertEqual(result, expected)
+
+    def test_parse_mig_profile_invalid(self):
+        """Test parsing invalid MIG profiles returns (None, None)."""
+        test_cases = [
+            None,
+            "",
+            "   ",
+            "invalid",
+            "1g",
+            "5gb",
+            "1g.5",
+            "1.5gb",
+            "1g5gb",
+        ]
+        for profile in test_cases:
+            with self.subTest(profile=profile):
+                result = parse_mig_profile(profile)
+                self.assertEqual(result, (None, None))
+
+    def test_get_gpu_max_slices_known_models(self):
+        """Test getting max slices for known GPU models."""
+        test_cases = [
+            ("A100", 7),
+            ("a100", 7),  # Case insensitive
+            ("A100-40GB", 7),
+            ("A100-80GB", 7),
+            ("H100", 7),
+            ("H100-80GB", 7),
+            ("A30", 4),
+        ]
+        for model, expected in test_cases:
+            with self.subTest(model=model):
+                result = get_gpu_max_slices(model)
+                self.assertEqual(result, expected)
+
+    def test_get_gpu_max_slices_partial_match(self):
+        """Test getting max slices with partial model name match."""
+        test_cases = [
+            ("NVIDIA A100-80GB-PCIe", 7),
+            ("NVIDIA-A100-SXM4", 7),
+            ("H100-SXM5-80GB", 7),
+        ]
+        for model, expected in test_cases:
+            with self.subTest(model=model):
+                result = get_gpu_max_slices(model)
+                self.assertEqual(result, expected)
+
+    def test_get_gpu_max_slices_unknown_model(self):
+        """Test getting max slices for unknown GPU model returns None (treat as dedicated)."""
+        result = get_gpu_max_slices("UnknownGPU")
+        self.assertIsNone(result)
+
+    def test_get_gpu_max_slices_none_model(self):
+        """Test getting max slices with None model returns None (treat as dedicated)."""
+        result = get_gpu_max_slices(None)
+        self.assertIsNone(result)
+
+
+class TestMIGFieldsForUnknownModels(MasuTestCase):
+    """Test that MIG fields are cleared for unknown GPU models."""
+
+    def setUp(self):
+        """Set up test environment."""
+        self.schema = "test_schema"
+
+    def test_populate_mig_fields_clears_for_unknown_model(self):
+        """Test that MIG fields are cleared for unknown GPU models (treated as dedicated)."""
+        data = [
+            {
+                "node": "gpu-node-1",
+                "namespace": "ml-training",
+                "pod": "training-pod",
+                "gpu_uuid": "GPU-123",
+                "gpu_model_name": "UnknownGPU",
+                "gpu_vendor_name": "nvidia",
+                "gpu_memory_capacity_mib": 81920,
+                "gpu_pod_uptime": 3600,
+                "mig_instance_id": "MIG-456",
+                "mig_profile": "4g.40gb",
+                "mig_slice_count": 4,
+            },
+        ]
+        df = pd.DataFrame(data)
+        post_processor = OCPPostProcessor(self.schema, "gpu_usage")
+        processed_df = post_processor._populate_mig_fields_from_profile(df)
+
+        # Unknown model should have MIG fields cleared and be treated as dedicated
+        self.assertTrue(pd.isna(processed_df.at[0, "mig_profile"]))
+        self.assertTrue(pd.isna(processed_df.at[0, "mig_slice_count"]))
+        self.assertTrue(pd.isna(processed_df.at[0, "parent_gpu_max_slices"]))
+        self.assertTrue(pd.isna(processed_df.at[0, "mig_instance_id"]))
+
+    def test_populate_mig_fields_clears_for_unparseable_profile(self):
+        """Test that MIG fields are cleared when profile can't be parsed and model is unknown."""
+        data = [
+            {
+                "node": "gpu-node-1",
+                "namespace": "ml-training",
+                "pod": "training-pod",
+                "gpu_uuid": "GPU-123",
+                "gpu_model_name": "UnknownGPU",
+                "gpu_vendor_name": "nvidia",
+                "gpu_memory_capacity_mib": 81920,
+                "gpu_pod_uptime": 3600,
+                "mig_instance_id": "MIG-456",
+                "mig_profile": "invalid-profile",
+            },
+        ]
+        df = pd.DataFrame(data)
+        post_processor = OCPPostProcessor(self.schema, "gpu_usage")
+        processed_df = post_processor._populate_mig_fields_from_profile(df)
+
+        # Can't parse profile and unknown model, so MIG fields should be cleared
+        self.assertTrue(pd.isna(processed_df.at[0, "mig_profile"]))
+        self.assertTrue(pd.isna(processed_df.at[0, "mig_slice_count"]))
+        self.assertTrue(pd.isna(processed_df.at[0, "parent_gpu_max_slices"]))
+        self.assertTrue(pd.isna(processed_df.at[0, "mig_instance_id"]))
+
+    def test_populate_mig_fields_preserves_for_known_model(self):
+        """Test that MIG fields are preserved for known GPU models."""
+        data = [
+            {
+                "node": "gpu-node-1",
+                "namespace": "ml-training",
+                "pod": "training-pod",
+                "gpu_uuid": "GPU-123",
+                "gpu_model_name": "A100",
+                "gpu_vendor_name": "nvidia",
+                "gpu_memory_capacity_mib": 81920,
+                "gpu_pod_uptime": 3600,
+                "mig_instance_id": "MIG-456",
+                "mig_profile": "4g.40gb",
+            },
+        ]
+        df = pd.DataFrame(data)
+        post_processor = OCPPostProcessor(self.schema, "gpu_usage")
+        processed_df = post_processor._populate_mig_fields_from_profile(df)
+
+        # Known model should have MIG fields preserved and max_slices populated
+        self.assertEqual(processed_df.at[0, "mig_profile"], "4g.40gb")
+        self.assertEqual(processed_df.at[0, "mig_slice_count"], 4)
+        self.assertEqual(processed_df.at[0, "mig_memory_capacity_mib"], 40960)
+        self.assertEqual(processed_df.at[0, "parent_gpu_max_slices"], 7)
