@@ -161,6 +161,13 @@ class ProviderManager:
                     states[key]["state"] = "in-progress"
         return states
 
+    def get_created_timestamp(self):
+        """Get provider created_timestamp."""
+        timestamp = self.model.created_timestamp
+        if timestamp:
+            return timestamp.strftime(DATE_TIME_FORMAT)
+        return None
+
     def get_last_polling_time(self, uuid=None):
         """Get last polling timestamp for provider"""
         if uuid:
