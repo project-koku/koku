@@ -70,6 +70,9 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             "vm_disk_allocated_size_byte_seconds",
             "gpu_memory_capacity_mib",
             "gpu_pod_uptime",
+            "mig_slice_count",
+            "parent_gpu_max_slices",
+            "mig_memory_capacity_mib",
             "reportnumhours",  # this is a calculated column and not part of the report
         ]
         date_columns = ["report_period_start", "report_period_end", "interval_start", "interval_end"]

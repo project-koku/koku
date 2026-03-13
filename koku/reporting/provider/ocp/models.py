@@ -992,6 +992,7 @@ class OCPGpuSummaryP(models.Model):
             models.Index(fields=["node"], name="ocpgpusumm_node_idx"),
             models.Index(fields=["vendor_name"], name="ocpgpusumm_vendor_idx"),
             models.Index(fields=["model_name"], name="ocpgpusumm_model_idx"),
+            models.Index(fields=["mig_profile"], name="ocpgpusumm_mig_profile_idx"),
         ]
 
     id = models.UUIDField(primary_key=True)
@@ -1007,6 +1008,14 @@ class OCPGpuSummaryP(models.Model):
     model_name = models.CharField(max_length=128, null=True)
     memory_capacity_gb = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     gpu_count = models.IntegerField(null=True)
+
+    # MIG (Multi-Instance GPU) fields
+    gpu_mode = models.CharField(max_length=32, null=True)  # 'dedicated' or 'MIG'
+    mig_profile = models.CharField(max_length=64, null=True)  # e.g., '1g.5gb', '2g.10gb'
+    mig_slice_count = models.IntegerField(null=True)
+    parent_gpu_max_slices = models.IntegerField(null=True)
+    parent_gpu_uuid = models.CharField(max_length=256, null=True)
+    mig_memory_capacity_gb = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Cost fields - aggregated from cost_model_gpu_cost in daily_summary
     cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)

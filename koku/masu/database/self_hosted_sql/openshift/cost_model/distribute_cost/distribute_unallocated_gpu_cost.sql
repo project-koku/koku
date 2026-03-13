@@ -28,10 +28,13 @@ WITH unattributed_gpu_cost as (
     GROUP BY node, 3, cluster_alias, cluster_id, report_period_id
 ),
 namespace_usage_information as (
+    -- MIG-aware distribution: use slice-hours instead of just uptime
+    -- slice_hours = sum(uptime * slice_count)
+    -- This scales the distribution weight by the number of slices each namespace uses
     SELECT gpu_model_name,
         gpu_usage.namespace,
         gpu_usage.node,
-        sum(gpu_pod_uptime) as pod_usage_uptime,
+        sum(gpu_pod_uptime * COALESCE(gpu_usage.mig_slice_count, 1)) as pod_usage_slice_hours,
         gpu_usage.usage_start
     FROM {{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu_usage
     INNER JOIN unattributed_gpu_cost AS ungpu
@@ -53,12 +56,13 @@ SELECT
     nsp_usage.node,
     {{source_uuid}}::uuid,
     {{cost_model_rate_type}},
-    max(nsp_usage.pod_usage_uptime / total_usage.total_pod_uptime * unattributed.gpu_unallocated_cost) as distributed_cost
+    -- Distribute using slice-hours ratio: namespace_slice_hours / total_slice_hours * unallocated_cost
+    max(nsp_usage.pod_usage_slice_hours / total_usage.total_slice_hours * unattributed.gpu_unallocated_cost) as distributed_cost
 FROM namespace_usage_information as nsp_usage
 JOIN unattributed_gpu_cost as unattributed
     ON unattributed.node = nsp_usage.node
 JOIN (
-    SELECT sum(pod_usage_uptime) as total_pod_uptime, node FROM namespace_usage_information group by node
+    SELECT sum(pod_usage_slice_hours) as total_slice_hours, node FROM namespace_usage_information group by node
 ) as total_usage
     ON unattributed.node = total_usage.node
 GROUP BY nsp_usage.usage_start, nsp_usage.node, nsp_usage.namespace
