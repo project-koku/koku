@@ -10,12 +10,15 @@ from rest_framework.serializers import ValidationError
 from .provider_errors import ProviderErrors
 from api.common import error_obj
 from api.provider.models import Provider
+from providers.aks.provider import AKSProvider
 from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
 from providers.azure.provider import AzureProvider
 from providers.azure_local.provider import AzureLocalProvider
+from providers.eks.provider import EKSProvider
 from providers.gcp.provider import GCPProvider
 from providers.gcp_local.provider import GCPLocalProvider
+from providers.gke.provider import GKEProvider
 from providers.ocp.provider import OCPProvider
 
 LOG = logging.getLogger(__name__)
@@ -48,6 +51,9 @@ class ProviderAccessor:
             Provider.PROVIDER_AZURE: AzureProvider,
             Provider.PROVIDER_GCP: GCPProvider,
             Provider.PROVIDER_GCP_LOCAL: GCPLocalProvider,
+            Provider.PROVIDER_EKS: EKSProvider,
+            Provider.PROVIDER_AKS: AKSProvider,
+            Provider.PROVIDER_GKE: GKEProvider,
         }
 
         self.service = None
