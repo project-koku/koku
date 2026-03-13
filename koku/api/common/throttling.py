@@ -157,14 +157,13 @@ class AwsTagQueryThrottle(BaseTagQueryThrottle):
         """AWS: any param with tag in filter or group_by."""
         return bool(self._get_param_keys_with_tag(query_params))
 
+    @staticmethod
+    def _get_param_value(query_params, key):
+        """Return param value from either key or filter[key] (API sends filter[time_scope_units] etc)."""
+        return query_params.get(key) or query_params.get(f"filter[{key}]") or ""
+
     def _is_heavy_query(self, query_params):
         """AWS: heavy when time_scope_units=month and time_scope_value in (-1, -2, -3)."""
-        units = (
-            (query_params.get("time_scope_units") or query_params.get("filter[time_scope_units]") or "")
-            .strip()
-            .lower()
-        )
-        value_str = (
-            query_params.get("time_scope_value") or query_params.get("filter[time_scope_value]") or ""
-        ).strip()
+        units = self._get_param_value(query_params, "time_scope_units").strip().lower()
+        value_str = self._get_param_value(query_params, "time_scope_value").strip()
         return units == TIME_SCOPE_UNITS_MONTHLY and value_str in TIME_SCOPE_VALUES_MONTHLY
