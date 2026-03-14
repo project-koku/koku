@@ -41,35 +41,6 @@ def calculate_unused(row, finalized_mapping=None):
     row["request_unused_percent"] = (unused_request / capacity) * 100
 
 
-def calculate_efficiency_score(row):
-    """Calculates the usage efficiency score and wasted cost.
-
-    usage_efficiency = round((usage / request) * 100)
-    wasted_cost = max(cost_total * (1 - usage/request), 0)
-    """
-    raw_usage = row.get("usage")
-    raw_request = row.get("request")
-    raw_cost_total = row.get("cost_total")
-
-    usage = raw_usage if isinstance(raw_usage, Decimal) else Decimal(str(raw_usage or 0))
-    request = raw_request if isinstance(raw_request, Decimal) else Decimal(str(raw_request or 0))
-    cost_total = raw_cost_total if isinstance(raw_cost_total, Decimal) else Decimal(str(raw_cost_total or 0))
-
-    if request <= 0:
-        row["score"] = {"usage_efficiency": 0, "wasted_cost": Decimal(0)}
-        return
-
-    efficiency_ratio = usage / request
-    usage_efficiency = round(efficiency_ratio * 100)
-    waste_percent = max(Decimal(1) - efficiency_ratio, Decimal(0))
-    wasted_cost = cost_total * waste_percent
-
-    row["score"] = {
-        "usage_efficiency": usage_efficiency,
-        "wasted_cost": wasted_cost,
-    }
-
-
 @dataclass
 class ClusterCapacity:
     """A class to calaculate the cluster capacity.

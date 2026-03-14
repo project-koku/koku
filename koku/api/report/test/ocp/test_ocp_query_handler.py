@@ -2256,3 +2256,25 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     query_output = handler.execute_query()
                     self.assertIsNotNone(query_output.get("data"))
                     self.assertIsNotNone(query_output.get("total"))
+
+    def test_order_by_usage_efficiency_with_pagination(self):
+        """Test that order_by[usage_efficiency] works with filter[limit] and filter[offset]."""
+        for view in [OCPCpuView, OCPMemoryView]:
+            with self.subTest(view=view):
+                url = "?filter[limit]=5&filter[offset]=0&group_by[project]=*&order_by[usage_efficiency]=desc"
+                query_params = self.mocked_query_params(url, view)
+                handler = OCPReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                self.assertIsNotNone(query_output.get("data"))
+                self.assertIsNotNone(query_output.get("total"))
+
+    def test_order_by_wasted_cost_with_pagination(self):
+        """Test that order_by[wasted_cost] works with filter[limit] and filter[offset]."""
+        for view in [OCPCpuView, OCPMemoryView]:
+            with self.subTest(view=view):
+                url = "?filter[limit]=5&filter[offset]=0&group_by[project]=*&order_by[wasted_cost]=desc"
+                query_params = self.mocked_query_params(url, view)
+                handler = OCPReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                self.assertIsNotNone(query_output.get("data"))
+                self.assertIsNotNone(query_output.get("total"))

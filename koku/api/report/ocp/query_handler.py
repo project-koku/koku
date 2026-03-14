@@ -24,7 +24,6 @@ from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
 from api.models import Provider
-from api.report.ocp.capacity.cluster_capacity import calculate_efficiency_score
 from api.report.ocp.capacity.cluster_capacity import calculate_unused
 from api.report.ocp.capacity.cluster_capacity import ClusterCapacity
 from api.report.ocp.capacity.node_capacity import NodeCapacity
@@ -338,19 +337,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 has_tag_interaction = self._tag_group_by or self.get_tag_filter_keys()
                 should_compute = not has_tag_interaction and len(group_by_value) <= 1
                 if should_compute:
-                    calculate_efficiency_score(query_sum)
-                    for row in query_data:
-                        calculate_efficiency_score(row)
+                    query_sum["score"] = {
+                        "usage_efficiency": query_sum.pop("usage_efficiency", 0),
+                        "wasted_cost": query_sum.pop("wasted_cost", Decimal(0)),
+                    }
                 else:
+                    query_sum.pop("usage_efficiency", None)
+                    query_sum.pop("wasted_cost", None)
                     query_sum["score"] = {}
-                    for row in query_data:
-                        row["score"] = {}
-
-            if self._report_type in ("cpu", "memory"):
-                for row in query_data:
-                    score = row.get("score") or {}
-                    row["usage_efficiency"] = score.get("usage_efficiency")
-                    row["wasted_cost"] = score.get("wasted_cost")
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
@@ -359,8 +353,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self._report_type in ("cpu", "memory"):
                 for row in query_data:
-                    row.pop("usage_efficiency", None)
-                    row.pop("wasted_cost", None)
+                    if should_compute:
+                        row["score"] = {
+                            "usage_efficiency": row.pop("usage_efficiency", 0),
+                            "wasted_cost": row.pop("wasted_cost", Decimal(0)),
+                        }
+                    else:
+                        row.pop("usage_efficiency", None)
+                        row.pop("wasted_cost", None)
+                        row["score"] = {}
 
             for row in query_data:
                 if tag_iterable := row.get("tags"):
