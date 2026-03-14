@@ -277,6 +277,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         output["data"] = self.query_data
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
+        if "score" in self.query_sum:
+            self.query_sum["total_score"] = self.query_sum.pop("score")
         output["total"] = self.query_sum
 
         if self._delta:
@@ -331,10 +333,35 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_sum.update(total_capacity)
                 calculate_unused(query_sum)
 
+            if self._report_type in ("cpu", "memory"):
+                has_tag_interaction = self._tag_group_by or self.get_tag_filter_keys()
+                should_compute = not has_tag_interaction and len(group_by_value) <= 1
+                if should_compute:
+                    query_sum["score"] = {
+                        "usage_efficiency": query_sum.pop("usage_efficiency", 0),
+                        "wasted_cost": query_sum.pop("wasted_cost", Decimal(0)),
+                    }
+                else:
+                    query_sum.pop("usage_efficiency", None)
+                    query_sum.pop("wasted_cost", None)
+                    query_sum["score"] = {}
+
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
             query_data = self.order_by(query_data, query_order_by)
+
+            if self._report_type in ("cpu", "memory"):
+                for row in query_data:
+                    if should_compute:
+                        row["score"] = {
+                            "usage_efficiency": row.pop("usage_efficiency", 0),
+                            "wasted_cost": row.pop("wasted_cost", Decimal(0)),
+                        }
+                    else:
+                        row.pop("usage_efficiency", None)
+                        row.pop("wasted_cost", None)
+                        row["score"] = {}
 
             for row in query_data:
                 if tag_iterable := row.get("tags"):
