@@ -39,16 +39,20 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
             self._cost_model = cost_model_accessor.cost_model
+            self._distribution = cost_model_accessor.distribution_info.get(
+                metric_constants.DISTRIBUTION_TYPE, metric_constants.DEFAULT_DISTRIBUTION_TYPE
+            )
+            self._distribution_info = cost_model_accessor.distribution_info
+
+    def _load_rates(self, target_date):
+        """Load rates from the effective price list for the given billing date."""
+        with CostModelDBAccessor(self._schema, self._provider_uuid, target_date) as cost_model_accessor:
             self._infra_rates = cost_model_accessor.infrastructure_rates
             self._tag_infra_rates = cost_model_accessor.tag_infrastructure_rates
             self._tag_default_infra_rates = cost_model_accessor.tag_default_infrastructure_rates
             self._supplementary_rates = cost_model_accessor.supplementary_rates
             self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
-            self._distribution = cost_model_accessor.distribution_info.get(
-                metric_constants.DISTRIBUTION_TYPE, metric_constants.DEFAULT_DISTRIBUTION_TYPE
-            )
-            self._distribution_info = cost_model_accessor.distribution_info
             self.metric_to_tag_params_map = cost_model_accessor.metric_to_tag_params_map
 
     def _build_node_tag_cost_case_statements(  # noqa: C901
@@ -560,6 +564,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             None
 
         """
+        self._load_rates(summary_range.start_date)
         LOG.info(
             log_json(
                 msg="updating cost model costs for provider",

@@ -18,17 +18,20 @@ LOG = logging.getLogger(__name__)
 class CostModelDBAccessor:
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, provider_uuid):
+    def __init__(self, schema, provider_uuid, target_date=None):
         """Establish the database connection.
 
         Args:
             schema (str): The customer schema to associate with
             provider_uuid (str): Provider uuid
+            target_date (date, optional): Billing date for price list resolution
 
         """
         self.schema = schema
         self.provider_uuid = provider_uuid
+        self.target_date = target_date
         self._cost_model = None
+        self._effective_rates = None
 
     def __enter__(self):
         """Enter context manager."""
@@ -49,12 +52,36 @@ class CostModelDBAccessor:
         return self._cost_model
 
     @property
+    def effective_rates(self):
+        """Return rates from the effective price list for the target date.
+
+        When target_date is provided, resolves rates via price list priority.
+        Returns empty rates if no price list covers the date (zero costs per PRD).
+        When target_date is None, falls back to CostModel.rates for backward compatibility.
+        """
+        if self._effective_rates is not None:
+            return self._effective_rates
+        if not self.cost_model:
+            self._effective_rates = {}
+            return self._effective_rates
+        if self.target_date is None:
+            # No target date — fall back to CostModel.rates for backward compatibility
+            self._effective_rates = self.cost_model.rates or {}
+            return self._effective_rates
+        from cost_models.price_list_manager import PriceListManager
+
+        effective_pl = PriceListManager.get_effective_price_list(self.cost_model.uuid, self.target_date)
+        if effective_pl:
+            self._effective_rates = effective_pl.rates or {}
+        else:
+            self._effective_rates = {}
+        return self._effective_rates
+
+    @property
     def price_list(self):
         """Return the rates definied on this cost model."""
         metric_rate_map = {}
-        price_list = None
-        if self.cost_model:
-            price_list = copy.deepcopy(self.cost_model.rates)
+        price_list = copy.deepcopy(self.effective_rates) if self.effective_rates else None
         if not price_list:
             return {}
         for rate in price_list:
@@ -118,10 +145,10 @@ class CostModelDBAccessor:
     @property
     def metric_to_tag_params_map(self):
         """Returns the tag rate parameters"""
-        if not self.cost_model:
+        if not self.cost_model or not self.effective_rates:
             return {}
         tag_rate_list = []
-        all_rates = copy.deepcopy(self.cost_model.rates)
+        all_rates = copy.deepcopy(self.effective_rates)
         for rate in all_rates:
             tag_rate_param = {}
             tag_rate = rate.get("tag_rates")
@@ -149,9 +176,7 @@ class CostModelDBAccessor:
     def tag_based_price_list(self):  # noqa: C901
         """Return the rates definied on this cost model that come from tag based rates."""
         metric_rate_map = {}
-        tag_based_price_list = None
-        if self.cost_model:
-            tag_based_price_list = copy.deepcopy(self.cost_model.rates)
+        tag_based_price_list = copy.deepcopy(self.effective_rates) if self.effective_rates else None
         if not tag_based_price_list:
             return {}
         for rate in tag_based_price_list:
