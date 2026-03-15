@@ -104,3 +104,52 @@ class CostModelMap(models.Model):
         ordering = ["-id"]
         unique_together = ("provider_uuid", "cost_model")
         db_table = "cost_model_map"
+
+
+class PriceList(models.Model):
+    """A standalone rate collection with validity period, versioning, and enabled/disabled status."""
+
+    class Meta:
+        db_table = "price_list"
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["name"], name="price_list_name_idx"),
+            models.Index(fields=["effective_start_date", "effective_end_date"], name="price_list_validity_idx"),
+        ]
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
+    name = models.TextField()
+
+    description = models.TextField()
+
+    currency = models.TextField()
+
+    effective_start_date = models.DateField()
+
+    effective_end_date = models.DateField()
+
+    enabled = models.BooleanField(default=True)
+
+    version = models.PositiveIntegerField(default=1)
+
+    rates = JSONField()
+
+    created_timestamp = models.DateTimeField(auto_now_add=True)
+
+    updated_timestamp = models.DateTimeField(auto_now=True)
+
+
+class PriceListCostModelMap(models.Model):
+    """Links price lists to cost models with priority ordering."""
+
+    class Meta:
+        db_table = "price_list_cost_model_map"
+        ordering = ["priority"]
+        unique_together = ("price_list", "cost_model")
+
+    price_list = models.ForeignKey("PriceList", on_delete=models.CASCADE, related_name="cost_model_maps")
+
+    cost_model = models.ForeignKey("CostModel", on_delete=models.CASCADE, related_name="price_list_maps")
+
+    priority = models.PositiveIntegerField()
