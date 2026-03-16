@@ -338,8 +338,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 should_compute = not has_tag_interaction and len(group_by_value) <= 1
                 if should_compute:
                     query_sum["score"] = {
-                        "usage_efficiency": query_sum.pop("usage_efficiency", 0),
-                        "wasted_cost": query_sum.pop("wasted_cost", Decimal(0)),
+                        "usage_efficiency": {
+                            "value": query_sum.pop("usage_efficiency", 0),
+                            "units": "percent",
+                        },
+                        "wasted_cost": {
+                            "value": query_sum.pop("wasted_cost", Decimal(0)),
+                            "units": self.currency,
+                        },
                     }
                 else:
                     query_sum.pop("usage_efficiency", None)
@@ -355,8 +361,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 for row in query_data:
                     if should_compute:
                         row["score"] = {
-                            "usage_efficiency": row.pop("usage_efficiency", 0),
-                            "wasted_cost": row.pop("wasted_cost", Decimal(0)),
+                            "usage_efficiency": {
+                                "value": row.pop("usage_efficiency", 0),
+                                "units": "percent",
+                            },
+                            "wasted_cost": {
+                                "value": row.pop("wasted_cost", Decimal(0)),
+                                "units": self.currency,
+                            },
                         }
                     else:
                         row.pop("usage_efficiency", None)
