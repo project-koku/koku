@@ -7,9 +7,9 @@
 | Epic          | [FLPATH-2799](https://issues.redhat.com/browse/FLPATH-2799)          |
 | HLD           | [kessel-ocp-integration.md](./kessel-ocp-integration.md) |
 | Author        | Jordi Gil                                                             |
-| Status        | Draft                                                                 |
+| Status        | Implemented                                                           |
 | Created       | 2026-02-18                                                           |
-| Last updated  | 2026-02-26                                                           |
+| Last updated  | 2026-03-11                                                           |
 
 ## Table of Contents
 
