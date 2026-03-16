@@ -35,6 +35,7 @@ from kessel.inventory.v1beta2 import resource_reference_pb2
 from kessel.inventory.v1beta2 import write_visibility_pb2
 
 from api.common import log_json
+from koku_rebac.kessel_auth import get_http_auth_headers
 
 if TYPE_CHECKING:
     from .client import KesselClient
@@ -292,7 +293,7 @@ def _delete_resource_tuples(resource_type: str, resource_id: str) -> bool:
         "filter.resource_id": resource_id,
     }
     try:
-        resp = http_requests.delete(url, params=params, timeout=10)
+        resp = http_requests.delete(url, params=params, headers=get_http_auth_headers(), timeout=10)
         if not resp.ok:
             LOG.warning(
                 log_json(
