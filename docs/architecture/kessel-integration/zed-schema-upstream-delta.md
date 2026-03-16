@@ -37,6 +37,8 @@ Our local `dev/kessel/schema.zed` has the full wiring (via `rbac/workspace`), pr
 
 **What must be added upstream** (all 23 cost_management permissions — 13 OCP + 10 cloud):
 
+> **Note**: The upstream schema uses `t_role` as the relation name on `rbac/role_binding` (granting relation from role_binding to role). Our local on-prem `schema.zed` uses `t_granted` for the same relation. The ZED below uses the **upstream naming convention** (`t_role`) since it describes a PR to `rbac-config`.
+
 ```zed
 definition rbac/role_binding {
     // ... existing permissions for other services ...

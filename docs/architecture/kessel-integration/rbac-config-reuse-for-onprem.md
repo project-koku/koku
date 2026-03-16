@@ -1,8 +1,9 @@
 # Using Existing RBAC Config for On-Premise ReBAC
 
-**Date**: 2026-02-04  
-**Question**: Should on-premise use existing permissions and roles from rbac-config?  
+**Date**: 2026-02-04
+**Question**: Should on-premise use existing permissions and roles from rbac-config?
 **Answer**: ✅ **YES - They are Koku-specific, not SaaS-specific**
+**Resolved by**: Implemented via [`seed-roles.yaml`](../../../dev/kessel/seed-roles.yaml) which seeds roles and permissions into SpiceDB during deployment. See [kessel-ocp-detailed-design.md §7.5](./kessel-ocp-detailed-design.md#75-roles-source).
 
 ---
 
