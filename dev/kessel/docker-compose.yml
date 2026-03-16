@@ -1,0 +1,130 @@
+#
+# Kessel stack for Koku contract/integration testing.
+#
+# Starts SpiceDB + Relations API + Inventory API backed by a shared PostgreSQL.
+#
+# PORT MAPPING (avoids collisions with Koku services):
+#   PostgreSQL ........ 5433:5432  (Koku test DB uses 15432)
+#   SpiceDB gRPC ...... 50051:50051
+#   Relations API HTTP  8100:8000  (kessel-admin.sh uses this)
+#   Relations API gRPC  9100:9000  (Koku metrics uses 9000)
+#   Inventory HTTP .... 8081:8000  (Koku API uses 8000)
+#   Inventory gRPC .... 9081:9000
+#
+# Usage:
+#   podman compose -f dev/kessel/docker-compose.yml up -d
+#   podman compose -f dev/kessel/docker-compose.yml down -v
+#
+# See dev/kessel/README.md for full documentation.
+
+name: kessel-test
+
+services:
+  database:
+    image: docker.io/library/postgres:16
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: kessel
+      POSTGRES_PASSWORD: kessel
+      POSTGRES_DB: spicedb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kessel"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - kessel
+
+  spicedb-migrate:
+    image: docker.io/authzed/spicedb:latest
+    command: migrate head
+    restart: on-failure
+    environment:
+      SPICEDB_DATASTORE_ENGINE: postgres
+      SPICEDB_DATASTORE_CONN_URI: "postgres://kessel:kessel@database:5432/spicedb?sslmode=disable"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - kessel
+
+  spicedb:
+    image: docker.io/authzed/spicedb:latest
+    command: serve
+    restart: always
+    ports:
+      - "50051:50051"
+    environment:
+      SPICEDB_GRPC_PRESHARED_KEY: "koku-test-secret"
+      SPICEDB_DATASTORE_ENGINE: postgres
+      SPICEDB_DATASTORE_CONN_URI: "postgres://kessel:kessel@database:5432/spicedb?sslmode=disable"
+      SPICEDB_HTTP_ENABLED: "true"
+      SPICEDB_DATASTORE_REVISION_QUANTIZATION_INTERVAL: "0s"
+    depends_on:
+      spicedb-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50051"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - kessel
+
+  relations-api:
+    image: quay.io/cloudservices/kessel-relations:latest
+    restart: always
+    ports:
+      - "8100:8000"
+      - "9100:9000"
+    environment:
+      SPICEDB_PRESHARED: "koku-test-secret"
+      SPICEDB_ENDPOINT: "spicedb:50051"
+      SPICEDB_SCHEMA_FILE: /schema.zed
+    volumes:
+      - ./schema.zed:/schema.zed:ro,z
+    depends_on:
+      spicedb:
+        condition: service_started
+    networks:
+      - kessel
+
+  inventory-api:
+    image: quay.io/cloudservices/kessel-inventory:latest
+    command: ["serve"]
+    restart: always
+    ports:
+      - "8081:8000"
+      - "9081:9000"
+    environment:
+      INVENTORY_API_CONFIG: /inventory-config.yaml
+    volumes:
+      - ./inventory-config.yaml:/inventory-config.yaml:ro,z
+      - ./resource-schemas:/resource-schemas:ro,z
+    depends_on:
+      inventory-migrate:
+        condition: service_completed_successfully
+      relations-api:
+        condition: service_started
+    networks:
+      - kessel
+
+  inventory-migrate:
+    image: quay.io/cloudservices/kessel-inventory:latest
+    command: ["migrate"]
+    restart: on-failure
+    environment:
+      INVENTORY_API_CONFIG: /inventory-config.yaml
+    volumes:
+      - ./inventory-config.yaml:/inventory-config.yaml:ro,z
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - kessel
+
+networks:
+  kessel:
+    driver: bridge

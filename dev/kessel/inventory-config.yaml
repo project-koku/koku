@@ -1,0 +1,37 @@
+# Inventory API configuration for local Kessel integration tests.
+# Mirrors project-kessel/inventory-api development/configs/full-setup.yaml
+# but points to our local compose services.
+server:
+  http:
+    address: 0.0.0.0:8000
+  grpc:
+    address: 0.0.0.0:9000
+authn:
+  allow-unauthenticated: true
+authz:
+  impl: kessel
+  kessel:
+    url: relations-api:9000
+    insecure-client: true
+    enable-oidc-auth: false
+eventing:
+  eventer: stdout
+consumer:
+  enabled: false
+storage:
+  database: postgres
+  postgres:
+    host: "database"
+    port: "5432"
+    user: "kessel"
+    password: "kessel"
+    dbname: "spicedb"
+schema:
+  schemas: in-memory
+  in-memory:
+    Type: dir
+    Path: /resource-schemas
+log:
+  level: "info"
+  livez: true
+  readyz: true
