@@ -26,15 +26,15 @@ SELECT
     gpu.usage_start as usage_end,
     gpu.namespace as namespace,
     gpu.node as node,
-    COALESCE(gpu.mig_instance_uuid, gpu.gpu_uuid) as resource_id,
+    COALESCE(gpu.mig_instance_id, gpu.gpu_uuid) as resource_id,
     jsonb_build_object(
         'gpu-model', gpu.gpu_model_name,
         'gpu-vendor', gpu.gpu_vendor_name,
         'gpu-memory-mib', gpu.gpu_memory_capacity_mib::varchar,
         'mig-profile', gpu.mig_profile,
         'mig-slice-count', gpu.mig_slice_count::varchar,
-        'parent-gpu-max-slices', gpu.parent_gpu_max_slices::varchar,
-        'parent-gpu-uuid', gpu.parent_gpu_uuid,
+        'gpu-max-slices', gpu.gpu_max_slices::varchar,
+        'mig-strategy', gpu.mig_strategy,
         'mig-memory-mib', gpu.mig_memory_capacity_mib::varchar,
         'gpu-mode', CASE WHEN NULLIF(gpu.mig_profile, '') IS NOT NULL THEN 'MIG' ELSE 'dedicated' END
     ) as all_labels,
@@ -46,8 +46,8 @@ SELECT
     {%- if rate is defined %}
     (CAST({{rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0) *
         CASE
-            WHEN gpu.mig_slice_count IS NOT NULL AND gpu.parent_gpu_max_slices IS NOT NULL AND gpu.parent_gpu_max_slices > 0
-            THEN CAST(gpu.mig_slice_count AS decimal(24,9)) / CAST(gpu.parent_gpu_max_slices AS decimal(24,9))
+            WHEN gpu.mig_slice_count IS NOT NULL AND gpu.gpu_max_slices IS NOT NULL AND gpu.gpu_max_slices > 0
+            THEN CAST(gpu.mig_slice_count AS decimal(24,9)) / CAST(gpu.gpu_max_slices AS decimal(24,9))
             ELSE 1.0
         END,
     {%- elif value_rates is defined %}
@@ -56,16 +56,16 @@ SELECT
         WHEN gpu.gpu_model_name = '{{value | sqlsafe}}'
         THEN (CAST({{value_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0) *
             CASE
-                WHEN gpu.mig_slice_count IS NOT NULL AND gpu.parent_gpu_max_slices IS NOT NULL AND gpu.parent_gpu_max_slices > 0
-                THEN CAST(gpu.mig_slice_count AS decimal(24,9)) / CAST(gpu.parent_gpu_max_slices AS decimal(24,9))
+                WHEN gpu.mig_slice_count IS NOT NULL AND gpu.gpu_max_slices IS NOT NULL AND gpu.gpu_max_slices > 0
+                THEN CAST(gpu.mig_slice_count AS decimal(24,9)) / CAST(gpu.gpu_max_slices AS decimal(24,9))
                 ELSE 1.0
             END
         {%- endfor %}
         {%- if default_rate is defined %}
         ELSE (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0) *
             CASE
-                WHEN gpu.mig_slice_count IS NOT NULL AND gpu.parent_gpu_max_slices IS NOT NULL AND gpu.parent_gpu_max_slices > 0
-                THEN CAST(gpu.mig_slice_count AS decimal(24,9)) / CAST(gpu.parent_gpu_max_slices AS decimal(24,9))
+                WHEN gpu.mig_slice_count IS NOT NULL AND gpu.gpu_max_slices IS NOT NULL AND gpu.gpu_max_slices > 0
+                THEN CAST(gpu.mig_slice_count AS decimal(24,9)) / CAST(gpu.gpu_max_slices AS decimal(24,9))
                 ELSE 1.0
             END
         {%- endif %}
@@ -73,8 +73,8 @@ SELECT
     {%- elif default_rate is defined %}
     (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0) *
         CASE
-            WHEN gpu.mig_slice_count IS NOT NULL AND gpu.parent_gpu_max_slices IS NOT NULL AND gpu.parent_gpu_max_slices > 0
-            THEN CAST(gpu.mig_slice_count AS decimal(24,9)) / CAST(gpu.parent_gpu_max_slices AS decimal(24,9))
+            WHEN gpu.mig_slice_count IS NOT NULL AND gpu.gpu_max_slices IS NOT NULL AND gpu.gpu_max_slices > 0
+            THEN CAST(gpu.mig_slice_count AS decimal(24,9)) / CAST(gpu.gpu_max_slices AS decimal(24,9))
             ELSE 1.0
         END,
     {%- else %}
@@ -140,7 +140,7 @@ WITH cte_unutilized_uptime_hours AS (
             -- For MIG: sum(uptime * slice_count) / 3600
             -- For non-MIG: sum(uptime) / 3600
             sum(gpu.gpu_pod_uptime * COALESCE(gpu.mig_slice_count, 1)) / 3600 as aggregated_slice_uptime,
-            max(COALESCE(gpu.parent_gpu_max_slices, 1)) as max_slices_per_gpu,
+            max(COALESCE(gpu.gpu_max_slices, 1)) as max_slices_per_gpu,
             gpu.node,
             gpu.usage_start as interval_date
         from {{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu

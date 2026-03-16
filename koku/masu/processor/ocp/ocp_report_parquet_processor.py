@@ -71,7 +71,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             "gpu_memory_capacity_mib",
             "gpu_pod_uptime",
             "mig_slice_count",
-            "parent_gpu_max_slices",
+            "gpu_max_slices",
             "mig_memory_capacity_mib",
             "reportnumhours",  # this is a calculated column and not part of the report
         ]

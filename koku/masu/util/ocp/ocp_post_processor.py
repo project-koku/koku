@@ -214,7 +214,7 @@ class OCPPostProcessor:
             "gpu_pod_uptime": safe_float,
             # MIG fields - convert empty strings to None for nullable columns
             "mig_slice_count": safe_int_or_none,
-            "parent_gpu_max_slices": safe_int_or_none,
+            "gpu_max_slices": safe_int_or_none,
             "mig_memory_capacity_mib": safe_float_or_none,
             "pod_labels": process_openshift_labels_to_json,
             "persistentvolume_labels": process_openshift_labels_to_json,
@@ -269,7 +269,7 @@ class OCPPostProcessor:
 
     def _ensure_mig_columns(self, data_frame):
         """Ensure MIG-related columns exist in the dataframe."""
-        for col in ("mig_slice_count", "mig_memory_capacity_mib", "parent_gpu_max_slices"):
+        for col in ("mig_slice_count", "mig_memory_capacity_mib", "gpu_max_slices"):
             if col not in data_frame.columns:
                 data_frame[col] = pd.NA
         return data_frame
@@ -291,16 +291,17 @@ class OCPPostProcessor:
         data_frame.at[idx, "mig_profile"] = pd.NA
         data_frame.at[idx, "mig_slice_count"] = pd.NA
         data_frame.at[idx, "mig_memory_capacity_mib"] = pd.NA
-        data_frame.at[idx, "parent_gpu_max_slices"] = pd.NA
+        data_frame.at[idx, "gpu_max_slices"] = pd.NA
+        data_frame.at[idx, "mig_strategy"] = pd.NA
         if "mig_instance_id" in data_frame.columns:
             data_frame.at[idx, "mig_instance_id"] = pd.NA
 
     def _populate_mig_fields_from_profile(self, data_frame):
-        """Populate MIG fields (mig_memory_capacity_mib, parent_gpu_max_slices) from mig_profile.
+        """Populate MIG fields (mig_memory_capacity_mib, gpu_max_slices) from mig_profile.
 
         The operator may not provide these fields directly, so we derive them:
         - mig_memory_capacity_mib: parsed from mig_profile (e.g., "1g.5gb" -> 5120 MiB)
-        - parent_gpu_max_slices: looked up from GPU model, or computed from sum of slice counts
+        - gpu_max_slices: looked up from GPU model, or computed from sum of slice counts
         - mig_slice_count: parsed from mig_profile if not present (e.g., "1g.5gb" -> 1)
 
         If the GPU model is unknown and we cannot determine max_slices, all MIG fields are
@@ -316,9 +317,9 @@ class OCPPostProcessor:
         data_frame = self._ensure_mig_columns(data_frame)
         self._parse_mig_profile_for_rows(data_frame, has_mig_data)
 
-        # Populate parent_gpu_max_slices or clear MIG fields for unknown models
+        # Populate gpu_max_slices or clear MIG fields for unknown models
         for idx in data_frame[has_mig_data].index:
-            if not pd.isna(data_frame.at[idx, "parent_gpu_max_slices"]):
+            if not pd.isna(data_frame.at[idx, "gpu_max_slices"]):
                 continue
 
             gpu_model = data_frame.at[idx, "gpu_model_name"] if "gpu_model_name" in data_frame.columns else None
@@ -327,7 +328,7 @@ class OCPPostProcessor:
             if max_slices is None:
                 self._clear_mig_fields_for_row(data_frame, idx)
             else:
-                data_frame.at[idx, "parent_gpu_max_slices"] = max_slices
+                data_frame.at[idx, "gpu_max_slices"] = max_slices
 
         return data_frame
 
