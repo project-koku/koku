@@ -394,9 +394,9 @@ class TestOCPPostProcessor(MasuTestCase):
         self.assertEqual(processed_df.at[0, "mig_memory_capacity_mib"], 40960)
         self.assertEqual(processed_df.at[1, "mig_memory_capacity_mib"], 10240)
 
-        # Check that parent_gpu_max_slices was populated from GPU model
-        self.assertEqual(processed_df.at[0, "parent_gpu_max_slices"], 7)
-        self.assertEqual(processed_df.at[1, "parent_gpu_max_slices"], 7)
+        # Check that gpu_max_slices was populated from GPU model
+        self.assertEqual(processed_df.at[0, "gpu_max_slices"], 7)
+        self.assertEqual(processed_df.at[1, "gpu_max_slices"], 7)
 
     def test_populate_mig_fields_non_gpu_report(self):
         """Test that MIG field population is skipped for non-GPU reports."""
@@ -465,7 +465,7 @@ class TestOCPPostProcessor(MasuTestCase):
                 "mig_profile": "4g.40gb",
                 "mig_slice_count": 4,  # Already set
                 "mig_memory_capacity_mib": 40960,  # Already set
-                "parent_gpu_max_slices": 7,  # Already set
+                "gpu_max_slices": 7,  # Already set
             },
         ]
         df = pd.DataFrame(data)
@@ -475,7 +475,7 @@ class TestOCPPostProcessor(MasuTestCase):
         # Existing values should be preserved
         self.assertEqual(processed_df.at[0, "mig_slice_count"], 4)
         self.assertEqual(processed_df.at[0, "mig_memory_capacity_mib"], 40960)
-        self.assertEqual(processed_df.at[0, "parent_gpu_max_slices"], 7)
+        self.assertEqual(processed_df.at[0, "gpu_max_slices"], 7)
 
 
 class MIGProfileParsingTest(MasuTestCase):
@@ -600,7 +600,7 @@ class TestMIGFieldsForUnknownModels(MasuTestCase):
         # Unknown model should have MIG fields cleared and be treated as dedicated
         self.assertTrue(pd.isna(processed_df.at[0, "mig_profile"]))
         self.assertTrue(pd.isna(processed_df.at[0, "mig_slice_count"]))
-        self.assertTrue(pd.isna(processed_df.at[0, "parent_gpu_max_slices"]))
+        self.assertTrue(pd.isna(processed_df.at[0, "gpu_max_slices"]))
         self.assertTrue(pd.isna(processed_df.at[0, "mig_instance_id"]))
 
     def test_populate_mig_fields_clears_for_unparseable_profile(self):
@@ -626,7 +626,7 @@ class TestMIGFieldsForUnknownModels(MasuTestCase):
         # Can't parse profile and unknown model, so MIG fields should be cleared
         self.assertTrue(pd.isna(processed_df.at[0, "mig_profile"]))
         self.assertTrue(pd.isna(processed_df.at[0, "mig_slice_count"]))
-        self.assertTrue(pd.isna(processed_df.at[0, "parent_gpu_max_slices"]))
+        self.assertTrue(pd.isna(processed_df.at[0, "gpu_max_slices"]))
         self.assertTrue(pd.isna(processed_df.at[0, "mig_instance_id"]))
 
     def test_populate_mig_fields_preserves_for_known_model(self):
@@ -653,4 +653,4 @@ class TestMIGFieldsForUnknownModels(MasuTestCase):
         self.assertEqual(processed_df.at[0, "mig_profile"], "4g.40gb")
         self.assertEqual(processed_df.at[0, "mig_slice_count"], 4)
         self.assertEqual(processed_df.at[0, "mig_memory_capacity_mib"], 40960)
-        self.assertEqual(processed_df.at[0, "parent_gpu_max_slices"], 7)
+        self.assertEqual(processed_df.at[0, "gpu_max_slices"], 7)

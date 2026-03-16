@@ -288,7 +288,7 @@ GPU_AGG = {
 }
 
 # MIG (Multi-Instance GPU) configuration
-# Max slices by GPU model - used to determine parent_gpu_max_slices
+# Max slices by GPU model - used to determine parent gpu max slices
 GPU_MAX_SLICES_BY_MODEL = {
     "A100": 7,
     "A100-40GB": 7,

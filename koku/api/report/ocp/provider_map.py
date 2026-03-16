@@ -1003,8 +1003,8 @@ class OCPProviderMap(ProviderMap):
                             # "mig_slice_count": Max(
                             #     Coalesce(F("mig_slice_count"), Value(0, output_field=IntegerField()))
                             # ),
-                            # "parent_gpu_max_slices": Max(
-                            #     Coalesce(F("parent_gpu_max_slices"), Value(0, output_field=IntegerField()))
+                            # "gpu_max_slices": Max(
+                            #     Coalesce(F("gpu_max_slices"), Value(0, output_field=IntegerField()))
                             # ),
                             # "mig_memory_capacity_gb": Max(
                             #     Coalesce(F("mig_memory_capacity_gb"), Value(0, output_field=DecimalField()))
@@ -1058,12 +1058,11 @@ class OCPProviderMap(ProviderMap):
                             # MIG fields - these work here because they're applied after .values()
                             "node": F("node"),
                             "mig_profile": F("mig_profile"),
-                            "parent_gpu_uuid": F("parent_gpu_uuid"),
                             "mig_slice_count": Max(
                                 Coalesce(F("mig_slice_count"), Value(0, output_field=IntegerField()))
                             ),
-                            "parent_gpu_max_slices": Max(
-                                Coalesce(F("parent_gpu_max_slices"), Value(0, output_field=IntegerField()))
+                            "gpu_max_slices": Max(
+                                Coalesce(F("gpu_max_slices"), Value(0, output_field=IntegerField()))
                             ),
                             "mig_memory_capacity_gb": Max(
                                 Coalesce(F("mig_memory_capacity_gb"), Value(0, output_field=DecimalField()))
