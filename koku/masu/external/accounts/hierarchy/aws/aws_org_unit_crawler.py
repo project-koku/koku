@@ -211,6 +211,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         account_alias = None
         account_id = None
         org_id = self.provider.account.get("org_id", "")
+        p_uuid = str(self.provider.uuid)
 
         with schema_context(self.schema):
             # This is a leaf node
@@ -232,7 +233,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
                     )
                     account_alias.account_alias = account_name
                     account_alias.save()
-                on_resource_created("aws_account", account_id, org_id)
+                on_resource_created("aws_account", account_id, org_id, provider_uuid=p_uuid)
 
             # If we add provider here right now it will duplicate the entries
             org_unit, created = AWSOrganizationalUnit.objects.get_or_create(
@@ -242,7 +243,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 account_alias=account_alias,
                 level=level,
             )
-            on_resource_created("aws_organizational_unit", unit_id, org_id)
+            on_resource_created("aws_organizational_unit", unit_id, org_id, provider_uuid=p_uuid)
 
             # Remove key since we have seen it
             lookup_key = self._create_lookup_key(unit_id, account_id)

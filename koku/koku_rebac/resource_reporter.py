@@ -92,17 +92,19 @@ def _get_tuples_url() -> str:
     return f"{settings.KESSEL_RELATIONS_URL.rstrip('/')}{settings.KESSEL_TUPLES_PATH}"
 
 
-def _track_synced_resource(resource_type: str, resource_id: str, org_id: str, *, synced: bool = True) -> None:
+def _track_synced_resource(
+    resource_type: str, resource_id: str, org_id: str, *, provider_uuid: str = "", synced: bool = True
+) -> None:
     """Record a resource in the tracking table with its sync status."""
     KesselSyncedResource.objects.update_or_create(
         resource_type=resource_type,
         resource_id=resource_id,
         org_id=org_id,
-        defaults={"kessel_synced": synced, "last_synced_at": timezone.now()},
+        defaults={"provider_uuid": provider_uuid, "kessel_synced": synced, "last_synced_at": timezone.now()},
     )
 
 
-def on_resource_created(resource_type: str, resource_id: str, org_id: str) -> None:
+def on_resource_created(resource_type: str, resource_id: str, org_id: str, *, provider_uuid: str = "") -> None:
     """Report a new resource to Kessel Inventory AND create SpiceDB tuples.
 
     Two-phase creation (symmetrical with on_resource_deleted):
@@ -135,7 +137,9 @@ def on_resource_created(resource_type: str, resource_id: str, org_id: str) -> No
         )
 
     tuple_ok = _create_resource_tuples(resource_type, resource_id, org_id)
-    _track_synced_resource(resource_type, resource_id, org_id, synced=(inventory_ok and tuple_ok))
+    _track_synced_resource(
+        resource_type, resource_id, org_id, provider_uuid=provider_uuid, synced=(inventory_ok and tuple_ok)
+    )
 
 
 def _create_resource_tuples(resource_type: str, resource_id: str, org_id: str) -> bool:
@@ -167,7 +171,7 @@ def _create_resource_tuples(resource_type: str, resource_id: str, org_id: str) -
         ],
     }
     try:
-        resp = http_requests.post(url, json=payload, timeout=10)
+        resp = http_requests.post(url, json=payload, headers=get_http_auth_headers(), timeout=10)
         if not resp.ok:
             LOG.warning(
                 log_json(
@@ -226,7 +230,7 @@ def create_structural_tuple(
         ],
     }
     try:
-        resp = http_requests.post(url, json=payload, timeout=10)
+        resp = http_requests.post(url, json=payload, headers=get_http_auth_headers(), timeout=10)
         if not resp.ok:
             LOG.warning(
                 log_json(
@@ -361,7 +365,7 @@ def cleanup_orphaned_kessel_resources(provider_uuid: str, org_id: str) -> int:
     if Provider.objects.filter(uuid=provider_uuid).exists():
         return 0
 
-    tracked = KesselSyncedResource.objects.filter(org_id=org_id)
+    tracked = KesselSyncedResource.objects.filter(org_id=org_id, provider_uuid=provider_uuid)
     if not tracked.exists():
         return 0
 

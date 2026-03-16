@@ -445,11 +445,12 @@ def update_account_aliases(provider: Provider):
     schema = provider.account["schema_name"]
     credentials = provider.account["credentials"]
     org_id = provider.account.get("org_id", "")
+    p_uuid = str(provider.uuid)
     _arn = AwsArn(credentials)
     account_id, account_alias = get_account_alias_from_role_arn(_arn, provider)
     with contextlib.suppress(IntegrityError), schema_context(schema):
         AWSAccountAlias.objects.get_or_create(account_id=account_id, account_alias=account_alias)
-    on_resource_created("aws_account", account_id, org_id)
+    on_resource_created("aws_account", account_id, org_id, provider_uuid=p_uuid)
 
     accounts = get_account_names_by_organization(_arn, provider)
     for account in accounts:
@@ -458,7 +459,7 @@ def update_account_aliases(provider: Provider):
         if acct_id and acct_alias:
             with contextlib.suppress(IntegrityError), schema_context(schema):
                 AWSAccountAlias.objects.get_or_create(account_id=acct_id, account_alias=acct_alias)
-            on_resource_created("aws_account", acct_id, org_id)
+            on_resource_created("aws_account", acct_id, org_id, provider_uuid=p_uuid)
 
 
 def get_bills_from_provider(

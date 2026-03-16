@@ -214,6 +214,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(log_json(msg="populating GCP topology table", context=ctx))
         topology = self.get_gcp_topology_trino(provider.uuid, start_date, end_date, invoice_month)
         org_id = provider.account.get("org_id", "")
+        p_uuid = str(provider.uuid)
         seen_accounts: set[str] = set()
         seen_projects: set[str] = set()
 
@@ -242,10 +243,10 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 project_id = record[2]
                 if account_id and account_id not in seen_accounts:
                     seen_accounts.add(account_id)
-                    on_resource_created("gcp_account", account_id, org_id)
+                    on_resource_created("gcp_account", account_id, org_id, provider_uuid=p_uuid)
                 if project_id and project_id not in seen_projects:
                     seen_projects.add(project_id)
-                    on_resource_created("gcp_project", project_id, org_id)
+                    on_resource_created("gcp_project", project_id, org_id, provider_uuid=p_uuid)
         LOG.info(log_json(msg="finished populating GCP topology table", context=ctx))
 
     def get_gcp_topology_trino(self, source_uuid, start_date, end_date, invoice_month):

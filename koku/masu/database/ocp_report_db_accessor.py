@@ -1057,12 +1057,13 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if not nodes and not projects:
             return
         org_id = getattr(provider, "org_id", None) or ""
+        p_uuid = str(provider.uuid) if hasattr(provider, "uuid") else ""
         for node_row in nodes:
             node_name = node_row[0] if isinstance(node_row, (tuple, list)) else str(node_row)
-            on_resource_created("openshift_node", node_name, org_id)
+            on_resource_created("openshift_node", node_name, org_id, provider_uuid=p_uuid)
         for project_row in projects:
             project_name = project_row[0] if isinstance(project_row, (tuple, list)) else str(project_row)
-            on_resource_created("openshift_project", project_name, org_id)
+            on_resource_created("openshift_project", project_name, org_id, provider_uuid=p_uuid)
             create_structural_tuple("openshift_cluster", cluster_id, "has_project", "openshift_project", project_name)
 
     def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
