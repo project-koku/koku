@@ -54,6 +54,11 @@ class _TokenProvider:
         token_url = getattr(settings, "KESSEL_AUTH_TOKEN_URL", "") or (
             f"{settings.KESSEL_AUTH_OIDC_ISSUER}/protocol/openid-connect/token"
         )
+        if not token_url or token_url.startswith("/"):
+            raise ValueError(
+                f"Kessel auth token URL is not configured (got '{token_url}'). "
+                "Set KESSEL_AUTH_TOKEN_URL or KESSEL_AUTH_OIDC_ISSUER."
+            )
         try:
             resp = requests.post(
                 token_url,

@@ -22,8 +22,12 @@ _client_lock = threading.Lock()
 def _build_channel_credentials(ca_path: str) -> grpc.ChannelCredentials:
     """Build TLS credentials, optionally loading a custom CA certificate."""
     if ca_path:
-        with open(ca_path, "rb") as f:
-            root_certs = f.read()
+        try:
+            with open(ca_path, "rb") as f:
+                root_certs = f.read()
+        except FileNotFoundError:
+            LOG.error(log_json(msg="Kessel CA file not found, falling back to system roots", ca_path=ca_path))
+            return grpc.ssl_channel_credentials()
         return grpc.ssl_channel_credentials(root_certificates=root_certs)
     return grpc.ssl_channel_credentials()
 
@@ -93,5 +97,5 @@ def _reset_client() -> None:
             try:
                 _client_instance._channel.close()
             except Exception:
-                pass
+                LOG.debug(log_json(msg="Error closing Kessel gRPC channel during reset"), exc_info=True)
         _client_instance = None

@@ -9,6 +9,7 @@ SaaS: RBAC v2 API provides the default workspace (RbacV2Resolver).
 """
 import logging
 import threading
+import time
 from typing import Protocol
 
 import requests
@@ -17,6 +18,8 @@ from django.conf import settings
 from api.common import log_json
 
 LOG = logging.getLogger(__name__)
+
+_REFRESH_BUFFER_SECONDS = 30
 
 
 class WorkspaceResolver(Protocol):
@@ -41,19 +44,23 @@ class RbacV2Resolver:
 
     def __init__(self, rbac_url: str, token_url: str, client_id: str, client_secret: str) -> None:
         self._rbac_url = rbac_url.rstrip("/")
+        if not token_url or token_url.startswith("/"):
+            raise ValueError(f"RbacV2Resolver: invalid token URL '{token_url}' -- check KESSEL_AUTH_OIDC_ISSUER")
         self._token_url = token_url
         self._client_id = client_id
         self._client_secret = client_secret
         self._cached_token: str | None = None
+        self._token_expires_at: float = 0.0
         self._token_lock = threading.Lock()
 
     def _get_access_token(self) -> str:
         """Obtain an OAuth2 access token via client_credentials grant."""
-        if self._cached_token:
+        now = time.time()
+        if self._cached_token and now < self._token_expires_at - _REFRESH_BUFFER_SECONDS:
             return self._cached_token
 
         with self._token_lock:
-            if self._cached_token:
+            if self._cached_token and time.time() < self._token_expires_at - _REFRESH_BUFFER_SECONDS:
                 return self._cached_token
 
             resp = requests.post(
@@ -70,6 +77,7 @@ class RbacV2Resolver:
             self._cached_token = data.get("access_token")
             if not self._cached_token:
                 raise ValueError("OAuth2 token response missing 'access_token'")
+            self._token_expires_at = time.time() + data.get("expires_in", 300)
             return self._cached_token
 
     def resolve(self, org_id: str) -> str:
