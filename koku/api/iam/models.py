@@ -71,6 +71,11 @@ class User(models.Model):
         self.identity_header = None
         self.beta = False
 
+    @property
+    def is_authenticated(self):
+        """Required by DRF's IsAuthenticated permission class."""
+        return True
+
     class Meta:
         ordering = ["username"]
 

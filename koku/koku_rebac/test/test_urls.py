@@ -1,11 +1,12 @@
 #
-# Copyright 2021 Red Hat Inc.
+# Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""koku URL Configuration.
+"""URL configuration for integration tests.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/2.0/topics/http/urls/
+Always includes koku_rebac URLs regardless of the AUTHORIZATION_BACKEND
+setting so that @override_settings can toggle the backend at test runtime
+without fighting Django's import-time URL resolution.
 """
 from django.conf import settings
 from django.conf.urls import include
@@ -21,5 +22,5 @@ if API_PATH_PREFIX != "":
 urlpatterns = [
     path(f"{API_PATH_PREFIX}v1/", include("api.urls")),
     path(f"{API_PATH_PREFIX}v1/", include("cost_models.urls")),
+    path(f"{API_PATH_PREFIX}v1/access-management/", include("koku_rebac.urls")),
 ]
-
