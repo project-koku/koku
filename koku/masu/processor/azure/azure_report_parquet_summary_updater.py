@@ -97,6 +97,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
+            self._report_azure_subscriptions_to_kessel(start_date, end_date)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = timezone.now()
@@ -104,3 +105,23 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                 bill.save()
 
         return start_date, end_date
+
+    def _report_azure_subscriptions_to_kessel(self, start_date, end_date):
+        """Report distinct Azure subscription GUIDs discovered during summarization."""
+        from koku_rebac.resource_reporter import on_resource_created
+        from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
+
+        org_id = self._provider.account.get("org_id", "")
+        with schema_context(self._schema):
+            sub_guids = (
+                AzureCostEntryLineItemDailySummary.objects.filter(
+                    source_uuid=self._provider.uuid,
+                    usage_date_time__date__gte=start_date,
+                    usage_date_time__date__lte=end_date,
+                )
+                .values_list("subscription_guid", flat=True)
+                .distinct()
+            )
+            for sub_guid in sub_guids:
+                if sub_guid:
+                    on_resource_created("azure_subscription_guid", sub_guid, org_id)

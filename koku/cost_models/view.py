@@ -30,6 +30,7 @@ from api.currency.currencies import VALID_CURRENCIES
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.serializers import CostModelSerializer
+from koku_rebac.resource_reporter import on_resource_created
 
 LOG = logging.getLogger(__name__)
 
@@ -120,6 +121,12 @@ class CostModelViewSet(viewsets.ModelViewSet):
     ordering_fields = ("name", "source_type", "updated_timestamp")
     ordering = ("name",)
     http_method_names = ["get", "post", "head", "delete", "put"]
+
+    def perform_create(self, serializer):
+        """Override to report newly created cost models to Kessel."""
+        instance = serializer.save()
+        org_id = getattr(self.request.user, "org_id", "") or ""
+        on_resource_created("cost_model", str(instance.uuid), org_id)
 
     @staticmethod
     def check_fields(dict_, model, exception):

@@ -204,10 +204,13 @@ class AWSOrgUnitCrawler(AccountCrawler):
         Returns:
             (AWSOrganizationalUnit): That was created or looked up
         """
+        from koku_rebac.resource_reporter import on_resource_created
+
         unit_name = ou.get("Name", ou.get("Id"))
         unit_id = ou.get("Id")
         account_alias = None
         account_id = None
+        org_id = self.provider.account.get("org_id", "")
 
         with schema_context(self.schema):
             # This is a leaf node
@@ -217,13 +220,11 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 account_name = account.get("Name")
                 account_alias = self._account_alias_map.get(account_id)
                 if not account_alias:
-                    # Create a new account alias (not cached
                     account_alias, created = AWSAccountAlias.objects.get_or_create(account_id=account_id)
                     self._account_alias_map[account_id] = account_alias
                     LOG.info(f"Saving account alias {account_alias} (created={created})")
 
                 if account_name and account_alias.account_alias != account_name:
-                    # The name was not set or changed since last scan.
                     LOG.info(
                         f"Updating account alias for account_id={account_id}, "
                         f"old_account_alias={account_alias.account_alias}, "
@@ -231,6 +232,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
                     )
                     account_alias.account_alias = account_name
                     account_alias.save()
+                on_resource_created("aws_account", account_id, org_id)
 
             # If we add provider here right now it will duplicate the entries
             org_unit, created = AWSOrganizationalUnit.objects.get_or_create(
@@ -240,6 +242,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 account_alias=account_alias,
                 level=level,
             )
+            on_resource_created("aws_organizational_unit", unit_id, org_id)
 
             # Remove key since we have seen it
             lookup_key = self._create_lookup_key(unit_id, account_id)

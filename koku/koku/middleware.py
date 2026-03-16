@@ -39,6 +39,9 @@ from koku.cache import CacheEnum
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
+from koku_rebac.access_provider import get_access_provider
+from koku_rebac.exceptions import KesselConnectionError
+from koku_rebac.resource_reporter import on_resource_created
 
 MAX_CACHE_SIZE = 10000
 USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
@@ -237,8 +240,17 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
     """
 
     header = RH_IDENTITY_HEADER
-    rbac = RbacService()
     customer_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
+
+    def __init__(self, get_response=None):
+        super().__init__(get_response)
+        self._provider = get_access_provider()
+
+    def _get_auth_cache_name(self) -> str:
+        """Return the cache name for the configured authorization backend."""
+        if settings.AUTHORIZATION_BACKEND == "rebac":
+            return CacheEnum.kessel
+        return CacheEnum.rbac
 
     @staticmethod
     def create_customer(account, org_id, request_method):
@@ -258,6 +270,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     customer.save()
                     UNIQUE_ACCOUNT_COUNTER.inc()
                     LOG.info("Created new customer from account_id %s and org_id %s.", account, org_id)
+                    on_resource_created("settings", f"settings-{org_id}", org_id)
 
         except IntegrityError as err:
             LOG.warning(
@@ -273,10 +286,10 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         return customer
 
     def _get_access(self, user):
-        """Obtain access for given user from RBAC service."""
+        """Obtain access for given user from the configured authorization provider."""
         if settings.ENHANCED_ORG_ADMIN and user.admin:
             return {}
-        return self.rbac.get_access_for_user(user)
+        return self._provider.get_access_for_user(user)
 
     def process_request(self, request):  # noqa: C901
         """Process request for csrf checks.
@@ -372,12 +385,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             user.admin = is_admin
             user.req_id = req_id
 
-            cache = caches[CacheEnum.rbac]
+            cache = caches[self._get_auth_cache_name()]
             user_access = cache.get(f"{user.uuid}_{org_id}")
 
             if not user_access:
                 if settings.DEVELOPMENT and request.user.req_id == "DEVELOPMENT":
-                    # passthrough for DEVELOPMENT_IDENTITY env var.
                     LOG.warning("DEVELOPMENT is Enabled. Bypassing access lookup for user: %s", json_rh_auth)
                     user_access = request.user.access
                 else:
@@ -385,7 +397,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                         user_access = self._get_access(user)
                     except RbacConnectionError as err:
                         return HttpResponseFailedDependency({"source": "Rbac", "exception": err})
-                cache.set(f"{user.uuid}_{org_id}", user_access, self.rbac.cache_ttl)
+                    except KesselConnectionError as err:
+                        return HttpResponseFailedDependency({"source": "Kessel", "exception": err})
+                cache.set(f"{user.uuid}_{org_id}", user_access, self._provider.get_cache_ttl())
             user.access = user_access
 
             user.beta = False
