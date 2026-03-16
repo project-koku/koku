@@ -7,6 +7,7 @@ server:
   grpc:
     address: 0.0.0.0:9000
 authn:
+  # Local dev only -- production deployments MUST set this to false.
   allow-unauthenticated: true
 authz:
   impl: kessel
