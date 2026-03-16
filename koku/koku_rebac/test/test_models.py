@@ -73,13 +73,11 @@ class TestKesselSyncedResourceMeta(SimpleTestCase):
 
         self.assertEqual(KesselSyncedResource._meta.db_table, "kessel_synced_resource")
 
-    def test_unique_together_constraint(self):
+    def test_unique_constraint(self):
         from koku_rebac.models import KesselSyncedResource
 
-        self.assertIn(
-            ("resource_type", "resource_id", "org_id"),
-            KesselSyncedResource._meta.unique_together,
-        )
+        constraint_names = [c.name for c in KesselSyncedResource._meta.constraints]
+        self.assertIn("uq_kessel_sync_type_id_org", constraint_names)
 
     def test_str_representation(self):
         from koku_rebac.models import KesselSyncedResource
