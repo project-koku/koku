@@ -1,0 +1,3 @@
+resource_type: gcp_account
+resource_reporters:
+  - cost_management

@@ -1,0 +1,3 @@
+resource_type: cost_model
+reporter_name: cost_management
+namespace: cost_management
