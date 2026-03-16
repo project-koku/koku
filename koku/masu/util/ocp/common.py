@@ -261,10 +261,13 @@ GPU_USAGE_NEWV_COLUMNS_AND_TYPES = {
     "mig_instance_id": pd.StringDtype(storage="pyarrow"),
     "mig_profile": pd.StringDtype(storage="pyarrow"),
     "mig_slice_count": pd.Int64Dtype(),
-    "mig_strategy": pd.StringDtype(storage="pyarrow"),
+    "mig_strategy": pd.StringDtype(storage="pyarrow"),  # "single" or "mixed" or Null
     # This is derived in post-processor, not from operator:
     "mig_memory_capacity_mib": pd.Int64Dtype(),
     "gpu_max_slices": pd.Int64Dtype(),
+    # "gpu_max_slices" may be included in the operator gpu report,
+    # but we won't use it for now just statically calculated for now.
+    # To optionally include it may be a follow up.
 }
 
 GPU_GROUP_BY = ["node", "namespace", "pod", "gpu_uuid", "mig_instance_id"]
