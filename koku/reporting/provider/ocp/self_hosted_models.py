@@ -348,12 +348,12 @@ class OCPGPUUsageLineItem(OCPLineItemBase):
     gpu_pod_uptime = models.FloatField(null=True)
 
     # MIG (Multi-Instance GPU) fields
-    mig_instance_uuid = models.CharField(max_length=256, null=True)
+    mig_instance_id = models.CharField(max_length=256, null=True)
     mig_profile = models.CharField(max_length=64, null=True)
     mig_slice_count = models.IntegerField(null=True)
-    parent_gpu_max_slices = models.IntegerField(null=True)
-    parent_gpu_uuid = models.CharField(max_length=256, null=True)
     mig_memory_capacity_mib = models.FloatField(null=True)
+    mig_strategy = models.CharField(max_length=10, null=True)
+    gpu_max_slices = models.IntegerField(null=True)
 
 
 class OCPGPUUsageLineItemDaily(OCPLineItemBase):

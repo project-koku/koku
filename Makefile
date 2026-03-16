@@ -95,7 +95,7 @@ help:
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
-	@echo "  make-migrations                       make migrations for the database"
+	@echo "  make-migrations [name=<name>]         make migrations for the database (optional custom name)"
 	@echo "  requirements                          generate Pipfile.lock"
 	@echo "  clowdapp                              generates a new clowdapp.yaml"
 	@echo "  delete-db                             delete local directory $(TOPDIR)/dev/containers/postgresql/data"
@@ -217,7 +217,7 @@ collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
 
 make-migrations:
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models key_metrics
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models key_metrics $(if $(name),--name $(name),)
 
 delete-db:
 	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/postgresql/data/
