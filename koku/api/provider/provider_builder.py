@@ -147,9 +147,10 @@ class ProviderBuilder:
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
                 if provider_type.lower().startswith("ocp"):
-                    self._report_ocp_resource(str(instance.uuid), self.org_id)
+                    cluster_id = source.authentication.get("credentials", {}).get("cluster_id") or str(instance.uuid)
+                    self._report_ocp_resource(cluster_id, self.org_id)
                     if source.source_uuid:
-                        self._report_integration(str(source.source_uuid), str(instance.uuid), self.org_id)
+                        self._report_integration(str(source.source_uuid), cluster_id, self.org_id)
         finally:
             invalidate_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
             connection.set_schema_to_public()

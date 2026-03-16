@@ -95,7 +95,7 @@ class TestProviderBuilderSourceHooks(SimpleTestCase):
         ):
             builder.create_provider_from_source(source)
 
-        mock_report.assert_called_once_with("openshift_cluster", str(mock_instance.uuid), "org-ut")
+        mock_report.assert_any_call("openshift_cluster", "test-cluster-001", "org-ut")
 
     @override_settings(AUTHORIZATION_BACKEND="rebac")
     @patch("api.provider.provider_builder.invalidate_cache_for_tenant_and_cache_key")
@@ -139,6 +139,44 @@ class TestProviderBuilderSourceHooks(SimpleTestCase):
         mock_report.assert_called_once()
 
     @override_settings(AUTHORIZATION_BACKEND="rebac")
+    @patch("api.provider.provider_builder.create_structural_tuple")
+    @patch("api.provider.provider_builder.invalidate_cache_for_tenant_and_cache_key")
+    @patch("api.provider.provider_builder.connection")
+    @patch("api.provider.provider_builder.on_resource_created")
+    @patch("api.provider.provider_builder.ProviderSerializer")
+    def test_integration_has_cluster_uses_cluster_id(self, mock_serializer_cls, mock_report, mock_conn, mock_cache, mock_struct):
+        """_report_integration links has_cluster to cluster_id, not provider UUID."""
+        mock_instance = MagicMock()
+        mock_instance.uuid = "provider-uuid-002"
+        mock_serializer = MagicMock()
+        mock_serializer.is_valid.return_value = True
+        mock_serializer.save.return_value = mock_instance
+        mock_serializer_cls.return_value = mock_serializer
+
+        from api.provider.provider_builder import ProviderBuilder
+
+        source = MagicMock()
+        source.source_type = "OCP"
+        source.name = "my-ocp-cluster-002"
+        source.authentication = {"credentials": {"cluster_id": "test-cluster-xyz"}}
+        source.billing_source = {"data_source": {}}
+        source.source_uuid = "src-uuid-002"
+
+        mock_customer = MagicMock()
+        mock_customer.schema_name = "acct10001"
+
+        builder = ProviderBuilder("unused", "acct-ut", "org-ut")
+        with (
+            patch.object(builder, "_create_context", return_value=({"user": MagicMock()}, mock_customer, MagicMock())),
+            patch.object(builder, "_tenant_for_schema", return_value=MagicMock()),
+        ):
+            builder.create_provider_from_source(source)
+
+        mock_struct.assert_called_once_with(
+            "integration", "src-uuid-002", "has_cluster", "openshift_cluster", "test-cluster-xyz"
+        )
+
+    @override_settings(AUTHORIZATION_BACKEND="rebac")
     @patch("koku_rebac.resource_reporter.get_kessel_client")
     def test_deletion_does_not_call_kessel_delete(self, mock_get_client):
         """DELETE source does NOT invoke any Kessel delete API."""
@@ -156,3 +194,31 @@ class TestProviderBuilderSourceHooks(SimpleTestCase):
         mock_client.inventory_stub.DeleteResource.assert_not_called()
         if hasattr(mock_client, "relations_stub"):
             mock_client.relations_stub.DeleteTuples.assert_not_called()
+
+
+class TestOCPReportDBAccessorKesselResourceID(SimpleTestCase):
+    """_report_ocp_resources_to_kessel must use the real cluster_id, not provider UUID."""
+
+    @override_settings(AUTHORIZATION_BACKEND="rebac")
+    @patch("masu.database.ocp_report_db_accessor.create_structural_tuple")
+    @patch("masu.database.ocp_report_db_accessor.on_resource_created")
+    def test_structural_tuple_uses_cluster_id_not_provider_uuid(self, mock_report, mock_struct):
+        """has_project structural tuple should reference the OCP cluster_id."""
+        from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+
+        provider = MagicMock()
+        provider.uuid = "provider-uuid-999"
+        provider.org_id = "org-1"
+
+        nodes = [("node-a",)]
+        projects = [("project-x",)]
+
+        OCPReportDBAccessor._report_ocp_resources_to_kessel(provider, "real-cluster-abc", nodes, projects)
+
+        mock_struct.assert_called_once_with(
+            "openshift_cluster", "real-cluster-abc", "has_project", "openshift_project", "project-x"
+        )
+        self.assertNotIn(
+            "provider-uuid-999",
+            [str(arg) for call in mock_struct.call_args_list for arg in call[0]],
+        )
