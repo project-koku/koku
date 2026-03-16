@@ -160,6 +160,8 @@ class KesselAccessProvider:
         """
         client = get_kessel_client()
         access = _init_empty_access()
+        if not getattr(user, "customer", None):
+            raise KesselConnectionError("User has no associated customer")
         org_id = user.customer.org_id
         user_id = getattr(user, "user_id", None) or user.username
 
