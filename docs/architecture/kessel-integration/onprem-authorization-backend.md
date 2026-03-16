@@ -1,7 +1,7 @@
 # On-Prem Authorization Backend
 
 **Date**: 2026-02-26
-**Status**: Decision
+**Status**: Decision — **Resolved**: Kessel (rebac) was selected as the authorization backend. See [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md) for implementation details and [ReBAC Bridge Design](./rebac-bridge-design.md) for the RBAC v1 compatibility layer.
 **Context**: Evaluate authorization backend options for Koku on-prem: Kessel (rebac), RBAC v1 (rbac), or a hybrid of both.
 
 ---
@@ -9,7 +9,7 @@
 ## 1. Purpose
 
 Koku supports two authorization backends, controlled by `AUTHORIZATION_BACKEND` in
-[koku_rebac/config.py](../../koku/koku_rebac/config.py). Both produce the same access
+[koku_rebac/config.py](../../../koku/koku_rebac/config.py). Both produce the same access
 data structure consumed by `IdentityHeaderMiddleware`; downstream Koku code is agnostic
 to which backend resolved the permissions.
 
@@ -160,7 +160,7 @@ flowchart LR
 - **Config**: Set `AUTHORIZATION_BACKEND=rbac`, `RBAC_SERVICE_PATH=/api/rbac/v1/access/`,
   `RBAC_SERVICE_HOST=<insights-rbac-service>`.
 - **Prerequisite code change**: `resolve_authorization_backend()` in
-  [koku_rebac/config.py](../../koku/koku_rebac/config.py) currently forces `rebac` when
+  [koku_rebac/config.py](../../../koku/koku_rebac/config.py) currently forces `rebac` when
   `ONPREM=True`, ignoring the env var. A one-line change is required to allow the env var
   to override (remove the `if onprem: return "rebac"` guard). The default path
   `RBAC_SERVICE_PATH` also changes from the ClowdApp default
@@ -202,7 +202,7 @@ insights-rbac REST API provides full CRUD:
 - Access resolution: `GET /api/rbac/v1/access/`
 - Permissions: `GET /api/rbac/v1/permissions/`
 
-Role seeding on startup provides 5 cost-management roles covering 10 resource types
+Role seeding on startup provides 5 cost-management roles covering 11 resource types
 (each with `read`; `cost_model` and `settings` also support `write`).
 MBOP provides user discovery against Keycloak. Alternatively, set
 `BYPASS_BOP_VERIFICATION=True` to skip user verification (principals managed from DB only).
@@ -621,13 +621,13 @@ architectural direction and operational complexity tolerance, not timeline.
 
 | Resource | Path |
 |----------|------|
-| Kessel integration test plan (UT/IT/CT/E2E) | [kessel-integration/kessel-ocp-test-plan.md](kessel-integration/kessel-ocp-test-plan.md) |
+| Kessel integration test plan (UT/IT/CT/E2E) | [kessel-ocp-test-plan.md](./kessel-ocp-test-plan.md) |
 | Archived feasibility analysis (deep-dive) | [insights-rbac-kessel-onprem-feasibility.md](insights-rbac-kessel-onprem-feasibility.md) |
 | RBAC permission/role reuse analysis | [rbac-config-reuse-for-onprem.md](rbac-config-reuse-for-onprem.md) |
-| Kessel detailed design | [kessel-integration/kessel-ocp-detailed-design.md](kessel-integration/kessel-ocp-detailed-design.md) |
-| Authorization delegation strategy DD | [kessel-integration/kessel-authorization-delegation-dd.md](kessel-integration/kessel-authorization-delegation-dd.md) |
-| Koku auth config | [koku_rebac/config.py](../../koku/koku_rebac/config.py) |
-| Kessel access provider | [koku_rebac/access_provider.py](../../koku/koku_rebac/access_provider.py) |
+| Kessel detailed design | [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md) |
+| Authorization delegation strategy DD | [kessel-authorization-delegation-dd.md](./kessel-authorization-delegation-dd.md) |
+| Koku auth config | [koku_rebac/config.py](../../../koku/koku_rebac/config.py) |
+| Kessel access provider | [koku_rebac/access_provider.py](../../../koku/koku_rebac/access_provider.py) |
 | RBAC v1 service | [koku/rbac.py](../../koku/koku/rbac.py) |
 | insights-rbac repo | [github.com/RedHatInsights/insights-rbac](https://github.com/RedHatInsights/insights-rbac) |
 | insights-rbac-ui repo | [github.com/RedHatInsights/insights-rbac-ui](https://github.com/RedHatInsights/insights-rbac-ui) |

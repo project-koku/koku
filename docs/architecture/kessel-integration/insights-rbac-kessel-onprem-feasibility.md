@@ -1,7 +1,7 @@
 # insights-rbac + Kessel On-Prem Feasibility Analysis
 
 **Date**: 2026-02-13
-**Status**: Triaged (v1.1)
+**Status**: Triaged (v1.1) — **Resolved**: The conclusion that insights-rbac is not viable as-is led to the design of a standalone ReBAC Bridge service. See [ReBAC Bridge Design](./rebac-bridge-design.md) for the adopted approach.
 **Context**: Evaluate whether insights-rbac can serve as the management plane for Kessel-based authorization in Koku on-prem deployments, and whether insights-rbac-ui is viable as a management UI.
 
 ---

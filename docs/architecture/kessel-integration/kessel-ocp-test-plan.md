@@ -63,7 +63,7 @@
 | `PB` | ProviderBuilder hook |
 | `CM` | Cost model hook |
 | `CREATE` | Sources API -> Kessel resource creation |
-| `RETAIN` | Source deletion retains Kessel resources (historical data preserved) |
+| `RETAIN` | Source deletion behavior: integration deleted, OCP resources retained (historical data preserved) |
 | `ONPREM` | ONPREM flag Sources CRUD gate |
 | `FLOW` | Full auth flow |
 | `TW` | Tuple/Workspace lifecycle (t_workspace creation and deletion via Relations API) |
@@ -158,29 +158,31 @@ Coverage target: >80% on `koku/koku_rebac/` module.
 
 ---
 
-### UT-KESSEL-AP-003: Kessel outage blocks the request with a clear error
+### UT-KESSEL-AP-003: Kessel outage degrades gracefully (fail-open per-type)
 
 | Field | Value |
 |-------|-------|
 | Priority | P0 (Critical) |
-| Business Value | When Kessel is unavailable, users must receive an actionable error (HTTP 424) rather than a silent failure or incorrect access |
+| Business Value | When Kessel is unavailable, users see no data (empty access) rather than receiving incorrect access or crashing. Silent degradation is the current design — monitoring is required to detect it |
 | Phase | 1 |
 
 **Fixtures:**
 - `TestCase` base class
-- `@patch("koku_rebac.client.get_kessel_client")` where `inventory_stub.Check` raises `grpc.RpcError`
+- `@patch("koku_rebac.client.get_kessel_client")` where `inventory_stub.Check` raises `grpc.RpcError` / `Exception`
 - `@patch("koku_rebac.workspace.get_workspace_resolver")` returning mock `ShimResolver`
 - `@override_settings(AUTHORIZATION_BACKEND="rebac")`
 
 **Steps:**
-- **Given** Kessel's Inventory API is unreachable
+- **Given** Kessel's Inventory API is unreachable (all gRPC calls raise exceptions)
 - **When** the middleware attempts to resolve a user's access through `KesselAccessProvider`
-- **Then** the provider raises `KesselConnectionError` (wrapping the `grpc.RpcError`), which the middleware catches and returns as HTTP 424 (Failed Dependency)
+- **Then** the provider catches all exceptions internally (in `_check_workspace_permission` and `_streamed_list_objects`), returning `False`/`[]` for each type. The overall access dict contains empty lists for every resource type
 
 **Acceptance Criteria:**
-- Any `grpc.RpcError` from `inventory_stub.Check` propagates as `KesselConnectionError` -- errors are never silently consumed (matching RBAC's `RbacConnectionError` pattern per `rbac.py` line 200)
-- The middleware catches `KesselConnectionError` and returns HTTP 424 identifying Kessel as the failing service
-- The error message includes the resource type and operation that failed, enabling operators to diagnose the issue
+- `_check_workspace_permission` catches `Exception` and returns `False` — no exception propagates
+- `_streamed_list_objects` catches `Exception` and returns `[]` — no exception propagates
+- The overall access dict is structurally valid (all types present) but contains no grants (empty lists)
+- Errors are logged with `LOG.exception(...)` including resource type and permission, enabling operators to diagnose via log monitoring
+- **Note**: `KesselConnectionError` is defined in `koku_rebac/exceptions.py` and caught by middleware, but the current `KesselAccessProvider` does not raise it. The middleware handler exists as a safety net for future explicit raises
 
 ---
 
@@ -196,14 +198,14 @@ Coverage target: >80% on `koku/koku_rebac/` module.
 - `TestCase` base class
 
 **Steps:**
-- **Given** Koku defines 10 resource types in `RESOURCE_TYPES` (aws.account, aws.organizational_unit, gcp.account, gcp.project, azure.subscription_guid, openshift.cluster, openshift.node, openshift.project, cost_model, settings)
+- **Given** Koku defines 11 resource types in `RESOURCE_TYPES` (aws.account, aws.organizational_unit, gcp.account, gcp.project, azure.subscription_guid, openshift.cluster, openshift.node, openshift.project, integration, cost_model, settings)
 - **When** the `KOKU_TO_KESSEL_TYPE_MAP` constant and the `RESOURCE_TYPES` operation definitions are validated
 - **Then** every Koku resource type maps to a Kessel resource type, and operations map to `_view`/`_edit` compound permission suffixes
 
 **Acceptance Criteria:**
-- All 10 Koku resource types have Kessel type mappings (e.g., `openshift.cluster` -> `cost_management/openshift_cluster`)
+- All 11 Koku resource types have Kessel type mappings (e.g., `openshift.cluster` -> `cost_management/openshift_cluster`, `integration` -> `cost_management/integration`)
 - Read operations use `_view` compound permission; write operations use `_edit` compound permission
-- The provider issues 12 authorization calls: 7 non-OCP `Check` (read) + 2 `Check` (write for cost_model, settings) + 3 `StreamedListObjects` (OCP types)
+- The provider issues a minimum of 13 workspace-level `Check` calls: 10 per-resource types × read + cost_model write + settings read + settings write. `StreamedListObjects` is called as a fallback only when a workspace `Check` returns DENIED for a per-resource type. The workspace-check-first pattern ensures that users with org-wide roles (e.g., cost-administrator) receive wildcard access without per-resource enumeration
 - No runtime `KeyError` is possible when iterating `RESOURCE_TYPES`
 
 ---
@@ -481,16 +483,16 @@ Coverage target: >80% on `koku/koku_rebac/` module.
 - `TestCase` base class
 - `@override_settings(AUTHORIZATION_BACKEND="rebac")`
 - `@patch("koku_rebac.resource_reporter.get_kessel_client")` where `inventory_stub.ReportResource` raises `grpc.RpcError`
-- `@patch("koku_rebac.resource_reporter._track_synced_resource")` to verify it is NOT called
+- `@patch("koku_rebac.resource_reporter._track_synced_resource")` to verify it IS called with `synced=False`
 
 **Steps:**
 - **Given** a ReBAC deployment where Kessel's Inventory API is temporarily unreachable
 - **When** a new OCP cluster is registered
-- **Then** the cluster is created in Postgres successfully, but no `KesselSyncedResource` tracking row is created (call-then-track ordering per DD Section 6.2)
+- **Then** the cluster is created in Postgres successfully, and a `KesselSyncedResource` tracking row IS created with `kessel_synced=False` (recording the failed sync for retry)
 
 **Acceptance Criteria:**
 - The resource creation in Postgres is not blocked or rolled back
-- No `KesselSyncedResource` row is created for the failed attempt (call-then-track: track only after successful gRPC)
+- A `KesselSyncedResource` row IS created with `kessel_synced=False` — tracking always occurs, recording partial failures for retry. The `synced` flag is `(inventory_ok and tuple_ok)`
 - A warning is logged so operators can detect the sync failure
 - The next pipeline run will retry the gRPC call (idempotent `ReportResource`)
 
@@ -518,7 +520,7 @@ Coverage target: >80% on `koku/koku_rebac/` module.
 **Acceptance Criteria:**
 - The same resource reported twice results in exactly one tracking record and one Kessel resource
 - The sync timestamp is updated to reflect the latest successful sync
-- `write_visibility` is NOT set to `IMMEDIATE` for non-OCP resource reruns (only OCP types use IMMEDIATE)
+- `write_visibility` is NOT set to `IMMEDIATE` for `settings` resource reruns (it is the only type not in `IMMEDIATE_WRITE_TYPES`)
 - No errors or duplicate key violations occur
 
 ---
@@ -610,7 +612,7 @@ Coverage target: >80% on `koku/koku_rebac/` module.
 
 **Acceptance Criteria:**
 - All four settings exist and are readable
-- `KESSEL_AUTH_ENABLED` defaults to `False` (auth disabled for local dev)
+- `KESSEL_AUTH_ENABLED` defaults to `ONPREM` (enabled on-prem, disabled on SaaS by default)
 - `KESSEL_AUTH_CLIENT_ID` and `KESSEL_AUTH_CLIENT_SECRET` are read from environment variables
 - `KESSEL_AUTH_OIDC_ISSUER` is read from environment variables
 
@@ -1075,24 +1077,25 @@ Coverage target: >80% on `koku/koku_rebac/` module.
 | Field | Value |
 |-------|-------|
 | Priority | P1 (High) |
-| Business Value | If a gRPC error for `openshift_cluster` prevents `openshift_node` and non-OCP types from resolving, a single Kessel hiccup denies all access instead of gracefully degrading |
+| Business Value | A single Kessel hiccup for one resource type must not deny all access — only the affected type should be degraded |
 | Phase | 1 |
 
 **Fixtures:**
 - `TestCase` base class
-- `@patch("koku_rebac.client.get_kessel_client")` where `inventory_stub.StreamedListObjects` raises `grpc.RpcError` for `openshift_cluster` but succeeds for `openshift_node` and `openshift_project`
+- `@patch("koku_rebac.client.get_kessel_client")` where `inventory_stub.StreamedListObjects` raises `grpc.RpcError` for `openshift_cluster` but succeeds for `openshift_node` and `openshift_project`; all workspace `Check` calls return DENIED (to force StreamedListObjects fallback)
 - `@patch("koku_rebac.workspace.get_workspace_resolver")` returning mock `ShimResolver`
 - `@override_settings(AUTHORIZATION_BACKEND="rebac")`
 
 **Steps:**
 - **Given** Kessel returns a gRPC error for `openshift_cluster` StreamedListObjects but succeeds for other types
 - **When** `KesselAccessProvider` resolves the user's access
-- **Then** the provider raises `KesselConnectionError` for the failed type (matching the fail-closed behavior from AP-003)
+- **Then** the provider catches the exception for `openshift_cluster` (returns `[]`) and continues resolving other types normally (fail-open per-type, consistent with AP-003)
 
 **Acceptance Criteria:**
-- A gRPC error from any authorization call propagates as `KesselConnectionError` (fail-closed, consistent with AP-003)
-- The error identifies which resource type and operation failed
-- The middleware catches `KesselConnectionError` and returns HTTP 424
+- The exception for `openshift_cluster` is caught internally (logged with `LOG.exception`), not propagated
+- `access["openshift.cluster"]["read"]` is `[]` (no access for the failed type)
+- Other types (`openshift.node`, `openshift.project`) contain the IDs returned by their successful StreamedListObjects calls
+- The middleware returns HTTP 200 (not 424) with a valid access dict
 
 ---
 ### UT-KESSEL-RR-006: OCP resources are reported with `write_visibility=IMMEDIATE`
@@ -1120,12 +1123,12 @@ Coverage target: >80% on `koku/koku_rebac/` module.
 
 ---
 
-### UT-KESSEL-RR-007: Non-OCP resources use default write visibility
+### UT-KESSEL-RR-007: Settings resource uses default write visibility (only type excluded from IMMEDIATE)
 
 | Field | Value |
 |-------|-------|
 | Priority | P1 (High) |
-| Business Value | Non-OCP resources (aws_account, cost_model, settings) do not need immediate consistency because they are checked via boolean Check (not per-resource StreamedListObjects). Setting IMMEDIATE unnecessarily increases Kessel infrastructure requirements |
+| Business Value | The `settings` sentinel is a capability check, not a per-resource concept — it does not need immediate consistency. All other 10 types in `IMMEDIATE_WRITE_TYPES` use IMMEDIATE |
 | Phase | 1 |
 
 **Fixtures:**
@@ -1134,13 +1137,14 @@ Coverage target: >80% on `koku/koku_rebac/` module.
 - `@patch("koku_rebac.resource_reporter.get_kessel_client")` with mock client
 
 **Steps:**
-- **Given** a ReBAC deployment where a cost model is being reported
-- **When** `on_resource_created("cost_model", "cm-uuid-1", "org123")` is called
+- **Given** a ReBAC deployment where a settings sentinel is being reported
+- **When** `on_resource_created("settings", "settings-org123", "org123")` is called
 - **Then** the `ReportResourceRequest` does NOT set `write_visibility=IMMEDIATE`
 
 **Acceptance Criteria:**
-- `aws_account`, `azure_subscription_guid`, `gcp_account`, `gcp_project`, `cost_model`, and `settings` do NOT set IMMEDIATE
-- The default write visibility is used, reducing Kessel infrastructure overhead for these types
+- `settings` is the ONLY resource type that does not set `write_visibility=IMMEDIATE`
+- All other 10 types (`integration`, `openshift_cluster`, `openshift_node`, `openshift_project`, `aws_account`, `aws_organizational_unit`, `gcp_account`, `gcp_project`, `azure_subscription_guid`, `cost_model`) DO set IMMEDIATE
+- The default write visibility is used for settings, reducing Kessel infrastructure overhead for this one type
 
 ---
 
@@ -1322,29 +1326,30 @@ Coverage target: >80% on `koku/koku_rebac/` module.
 
 ---
 
-### UT-KESSEL-RR-015: ReportResource failure skips tuple creation entirely
+### UT-KESSEL-RR-015: ReportResource failure still runs tuple creation and tracking with synced=False
 
 | Field | Value |
 |-------|-------|
 | Priority | P0 (Critical) |
-| Business Value | If the Inventory API rejects or fails the ReportResource call, creating a t_workspace tuple would produce an orphaned SpiceDB relationship with no corresponding Inventory metadata -- this must be prevented |
+| Business Value | Both phases always run regardless of individual failures. If Inventory fails but Relations succeeds, the SpiceDB tuple exists and the resource is partially discoverable. Tracking records `synced=False` so the next pipeline cycle retries the Inventory phase. This is a deliberate design choice — independent best-effort phases |
 | Phase | 1 |
 
 **Fixtures:**
 - `TestCase` base class
 - `@override_settings(AUTHORIZATION_BACKEND="rebac")`
-- `@patch("koku_rebac.resource_reporter.get_kessel_client")` with mock client raising `grpc.RpcError`
-- `@patch("koku_rebac.resource_reporter._create_resource_tuples")`
+- `@patch("koku_rebac.resource_reporter.get_kessel_client")` with mock client raising `grpc.RpcError` on `ReportResource`
+- `@patch("koku_rebac.resource_reporter._create_resource_tuples")` returning `True`
 
 **Steps:**
-- **Given** `ReportResource` raises a gRPC error
+- **Given** `ReportResource` raises a gRPC error (setting `inventory_ok=False`)
 - **When** `on_resource_created("openshift_cluster", "uuid-1", "org123")` is called
-- **Then** `_create_resource_tuples` is never called and `_track_synced_resource` is never called
+- **Then** `_create_resource_tuples` IS called (proceeds despite Inventory failure), and `_track_synced_resource` IS called with `synced=False` (because `inventory_ok=False`)
 
 **Acceptance Criteria:**
-- `_create_resource_tuples` call count is 0
-- `_track_synced_resource` call count is 0
+- `_create_resource_tuples` call count is 1 (always runs)
+- `_track_synced_resource` call count is 1 with `synced=False`
 - The gRPC error is logged but not propagated
+- The tracking row enables retry on the next pipeline cycle
 
 ---
 
@@ -1543,12 +1548,12 @@ Coverage target: >80% on `koku/koku_rebac/` module.
 
 ---
 
-### UT-KESSEL-RR-024: `cleanup_orphaned_kessel_resources` processes all tracked resources for a deleted provider
+### UT-KESSEL-RR-024: `cleanup_orphaned_kessel_resources` processes all tracked resources for the entire org
 
 | Field | Value |
 |-------|-------|
 | Priority | P0 (Critical) |
-| Business Value | After a provider is deleted and its data expires, all associated Kessel resources must be cleaned up. Missing any resource leaves orphaned tuples that grant phantom access or pollute the SpiceDB graph |
+| Business Value | After a provider is deleted and its data expires, Kessel resources must be cleaned up. Missing any resource leaves orphaned tuples that grant phantom access or pollute the SpiceDB graph |
 | Phase | 1 |
 
 **Fixtures:**
@@ -1570,6 +1575,8 @@ Coverage target: >80% on `koku/koku_rebac/` module.
 - Each `KesselSyncedResource` entry is individually deleted
 - When provider still exists, returns `0` with no Kessel calls
 - When `AUTHORIZATION_BACKEND="rbac"`, returns `0` with no Kessel calls
+
+**Implementation note:** The current code filters tracked resources by `org_id` only (`KesselSyncedResource.objects.filter(org_id=org_id)`), not by `provider_uuid`. This means if multiple providers share the same org, deleting one provider triggers cleanup of ALL tracked resources for the org. This is acceptable for on-prem (typically one provider per org) but would need refinement for multi-provider scenarios.
 
 ---
 
@@ -1668,29 +1675,30 @@ Retired scenarios were removed during the Inventory API v1beta2 migration.
 
 ---
 
-### IT-MW-AUTH-003: Kessel outage returns HTTP 424 identifying the failing service
+### IT-MW-AUTH-003: Kessel outage degrades gracefully (no data visible, not HTTP 424)
 
 | Field | Value |
 |-------|-------|
 | Priority | P0 (Critical) |
-| Business Value | When Kessel is down, users and operators need a clear, actionable error -- not a generic 500 that requires log diving |
+| Business Value | When Kessel is down, users see no data (empty access) rather than crashing. Operators must rely on log monitoring to detect degradation |
 | Phase | 1 |
 
 **Fixtures:**
 - `IamTestCase` base class
 - `@override_settings(AUTHORIZATION_BACKEND="rebac")`
-- `@patch("koku_rebac.access_provider.KesselAccessProvider.get_access_for_user")` raising `KesselConnectionError`
+- `@patch("koku_rebac.client.get_kessel_client")` where all gRPC calls raise `Exception`
 - Valid `x-rh-identity` header
 
 **Steps:**
-- **Given** Kessel's Relations API is unreachable
+- **Given** Kessel's Inventory API is unreachable (all gRPC calls fail)
 - **When** a user makes any cost management API request
-- **Then** the response is HTTP 424 (Failed Dependency) with a body identifying Kessel as the failing service
+- **Then** the response is HTTP 200 (or 403 depending on the permission class) with an empty access map — the user sees no data
 
 **Acceptance Criteria:**
-- The response status is 424, not 500 or 503
-- The response body identifies "Kessel" as the source of the failure
-- No partial or incorrect authorization data is returned (fail-closed)
+- The access dict is structurally valid but contains empty lists for all resource types
+- All exceptions are logged with `LOG.exception(...)` for operator visibility
+- No HTTP 424 is returned (the current access_provider does not raise `KesselConnectionError`)
+- **Note**: The middleware does have a `KesselConnectionError` catch handler that would return HTTP 424, but the current `KesselAccessProvider` never raises it. This test verifies the actual fail-open behavior. A separate test should verify the middleware's 424 handler if `KesselConnectionError` is ever raised explicitly in the future
 
 ---
 
@@ -2160,23 +2168,25 @@ Retired scenarios were removed during the Inventory API v1beta2 migration.
 
 ---
 
-### IT-SRC-RETAIN-001: Source deletion does NOT remove Kessel resources
+### IT-SRC-RETAIN-001: Source deletion deletes integration from Kessel but preserves OCP resources
 
 | Field | Value |
 |-------|-------|
 | Priority | P0 (Critical) |
-| Business Value | Deleting a source must preserve Kessel relationships so historical cost data remains accessible via ReBAC. Cleanup only occurs when data is purged from PostgreSQL due to retention expiry. |
+| Business Value | Deleting a source must preserve OCP cluster/node/project Kessel resources so historical cost data remains accessible via ReBAC. However, the `integration` resource (representing the source itself) IS deleted from Kessel since it has no historical data to preserve. Cleanup of OCP resources only occurs when data is purged from PostgreSQL due to retention expiry. |
 | Phase | 1 |
 
 **Fixtures:**
 - `IamTestCase` base class
 - `@patch("koku_rebac.resource_reporter.get_kessel_client")`
+- `@patch("koku_rebac.resource_reporter._delete_resource_tuples")`
+- `@override_settings(ONPREM=True, AUTHORIZATION_BACKEND="rebac")`
 
 **Steps:**
-- **Given** an OCP source was previously created and reported to Kessel
-- **When** `ProviderBuilder.destroy_provider()` is called
-- **Then** no `DeleteResource` or equivalent Kessel API calls are made
-- **And** the `KesselSyncedResource` tracking rows remain in PostgreSQL
+- **Given** an OCP source was previously created and reported to Kessel (integration + openshift_cluster)
+- **When** `DestroySourceMixin.destroy()` is called on-prem
+- **Then** `on_resource_deleted("integration", source_uuid, org_id)` IS called — the integration resource is removed from Kessel Inventory, its SpiceDB tuples are deleted, and the `KesselSyncedResource` tracking row is removed
+- **And** the OCP cluster's `KesselSyncedResource` tracking rows remain in PostgreSQL (no `on_resource_deleted` for OCP types)
 
 ---
 
@@ -4246,26 +4256,27 @@ The on-prem Sources API (`POST /sources/`) replaces `sources-api-go`. OCP source
 
 ---
 
-### E2E-KESSEL-SRC-s53: OCP source delete cleans PostgreSQL, preserves Kessel
+### E2E-KESSEL-SRC-s53: OCP source delete cleans PostgreSQL, deletes integration from Kessel, preserves OCP resources
 
 | Field | Value |
 |-------|-------|
 | Priority | P0 (Critical) |
-| Business Value | Deleting an OCP source must remove PostgreSQL rows but preserve KesselSyncedResource (cleanup only on data expiry) |
+| Business Value | Deleting an OCP source must remove PostgreSQL rows and the `integration` Kessel resource, but preserve OCP cluster/node/project KesselSyncedResource rows (cleanup only on data expiry) |
 | Phase | 1 |
 
 **Fixtures:**
 - `seed_access(E2E_WORKSPACE_ID, E2E_USERNAME, {"settings": {"write": ["*"]}, "openshift.cluster": {"read": ["*"]}})`
 
 **Steps:**
-- **Given** an OCP source exists (created via Sources API)
+- **Given** an OCP source exists (created via Sources API) with associated Kessel `integration` and `openshift_cluster` resources
 - **When** the source is deleted via `DELETE /sources/{id}/`
-- **Then** Sources row is removed from PostgreSQL; KesselSyncedResource is preserved
+- **Then** Sources row is removed from PostgreSQL; the `integration` KesselSyncedResource tracking row is deleted; OCP cluster/node/project KesselSyncedResource rows are preserved
 
 **Acceptance Criteria:**
 - `DELETE sources-detail` returns HTTP 200 or 204
 - `Sources` row no longer exists in PostgreSQL
-- `KesselSyncedResource` row is preserved (historical data remains queryable)
+- `KesselSyncedResource` row for `integration` is removed (source representation cleaned up)
+- `KesselSyncedResource` rows for `openshift_cluster`, `openshift_node`, `openshift_project` are preserved (historical data remains queryable)
 
 ---
 
@@ -4362,7 +4373,7 @@ Covered by active IT scenarios:
 - `ocp_report_db_accessor.py` -- IT-MASU-SYNC-001 (1 scenario: node/project reporting); IT-MASU-SYNC-002 (1 scenario: per-sub-resource tuple creation)
 - `cost_models/view.py` -- IT-COSTMODEL-CM-001 (1 scenario: cost model reporting)
 - `sources/api/view.py` + `provider_builder.py` -- IT-SRC-CREATE-001, 003-006 (5 scenarios: OCP Kessel hook, CMMO mapping, gRPC failure, idempotency, two-phase Inventory + Relations creation)
-- `sources/api/view.py` -- IT-SRC-RETAIN-001 (1 scenario: source deletion preserves Kessel resources)
+- `sources/api/view.py` -- IT-SRC-RETAIN-001 (1 scenario: source deletion deletes integration from Kessel, preserves OCP resources)
 - `sources/api/view.py` -- IT-SRC-ONPREM-001, IT-SRC-ONPREM-002 (2 scenarios: CRUD gate and read-only default)
 
 Retired IT scenarios (7): URL-001 through URL-005, AUTH-009, AUTH-011 (retired during Inventory API v1beta2 migration)

@@ -78,16 +78,22 @@ AUTHORIZATION_BACKEND = resolve_authorization_backend(
 One gRPC service (Inventory API v1beta2) is used for all authorization and resource management:
 
 ```python
+# Inventory API gRPC
 KESSEL_INVENTORY_CONFIG = {
     "host": ENVIRONMENT.get_value("KESSEL_INVENTORY_HOST", default="localhost"),
     "port": int(ENVIRONMENT.get_value("KESSEL_INVENTORY_PORT", default="9081")),
 }
 
+# TLS and OIDC authentication
 KESSEL_CA_PATH = ENVIRONMENT.get_value("KESSEL_CA_PATH", default="")
-KESSEL_AUTH_ENABLED = ENVIRONMENT.bool("KESSEL_AUTH_ENABLED", default=False)
+KESSEL_AUTH_ENABLED = ENVIRONMENT.bool("KESSEL_AUTH_ENABLED", default=ONPREM)
 KESSEL_AUTH_CLIENT_ID = ENVIRONMENT.get_value("KESSEL_AUTH_CLIENT_ID", default="")
 KESSEL_AUTH_CLIENT_SECRET = ENVIRONMENT.get_value("KESSEL_AUTH_CLIENT_SECRET", default="")
 KESSEL_AUTH_OIDC_ISSUER = ENVIRONMENT.get_value("KESSEL_AUTH_OIDC_ISSUER", default="")
+
+# Relations API REST (for SpiceDB tuple management)
+KESSEL_RELATIONS_URL = ENVIRONMENT.get_value("KESSEL_RELATIONS_URL", default="http://localhost:8100")
+KESSEL_TUPLES_PATH = ENVIRONMENT.get_value("KESSEL_TUPLES_PATH", default="/api/authz/v1beta1/tuples")
 ```
 
 When `KESSEL_CA_PATH` is non-empty, the client reads the CA certificate and uses `grpc.ssl_channel_credentials()` for a secure channel. When empty, the client uses an insecure channel (suitable for local development). OIDC-based authentication is enabled via `KESSEL_AUTH_ENABLED=true`, requiring the client ID, secret, and issuer URL to be set.
@@ -151,30 +157,51 @@ Both providers implement the same duck-typed interface:
 
 ### 3.2 Implementations
 
-**`RBACAccessProvider`** -- wraps existing [`RbacService`](../../../koku/koku/rbac.py#L171) with zero changes to `rbac.py`:
+**`RBACAccessProvider`** -- wraps existing [`RbacService`](../../../koku/koku/rbac.py) with zero changes to `rbac.py`:
 
 ```python
 class RBACAccessProvider:
+    """Wraps the existing RbacService for legacy compatibility."""
+
     def __init__(self):
         self._service = RbacService()
 
     def get_access_for_user(self, user):
+        """Delegate to the existing RbacService."""
         return self._service.get_access_for_user(user)
 
     def get_cache_ttl(self) -> int:
         return self._service.get_cache_ttl()
 ```
 
-**`KesselAccessProvider`** -- calls `StreamedListObjects()` and `Check()` via Inventory API for each resource type, builds the identical dict structure that [`_apply_access()`](../../../koku/koku/rbac.py#L127) returns:
+**`KesselAccessProvider`** -- workspace-Check-first pattern with StreamedListObjects fallback, builds the identical dict structure that `_apply_access()` returns:
 
 ```python
 class KesselAccessProvider:
+    """Queries Kessel Inventory API v1beta2 for user access."""
+
+    def __init__(self) -> None:
+        self._workspace_resolver = get_workspace_resolver()
+
     def get_access_for_user(self, user) -> dict:
-        # See Section 5 for implementation details
-        ...
+        """Get resource access for a user from Kessel."""
+        client = get_kessel_client()
+        access = _init_empty_access()
+        org_id = user.customer.org_id
+        user_id = getattr(user, "user_id", None) or user.username
+
+        workspace_id = self._workspace_resolver.resolve(org_id)
+
+        for koku_type, kessel_type in KOKU_TO_KESSEL_TYPE_MAP.items():
+            if koku_type in CHECK_ONLY_TYPES:
+                self._resolve_workspace_access(client, access, koku_type, kessel_type, workspace_id, user_id)
+            else:
+                self._resolve_per_resource_access(client, access, koku_type, kessel_type, workspace_id, user_id)
+
+        return access
 
     def get_cache_ttl(self) -> int:
-        return int(getattr(settings, "KESSEL_CACHE_TIMEOUT", 300))
+        return int(settings.CACHES.get("kessel", {}).get("TIMEOUT", 300))
 ```
 
 ### 3.3 Factory
@@ -187,7 +214,7 @@ def get_access_provider():
     return RBACAccessProvider()
 ```
 
-Returns a new instance per call. Providers are stateless (client is a separate singleton via `get_kessel_client()`), so no caching is needed at this layer.
+Returns a new instance per call. The `KesselAccessProvider` holds a workspace resolver (stateless) and creates a `KesselClient` singleton via `get_kessel_client()`.
 
 ### 3.4 Critical Contract
 
@@ -233,46 +260,52 @@ Modifications to [`koku/koku/middleware.py`](../../../koku/koku/middleware.py).
 
 ### 4.1 Changes to IdentityHeaderMiddleware
 
-Replace direct `RbacService` instantiation at [line 235](../../../koku/koku/middleware.py#L235):
+From `IdentityHeaderMiddleware.__init__()` (see `middleware.py`):
 
 ```python
-# Before
 class IdentityHeaderMiddleware(MiddlewareMixin):
-    rbac = RbacService()
-
-# After
-class IdentityHeaderMiddleware(MiddlewareMixin):
-    access_provider = get_access_provider()
+    def __init__(self, get_response=None):
+        super().__init__(get_response)
+        self._provider = get_access_provider()
 ```
 
-Update `_get_access()` at [line 270](../../../koku/koku/middleware.py#L270):
+From `IdentityHeaderMiddleware._get_access()`:
 
 ```python
 def _get_access(self, user):
+    """Obtain access for given user from the configured authorization provider."""
     if settings.ENHANCED_ORG_ADMIN and user.admin:
         return {}
-    return self.access_provider.get_access_for_user(user)
+    return self._provider.get_access_for_user(user)
 ```
 
 ### 4.2 Cache Key Selection
 
-Update the cache lookup at [line 370](../../../koku/koku/middleware.py#L370):
+From `IdentityHeaderMiddleware._get_auth_cache_name()` and the process_request flow:
 
 ```python
-cache_name = CacheEnum.kessel if settings.AUTHORIZATION_BACKEND == "rebac" else CacheEnum.rbac
+def _get_auth_cache_name(self) -> str:
+    """Return the cache name for the configured authorization backend."""
+    if settings.AUTHORIZATION_BACKEND == "rebac":
+        return CacheEnum.kessel
+    return CacheEnum.rbac
+
+# In process_request:
+cache_name = self._get_auth_cache_name()
 cache = caches[cache_name]
 user_access = cache.get(f"{user.uuid}_{org_id}")
 
 if not user_access:
-    ...
     try:
         user_access = self._get_access(user)
-    except KesselConnectionError as err:
-        return HttpResponseFailedDependency({"source": "Kessel", "exception": err})
     except RbacConnectionError as err:
         return HttpResponseFailedDependency({"source": "Rbac", "exception": err})
-    cache.set(f"{user.uuid}_{org_id}", user_access, self.access_provider.get_cache_ttl())
+    except KesselConnectionError as err:
+        return HttpResponseFailedDependency({"source": "Kessel", "exception": err})
+    cache.set(f"{user.uuid}_{org_id}", user_access, self._provider.get_cache_ttl())
 ```
+
+**Note**: `KesselConnectionError` is defined in `koku_rebac/exceptions.py` and caught here as a safety net. The current `KesselAccessProvider` catches all exceptions internally and never raises it — see §5.1.
 
 ### 4.3 Settings Sentinel Creation
 
@@ -335,52 +368,78 @@ sequenceDiagram
 
 ### 5.1 Execution Flow
 
+From `KesselAccessProvider` in [`access_provider.py`](../../../koku/koku_rebac/access_provider.py):
+
 ```python
-def get_access_for_user(self, user) -> dict:
-    client = get_kessel_client()
-    access = _init_empty_access()
+def _resolve_per_resource_access(
+    self, client, access: dict, koku_type: str, kessel_type: str, workspace_id: str, user_id: str,
+) -> None:
+    for operation in RESOURCE_TYPES.get(koku_type, ["read"]):
+        suffix = PERMISSION_SUFFIX_MAP.get(operation, operation)
+        permission = f"cost_management_{kessel_type}_{suffix}"
 
-    for koku_type, kessel_type in KOKU_TO_KESSEL_TYPE_MAP.items():
-        operations = RESOURCE_TYPES.get(koku_type, ["read"])
-        for operation in operations:
-            kessel_perm = _to_kessel_permission(kessel_type, operation)
-            try:
-                if operation == "read":
-                    request = _build_list_request(kessel_type, kessel_perm, user.username)
-                    for resp in client.inventory_stub.StreamedListObjects(request):
-                        access[koku_type][operation].append(resp.resource.id)
-                else:
-                    request = _build_check_request(kessel_type, kessel_perm, user.username)
-                    resp = client.inventory_stub.Check(request)
-                    if resp.allowed:
-                        access[koku_type][operation] = ["*"]
-            except grpc.RpcError as exc:
-                LOG.warning(
-                    log_json(msg="Kessel Inventory API failed",
-                             resource_type=kessel_type, permission=kessel_perm)
-                )
-                raise KesselConnectionError(
-                    f"Kessel query failed for {kessel_type}/{kessel_perm}"
-                ) from exc
+        if self._check_workspace_permission(client, workspace_id, permission, user_id):
+            access[koku_type][operation] = ["*"]
+        else:
+            resource_ids = self._streamed_list_objects(client, kessel_type, operation, user_id)
+            if resource_ids:
+                access[koku_type][operation] = resource_ids
 
-    return access
+        if operation == "write" and access[koku_type].get("write"):
+            write_ids = access[koku_type]["write"]
+            read_ids = access[koku_type].get("read", [])
+            if write_ids == ["*"]:
+                access[koku_type]["read"] = ["*"]
+            elif read_ids != ["*"]:
+                merged = list(dict.fromkeys(read_ids + write_ids))
+                access[koku_type]["read"] = merged
+
+def _streamed_list_objects(self, client, kessel_type, operation, user_id) -> list[str]:
+    """Call StreamedListObjects and return the list of resource IDs."""
+    request = _build_streamed_list_request(kessel_type, operation, user_id)
+    try:
+        resource_ids = []
+        for response in client.inventory_stub.StreamedListObjects(request):
+            if response.object and response.object.resource_id:
+                resource_ids.append(response.object.resource_id)
+        return resource_ids
+    except Exception:
+        LOG.exception(
+            log_json(msg="Kessel StreamedListObjects failed", resource_type=kessel_type, operation=operation)
+        )
+        return []
+
+def _check_workspace_permission(self, client, workspace_id, permission, user_id) -> bool:
+    """Check a single workspace-level permission. Returns True if ALLOWED."""
+    request = _build_check_request(workspace_id, permission, user_id)
+    try:
+        resp = client.inventory_stub.Check(request)
+        return resp.allowed == allowed_pb2.ALLOWED_TRUE
+    except Exception:
+        LOG.exception(
+            log_json(msg="Kessel Check failed", permission=permission)
+        )
+        return False
 ```
 
 Key design details:
 
-- **Dual-method approach**: `StreamedListObjects` is used for `read` operations (returns explicit resource ID lists), `Check` is used for `write` operations (returns a boolean -- mapped to `["*"]` if allowed, `[]` if denied). This matches the access patterns: read scoping needs per-resource granularity, write permissions are tenant-level.
-- **Compound permission names**: Koku operations are mapped to Kessel compound permissions via `_to_kessel_permission()`: `read` -> `cost_management_{type}_view`, `write` -> `cost_management_{type}_edit`. These compound permissions are resolved by SpiceDB through the ZED schema.
+- **Workspace-check-first pattern**: For every per-resource type, a workspace-level `Check(rbac/workspace:{workspace_id}, cost_management_{type}_{suffix}, user)` runs first. If ALLOWED, the user gets wildcard `["*"]` (org-wide role covers all resources of this type). Only when DENIED does `StreamedListObjects` run for per-resource IDs. This ensures users with org-wide roles (e.g., cost-administrator) always get wildcard access immediately, even when new resources have been registered since the last cache fill.
+- **CHECK_ONLY_TYPES**: Settings is a capability, not a per-resource concept — it uses `_resolve_workspace_access` (Check only, no StreamedListObjects). Currently `CHECK_ONLY_TYPES = {"settings"}`.
+- **Compound permission names**: Koku operations are mapped via `PERMISSION_SUFFIX_MAP`: `read` -> `_view`, `write` -> `_edit`. The compound name `cost_management_{type}_{suffix}` resolves through the ZED schema's computed permissions (e.g., `cost_management_settings_view = settings_read + settings_all + all_read + all_all + all_all_all`).
+- **Workspace resolver**: On-prem uses `ShimResolver` (returns `org_id` directly). SaaS uses `RbacV2Resolver` (fetches default workspace ID from RBAC v2 API).
 - **On success, always returns a dict.** Empty lists for resource types with no access. This matches the middleware's expectation for both backends.
-- **gRPC errors propagate as `KesselConnectionError`.** This mirrors RBAC's pattern: `RbacService._request_user_access()` raises `RbacConnectionError` on `ConnectionError` or HTTP 5xx (see [`rbac.py` line 200](../../../koku/koku/rbac.py#L200)). Kessel follows the same contract -- any `grpc.RpcError` raises `KesselConnectionError`, which the middleware catches and returns as HTTP 424 (Failed Dependency). Errors are never silently consumed.
-- **No OCP inheritance cascade**: unlike the Relations API `LookupResources` approach, `StreamedListObjects` via Inventory API returns only resources the user is explicitly authorized for. The ZED schema handles permission propagation (cluster-level access cascades to nodes/projects through the schema).
+- **gRPC errors are logged but do not propagate.** `_check_workspace_permission` and `_streamed_list_objects` catch all exceptions and return `False` / `[]`. This is a fail-open-per-type design: if Kessel is unreachable for one type, that type returns no access (empty list), but other types are still queried.
+- **StreamedListObjects relation**: Uses the raw operation name (`"read"` or `"write"`) as the relation, not the compound permission name. The resource type's `read`/`write` permission in the ZED schema handles the full resolution chain.
 
 ### 5.2 Transparent Pass-Through Principle
 
 `KesselAccessProvider` returns exactly what Kessel reports:
 
-- For `read` operations, `StreamedListObjects()` returns explicit resource IDs. We return them as-is.
-- For `write` operations, `Check()` returns a boolean. If allowed, we return `["*"]` (tenant-level write); if denied, `[]`.
-- If a user has tenant-level access to all clusters, `StreamedListObjects()` returns all cluster IDs. We return them as-is.
+- For every operation, a workspace-level `Check(rbac/workspace:{workspace_id}, cost_management_{type}_{suffix})` runs first. If ALLOWED, we return `["*"]` (org-wide role).
+- For `read` operations where the workspace Check is DENIED, `StreamedListObjects()` returns per-resource IDs as fallback.
+- For `write` operations where the workspace Check is DENIED, the user has no write access (returns `[]`).
+- Write-grants-read: if `write` yields `["*"]`, `read` is also set to `["*"]`; if `write` yields specific IDs, those IDs are merged into `read`.
 - If no resources of a type exist (e.g., no AWS accounts on-prem), Kessel returns nothing and we return `[]`.
 - The query layer handles both cases: specific IDs trigger filtered queries, empty lists result in no data or 403 depending on the permission class.
 
@@ -403,15 +462,18 @@ Defined as a constant in [`koku/koku_rebac/access_provider.py`](../../../koku/ko
 | `settings`                  | `cost_management/settings`                  | `settings-{org_id}`        |
 | `aws.account`               | `cost_management/aws_account`               | usage account ID string    |
 | `aws.organizational_unit`   | `cost_management/aws_organizational_unit`   | org unit ID string         |
-| `azure.subscription_guid`   | `cost_management/azure_subscription`        | subscription GUID string   |
+| `azure.subscription_guid`   | `cost_management/azure_subscription_guid`   | subscription GUID string   |
 | `gcp.account`               | `cost_management/gcp_account`               | account ID string          |
 | `gcp.project`               | `cost_management/gcp_project`               | project ID string          |
+| `integration`               | `cost_management/integration`               | `Provider.uuid`            |
 
-All resource types are queried uniformly. No special-casing by type. On on-prem OCP, Kessel has no AWS/Azure/GCP resources registered, so those queries return empty lists naturally.
+> **Note**: `cost_management/openshift_vm` is defined in the ZED schema but is not yet in `KOKU_TO_KESSEL_TYPE_MAP` or `IMMEDIATE_WRITE_TYPES`. It will be added when Koku's data pipeline supports VM-level cost data.
+
+All resource types are queried uniformly. No special-casing by type. On on-prem OCP, Kessel has no AWS/Azure/GCP resources registered, so those queries return empty lists naturally. `integration` is a computed-visibility resource — its `read` permission is derived from structural relationships (`has_cluster`, `has_project`), not from direct role bindings. See the [On-Prem Workspace Management ADR](./onprem-workspace-management-adr.md#integration-as-first-class-kessel-resource) for details.
 
 ### 5.5 Permission Mapping
 
-Koku operation names are mapped to Kessel compound permission names via `_to_kessel_permission()`:
+Koku operation names are mapped to Kessel compound permission names via `PERMISSION_SUFFIX_MAP` in [`access_provider.py`](../../../koku/koku_rebac/access_provider.py). The mapping is `f"cost_management_{kessel_type}_{suffix}"` where `suffix = PERMISSION_SUFFIX_MAP.get(operation, operation)`:
 
 | Koku operation | Kessel compound permission pattern | Example |
 |----------------|--------------------------------------|---------|
@@ -441,7 +503,12 @@ class KesselSyncedResource(models.Model):
     class Meta:
         db_table = "kessel_synced_resource"
         ordering = ["created_at"]
-        unique_together = (("resource_type", "resource_id", "org_id"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["resource_type", "resource_id", "org_id"],
+                name="uq_kessel_sync_type_id_org",
+            ),
+        ]
         indexes = [
             models.Index(fields=["org_id"], name="idx_kessel_sync_org"),
             models.Index(fields=["resource_type", "org_id"], name="idx_kessel_sync_type_org"),
@@ -457,29 +524,54 @@ The reporter is called unconditionally by Koku's core code. The backend decides 
 - **RBAC backend**: all methods are no-ops (RBAC doesn't track individual resources)
 - **ReBAC backend**: calls Inventory API `ReportResource()` first, then records success in `KesselSyncedResource`
 
+From `on_resource_created()` in [`resource_reporter.py`](../../../koku/koku_rebac/resource_reporter.py):
+
 ```python
-def on_resource_created(resource_type, resource_id, org_id):
-    """Report a new resource to Kessel Inventory if ReBAC is active.
-    gRPC errors are logged but never propagated to the caller."""
+def on_resource_created(resource_type: str, resource_id: str, org_id: str) -> None:
+    """Report a new resource to Kessel Inventory AND create SpiceDB tuples."""
     if settings.AUTHORIZATION_BACKEND != "rebac":
         return
 
     client = get_kessel_client()
     request = _build_report_request(resource_type, resource_id, org_id)
 
+    inventory_ok = True
     try:
         client.inventory_stub.ReportResource(request)
     except grpc.RpcError:
-        LOG.exception(
+        inventory_ok = False
+        LOG.warning(
             log_json(msg="Failed to report resource to Kessel",
-                     resource_type=resource_type, resource_id=resource_id)
+                     resource_type=resource_type, resource_id=resource_id),
+            exc_info=True,
         )
-        return
 
-    _track_synced_resource(resource_type, resource_id, org_id)
+    tuple_ok = _create_resource_tuples(resource_type, resource_id, org_id)
+    _track_synced_resource(resource_type, resource_id, org_id, synced=(inventory_ok and tuple_ok))
 ```
 
-The call-then-track ordering ensures that the `KesselSyncedResource` tracking record is only created after a successful gRPC call. Failed reports are logged but do not create stale tracking rows.
+Two-phase creation ensures both Kessel Inventory metadata and the SpiceDB `t_workspace` tuple are created. The `t_workspace` tuple (written via Relations API REST POST) makes the resource discoverable by `StreamedListObjects`. Tracking always occurs — `synced=False` when either phase fails, allowing retry on the next pipeline cycle.
+
+The `_create_resource_tuples()` payload (exact JSON sent to Relations API):
+
+```python
+payload = {
+    "upsert": True,
+    "tuples": [{
+        "resource": {
+            "type": {"namespace": "cost_management", "name": resource_type},
+            "id": resource_id,
+        },
+        "relation": "t_workspace",
+        "subject": {
+            "subject": {
+                "type": {"namespace": "rbac", "name": "workspace"},
+                "id": org_id,
+            }
+        },
+    }],
+}
+```
 
 ### 6.3 Hook Points
 
@@ -514,7 +606,9 @@ Key details:
 
 ### 6.3.2 Deletion Policy
 
-**Resources are NOT removed from Kessel when a source is deleted.** The `DestroySourceMixin` destroys the Koku provider and `Sources` DB record, but does not call any Kessel delete API. Historical cost data remains in PostgreSQL and must remain queryable -- preserving the Kessel Inventory resources ensures authorization continues to work for that historical data.
+**Most resources are NOT removed from Kessel when a source is deleted** — OCP clusters, nodes, projects, and cost models remain in Kessel so that historical cost data (still in PostgreSQL) remains queryable under the original authorization grants.
+
+**Exception: the `integration` resource IS deleted.** When `DestroySourceMixin.destroy()` runs on-prem, it calls `on_resource_deleted("integration", str(source.source_uuid), org_id)` after destroying the Koku provider. This removes the integration from Kessel Inventory, deletes all its SpiceDB tuples (including `t_workspace` and structural `has_cluster` tuples), and removes the `KesselSyncedResource` tracking row. The rationale: the `integration` resource represents the source itself, not historical data — once the source is deleted, the integration should no longer be discoverable.
 
 ### 6.3.3 Data Expiry Cleanup
 
@@ -522,12 +616,12 @@ Key details:
 
 ### 6.4 Error Handling
 
-Kessel sync failures are **non-fatal** (unlike access queries in Section 5.1 where gRPC errors raise `KesselConnectionError`):
-- The resource is created in Postgres normally -- a Kessel outage must never block data ingestion
-- The gRPC error is logged; no `KesselSyncedResource` row is created for the failed attempt
-- Retry occurs on the next pipeline cycle (idempotent `ReportResource` call)
+Kessel sync failures are **non-fatal** (unlike access queries in Section 5.1):
+- The resource is created in Postgres normally — a Kessel outage must never block data ingestion
+- The gRPC error is logged; a `KesselSyncedResource` row is created (or updated) with `kessel_synced=False`, tracking the failure
+- Retry occurs on the next pipeline cycle (idempotent `ReportResource` call); `kessel_synced` flips to `True` on success
 
-The rationale for different error handling: access queries are on the **request path** (user waiting for a response -- fail-closed, matching RBAC's `RbacConnectionError`), while resource reporting is on the **write path** (background/pipeline work -- fire-and-forget with retry). RBAC has no equivalent to resource reporting, so there is no RBAC pattern to mirror here.
+The rationale for non-fatal error handling: resource reporting runs on the **write path** (background/pipeline work — fire-and-forget with retry). Access queries (§5.1) are on the **request path** and fail-open per-type: an unreachable Kessel returns no access for the affected type but does not block the entire request.
 
 ### 6.5 Resource Lifecycle
 
@@ -544,7 +638,7 @@ The design principle is that Koku's behavior is identical regardless of authoriz
 
 - **Create**: Koku creates in Postgres. Reporter reports to Kessel (RBAC: no-op). Users with tenant-level bindings see it via `StreamedListObjects()`.
 - **Update**: No Kessel action. Resource IDs are immutable (`Provider.uuid`, node name, namespace name, `CostModel.uuid`). Kessel tracks identity, not attributes.
-- **Delete (source removal)**: No Kessel action. Resource stays in Kessel, preserving authorization for historical cost data still in PostgreSQL. Both backends are append-only for source-level operations.
+- **Delete (source removal)**: The `integration` resource is deleted from Kessel (Inventory + SpiceDB tuples). OCP clusters, nodes, and projects remain in Kessel — historical cost data stays queryable. Both backends preserve historical data access; the integration deletion is a cleanup of the source representation itself.
 - **Delete (data expiry)**: When `remove_expired_data` purges cost data past retention, `DeleteResource` is called on Kessel Inventory API to remove the resource and its SpiceDB tuples. `KesselSyncedResource` tracking rows are also deleted.
 - **Org removal**: [`remove_stale_tenants`](../../../koku/masu/processor/tasks.py#L1131) drops the Postgres schema. Kessel resources for the org should also be cleaned up (hook point for future implementation).
 
@@ -554,9 +648,10 @@ The design principle is that Koku's behavior is identical regardless of authoriz
 |---|---|---|---|
 | Role definitions (global) | `seed-roles.yaml` at deploy | `zed` CLI (additive schema) | Never (global definitions) |
 | Settings sentinel (per-org) | `create_customer()` middleware | N/A (sentinel) | On org removal (future) |
+| Integration | `create_provider_from_source()` + structural `has_cluster` tuple | No-op (source_uuid unchanged) | **Yes on source deletion** (`on_resource_deleted` in `DestroySourceMixin`); Yes on data expiry |
 | OCP Cluster | `create_provider_from_source()` | No-op (UUID unchanged) | No on source deletion (historical data preserved); Yes on data expiry via `remove_expired_data` |
 | OCP Nodes | `populate_node_table()` pipeline | No-op (name unchanged) | No on source deletion; Yes on data expiry |
-| OCP Projects | `populate_project_table()` pipeline | No-op (name unchanged) | No on source deletion; Yes on data expiry |
+| OCP Projects | `populate_project_table()` pipeline + structural `has_project` tuple | No-op (name unchanged) | No on source deletion; Yes on data expiry |
 | Cost Model | `CostModelViewSet.perform_create()` | No-op (UUID unchanged) | No on deletion; Yes on data expiry |
 | Role bindings (per-user) | `kessel-admin.sh` / `zed` CLI | Delete + recreate | Yes, via `kessel-admin.sh` / `zed` CLI |
 
@@ -635,11 +730,11 @@ These are the 5 standard roles used in SaaS production. The role seeding process
 
 | Role name | RBAC slug | RBAC permissions | Description |
 |---|---|---|---|
-| Cost Administrator | `cost-administrator` | `cost-management:*:*` | All cost management permissions |
-| Cost Price List Administrator | `cost-price-list-administrator` | `cost-management:cost_model:*`, `cost-management:settings:*` | Cost model and settings read/write |
-| Cost Price List Viewer | `cost-price-list-viewer` | `cost-management:cost_model:read`, `cost-management:settings:read` | Cost model and settings read-only |
-| Cost Cloud Viewer | `cost-cloud-viewer` | `cost-management:aws.account:*`, `cost-management:aws.organizational_unit:*`, `cost-management:azure.subscription_guid:*`, `cost-management:gcp.account:*`, `cost-management:gcp.project:*` | All cloud resource types |
-| Cost OpenShift Viewer | `cost-openshift-viewer` | `cost-management:openshift.cluster:*` | OpenShift cluster read/all |
+| Cost Administrator | `cost-administrator` | `cost-management:*:*` + 14 individual read/write permissions (see [seed-roles.yaml](../../../dev/kessel/seed-roles.yaml)) | All cost management permissions |
+| Cost Cloud Viewer | `cost-cloud-viewer` | `cost-management:aws.account:read`, `cost-management:aws.organizational_unit:read`, `cost-management:azure.subscription_guid:read`, `cost-management:gcp.account:read`, `cost-management:gcp.project:read` | Cloud resource types (read-only) |
+| Cost OpenShift Viewer | `cost-openshift-viewer` | `cost-management:openshift.cluster:read`, `cost-management:openshift.node:read`, `cost-management:openshift.project:read` | OpenShift resource types (read-only) |
+| Cost Price List Administrator | `cost-price-list-administrator` | `cost-management:cost_model:read`, `cost-management:cost_model:write` | Cost model read/write |
+| Cost Price List Viewer | `cost-price-list-viewer` | `cost-management:cost_model:read` | Cost model read-only |
 
 ### 7.3 RBAC Permission to Kessel Relation Mapping
 
@@ -669,29 +764,43 @@ Role definitions are stored in `seed-roles.yaml` (committed to the repository). 
 
 ### 7.6 Authorization Hierarchy
 
-Resources are linked directly to the tenant (org-level). Kessel workspaces are not used.
+> **Update (2026-03-06)**: The on-prem deployment now uses `rbac/workspace` as a core authorization primitive, not just `rbac/tenant`. The workspace hierarchy enables team-based resource scoping, which is implemented by `kessel-admin.sh`, consumed by `KesselAccessProvider`, and will be managed at runtime by the [ReBAC Bridge](./rebac-bridge-design.md). The original "workspaces not used" statement below applied to the initial SaaS-oriented design and is no longer accurate for on-prem.
+
+The authorization chain uses a workspace hierarchy between tenant and resources:
 
 ```
-principal -> role_binding -> role -> permissions
-                         -> tenant (scope)
+tenant:{org_id}
+  └── workspace:{org_id}        (org-level, linked via t_parent → tenant)
+        ├── workspace:{team-A}   (team-level, linked via t_parent → workspace:{org_id})
+        └── workspace:{team-B}
 ```
 
-The authorization chain in the production schema follows:
+Resources are linked to workspaces via `t_workspace` tuples. Role bindings are scoped to workspaces via `t_binding`. The workspace `t_parent` relation enables permission inheritance: an admin bound at the org workspace can resolve permissions on all child (team) workspaces.
 
 ```mermaid
 flowchart LR
-    Principal["rbac/principal:alice"]
-    RoleBinding["rbac/role_binding:alice-viewer"]
+    Principal["rbac/principal:redhat/alice"]
+    Group["rbac/group:{uuid}"]
+    RoleBinding["rbac/role_binding:{id}"]
     Role["rbac/role:cost-openshift-viewer"]
-    Tenant["rbac/tenant:org-123"]
+    Workspace["rbac/workspace:{team-uuid}"]
+    OrgWorkspace["rbac/workspace:{org_id}"]
+    Tenant["rbac/tenant:{org_id}"]
+    Resource["cost_management/openshift_cluster:prod"]
 
-    Principal -->|"t_subject"| RoleBinding
-    RoleBinding -->|"t_role"| Role
-    RoleBinding -->|"scope (t_binding on tenant)"| Tenant
+    Principal -->|"t_member"| Group
+    Group -->|"#member via t_subject"| RoleBinding
+    RoleBinding -->|"t_granted"| Role
+    Workspace -->|"t_binding"| RoleBinding
+    Workspace -->|"t_parent"| OrgWorkspace
+    OrgWorkspace -->|"t_parent"| Tenant
+    Resource -->|"t_workspace"| Workspace
     Role -->|"t_cost_management_openshift_cluster_read"| AllPrincipals["rbac/principal:*"]
 ```
 
-**Workspaces exclusion rationale**: Kessel workspaces (`rbac/workspace`) are organizational containers between tenant and resources, used by inventory services (HBI, ACM) for sub-org grouping. Cost management resources don't need sub-org segmentation -- all resources are at the org level. If a future requirement for cluster grouping (e.g., "production" vs "staging") emerges, workspaces can be added as a layer between tenant and resources without breaking the existing model.
+**SaaS vs on-prem**: In SaaS, role bindings may be scoped directly to tenants for simplicity (all resources at org level). On-prem uses the workspace layer for team-based access grants. Both models coexist in the same ZED schema — the workspace hierarchy is additive, not a replacement. See the [On-Prem Workspace Management ADR](./onprem-workspace-management-adr.md) and the [ReBAC Bridge Design](./rebac-bridge-design.md) for the full on-prem model.
+
+**ros-ocp-backend note**: ros-ocp-backend performs `CheckPermission` against `rbac/tenant:{orgID}` for wildcard access (e.g., admin with `cost_management_all_all` at org level), and `ListAuthorizedResources` for per-resource access. The `ListAuthorizedResources` path resolves through the full hierarchy (`resource → t_workspace → workspace → t_parent → tenant`), so team-scoped resources are correctly discovered even though the `Check` shortcut targets the tenant.
 
 ### 7.7 Schema Upgrade Strategy
 
@@ -783,7 +892,7 @@ Greater than 80% code coverage on the `koku/koku_rebac/` module for unit tier (`
 | `KESSEL_INVENTORY_HOST` | Yes | `localhost` | Inventory API gRPC host |
 | `KESSEL_INVENTORY_PORT` | Yes | `9081` | Inventory API gRPC port |
 | `KESSEL_CA_PATH` | No | `""` | Path to CA certificate for TLS; empty = insecure channel |
-| `KESSEL_AUTH_ENABLED` | No | `false` | Enable OIDC-based auth for Kessel calls |
+| `KESSEL_AUTH_ENABLED` | No | `false` | Enable OIDC-based auth for Kessel calls. Defaults to `false` unless `ONPREM=true`, which sets it to `true` automatically |
 | `KESSEL_AUTH_CLIENT_ID` | Cond. | `""` | OIDC client ID (required when `KESSEL_AUTH_ENABLED=true`) |
 | `KESSEL_AUTH_CLIENT_SECRET` | Cond. | `""` | OIDC client secret (required when `KESSEL_AUTH_ENABLED=true`) |
 | `KESSEL_AUTH_OIDC_ISSUER` | Cond. | `""` | OIDC issuer URL (required when `KESSEL_AUTH_ENABLED=true`) |
@@ -807,7 +916,7 @@ Greater than 80% code coverage on the `koku/koku_rebac/` module for unit tier (`
 
 ### 9.4 Operational Characteristics
 
-- **Kessel unavailability**: HTTP 424 (Failed Dependency) on every request until Kessel recovers. No fallback to RBAC.
+- **Kessel unavailability**: All resource types return no access (empty lists). Users see no data until Kessel recovers — a silent degradation, not an explicit HTTP error. No fallback to RBAC. Monitoring and alerting on Kessel health is essential.
 - **No rollback to RBAC on-prem**: RBAC was never deployed. Fix-forward is the only recovery path.
 - **Schema upgrades**: Additive-only. Applied via `zed` CLI as a Helm post-upgrade hook.
 
@@ -864,23 +973,23 @@ The production ZED schema in [`rbac-config`](https://github.com/RedHatInsights/r
 
 **Required changes** (PR to [`RedHatInsights/rbac-config`](https://github.com/RedHatInsights/rbac-config)): Wire all 23 permissions through `rbac/role_binding` and `rbac/tenant`. Copy-paste-ready ZED (including the 10 cloud permissions) is in [`zed-schema-upstream-delta.md`](./zed-schema-upstream-delta.md) Section 2, Gap G-1.
 
-1. `rbac/role_binding` -- add 23 permission arrows using the existing pattern `(subject & t_role->X)` (13 OCP + 10 cloud; see delta doc for full block):
+1. `rbac/role_binding` -- add 23 permission arrows using the existing pattern `(subject & t_granted->X)` (13 OCP + 10 cloud; see delta doc for full block):
    ```zed
    definition rbac/role_binding {
        // ... existing permissions for other services ...
-       permission cost_management_all_all = (subject & t_role->cost_management_all_all)
-       permission cost_management_openshift_cluster_all = (subject & t_role->cost_management_openshift_cluster_all)
-       permission cost_management_openshift_cluster_read = (subject & t_role->cost_management_openshift_cluster_read)
-       permission cost_management_openshift_node_all = (subject & t_role->cost_management_openshift_node_all)
-       permission cost_management_openshift_node_read = (subject & t_role->cost_management_openshift_node_read)
-       permission cost_management_openshift_project_all = (subject & t_role->cost_management_openshift_project_all)
-       permission cost_management_openshift_project_read = (subject & t_role->cost_management_openshift_project_read)
-       permission cost_management_cost_model_all = (subject & t_role->cost_management_cost_model_all)
-       permission cost_management_cost_model_read = (subject & t_role->cost_management_cost_model_read)
-       permission cost_management_cost_model_write = (subject & t_role->cost_management_cost_model_write)
-       permission cost_management_settings_all = (subject & t_role->cost_management_settings_all)
-       permission cost_management_settings_read = (subject & t_role->cost_management_settings_read)
-       permission cost_management_settings_write = (subject & t_role->cost_management_settings_write)
+       permission cost_management_all_all = (subject & t_granted->cost_management_all_all)
+       permission cost_management_openshift_cluster_all = (subject & t_granted->cost_management_openshift_cluster_all)
+       permission cost_management_openshift_cluster_read = (subject & t_granted->cost_management_openshift_cluster_read)
+       permission cost_management_openshift_node_all = (subject & t_granted->cost_management_openshift_node_all)
+       permission cost_management_openshift_node_read = (subject & t_granted->cost_management_openshift_node_read)
+       permission cost_management_openshift_project_all = (subject & t_granted->cost_management_openshift_project_all)
+       permission cost_management_openshift_project_read = (subject & t_granted->cost_management_openshift_project_read)
+       permission cost_management_cost_model_all = (subject & t_granted->cost_management_cost_model_all)
+       permission cost_management_cost_model_read = (subject & t_granted->cost_management_cost_model_read)
+       permission cost_management_cost_model_write = (subject & t_granted->cost_management_cost_model_write)
+       permission cost_management_settings_all = (subject & t_granted->cost_management_settings_all)
+       permission cost_management_settings_read = (subject & t_granted->cost_management_settings_read)
+       permission cost_management_settings_write = (subject & t_granted->cost_management_settings_write)
    }
    ```
 
@@ -922,9 +1031,9 @@ Until this PR lands, the E2E flow (`principal -> role_binding -> role -> tenant 
 | **ZED schema gap: cost_management permissions not wired through role_binding/tenant** | `StreamedListObjects` / `Check` will not return results even with correct role bindings because the authorization chain is incomplete | [FLPATH-3319](https://issues.redhat.com/browse/FLPATH-3319): Submit PR to `rbac-config` adding all 23 `cost_management_*` permissions (13 OCP + 10 cloud) through `rbac/role_binding` and `rbac/tenant`. Full delta and copy-paste ZED in [`zed-schema-upstream-delta.md`](./zed-schema-upstream-delta.md). **Blocking external dependency** |
 | ~~**ZED schema naming divergence**~~ | ~~Local schema used abbreviated permission names~~ | **Resolved**: All local names aligned to upstream convention (G-2). See [delta doc](./zed-schema-upstream-delta.md#g-2-permission-naming-divergence) |
 | **gRPC in Django WSGI process** | Thread-safety concerns with gRPC channels | Lazy singleton with `threading.Lock`; verify in load tests |
-| **Performance: many Inventory API calls** | 9 `Check` calls + 3 `StreamedListObjects` calls = 12 gRPC calls per cache miss (derived from `RESOURCE_TYPES` in `rbac.py`) | Cache aggressively (300s default); batch where SDK supports it |
-| **Inventory API gRPC failure** | Any resource type query fails mid-request | Raise `KesselConnectionError` (fail-closed, matching RBAC's `RbacConnectionError` pattern). Middleware returns HTTP 424. See Section 5.1 |
-| **Kessel unavailability** | All requests fail with 424 | Expected operational model; monitoring and alerting required |
+| **Performance: many Inventory API calls** | Up to 11 workspace `Check` calls + up to 11 `StreamedListObjects` fallback calls = minimum 11, maximum 22 gRPC calls per cache miss (derived from 11 types in `KOKU_TO_KESSEL_TYPE_MAP`) | Cache aggressively (300s default); workspace checks short-circuit `StreamedListObjects` for users with org-wide roles |
+| **Inventory API gRPC failure** | Any resource type query fails mid-request | Fail-open per-type: `_check_workspace_permission` / `_streamed_list_objects` catch all exceptions and return `False` / `[]`. The failing type returns no access; other types proceed normally. `KesselConnectionError` is defined but currently unused — the middleware handler exists as a safety net for future explicit raises. See Section 5.1 |
+| **Kessel unavailability** | All types return no access (empty lists) | Users see no data until Kessel recovers; no HTTP 424. Monitoring required to detect silent degradation |
 | **No RBAC rollback on-prem** | Cannot fall back to RBAC | Fix-forward only; documented in operations guide |
 | **SaaS future wiring** | Unleash integration not yet implemented | Documented as hook point in `get_access_provider()` |
 | **Large ID lists in WHERE IN** | Performance degradation for users with access to many resources | Acceptable trade-off; optimize with query-layer awareness later |
@@ -976,46 +1085,41 @@ The client wraps a single gRPC stub for the Kessel Inventory API v1beta2. All au
 checks (`Check`, `StreamedListObjects`) and resource reporting (`ReportResource`) go through
 this stub. The Relations API is not used by production code.
 
+From [`client.py`](../../../koku/koku_rebac/client.py):
+
 ```python
-import logging
-import threading
-
-import grpc
-from django.conf import settings
-from kessel.inventory.v1beta2 import inventory_service_pb2_grpc
-
-from api.common import log_json
-
-LOG = logging.getLogger(__name__)
-
-_client_instance: "KesselClient | None" = None
-_client_lock = threading.Lock()
-
-
-def _build_channel_credentials(ca_path: str) -> grpc.ChannelCredentials:
-    if ca_path:
-        with open(ca_path, "rb") as f:
-            root_certs = f.read()
-        return grpc.ssl_channel_credentials(root_certificates=root_certs)
-    return grpc.ssl_channel_credentials()
-
-
 class KesselClient:
-    """Wraps the Kessel Inventory API v1beta2 gRPC stub."""
+    """Wraps the Kessel Inventory API v1beta2 gRPC stub.
+
+    This is the only Kessel client Koku needs -- all authorization
+    checks (Check, StreamedListObjects) and resource reporting
+    (ReportResource) go through the Inventory API.
+    """
 
     def __init__(self) -> None:
         inventory_cfg: dict = settings.KESSEL_INVENTORY_CONFIG
         ca_path: str = getattr(settings, "KESSEL_CA_PATH", "")
 
-        channel = self._build_channel(inventory_cfg, ca_path)
-        self.inventory_stub = inventory_service_pb2_grpc.KesselInventoryServiceStub(channel)
+        self._channel = self._build_channel(inventory_cfg, ca_path)
+        self.inventory_stub = inventory_service_pb2_grpc.KesselInventoryServiceStub(self._channel)
 
     @staticmethod
     def _build_channel(config: dict, ca_path: str) -> grpc.Channel:
         target = f"{config['host']}:{config['port']}"
+        call_creds = get_grpc_call_credentials()
+
         if ca_path:
-            creds = _build_channel_credentials(ca_path)
-            return grpc.secure_channel(target, creds)
+            channel_creds = _build_channel_credentials(ca_path)
+            if call_creds:
+                channel_creds = grpc.composite_channel_credentials(channel_creds, call_creds)
+            return grpc.secure_channel(target, channel_creds)
+
+        if call_creds:
+            channel_creds = grpc.composite_channel_credentials(
+                grpc.local_channel_credentials(), call_creds
+            )
+            return grpc.secure_channel(target, channel_creds)
+
         return grpc.insecure_channel(target)
 
 
@@ -1031,10 +1135,7 @@ def get_kessel_client() -> KesselClient:
                 _client_instance = KesselClient()
                 LOG.info(log_json(msg="KesselClient initialised (Inventory API v1beta2 only)"))
     return _client_instance
-
-
-def _reset_client() -> None:
-    """Tear down the singleton -- intended for test isolation only."""
+```
     global _client_instance
     with _client_lock:
         _client_instance = None
