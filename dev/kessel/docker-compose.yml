@@ -87,7 +87,13 @@ services:
       - ./schema.zed:/schema.zed:ro,z
     depends_on:
       spicedb:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/authz/v1beta1/healthz || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     networks:
       - kessel
 
@@ -107,7 +113,13 @@ services:
       inventory-migrate:
         condition: service_completed_successfully
       relations-api:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/inventory/v1beta2/healthz || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     networks:
       - kessel
 

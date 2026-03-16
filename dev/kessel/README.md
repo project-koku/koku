@@ -64,7 +64,7 @@ podman compose -f dev/kessel/docker-compose.yml down -v
 | `.env`                 | Environment variables (preshared key, DB credentials)   |
 | `schema.zed`           | SpiceDB/ZED authorization schema for Cost Management    |
 | `inventory-config.yaml`| Inventory API server configuration                      |
-| `resource-schemas/`    | Kessel Inventory API resource type schemas (10 types)   |
+| `resource-schemas/`    | Kessel Inventory API resource type schemas (11 types)   |
 
 ## Environment Variables for Koku
 
@@ -99,7 +99,7 @@ role definitions in `seed-roles.yaml`.
 ## Resource Schemas
 
 The `resource-schemas/` directory contains Kessel Inventory API resource
-type definitions for all 10 Cost Management resource types. These are
+type definitions for all 11 Cost Management resource types. These are
 loaded by the Inventory API at startup via `inventory-config.yaml`
 (`schema.in-memory.type: dir`).
 
@@ -109,9 +109,9 @@ Each resource type has:
 - `reporters/cost_management/config.yaml` -- reporter metadata
 - `reporters/cost_management/<type>.json` -- reporter-specific JSON Schema
 
-Resource types: `openshift_cluster`, `openshift_node`, `openshift_project`,
-`aws_account`, `aws_organizational_unit`, `gcp_account`, `gcp_project`,
-`azure_subscription_guid`, `cost_model`, `settings`.
+Resource types: `integration`, `openshift_cluster`, `openshift_node`,
+`openshift_project`, `aws_account`, `aws_organizational_unit`, `gcp_account`,
+`gcp_project`, `azure_subscription_guid`, `cost_model`, `settings`.
 
 ### ReportResource Tuple Limitation
 
