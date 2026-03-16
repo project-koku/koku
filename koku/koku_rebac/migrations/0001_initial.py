@@ -18,6 +18,7 @@ class Migration(migrations.Migration):
                 ("resource_type", models.CharField(max_length=128)),
                 ("resource_id", models.CharField(max_length=256)),
                 ("org_id", models.CharField(max_length=64)),
+                ("provider_uuid", models.CharField(max_length=64, default="", blank=True)),
                 ("kessel_synced", models.BooleanField(default=False)),
                 ("last_synced_at", models.DateTimeField(blank=True, null=True)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
@@ -29,6 +30,7 @@ class Migration(migrations.Migration):
                 "indexes": [
                     models.Index(fields=["org_id"], name="idx_kessel_sync_org"),
                     models.Index(fields=["resource_type", "org_id"], name="idx_kessel_sync_type_org"),
+                    models.Index(fields=["provider_uuid", "org_id"], name="idx_kessel_sync_provider_org"),
                 ],
                 "constraints": [
                     models.UniqueConstraint(

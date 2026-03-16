@@ -112,6 +112,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
         from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 
         org_id = self._provider.account.get("org_id", "")
+        p_uuid = str(self._provider.uuid)
         with schema_context(self._schema):
             sub_guids = (
                 AzureCostEntryLineItemDailySummary.objects.filter(
@@ -124,4 +125,4 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
             )
             for sub_guid in sub_guids:
                 if sub_guid:
-                    on_resource_created("azure_subscription_guid", sub_guid, org_id)
+                    on_resource_created("azure_subscription_guid", sub_guid, org_id, provider_uuid=p_uuid)
