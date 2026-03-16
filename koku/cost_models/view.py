@@ -31,6 +31,7 @@ from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.serializers import CostModelSerializer
 from koku_rebac.resource_reporter import on_resource_created
+from koku_rebac.resource_reporter import on_resource_deleted
 
 LOG = logging.getLogger(__name__)
 
@@ -125,7 +126,7 @@ class CostModelViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Override to report newly created cost models to Kessel."""
         instance = serializer.save()
-        org_id = getattr(self.request.user, "org_id", "") or ""
+        org_id = self.request.user.customer.org_id
         on_resource_created("cost_model", str(instance.uuid), org_id)
 
     @staticmethod
@@ -146,7 +147,8 @@ class CostModelViewSet(viewsets.ModelViewSet):
         queryset = CostModel.objects.all()
         self.check_fields(self.request.query_params, CostModel, CostModelQueryException)
         if not (settings.ENHANCED_ORG_ADMIN and self.request.user.admin):
-            read_access_list = self.request.user.access.get("cost_model").get("read")
+            cost_model_access = self.request.user.access.get("cost_model") or {}
+            read_access_list = cost_model_access.get("read", [])
             if "*" not in read_access_list:
                 try:
                     queryset = self.queryset.filter(uuid__in=read_access_list)
@@ -187,6 +189,7 @@ class CostModelViewSet(viewsets.ModelViewSet):
             raise CostModelQueryException(err)
         else:
             manager.update_provider_uuids([])
+            on_resource_deleted("cost_model", str(uuidParam), request.user.customer.org_id)
         return super().destroy(request=request, args=args, kwargs=kwargs)
 
     @method_decorator(never_cache)

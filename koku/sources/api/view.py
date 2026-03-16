@@ -77,8 +77,8 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
             else:
                 if settings.ONPREM:
                     publish_application_destroy_event(source)
-                    if source.source_uuid:
-                        on_resource_deleted("integration", str(source.source_uuid), org_id)
+                if source.source_uuid and settings.AUTHORIZATION_BACKEND == "rebac":
+                    on_resource_deleted("integration", str(source.source_uuid), org_id)
                 result = super().destroy(request, *args, **kwargs)
                 invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
                 return result
@@ -232,7 +232,7 @@ class SourcesViewSet(*MIXIN_LIST):
             LOG.error("No sources found for org id %s.", org_id)
             return queryset
 
-        if settings.ONPREM:
+        if settings.AUTHORIZATION_BACKEND == "rebac":
             queryset = self._filter_by_integration_access(queryset)
 
         return queryset
