@@ -41,7 +41,6 @@ from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
 from koku_rebac.access_provider import get_access_provider
 from koku_rebac.exceptions import KesselConnectionError
-from koku_rebac.resource_reporter import on_resource_created
 
 MAX_CACHE_SIZE = 10000
 USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
@@ -270,7 +269,6 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     customer.save()
                     UNIQUE_ACCOUNT_COUNTER.inc()
                     LOG.info("Created new customer from account_id %s and org_id %s.", account, org_id)
-                    on_resource_created("settings", f"settings-{org_id}", org_id)
 
         except IntegrityError as err:
             LOG.warning(
