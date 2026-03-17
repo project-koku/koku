@@ -161,20 +161,20 @@ class OCPProviderMap(ProviderMap):
             * Coalesce(exchange_rate_column, Value(1, output_field=DecimalField())),
         )
 
-    @property
     def _cpu_usage_sum(self):
+        """Return a new Sum expression for CPU usage hours."""
         return Sum(Coalesce(F("pod_usage_cpu_core_hours"), Value(0, output_field=DecimalField())))
 
-    @property
     def _cpu_request_sum(self):
+        """Return a new Sum expression for CPU request hours."""
         return Sum(Coalesce(F("pod_request_cpu_core_hours"), Value(0, output_field=DecimalField())))
 
-    @property
     def _memory_usage_sum(self):
+        """Return a new Sum expression for memory usage hours."""
         return Sum(Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0, output_field=DecimalField())))
 
-    @property
     def _memory_request_sum(self):
+        """Return a new Sum expression for memory request hours."""
         return Sum(Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0, output_field=DecimalField())))
 
     def _efficiency_annotations(self, usage_sum_prop, request_sum_prop, cost_total_expr):
@@ -407,8 +407,8 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "limit": Sum("pod_limit_cpu_core_hours", default=Value(0, output_field=DecimalField())),
                             **self._efficiency_annotations(
-                                self._cpu_usage_sum,
-                                self._cpu_request_sum,
+                                self._cpu_usage_sum(),
+                                self._cpu_request_sum(),
                                 self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
                             ),
                         },
@@ -467,8 +467,8 @@ class OCPProviderMap(ProviderMap):
                                 Coalesce(F("pod_limit_cpu_core_hours"), Value(0, output_field=DecimalField()))
                             ),
                             **self._efficiency_annotations(
-                                self._cpu_usage_sum,
-                                self._cpu_request_sum,
+                                self._cpu_usage_sum(),
+                                self._cpu_request_sum(),
                                 self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
                             ),
                             "capacity": Max("cluster_capacity_cpu_core_hours"),  # overwritten in capacity aggregation
@@ -564,8 +564,8 @@ class OCPProviderMap(ProviderMap):
                                 "pod_limit_memory_gigabyte_hours", default=Value(0, output_field=DecimalField())
                             ),
                             **self._efficiency_annotations(
-                                self._memory_usage_sum,
-                                self._memory_request_sum,
+                                self._memory_usage_sum(),
+                                self._memory_request_sum(),
                                 self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_memory_cost,
                             ),
                         },
@@ -625,8 +625,8 @@ class OCPProviderMap(ProviderMap):
                                 Coalesce(F("pod_limit_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
                             ),
                             **self._efficiency_annotations(
-                                self._memory_usage_sum,
-                                self._memory_request_sum,
+                                self._memory_usage_sum(),
+                                self._memory_request_sum(),
                                 self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_memory_cost,
                             ),
                             "capacity": Max(

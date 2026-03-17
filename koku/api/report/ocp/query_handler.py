@@ -286,6 +286,21 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return output
 
+    def _pack_score(self, row, should_compute):
+        """Shape efficiency annotations into the score response object."""
+        if should_compute:
+            row["score"] = {
+                "usage_efficiency_percent": row.pop("usage_efficiency", 0),
+                "wasted_cost": {
+                    "value": row.pop("wasted_cost", Decimal(0)),
+                    "units": self.currency,
+                },
+            }
+        else:
+            row.pop("usage_efficiency", None)
+            row.pop("wasted_cost", None)
+            row["score"] = {}
+
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
@@ -336,18 +351,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self._report_type in ("cpu", "memory"):
                 has_tag_interaction = self._tag_group_by or self.get_tag_filter_keys()
                 should_compute = not has_tag_interaction and len(group_by_value) <= 1
-                if should_compute:
-                    query_sum["score"] = {
-                        "usage_efficiency_percent": query_sum.pop("usage_efficiency", 0),
-                        "wasted_cost": {
-                            "value": query_sum.pop("wasted_cost", Decimal(0)),
-                            "units": self.currency,
-                        },
-                    }
-                else:
-                    query_sum.pop("usage_efficiency", None)
-                    query_sum.pop("wasted_cost", None)
-                    query_sum["score"] = {}
+                self._pack_score(query_sum, should_compute)
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
@@ -356,18 +360,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self._report_type in ("cpu", "memory"):
                 for row in query_data:
-                    if should_compute:
-                        row["score"] = {
-                            "usage_efficiency_percent": row.pop("usage_efficiency", 0),
-                            "wasted_cost": {
-                                "value": row.pop("wasted_cost", Decimal(0)),
-                                "units": self.currency,
-                            },
-                        }
-                    else:
-                        row.pop("usage_efficiency", None)
-                        row.pop("wasted_cost", None)
-                        row["score"] = {}
+                    self._pack_score(row, should_compute)
 
             for row in query_data:
                 if tag_iterable := row.get("tags"):
