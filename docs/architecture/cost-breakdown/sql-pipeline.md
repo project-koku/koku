@@ -233,9 +233,25 @@ storage/gpu in the aggregation step — markup costs are **not** summed
 into `cost_model_cpu_cost` etc.; they flow through `RatesToUsage` →
 `OCPCostUIBreakDownP` only for the breakdown tree.
 
-**R17 mitigation — SQL-based alternative**: If the ORM-based approach
-above proves too slow for large tenants, replace it with a raw SQL
-INSERT...SELECT that avoids Python iteration entirely:
+#### R17 decision rationale — why ORM-first with SQL fallback
+
+| # | Approach | Pros | Cons | Verdict |
+|---|----------|------|------|---------|
+| A | **SQL-only from the start** — raw `INSERT...SELECT` for markup, matching the pattern used by usage costs | Single query, no Python memory overhead, fastest possible execution. | Markup is currently an ORM UPDATE (not SQL file). Introducing a SQL file for markup changes the existing pattern. Requires passing `cost_model_id` as a SQL parameter, which the current markup path doesn't do. Harder to test in isolation. | Viable but higher initial risk |
+| B | **ORM-only** — `bulk_create` with `batch_size`, matching the existing markup pattern (ORM UPDATE) | Consistent with how markup already works. Easier to debug (Python stack traces). `batch_size` controls memory. | O(N) Python iteration over daily summary rows. For large tenants (>100K rows), memory and time could be significant. | Viable but may not scale |
+| C | **ORM-first, SQL fallback** — start with ORM for simplicity; switch to SQL if benchmarks show ORM is too slow | Ships faster with lower risk. Phase 2 benchmark (#6) tests the ORM path with realistic data. SQL fallback is pre-designed and ready to deploy if needed. | Two implementations to maintain until the ORM path is retired (if ever). | **Selected** |
+
+**Why Option C**: Markup is the simplest cost type (fixed percentage,
+no rate identity, no Jinja parameters). Starting with ORM keeps the
+change small and testable. If the Phase 2 benchmark shows the ORM path
+exceeds 30 seconds (benchmark #6), the SQL fallback below is already
+designed and can be swapped in without redesigning the aggregation or
+breakdown pipeline. This "try simple first, optimize if needed" approach
+avoids premature optimization while having a concrete fallback ready.
+
+**SQL-based alternative**: If the ORM-based approach above proves too
+slow for large tenants, replace it with a raw SQL INSERT...SELECT that
+avoids Python iteration entirely:
 
 ```sql
 -- insert_markup_rates_to_usage.sql (R17 fallback)
@@ -306,11 +322,22 @@ This runs once at the start of `update_summary_cost_model_costs()`,
 before any per-rate INSERTs. The scope matches the daily summary
 cleanup: `(source_uuid, report_period_id, date range)`.
 
-**Why not per-rate-type DELETE?** The daily summary uses separate DELETEs
-for usage (`monthly_cost_type IS NULL`), monthly (`monthly_cost_type =
-'Node'`), and tag costs (`monthly_cost_type = 'Tag'`). For `RatesToUsage`,
-a single DELETE per recalculation window is simpler and avoids
-order-of-operations bugs, since all per-rate rows are regenerated together.
+#### R11 decision rationale — why single DELETE (not per-rate-type)
+
+| # | Approach | Pros | Cons | Verdict |
+|---|----------|------|------|---------|
+| A | **Per-rate-type DELETE** — separate DELETEs for usage (`monthly_cost_type IS NULL`), monthly (`Node`, `Cluster`, etc.), and tag costs (`Tag`), mirroring the daily summary pattern | Matches existing koku convention. Allows partial recalculation (e.g., re-run only monthly costs). | Order-of-operations risk: if Step 3 (monthly) runs before Step 1's DELETE, stale rows survive. 5+ separate DELETE statements add execution overhead. Partial recalculation is not a current requirement. | **Rejected** — complexity without benefit |
+| B | **Single DELETE per window** — one DELETE scoped to `(source_uuid, report_period_id, date range)` before any INSERTs | Simple and safe: clears everything, then rebuilds. No order-of-operations risk. Single query. | Cannot partially recalculate one cost type without regenerating all. Slightly more work if only one rate changed. | **Selected** |
+| C | **UPSERT (INSERT ON CONFLICT)** — use a unique constraint on `(usage_start, cluster_id, namespace, node, custom_name, ...)` and update on conflict | Avoids DELETE entirely. Idempotent. | RatesToUsage has no natural unique key — the same (namespace, day, rate) can produce multiple rows due to different `pod_labels`. A composite unique constraint on all GROUP BY columns is impractical (includes JSONB). `label_hash` could serve as part of a unique key, but INSERT ON CONFLICT with a hash-based key risks silent overwrites on hash collision. | **Rejected** — no viable unique key |
+
+**Why Option B**: `RatesToUsage` rows are always regenerated as a
+complete set per recalculation window. There is no use case for
+preserving some rows while deleting others. A single DELETE is atomic,
+predictable, and eliminates the class of bugs where stale rows from a
+previous cost type survive because a per-type DELETE ran in the wrong
+order. The existing Redis lock (`WorkerCache.lock_single_task`) ensures
+only one recalculation runs per `(schema, provider, start, end)` at a
+time, so concurrent DELETEs on the same window are not possible.
 
 ### SQL File Inventory
 
@@ -806,6 +833,28 @@ the SQL approach. See
 [README.md § IQ-9](./README.md#iq-9-distribution-per-rate-identity-gap)
 for the full investigation and rationale.
 
+### R15 decision rationale — why 3-CTE approach
+
+| # | Approach | Pros | Cons | Verdict |
+|---|----------|------|------|---------|
+| A | **Rewrite distribution SQL** — modify all 5 `distribute_*.sql` files to read from `RatesToUsage` instead of aggregated daily summary columns, producing per-rate distributed rows directly | Full per-rate identity at the source. No back-allocation needed. | HIGH invasiveness: touches 5 well-tested, critical SQL files. New GPU handling required. Must add synthetic "Infrastructure" rate or handle cloud billing separately. Risk of introducing bugs in production-critical distribution pipeline that has been stable for years. | **Rejected** — too risky for stable critical pipeline |
+| B | **Application-level split** — Python code in the cost model updater reads distribution rows and `RatesToUsage`, computes proportions, writes per-rate rows via ORM | Full control. Easier to debug (Python stack traces). | O(N×M) Python iteration (N distributions × M rates). Memory-intensive for large tenants. Breaks the SQL-first pattern used everywhere else in the pipeline. Cannot run as part of the existing breakdown population SQL. | **Rejected** — wrong execution model for this pipeline |
+| C | **3-CTE SQL** — `source_cost`, `rate_shares`, `distributed_rows` CTEs joined to produce per-rate shares in a single INSERT | Runs as a single SQL statement. Leverages PostgreSQL's query planner for JOIN optimization. Consistent with koku's SQL-heavy pipeline. Source namespaces are low-cardinality (1 Platform, 1 Worker per cluster), so JOINs are efficient. | SQL complexity: 3 CTEs + 2 UNION ALL sources. Harder to debug than Python. Requires careful JOIN conditions per distribution type. | **Selected** |
+| D | **Materialized view** — create a view that pre-joins distribution rows with `RatesToUsage` proportions | Reads cleanly. Can be refreshed on demand. | Materialized views add maintenance overhead (refresh timing, storage). Koku does not use materialized views anywhere — introducing one would be a new pattern. The breakdown table is already a materialized result; a view-of-a-view adds a layer. | **Rejected** — new pattern, no precedent in koku |
+
+**Why Option C**: The back-allocation fundamentally requires three
+data sources (distribution rows, source cost composition, per-rate
+proportions). A CTE-based approach expresses this naturally as three
+named sub-queries joined together. The key insight that makes this
+efficient is that source namespaces (Platform, Worker unallocated, etc.)
+are low-cardinality — typically 1-2 per cluster — so the `source_cost`
+and `rate_shares` CTEs produce very few rows. The expensive part is the
+CROSS JOIN with `distributed_rows` (one per recipient namespace), but
+this is bounded by the number of receiving namespaces × number of rates,
+which is the same cardinality as the existing breakdown table. The
+approach keeps existing distribution SQL completely unchanged — the
+only new SQL is in the breakdown population file.
+
 ### Problem
 
 Distribution writes one `distributed_cost` per (namespace, node, day,
@@ -1005,6 +1054,23 @@ rates are not tracked per-rate.
 
 ### R14 Mitigation — Rounding Reconciliation Check
 
+#### Why reconciliation check (and not another approach)
+
+| # | Approach | Pros | Cons | Verdict |
+|---|----------|------|------|---------|
+| A | **Adjust last row** — assign the remainder to the last per-rate row so totals always match exactly | Zero tolerance. Exact match guaranteed. | Breaks proportionality — the last rate absorbs all rounding error, which can be misleading in the UI (e.g., one rate appears $0.02 higher). Order-dependent: "last" row is arbitrary in SQL without explicit ordering. Adds complexity to the INSERT. | **Rejected** — trades correctness for precision theater |
+| B | **Use exact fractions** — compute `distributed_cost * rate_cost / total_cost` using PostgreSQL `NUMERIC` without rounding | `NUMERIC(33,15)` division is exact to 15 decimal places. No rounding occurs at typical cost magnitudes. | Does not eliminate rounding — it just makes it astronomically small. In theory, 15-digit division can still produce a 16th digit that gets truncated. More importantly, floating-point display in the UI may introduce apparent rounding regardless. | This is what we already do — the question is how to detect when it fails |
+| C | **Post-INSERT reconciliation check** — compare `SUM(per-rate shares)` against the original `distributed_cost` and log discrepancies > $0.01 | Non-invasive: does not change the INSERT logic. Observable: logs tell us if rounding ever matters in practice. Actionable: if discrepancies are found, a "Rounding" entry can absorb them. | Does not prevent the rounding — only detects it. Adds a read query after the INSERT. | **Selected** |
+
+**Why Option C**: The proportional split already uses PostgreSQL
+`NUMERIC(33,15)`, which provides 15 decimal places. At typical cost
+magnitudes ($0.01 to $1M), the division `rate_cost / total_cost`
+produces exact results within NUMERIC precision. Rounding errors > $0.01
+are theoretically possible but vanishingly unlikely. The reconciliation
+check confirms this assumption in production without adding complexity
+to the INSERT path. If it ever triggers, the remediation is
+straightforward: add a "Rounding" adjustment row at depth 5.
+
 After the back-allocation INSERT, verify that per-rate shares sum back
 to the original `distributed_cost`. This runs as a post-INSERT check
 and logs any discrepancies exceeding $0.01.
@@ -1169,3 +1235,4 @@ Trino or self-hosted variants are needed.
 | v2.2 | 2026-03-17 | IQ-9 investigation: add Back-Allocation SQL Sketch section with full CTE-based SQL for splitting distributed_cost to per-rate shares. Add source namespace mapping table, GPU distribution note, intermediate node aggregation approach. |
 | v2.3 | 2026-03-17 | Blast-radius triage: remove erroneous `resource_id` from aggregation SQL sketch GROUP BY / SELECT (not in `usage_costs.sql` GROUP BY, confirmed by PoC). |
 | v2.4 | 2026-03-17 | Risk mitigation: R13 — rewrite aggregation and validation SQL to use `label_hash` instead of JSONB GROUP BY/JOIN. R14 — add reconciliation check SQL sketch. R17 — add SQL-based markup INSERT fallback (`insert_markup_rates_to_usage.sql`). |
+| v2.5 | 2026-03-17 | Decision rationales: add alternatives-evaluated tables for R11 (single DELETE scope, 3 options), R14 (reconciliation check, 3 options), R15 (3-CTE back-allocation, 4 options), R17 (ORM-first + SQL fallback, 3 options). |

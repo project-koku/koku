@@ -122,12 +122,42 @@ costs (`usage_costs.sql` only).
 
 ### R2/R3 Mitigation — Phase 2 Benchmarking Plan
 
+#### Why DELETE+INSERT aggregation (and not another approach)
+
+The aggregation step replaces `usage_costs.sql` direct-write. There
+are three possible aggregation patterns:
+
+| # | Approach | Pros | Cons | Verdict |
+|---|----------|------|------|---------|
+| A | **UPDATE existing rows** — match pre-existing daily summary rows by composite key and set `cost_model_*_cost` columns | No new rows created. Simpler conceptually. | `usage_costs.sql` does not UPDATE — it creates *new* rows with `cost_model_rate_type = 'Infrastructure'/'Supplementary'` and `uuid_generate_v4()`. There are no pre-existing rows to UPDATE because the rate-type rows only exist after cost model processing. An UPDATE approach would require inventing a matching key for rows that don't exist yet. | **Rejected** — no target rows to update |
+| B | **DELETE + INSERT** — delete existing rate-type rows, then INSERT aggregated rows from `RatesToUsage` | Matches the exact pattern of `usage_costs.sql` (which also does DELETE then INSERT). Downstream pipeline (distribution, UI summary) sees the same row structure. Conceptually clean: aggregation replaces the direct-write, so the mechanism is identical. | Two SQL statements per aggregation cycle. DELETE can be expensive on large partitions. | **Selected** |
+| C | **UPSERT (INSERT ON CONFLICT)** — define a unique constraint on the rate-type rows and use `ON CONFLICT DO UPDATE` | Single statement. Avoids DELETE overhead. | The daily summary has no unique constraint on rate-type rows. Adding one would require a composite key on `(usage_start, cluster_id, namespace, node, data_source, persistentvolumeclaim, label_hash, cost_model_rate_type)` — an 8-column unique index that duplicates the existing primary key pattern and adds write overhead to all daily summary operations (not just cost model). | **Rejected** — invasive schema change to a core table |
+
+**Why Option B**: `usage_costs.sql` has always used DELETE + INSERT to
+write rate-type rows into the daily summary. The aggregation step is a
+direct replacement for `usage_costs.sql`, so it should use the same
+mechanism. This means distribution SQL, UI summary SQL, and all
+downstream consumers see *exactly* the same row structure they expect.
+Any difference in mechanism (UPDATE, UPSERT) would introduce subtle
+compatibility risks with the 12+ downstream SQL files.
+
+#### Why these benchmark thresholds
+
 Before declaring Phase 2 complete, run these benchmarks against a
 staging environment with realistic data. Use the largest available
 tenant (or synthetic data matching production scale).
 
 **Test configuration**: 30 rate types configured, 100 namespaces,
 1000 nodes, 30 days of data, varying `pod_labels` cardinality.
+
+The thresholds below are derived from koku's existing performance
+envelope. Current `usage_costs.sql` processing completes in seconds for
+typical tenants and < 60 seconds for the largest. Since the new pipeline
+adds a RatesToUsage INSERT *and* an aggregation step (two queries
+instead of one), we allow 2× the existing budget: 60s INSERT + 30s
+aggregation = 90s vs current ~60s. The 5-minute end-to-end threshold
+accounts for all steps (including distribution and UI summary, which
+are unchanged).
 
 | # | Benchmark | Acceptance Criteria | Risk |
 |---|-----------|-------------------|------|
@@ -195,8 +225,29 @@ against PostgreSQL via Django. See
 
 ### R6 Mitigation — SQL File Testing Checklist
 
-Each of the 25 SQL files must pass these checks before merging.
-Modify one file at a time per PR; do not batch unrelated SQL changes.
+#### Why per-file-per-PR (and not another strategy)
+
+| # | Approach | Pros | Cons | Verdict |
+|---|----------|------|------|---------|
+| A | **Single large PR** — modify all 25 SQL files in one PR | Ships Phase 3 in one merge. Easier to coordinate cross-file changes. | Impossible to review thoroughly: 25 SQL files × 3 paths = 75 file changes. A single bug can hide among hundreds of changed lines. Rollback is all-or-nothing — cannot revert one file without reverting all. Testing is coarse: hard to attribute a regression to a specific file. | **Rejected** — review quality degrades, rollback is blunt |
+| B | **Per-path batches** — one PR per SQL path (PostgreSQL, Trino, self-hosted) | 3 PRs instead of 25. Each PR targets one execution engine. | Still 8-9 files per PR. Trino and self-hosted files mirror each other, so separate PRs for each adds redundant review cycles. A bug in a PostgreSQL file is still buried among 8 other changes. | Viable but still too coarse for regression isolation |
+| C | **Per-file-per-PR** — one SQL file per PR, with the 8-point checklist | Each PR is small and reviewable. Regressions are immediately attributable to a specific file. Rollback is surgical: revert one PR. Checklist ensures consistent quality. | 25 PRs is a high count. Creates merge overhead. Some files are trivial (identical pattern). | **Selected** |
+| D | **Grouped by cost type** — one PR per cost type (usage, monthly, tag, VM) | Logical grouping. 4-5 PRs. | Groups cross all 3 SQL paths. A Trino dialect bug in a tag file is mixed with a PostgreSQL tag file change. Harder to isolate path-specific issues. | **Rejected** — mixes execution engines |
+
+**Why Option C**: The primary risk in Phase 3 is that one bad SQL file
+breaks cost calculation silently (wrong `custom_name`, wrong
+`metric_type`, wrong `calculated_cost`). Per-file PRs make each change
+independently reviewable, testable, and revertable. The 25-PR overhead
+is acceptable because: (1) each PR is small (one SQL file + one test),
+(2) the checklist standardizes review, and (3) Phase 3 is not
+time-critical — it can run in parallel with Phase 4 frontend work.
+
+Trivially identical files (e.g., `infrastructure_tag_rates.sql` and
+`supplementary_tag_rates.sql` which differ only in cost type) can be
+combined into one PR if the reviewer agrees they are structurally
+identical.
+
+Each of the 25 SQL files must pass these checks before merging:
 
 | # | Check | How |
 |---|-------|-----|
@@ -430,3 +481,4 @@ Phase 5 ← Phase 4 validated in production
 | v2.2 | 2026-03-17 | IQ-3/IQ-7 resolved, IQ-9 added: update decisions table. Add back-allocation SQL to Phase 4 artifacts and validation. Add risks R14 (rounding) and R15 (JOIN complexity). Add "Future Scalability Considerations" section. |
 | v2.3 | 2026-03-17 | Blast-radius triage: fix Phase 4 serializer reference (two serializers, not one). Add R16 (aggregation GROUP BY granularity) and R17 (markup ORM overhead). Update risk × phase matrix. |
 | v2.4 | 2026-03-17 | Risk mitigation: R13 downgraded to MITIGATED (label_hash). R6 — add 8-point SQL testing checklist for Phase 3. R2/R3 — add Phase 2 benchmarking plan with 8 acceptance criteria. Update R2, R3, R6, R14, R17 mitigation descriptions in risk register. |
+| v2.5 | 2026-03-17 | Decision rationales: add alternatives-evaluated tables for R6 (per-file-per-PR, 4 options) and R2/R3 (DELETE+INSERT aggregation, 3 options + threshold derivation). |
