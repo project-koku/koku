@@ -423,27 +423,128 @@ drill-down. The aspirational depth 5 structure
 is unreachable without changes to the distribution data flow. See
 [data-model.md § Tree Structure Definition](./data-model.md#tree-structure-definition).
 
-**Possible approaches** (investigation needed):
+#### Investigation findings
 
-1. **Per-rate distribution from `RatesToUsage`** — Modify distribution
-   SQL to read per-rate rows from `RatesToUsage` instead of aggregated
-   daily summary columns. Each rate's cost is distributed independently,
-   producing per-rate distribution rows that preserve `custom_name`. Most
-   complete solution but most invasive (modifies 5+ distribution SQL
-   files and changes the distribution data flow).
+Source code analysis of the 5 distribution SQL files and their
+orchestration (`ocp_cost_model_cost_updater.py`,
+`ocp_report_db_accessor.py`) revealed the following constraints:
 
-2. **Back-allocate proportionally** — After existing distribution writes
-   the total `distributed_cost`, compute per-rate shares using
-   proportions from `RatesToUsage` (e.g., if "OpenShift Subscriptions"
-   was 40% of total CPU cost, assign 40% of distributed CPU cost).
-   Less invasive; proportional approximation but matches the existing
-   distribution logic which is itself proportional.
+1. **Infrastructure costs are in the mix.** Distribution sums:
+   ```
+   total_cost = infrastructure_raw_cost + infrastructure_markup_cost
+              + cost_model_cpu_cost + cost_model_memory_cost
+              + cost_model_volume_cost
+   ```
+   Infrastructure raw/markup comes from cloud billing, not cost model
+   rates. It does not exist in `RatesToUsage`. Any per-rate breakdown
+   must account for the infrastructure portion separately.
 
-3. **Show aggregate only** — Accept that distributed costs don't have
-   per-rate drill-down. Cap the overhead branch at depth 3 in the
-   breakdown tree. Simplest change but limits the feature's value for
-   customers who want to see exactly how overhead costs break down by
-   rate.
+2. **Distribution before aggregation is not feasible.**
+   - GPU distribution reads `cost_model_gpu_cost` from the daily
+     summary, populated by `monthly_cost_gpu.sql` (a tag-based cost)
+     — not from `RatesToUsage`.
+   - All 5 distribution types depend on aggregated daily summary
+     columns (`cost_model_*_cost`, `pod_effective_usage_*_hours`)
+     that do not exist in `RatesToUsage`.
+   - Orchestration order cannot be rearranged to
+     `RatesToUsage → distribute → aggregate`.
+
+3. **All 5 distribution types follow the same formula:**
+   ```
+   distributed_cost = (pod_effective_usage / total_usage) * total_cost
+   ```
+   The allocation is proportional to CPU or memory usage (controlled
+   by the `{{distribution}}` parameter). Source namespaces (Platform,
+   Worker unallocated, etc.) receive a negation row (`0 - total_cost`)
+   to zero out their cost.
+
+4. **Existing distribution SQL stays untouched in the proposed flow.**
+   The single-source-of-truth pipeline is:
+   `RatesToUsage INSERT → aggregate → distribute → UI summary`.
+   Distribution reads from the daily summary after aggregation — the
+   same inputs as today.
+
+#### Options evaluated
+
+| # | Approach | Invasiveness | Per-rate identity | Infrastructure handling | Risk |
+|---|----------|-------------|-------------------|------------------------|------|
+| 1 | Rewrite distribution SQL to read from `RatesToUsage` | HIGH (modify 5+ SQL files, new GPU handling) | Full | Must add synthetic rate or handle separately | New bugs in well-tested distribution pipeline |
+| 2 | **Back-allocate proportionally (recommended)** | MEDIUM (new SQL step in breakdown population, no changes to existing distribution) | Cost model rates: full. Infrastructure: one aggregate entry. | "Infrastructure" entry under each distribution node | Proportional approximation; join complexity |
+| 3 | Show aggregate only | NONE | None | N/A | Feature value reduced for overhead drill-down |
+
+#### Recommendation: Option 2 — back-allocate proportionally
+
+**Rationale**:
+
+- Existing distribution logic stays **completely unchanged** — no risk
+  of breaking a critical, well-tested pipeline that has been stable
+  for years.
+- Aligns with "single source of truth" — `RatesToUsage` provides the
+  rate proportions used for back-allocation.
+- Infrastructure costs naturally appear as a single "Infrastructure"
+  entry under each distribution node. Attributing cloud infrastructure
+  to specific cost model rates doesn't make semantic sense — those
+  costs don't come from rates.
+- The proportional split is mathematically equivalent to what
+  distribution already does. Distribution itself is proportional
+  (`pod_usage / total_usage * total_cost`), so back-allocating by
+  rate proportion preserves the same logic one level deeper.
+- Scales with Price List Lifecycles and Consumer & Provider — more
+  rates in `RatesToUsage` means finer back-allocation automatically.
+
+#### How Option 2 works
+
+After existing distribution writes `distributed_cost` rows to the daily
+summary (e.g., Platform cost = $60, Project A gets $12), a new step in
+the breakdown population SQL computes per-rate shares:
+
+1. **Look up source cost composition** from the daily summary for the
+   source namespace (Platform):
+   - Infrastructure: `infrastructure_raw_cost + infrastructure_markup_cost` = $20
+   - Cost model: `cost_model_cpu_cost + cost_model_memory_cost + cost_model_volume_cost` = $40
+   - Total: $60
+
+2. **Look up per-rate proportions** from `RatesToUsage` for the source
+   namespace:
+   - "OpenShift Subscriptions" (CPU rate): $25 of the $40 cost model portion
+   - "RHEL" (CPU rate): $15 of the $40
+
+3. **Split the distributed cost** proportionally:
+   - Infrastructure share: $12 × ($20 / $60) = **$4.00**
+   - "OpenShift Subscriptions" share: $12 × ($25 / $60) = **$5.00**
+   - "RHEL" share: $12 × ($15 / $60) = **$3.00**
+   - Total: $4 + $5 + $3 = $12 ✓
+
+This produces a depth 5 breakdown tree under overhead:
+
+```
+overhead.platform_distributed ($1000)               ← depth 3
+├── infrastructure ($400)                            ← depth 4 (aggregate)
+├── usage_cost ($500)                                ← depth 4 (aggregate)
+│   ├── OpenShift Subscriptions ($300)               ← depth 5 (per-rate leaf)
+│   └── GuestOS Subscriptions ($200)                 ← depth 5 (per-rate leaf)
+└── markup ($100)                                    ← depth 4 (aggregate)
+```
+
+See [sql-pipeline.md § Back-Allocation SQL](./sql-pipeline.md#back-allocation-sql-sketch)
+for the SQL sketch.
+
+#### Open questions for tech lead
+
+1. **Infrastructure as aggregate**: Is showing infrastructure costs as
+   a single "Infrastructure" entry under each distribution node
+   acceptable? Or should infrastructure be excluded from the breakdown
+   tree entirely for distribution?
+
+2. **Rounding tolerance**: The proportional split may produce minor
+   rounding differences (< $0.01 per row). Is this within koku's
+   existing tolerance? (Note: koku uses `NUMERIC(33, 15)` for cost
+   columns.)
+
+3. **GPU distribution**: GPU costs come from `monthly_cost_gpu.sql`,
+   not from `usage_costs.sql`. They may or may not be in `RatesToUsage`
+   depending on Phase 3 scope. Should GPU distribution be excluded
+   from per-rate back-allocation initially?
 
 **Decision needed from tech lead.**
 
@@ -551,7 +652,23 @@ validation query verifies aggregation correctness in integration tests.
 | Breakdown API format | Flat DB rows, both flat and nested API responses | Tech lead confirmed: UI mocks require both views; flat DB storage with server-side tree construction for nested view |
 | `custom_name` backward compatibility | `required=False` with auto-generation | Tech lead confirmed: existing API consumers work unchanged; new consumers can set meaningful names |
 | Feature flags | None | Dual-write (JSON + Rate table) is the rollback mechanism; no Unleash flags |
-| Distribution SQL changes | Open (IQ-9) | Distribution currently operates on aggregated daily summary columns; per-rate identity is lost. Decision pending on whether to modify distribution for per-rate breakdown. |
+| Distribution SQL changes | Open (IQ-9) — recommending Option 2 (back-allocate) | Existing distribution SQL stays unchanged. Back-allocation in breakdown population SQL splits `distributed_cost` to per-rate shares using `RatesToUsage` proportions. Infrastructure shows as aggregate entry. **Pending tech lead confirmation.** |
 | Sankey chart changes | None | Sankey reads from existing report API which is unchanged |
 | Rate table read path | Switched in Phase 1, permanent in Phase 5 | Dual-write preserves JSON for rollback |
 | Future scalability | Single source of truth scales for upcoming features | Price List Lifecycles (multiple price lists) and Consumer & Provider (multiple cost models) compound dual-write overhead; single calculation point avoids this |
+
+---
+
+## Changelog
+
+All documents in this directory (`docs/architecture/cost-breakdown/`)
+are versioned together. Each version corresponds to a commit on the
+`COST-7249/cost-breakdown-design` branch.
+
+| Version | Date | Commit | Summary |
+|---------|------|--------|---------|
+| v1.0 | 2026-03-17 | `9cb337ab9` | Initial technical design: 5 documents (README, data-model, sql-pipeline, api-and-frontend, phased-delivery) + 4 PoC artifacts. Covers schema normalization, SQL pipeline changes, API/frontend plan, and 5-phase delivery. 8 implementation questions (IQ-1 through IQ-8), 4 open questions (OQ-1 through OQ-4), 12 risks (R1-R12). |
+| v1.1 | 2026-03-17 | `c1b28bc82` | Address gemini-code-assist review: fix off-by-one in `generate_custom_name` (`[:47]` → `[:46]`), replace `Rate.objects.create()` loop with `bulk_create()`. |
+| v2.0 | 2026-03-17 | `1e05f2343` | **IQ-1 RESOLVED** (single source of truth). Major redesign: add 4 fine-grained columns to `CostModelRatesToUsage` (`pod_labels`, `volume_labels`, `persistentvolumeclaim`, `all_labels`). Aggregation SQL redesigned as DELETE + INSERT (replaces `usage_costs.sql` direct-write from Phase 2). Remove all dual-path language. Add R13 (JSONB JOIN performance). Update all 5 documents and PoC SQL. |
+| v2.1 | 2026-03-17 | `369dbda50` | **IQ-3 RESOLVED** (flat DB rows, both flat and nested API responses). **IQ-7 RESOLVED** (auto-generate `custom_name`). Fix tree depth inconsistency (align hierarchy table with PoC SQL). Add future scalability section (Price List Lifecycles, Consumer & Provider). Document IQ-9 (distribution per-rate identity gap) as new open question. |
+| v2.2 | 2026-03-17 | — | **IQ-9 investigation complete.** Expand IQ-9 with full source code analysis of distribution SQL. Recommend Option 2 (back-allocate proportionally). Add SQL sketch for back-allocation to sql-pipeline.md. Update data-model.md tree to show depth 5 structure. Add R14 (rounding), R15 (JOIN complexity). Add this changelog. |

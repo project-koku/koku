@@ -747,6 +747,223 @@ a separate INSERT with `GROUP BY top_category, breakdown_category`.
 
 ---
 
+## Back-Allocation SQL Sketch
+
+**Context**: IQ-9 recommends Option 2 (back-allocate proportionally) to
+preserve per-rate identity for distributed costs. This section describes
+the SQL approach. See
+[README.md § IQ-9](./README.md#iq-9-distribution-per-rate-identity-gap)
+for the full investigation and rationale.
+
+### Problem
+
+Distribution writes one `distributed_cost` per (namespace, node, day,
+distribution_type). We need to split that scalar into per-rate shares
+using proportions from `RatesToUsage` and the daily summary.
+
+### Data sources
+
+The back-allocation JOIN requires three data sets:
+
+1. **Distribution rows** (daily summary): the `distributed_cost` per
+   recipient namespace. Filter:
+   `cost_model_rate_type IN ('platform_distributed', 'worker_distributed', ...)`
+
+2. **Source cost composition** (daily summary): the total cost of the
+   source namespace (Platform, Worker unallocated, etc.), broken into
+   infrastructure (`infrastructure_raw_cost + infrastructure_markup_cost`)
+   and cost model (`cost_model_cpu_cost + cost_model_memory_cost +
+   cost_model_volume_cost`) portions.
+
+3. **Per-rate proportions** (`RatesToUsage`): each rate's
+   `calculated_cost` for the source namespace, giving us the rate's
+   share of the cost model portion.
+
+### SQL sketch
+
+```sql
+-- Back-allocation: split distributed_cost into per-rate shares
+-- This runs as part of the breakdown population SQL (Phase 4)
+
+WITH source_cost AS (
+    -- Total cost composition for each source namespace (Platform, Worker, etc.)
+    SELECT
+        lids.usage_start,
+        lids.cluster_id,
+        lids.source_uuid,
+        cat.name AS category_name,
+        SUM(COALESCE(lids.infrastructure_raw_cost, 0)
+          + COALESCE(lids.infrastructure_markup_cost, 0)) AS infra_cost,
+        SUM(COALESCE(lids.cost_model_cpu_cost, 0)
+          + COALESCE(lids.cost_model_memory_cost, 0)
+          + COALESCE(lids.cost_model_volume_cost, 0)) AS cm_cost,
+        SUM(COALESCE(lids.infrastructure_raw_cost, 0)
+          + COALESCE(lids.infrastructure_markup_cost, 0)
+          + COALESCE(lids.cost_model_cpu_cost, 0)
+          + COALESCE(lids.cost_model_memory_cost, 0)
+          + COALESCE(lids.cost_model_volume_cost, 0)) AS total_cost
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
+        ON lids.cost_category_id = cat.id
+    WHERE lids.usage_start >= {{start_date}}::date
+        AND lids.usage_start <= {{end_date}}::date
+        AND lids.source_uuid = {{source_uuid}}
+        AND lids.cost_model_rate_type IS NULL
+        -- Platform: cat.name = 'Platform'
+        -- Worker: namespace = 'Worker unallocated'
+        -- (parameterized per distribution type)
+    GROUP BY lids.usage_start, lids.cluster_id, lids.source_uuid, cat.name
+),
+
+rate_shares AS (
+    -- Per-rate cost in the source namespace from RatesToUsage
+    SELECT
+        rtu.usage_start,
+        rtu.cluster_id,
+        rtu.source_uuid,
+        rtu.custom_name,
+        rtu.metric_type,
+        rtu.cost_model_rate_type AS rate_type,
+        SUM(rtu.calculated_cost) AS rate_cost
+    FROM {{schema | sqlsafe}}.cost_model_rates_to_usage rtu
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
+        ON rtu.cost_category_id = cat.id
+    WHERE rtu.usage_start >= {{start_date}}::date
+        AND rtu.usage_start <= {{end_date}}::date
+        AND rtu.source_uuid = {{source_uuid}}
+        -- Same source namespace filter as source_cost
+    GROUP BY rtu.usage_start, rtu.cluster_id, rtu.source_uuid,
+             rtu.custom_name, rtu.metric_type, rtu.cost_model_rate_type
+),
+
+distributed_rows AS (
+    -- Distribution rows written by distribute_*.sql
+    SELECT
+        lids.usage_start,
+        lids.cluster_id,
+        lids.namespace,
+        lids.node,
+        lids.source_uuid,
+        lids.cost_model_rate_type,
+        lids.distributed_cost
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+    WHERE lids.usage_start >= {{start_date}}::date
+        AND lids.usage_start <= {{end_date}}::date
+        AND lids.source_uuid = {{source_uuid}}
+        AND lids.cost_model_rate_type IN (
+            'platform_distributed', 'worker_distributed',
+            'unattributed_storage', 'unattributed_network'
+        )
+        AND lids.distributed_cost IS NOT NULL
+        AND lids.distributed_cost != 0
+)
+
+-- Per-rate distribution leaves (depth 5)
+INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p (...)
+SELECT
+    uuid_generate_v4(),
+    dr.usage_start,
+    dr.cluster_id,
+    dr.namespace,
+    dr.node,
+    rs.custom_name,
+    rs.metric_type,
+    dr.cost_model_rate_type,
+    rs.rate_type AS cost_type,
+    NULL AS cost_value,
+    -- Proportional split: rate's share of total source cost × distributed amount
+    (rs.rate_cost / NULLIF(sc.total_cost, 0)) * dr.distributed_cost
+        AS distributed_cost,
+    -- path: overhead.{dist_type}.{breakdown_cat}.{custom_name}
+    'overhead.' || dr.cost_model_rate_type || '.'
+        || CASE WHEN rs.metric_type = 'markup' THEN 'markup'
+                ELSE 'usage_cost' END
+        || '.' || rs.custom_name AS path,
+    5 AS depth,
+    'overhead.' || dr.cost_model_rate_type || '.'
+        || CASE WHEN rs.metric_type = 'markup' THEN 'markup'
+                ELSE 'usage_cost' END AS parent_path,
+    'overhead' AS top_category,
+    CASE WHEN rs.metric_type = 'markup' THEN 'markup'
+         ELSE 'usage_cost' END AS breakdown_category
+FROM distributed_rows dr
+JOIN source_cost sc
+    ON dr.usage_start = sc.usage_start
+    AND dr.cluster_id = sc.cluster_id
+    AND dr.source_uuid = sc.source_uuid
+JOIN rate_shares rs
+    ON sc.usage_start = rs.usage_start
+    AND sc.cluster_id = rs.cluster_id
+    AND sc.source_uuid = rs.source_uuid
+WHERE sc.total_cost != 0
+
+UNION ALL
+
+-- Infrastructure aggregate entry (depth 4) under each distribution node
+SELECT
+    uuid_generate_v4(),
+    dr.usage_start,
+    dr.cluster_id,
+    dr.namespace,
+    dr.node,
+    'Infrastructure' AS custom_name,
+    'infrastructure' AS metric_type,
+    dr.cost_model_rate_type,
+    NULL AS cost_type,
+    NULL AS cost_value,
+    (sc.infra_cost / NULLIF(sc.total_cost, 0)) * dr.distributed_cost
+        AS distributed_cost,
+    'overhead.' || dr.cost_model_rate_type || '.infrastructure' AS path,
+    4 AS depth,
+    'overhead.' || dr.cost_model_rate_type AS parent_path,
+    'overhead' AS top_category,
+    'infrastructure' AS breakdown_category
+FROM distributed_rows dr
+JOIN source_cost sc
+    ON dr.usage_start = sc.usage_start
+    AND dr.cluster_id = sc.cluster_id
+    AND dr.source_uuid = sc.source_uuid
+WHERE sc.total_cost != 0
+    AND sc.infra_cost != 0;
+```
+
+### Mapping distribution type to source namespace
+
+Each distribution type has a different source namespace filter for the
+`source_cost` and `rate_shares` CTEs:
+
+| Distribution type | Source namespace filter |
+|-------------------|----------------------|
+| `platform_distributed` | `cat.name = 'Platform'` |
+| `worker_distributed` | `namespace = 'Worker unallocated'` |
+| `unattributed_storage` | `namespace = 'Storage unattributed'` |
+| `unattributed_network` | `namespace = 'Network unattributed'` |
+| `gpu_distributed` | `namespace = 'GPU unallocated'` (Phase 3+ only) |
+
+In practice, the back-allocation SQL can be parameterized or use
+CASE/WHEN to handle all distribution types in a single query, mapping
+`cost_model_rate_type` to the corresponding source filter.
+
+### GPU distribution note
+
+GPU distribution (`gpu_distributed`) uses `cost_model_gpu_cost`, which
+comes from `monthly_cost_gpu.sql` — a tag-based cost written in Phase 3.
+GPU rates may not be in `RatesToUsage` until Phase 3. GPU back-allocation
+should be deferred until Phase 3 scope is confirmed, or excluded if GPU
+rates are not tracked per-rate.
+
+### Intermediate nodes for distribution
+
+The back-allocation produces depth 5 per-rate leaves and depth 4
+infrastructure entries. Intermediate depth 4 nodes (e.g.,
+`overhead.platform_distributed.usage_cost`) are aggregated from the
+depth 5 leaves using the same `GROUP BY` + `SUM()` approach used for
+project-side intermediate nodes (Steps 2-4 in the existing PoC). The
+depth 3 distribution node (`overhead.platform_distributed`) aggregates
+depth 4 children.
+
+---
+
 ## Trino/Self-Hosted Architecture
 
 ### Three SQL Paths

@@ -186,7 +186,8 @@ against PostgreSQL via Django. See
 |----------|------|-------------|
 | `OCPCostUIBreakDownP` model | `reporting/provider/ocp/models.py` | New partitioned Django model |
 | Migration M5 | `reporting/migrations/XXXX_create_breakdown_p.py` | DDL for `reporting_ocp_cost_breakdown_p` |
-| Breakdown population SQL | `masu/database/sql/openshift/ui_summary/reporting_ocp_cost_breakdown_p.sql` | Populate from `RatesToUsage` with tree paths |
+| Breakdown population SQL | `masu/database/sql/openshift/ui_summary/reporting_ocp_cost_breakdown_p.sql` | Populate from `RatesToUsage` (per-rate) + daily summary (distribution back-allocation per IQ-9) with tree paths |
+| Back-allocation SQL (IQ-9) | Part of `reporting_ocp_cost_breakdown_p.sql` | Split distribution `distributed_cost` into per-rate shares using `RatesToUsage` proportions. See [sql-pipeline.md](./sql-pipeline.md#back-allocation-sql-sketch) |
 | `UI_SUMMARY_TABLES` update | `reporting/provider/ocp/models.py` | Add to tuple for partition cleanup |
 | Provider map entry | `api/report/ocp/provider_map.py` | `cost_breakdown` report type |
 | View class | `api/report/ocp/view.py` | `OCPCostBreakdownView` |
@@ -201,7 +202,12 @@ against PostgreSQL via Django. See
 ### Validation
 
 - Breakdown table populated correctly (spot-check against `RatesToUsage`)
+- Back-allocation correctness: `SUM(per-rate distributed_cost)` per
+  (namespace, node, day, distribution_type) equals the original
+  `distributed_cost` row from the daily summary (rounding tolerance:
+  < $0.01)
 - API returns expected flat/tree structure (compare with PRD examples)
+- API returns both flat and tree views correctly (`?view=flat`, `?view=tree`)
 - Frontend renders breakdown table in Cost Overview tab
 - Usage cards appear in new Usage Overview tab
 - CSV export produces correct columns
@@ -270,6 +276,8 @@ All of these must be verified before executing Phase 5:
 | R11 | Concurrent cost model updates with overlapping date ranges create duplicate `RatesToUsage` rows | MEDIUM | LOW | 2-3 | Existing Redis lock (`WorkerCache.lock_single_task`) prevents identical `(schema, provider, start, end)` runs; DELETE-before-INSERT pattern (Step 0) clears stale rows per recalculation window; risk is limited to rare overlapping-range scenarios |
 | R12 | `CostModelManager.update()` has no `@transaction.atomic` — dual-write (JSON save + Rate table sync) can partially fail | MEDIUM | MEDIUM | 1 | Add `@transaction.atomic` to `update()`. `create()` already has it. See [api-and-frontend.md](./api-and-frontend.md). |
 | R13 | JSONB column equality JOINs in aggregation/validation SQL are slow on large datasets | **HIGH** | MEDIUM | 2 | The aggregation SQL (Phase 2) groups by `pod_labels`, `volume_labels`, `all_labels` (JSONB). PostgreSQL JSONB equality comparison without GIN indexes can be slow. **Mitigation**: (1) Benchmark aggregation query in Phase 2 with realistic data; (2) If slow, add a computed hash column (`md5(pod_labels::text \|\| volume_labels::text \|\| all_labels::text)`) to both tables and GROUP BY/JOIN on the hash instead; (3) GIN indexes on JSONB columns are an alternative but add write overhead. **Decision needed from tech lead.** |
+| R14 | Back-allocation rounding: proportional split of `distributed_cost` to per-rate shares may produce minor rounding differences | LOW | HIGH | 4 | PostgreSQL `NUMERIC(33, 15)` provides 15 decimal places. Rounding error per row is < $0.01. **Mitigation**: Add a rounding reconciliation check in the breakdown population SQL (`SUM(per-rate shares)` vs original `distributed_cost`) and log any discrepancy > $0.01. Acceptable tolerance per existing koku cost precision. |
+| R15 | Back-allocation JOIN complexity: matching distribution rows to source namespace costs and `RatesToUsage` proportions requires multi-table CTEs | MEDIUM | MEDIUM | 4 | The back-allocation SQL has 3 CTEs with JOINs across daily summary and `RatesToUsage`. **Mitigation**: (1) Benchmark with realistic data in Phase 4; (2) Source cost and rate_shares CTEs operate on source namespaces (small cardinality — typically 1 Platform namespace per cluster); (3) Indexes on `(usage_start, cluster_id, source_uuid)` cover the JOIN paths. |
 
 ### Risk × Phase Matrix
 
@@ -288,6 +296,8 @@ R10                               ██
 R11                    ██         ██
 R12         ██
 R13                    ██ (JSONB columns in aggregation GROUP BY)
+R14                                         ██ (back-allocation rounding)
+R15                                         ██ (back-allocation JOIN complexity)
 ```
 
 ---

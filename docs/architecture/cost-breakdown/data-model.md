@@ -230,7 +230,7 @@ class OCPCostUIBreakDownP(models.Model):
     cost_value = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     path = models.CharField(max_length=200)                # e.g. "project.usage_cost.OpenShift_Subscriptions"
-    depth = models.SmallIntegerField()                     # 1-4 (per-rate leaves at 4; distribution leaves at 3)
+    depth = models.SmallIntegerField()                     # 1-5 (per-rate leaves at 4; distribution per-rate leaves at 5 with IQ-9 Option 2)
     parent_path = models.CharField(max_length=200)         # e.g. "project.usage_cost"
     top_category = models.CharField(max_length=200)        # "project" or "overhead"
     breakdown_category = models.CharField(max_length=50)   # "raw_cost", "usage_cost", "markup"
@@ -260,8 +260,10 @@ fixed alongside this work.
 ## Tree Structure Definition
 
 The breakdown tree has a maximum depth of 4 levels for per-rate rows
-and 3 levels for distribution rows. The `path` column encodes the
-full hierarchy as a dot-separated string.
+and 3 levels for distribution rows in the current design. If IQ-9
+Option 2 (back-allocation) is approved, distribution rows gain
+per-rate drill-down at depth 4-5. The `path` column encodes the full
+hierarchy as a dot-separated string.
 
 ### Hierarchy Patterns
 
@@ -270,37 +272,50 @@ full hierarchy as a dot-separated string.
 | 1 | `total_cost` | `total_cost` | Aggregated from depth 2 |
 | 2 | `{top_category}` | `project`, `overhead` | Aggregated from depth 3 |
 | 3 | `{top_category}.{breakdown_category}` | `project.usage_cost`, `project.raw_cost` | Aggregated from depth 4 per-rate leaves |
-| 3 | `overhead.{distribution_type}` | `overhead.platform_distributed`, `overhead.worker_distributed` | Distribution rows from daily summary |
+| 3 | `overhead.{distribution_type}` | `overhead.platform_distributed`, `overhead.worker_distributed` | Aggregated from depth 4 back-allocation children (IQ-9 Option 2) |
 | 4 | `{top_category}.{breakdown_category}.{name}` | `project.usage_cost.OpenShift_Subscriptions` | Per-rate leaf rows from `RatesToUsage` |
+| 4 | `overhead.{dist_type}.infrastructure` | `overhead.platform_distributed.infrastructure` | Infrastructure aggregate from back-allocation (IQ-9 Option 2) |
+| 4 | `overhead.{dist_type}.{breakdown_category}` | `overhead.platform_distributed.usage_cost` | Aggregated from depth 5 per-rate distribution leaves (IQ-9 Option 2) |
+| 5 | `overhead.{dist_type}.{breakdown_cat}.{name}` | `overhead.platform_distributed.usage_cost.OpenShift_Subscriptions` | Per-rate distribution leaf from back-allocation (IQ-9 Option 2) |
 
-**Note on distribution rows**: Distribution SQL (`distribute_platform_cost.sql`,
-etc.) operates on aggregated `cost_model_*_cost` columns in the daily
-summary. Per-rate identity is lost at that point — the distributed cost
-is a single scalar per namespace/node. As a result, distribution rows
-in the breakdown tree are leaf nodes at depth 3 (e.g.,
-`overhead.platform_distributed`) without further per-rate drill-down.
+**Distribution back-allocation (IQ-9 Option 2)**: The recommended
+approach splits each `distributed_cost` into per-rate shares using
+proportions from `RatesToUsage`. Infrastructure costs (cloud billing,
+not cost model rates) appear as a single "Infrastructure" entry at
+depth 4. Cost model rates appear at depth 5 with full `custom_name`
+identity. This approach keeps existing distribution SQL unchanged.
+See [README.md § IQ-9](./README.md#iq-9-distribution-per-rate-identity-gap)
+and [sql-pipeline.md § Back-Allocation SQL](./sql-pipeline.md#back-allocation-sql-sketch).
 
-A potential depth 5 (`overhead.{distribution_type}.{breakdown_category}.{name}`)
-would require distribution to operate on per-rate data from `RatesToUsage`.
-This is tracked as a design gap — see [IQ-9](./README.md#iq-9-distribution-per-rate-identity-gap).
+**Pending tech lead confirmation.** If IQ-9 is not approved, the
+overhead branch caps at depth 3 (distribution leaf nodes without
+per-rate drill-down).
 
-### Example Tree
+### Example Tree (with IQ-9 Option 2 back-allocation)
 
 ```
 total_cost ($4000)
-├── project ($2500)                              ← depth 2 (aggregated)
-│   ├── raw_cost ($1000)                         ← depth 3 (aggregated)
-│   │   ├── AmazonEC2 ($400)                     ← depth 4 (per-rate leaf)
-│   │   ├── AmazonS3 ($300)                      ← depth 4 (per-rate leaf)
-│   │   └── AmazonRDS ($300)                     ← depth 4 (per-rate leaf)
-│   ├── usage_cost ($1200)                       ← depth 3 (aggregated)
-│   │   ├── OpenShift Subscriptions ($500)       ← depth 4 (per-rate leaf)
-│   │   ├── GuestOS Subscriptions ($400)         ← depth 4 (per-rate leaf)
-│   │   └── Operation ($300)                     ← depth 4 (per-rate leaf)
-│   └── markup ($300)                            ← depth 3 (aggregated)
-└── overhead ($1500)                             ← depth 2 (aggregated)
-    ├── platform_distributed ($1000)             ← depth 3 (distribution leaf — no per-rate drill-down)
-    └── worker_unallocated ($500)                ← depth 3 (distribution leaf — no per-rate drill-down)
+├── project ($2500)                                      ← depth 2 (aggregated)
+│   ├── raw_cost ($1000)                                 ← depth 3 (aggregated)
+│   │   ├── AmazonEC2 ($400)                             ← depth 4 (per-rate leaf)
+│   │   ├── AmazonS3 ($300)                              ← depth 4 (per-rate leaf)
+│   │   └── AmazonRDS ($300)                             ← depth 4 (per-rate leaf)
+│   ├── usage_cost ($1200)                               ← depth 3 (aggregated)
+│   │   ├── OpenShift Subscriptions ($500)               ← depth 4 (per-rate leaf)
+│   │   ├── GuestOS Subscriptions ($400)                 ← depth 4 (per-rate leaf)
+│   │   └── Operation ($300)                             ← depth 4 (per-rate leaf)
+│   └── markup ($300)                                    ← depth 3 (aggregated)
+└── overhead ($1500)                                     ← depth 2 (aggregated)
+    ├── platform_distributed ($1000)                     ← depth 3 (aggregated from depth 4)
+    │   ├── infrastructure ($400)                        ← depth 4 (infra aggregate)
+    │   ├── usage_cost ($500)                            ← depth 4 (aggregated from depth 5)
+    │   │   ├── OpenShift Subscriptions ($300)           ← depth 5 (per-rate distribution leaf)
+    │   │   └── GuestOS Subscriptions ($200)             ← depth 5 (per-rate distribution leaf)
+    │   └── markup ($100)                                ← depth 4 (aggregated from depth 5)
+    └── worker_distributed ($500)                        ← depth 3 (same structure as above)
+        ├── infrastructure ($200)                        ← depth 4
+        └── usage_cost ($300)                            ← depth 4
+            └── ...                                      ← depth 5
 ```
 
 ### Relationship to `cost_category`
