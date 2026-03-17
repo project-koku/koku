@@ -33,8 +33,9 @@ One new design gap requires investigation:
 | **IQ-9** | Distribution per-rate identity: how to preserve per-rate breakdown for distributed costs. | Open | Phase 4 | [Details](#iq-9-distribution-per-rate-identity-gap) | [sql-pipeline.md § Back-Allocation SQL](./sql-pipeline.md#back-allocation-sql-sketch) |
 
 Two additional low-risk proposals (IQ-6: remove speculative date fields;
-IQ-8: nullable `cost_type` for distribution rows) can be confirmed
-during the review without blocking.
+IQ-8: nullable `cost_type` for distribution rows) are **pending tech lead
+confirmation**. They do not block progress but require explicit sign-off
+during the PR review.
 
 ### What the spikes resolved
 
