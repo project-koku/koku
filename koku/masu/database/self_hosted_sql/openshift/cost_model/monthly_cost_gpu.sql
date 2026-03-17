@@ -118,47 +118,60 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     monthly_cost_type
 )
 WITH cte_unutilized_uptime_hours AS (
-    -- MIG-aware unallocated GPU calculation:
-    -- total_gpu_slice_hours = count(intervals) * gpu_count * max_slices
+    -- MIG-aware unallocated GPU calculation per GPU model:
+    -- total_gpu_slice_hours = node_uptime_hours * gpu_count * max_slices
     -- utilized_slice_hours = sum(pod_uptime * slice_count) / 3600
     -- unutilized_slice_hours = total_gpu_slice_hours - utilized_slice_hours
-    select
-        node_ut.node,
-        -- Calculate total available slice-hours for the node
-        -- For MIG-enabled GPUs: intervals * gpu_count * max_slices
-        -- For non-MIG GPUs: intervals * gpu_count (treated as 1 slice per GPU)
-        count(node_ut.interval_start) *
-            max((node_labels::jsonb->>'nvidia_com_gpu_count')::DECIMAL(33, 15)) *
-            COALESCE(max(gpu.max_slices_per_gpu), 1) -
-            COALESCE(max(gpu.aggregated_slice_uptime), 0) as untilized_uptime,
-        regexp_replace(node_labels::jsonb->>'nvidia_com_gpu_product', '[^a-zA-Z0-9]+', ' ', 'g') as model,
-        node_ut.usage_start as interval_date,
-        COALESCE(max(gpu.max_slices_per_gpu), 1) as max_slices_per_gpu
-    from {{schema | sqlsafe}}.openshift_node_labels_line_items as node_ut
-    LEFT JOIN (
+    --
+    -- We use node_labels interval_start count to determine actual node uptime hours.
+    -- We group by GPU model to handle nodes with multiple GPU types correctly.
+    -- Each GPU model has its own max_slices value (e.g., A100=7, T4=1).
+    SELECT
+        gpu.node,
+        gpu.gpu_model_name as model,
+        gpu.interval_date,
+        gpu.max_slices_per_gpu,
+        -- Calculate unallocated slice-hours for this GPU model on this node
+        -- total_capacity = node_uptime_hours * gpu_count * max_slices
+        -- gpu_uuid is the physical GPU UUID, so count distinct gives physical GPU count
+        count(node_ut.interval_start) * gpu.physical_gpu_count * gpu.max_slices_per_gpu
+            - gpu.aggregated_slice_uptime as unutilized_uptime
+    FROM {{schema | sqlsafe}}.openshift_node_labels_line_items as node_ut
+    INNER JOIN (
         SELECT
-            -- For MIG: sum(uptime * slice_count) / 3600
-            -- For non-MIG: sum(uptime) / 3600
             sum(gpu.gpu_pod_uptime * COALESCE(gpu.mig_slice_count, 1)) / 3600 as aggregated_slice_uptime,
             max(COALESCE(gpu.gpu_max_slices, 1)) as max_slices_per_gpu,
+            -- gpu_uuid is the physical GPU UUID, so count distinct gives physical GPU count
+            COUNT(DISTINCT gpu.gpu_uuid)::DECIMAL(33, 15) as physical_gpu_count,
             gpu.node,
+            gpu.gpu_model_name,
             gpu.usage_start as interval_date
-        from {{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu
-            WHERE gpu.source = {{source_uuid}}
+        FROM {{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu
+        WHERE gpu.source = {{source_uuid}}
             AND gpu.year = {{year}}
             AND gpu.month = {{month}}
-        group by node, gpu.usage_start
-
+            AND gpu.usage_start >= DATE({{start_date}})
+            AND gpu.usage_start <= DATE({{end_date}})
+            AND gpu.gpu_vendor_name = '{{tag_key | sqlsafe}}'
+            {%- if value_rates is defined %}
+            AND (
+                {%- for value, value_rate in value_rates.items() %}
+                {%- if not loop.first %} OR {%- endif %}
+                gpu.gpu_model_name = '{{value | sqlsafe}}'
+                {%- endfor %}
+            )
+            {%- endif %}
+        GROUP BY gpu.node, gpu.gpu_model_name, gpu.usage_start
     ) AS gpu
         ON gpu.node = node_ut.node
         AND gpu.interval_date = node_ut.usage_start
-    where node_labels like '%%"nvidia_com_gpu_present": "True"%%'
-        AND node_ut.usage_start >= DATE({{start_date}})
+    WHERE node_ut.usage_start >= DATE({{start_date}})
         AND node_ut.usage_start <= DATE({{end_date}})
         AND node_ut.month = {{month}}
         AND node_ut.year = {{year}}
         AND node_ut.source = {{source_uuid}}
-    group by node_ut.node, regexp_replace(node_labels::jsonb->>'nvidia_com_gpu_product', '[^a-zA-Z0-9]+', ' ', 'g'), node_ut.usage_start
+    GROUP BY gpu.node, gpu.gpu_model_name, gpu.interval_date, gpu.max_slices_per_gpu,
+             gpu.physical_gpu_count, gpu.aggregated_slice_uptime
 )
 SELECT
     uuid_generate_v4() as uuid,
@@ -181,23 +194,23 @@ SELECT
     -- slice_hourly_rate = hourly_rate / max_slices
     -- unallocated_cost = slice_hourly_rate * unutilized_slice_hours
     {%- if rate is defined %}
-    (CAST({{rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.untilized_uptime,
+    (CAST({{rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.unutilized_uptime,
     {%- elif value_rates is defined %}
     CASE
         {%- for value, value_rate in value_rates.items() %}
         WHEN hrs.model = '{{value | sqlsafe}}'
-        THEN (CAST({{value_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.untilized_uptime
+        THEN (CAST({{value_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.unutilized_uptime
         {%- endfor %}
         {%- if default_rate is defined %}
-        ELSE (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.untilized_uptime
+        ELSE (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.unutilized_uptime
         {%- endif %}
     END,
     {%- elif default_rate is defined %}
-    (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.untilized_uptime,
+    (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.unutilized_uptime,
     {%- else %}
     0,
     {%- endif %}
     'Tag' AS monthly_cost_type
 FROM cte_unutilized_uptime_hours as hrs
-WHERE untilized_uptime > 0
+WHERE unutilized_uptime > 0
 RETURNING 1;
