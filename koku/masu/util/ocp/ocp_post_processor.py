@@ -275,15 +275,18 @@ class OCPPostProcessor:
         return data_frame
 
     def _parse_mig_profile_for_rows(self, data_frame, has_mig_data):
-        """Parse MIG profiles to populate slice count and memory for rows missing these values."""
+        """Parse MIG profiles to derive slice count and memory.
+
+        These values are always derived from the profile - they are not provided by the operator.
+        """
         for idx in data_frame[has_mig_data].index:
             profile = data_frame.at[idx, "mig_profile"]
             slice_count, memory_mib = parse_mig_profile(profile)
 
-            if pd.isna(data_frame.at[idx, "mig_slice_count"]) and slice_count is not None:
+            if slice_count is not None:
                 data_frame.at[idx, "mig_slice_count"] = slice_count
 
-            if pd.isna(data_frame.at[idx, "mig_memory_capacity_mib"]) and memory_mib is not None:
+            if memory_mib is not None:
                 data_frame.at[idx, "mig_memory_capacity_mib"] = memory_mib
 
     def _clear_mig_fields_for_row(self, data_frame, idx):

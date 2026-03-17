@@ -453,8 +453,8 @@ class TestOCPPostProcessor(MasuTestCase):
         # Should not add MIG fields for rows without valid mig_profile
         self.assertFalse("mig_slice_count" in processed_df.columns and processed_df["mig_slice_count"].notna().any())
 
-    def test_populate_mig_fields_preserves_existing_values(self):
-        """Test that existing MIG field values are not overwritten."""
+    def test_populate_mig_fields_derives_from_profile(self):
+        """Test that MIG fields are derived from the profile."""
         data = [
             {
                 "node": "gpu-node-1",
@@ -472,7 +472,7 @@ class TestOCPPostProcessor(MasuTestCase):
         post_processor = OCPPostProcessor(self.schema, "gpu_usage")
         processed_df = post_processor._populate_mig_fields_from_profile(df)
 
-        # Existing values should be preserved
+        # Values should be derived from profile "4g.40gb"
         self.assertEqual(processed_df.at[0, "mig_slice_count"], 4)
         self.assertEqual(processed_df.at[0, "mig_memory_capacity_mib"], 40960)
         self.assertEqual(processed_df.at[0, "gpu_max_slices"], 7)
@@ -590,7 +590,6 @@ class TestMIGFieldsForUnknownModels(MasuTestCase):
                 "gpu_pod_uptime": 3600,
                 "mig_instance_id": "MIG-456",
                 "mig_profile": "4g.40gb",
-                "mig_slice_count": 4,
             },
         ]
         df = pd.DataFrame(data)
