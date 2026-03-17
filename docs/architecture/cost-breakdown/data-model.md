@@ -154,6 +154,10 @@ class CostModelRatesToUsage(models.Model):
     cluster_alias = models.TextField(null=True)
     data_source = models.CharField(max_length=63, null=True)
     resource_id = models.CharField(max_length=253, null=True)
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
+    pod_labels = JSONField(null=True)
+    volume_labels = JSONField(null=True)
+    all_labels = JSONField(null=True)
     custom_name = models.CharField(max_length=50)
     metric_type = models.CharField(max_length=20)          # cpu, memory, storage, gpu — needed by aggregation SQL
     cost_model_rate_type = models.TextField(null=True)     # "Infrastructure" or "Supplementary" (from Rate.cost_type)
@@ -170,6 +174,12 @@ class CostModelRatesToUsage(models.Model):
 - `rate` is a nullable FK with `SET_NULL` — if a rate is deleted from
   the cost model, historical cost rows remain with the `custom_name`
   denormalized on the row itself.
+- **Fine-grained columns** (`pod_labels`, `volume_labels`,
+  `persistentvolumeclaim`, `all_labels`) match the GROUP BY granularity
+  of `usage_costs.sql`. This is required so the aggregation step can
+  produce rows at the exact same granularity as the daily summary,
+  enabling `RatesToUsage` to serve as the single source of truth
+  (see [IQ-1 resolution](./README.md#iq-1-aggregation-granularity-mismatch-phase-2-3)).
 - **No `distributed_cost` column.** Distribution runs *after* the
   aggregation step and writes new rows directly to the daily summary
   (with `cost_model_rate_type` = `platform_distributed`, etc.). These
@@ -558,6 +568,10 @@ CREATE TABLE cost_model_rates_to_usage (
     cluster_alias        TEXT,
     data_source          VARCHAR(63),
     resource_id          VARCHAR(253),
+    persistentvolumeclaim VARCHAR(253),
+    pod_labels           JSONB,
+    volume_labels        JSONB,
+    all_labels           JSONB,
     custom_name          VARCHAR(50) NOT NULL,
     metric_type          VARCHAR(20) NOT NULL,
     cost_model_rate_type TEXT,

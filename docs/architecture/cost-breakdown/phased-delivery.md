@@ -7,15 +7,15 @@ validation criteria, rollback strategies, and the risk register.
 
 ## Decisions Pending Tech Lead Review
 
-Three design decisions need confirmation. See
+Two design decisions need confirmation. IQ-1 has been resolved. See
 [README.md § Decisions Needed from Tech Lead](./README.md#decisions-needed-from-tech-lead)
 for full context and PoC references.
 
-| Decision | Impact on this plan |
-|----------|-------------------|
-| **IQ-1**: Drop aggregation step | If confirmed: Phase 2 removes `aggregate_rates_to_daily_summary.sql` and `validate_rates_against_daily_summary.sql` from production artifacts (validation becomes test-only). Phase 3 "aggregation promotion" step is removed. Phase 5 scope is reduced. |
-| **IQ-3**: Flat-row API response | If confirmed: Phase 4 uses standard `OCPReportQueryHandler` with `provider_map.py` entry instead of custom nested serializer. |
-| **IQ-7**: `custom_name` optional | If confirmed: Phase 1 `RateSerializer` uses `required=False` with auto-generation. No API version bump needed. |
+| Decision | Status | Impact on this plan |
+|----------|--------|-------------------|
+| **IQ-1**: Single source of truth via RatesToUsage with aggregation | **RESOLVED** | Phase 2 replaces `usage_costs.sql` direct-write with RatesToUsage INSERT + aggregation (DELETE + INSERT). No dual-path. Fine-grained columns added to `CostModelRatesToUsage`. CI validation query verifies correctness. |
+| **IQ-3**: Flat-row API response | Open | If confirmed: Phase 4 uses standard `OCPReportQueryHandler` with `provider_map.py` entry instead of custom nested serializer. |
+| **IQ-7**: `custom_name` optional | Open | If confirmed: Phase 1 `RateSerializer` uses `required=False` with auto-generation. No API version bump needed. |
 
 ---
 
@@ -91,36 +91,40 @@ costs (`usage_costs.sql` only).
 |----------|------|-------------|
 | `CostModelRatesToUsage` model | `reporting/provider/ocp/models.py` | New partitioned Django model |
 | Migration M4 | `reporting/migrations/XXXX_create_rates_to_usage.py` | DDL for `cost_model_rates_to_usage` |
-| `usage_costs.sql` | `masu/database/sql/openshift/cost_model/usage_costs.sql` | **Unchanged** (direct-write to daily summary preserved per IQ-1 proposal) |
-| New RatesToUsage INSERT SQL | `masu/database/sql/openshift/cost_model/insert_usage_rates_to_usage.sql` | CTE + UNION ALL producing per-rate rows — see [PoC](./poc/insert_usage_rates_to_usage.sql) |
-| Orchestration update | `masu/processor/ocp/ocp_cost_model_cost_updater.py` | Call RatesToUsage INSERT after `usage_costs.sql`; no aggregation step (IQ-1) |
-| Accessor update | `masu/database/ocp_report_db_accessor.py` | New `populate_usage_rates_to_usage()` method; `populate_usage_costs()` unchanged |
+| RatesToUsage INSERT SQL | `masu/database/sql/openshift/cost_model/insert_usage_rates_to_usage.sql` | CTE + UNION ALL producing per-rate rows at fine granularity — **replaces** `usage_costs.sql` direct-write. See [PoC](./poc/insert_usage_rates_to_usage.sql) |
+| Aggregation SQL | `masu/database/sql/openshift/cost_model/aggregate_rates_to_daily_summary.sql` | DELETE + INSERT: aggregates `RatesToUsage` → daily summary `cost_model_*_cost` columns. Replaces `usage_costs.sql` direct-write. |
+| Orchestration update | `masu/processor/ocp/ocp_cost_model_cost_updater.py` | Replace `self._update_usage_costs()` with RatesToUsage INSERT + aggregation. No dual-path. |
+| Accessor update | `masu/database/ocp_report_db_accessor.py` | New `populate_usage_rates_to_usage()` and `aggregate_rates_to_daily_summary()` methods; `populate_usage_costs()` retired |
 | Markup → RatesToUsage | `masu/database/ocp_report_db_accessor.py` | New `populate_markup_rates_to_usage()` method (ORM INSERT into `RatesToUsage` after markup UPDATE) |
-| Validation SQL (test-only) | `masu/database/sql/openshift/cost_model/validate_rates_against_daily_summary.sql` | Read-only comparison query for CI regression tests (not runtime, per IQ-1) |
+| CI Validation SQL | `masu/database/sql/openshift/cost_model/validate_rates_against_daily_summary.sql` | CI-only regression test: read-only comparison verifying aggregation correctness |
 | Partition wiring | `masu/processor/ocp/ocp_cost_model_cost_updater.py` | Call `get_or_create_partition()` before writing to `RatesToUsage` (not in `UI_SUMMARY_TABLES`) |
 | Purge update | `masu/processor/ocp/ocp_report_db_cleaner.py` | Add `cost_model_rates_to_usage` to `purge_expired_report_data_by_date()` |
 | DELETE for recalculation | `masu/database/ocp_report_db_accessor.py` | New `delete_rates_to_usage()` method — runs before each recalculation cycle |
 
 ### Validation
 
-- `RatesToUsage` populated with per-rate rows for usage costs
+- `RatesToUsage` populated with per-rate rows at fine granularity
+  (matching `usage_costs.sql` GROUP BY exactly)
 - **CI validation test**: `validate_rates_against_daily_summary.sql`
-  confirms `SUM(RatesToUsage.calculated_cost)` by metric_type matches
-  the daily summary `cost_model_*_cost` columns at the (namespace, node,
-  day) level. This runs in CI, not at runtime (per IQ-1 proposal).
-- Existing test suite passes (cost calculation results unchanged —
-  daily summary direct-write is untouched)
-- Performance benchmark: query time on `RatesToUsage` for a tenant with
-  30 rates, 100 namespaces, 30 days of data. Use
+  confirms aggregated `RatesToUsage` values match expected daily summary
+  costs at the full (namespace, node, pod_labels, volume_labels,
+  persistentvolumeclaim, all_labels, day) granularity
+- Existing test suite passes — aggregation produces identical daily
+  summary rows to the retired `usage_costs.sql` direct-write
+- Performance benchmark: query time on `RatesToUsage` AND the
+  aggregation query for a tenant with 30 rates, 100 namespaces, 30 days
+  of data. The JSONB columns in the aggregation GROUP BY should be
+  benchmarked specifically (see risk R13). Use
   [`poc/estimate_rates_to_usage_rows.sql`](./poc/estimate_rates_to_usage_rows.sql)
-  to estimate row counts before implementation.
+  for baseline estimates (note: estimates are lower bounds — actual row
+  counts will be higher with fine-grained granularity).
 
 ### Rollback
 
-1. Revert new SQL file (`insert_usage_rates_to_usage.sql`) and
-   orchestration code → RatesToUsage is no longer populated
-2. Daily summary direct-write in `usage_costs.sql` is **unchanged** and
-   continues to work — no revert needed for existing cost calculations
+1. Revert new SQL files (`insert_usage_rates_to_usage.sql`,
+   `aggregate_rates_to_daily_summary.sql`) and orchestration code
+2. Restore `usage_costs.sql` direct-write call in the orchestration
+   (`self._update_usage_costs(...)`) — the file itself is unchanged
 3. Truncate `cost_model_rates_to_usage` partitions if needed
 
 ---
@@ -141,9 +145,9 @@ costs (`usage_costs.sql` only).
 | Accessor updates | `ocp_report_db_accessor.py` | `populate_monthly_cost_sql()`, `populate_tag_cost_sql()`, `populate_tag_usage_costs()`, `populate_tag_usage_default_costs()`, `populate_vm_usage_costs()`, `populate_tag_based_costs()` — all pass `custom_name` and write to RatesToUsage |
 
 **Total**: 25 SQL file modifications + 6 accessor method updates.
-No aggregation promotion — per IQ-1 proposal, the aggregation step is
-removed. Each SQL file gains a RatesToUsage INSERT alongside its existing
-daily summary INSERT.
+Each SQL file gains a RatesToUsage INSERT alongside its existing daily
+summary INSERT. Aggregation (from Phase 2) already populates the daily
+summary from `RatesToUsage`.
 
 **Trino dialect note**: The 8 `trino_sql/` files must use catalog-qualified
 table names for the `RatesToUsage` INSERT (e.g.,
@@ -155,8 +159,10 @@ against PostgreSQL via Django. See
 ### Validation
 
 - All cost types flow through `RatesToUsage` (usage, monthly, tag-based)
+- Aggregation (from Phase 2) continues to produce correct daily summary
+  rows with the additional cost types flowing through `RatesToUsage`
 - Distributed costs calculated correctly (distribution SQL is unchanged
-  but verify end-to-end)
+  but verify end-to-end — it reads from aggregation output)
 - Full regression: compare total costs per tenant before/after
 - Tag-based costs: verify `custom_name` attached correctly (one name per
   rate, not per tag value)
@@ -210,7 +216,8 @@ against PostgreSQL via Django. See
 
 ## Phase 5: Cleanup
 
-**Goal**: Remove legacy JSON rate storage path.
+**Goal**: Remove legacy JSON rate storage path and dead `usage_costs.sql`
+direct-write code.
 
 ### Artifacts
 
@@ -219,6 +226,8 @@ against PostgreSQL via Django. See
 | Migration M6 | `cost_models/migrations/XXXX_drop_rates_json.py` | `ALTER TABLE cost_model DROP COLUMN rates` |
 | Remove dual-write | `cost_models/serializers.py` | API writes to Rate table only |
 | Remove JSON read path | `masu/database/cost_model_db_accessor.py` | Remove `_price_list_from_json()` fallback |
+| Remove `usage_costs.sql` direct-write | `masu/database/sql/openshift/cost_model/usage_costs.sql`, `ocp_report_db_accessor.py` | Dead code since Phase 2 aggregation took over. Remove the direct-write INSERT and its orchestration call. |
+| Remove validation SQL | `masu/database/sql/openshift/cost_model/validate_rates_against_daily_summary.sql` | No longer needed once aggregation is the only path. Can be retained as a CI-only test if desired. |
 
 ### Preconditions
 
@@ -248,8 +257,8 @@ All of these must be verified before executing Phase 5:
 | ID | Risk | Severity | Likelihood | Phase | Mitigation |
 |----|------|----------|------------|-------|------------|
 | R1 | `usage_costs.sql` has 6 entangled CPU cost components that are hard to decompose into named rates | ~~HIGH~~ **MITIGATED** | ~~HIGH~~ LOW | 2 | **RESOLVED (OQ-1)**: All 6 map 1:1 to distinct rate metrics in `COST_MODEL_USAGE_RATES`. CTE approach avoids GROUP BY duplication. 12x row multiplier quantified. |
-| R2 | Aggregation step produces different values than direct-write (rounding, NULLs, missing rows) | HIGH | MEDIUM | 2 | **RESOLVED (OQ-3)**: No existing dual-path infrastructure in koku. Strategy: regression tests + Phase 2 read-only validation query (`validate_rates_against_daily_summary.sql`). |
-| R3 | Row explosion in `RatesToUsage` causes query timeouts | MEDIUM | MEDIUM | 2 | 12x multiplier quantified (OQ-1). Benchmark with realistic data (12 rates x 100 namespaces x 30 days = 36M rows/month worst case); partition by month |
+| R2 | Aggregation step produces different values than direct-write (rounding, NULLs, missing rows) | HIGH | MEDIUM | 2 | **RESOLVED (OQ-3)**: CI validation query compares at fine granularity (pod_labels, volume_labels, persistentvolumeclaim, all_labels). Strategy: CI regression tests + integration tests verifying aggregation correctness. Fine-grained columns on `RatesToUsage` resolve the granularity mismatch (IQ-1). |
+| R3 | Row explosion in `RatesToUsage` causes query timeouts | MEDIUM | MEDIUM | 2 | 12x multiplier quantified (OQ-1). **Updated**: Fine-grained granularity increases row counts beyond the original 36M/month estimate — each unique `(pod_labels, volume_labels, persistentvolumeclaim, all_labels)` combination creates separate rows. Re-benchmark with realistic data; partition by month. |
 | R4 | Monthly cost rates produce more rows than expected (per-namespace allocation) | ~~MEDIUM~~ **MITIGATED** | ~~HIGH~~ LOW | 3 | **RESOLVED (OQ-2)**: GROUP BY is `(usage_start, source_uuid, cluster_id, node, namespace, pod_labels, cost_category_id)`. Row count per monthly rate quantifiable from existing data. |
 | R5 | Cost category reclassification invalidates breakdown tree | ~~MEDIUM~~ **MITIGATED** | ~~LOW~~ NONE | 4 | **RESOLVED (OQ-4)**: `CostGroupsAddView`/`CostGroupsRemoveView` already trigger `update_summary_tables` which chains into full cost model recomputation. No special handling needed. |
 | R6 | 25 SQL file modifications across 3 paths introduce regressions | MEDIUM | MEDIUM | 3 | Modify one file at a time; regression tests per file; revert individual files if needed |
@@ -259,13 +268,14 @@ All of these must be verified before executing Phase 5:
 | R10 | Trino SQL dialect requires catalog-qualified table names for `RatesToUsage` INSERT | MEDIUM | MEDIUM | 3 | Test `trino_sql/` files with Trino locally; `self_hosted_sql/` files use standard PostgreSQL syntax and are lower risk |
 | R11 | Concurrent cost model updates with overlapping date ranges create duplicate `RatesToUsage` rows | MEDIUM | LOW | 2-3 | Existing Redis lock (`WorkerCache.lock_single_task`) prevents identical `(schema, provider, start, end)` runs; DELETE-before-INSERT pattern (Step 0) clears stale rows per recalculation window; risk is limited to rare overlapping-range scenarios |
 | R12 | `CostModelManager.update()` has no `@transaction.atomic` — dual-write (JSON save + Rate table sync) can partially fail | MEDIUM | MEDIUM | 1 | Add `@transaction.atomic` to `update()`. `create()` already has it. See [api-and-frontend.md](./api-and-frontend.md). |
+| R13 | JSONB column equality JOINs in aggregation/validation SQL are slow on large datasets | **HIGH** | MEDIUM | 2 | The aggregation SQL (Phase 2) groups by `pod_labels`, `volume_labels`, `all_labels` (JSONB). PostgreSQL JSONB equality comparison without GIN indexes can be slow. **Mitigation**: (1) Benchmark aggregation query in Phase 2 with realistic data; (2) If slow, add a computed hash column (`md5(pod_labels::text \|\| volume_labels::text \|\| all_labels::text)`) to both tables and GROUP BY/JOIN on the hash instead; (3) GIN indexes on JSONB columns are an alternative but add write overhead. **Decision needed from tech lead.** |
 
 ### Risk × Phase Matrix
 
 ```
           Phase 1    Phase 2    Phase 3    Phase 4    Phase 5
 R1          ✓          ✓ (mitigated — OQ-1 resolved)
-R2                     ██
+R2                     ██ (aggregation replaces direct-write)
 R3                     ██
 R4          ✓          ✓          ✓ (mitigated — OQ-2 resolved)
 R5          ✓          ✓          ✓          ✓ (mitigated — OQ-4 resolved)
@@ -276,6 +286,7 @@ R9                                           ██
 R10                               ██
 R11                    ██         ██
 R12         ██
+R13                    ██ (JSONB columns in aggregation GROUP BY)
 ```
 
 ---
@@ -288,10 +299,12 @@ by PoC tests ([`poc/price_list_compat.py`](./poc/price_list_compat.py),
 6/6 pass).
 
 Phase 2 is **unblocked** — all four open questions (OQ-1 through OQ-4)
-have been resolved via source code triage. The RatesToUsage INSERT SQL
-has been prototyped ([`poc/insert_usage_rates_to_usage.sql`](./poc/insert_usage_rates_to_usage.sql)).
-Implementation can proceed immediately after Phase 1 ships, pending
-IQ-1 confirmation from tech lead.
+have been resolved via source code triage, and IQ-1 has been confirmed
+by the tech lead (single source of truth via aggregation, no dual-path).
+The RatesToUsage INSERT SQL has been prototyped
+([`poc/insert_usage_rates_to_usage.sql`](./poc/insert_usage_rates_to_usage.sql)).
+Implementation can proceed immediately after Phase 1 ships. Key Phase 2
+risk to monitor: R13 (JSONB column performance in aggregation).
 
 Phases 3 and 4 can overlap: Phase 3 SQL changes are independent of
 Phase 4 API/frontend work, as long as Phase 2 is complete. The
@@ -305,8 +318,8 @@ for a sufficient period (recommended: at least one full billing cycle).
 
 ```
 Phase 1 ← no blockers (start now)
-Phase 2 ← Phase 1 + IQ-1 confirmation
-Phase 3 ← Phase 2
+Phase 2 ← Phase 1 (IQ-1 confirmed — single source of truth, no dual-path)
+Phase 3 ← Phase 2 + R13 benchmark acceptable
 Phase 4 ← Phase 3 + IQ-3 confirmation (flat rows vs nested)
 Phase 5 ← Phase 4 validated in production
 ```

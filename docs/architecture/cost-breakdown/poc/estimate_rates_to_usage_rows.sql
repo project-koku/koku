@@ -3,8 +3,15 @@
 -- Estimates the number of rows cost_model_rates_to_usage would produce
 -- from the current daily summary data for a 30-day window.
 --
--- RatesToUsage groups at (usage_start, cluster_id, node, namespace,
--- data_source, cost_category_id) — coarser than the daily summary.
+-- NOTE: This PoC estimates at the COARSER granularity (usage_start,
+-- cluster_id, node, namespace, data_source, cost_category_id). With
+-- the IQ-1 resolution, RatesToUsage now groups at FINE granularity
+-- (including pod_labels, volume_labels, persistentvolumeclaim,
+-- all_labels). Actual row counts will be HIGHER than these estimates.
+-- These numbers are lower bounds — multiply by the average number of
+-- distinct (pod_labels, volume_labels, persistentvolumeclaim) combos
+-- per coarse group for a more accurate estimate.
+--
 -- Each group produces up to 12 rows (one per non-zero rate component
 -- for usage costs) plus additional rows for monthly costs, tag costs,
 -- and markup.

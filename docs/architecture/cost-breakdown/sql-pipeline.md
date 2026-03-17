@@ -156,27 +156,30 @@ usage (CPU or memory, per `distribution` setting). Output rows have
 
 ### New Orchestration Order
 
+`RatesToUsage` is the **single source of truth** from Phase 2 onward.
+There is no temporary dual-path — `usage_costs.sql` direct-write is
+replaced by the RatesToUsage INSERT + aggregation in one step.
+
 ```
-0.  DELETE RatesToUsage → clear stale per-rate rows for this recalculation window (new)
-1.  Usage costs      → write to daily_summary (UNCHANGED, direct-write preserved)
-1b. RatesToUsage     → write per-rate rows to RatesToUsage (new)
-2.  Markup           → ORM UPDATE on daily_summary (UNCHANGED)
-2b. Markup → RTU     → ORM INSERT into RatesToUsage (new)
-3.  Monthly costs    → write to daily_summary (UNCHANGED) + RatesToUsage (new)
-4.  Tag costs        → write to daily_summary (UNCHANGED) + RatesToUsage (new)
-4a. VM usage costs   → write to daily_summary (UNCHANGED, Trino/self-hosted) + RatesToUsage (new)
-4b. Tag-based costs  → write to daily_summary (UNCHANGED, mixed paths) + RatesToUsage (new)
-    — no aggregation step (IQ-1 proposal) —
-5.  Distribution     → UNCHANGED (reads daily_summary direct-write columns)
+0.  DELETE RatesToUsage → clear stale per-rate rows (new)
+1.  RatesToUsage     → write per-rate rows (replaces usage_costs.sql direct-write)
+2.  Markup → RTU     → ORM INSERT into RatesToUsage (new)
+3.  Monthly costs    → RatesToUsage (new)
+4.  Tag costs        → RatesToUsage (new)
+4a. VM usage costs   → RatesToUsage (Trino/self-hosted)
+4b. Tag-based costs  → RatesToUsage (mixed paths)
+4c. AGGREGATE        → DELETE + INSERT: SUM(RatesToUsage) → daily_summary cost columns (new)
+5.  Distribution     → UNCHANGED (reads aggregated daily_summary columns)
 6.  UI summary       → UNCHANGED
 7.  Breakdown table  → populate OCPCostUIBreakDownP from RatesToUsage + distribution rows (new)
 ```
 
-**IQ-1 proposal**: There is no step 4.5 aggregation. The daily summary
-is written by the **unchanged** direct-write path (steps 1-4b), and
-`RatesToUsage` feeds only the breakdown table (step 7). A read-only
-validation query (`validate_rates_against_daily_summary.sql`) runs in
-**CI tests only** to verify the two paths produce consistent totals.
+Step 4c runs `aggregate_rates_to_daily_summary.sql` which uses the
+same DELETE + INSERT pattern as `usage_costs.sql` (delete rows with
+`cost_model_rate_type IN ('Infrastructure', 'Supplementary')`, then
+INSERT aggregated rows from `RatesToUsage`). This ensures the
+downstream pipeline (distribution, UI summary) sees the same row
+structure it expects.
 
 Step 7 runs after distribution so that `distributed_cost` values are
 available for the overhead branch of the breakdown tree.
@@ -267,7 +270,7 @@ alongside the existing INSERT into `reporting_ocpusagelineitem_daily_summary`.
 
 | File | Phase | Change Description |
 |------|-------|--------------------|
-| `usage_costs.sql` | 2 | Add INSERT into `RatesToUsage` per rate component (see OQ-1) |
+| `usage_costs.sql` | 2 | **Replaced** by `insert_usage_rates_to_usage.sql` + `aggregate_rates_to_daily_summary.sql`. Direct-write to daily summary is retired in Phase 2. See [The Aggregation Step](#the-aggregation-step). |
 | `infrastructure_tag_rates.sql` | 3 | Add INSERT into `RatesToUsage` (one row per execution, `custom_name` from parameter) |
 | `supplementary_tag_rates.sql` | 3 | Same as above |
 | `default_infrastructure_tag_rates.sql` | 3 | Add INSERT into `RatesToUsage` for default tag rates |
@@ -313,8 +316,8 @@ Same 8 files as the Trino path — they mirror each other.
 |------|-------|---------|
 | `sql/openshift/cost_model/delete_rates_to_usage.sql` | 2 | DELETE stale `RatesToUsage` rows before recalculation |
 | `sql/openshift/cost_model/insert_usage_rates_to_usage.sql` | 2 | CTE + UNION ALL INSERT into `RatesToUsage` per rate component — see [PoC](./poc/insert_usage_rates_to_usage.sql) |
-| `sql/openshift/cost_model/validate_rates_against_daily_summary.sql` | 2 | **Test-only** (per IQ-1 proposal): read-only comparison of `RatesToUsage` aggregates vs direct-write daily summary values |
-| ~~`sql/openshift/cost_model/aggregate_rates_to_daily_summary.sql`~~ | ~~3~~ | **Removed per IQ-1 proposal.** Aggregation back to daily summary is dropped; direct-write path is preserved. If IQ-1 is rejected, this file would be restored. |
+| `sql/openshift/cost_model/validate_rates_against_daily_summary.sql` | 2 | **CI-only** regression test: read-only comparison of `RatesToUsage` aggregates vs expected daily summary values. Used in integration tests to validate aggregation correctness. |
+| `sql/openshift/cost_model/aggregate_rates_to_daily_summary.sql` | 2 | DELETE + INSERT: aggregates `RatesToUsage` into daily summary `cost_model_*_cost` columns, replacing `usage_costs.sql` direct-write. See [The Aggregation Step](#the-aggregation-step). |
 | `sql/openshift/ui_summary/reporting_ocp_cost_breakdown_p.sql` | 4 | Populate `OCPCostUIBreakDownP` from `RatesToUsage` + daily summary distribution rows — see [PoC](./poc/reporting_ocp_cost_breakdown_p.sql) |
 
 ---
@@ -423,18 +426,22 @@ New ORM-based method to write markup costs into `RatesToUsage`. See
 ### Purpose
 
 Bridge between per-rate `RatesToUsage` rows and the existing aggregated
-daily summary columns. This ensures the downstream pipeline (distribution,
-UI summary) continues to work unchanged.
+daily summary columns. `RatesToUsage` is the **single source of truth**
+for cost model calculations. The aggregation step ensures the downstream
+pipeline (distribution, UI summary) continues to work unchanged by
+populating the same `cost_model_*_cost` columns they already read from.
 
-### SQL Sketch — Phase 2 Validation Query (Read-Only)
+### SQL Sketch — CI Validation Query (Read-Only)
 
-In Phase 2 the direct-write path remains the source of truth. The
-validation query compares `RatesToUsage` aggregates against the existing
-daily summary values **without modifying** either table:
+A CI-only regression test query that compares `RatesToUsage` aggregates
+against expected daily summary values. This runs in integration tests
+to validate the aggregation logic, not at runtime:
 
 ```sql
--- validate_rates_against_daily_summary.sql (Phase 2 only)
+-- validate_rates_against_daily_summary.sql (CI-only)
 -- Read-only comparison — does NOT update any rows.
+-- Returns rows where RatesToUsage aggregates differ from daily summary.
+-- Used in integration tests with known-good cost model configurations.
 
 SELECT
     lids.uuid,
@@ -444,11 +451,14 @@ SELECT
     lids.node,
     lids.data_source,
     lids.persistentvolumeclaim,
+    lids.pod_labels,
+    lids.volume_labels,
+    lids.all_labels,
     lids.cost_model_rate_type,
     lids.monthly_cost_type,
-    lids.cost_model_cpu_cost      AS direct_cpu,
-    lids.cost_model_memory_cost   AS direct_memory,
-    lids.cost_model_volume_cost   AS direct_volume,
+    lids.cost_model_cpu_cost      AS expected_cpu,
+    lids.cost_model_memory_cost   AS expected_memory,
+    lids.cost_model_volume_cost   AS expected_volume,
     agg.total_cpu_cost            AS aggregated_cpu,
     agg.total_memory_cost         AS aggregated_memory,
     agg.total_volume_cost         AS aggregated_volume,
@@ -463,6 +473,10 @@ LEFT JOIN (
         namespace,
         node,
         data_source,
+        persistentvolumeclaim,
+        pod_labels,
+        volume_labels,
+        all_labels,
         cost_model_rate_type,
         monthly_cost_type,
         SUM(CASE WHEN metric_type = 'cpu'     THEN calculated_cost ELSE 0 END) AS total_cpu_cost,
@@ -473,6 +487,7 @@ LEFT JOIN (
       AND usage_start <= {{end_date}}
       AND source_uuid = {{source_uuid}}
     GROUP BY usage_start, cluster_id, namespace, node, data_source,
+             persistentvolumeclaim, pod_labels, volume_labels, all_labels,
              cost_model_rate_type, monthly_cost_type
 ) AS agg
   ON  lids.usage_start            = agg.usage_start
@@ -480,6 +495,10 @@ LEFT JOIN (
   AND lids.namespace              = agg.namespace
   AND COALESCE(lids.node, '')     = COALESCE(agg.node, '')
   AND COALESCE(lids.data_source, '') = COALESCE(agg.data_source, '')
+  AND COALESCE(lids.persistentvolumeclaim, '') = COALESCE(agg.persistentvolumeclaim, '')
+  AND COALESCE(lids.pod_labels, '{}'::jsonb)   = COALESCE(agg.pod_labels, '{}'::jsonb)
+  AND COALESCE(lids.volume_labels, '{}'::jsonb) = COALESCE(agg.volume_labels, '{}'::jsonb)
+  AND COALESCE(lids.all_labels, '{}'::jsonb)   = COALESCE(agg.all_labels, '{}'::jsonb)
   AND COALESCE(lids.cost_model_rate_type, '') = COALESCE(agg.cost_model_rate_type, '')
   AND COALESCE(lids.monthly_cost_type, '')    = COALESCE(agg.monthly_cost_type, '')
 WHERE lids.usage_start >= {{start_date}}
@@ -493,63 +512,99 @@ WHERE lids.usage_start >= {{start_date}}
   );
 ```
 
-If this returns **any** rows, the `RatesToUsage` writes have a bug. The
-join granularity includes `data_source`, `monthly_cost_type`, and `node`
-with `COALESCE` for nullable columns — these are all grouping dimensions
-in `usage_costs.sql`.
+If this returns **any** rows, the aggregation logic has a bug. The
+join granularity includes all fine-grained columns (`pod_labels`,
+`volume_labels`, `persistentvolumeclaim`, `all_labels`) matching the
+`usage_costs.sql` GROUP BY exactly.
 
-**IQ-1 NOTE**: Same granularity concern as the production aggregation.
-If IQ-1 proposal is accepted (drop aggregation step), this validation
-query becomes test-only and the granularity mismatch is acceptable for
-CI comparison — it validates totals at the (namespace, node, day)
-level, which is sufficient for catching bugs.
+> **Performance note (R13)**: The JSONB equality JOINs (`pod_labels`,
+> `volume_labels`, `all_labels`) may be slow on large datasets.
+> Benchmarking should measure the aggregation query's runtime. If it
+> exceeds acceptable thresholds, consider a hash-based join key
+> (`md5(pod_labels::text || volume_labels::text || all_labels::text)`)
+> on `RatesToUsage`. **Decision needed from tech lead.**
 
-### SQL Sketch — Phase 3+ Production Aggregation (UPDATE)
+### SQL Sketch — Production Aggregation (DELETE + INSERT)
 
-Once Phase 2 validation passes, this UPDATE replaces the direct-write
-path:
+This DELETE + INSERT **replaces** the `usage_costs.sql` direct-write
+path starting in Phase 2. The pattern matches `usage_costs.sql`'s
+existing DELETE + INSERT approach:
 
 ```sql
--- aggregate_rates_to_daily_summary.sql (Phase 3+)
--- Runs after all cost writes and before distribution
+-- aggregate_rates_to_daily_summary.sql (Phase 2+)
+-- Runs after all cost writes to RatesToUsage and before distribution.
+-- Replaces usage_costs.sql direct-write.
 
-UPDATE {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-SET
-    cost_model_cpu_cost    = agg.total_cpu_cost,
-    cost_model_memory_cost = agg.total_memory_cost,
-    cost_model_volume_cost = agg.total_volume_cost
-FROM (
-    SELECT
-        usage_start,
-        cluster_id,
-        namespace,
-        node,
-        data_source,
-        cost_model_rate_type,
-        monthly_cost_type,
-        SUM(CASE WHEN metric_type = 'cpu'     THEN calculated_cost ELSE 0 END) AS total_cpu_cost,
-        SUM(CASE WHEN metric_type = 'memory'  THEN calculated_cost ELSE 0 END) AS total_memory_cost,
-        SUM(CASE WHEN metric_type = 'storage' THEN calculated_cost ELSE 0 END) AS total_volume_cost
-    FROM {{schema | sqlsafe}}.cost_model_rates_to_usage
-    WHERE usage_start >= {{start_date}}
-      AND usage_start <= {{end_date}}
-      AND source_uuid = {{source_uuid}}
-      AND metric_type IN ('cpu', 'memory', 'storage')
-    GROUP BY usage_start, cluster_id, namespace, node, data_source,
-             cost_model_rate_type, monthly_cost_type
-) AS agg
-WHERE lids.usage_start                             = agg.usage_start
-  AND lids.cluster_id                              = agg.cluster_id
-  AND COALESCE(lids.namespace, '')                 = COALESCE(agg.namespace, '')
-  AND COALESCE(lids.node, '')                      = COALESCE(agg.node, '')
-  AND COALESCE(lids.data_source, '')               = COALESCE(agg.data_source, '')
-  AND COALESCE(lids.cost_model_rate_type, '')      = COALESCE(agg.cost_model_rate_type, '')
-  AND COALESCE(lids.monthly_cost_type, '')         = COALESCE(agg.monthly_cost_type, '')
-  AND lids.usage_start >= {{start_date}}
-  AND lids.usage_start <= {{end_date}}
-  AND lids.source_uuid = {{source_uuid}}
-  AND lids.report_period_id = {{report_period_id}};
+-- Step 1: Delete existing cost model rows (same scope as usage_costs.sql DELETE)
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+WHERE usage_start >= {{start_date}}
+  AND usage_start <= {{end_date}}
+  AND source_uuid = {{source_uuid}}
+  AND report_period_id = {{report_period_id}}
+  AND cost_model_rate_type IS NOT NULL
+  AND cost_model_rate_type IN ('Infrastructure', 'Supplementary');
+
+-- Step 2: INSERT aggregated rows from RatesToUsage, joined back to
+-- the base daily summary rows for non-cost columns (resource_id,
+-- report_period_id, cluster_alias, etc.)
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+    uuid, report_period_id, cluster_id, cluster_alias, namespace, node,
+    resource_id, usage_start, usage_end, data_source, source_uuid,
+    persistentvolumeclaim, pod_labels, volume_labels, all_labels,
+    cost_category_id, cost_model_rate_type,
+    cost_model_cpu_cost, cost_model_memory_cost, cost_model_volume_cost
+)
+SELECT
+    uuid_generate_v4(),
+    rtu.report_period_id,
+    rtu.cluster_id,
+    rtu.cluster_alias,
+    rtu.namespace,
+    rtu.node,
+    rtu.resource_id,
+    rtu.usage_start,
+    rtu.usage_start + interval '1 day' AS usage_end,
+    rtu.data_source,
+    rtu.source_uuid,
+    rtu.persistentvolumeclaim,
+    rtu.pod_labels,
+    rtu.volume_labels,
+    rtu.all_labels,
+    rtu.cost_category_id,
+    rtu.cost_model_rate_type,
+    SUM(CASE WHEN rtu.metric_type = 'cpu'     THEN rtu.calculated_cost ELSE 0 END),
+    SUM(CASE WHEN rtu.metric_type = 'memory'  THEN rtu.calculated_cost ELSE 0 END),
+    SUM(CASE WHEN rtu.metric_type = 'storage' THEN rtu.calculated_cost ELSE 0 END)
+FROM {{schema | sqlsafe}}.cost_model_rates_to_usage rtu
+WHERE rtu.usage_start >= {{start_date}}
+  AND rtu.usage_start <= {{end_date}}
+  AND rtu.source_uuid = {{source_uuid}}
+  AND rtu.metric_type IN ('cpu', 'memory', 'storage')
+GROUP BY
+    rtu.report_period_id,
+    rtu.cluster_id,
+    rtu.cluster_alias,
+    rtu.namespace,
+    rtu.node,
+    rtu.resource_id,
+    rtu.usage_start,
+    rtu.data_source,
+    rtu.source_uuid,
+    rtu.persistentvolumeclaim,
+    rtu.pod_labels,
+    rtu.volume_labels,
+    rtu.all_labels,
+    rtu.cost_category_id,
+    rtu.cost_model_rate_type;
 ```
+
+**Why DELETE + INSERT instead of UPDATE?** `usage_costs.sql` creates new
+rows in the daily summary (with `uuid_generate_v4()` and
+`cost_model_rate_type = 'Infrastructure'/'Supplementary'`). It does not
+update existing base rows. The aggregation must follow the same pattern
+so that distribution SQL finds the same row structure it expects. An
+UPDATE would require matching pre-existing rows, which don't exist if
+we've removed the direct-write path.
 
 The `WHERE metric_type IN ('cpu', 'memory', 'storage')` excludes markup
 and gpu rows from the aggregation into the three cost_model columns.
@@ -566,24 +621,11 @@ cost column on the daily summary, written directly by
 `monthly_cost_gpu.sql` via `populate_tag_based_costs()`. This column is
 never touched by `usage_costs.sql` or the aggregation step. GPU costs
 still get INSERT'd into `RatesToUsage` (with `metric_type = 'gpu'`) for
-the breakdown tree, but the aggregation UPDATE only writes
+the breakdown tree, but the aggregation INSERT only writes
 `cost_model_cpu_cost`, `cost_model_memory_cost`, and
 `cost_model_volume_cost`. GPU distribution
 (`distribute_unallocated_gpu_cost.sql`) reads `cost_model_gpu_cost`
 from the daily summary and continues to work unchanged.
-
-**IQ-1 PROPOSAL: Drop this aggregation step.** The daily summary's
-row granularity includes `pod_labels`, `volume_labels`,
-`persistentvolumeclaim`, and `cost_category_id` — none of which exist
-on `RatesToUsage`. This UPDATE would overwrite individually correct
-per-row costs with a single summed total, which is wrong.
-
-Koku's data flow is strictly one-directional (daily summary → derived
-tables). Introducing a reverse flow would be a new anti-pattern. The
-proposal is to keep the direct-write path permanently and use
-`RatesToUsage` only for the breakdown table. If accepted, this SQL
-becomes a **test-only** validation check, not a runtime step. See
-[README.md § IQ-1](./README.md#iq-1-aggregation-granularity-mismatch-phase-2-3).
 
 ---
 
@@ -597,9 +639,8 @@ def update_summary_cost_model_costs(self, summary_range):
     # with OCPReportDBAccessor(self._schema) as accessor:
     #     accessor.delete_rates_to_usage(...)
 
-    self._update_usage_costs(...)            # Step 1  (daily summary direct-write, UNCHANGED)
-
-    # Step 1b (NEW): Write per-rate rows to RatesToUsage
+    # Step 1 (NEW): Write per-rate rows to RatesToUsage
+    # REPLACES self._update_usage_costs() direct-write
     # with OCPReportDBAccessor(self._schema) as accessor:
     #     accessor.populate_usage_rates_to_usage(...)
 
@@ -609,15 +650,15 @@ def update_summary_cost_model_costs(self, summary_range):
     # with OCPReportDBAccessor(self._schema) as accessor:
     #     accessor.populate_markup_rates_to_usage(...)
 
-    self._update_monthly_cost(...)           # Step 3  (daily summary + RatesToUsage)
+    self._update_monthly_cost(...)           # Step 3  (RatesToUsage)
     if self._tag_infra_rates or ...:
-        self._update_tag_*_costs(...)        # Step 4  (daily summary + RatesToUsage)
+        self._update_tag_*_costs(...)        # Step 4  (RatesToUsage)
     self._update_vm_usage_costs(...)         # Step 4a (Trino/self-hosted + RatesToUsage)
     self._update_tag_based_costs(...)        # Step 4b (mixed paths + RatesToUsage)
 
-    # IQ-1 PROPOSAL: No Step 4.5 aggregation. Daily summary is written
-    # by the unchanged direct-write path. RatesToUsage feeds only the
-    # breakdown table. Validation query runs in CI tests only.
+    # Step 4c (NEW): AGGREGATE — DELETE + INSERT from RatesToUsage → daily summary
+    # with OCPReportDBAccessor(self._schema) as accessor:
+    #     accessor.aggregate_rates_to_daily_summary(...)
 
     self.distribute_costs_and_update_ui_summary(summary_range)  # Step 5-6 (UNCHANGED)
 
@@ -791,14 +832,10 @@ use the correct SQL dialect for its execution engine:
 ### RatesToUsage INSERT and Breakdown SQL — Always PostgreSQL
 
 The RatesToUsage INSERT (`insert_usage_rates_to_usage.sql`),
-validation query (`validate_rates_against_daily_summary.sql`, test-only),
-and breakdown population (`reporting_ocp_cost_breakdown_p.sql`) live
-only in the `sql/` path. They read from `cost_model_rates_to_usage`
-(a PostgreSQL table) and write to PostgreSQL tables, so they always
-execute via `_prepare_and_execute_raw_sql_query` regardless of
-deployment mode. No Trino or self-hosted variants are needed.
-
-> **IQ-1 note**: Per the proposal to drop the aggregation step,
-> `aggregate_rates_to_daily_summary.sql` is removed from the runtime
-> pipeline. If IQ-1 is rejected, it would be restored here as a
-> PostgreSQL-only file.
+validation query (`validate_rates_against_daily_summary.sql`),
+aggregation (`aggregate_rates_to_daily_summary.sql`), and breakdown
+population (`reporting_ocp_cost_breakdown_p.sql`) live only in the
+`sql/` path. They read from `cost_model_rates_to_usage` (a PostgreSQL
+table) and write to PostgreSQL tables, so they always execute via
+`_prepare_and_execute_raw_sql_query` regardless of deployment mode. No
+Trino or self-hosted variants are needed.

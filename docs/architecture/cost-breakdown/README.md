@@ -17,15 +17,14 @@ model that this feature extends.
 
 ## Decisions Needed from Tech Lead
 
-Three design decisions require tech lead confirmation before
-implementation proceeds past Phase 1. Each has a concrete proposal
-backed by source code analysis and proof-of-concept artifacts.
+Two design decisions require tech lead confirmation before
+implementation proceeds past Phase 1. IQ-1 has been resolved.
 
-| # | Decision | Blocking Phase | Proposal | PoC Artifact |
-|---|----------|---------------|----------|--------------|
-| **IQ-1** | Drop the aggregation step? Keep daily summary direct-write; use RatesToUsage only for breakdown table. | Phase 2 | [Details](#iq-1-aggregation-granularity-mismatch-phase-2-3) | [`poc/insert_usage_rates_to_usage.sql`](./poc/insert_usage_rates_to_usage.sql) demonstrates the coarser GROUP BY |
-| **IQ-3** | Flat-row API or nested response? Standard koku flat rows with `path`/`parent_path` vs pre-built tree. | Phase 4 | [Details](#iq-3-breakdown-api-response-format-phase-4) | [`poc/reporting_ocp_cost_breakdown_p.sql`](./poc/reporting_ocp_cost_breakdown_p.sql) produces flat rows with path columns |
-| **IQ-7** | `custom_name` optional with auto-generation? Or formal API version bump? | Phase 1 | [Details](#iq-7-backward-compatibility-for-custom_name-phase-1) | [`poc/price_list_compat.py`](./poc/price_list_compat.py) validates backward-compatible format |
+| # | Decision | Status | Blocking Phase | Proposal | PoC Artifact |
+|---|----------|--------|---------------|----------|--------------|
+| **IQ-1** | Single source of truth: RatesToUsage with aggregation to daily summary. | **RESOLVED** | ~Phase 2~ | [Details](#iq-1-aggregation-granularity-mismatch-phase-2-3) | [`poc/insert_usage_rates_to_usage.sql`](./poc/insert_usage_rates_to_usage.sql) demonstrates fine-grained GROUP BY |
+| **IQ-3** | Flat-row API or nested response? Standard koku flat rows with `path`/`parent_path` vs pre-built tree. | Open | Phase 4 | [Details](#iq-3-breakdown-api-response-format-phase-4) | [`poc/reporting_ocp_cost_breakdown_p.sql`](./poc/reporting_ocp_cost_breakdown_p.sql) produces flat rows with path columns |
+| **IQ-7** | `custom_name` optional with auto-generation? Or formal API version bump? | Open | Phase 1 | [Details](#iq-7-backward-compatibility-for-custom_name-phase-1) | [`poc/price_list_compat.py`](./poc/price_list_compat.py) validates backward-compatible format |
 
 Two additional low-risk proposals (IQ-6: remove speculative date fields;
 IQ-8: nullable `cost_type` for distribution rows) can be confirmed
@@ -129,8 +128,8 @@ complexity for a one-time migration check. Instead:
    provider, per day. See [sql-pipeline.md](./sql-pipeline.md).
 2. **Regression tests** with known-good cost model configurations verify
    that the aggregation step reproduces identical scalars.
-3. **CI gate**: the validation query runs in integration tests before
-   the aggregation path is promoted to production in Phase 3.
+3. **CI gate**: the validation query runs in integration tests to
+   verify aggregation correctness.
 
 ### OQ-4: Cost category reclassification and breakdown tree — RESOLVED
 
@@ -157,40 +156,43 @@ a design gap or assumption. For each, we propose a solution based on
 koku's existing architecture and patterns. The tech lead should confirm
 or override these proposals.
 
-### IQ-1: Aggregation granularity mismatch (Phase 2-3)
+### IQ-1: Aggregation granularity mismatch (Phase 2-3) — RESOLVED
 
 **Problem**: `usage_costs.sql` groups by `(pod_labels, volume_labels,
 persistentvolumeclaim, cost_category_id)` — each distinct combination
-gets its own daily summary row with its own costs. But
-`CostModelRatesToUsage` does not have those columns. The aggregation
-UPDATE (`aggregate_rates_to_daily_summary.sql`) joins at a coarser
-grain and would overwrite individually correct per-row costs with a
-single summed total.
+gets its own daily summary row with its own costs. The original
+`CostModelRatesToUsage` design did not have those columns, making
+aggregation back to the daily summary impossible at the correct
+granularity.
 
-**Proposal: Option B — drop the aggregation step.**
+**Resolution**: Tech lead confirmed the single-source-of-truth
+approach. `CostModelRatesToUsage` gains four fine-grained columns
+(`pod_labels`, `volume_labels`, `persistentvolumeclaim`, `all_labels`)
+to match the `usage_costs.sql` GROUP BY exactly. The aggregation step
+uses DELETE + INSERT (matching `usage_costs.sql`'s existing pattern)
+to populate the daily summary from `RatesToUsage`.
 
-Koku's data flow is strictly one-directional: daily summary → derived
-tables (UI summaries). There is no existing case where a derived table
-writes back to the daily summary. Source code confirms all 12 UI
-summary SQL files follow the same DELETE + INSERT FROM daily_summary
-pattern (`populate_ui_summary_tables()`). Introducing a reverse flow
-(RatesToUsage → daily summary) would be a new anti-pattern.
+This means:
 
-Instead: keep the direct-write path to the daily summary permanently
-(unchanged). Use `RatesToUsage` exclusively to feed
-`OCPCostUIBreakDownP` for the breakdown API. This means:
+- `aggregate_rates_to_daily_summary.sql` is a **Phase 2 production
+  artifact** — it replaces `usage_costs.sql` direct-write immediately
+- `validate_rates_against_daily_summary.sql` is a **CI-only** regression
+  test that verifies aggregation correctness in integration tests
+- `RatesToUsage` stores per-rate costs at the same granularity as the
+  daily summary — it IS the single source of truth
+- There is no temporary dual-path: `usage_costs.sql` direct-write is
+  replaced (not kept alongside) in Phase 2
+- Phase 5 includes removing dead code from the legacy direct-write path
 
-- `aggregate_rates_to_daily_summary.sql` is **removed** from the design
-- `validate_rates_against_daily_summary.sql` becomes a **test-only**
-  check (CI, not runtime)
-- `RatesToUsage` stores per-rate costs at (namespace, node, day)
-  granularity — it does not need `pod_labels`/`persistentvolumeclaim`
-- The orchestration steps 4.5 and the Phase 3 "aggregation promotion"
-  are removed
-- Phase 5 no longer needs to "replace the direct-write path"
+**New risks introduced by this approach** (captured in the
+[risk register](./phased-delivery.md#risk-register)):
 
-This simplifies the design, eliminates R2 (aggregation mismatch) as a
-risk, and aligns with koku's established architecture.
+- **R13**: JSONB column JOINs in the aggregation SQL may be slow
+  without proper indexing. Mitigation: benchmark the aggregation query
+  in Phase 2 with realistic data volumes.
+- **R3 update**: Fine-grained granularity increases `RatesToUsage` row
+  counts beyond the original 36M/month worst-case estimate. Must
+  re-benchmark with realistic data.
 
 ### IQ-2: `cluster_cost_per_hour` metric_type is distribution-dependent (Phase 2)
 
@@ -309,6 +311,7 @@ called by a new accessor method after `populate_usage_costs()`.
 WITH base AS (
     SELECT
         usage_start, cluster_id, node, namespace, data_source,
+        persistentvolumeclaim, pod_labels, volume_labels, all_labels,
         cost_category_id, source_uuid, report_period_id, cluster_alias,
         sum(pod_usage_cpu_core_hours) AS cpu_usage_hours,
         sum(pod_request_cpu_core_hours) AS cpu_request_hours,
@@ -316,6 +319,7 @@ WITH base AS (
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE ...
     GROUP BY usage_start, cluster_id, node, namespace, data_source,
+             persistentvolumeclaim, pod_labels, volume_labels, all_labels,
              cost_category_id, source_uuid, report_period_id, cluster_alias
 )
 INSERT INTO {{schema | sqlsafe}}.cost_model_rates_to_usage (...)
@@ -334,10 +338,10 @@ clauses skip zero-rate components, avoiding unnecessary rows.
 `UNION ALL` with a CTE exists as a pattern in koku
 (`ocp_tag_mapping_update_daily_summary.sql`).
 
-Note: the CTE GROUP BY is **coarser** than `usage_costs.sql` (no
-`pod_labels`/`persistentvolumeclaim`). This is correct because
-`RatesToUsage` is a derived table for the breakdown API, not a mirror
-of the daily summary (see IQ-1).
+The CTE GROUP BY matches `usage_costs.sql` exactly (including
+`pod_labels`, `volume_labels`, `persistentvolumeclaim`, `all_labels`).
+This is required so the aggregation step can produce daily summary rows
+at the correct granularity (see [IQ-1](#iq-1-aggregation-granularity-mismatch-phase-2-3)).
 
 ### IQ-6: `PriceList.usage_start/usage_end` (Phase 1)
 
@@ -442,17 +446,17 @@ graph TD
     API --> Sankey["Sankey Chart<br/>(costBreakdownChart.tsx)"]
 ```
 
-### Proposed Data Flow (with IQ-1 proposal: no aggregation step)
+### Proposed Data Flow (IQ-1 resolved: single source of truth)
 
 ```mermaid
 graph TD
     CM["CostModel.rates (JSON)<br/>+ Rate table (new)"] --> Accessor["CostModelDBAccessor<br/>reads from Rate table"]
-    Accessor --> UsageSQL["usage_costs.sql (unchanged)<br/>+ monthly_cost_*.sql (unchanged)<br/>+ *_tag_rates.sql (unchanged)"]
 
-    UsageSQL -->|"cost_model_cpu_cost<br/>cost_model_memory_cost<br/>cost_model_volume_cost<br/>(direct-write, unchanged)"| DailySummary["reporting_ocpusagelineitem<br/>_daily_summary"]
+    Accessor --> RTU_SQL["insert_usage_rates_to_usage.sql<br/>+ monthly_cost_*.sql<br/>+ *_tag_rates.sql"]
+    RTU_SQL -->|"per-rate rows at fine grain<br/>(pod_labels, volume_labels,<br/>persistentvolumeclaim, all_labels)"| RatesToUsage["CostModelRatesToUsage<br/>(new, partitioned)"]
 
-    Accessor --> RatesToUsageSQL["insert_usage_rates_to_usage.sql (new)<br/>+ per-file RatesToUsage INSERTs"]
-    RatesToUsageSQL -->|"per-rate rows<br/>(custom_name, metric_type,<br/>calculated_cost)"| RatesToUsage["CostModelRatesToUsage<br/>(new, partitioned)"]
+    RatesToUsage -->|"SUM by metric_type<br/>(DELETE + INSERT)"| AggSQL["aggregate_rates_to<br/>_daily_summary.sql"]
+    AggSQL -->|"cost_model_cpu_cost<br/>cost_model_memory_cost<br/>cost_model_volume_cost"| DailySummary["reporting_ocpusagelineitem<br/>_daily_summary"]
 
     DailySummary --> DistSQL["distribute_*.sql<br/>(unchanged)"]
     DistSQL -->|"distributed_cost"| DailySummary
@@ -468,18 +472,18 @@ graph TD
     API --> Sankey["Sankey Chart<br/>(unchanged)"]
 ```
 
-The key insight: the existing pipeline (daily summary → distribution →
-UI summary → report API → Sankey) is **completely unchanged**. Per-rate
-identity flows through a **parallel path**: `RatesToUsage` →
-`OCPCostUIBreakDownP` → breakdown API. There is no aggregation step
-writing back from `RatesToUsage` to the daily summary — data flows
-strictly one-directionally, matching koku's established architecture.
+The key architectural change: **`RatesToUsage` is the single source of
+truth** for cost model calculations. Cost data flows through one path:
+`RatesToUsage` → aggregation → daily summary → distribution → UI
+summary. The existing downstream pipeline (distribution, UI summary,
+report API, Sankey) continues to work unchanged because it reads from
+the same daily summary columns — only the **source** of those values
+changes from `usage_costs.sql` direct-write to aggregation from
+`RatesToUsage`.
 
-> **Pending IQ-1 confirmation**: If the tech lead prefers a single
-> source of truth in `RatesToUsage`, the aggregation step can be
-> restored, but it would require adding `pod_labels`, `volume_labels`,
-> `persistentvolumeclaim` to `CostModelRatesToUsage` and redesigning
-> the aggregation JOIN. See [IQ-1](#iq-1-aggregation-granularity-mismatch-phase-2-3).
+There is no temporary dual-path. `usage_costs.sql` direct-write is
+replaced by `RatesToUsage` INSERT + aggregation in Phase 2. A CI-only
+validation query verifies aggregation correctness in integration tests.
 
 ---
 
@@ -487,6 +491,7 @@ strictly one-directionally, matching koku's established architecture.
 
 | Decision | Resolution | Rationale |
 |----------|-----------|-----------|
+| Aggregation step | Kept (single source of truth) | Tech lead confirmed: eliminates dual-path maintenance and data integrity risk |
 | Feature flags | None | Dual-write (JSON + Rate table) is the rollback mechanism; no Unleash flags |
 | Distribution SQL changes | None | Distribution operates on aggregated daily summary columns, not per-rate data |
 | Sankey chart changes | None | Sankey reads from existing report API which is unchanged |
