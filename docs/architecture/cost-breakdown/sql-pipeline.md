@@ -233,6 +233,59 @@ storage/gpu in the aggregation step — markup costs are **not** summed
 into `cost_model_cpu_cost` etc.; they flow through `RatesToUsage` →
 `OCPCostUIBreakDownP` only for the breakdown tree.
 
+**R17 mitigation — SQL-based alternative**: If the ORM-based approach
+above proves too slow for large tenants, replace it with a raw SQL
+INSERT...SELECT that avoids Python iteration entirely:
+
+```sql
+-- insert_markup_rates_to_usage.sql (R17 fallback)
+INSERT INTO {{schema | sqlsafe}}.cost_model_rates_to_usage (
+    uuid, cost_model_id, report_period_id, source_uuid,
+    usage_start, usage_end, node, namespace, cluster_id, cluster_alias,
+    data_source, persistentvolumeclaim, pod_labels, volume_labels, all_labels,
+    label_hash, custom_name, metric_type, cost_model_rate_type,
+    monthly_cost_type, calculated_cost, cost_category_id
+)
+SELECT
+    uuid_generate_v4(),
+    {{cost_model_id}},
+    lids.report_period_id,
+    lids.source_uuid,
+    lids.usage_start,
+    lids.usage_end,
+    lids.node,
+    lids.namespace,
+    lids.cluster_id,
+    lids.cluster_alias,
+    lids.data_source,
+    lids.persistentvolumeclaim,
+    lids.pod_labels,
+    lids.volume_labels,
+    lids.all_labels,
+    md5(COALESCE(lids.pod_labels::text, '')
+        || COALESCE(lids.volume_labels::text, '')
+        || COALESCE(lids.all_labels::text, '')),
+    'Markup',
+    'markup',
+    'Infrastructure',
+    lids.monthly_cost_type,
+    lids.infrastructure_markup_cost,
+    lids.cost_category_id
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+WHERE lids.usage_start >= {{start_date}}
+  AND lids.usage_start <= {{end_date}}
+  AND lids.source_uuid = {{source_uuid}}
+  AND lids.cluster_id = {{cluster_id}}
+  AND lids.infrastructure_markup_cost IS NOT NULL
+  AND lids.infrastructure_markup_cost != 0
+  AND (lids.cost_model_rate_type IS NULL
+       OR lids.cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary'));
+```
+
+This runs as a single SQL statement via `_prepare_and_execute_raw_sql_query`,
+avoiding Python memory overhead. Use this approach if Phase 2 benchmarking
+(R3) shows the ORM method exceeds acceptable processing time.
+
 ### RatesToUsage Cleanup Before Recalculation (Step 0)
 
 Each cost model recalculation must DELETE existing `RatesToUsage` rows
@@ -474,9 +527,7 @@ LEFT JOIN (
         node,
         data_source,
         persistentvolumeclaim,
-        pod_labels,
-        volume_labels,
-        all_labels,
+        label_hash,                    -- R13: hash-based grouping
         cost_model_rate_type,
         monthly_cost_type,
         SUM(CASE WHEN metric_type = 'cpu'     THEN calculated_cost ELSE 0 END) AS total_cpu_cost,
@@ -487,7 +538,7 @@ LEFT JOIN (
       AND usage_start <= {{end_date}}
       AND source_uuid = {{source_uuid}}
     GROUP BY usage_start, cluster_id, namespace, node, data_source,
-             persistentvolumeclaim, pod_labels, volume_labels, all_labels,
+             persistentvolumeclaim, label_hash,
              cost_model_rate_type, monthly_cost_type
 ) AS agg
   ON  lids.usage_start            = agg.usage_start
@@ -496,9 +547,10 @@ LEFT JOIN (
   AND COALESCE(lids.node, '')     = COALESCE(agg.node, '')
   AND COALESCE(lids.data_source, '') = COALESCE(agg.data_source, '')
   AND COALESCE(lids.persistentvolumeclaim, '') = COALESCE(agg.persistentvolumeclaim, '')
-  AND COALESCE(lids.pod_labels, '{}'::jsonb)   = COALESCE(agg.pod_labels, '{}'::jsonb)
-  AND COALESCE(lids.volume_labels, '{}'::jsonb) = COALESCE(agg.volume_labels, '{}'::jsonb)
-  AND COALESCE(lids.all_labels, '{}'::jsonb)   = COALESCE(agg.all_labels, '{}'::jsonb)
+  -- R13: JOIN on label_hash instead of 3 JSONB equality comparisons.
+  -- The daily summary does not have label_hash, so we compute it on the fly.
+  AND md5(COALESCE(lids.pod_labels::text, '') || COALESCE(lids.volume_labels::text, '') || COALESCE(lids.all_labels::text, ''))
+      = agg.label_hash
   AND COALESCE(lids.cost_model_rate_type, '') = COALESCE(agg.cost_model_rate_type, '')
   AND COALESCE(lids.monthly_cost_type, '')    = COALESCE(agg.monthly_cost_type, '')
 WHERE lids.usage_start >= {{start_date}}
@@ -513,16 +565,19 @@ WHERE lids.usage_start >= {{start_date}}
 ```
 
 If this returns **any** rows, the aggregation logic has a bug. The
-join granularity includes all fine-grained columns (`pod_labels`,
-`volume_labels`, `persistentvolumeclaim`, `all_labels`) matching the
-`usage_costs.sql` GROUP BY exactly.
+join granularity matches `usage_costs.sql` GROUP BY exactly. The
+`label_hash` column (R13 mitigation) replaces 3 JSONB equality
+comparisons with a single 32-char VARCHAR comparison.
 
-> **Performance note (R13)**: The JSONB equality JOINs (`pod_labels`,
-> `volume_labels`, `all_labels`) may be slow on large datasets.
-> Benchmarking should measure the aggregation query's runtime. If it
-> exceeds acceptable thresholds, consider a hash-based join key
+> **Performance note (R13)**: The `label_hash` column
 > (`md5(pod_labels::text || volume_labels::text || all_labels::text)`)
-> on `RatesToUsage`. **Decision needed from tech lead.**
+> is computed during the RatesToUsage INSERT and indexed via B-tree.
+> Both the aggregation GROUP BY and the validation JOIN use `label_hash`
+> instead of JSONB equality. This avoids O(n) deep comparison per row
+> on potentially large JSON objects. The daily summary side computes the
+> hash on the fly (`md5(COALESCE(...))`) in the validation query — this
+> is acceptable for a CI-only read since it's evaluated once per daily
+> summary row.
 
 ### SQL Sketch — Production Aggregation (DELETE + INSERT)
 
@@ -564,9 +619,11 @@ SELECT
     rtu.data_source,
     rtu.source_uuid,
     rtu.persistentvolumeclaim,
-    rtu.pod_labels,
-    rtu.volume_labels,
-    rtu.all_labels,
+    -- R13: JSONB columns retrieved via MIN() — functionally dependent on
+    -- label_hash, so MIN() returns the correct value without JSONB comparison
+    MIN(rtu.pod_labels) AS pod_labels,
+    MIN(rtu.volume_labels) AS volume_labels,
+    MIN(rtu.all_labels) AS all_labels,
     rtu.cost_category_id,
     rtu.cost_model_rate_type,
     SUM(CASE WHEN rtu.metric_type = 'cpu'     THEN rtu.calculated_cost ELSE 0 END),
@@ -587,9 +644,7 @@ GROUP BY
     rtu.data_source,
     rtu.source_uuid,
     rtu.persistentvolumeclaim,
-    rtu.pod_labels,
-    rtu.volume_labels,
-    rtu.all_labels,
+    rtu.label_hash,             -- R13: 32-char hash replaces 3 JSONB columns in GROUP BY
     rtu.cost_category_id,
     rtu.cost_model_rate_type;
 ```
@@ -948,6 +1003,56 @@ GPU rates may not be in `RatesToUsage` until Phase 3. GPU back-allocation
 should be deferred until Phase 3 scope is confirmed, or excluded if GPU
 rates are not tracked per-rate.
 
+### R14 Mitigation — Rounding Reconciliation Check
+
+After the back-allocation INSERT, verify that per-rate shares sum back
+to the original `distributed_cost`. This runs as a post-INSERT check
+and logs any discrepancies exceeding $0.01.
+
+```sql
+-- Reconciliation: compare back-allocated shares vs original distributed_cost
+SELECT
+    dr.usage_start,
+    dr.cluster_id,
+    dr.namespace,
+    dr.cost_model_rate_type,
+    dr.distributed_cost AS original,
+    COALESCE(ba.total_allocated, 0) AS allocated,
+    ABS(dr.distributed_cost - COALESCE(ba.total_allocated, 0)) AS diff
+FROM (
+    SELECT usage_start, cluster_id, namespace, cost_model_rate_type,
+           SUM(distributed_cost) AS distributed_cost
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+    WHERE usage_start >= {{start_date}}::date
+      AND usage_start <= {{end_date}}::date
+      AND source_uuid = {{source_uuid}}
+      AND cost_model_rate_type IN (
+          'platform_distributed', 'worker_distributed',
+          'unattributed_storage', 'unattributed_network')
+      AND distributed_cost IS NOT NULL AND distributed_cost != 0
+    GROUP BY usage_start, cluster_id, namespace, cost_model_rate_type
+) dr
+LEFT JOIN (
+    SELECT usage_start, cluster_id, namespace, cost_model_rate_type,
+           SUM(distributed_cost) AS total_allocated
+    FROM {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p
+    WHERE usage_start >= {{start_date}}::date
+      AND usage_start <= {{end_date}}::date
+      AND top_category = 'overhead'
+      AND depth IN (4, 5)
+    GROUP BY usage_start, cluster_id, namespace, cost_model_rate_type
+) ba ON dr.usage_start = ba.usage_start
+    AND dr.cluster_id = ba.cluster_id
+    AND dr.namespace = ba.namespace
+    AND dr.cost_model_rate_type = ba.cost_model_rate_type
+WHERE ABS(dr.distributed_cost - COALESCE(ba.total_allocated, 0)) > 0.01;
+```
+
+If this returns rows, the remainder (`original - allocated`) should be
+assigned to a special "Rounding" entry at depth 5 to ensure the tree
+sums correctly. In practice, `NUMERIC(33, 15)` precision makes
+discrepancies > $0.01 extremely unlikely.
+
 ### Intermediate nodes for distribution
 
 The back-allocation produces depth 5 per-rate leaves and depth 4
@@ -1063,3 +1168,4 @@ Trino or self-hosted variants are needed.
 | v2.0 | 2026-03-17 | IQ-1 resolved: rewrite orchestration to single-source-of-truth (RatesToUsage INSERT + aggregation replaces usage_costs.sql direct-write). Add DELETE+INSERT aggregation SQL sketch. Update SQL file inventory. Add fine-grained columns to all SQL sketches. Remove dual-path language. |
 | v2.2 | 2026-03-17 | IQ-9 investigation: add Back-Allocation SQL Sketch section with full CTE-based SQL for splitting distributed_cost to per-rate shares. Add source namespace mapping table, GPU distribution note, intermediate node aggregation approach. |
 | v2.3 | 2026-03-17 | Blast-radius triage: remove erroneous `resource_id` from aggregation SQL sketch GROUP BY / SELECT (not in `usage_costs.sql` GROUP BY, confirmed by PoC). |
+| v2.4 | 2026-03-17 | Risk mitigation: R13 — rewrite aggregation and validation SQL to use `label_hash` instead of JSONB GROUP BY/JOIN. R14 — add reconciliation check SQL sketch. R17 — add SQL-based markup INSERT fallback (`insert_markup_rates_to_usage.sql`). |

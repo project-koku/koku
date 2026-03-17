@@ -48,10 +48,11 @@ All artifacts are in [`poc/`](./poc/):
 | Row-count estimation query | R3 (row explosion sizing) | [`poc/estimate_rates_to_usage_rows.sql`](./poc/estimate_rates_to_usage_rows.sql) |
 | `_price_list_from_rate_table()` format compatibility | Phase 1 read-path risk | [`poc/price_list_compat.py`](./poc/price_list_compat.py) — 6/6 tests pass |
 
-### Residual risks (cannot mitigate further before implementation)
+### Residual risks (process-dependent, cannot fully mitigate in design)
 
-- **R6**: 25 SQL file modifications — inherent volume, mitigated by
-  per-file regression tests
+- **R6**: 25 SQL file modifications — mitigated by 8-point testing
+  checklist (see [phased-delivery.md](./phased-delivery.md)). One file
+  per PR, PostgreSQL path first.
 - **R10**: Trino dialect edge cases — requires Trino-enabled dev
   environment in Phase 3
 - **Phase 4 frontend accuracy**: `koku-ui` may change before Phase 4
@@ -193,12 +194,12 @@ This means:
 **New risks introduced by this approach** (captured in the
 [risk register](./phased-delivery.md#risk-register)):
 
-- **R13**: JSONB column JOINs in the aggregation SQL may be slow
-  without proper indexing. Mitigation: benchmark the aggregation query
-  in Phase 2 with realistic data volumes.
+- **R13**: ~~JSONB column JOINs in the aggregation SQL may be slow~~
+  **MITIGATED** — `label_hash` column replaces JSONB GROUP BY/JOIN.
+  See [data-model.md](./data-model.md) and [sql-pipeline.md](./sql-pipeline.md).
 - **R3 update**: Fine-grained granularity increases `RatesToUsage` row
-  counts beyond the original 36M/month worst-case estimate. Must
-  re-benchmark with realistic data.
+  counts beyond the original 36M/month worst-case estimate. Phase 2
+  benchmarking plan has concrete acceptance criteria.
 
 ### IQ-2: `cluster_cost_per_hour` metric_type is distribution-dependent (Phase 2)
 
@@ -324,6 +325,9 @@ WITH base AS (
     SELECT
         usage_start, cluster_id, node, namespace, data_source,
         persistentvolumeclaim, pod_labels, volume_labels, all_labels,
+        md5(COALESCE(pod_labels::text, '')
+            || COALESCE(volume_labels::text, '')
+            || COALESCE(all_labels::text, '')) AS label_hash,  -- R13
         cost_category_id, source_uuid, report_period_id, cluster_alias,
         sum(pod_usage_cpu_core_hours) AS cpu_usage_hours,
         sum(pod_request_cpu_core_hours) AS cpu_request_hours,
@@ -335,10 +339,10 @@ WITH base AS (
              cost_category_id, source_uuid, report_period_id, cluster_alias
 )
 INSERT INTO {{schema | sqlsafe}}.cost_model_rates_to_usage (...)
-SELECT ... 'cpu_core_usage_per_hour', 'cpu', cpu_usage_hours * {{cpu_core_usage_per_hour}}, ...
+SELECT ... label_hash, 'cpu_core_usage_per_hour', 'cpu', cpu_usage_hours * {{cpu_core_usage_per_hour}}, ...
 FROM base WHERE {{cpu_core_usage_per_hour}} != 0
 UNION ALL
-SELECT ... 'cpu_core_request_per_hour', 'cpu', cpu_request_hours * {{cpu_core_request_per_hour}}, ...
+SELECT ... label_hash, 'cpu_core_request_per_hour', 'cpu', cpu_request_hours * {{cpu_core_request_per_hour}}, ...
 FROM base WHERE {{cpu_core_request_per_hour}} != 0
 UNION ALL
 ...
@@ -352,8 +356,9 @@ clauses skip zero-rate components, avoiding unnecessary rows.
 
 The CTE GROUP BY matches `usage_costs.sql` exactly (including
 `pod_labels`, `volume_labels`, `persistentvolumeclaim`, `all_labels`).
-This is required so the aggregation step can produce daily summary rows
-at the correct granularity (see [IQ-1](#iq-1-aggregation-granularity-mismatch-phase-2-3)).
+The `label_hash` column (R13 mitigation) is computed in the CTE and
+used by the aggregation step for GROUP BY / JOIN instead of JSONB
+equality. See [sql-pipeline.md § The Aggregation Step](./sql-pipeline.md#the-aggregation-step).
 
 ### IQ-6: `PriceList.usage_start/usage_end` (Phase 1)
 
@@ -676,3 +681,4 @@ are versioned together. Each version corresponds to a commit on the
 | v2.1 | 2026-03-17 | `369dbda50` | **IQ-3 RESOLVED** (flat DB rows, both flat and nested API responses). **IQ-7 RESOLVED** (auto-generate `custom_name`). Fix tree depth inconsistency (align hierarchy table with PoC SQL). Add future scalability section (Price List Lifecycles, Consumer & Provider). Document IQ-9 (distribution per-rate identity gap) as new open question. |
 | v2.2 | 2026-03-17 | — | **IQ-9 investigation complete.** Expand IQ-9 with full source code analysis of distribution SQL. Recommend Option 2 (back-allocate proportionally). Add SQL sketch for back-allocation to sql-pipeline.md. Update data-model.md tree to show depth 5 structure. Add R14 (rounding), R15 (JOIN complexity). Add this changelog. |
 | v2.3 | 2026-03-17 | — | **Blast-radius triage.** Fix 8 cross-document inconsistencies: remove erroneous `resource_id` from aggregation SQL sketch (G4, HIGH), fix RateSerializer `required=True` → `required=False` (G5), align M1 DDL with IQ-6 proposal (G3), add "infrastructure" breakdown_category (G2), update IQ-9 PoC artifact column (G1), add IQ-9 dependency to IQ-4 Source 2 (G8), fix serializer reference in phased-delivery (G6), document `labels` field purpose (G7). Add R16 (aggregation GROUP BY granularity), R17 (markup ORM overhead). |
+| v2.4 | 2026-03-17 | — | **Risk mitigation.** R13 MITIGATED: add `label_hash` column to `CostModelRatesToUsage` model, DDL, PoC SQL, aggregation SQL, and validation SQL. R14: add reconciliation check SQL. R17: add SQL-based markup INSERT fallback. R6: add 8-point SQL testing checklist. R2/R3: add Phase 2 benchmarking plan with acceptance criteria. Update risk register: downgrade R13 from HIGH to MITIGATED. |

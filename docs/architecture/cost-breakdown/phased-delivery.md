@@ -120,6 +120,31 @@ costs (`usage_costs.sql` only).
   for baseline estimates (note: estimates are lower bounds — actual row
   counts will be higher with fine-grained granularity).
 
+### R2/R3 Mitigation — Phase 2 Benchmarking Plan
+
+Before declaring Phase 2 complete, run these benchmarks against a
+staging environment with realistic data. Use the largest available
+tenant (or synthetic data matching production scale).
+
+**Test configuration**: 30 rate types configured, 100 namespaces,
+1000 nodes, 30 days of data, varying `pod_labels` cardinality.
+
+| # | Benchmark | Acceptance Criteria | Risk |
+|---|-----------|-------------------|------|
+| 1 | `RatesToUsage` row count per month | < 100M rows/month (based on [`poc/estimate_rates_to_usage_rows.sql`](./poc/estimate_rates_to_usage_rows.sql) × fine-grained multiplier) | R3 |
+| 2 | `insert_usage_rates_to_usage.sql` execution time | < 60 seconds per (source, rate_type, date range) | R3 |
+| 3 | `aggregate_rates_to_daily_summary.sql` execution time | < 30 seconds per (source, date range) | R2, R13 |
+| 4 | CI validation query: zero diff rows | All diffs = 0 (within NUMERIC precision) | R2 |
+| 5 | `label_hash` index effectiveness | `EXPLAIN ANALYZE` shows index scan on `ratestousage_label_hash_idx` in aggregation | R13 |
+| 6 | Markup ORM method processing time | < 30 seconds per (source, date range). If exceeded, switch to SQL fallback (R17). | R17 |
+| 7 | End-to-end cost model update time | < 5 minutes per source (including distribution + UI summary) | R2, R3 |
+| 8 | Partition size on disk | < 2 GB per monthly partition for `cost_model_rates_to_usage` | R3 |
+
+**If any benchmark fails**: Investigate and document findings before
+proceeding to Phase 3. Key levers: reduce `pod_labels` cardinality
+via hash-based grouping, optimize indexes, or adjust the fine-grained
+columns to use `label_hash` only (dropping raw JSONB from GROUP BY).
+
 ### Rollback
 
 1. Revert new SQL files (`insert_usage_rates_to_usage.sql`,
@@ -167,6 +192,26 @@ against PostgreSQL via Django. See
 - Full regression: compare total costs per tenant before/after
 - Tag-based costs: verify `custom_name` attached correctly (one name per
   rate, not per tag value)
+
+### R6 Mitigation — SQL File Testing Checklist
+
+Each of the 25 SQL files must pass these checks before merging.
+Modify one file at a time per PR; do not batch unrelated SQL changes.
+
+| # | Check | How |
+|---|-------|-----|
+| 1 | `RatesToUsage` INSERT produces expected row count | `SELECT COUNT(*)` with known cost model configuration |
+| 2 | `custom_name` matches the `Rate.custom_name` for the rate being processed | Spot-check first 10 rows |
+| 3 | `metric_type` is correct for the rate (cpu/memory/storage/gpu) | `SELECT DISTINCT metric_type` |
+| 4 | `calculated_cost` matches the existing daily summary value for that rate | CI validation query (from Phase 2) |
+| 5 | `label_hash` is populated and matches `md5(pod_labels \|\| volume_labels \|\| all_labels)` | `SELECT COUNT(*) WHERE label_hash IS NULL` = 0 |
+| 6 | Aggregation output unchanged after adding the file | Compare daily summary totals before/after |
+| 7 | Trino dialect correct (catalog-qualified names, `uuid()`, `CAST`) | Run against Trino-enabled dev environment |
+| 8 | Self-hosted variant uses PostgreSQL syntax | Run against PostgreSQL directly |
+
+**Ordering**: PostgreSQL path first (lower risk), then Trino, then
+self-hosted (mirrors Trino). Tag-rate files before monthly-cost files
+(simpler modifications first).
 
 ### Rollback
 
@@ -264,22 +309,22 @@ All of these must be verified before executing Phase 5:
 | ID | Risk | Severity | Likelihood | Phase | Mitigation |
 |----|------|----------|------------|-------|------------|
 | R1 | `usage_costs.sql` has 6 entangled CPU cost components that are hard to decompose into named rates | ~~HIGH~~ **MITIGATED** | ~~HIGH~~ LOW | 2 | **RESOLVED (OQ-1)**: All 6 map 1:1 to distinct rate metrics in `COST_MODEL_USAGE_RATES`. CTE approach avoids GROUP BY duplication. 12x row multiplier quantified. |
-| R2 | Aggregation step produces different values than direct-write (rounding, NULLs, missing rows) | HIGH | MEDIUM | 2 | **RESOLVED (OQ-3)**: CI validation query compares at fine granularity (pod_labels, volume_labels, persistentvolumeclaim, all_labels). Strategy: CI regression tests + integration tests verifying aggregation correctness. Fine-grained columns on `RatesToUsage` resolve the granularity mismatch (IQ-1). |
-| R3 | Row explosion in `RatesToUsage` causes query timeouts | MEDIUM | MEDIUM | 2 | 12x multiplier quantified (OQ-1). **Updated**: Fine-grained granularity increases row counts beyond the original 36M/month estimate — each unique `(pod_labels, volume_labels, persistentvolumeclaim, all_labels)` combination creates separate rows. Re-benchmark with realistic data; partition by month. |
+| R2 | Aggregation step produces different values than direct-write (rounding, NULLs, missing rows) | HIGH | MEDIUM | 2 | **RESOLVED (OQ-3)**: CI validation query compares at fine granularity using `label_hash` JOIN (R13). Phase 2 benchmarking plan requires zero-diff validation (benchmark #4). Fine-grained columns on `RatesToUsage` resolve the granularity mismatch (IQ-1). |
+| R3 | Row explosion in `RatesToUsage` causes query timeouts | MEDIUM | MEDIUM | 2 | 12x multiplier quantified (OQ-1). Fine-grained granularity increases row counts beyond the original 36M/month estimate. **Mitigated**: Phase 2 benchmarking plan (benchmarks #1, #2, #7, #8) with concrete acceptance criteria. Partition by month. `label_hash` index (R13) reduces aggregation cost. |
 | R4 | Monthly cost rates produce more rows than expected (per-namespace allocation) | ~~MEDIUM~~ **MITIGATED** | ~~HIGH~~ LOW | 3 | **RESOLVED (OQ-2)**: GROUP BY is `(usage_start, source_uuid, cluster_id, node, namespace, pod_labels, cost_category_id)`. Row count per monthly rate quantifiable from existing data. |
 | R5 | Cost category reclassification invalidates breakdown tree | ~~MEDIUM~~ **MITIGATED** | ~~LOW~~ NONE | 4 | **RESOLVED (OQ-4)**: `CostGroupsAddView`/`CostGroupsRemoveView` already trigger `update_summary_tables` which chains into full cost model recomputation. No special handling needed. |
-| R6 | 25 SQL file modifications across 3 paths introduce regressions | MEDIUM | MEDIUM | 3 | Modify one file at a time; regression tests per file; revert individual files if needed |
+| R6 | 25 SQL file modifications across 3 paths introduce regressions | MEDIUM | MEDIUM | 3 | **Mitigated**: 8-point testing checklist per SQL file (see Phase 3 § R6 Mitigation). Modify one file per PR; PostgreSQL path first, then Trino, then self-hosted. |
 | R7 | Dual-write divergence (JSON and Rate table drift) | LOW | LOW | 1-4 | `_sync_rate_table` does delete-all + recreate on every write; no partial sync |
 | R8 | `custom_name` migration produces ugly names for rates with empty descriptions | LOW | HIGH | 1 | Acceptable per PRD ("ugly but functional"); users can rename after migration |
 | R9 | Frontend tab restructure breaks existing user workflows | LOW | LOW | 4 | Usage cards move to adjacent tab, not removed; link/breadcrumb from old location |
 | R10 | Trino SQL dialect requires catalog-qualified table names for `RatesToUsage` INSERT | MEDIUM | MEDIUM | 3 | Test `trino_sql/` files with Trino locally; `self_hosted_sql/` files use standard PostgreSQL syntax and are lower risk |
 | R11 | Concurrent cost model updates with overlapping date ranges create duplicate `RatesToUsage` rows | MEDIUM | LOW | 2-3 | Existing Redis lock (`WorkerCache.lock_single_task`) prevents identical `(schema, provider, start, end)` runs; DELETE-before-INSERT pattern (Step 0) clears stale rows per recalculation window; risk is limited to rare overlapping-range scenarios |
 | R12 | `CostModelManager.update()` has no `@transaction.atomic` — dual-write (JSON save + Rate table sync) can partially fail | MEDIUM | MEDIUM | 1 | Add `@transaction.atomic` to `update()`. `create()` already has it. See [api-and-frontend.md](./api-and-frontend.md). |
-| R13 | JSONB column equality JOINs in aggregation/validation SQL are slow on large datasets | **HIGH** | MEDIUM | 2 | The aggregation SQL (Phase 2) groups by `pod_labels`, `volume_labels`, `all_labels` (JSONB). PostgreSQL JSONB equality comparison without GIN indexes can be slow. **Mitigation**: (1) Benchmark aggregation query in Phase 2 with realistic data; (2) If slow, add a computed hash column (`md5(pod_labels::text \|\| volume_labels::text \|\| all_labels::text)`) to both tables and GROUP BY/JOIN on the hash instead; (3) GIN indexes on JSONB columns are an alternative but add write overhead. **Decision needed from tech lead.** |
-| R14 | Back-allocation rounding: proportional split of `distributed_cost` to per-rate shares may produce minor rounding differences | LOW | HIGH | 4 | PostgreSQL `NUMERIC(33, 15)` provides 15 decimal places. Rounding error per row is < $0.01. **Mitigation**: Add a rounding reconciliation check in the breakdown population SQL (`SUM(per-rate shares)` vs original `distributed_cost`) and log any discrepancy > $0.01. Acceptable tolerance per existing koku cost precision. |
+| R13 | JSONB column equality JOINs in aggregation/validation SQL are slow on large datasets | ~~HIGH~~ **MITIGATED** | ~~MEDIUM~~ LOW | 2 | **MITIGATED**: `label_hash` column (`md5(pod_labels::text \|\| volume_labels::text \|\| all_labels::text)`) added to `CostModelRatesToUsage` model and DDL. Computed during INSERT, indexed via B-tree (`ratestousage_label_hash_idx`). Aggregation GROUP BY and validation JOIN use `label_hash` instead of 3 JSONB equality comparisons. Phase 2 benchmark #5 verifies index effectiveness. See [data-model.md](./data-model.md) and [sql-pipeline.md](./sql-pipeline.md). |
+| R14 | Back-allocation rounding: proportional split of `distributed_cost` to per-rate shares may produce minor rounding differences | LOW | HIGH | 4 | **MITIGATED**: Reconciliation check SQL added to [sql-pipeline.md § R14 Mitigation](./sql-pipeline.md#r14-mitigation--rounding-reconciliation-check). Post-INSERT query compares `SUM(per-rate shares)` vs original `distributed_cost`; discrepancies > $0.01 are logged. `NUMERIC(33, 15)` precision makes this extremely unlikely. |
 | R15 | Back-allocation JOIN complexity: matching distribution rows to source namespace costs and `RatesToUsage` proportions requires multi-table CTEs | MEDIUM | MEDIUM | 4 | The back-allocation SQL has 3 CTEs with JOINs across daily summary and `RatesToUsage`. **Mitigation**: (1) Benchmark with realistic data in Phase 4; (2) Source cost and rate_shares CTEs operate on source namespaces (small cardinality — typically 1 Platform namespace per cluster); (3) Indexes on `(usage_start, cluster_id, source_uuid)` cover the JOIN paths. |
 | R16 | Aggregation GROUP BY granularity mismatch: `RatesToUsage` does not include `resource_id` (matching `usage_costs.sql` GROUP BY) but the daily summary has `resource_id`. If future SQL changes add `resource_id` to the daily summary's cost model rows, the aggregation SQL must be updated to match. | LOW | LOW | 2 | The PoC and IQ-5 CTE confirm `usage_costs.sql` does not GROUP BY `resource_id`. The aggregation SQL sketch has been aligned. **Mitigation**: document that `resource_id` is not part of the cost model GROUP BY in the aggregation, and add a regression test confirming no `resource_id`-based row splitting. |
-| R17 | Markup → RatesToUsage uses Python ORM iterator + `bulk_create` to copy daily summary markup rows. For large tenants, this is slower and more memory-intensive than a SQL-based approach. | LOW | MEDIUM | 2 | Each base daily summary row with `infrastructure_markup_cost != 0` produces one RatesToUsage row. **Mitigation**: (1) `bulk_create(batch_size=5000)` limits memory; (2) If slow, replace with a raw SQL INSERT...SELECT approach in Phase 3; (3) Monitor processing time in Phase 2 alongside R3 benchmarking. |
+| R17 | Markup → RatesToUsage uses Python ORM iterator + `bulk_create` to copy daily summary markup rows. For large tenants, this is slower and more memory-intensive than a SQL-based approach. | LOW | MEDIUM | 2 | **MITIGATED**: SQL-based fallback (`insert_markup_rates_to_usage.sql`) designed in [sql-pipeline.md](./sql-pipeline.md#markup--ratestousage-step-2). Phase 2 benchmark #6 tests ORM method; switch to SQL if > 30s. `bulk_create(batch_size=5000)` limits memory for ORM path. |
 
 ### Risk × Phase Matrix
 
@@ -297,7 +342,7 @@ R9                                           ██
 R10                               ██
 R11                    ██         ██
 R12         ██
-R13                    ██ (JSONB columns in aggregation GROUP BY)
+R13                    ✓ (mitigated — label_hash replaces JSONB GROUP BY)
 R14                                         ██ (back-allocation rounding)
 R15                                         ██ (back-allocation JOIN complexity)
 R16                    ██ (aggregation GROUP BY granularity)
@@ -384,3 +429,4 @@ Phase 5 ← Phase 4 validated in production
 | v2.0 | 2026-03-17 | IQ-1 resolved: rewrite Phase 2 artifacts (usage_costs.sql replaced, validate moved to CI-only). Remove dual-path validation references. Update risk register (R2, R3 revised, R13 added). Update blocking dependencies. |
 | v2.2 | 2026-03-17 | IQ-3/IQ-7 resolved, IQ-9 added: update decisions table. Add back-allocation SQL to Phase 4 artifacts and validation. Add risks R14 (rounding) and R15 (JOIN complexity). Add "Future Scalability Considerations" section. |
 | v2.3 | 2026-03-17 | Blast-radius triage: fix Phase 4 serializer reference (two serializers, not one). Add R16 (aggregation GROUP BY granularity) and R17 (markup ORM overhead). Update risk × phase matrix. |
+| v2.4 | 2026-03-17 | Risk mitigation: R13 downgraded to MITIGATED (label_hash). R6 — add 8-point SQL testing checklist for Phase 3. R2/R3 — add Phase 2 benchmarking plan with 8 acceptance criteria. Update R2, R3, R6, R14, R17 mitigation descriptions in risk register. |

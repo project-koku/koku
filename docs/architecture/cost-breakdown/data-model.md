@@ -167,7 +167,98 @@ class CostModelRatesToUsage(models.Model):
         "OpenshiftCostCategory", on_delete=models.CASCADE, null=True
     )
     labels = JSONField(null=True)                         # denormalized union of pod_labels + volume_labels; used by existing koku label-based filtering
+    label_hash = models.CharField(max_length=32, null=True) # R13 mitigation: md5(pod_labels::text || volume_labels::text || all_labels::text) — enables fast GROUP BY / JOIN without JSONB equality
 ```
+
+### R13 Mitigation — `label_hash` column
+
+#### The problem
+
+The aggregation SQL (Phase 2) and the CI validation SQL both need to
+GROUP BY or JOIN on three JSONB columns: `pod_labels`, `volume_labels`,
+`all_labels`. These columns can be large — a single `pod_labels` value
+may contain 20+ key-value pairs serialized as a JSONB document.
+
+PostgreSQL JSONB equality (`=`) works by normalizing the document
+(sorting keys, deduplicating) and comparing the full serialized
+representation byte-by-byte. This is **O(document size)** per
+comparison. In a GROUP BY over millions of rows, the planner must
+hash or sort each row's JSONB values. For three JSONB columns, the
+combined comparison cost dominates query time.
+
+The aggregation runs **on every cost model recalculation** (not just
+CI), so this is a production hot path.
+
+#### Options evaluated
+
+| # | Approach | Pros | Cons | Verdict |
+|---|----------|------|------|---------|
+| A | **GIN indexes** on the 3 JSONB columns | Standard PostgreSQL pattern for JSONB | GIN supports containment operators (`@>`, `?`) but **does not support equality (`=`)**. Useless for GROUP BY / JOIN on exact match. Also adds significant write overhead per INSERT. | **Rejected** — wrong index type for this access pattern |
+| B | **B-tree indexes** on the 3 JSONB columns | Supports equality. PostgreSQL can B-tree-index JSONB since 9.4. | Comparison at each B-tree node is still O(document size). With large label documents this is expensive. Three separate indexes don't combine for a multi-column GROUP BY; a composite index would need all three columns. | **Rejected** — does not solve the core comparison cost problem |
+| C | **Hash index** (built-in PostgreSQL) on each JSONB column | PostgreSQL hash indexes are WAL-logged and crash-safe since v10. Equality-only, which is our use case. | Hash indexes don't support multi-column keys. Three separate hash indexes don't help a GROUP BY on the *combination* of all three. Also, the hash is computed on the full JSONB value at query time — still O(document size) per row. | **Rejected** — multi-column limitation, still O(n) per hash computation |
+| D | **Computed `label_hash` column** (md5 of concatenated text) | Fixed 32-char VARCHAR. B-tree indexable. O(1) comparison cost. Computed once at INSERT time, amortizing the JSONB→text cost over writes. Single column replaces 3 JSONB columns in GROUP BY. | Extra column and index on `RatesToUsage`. md5 collision risk (see below). JSONB columns must remain in the table for data access / debugging. | **Selected** |
+| E | **Accept the cost** (no mitigation) and benchmark first | Zero added complexity. | The aggregation runs on every cost model recalculation — if it's slow, it blocks the production pipeline. Retrofitting a hash column after Phase 2 ships requires a data migration. | **Rejected** — too risky to defer; easier to add now than retrofit |
+
+#### Why Option D
+
+1. **Single comparison replaces three.** GROUP BY `label_hash` (32 bytes,
+   fixed-length) replaces GROUP BY on three variable-size JSONB documents.
+   PostgreSQL's hash aggregation and sort algorithms operate on 32 bytes
+   instead of potentially kilobytes.
+
+2. **Amortizes cost to write time.** The `md5()` is computed once in the
+   CTE during the RatesToUsage INSERT. The aggregation SQL (which runs
+   second and is the bottleneck) only compares 32-char strings.
+
+3. **Index-friendly.** A B-tree on `VARCHAR(32)` is compact and cache-
+   efficient. PostgreSQL can use it for both GROUP BY (via index scan +
+   sort) and JOIN (via hash join or merge join on the indexed column).
+
+4. **JSONB columns stay for data access.** Label data is still queryable
+   for debugging, ad-hoc analysis, and the breakdown tree. The hash is
+   only used by aggregation and validation — it is not exposed to the
+   API or frontend.
+
+5. **Koku precedent.** Koku already uses computed columns for performance
+   in other contexts (e.g., `cluster_alias` denormalized on multiple
+   tables, `all_labels` itself is a computed union of `pod_labels` +
+   `volume_labels`). A computed hash follows the same pattern.
+
+6. **Cheap to add, expensive to retrofit.** Adding the column now (in
+   M4) is trivial. Adding it after Phase 2 ships requires a data
+   migration to backfill `label_hash` for all existing rows — which
+   could be hundreds of millions of rows.
+
+#### Hash collision risk
+
+md5 produces a 128-bit hash. The probability of a collision in a set
+of N distinct label combinations is approximately `N² / 2¹²⁹`
+([birthday paradox](https://en.wikipedia.org/wiki/Birthday_problem)).
+For 100 million distinct label combinations (extreme upper bound), the
+collision probability is ~`10¹⁶ / 10³⁸` ≈ `10⁻²²` — effectively zero.
+
+A collision would cause two rows with different labels to be aggregated
+together in the GROUP BY, producing a slightly incorrect cost split.
+This is detectable by the CI validation query (which compares aggregated
+costs against expected values).
+
+If the tech lead prefers a cryptographically stronger hash (e.g., `sha256`),
+the column can be widened to `VARCHAR(64)` with no other design changes.
+md5 was chosen for its lower computation cost and because collision
+resistance is not a security concern here — it is purely a performance
+optimization for grouping.
+
+#### Computation
+
+```sql
+md5(COALESCE(pod_labels::text, '')
+    || COALESCE(volume_labels::text, '')
+    || COALESCE(all_labels::text, ''))
+```
+
+The `::text` cast produces the normalized JSONB text representation
+(keys sorted, whitespace removed). `COALESCE` handles NULLs so the
+hash is deterministic even when one or more label columns are NULL.
 
 **Key design notes**:
 
@@ -601,7 +692,8 @@ CREATE TABLE cost_model_rates_to_usage (
     monthly_cost_type    TEXT,
     calculated_cost      NUMERIC(33, 15),
     cost_category_id     INTEGER REFERENCES reporting_ocp_cost_category(id) ON DELETE CASCADE,
-    labels               JSONB
+    labels               JSONB,
+    label_hash           VARCHAR(32)      -- R13: md5(pod_labels || volume_labels || all_labels)
 ) PARTITION BY RANGE (usage_start);
 
 CREATE INDEX ratestousage_start_source_idx ON cost_model_rates_to_usage (usage_start, source_uuid);
@@ -610,6 +702,7 @@ CREATE INDEX ratestousage_namespace_idx ON cost_model_rates_to_usage (namespace)
 CREATE INDEX ratestousage_cluster_idx ON cost_model_rates_to_usage (cluster_id);
 CREATE INDEX ratestousage_custom_name_idx ON cost_model_rates_to_usage (custom_name);
 CREATE INDEX ratestousage_monthly_cost_idx ON cost_model_rates_to_usage (monthly_cost_type);
+CREATE INDEX ratestousage_label_hash_idx ON cost_model_rates_to_usage (label_hash);
 ```
 
 **Partitioning**: Monthly partitions, managed by the same
@@ -788,3 +881,4 @@ This is handled by M3 above.
 | v2.1 | 2026-03-17 | Fix tree depth inconsistency: align hierarchy table with PoC SQL (depth 4 per-rate, depth 3 distribution). Mark depth 5 as conditional on IQ-9. |
 | v2.2 | 2026-03-17 | IQ-9 investigation: update hierarchy table and example tree to show depth 4-5 back-allocation structure. Add IQ-9 Option 2 annotations. Clarify intro text for current vs proposed state. |
 | v2.3 | 2026-03-17 | Blast-radius triage: fix M1 DDL to remove IQ-6 columns (align with model), add "infrastructure" to breakdown_category comment, document `labels` field purpose. |
+| v2.4 | 2026-03-17 | R13 mitigation: add `label_hash` column to CostModelRatesToUsage model and M4 DDL. Add `ratestousage_label_hash_idx` index. Add full decision rationale with 5 options evaluated, collision risk analysis, and computation details. |

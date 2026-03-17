@@ -75,6 +75,9 @@ base AS (
         lids.pod_labels,
         lids.volume_labels,
         lids.all_labels,
+        md5(COALESCE(lids.pod_labels::text, '')
+            || COALESCE(lids.volume_labels::text, '')
+            || COALESCE(lids.all_labels::text, '')) AS label_hash,
         lids.cost_category_id,
 
         -- CPU usage aggregates
@@ -149,14 +152,14 @@ INSERT INTO {{schema | sqlsafe}}.cost_model_rates_to_usage (
     uuid, cost_model_id, report_period_id, source_uuid,
     usage_start, usage_end, node, namespace, cluster_id, cluster_alias,
     data_source, persistentvolumeclaim, pod_labels, volume_labels, all_labels,
-    custom_name, metric_type, cost_model_rate_type,
+    label_hash, custom_name, metric_type, cost_model_rate_type,
     monthly_cost_type, calculated_cost, cost_category_id
 )
 
 -- Component 1: cpu_core_usage_per_hour
 SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uuid}},
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
-    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels,
+    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     'cpu_core_usage_per_hour', 'cpu', {{rate_type}},
     NULL, b.cpu_usage_hours * {{cpu_core_usage_per_hour}}, b.cost_category_id
 FROM base b WHERE {{cpu_core_usage_per_hour}} != 0
@@ -166,7 +169,7 @@ UNION ALL
 -- Component 2: cpu_core_request_per_hour
 SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uuid}},
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
-    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels,
+    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     'cpu_core_request_per_hour', 'cpu', {{rate_type}},
     NULL, b.cpu_request_hours * {{cpu_core_request_per_hour}}, b.cost_category_id
 FROM base b WHERE {{cpu_core_request_per_hour}} != 0
@@ -176,7 +179,7 @@ UNION ALL
 -- Component 3: cpu_core_effective_usage_per_hour
 SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uuid}},
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
-    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels,
+    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     'cpu_core_effective_usage_per_hour', 'cpu', {{rate_type}},
     NULL, b.cpu_effective_hours * {{cpu_core_effective_usage_per_hour}}, b.cost_category_id
 FROM base b WHERE {{cpu_core_effective_usage_per_hour}} != 0
@@ -186,7 +189,7 @@ UNION ALL
 -- Component 4: node_core_cost_per_hour (always cpu, distribution affects usage basis)
 SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uuid}},
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
-    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels,
+    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     'node_core_cost_per_hour', 'cpu', {{rate_type}},
     NULL, b.node_alloc_basis * {{node_core_cost_per_hour}}, b.cost_category_id
 FROM base b WHERE {{node_core_cost_per_hour}} != 0
@@ -196,7 +199,7 @@ UNION ALL
 -- Component 5: cluster_core_cost_per_hour (always cpu, distribution affects usage basis)
 SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uuid}},
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
-    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels,
+    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     'cluster_core_cost_per_hour', 'cpu', {{rate_type}},
     NULL, b.cluster_alloc_basis * {{cluster_core_cost_per_hour}}, b.cost_category_id
 FROM base b WHERE {{cluster_core_cost_per_hour}} != 0
@@ -207,7 +210,7 @@ UNION ALL
 -- IQ-2: metric_type is distribution-dependent (same Jinja pattern as cte_node_cost)
 SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uuid}},
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
-    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels,
+    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     'cluster_cost_per_hour',
     {%- if distribution == 'cpu' %}
     'cpu',
@@ -229,7 +232,7 @@ UNION ALL
 -- Component 7: memory_gb_usage_per_hour
 SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uuid}},
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
-    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels,
+    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     'memory_gb_usage_per_hour', 'memory', {{rate_type}},
     NULL, b.mem_usage_hours * {{memory_gb_usage_per_hour}}, b.cost_category_id
 FROM base b WHERE {{memory_gb_usage_per_hour}} != 0
@@ -239,7 +242,7 @@ UNION ALL
 -- Component 8: memory_gb_request_per_hour
 SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uuid}},
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
-    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels,
+    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     'memory_gb_request_per_hour', 'memory', {{rate_type}},
     NULL, b.mem_request_hours * {{memory_gb_request_per_hour}}, b.cost_category_id
 FROM base b WHERE {{memory_gb_request_per_hour}} != 0
@@ -249,7 +252,7 @@ UNION ALL
 -- Component 9: memory_gb_effective_usage_per_hour
 SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uuid}},
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
-    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels,
+    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     'memory_gb_effective_usage_per_hour', 'memory', {{rate_type}},
     NULL, b.mem_effective_hours * {{memory_gb_effective_usage_per_hour}}, b.cost_category_id
 FROM base b WHERE {{memory_gb_effective_usage_per_hour}} != 0
@@ -259,7 +262,7 @@ UNION ALL
 -- Component 10: storage_gb_usage_per_month
 SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uuid}},
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
-    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels,
+    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     'storage_gb_usage_per_month', 'storage', {{rate_type}},
     NULL, b.storage_usage_months * {{storage_gb_usage_per_month}}, b.cost_category_id
 FROM base b WHERE {{storage_gb_usage_per_month}} != 0
@@ -269,7 +272,7 @@ UNION ALL
 -- Component 11: storage_gb_request_per_month
 SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uuid}},
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
-    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels,
+    b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     'storage_gb_request_per_month', 'storage', {{rate_type}},
     NULL, b.storage_request_months * {{storage_gb_request_per_month}}, b.cost_category_id
 FROM base b WHERE {{storage_gb_request_per_month}} != 0
