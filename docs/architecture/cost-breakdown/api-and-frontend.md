@@ -84,8 +84,8 @@ class CostModelManager:
             cost_model=cost_model, defaults={"primary": True}
         )
         price_list.rates.all().delete()
-        for rate_data in rates_data:
-            Rate.objects.create(
+        Rate.objects.bulk_create([
+            Rate(
                 price_list=price_list,
                 custom_name=rate_data["custom_name"],
                 description=rate_data.get("description", ""),
@@ -96,6 +96,8 @@ class CostModelManager:
                 tag_key=rate_data.get("tag_rates", {}).get("tag_key", ""),
                 tag_values=rate_data.get("tag_rates", {}).get("tag_values", {}),
             )
+            for rate_data in rates_data
+        ])
 ```
 
 ### `CostModelDBAccessor` — Read Path

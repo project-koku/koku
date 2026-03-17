@@ -476,7 +476,7 @@ def generate_custom_name(description, metric, used_names):
         return candidate
 
     # Collision: truncate and add numeric suffix
-    base = candidate[:47]
+    base = candidate[:46]
     for i in range(1000):
         suffixed = f"{base}_{i:03d}"
         if suffixed not in used_names:

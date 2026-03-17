@@ -173,7 +173,7 @@ def json_rates_to_rate_rows(rates_json: list[dict]) -> list[RateRow]:
 
         candidate = description[:50] if description else metric_name[:50]
         if candidate in used_names:
-            base = candidate[:47]
+            base = candidate[:46]
             for i in range(1000):
                 suffixed = f"{base}_{i:03d}"
                 if suffixed not in used_names:
