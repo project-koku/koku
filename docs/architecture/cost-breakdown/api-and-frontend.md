@@ -16,7 +16,7 @@ File: `cost_models/serializers.py`
 
 ```python
 class RateSerializer(serializers.Serializer):
-    custom_name = serializers.CharField(max_length=50, required=True)
+    custom_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
     metric = serializers.DictField(required=True)
     cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICES, required=True)
     description = serializers.CharField(required=False, allow_blank=True)
@@ -26,7 +26,8 @@ class RateSerializer(serializers.Serializer):
 
 **Validation rules**:
 
-- `custom_name` is required on create
+- `custom_name` is optional — if not provided, auto-generated from
+  `description` or `metric.name` (same logic as migration M3)
 - `custom_name` must be unique within the cost model's rates (validated
   at `CostModelSerializer` level, not per-rate)
 - `custom_name` max length: 50 characters
@@ -406,3 +407,14 @@ CSV columns per PRD: `Project, Level 1 (Category), Level 2 (Sub-Category), Metri
 | `ExportModal` | `exportModal.tsx` | Extended (not replaced) with breakdown export option |
 | `OcpDetails` | `ocpDetails.tsx` | Main details table unchanged |
 | Report API calls | `ocpReports.ts` | Existing endpoints unchanged |
+
+---
+
+## Changelog
+
+| Version | Date | Summary |
+|---------|------|---------|
+| v1.0 | 2026-03-17 | Initial: OCPReportQueryHandler extension, CostBreakdownView, serializers, response format, frontend integration plan (PatternFly TreeTable, CSV export), existing component audit. |
+| v2.0 | 2026-03-17 | Fix _sync_rate_table to use bulk_create instead of loop. Update IQ-7 from PROPOSAL to RESOLVED (auto-generated custom_name confirmed). |
+| v2.2 | 2026-03-17 | IQ-3 resolved: split single serializer into CostBreakdownFlatItemSerializer + CostBreakdownTreeNodeSerializer. Add ?view=tree query param. Update flat and tree JSON response examples. |
+| v2.3 | 2026-03-17 | Blast-radius triage: fix RateSerializer `custom_name` from `required=True` to `required=False` (align with IQ-7 resolution). Update validation rules. |

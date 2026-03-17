@@ -166,7 +166,7 @@ class CostModelRatesToUsage(models.Model):
     cost_category = models.ForeignKey(
         "OpenshiftCostCategory", on_delete=models.CASCADE, null=True
     )
-    labels = JSONField(null=True)
+    labels = JSONField(null=True)                         # denormalized union of pod_labels + volume_labels; used by existing koku label-based filtering
 ```
 
 **Key design notes**:
@@ -233,7 +233,7 @@ class OCPCostUIBreakDownP(models.Model):
     depth = models.SmallIntegerField()                     # 1-5 (per-rate leaves at 4; distribution per-rate leaves at 5 with IQ-9 Option 2)
     parent_path = models.CharField(max_length=200)         # e.g. "project.usage_cost"
     top_category = models.CharField(max_length=200)        # "project" or "overhead"
-    breakdown_category = models.CharField(max_length=50)   # "raw_cost", "usage_cost", "markup"
+    breakdown_category = models.CharField(max_length=50)   # "raw_cost", "usage_cost", "markup", "infrastructure" (IQ-9 Option 2)
 ```
 
 **Registration points**:
@@ -379,9 +379,10 @@ CREATE TABLE cost_model_price_list (
     uuid         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     cost_model_id UUID NOT NULL REFERENCES cost_model(uuid) ON DELETE CASCADE,
     "primary"    BOOLEAN NOT NULL DEFAULT TRUE,
-    fallback     BOOLEAN NOT NULL DEFAULT FALSE,
-    usage_start  TIMESTAMP WITH TIME ZONE,
-    usage_end    TIMESTAMP WITH TIME ZONE
+    fallback     BOOLEAN NOT NULL DEFAULT FALSE
+    -- IQ-6 PROPOSAL: usage_start and usage_end removed.
+    -- PRD does not require time-bounded pricing.
+    -- Can be added in a future migration if needed.
 );
 
 CREATE INDEX pricelist_cost_model_idx ON cost_model_price_list (cost_model_id);
@@ -775,3 +776,15 @@ This is handled by M3 above.
 - **Rates with no tiered_rates or tag_rates**: These exist in the JSON but
   are skipped by `CostModelDBAccessor.price_list` today. They should still
   get `Rate` rows (with `default_rate = 0`) so the migration is complete.
+
+---
+
+## Changelog
+
+| Version | Date | Summary |
+|---------|------|---------|
+| v1.0 | 2026-03-17 | Initial: 4 Django models (PriceList, Rate, CostModelRatesToUsage, OCPCostUIBreakDownP), 6 migrations (M1-M6), tree structure definition (depth 1-5), custom_name generation algorithm. |
+| v2.0 | 2026-03-17 | IQ-1 resolved: add 4 fine-grained columns to CostModelRatesToUsage (pod_labels, volume_labels, persistentvolumeclaim, all_labels). Update M4 DDL. |
+| v2.1 | 2026-03-17 | Fix tree depth inconsistency: align hierarchy table with PoC SQL (depth 4 per-rate, depth 3 distribution). Mark depth 5 as conditional on IQ-9. |
+| v2.2 | 2026-03-17 | IQ-9 investigation: update hierarchy table and example tree to show depth 4-5 back-allocation structure. Add IQ-9 Option 2 annotations. Clarify intro text for current vs proposed state. |
+| v2.3 | 2026-03-17 | Blast-radius triage: fix M1 DDL to remove IQ-6 columns (align with model), add "infrastructure" to breakdown_category comment, document `labels` field purpose. |

@@ -30,7 +30,7 @@ One new design gap requires investigation:
 
 | # | Decision | Status | Blocking Phase | Proposal | PoC Artifact |
 |---|----------|--------|---------------|----------|--------------|
-| **IQ-9** | Distribution per-rate identity: how to preserve per-rate breakdown for distributed costs. | Open | Phase 4 | [Details](#iq-9-distribution-per-rate-identity-gap) | Investigation pending |
+| **IQ-9** | Distribution per-rate identity: how to preserve per-rate breakdown for distributed costs. | Open | Phase 4 | [Details](#iq-9-distribution-per-rate-identity-gap) | [sql-pipeline.md § Back-Allocation SQL](./sql-pipeline.md#back-allocation-sql-sketch) |
 
 Two additional low-risk proposals (IQ-6: remove speculative date fields;
 IQ-8: nullable `cost_type` for distribution rows) can be confirmed
@@ -305,7 +305,10 @@ using a separate INSERT with `GROUP BY top_category, breakdown_category`
 and `SUM(cost_value)`. Distribution leaf rows (depth 3, e.g.,
 `overhead.platform_distributed`) are inserted directly from the daily
 summary — see [`poc/reporting_ocp_cost_breakdown_p.sql`](./poc/reporting_ocp_cost_breakdown_p.sql)
-Source 2.
+Source 2. **If IQ-9 Option 2 is approved**, Source 2 is augmented by
+back-allocation SQL that splits each `distributed_cost` into per-rate
+shares at depth 4-5 (see [IQ-9](#iq-9-distribution-per-rate-identity-gap)
+and [sql-pipeline.md § Back-Allocation SQL](./sql-pipeline.md#back-allocation-sql-sketch)).
 
 ### IQ-5: SQL approach for RatesToUsage INSERTs (Phase 2)
 
@@ -672,3 +675,4 @@ are versioned together. Each version corresponds to a commit on the
 | v2.0 | 2026-03-17 | `1e05f2343` | **IQ-1 RESOLVED** (single source of truth). Major redesign: add 4 fine-grained columns to `CostModelRatesToUsage` (`pod_labels`, `volume_labels`, `persistentvolumeclaim`, `all_labels`). Aggregation SQL redesigned as DELETE + INSERT (replaces `usage_costs.sql` direct-write from Phase 2). Remove all dual-path language. Add R13 (JSONB JOIN performance). Update all 5 documents and PoC SQL. |
 | v2.1 | 2026-03-17 | `369dbda50` | **IQ-3 RESOLVED** (flat DB rows, both flat and nested API responses). **IQ-7 RESOLVED** (auto-generate `custom_name`). Fix tree depth inconsistency (align hierarchy table with PoC SQL). Add future scalability section (Price List Lifecycles, Consumer & Provider). Document IQ-9 (distribution per-rate identity gap) as new open question. |
 | v2.2 | 2026-03-17 | — | **IQ-9 investigation complete.** Expand IQ-9 with full source code analysis of distribution SQL. Recommend Option 2 (back-allocate proportionally). Add SQL sketch for back-allocation to sql-pipeline.md. Update data-model.md tree to show depth 5 structure. Add R14 (rounding), R15 (JOIN complexity). Add this changelog. |
+| v2.3 | 2026-03-17 | — | **Blast-radius triage.** Fix 8 cross-document inconsistencies: remove erroneous `resource_id` from aggregation SQL sketch (G4, HIGH), fix RateSerializer `required=True` → `required=False` (G5), align M1 DDL with IQ-6 proposal (G3), add "infrastructure" breakdown_category (G2), update IQ-9 PoC artifact column (G1), add IQ-9 dependency to IQ-4 Source 2 (G8), fix serializer reference in phased-delivery (G6), document `labels` field purpose (G7). Add R16 (aggregation GROUP BY granularity), R17 (markup ORM overhead). |

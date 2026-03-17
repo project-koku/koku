@@ -191,7 +191,7 @@ against PostgreSQL via Django. See
 | `UI_SUMMARY_TABLES` update | `reporting/provider/ocp/models.py` | Add to tuple for partition cleanup |
 | Provider map entry | `api/report/ocp/provider_map.py` | `cost_breakdown` report type |
 | View class | `api/report/ocp/view.py` | `OCPCostBreakdownView` |
-| Serializer | `api/report/ocp/serializers.py` | `CostBreakdownSerializer` |
+| Serializers | `api/report/ocp/serializers.py` | `CostBreakdownFlatItemSerializer` + `CostBreakdownTreeNodeSerializer` (IQ-3) |
 | URL registration | `api/urls.py` | `breakdown/openshift/cost/` |
 | Frontend: report type | `api/reports/report.ts` | `ReportType.costBreakdown` |
 | Frontend: API path | `api/reports/ocpReports.ts` | `breakdown/openshift/cost/` |
@@ -278,6 +278,8 @@ All of these must be verified before executing Phase 5:
 | R13 | JSONB column equality JOINs in aggregation/validation SQL are slow on large datasets | **HIGH** | MEDIUM | 2 | The aggregation SQL (Phase 2) groups by `pod_labels`, `volume_labels`, `all_labels` (JSONB). PostgreSQL JSONB equality comparison without GIN indexes can be slow. **Mitigation**: (1) Benchmark aggregation query in Phase 2 with realistic data; (2) If slow, add a computed hash column (`md5(pod_labels::text \|\| volume_labels::text \|\| all_labels::text)`) to both tables and GROUP BY/JOIN on the hash instead; (3) GIN indexes on JSONB columns are an alternative but add write overhead. **Decision needed from tech lead.** |
 | R14 | Back-allocation rounding: proportional split of `distributed_cost` to per-rate shares may produce minor rounding differences | LOW | HIGH | 4 | PostgreSQL `NUMERIC(33, 15)` provides 15 decimal places. Rounding error per row is < $0.01. **Mitigation**: Add a rounding reconciliation check in the breakdown population SQL (`SUM(per-rate shares)` vs original `distributed_cost`) and log any discrepancy > $0.01. Acceptable tolerance per existing koku cost precision. |
 | R15 | Back-allocation JOIN complexity: matching distribution rows to source namespace costs and `RatesToUsage` proportions requires multi-table CTEs | MEDIUM | MEDIUM | 4 | The back-allocation SQL has 3 CTEs with JOINs across daily summary and `RatesToUsage`. **Mitigation**: (1) Benchmark with realistic data in Phase 4; (2) Source cost and rate_shares CTEs operate on source namespaces (small cardinality — typically 1 Platform namespace per cluster); (3) Indexes on `(usage_start, cluster_id, source_uuid)` cover the JOIN paths. |
+| R16 | Aggregation GROUP BY granularity mismatch: `RatesToUsage` does not include `resource_id` (matching `usage_costs.sql` GROUP BY) but the daily summary has `resource_id`. If future SQL changes add `resource_id` to the daily summary's cost model rows, the aggregation SQL must be updated to match. | LOW | LOW | 2 | The PoC and IQ-5 CTE confirm `usage_costs.sql` does not GROUP BY `resource_id`. The aggregation SQL sketch has been aligned. **Mitigation**: document that `resource_id` is not part of the cost model GROUP BY in the aggregation, and add a regression test confirming no `resource_id`-based row splitting. |
+| R17 | Markup → RatesToUsage uses Python ORM iterator + `bulk_create` to copy daily summary markup rows. For large tenants, this is slower and more memory-intensive than a SQL-based approach. | LOW | MEDIUM | 2 | Each base daily summary row with `infrastructure_markup_cost != 0` produces one RatesToUsage row. **Mitigation**: (1) `bulk_create(batch_size=5000)` limits memory; (2) If slow, replace with a raw SQL INSERT...SELECT approach in Phase 3; (3) Monitor processing time in Phase 2 alongside R3 benchmarking. |
 
 ### Risk × Phase Matrix
 
@@ -298,6 +300,8 @@ R12         ██
 R13                    ██ (JSONB columns in aggregation GROUP BY)
 R14                                         ██ (back-allocation rounding)
 R15                                         ██ (back-allocation JOIN complexity)
+R16                    ██ (aggregation GROUP BY granularity)
+R17                    ██         ██ (markup ORM overhead)
 ```
 
 ---
@@ -369,3 +373,14 @@ Phase 3 ← Phase 2 + R13 benchmark acceptable
 Phase 4 ← Phase 3 (IQ-3 confirmed — flat DB rows, both API formats)
 Phase 5 ← Phase 4 validated in production
 ```
+
+---
+
+## Changelog
+
+| Version | Date | Summary |
+|---------|------|---------|
+| v1.0 | 2026-03-17 | Initial: 5-phase delivery plan, artifact lists per phase, validation criteria, rollback strategies, risk register (R1-R12), risk × phase matrix, timeline and blocking dependencies. |
+| v2.0 | 2026-03-17 | IQ-1 resolved: rewrite Phase 2 artifacts (usage_costs.sql replaced, validate moved to CI-only). Remove dual-path validation references. Update risk register (R2, R3 revised, R13 added). Update blocking dependencies. |
+| v2.2 | 2026-03-17 | IQ-3/IQ-7 resolved, IQ-9 added: update decisions table. Add back-allocation SQL to Phase 4 artifacts and validation. Add risks R14 (rounding) and R15 (JOIN complexity). Add "Future Scalability Considerations" section. |
+| v2.3 | 2026-03-17 | Blast-radius triage: fix Phase 4 serializer reference (two serializers, not one). Add R16 (aggregation GROUP BY granularity) and R17 (markup ORM overhead). Update risk × phase matrix. |

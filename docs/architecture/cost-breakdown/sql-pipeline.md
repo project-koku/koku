@@ -544,12 +544,10 @@ WHERE usage_start >= {{start_date}}
   AND cost_model_rate_type IS NOT NULL
   AND cost_model_rate_type IN ('Infrastructure', 'Supplementary');
 
--- Step 2: INSERT aggregated rows from RatesToUsage, joined back to
--- the base daily summary rows for non-cost columns (resource_id,
--- report_period_id, cluster_alias, etc.)
+-- Step 2: INSERT aggregated rows from RatesToUsage
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid, report_period_id, cluster_id, cluster_alias, namespace, node,
-    resource_id, usage_start, usage_end, data_source, source_uuid,
+    usage_start, usage_end, data_source, source_uuid,
     persistentvolumeclaim, pod_labels, volume_labels, all_labels,
     cost_category_id, cost_model_rate_type,
     cost_model_cpu_cost, cost_model_memory_cost, cost_model_volume_cost
@@ -561,7 +559,6 @@ SELECT
     rtu.cluster_alias,
     rtu.namespace,
     rtu.node,
-    rtu.resource_id,
     rtu.usage_start,
     rtu.usage_start + interval '1 day' AS usage_end,
     rtu.data_source,
@@ -586,7 +583,6 @@ GROUP BY
     rtu.cluster_alias,
     rtu.namespace,
     rtu.node,
-    rtu.resource_id,
     rtu.usage_start,
     rtu.data_source,
     rtu.source_uuid,
@@ -1056,3 +1052,14 @@ population (`reporting_ocp_cost_breakdown_p.sql`) live only in the
 table) and write to PostgreSQL tables, so they always execute via
 `_prepare_and_execute_raw_sql_query` regardless of deployment mode. No
 Trino or self-hosted variants are needed.
+
+---
+
+## Changelog
+
+| Version | Date | Summary |
+|---------|------|---------|
+| v1.0 | 2026-03-17 | Initial: current vs proposed data flow, SQL file inventory (20+ files across 3 paths), CostModelDBAccessor changes, distribution costs in breakdown tree, Trino/self-hosted architecture. |
+| v2.0 | 2026-03-17 | IQ-1 resolved: rewrite orchestration to single-source-of-truth (RatesToUsage INSERT + aggregation replaces usage_costs.sql direct-write). Add DELETE+INSERT aggregation SQL sketch. Update SQL file inventory. Add fine-grained columns to all SQL sketches. Remove dual-path language. |
+| v2.2 | 2026-03-17 | IQ-9 investigation: add Back-Allocation SQL Sketch section with full CTE-based SQL for splitting distributed_cost to per-rate shares. Add source namespace mapping table, GPU distribution note, intermediate node aggregation approach. |
+| v2.3 | 2026-03-17 | Blast-radius triage: remove erroneous `resource_id` from aggregation SQL sketch GROUP BY / SELECT (not in `usage_costs.sql` GROUP BY, confirmed by PoC). |
