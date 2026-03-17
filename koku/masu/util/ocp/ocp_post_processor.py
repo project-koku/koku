@@ -269,7 +269,7 @@ class OCPPostProcessor:
 
     def _ensure_mig_columns(self, data_frame):
         """Ensure MIG-related columns exist in the dataframe."""
-        for col in ("mig_slice_count", "mig_memory_capacity_mib", "gpu_max_slices"):
+        for col in ("mig_slice_count", "mig_memory_capacity_mib", "gpu_max_slices", "mig_strategy"):
             if col not in data_frame.columns:
                 data_frame[col] = pd.NA
         return data_frame
