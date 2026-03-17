@@ -94,10 +94,13 @@ generators:
                       mig_instances:
                         - mig_instance:
                           mig_profile: "1g.5gb"
+                          mig_strategy: "mixed"
                         - mig_instance:
                           mig_profile: "2g.10gb"
+                          mig_strategy: "mixed"
                         - mig_instance:
                           mig_profile: "4g.20gb"
+                          mig_strategy: "mixed"
               volumes:
                 - volume:
                   volume_name: pvc-volume_3
@@ -453,6 +456,7 @@ generators:
                       mig_instances:
                         - mig_instance:
                           mig_profile: "4g.40gb"
+                          mig_strategy: "single"
             ml-inference:
               namespace_labels: team:ml-ops
               pods:
@@ -471,6 +475,7 @@ generators:
                       mig_instances:
                         - mig_instance:
                           mig_profile: "1g.10gb"
+                          mig_strategy: "single"
                 - pod:
                   pod_name: inference_service_2
                   cpu_request: 1
@@ -486,6 +491,7 @@ generators:
                       mig_instances:
                         - mig_instance:
                           mig_profile: "1g.10gb"
+                          mig_strategy: "single"
             model-serving:
               namespace_labels: team:platform
               pods:
@@ -504,6 +510,7 @@ generators:
                       mig_instances:
                         - mig_instance:
                           mig_profile: "1g.10gb"
+                          mig_strategy: "single"
         - node:
           node_name: compute_h100_mig
           node_labels: label_instance-type:gpu-h100-mig|label_kubernetes_io_arch:amd64|nvidia_com_gpu_count:1|nvidia_com_gpu_product:H100|nvidia_com_gpu_present:True|nvidia_com_mig_strategy:mixed
@@ -528,8 +535,10 @@ generators:
                       mig_instances:
                         - mig_instance:
                           mig_profile: "3g.40gb"
+                          mig_strategy: "mixed"
                         - mig_instance:
                           mig_profile: "2g.20gb"
+                          mig_strategy: "mixed"
             llm-serving:
               namespace_labels: team:ai-platform
               pods:
@@ -548,8 +557,10 @@ generators:
                       mig_instances:
                         - mig_instance:
                           mig_profile: "1g.10gb"
+                          mig_strategy: "mixed"
                         - mig_instance:
                           mig_profile: "1g.10gb"
+                          mig_strategy: "mixed"
         - node:
           node_name: master_1
           cpu_cores: 4
