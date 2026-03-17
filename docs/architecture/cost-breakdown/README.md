@@ -17,14 +17,20 @@ model that this feature extends.
 
 ## Decisions Needed from Tech Lead
 
-Two design decisions require tech lead confirmation before
-implementation proceeds past Phase 1. IQ-1 has been resolved.
+Three key design decisions have been resolved by the tech lead.
+IQ-1, IQ-3, and IQ-7 are confirmed.
 
 | # | Decision | Status | Blocking Phase | Proposal | PoC Artifact |
 |---|----------|--------|---------------|----------|--------------|
 | **IQ-1** | Single source of truth: RatesToUsage with aggregation to daily summary. | **RESOLVED** | ~Phase 2~ | [Details](#iq-1-aggregation-granularity-mismatch-phase-2-3) | [`poc/insert_usage_rates_to_usage.sql`](./poc/insert_usage_rates_to_usage.sql) demonstrates fine-grained GROUP BY |
-| **IQ-3** | Flat-row API or nested response? Standard koku flat rows with `path`/`parent_path` vs pre-built tree. | Open | Phase 4 | [Details](#iq-3-breakdown-api-response-format-phase-4) | [`poc/reporting_ocp_cost_breakdown_p.sql`](./poc/reporting_ocp_cost_breakdown_p.sql) produces flat rows with path columns |
-| **IQ-7** | `custom_name` optional with auto-generation? Or formal API version bump? | Open | Phase 1 | [Details](#iq-7-backward-compatibility-for-custom_name-phase-1) | [`poc/price_list_compat.py`](./poc/price_list_compat.py) validates backward-compatible format |
+| **IQ-3** | Flat-row DB storage with both flat and nested API response formats. | **RESOLVED** | ~Phase 4~ | [Details](#iq-3-breakdown-api-response-format-phase-4) | [`poc/reporting_ocp_cost_breakdown_p.sql`](./poc/reporting_ocp_cost_breakdown_p.sql) produces flat rows with path columns |
+| **IQ-7** | `custom_name` optional with auto-generation from `description` or `metric.name`. Backward compatible. | **RESOLVED** | ~Phase 1~ | [Details](#iq-7-backward-compatibility-for-custom_name-phase-1) | [`poc/price_list_compat.py`](./poc/price_list_compat.py) validates backward-compatible format |
+
+One new design gap requires investigation:
+
+| # | Decision | Status | Blocking Phase | Proposal | PoC Artifact |
+|---|----------|--------|---------------|----------|--------------|
+| **IQ-9** | Distribution per-rate identity: how to preserve per-rate breakdown for distributed costs. | Open | Phase 4 | [Details](#iq-9-distribution-per-rate-identity-gap) | Investigation pending |
 
 Two additional low-risk proposals (IQ-6: remove speculative date fields;
 IQ-8: nullable `cost_type` for distribution rows) can be confirmed
@@ -220,26 +226,25 @@ distribution (verified in source), so their `metric_type` is always
 `'cpu'`. Only `cluster_cost_per_hour` (component 6) needs the dynamic
 conditional.
 
-### IQ-3: Breakdown API response format (Phase 4)
+### IQ-3: Breakdown API response format (Phase 4) — RESOLVED
 
 **Problem**: The nested `breakdown` array format doesn't match koku's
 standard query handler output.
 
-**Proposal: Use the standard flat-row format.**
+**Resolution**: Tech lead confirmed flat-row DB storage with **both**
+flat and nested API response formats. The UI mocks require both views.
 
-`OCPReportQueryHandler.execute_query()` returns `{data: [date buckets
-with grouped values], total: {...}}`. Every existing OCP report
-follows this convention — flat annotated rows, grouped by date and
-`group_by` parameters.
+- **Database**: `OCPCostUIBreakDownP` stores flat rows with `path`,
+  `depth`, `parent_path`, `custom_name`, `cost_value`, etc.
+- **Flat API response**: Standard `OCPReportQueryHandler`-style output
+  with flat annotated rows grouped by date. Uses the same `provider_map`
+  pattern as all other koku report endpoints.
+- **Nested API response**: Built from the same flat DB rows by
+  reconstructing the tree from `path`/`parent_path` server-side (or
+  client-side). Controlled via `?view=tree` query parameter.
 
-The breakdown endpoint should follow the same pattern: each breakdown
-entry is a flat row in `data`, with `path`, `depth`, `parent_path`,
-`custom_name`, `cost_value`, etc. as columns. The frontend builds the
-tree from `path`/`parent_path` client-side, the same way the Sankey
-chart builds its visualization from flat cost data.
-
-This avoids a custom query handler and keeps the API consistent with
-all other koku report endpoints.
+This keeps the DB layer simple (flat rows, standard indexes, standard
+pagination) while serving both UI views from a single data source.
 
 ### IQ-4: `build_path()` logic (Phase 4)
 
@@ -278,7 +283,8 @@ CASE
          '.' || r.custom_name
 END AS path,
 
--- depth: always 4 for leaf per-rate rows
+-- depth: 4 for per-rate leaf rows (Source 1 in breakdown population SQL).
+-- Distribution leaf rows (Source 2) use depth 3 — see data-model.md hierarchy table.
 4 AS depth,
 
 -- parent_path
@@ -294,9 +300,12 @@ END AS parent_path
 ```
 
 Intermediate tree nodes (depth 1-3: `total_cost`, `project`,
-`project.usage_cost`) are aggregated from leaf rows using a separate
-INSERT with `GROUP BY top_category, breakdown_category` and
-`SUM(cost_value)`.
+`project.usage_cost`) are aggregated from per-rate leaf rows (depth 4)
+using a separate INSERT with `GROUP BY top_category, breakdown_category`
+and `SUM(cost_value)`. Distribution leaf rows (depth 3, e.g.,
+`overhead.platform_distributed`) are inserted directly from the daily
+summary — see [`poc/reporting_ocp_cost_breakdown_p.sql`](./poc/reporting_ocp_cost_breakdown_p.sql)
+Source 2.
 
 ### IQ-5: SQL approach for RatesToUsage INSERTs (Phase 2)
 
@@ -354,12 +363,14 @@ on rates. Adding speculative fields contradicts the YAGNI principle.
 If time-bounded pricing is needed later, the columns can be added in a
 future migration with no impact on existing data.
 
-### IQ-7: Backward compatibility for `custom_name` (Phase 1)
+### IQ-7: Backward compatibility for `custom_name` (Phase 1) — RESOLVED
 
 **Problem**: Adding `custom_name` as required breaks existing API
 consumers.
 
-**Proposal: `required=False` with auto-generation.**
+**Resolution**: Tech lead confirmed auto-generation approach.
+`custom_name` is `required=False` with auto-generation from
+`description` or `metric.name`.
 
 Koku's `RateSerializer` already has `description` as `required=False`.
 Apply the same pattern to `custom_name`:
@@ -390,6 +401,51 @@ Follow the same pattern on `OCPCostUIBreakDownP`:
 The API can derive a display label from `cost_model_rate_type` when
 `cost_type` is NULL. This avoids inventing semantics that don't exist
 in the source data.
+
+### IQ-9: Distribution per-rate identity gap
+
+**Problem**: Distribution SQL (`distribute_platform_cost.sql`,
+`distribute_worker_cost.sql`, `distribute_unattributed_storage_cost.sql`,
+`distribute_unattributed_network_cost.sql`, `distribute_unallocated_gpu_cost.sql`)
+reads **aggregated** `cost_model_*_cost` columns from the daily summary
+and produces a single `distributed_cost` per namespace/node. Per-rate
+identity is completely lost.
+
+For example: Platform cost = $60 ($20 from "OpenShift Subscriptions" CPU
+rate + $30 from "RHEL" rate + $10 from memory rate). After distribution,
+Project A gets `distributed_cost = $12` — with no record of which rates
+contributed to that $12.
+
+**Impact on breakdown tree**: The tree can only show distribution nodes
+at depth 3 (e.g., `overhead.platform_distributed`) without per-rate
+drill-down. The aspirational depth 5 structure
+(`overhead.platform_distributed.usage_cost.OpenShift_Subscriptions`)
+is unreachable without changes to the distribution data flow. See
+[data-model.md § Tree Structure Definition](./data-model.md#tree-structure-definition).
+
+**Possible approaches** (investigation needed):
+
+1. **Per-rate distribution from `RatesToUsage`** — Modify distribution
+   SQL to read per-rate rows from `RatesToUsage` instead of aggregated
+   daily summary columns. Each rate's cost is distributed independently,
+   producing per-rate distribution rows that preserve `custom_name`. Most
+   complete solution but most invasive (modifies 5+ distribution SQL
+   files and changes the distribution data flow).
+
+2. **Back-allocate proportionally** — After existing distribution writes
+   the total `distributed_cost`, compute per-rate shares using
+   proportions from `RatesToUsage` (e.g., if "OpenShift Subscriptions"
+   was 40% of total CPU cost, assign 40% of distributed CPU cost).
+   Less invasive; proportional approximation but matches the existing
+   distribution logic which is itself proportional.
+
+3. **Show aggregate only** — Accept that distributed costs don't have
+   per-rate drill-down. Cap the overhead branch at depth 3 in the
+   breakdown tree. Simplest change but limits the feature's value for
+   customers who want to see exactly how overhead costs break down by
+   rate.
+
+**Decision needed from tech lead.**
 
 ---
 
@@ -492,7 +548,10 @@ validation query verifies aggregation correctness in integration tests.
 | Decision | Resolution | Rationale |
 |----------|-----------|-----------|
 | Aggregation step | Kept (single source of truth) | Tech lead confirmed: eliminates dual-path maintenance and data integrity risk |
+| Breakdown API format | Flat DB rows, both flat and nested API responses | Tech lead confirmed: UI mocks require both views; flat DB storage with server-side tree construction for nested view |
+| `custom_name` backward compatibility | `required=False` with auto-generation | Tech lead confirmed: existing API consumers work unchanged; new consumers can set meaningful names |
 | Feature flags | None | Dual-write (JSON + Rate table) is the rollback mechanism; no Unleash flags |
-| Distribution SQL changes | None | Distribution operates on aggregated daily summary columns, not per-rate data |
+| Distribution SQL changes | Open (IQ-9) | Distribution currently operates on aggregated daily summary columns; per-rate identity is lost. Decision pending on whether to modify distribution for per-rate breakdown. |
 | Sankey chart changes | None | Sankey reads from existing report API which is unchanged |
 | Rate table read path | Switched in Phase 1, permanent in Phase 5 | Dual-write preserves JSON for rollback |
+| Future scalability | Single source of truth scales for upcoming features | Price List Lifecycles (multiple price lists) and Consumer & Provider (multiple cost models) compound dual-write overhead; single calculation point avoids this |

@@ -7,15 +7,16 @@ validation criteria, rollback strategies, and the risk register.
 
 ## Decisions Pending Tech Lead Review
 
-Two design decisions need confirmation. IQ-1 has been resolved. See
+Three design decisions have been resolved (IQ-1, IQ-3, IQ-7). See
 [README.md § Decisions Needed from Tech Lead](./README.md#decisions-needed-from-tech-lead)
 for full context and PoC references.
 
 | Decision | Status | Impact on this plan |
 |----------|--------|-------------------|
 | **IQ-1**: Single source of truth via RatesToUsage with aggregation | **RESOLVED** | Phase 2 replaces `usage_costs.sql` direct-write with RatesToUsage INSERT + aggregation (DELETE + INSERT). No dual-path. Fine-grained columns added to `CostModelRatesToUsage`. CI validation query verifies correctness. |
-| **IQ-3**: Flat-row API response | Open | If confirmed: Phase 4 uses standard `OCPReportQueryHandler` with `provider_map.py` entry instead of custom nested serializer. |
-| **IQ-7**: `custom_name` optional | Open | If confirmed: Phase 1 `RateSerializer` uses `required=False` with auto-generation. No API version bump needed. |
+| **IQ-3**: Flat-row DB storage with both flat and nested API responses | **RESOLVED** | Phase 4 uses standard `OCPReportQueryHandler` with `provider_map.py` entry for flat view; tree view reconstructed from flat rows server-side via `?view=tree`. |
+| **IQ-7**: `custom_name` optional with auto-generation | **RESOLVED** | Phase 1 `RateSerializer` uses `required=False` with auto-generation from `description` or `metric.name`. No API version bump needed. |
+| **IQ-9**: Distribution per-rate identity | Open | Affects Phase 4 breakdown tree depth for distributed costs. Distribution SQL currently loses per-rate identity. See [README.md § IQ-9](./README.md#iq-9-distribution-per-rate-identity-gap). |
 
 ---
 
@@ -291,6 +292,41 @@ R13                    ██ (JSONB columns in aggregation GROUP BY)
 
 ---
 
+## Future Scalability Considerations
+
+The single-source-of-truth architecture (RatesToUsage → aggregation →
+daily summary) was chosen in part because it scales better with two
+upcoming features that will increase the rate calculation surface area.
+
+### Price List Lifecycles
+
+Multiple price lists per cost model means more rate calculations per
+processing cycle. With a single source of truth, each additional price
+list adds rows to `RatesToUsage` and the aggregation step folds them
+into the daily summary automatically. A dual-path approach would
+require updating both `usage_costs.sql` (direct-write) and the
+`RatesToUsage` INSERT for every new price list configuration.
+
+### Consumer and Provider
+
+Multiple cost models applying to the same data multiplies the rate
+calculation volume. The single-source-of-truth architecture handles
+this naturally — each cost model writes its per-rate rows to
+`RatesToUsage`, and aggregation produces the correct daily summary
+totals. Dual-path maintenance overhead would compound with each
+additional cost model.
+
+### Architectural benefit
+
+With the single calculation point in `RatesToUsage`, changes to rate
+logic propagate automatically to both the daily summary (via
+aggregation) and the breakdown table. QE validates cost correctness
+once against the daily summary, rather than maintaining parallel
+verification of two independent calculation paths across an expanding
+set of rate configurations.
+
+---
+
 ## Timeline Considerations
 
 Phase 1 can start immediately — it has no open questions. The
@@ -320,6 +356,6 @@ for a sufficient period (recommended: at least one full billing cycle).
 Phase 1 ← no blockers (start now)
 Phase 2 ← Phase 1 (IQ-1 confirmed — single source of truth, no dual-path)
 Phase 3 ← Phase 2 + R13 benchmark acceptable
-Phase 4 ← Phase 3 + IQ-3 confirmation (flat rows vs nested)
+Phase 4 ← Phase 3 (IQ-3 confirmed — flat DB rows, both API formats)
 Phase 5 ← Phase 4 validated in production
 ```

@@ -31,10 +31,10 @@ class RateSerializer(serializers.Serializer):
   at `CostModelSerializer` level, not per-rate)
 - `custom_name` max length: 50 characters
 
-**IQ-7 PROPOSAL**: The existing `RateSerializer` does not have
-`custom_name`. Proposed: add as `required=False` with auto-generation
-from `description` or `metric.name` (same logic as migration M3).
-This is backward compatible — existing API consumers work unchanged.
+**IQ-7 RESOLVED**: Tech lead confirmed. `custom_name` is added as
+`required=False` with auto-generation from `description` or
+`metric.name` (same logic as migration M3). This is backward
+compatible — existing API consumers work unchanged.
 See [README.md § IQ-7](../cost-breakdown/README.md#iq-7-backward-compatibility-for-custom_name-phase-1).
 
 ### `CostModelSerializer` — Dual-Write
@@ -188,16 +188,13 @@ Add `cost_breakdown` to `OCPProviderMap`:
 },
 ```
 
-### Response Format — Flat View (PRD Phase 1 Must-Have; Design Doc Phase 4)
+### Response Format — Flat View (IQ-3 RESOLVED; Design Doc Phase 4)
 
-**IQ-3 PROPOSAL**: The response format below shows a nested
-`breakdown` array, but koku's standard query handler produces flat
-annotated rows. **Proposed approach**: use the standard flat-row format
-instead — each breakdown entry is a row in `data`, grouped by date.
-The frontend builds the tree from `path`/`parent_path` client-side.
-See [README.md § IQ-3](../cost-breakdown/README.md#iq-3-breakdown-api-response-format-phase-4).
-The format below is retained for reference but will change if the
-proposal is accepted.
+**IQ-3 resolved**: The database stores flat rows. The API serves
+**both** flat and nested response formats (controlled by `?view=flat`
+or `?view=tree`). The flat view is the default and follows koku's
+standard `OCPReportQueryHandler` output convention — flat annotated
+rows grouped by date and `group_by` parameters.
 
 ```json
 {
@@ -207,46 +204,75 @@ proposal is accepted.
     {
       "date": "2026-02",
       "project": "my-namespace",
-      "breakdown": [
-        {"level": 1, "name": "Total cost", "value": 4000.00, "parent": null},
-        {"level": 2, "name": "Project", "value": 2500.00, "parent": "Total cost"},
-        {"level": 3, "name": "Raw cost", "value": 1000.00, "parent": "Project"},
-        {"level": 4, "name": "AmazonEC2", "value": 400.00, "parent": "Raw cost"},
-        {"level": 4, "name": "AmazonS3", "value": 300.00, "parent": "Raw cost"},
-        {"level": 3, "name": "Usage cost", "value": 1200.00, "parent": "Project"},
-        {"level": 4, "name": "OpenShift Subscriptions", "value": 500.00, "parent": "Usage cost"},
-        {"level": 4, "name": "GuestOS Subscriptions", "value": 400.00, "parent": "Usage cost"},
-        {"level": 4, "name": "Operation", "value": 300.00, "parent": "Usage cost"},
-        {"level": 2, "name": "Overhead cost", "value": 1500.00, "parent": "Total cost"}
+      "values": [
+        {"depth": 1, "custom_name": "total_cost", "path": "total_cost", "parent_path": "", "cost_value": 4000.00, "distributed_cost": null, "metric_type": "total", "cost_type": null},
+        {"depth": 2, "custom_name": "project", "path": "project", "parent_path": "total_cost", "cost_value": 2500.00, "distributed_cost": null, "metric_type": "total", "cost_type": null},
+        {"depth": 3, "custom_name": "usage_cost", "path": "project.usage_cost", "parent_path": "project", "cost_value": 1200.00, "distributed_cost": null, "metric_type": "total", "cost_type": null},
+        {"depth": 4, "custom_name": "OpenShift Subscriptions", "path": "project.usage_cost.OpenShift_Subscriptions", "parent_path": "project.usage_cost", "cost_value": 500.00, "distributed_cost": null, "metric_type": "cpu", "cost_type": "Infrastructure"}
       ]
     }
   ]
 }
 ```
 
-### Response Format — Tree View (PRD Phase 2 Nice-to-Have; Design Doc Phase 4)
+### Response Format — Tree View (IQ-3 RESOLVED; Design Doc Phase 4)
 
+The tree view is built from the same `OCPCostUIBreakDownP` flat rows.
+When `?view=tree` is requested, the API reconstructs the hierarchy
+from `path`/`parent_path` and returns a nested `children` structure.
 See PRD pages 22-25 for the nested `children` / `items` structure.
-The tree view is built from the same `OCPCostUIBreakDownP` data by
-grouping rows by `path` and `depth`.
 
-### Serializer
+```json
+{
+  "meta": {"count": 1, "currency": "USD"},
+  "data": [
+    {
+      "date": "2026-02",
+      "project": "my-namespace",
+      "tree": {
+        "custom_name": "total_cost",
+        "cost_value": 4000.00,
+        "children": [
+          {
+            "custom_name": "project",
+            "cost_value": 2500.00,
+            "children": [
+              {"custom_name": "usage_cost", "cost_value": 1200.00, "children": []}
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
+```
 
-New serializer in `api/report/ocp/serializers.py` (or a new file):
+### Serializers
+
+New serializers in `api/report/ocp/serializers.py` (or a new file):
 
 ```python
-class CostBreakdownItemSerializer(serializers.Serializer):
-    level = serializers.IntegerField(source="depth")
-    name = serializers.CharField(source="custom_name")
-    value = serializers.DecimalField(source="cost_value", max_digits=33, decimal_places=15)
-    parent = serializers.CharField(source="parent_path")
+class CostBreakdownFlatItemSerializer(serializers.Serializer):
+    depth = serializers.IntegerField()
+    custom_name = serializers.CharField()
+    path = serializers.CharField()
+    parent_path = serializers.CharField()
+    cost_value = serializers.DecimalField(max_digits=33, decimal_places=15)
+    distributed_cost = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
+    metric_type = serializers.CharField()
+    cost_type = serializers.CharField(allow_null=True)
 
-class CostBreakdownSerializer(serializers.Serializer):
-    date = serializers.CharField()
-    project = serializers.CharField(required=False)
-    cluster = serializers.CharField(required=False)
-    breakdown = CostBreakdownItemSerializer(many=True)
+class CostBreakdownTreeNodeSerializer(serializers.Serializer):
+    custom_name = serializers.CharField()
+    cost_value = serializers.DecimalField(max_digits=33, decimal_places=15)
+    distributed_cost = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
+    metric_type = serializers.CharField()
+    cost_type = serializers.CharField(allow_null=True)
+    children = serializers.ListField(child=serializers.DictField(), required=False)
 ```
+
+The view class determines which serializer to use based on the `view`
+query parameter (defaults to flat).
 
 ### Pagination
 
