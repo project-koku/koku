@@ -74,6 +74,8 @@ class InventoryOrderBySerializer(OCPOrderBySerializer):
     usage = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
     request = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
     limit = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
+    usage_efficiency = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
+    wasted_cost = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
 
 
 class OCPFilterSerializer(BaseFilterSerializer):
