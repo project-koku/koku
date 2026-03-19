@@ -19,7 +19,10 @@ from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
+from django.db.models.functions import Greatest
 from django.db.models.functions import JSONObject
+from django.db.models.functions import Round
+from django.db.models.functions.comparison import NullIf
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
@@ -157,6 +160,45 @@ class OCPProviderMap(ProviderMap):
             )
             * Coalesce(exchange_rate_column, Value(1, output_field=DecimalField())),
         )
+
+    def _cpu_usage_sum(self):
+        """Return a new Sum expression for CPU usage hours."""
+        return Sum(Coalesce(F("pod_usage_cpu_core_hours"), Value(0, output_field=DecimalField())))
+
+    def _cpu_request_sum(self):
+        """Return a new Sum expression for CPU request hours."""
+        return Sum(Coalesce(F("pod_request_cpu_core_hours"), Value(0, output_field=DecimalField())))
+
+    def _memory_usage_sum(self):
+        """Return a new Sum expression for memory usage hours."""
+        return Sum(Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0, output_field=DecimalField())))
+
+    def _memory_request_sum(self):
+        """Return a new Sum expression for memory request hours."""
+        return Sum(Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0, output_field=DecimalField())))
+
+    def _efficiency_annotations(self, usage_sum_prop, request_sum_prop, cost_total_expr):
+        """Build usage_efficiency and wasted_cost annotation expressions."""
+        _dec = DecimalField(max_digits=33, decimal_places=15)
+        return {
+            "usage_efficiency": Coalesce(
+                Round(usage_sum_prop / NullIf(request_sum_prop, Value(0, output_field=_dec)) * Value(100)),
+                Value(0),
+                output_field=IntegerField(),
+            ),
+            "wasted_cost": Coalesce(
+                Greatest(
+                    cost_total_expr
+                    * (
+                        Value(1, output_field=_dec)
+                        - usage_sum_prop / NullIf(request_sum_prop, Value(0, output_field=_dec))
+                    ),
+                    Value(0, output_field=_dec),
+                ),
+                Value(0, output_field=_dec),
+                output_field=_dec,
+            ),
+        }
 
     def __init__(self, provider, report_type, schema_name):
         """Constructor."""
@@ -364,6 +406,11 @@ class OCPProviderMap(ProviderMap):
                                 "pod_request_cpu_core_hours", default=Value(0, output_field=DecimalField())
                             ),
                             "limit": Sum("pod_limit_cpu_core_hours", default=Value(0, output_field=DecimalField())),
+                            **self._efficiency_annotations(
+                                self._cpu_usage_sum(),
+                                self._cpu_request_sum(),
+                                self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
+                            ),
                         },
                         "capacity_aggregate": {
                             "cluster": {
@@ -418,6 +465,11 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "limit": Sum(
                                 Coalesce(F("pod_limit_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                            ),
+                            **self._efficiency_annotations(
+                                self._cpu_usage_sum(),
+                                self._cpu_request_sum(),
+                                self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
                             ),
                             "capacity": Max("cluster_capacity_cpu_core_hours"),  # overwritten in capacity aggregation
                             "clusters": ArrayAgg(
@@ -511,6 +563,11 @@ class OCPProviderMap(ProviderMap):
                             "limit": Sum(
                                 "pod_limit_memory_gigabyte_hours", default=Value(0, output_field=DecimalField())
                             ),
+                            **self._efficiency_annotations(
+                                self._memory_usage_sum(),
+                                self._memory_request_sum(),
+                                self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_memory_cost,
+                            ),
                         },
                         "capacity_aggregate": {
                             "cluster": {
@@ -566,6 +623,11 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "limit": Sum(
                                 Coalesce(F("pod_limit_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
+                            ),
+                            **self._efficiency_annotations(
+                                self._memory_usage_sum(),
+                                self._memory_request_sum(),
+                                self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_memory_cost,
                             ),
                             "capacity": Max(
                                 "cluster_capacity_memory_gigabyte_hours"
@@ -983,9 +1045,7 @@ class OCPProviderMap(ProviderMap):
                                 Coalesce(F("memory_capacity_gb"), Value(0, output_field=DecimalField()))
                             ),
                             "gpu_memory_units": Value("GB", output_field=CharField()),
-                            "gpu_count": Sum(
-                                Coalesce(F("gpu_count"), Value(0, output_field=IntegerField())), distinct=True
-                            ),
+                            "gpu_count": Sum("gpu_count", default=Value(0, output_field=IntegerField())),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
                         },
                         "aggregate_ranks_exclusions": [
