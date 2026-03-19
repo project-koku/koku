@@ -150,7 +150,6 @@ services:
       - koku-base
 
   koku-worker:
-    hostname: koku-worker-1
     image: koku_base
     working_dir: /koku/koku
     entrypoint:
@@ -221,7 +220,7 @@ services:
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 6001-6020:9000
-      - 5678:5678
+      # Debug port 5678 is conditionally added via docker-compose.debug.yml when scale=1
     volumes:
       - "./koku:/koku/koku:z"
       - "./dev/containers/unleash:/koku/.unleash:z"
@@ -244,7 +243,10 @@ services:
       - "./testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3:z"
       - "./dev/credentials:/etc/credentials:z"
     depends_on:
-      - koku-base
+      koku-base:
+        condition: service_started
+      trino:
+        condition: service_healthy
 
   koku-listener:
     container_name: koku_listener
@@ -732,6 +734,12 @@ services:
       - hive-metastore
     depends_on:
       - hive-metastore
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/v1/info | grep -q '\"starting\":false'"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
     ulimits:
       nofile:
         soft: 4096

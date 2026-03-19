@@ -29,7 +29,16 @@ ifneq ($(DOCKER_COMPOSE_CHECK), 0)
 	DOCKER_COMPOSE_BIN = $(DOCKER)-compose
 endif
 
-DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN)
+# Conditionally include debug compose file for single-worker debugging
+# When scale=1: includes docker-compose.debug.yml (adds debug port 5678)
+# When scale>1: excludes debug file (prevents port conflicts for multi-worker)
+ifeq ($(scale),1)
+	COMPOSE_FILES = -f docker-compose.yml -f docker-compose.debug.yml
+else
+	COMPOSE_FILES = -f docker-compose.yml
+endif
+
+DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN) $(COMPOSE_FILES)
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
@@ -343,16 +352,22 @@ docker-build:
 
 
 docker-up: docker-build
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
+	$(DOCKER_COMPOSE) up -d koku-server masu-server trino hive-metastore koku-beat koku-listener sources-client subs-worker
+	@$(MAKE) _trino-wait
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-worker
 
 docker-up-no-build: docker-up-db
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
+	$(DOCKER_COMPOSE) up -d koku-server masu-server trino hive-metastore koku-beat koku-listener sources-client subs-worker
+	@$(MAKE) _trino-wait
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-worker
 
 # basic dev environment targets
 docker-up-min: docker-build docker-up-min-no-build
 
 docker-up-min-no-build: docker-host-dir-setup docker-up-db
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-server masu-server koku-worker trino hive-metastore
+	$(DOCKER_COMPOSE) up -d koku-server masu-server trino hive-metastore
+	@$(MAKE) _trino-wait
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-worker
 
 # basic dev environment targets
 docker-up-min-with-subs: docker-up-min
@@ -426,6 +441,14 @@ docker-trino-up: docker-trino-setup
 docker-trino-up-no-build: docker-trino-setup
 	$(DOCKER_COMPOSE) up -d trino hive-metastore
 
+_trino-wait:
+	@printf "Waiting for Trino"
+	@until curl -sf http://localhost:8080/v1/info 2>/dev/null | grep -q '"starting":false'; do \
+		printf "." ; \
+		sleep 2 ; \
+	done
+	@echo " ready"
+
 docker-trino-ps:
 	$(DOCKER_COMPOSE) ps trino hive-metastore
 
@@ -435,9 +458,9 @@ docker-trino-down:
 
 docker-trino-down-all: docker-trino-down docker-down
 
-docker-up-min-trino: docker-up-min docker-trino-up
+docker-up-min-trino: docker-build docker-trino-setup docker-up-min-no-build
 
-docker-up-min-trino-no-build: docker-up-min-no-build docker-trino-up-no-build
+docker-up-min-trino-no-build: docker-trino-setup docker-up-min-no-build
 
 
 ### Source targets ###
