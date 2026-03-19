@@ -352,14 +352,14 @@ docker-build:
 
 
 docker-up: docker-build
-	$(DOCKER_COMPOSE) up -d koku-server masu-server trino hive-metastore koku-beat koku-listener sources-client subs-worker
+	$(DOCKER_COMPOSE) up -d trino hive-metastore
 	@$(MAKE) _trino-wait
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-worker
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 docker-up-no-build: docker-up-db
-	$(DOCKER_COMPOSE) up -d koku-server masu-server trino hive-metastore koku-beat koku-listener sources-client subs-worker
+	$(DOCKER_COMPOSE) up -d trino hive-metastore
 	@$(MAKE) _trino-wait
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-worker
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 # basic dev environment targets
 docker-up-min: docker-build docker-up-min-no-build
@@ -437,9 +437,11 @@ docker-trino-setup: delete-trino docker-host-dir-setup
 
 docker-trino-up: docker-trino-setup
 	$(DOCKER_COMPOSE) up --build -d trino hive-metastore
+	@$(MAKE) _trino-wait
 
 docker-trino-up-no-build: docker-trino-setup
 	$(DOCKER_COMPOSE) up -d trino hive-metastore
+	@$(MAKE) _trino-wait
 
 _trino-wait:
 	@printf "Waiting for Trino"
@@ -458,9 +460,9 @@ docker-trino-down:
 
 docker-trino-down-all: docker-trino-down docker-down
 
-docker-up-min-trino: docker-build docker-trino-setup docker-up-min-no-build
+docker-up-min-trino: docker-up-min docker-trino-up
 
-docker-up-min-trino-no-build: docker-trino-setup docker-up-min-no-build
+docker-up-min-trino-no-build: docker-up-min-no-build docker-trino-up-no-build
 
 
 ### Source targets ###
