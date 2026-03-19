@@ -281,6 +281,9 @@ parameters:
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
+- name: ONPREM
+  description: toggles onprem data processing logic
+  value: "False"
 - description: Image tag
   name: IMAGE_TAG
   required: true

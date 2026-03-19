@@ -28,13 +28,13 @@ SELECT
     latest.memory_request_hours
 FROM (
     SELECT
-        pod_labels::jsonb->>'vm_kubevirt_io_name' AS vm_name,
+        pod_labels->>'vm_kubevirt_io_name' AS vm_name,
         pod_request_cpu_core_hours AS cpu_request_hours,
         pod_request_memory_gigabyte_hours AS memory_request_hours,
         node AS node_name,
         usage_start,
         ROW_NUMBER() OVER (
-            PARTITION BY pod_labels::jsonb->>'vm_kubevirt_io_name'
+            PARTITION BY pod_labels->>'vm_kubevirt_io_name'
             ORDER BY usage_start DESC
         ) AS rn
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS summary
@@ -44,7 +44,7 @@ FROM (
         summary.usage_start >= DATE({{start_date}})
         AND summary.usage_start <= DATE({{end_date}})
         AND pod_request_cpu_core_hours IS NOT NULL
-        AND pod_labels::jsonb->>'vm_kubevirt_io_name' IS NOT NULL
+        AND pod_labels->>'vm_kubevirt_io_name' IS NOT NULL
 ) AS latest
 LEFT JOIN (
     SELECT

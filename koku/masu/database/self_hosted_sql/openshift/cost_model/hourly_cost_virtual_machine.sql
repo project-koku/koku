@@ -45,7 +45,7 @@ JOIN (
       AND month = {{month}}
     GROUP BY 1, 2
 ) AS vmhrs
-    ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = vmhrs.vm_name
+    ON lids.pod_labels->>'vm_kubevirt_io_name' = vmhrs.vm_name
     AND vmhrs.interval_day = lids.usage_start
 {%- else %}
 JOIN (
@@ -60,7 +60,7 @@ JOIN (
       AND month = {{month}}
     GROUP BY 1, 2
 ) AS vmhrs
-    ON lids.pod_labels::jsonb->>'vm_kubevirt_io_name' = vmhrs.vm_name
+    ON lids.pod_labels->>'vm_kubevirt_io_name' = vmhrs.vm_name
     AND vmhrs.interval_day = lids.usage_start
 {%- endif %}
 WHERE usage_start >= DATE({{start_date}})
