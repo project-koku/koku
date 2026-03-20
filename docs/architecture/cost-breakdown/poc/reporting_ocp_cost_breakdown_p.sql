@@ -1,7 +1,7 @@
 -- reporting_ocp_cost_breakdown_p.sql (Phase 4 PoC)
 --
 -- Populates OCPCostUIBreakDownP from two sources:
---   1. cost_model_rates_to_usage     — per-rate leaf nodes
+--   1. rates_to_usage     — per-rate leaf nodes
 --   2. reporting_ocpusagelineitem_daily_summary — distribution rows only
 --
 -- IQ-4: build_path() and build_path_distributed() are implemented as
@@ -98,7 +98,7 @@ SELECT
         ELSE 'usage_cost'
     END AS breakdown_category
 
-FROM {{schema | sqlsafe}}.cost_model_rates_to_usage r
+FROM {{schema | sqlsafe}}.rates_to_usage r
 LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cc
     ON r.cost_category_id = cc.id
 WHERE r.usage_start >= {{start_date}}

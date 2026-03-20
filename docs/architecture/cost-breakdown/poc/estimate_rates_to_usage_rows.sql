@@ -1,6 +1,6 @@
 -- estimate_rates_to_usage_rows.sql (R3 Risk Assessment)
 --
--- Estimates the number of rows cost_model_rates_to_usage would produce
+-- Estimates the number of rows rates_to_usage would produce
 -- from the current daily summary data for a 30-day window.
 --
 -- NOTE: This PoC estimates at the COARSER granularity (usage_start,

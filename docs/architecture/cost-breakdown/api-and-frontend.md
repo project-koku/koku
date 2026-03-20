@@ -182,7 +182,6 @@ Add `cost_breakdown` to `OCPProviderMap`:
         "top_category": F("top_category"),
         "breakdown_category": F("breakdown_category"),
         "metric_type": F("metric_type"),
-        "cost_type": F("cost_type"),
     },
     "filters": ...,
     "group_by_options": ["cluster", "node", "project"],
@@ -206,10 +205,10 @@ rows grouped by date and `group_by` parameters.
       "date": "2026-02",
       "project": "my-namespace",
       "values": [
-        {"depth": 1, "custom_name": "total_cost", "path": "total_cost", "parent_path": "", "cost_value": 4000.00, "distributed_cost": null, "metric_type": "total", "cost_type": null},
-        {"depth": 2, "custom_name": "project", "path": "project", "parent_path": "total_cost", "cost_value": 2500.00, "distributed_cost": null, "metric_type": "total", "cost_type": null},
-        {"depth": 3, "custom_name": "usage_cost", "path": "project.usage_cost", "parent_path": "project", "cost_value": 1200.00, "distributed_cost": null, "metric_type": "total", "cost_type": null},
-        {"depth": 4, "custom_name": "OpenShift Subscriptions", "path": "project.usage_cost.OpenShift_Subscriptions", "parent_path": "project.usage_cost", "cost_value": 500.00, "distributed_cost": null, "metric_type": "cpu", "cost_type": "Infrastructure"}
+        {"depth": 1, "custom_name": "total_cost", "path": "total_cost", "parent_path": "", "cost_value": 4000.00, "distributed_cost": null, "metric_type": "total"},
+        {"depth": 2, "custom_name": "project", "path": "project", "parent_path": "total_cost", "cost_value": 2500.00, "distributed_cost": null, "metric_type": "total"},
+        {"depth": 3, "custom_name": "usage_cost", "path": "project.usage_cost", "parent_path": "project", "cost_value": 1200.00, "distributed_cost": null, "metric_type": "total"},
+        {"depth": 4, "custom_name": "OpenShift Subscriptions", "path": "project.usage_cost.OpenShift_Subscriptions", "parent_path": "project.usage_cost", "cost_value": 500.00, "distributed_cost": null, "metric_type": "cpu"}
       ]
     }
   ]
@@ -261,14 +260,12 @@ class CostBreakdownFlatItemSerializer(serializers.Serializer):
     cost_value = serializers.DecimalField(max_digits=33, decimal_places=15)
     distributed_cost = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
     metric_type = serializers.CharField()
-    cost_type = serializers.CharField(allow_null=True)
 
 class CostBreakdownTreeNodeSerializer(serializers.Serializer):
     custom_name = serializers.CharField()
     cost_value = serializers.DecimalField(max_digits=33, decimal_places=15)
     distributed_cost = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
     metric_type = serializers.CharField()
-    cost_type = serializers.CharField(allow_null=True)
     children = serializers.ListField(child=serializers.DictField(), required=False)
 ```
 
@@ -418,3 +415,4 @@ CSV columns per PRD: `Project, Level 1 (Category), Level 2 (Sub-Category), Metri
 | v2.0 | 2026-03-17 | Fix _sync_rate_table to use bulk_create instead of loop. Update IQ-7 from PROPOSAL to RESOLVED (auto-generated custom_name confirmed). |
 | v2.2 | 2026-03-17 | IQ-3 resolved: split single serializer into CostBreakdownFlatItemSerializer + CostBreakdownTreeNodeSerializer. Add ?view=tree query param. Update flat and tree JSON response examples. |
 | v2.3 | 2026-03-17 | Blast-radius triage: fix RateSerializer `custom_name` from `required=True` to `required=False` (align with IQ-7 resolution). Update validation rules. |
+| v3.0 | 2026-03-19 | **IQ-8 RESOLVED.** Drop `cost_type` from provider map, serializers, and JSON examples (PM + tech lead confirmed not needed). |

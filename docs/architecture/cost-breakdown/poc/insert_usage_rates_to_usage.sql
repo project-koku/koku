@@ -1,6 +1,6 @@
 -- insert_usage_rates_to_usage.sql (Phase 2 PoC)
 --
--- Writes per-rate cost rows to cost_model_rates_to_usage.
+-- Writes per-rate cost rows to rates_to_usage.
 -- REPLACES usage_costs.sql direct-write. RatesToUsage is the single
 -- source of truth — daily summary is populated via aggregation from
 -- this table (see aggregate_rates_to_daily_summary.sql).
@@ -25,7 +25,7 @@
 --   memory_gb_effective_usage_per_hour,
 --   storage_gb_usage_per_month, storage_gb_request_per_month
 
-DELETE FROM {{schema | sqlsafe}}.cost_model_rates_to_usage AS rtu
+DELETE FROM {{schema | sqlsafe}}.rates_to_usage AS rtu
 WHERE rtu.usage_start >= {{start_date}}
     AND rtu.usage_start <= {{end_date}}
     AND rtu.source_uuid = {{source_uuid}}
@@ -148,7 +148,7 @@ base AS (
         lids.cost_category_id
 )
 
-INSERT INTO {{schema | sqlsafe}}.cost_model_rates_to_usage (
+INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, cost_model_id, report_period_id, source_uuid,
     usage_start, usage_end, node, namespace, cluster_id, cluster_alias,
     data_source, persistentvolumeclaim, pod_labels, volume_labels, all_labels,

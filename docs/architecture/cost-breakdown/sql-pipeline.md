@@ -1,7 +1,7 @@
 # SQL Pipeline Changes
 
 This document describes how the cost calculation SQL pipeline changes to
-support per-rate cost tracking via `CostModelRatesToUsage`.
+support per-rate cost tracking via `RatesToUsage`.
 
 > **See also**: OQ-1 and OQ-2 in [README.md](./README.md) — both resolved.
 > OQ-1 confirms 12× row multiplication; OQ-2 confirms monthly cost row
@@ -158,7 +158,9 @@ usage (CPU or memory, per `distribution` setting). Output rows have
 
 `RatesToUsage` is the **single source of truth** from Phase 2 onward.
 There is no temporary dual-path — `usage_costs.sql` direct-write is
-replaced by the RatesToUsage INSERT + aggregation in one step.
+replaced by per-rate INSERTs into `RatesToUsage`, per-rate distribution
+(IQ-9 Option 1), then aggregation from `RatesToUsage` into the daily
+summary (step 5a).
 
 ```
 0.  DELETE RatesToUsage → clear stale per-rate rows (new)
@@ -168,21 +170,29 @@ replaced by the RatesToUsage INSERT + aggregation in one step.
 4.  Tag costs        → RatesToUsage (new)
 4a. VM usage costs   → RatesToUsage (Trino/self-hosted)
 4b. Tag-based costs  → RatesToUsage (mixed paths)
-4c. AGGREGATE        → DELETE + INSERT: SUM(RatesToUsage) → daily_summary cost columns (new)
-5.  Distribution     → UNCHANGED (reads aggregated daily_summary columns)
+4c. Raw cost → RTU   → INSERT infrastructure raw cost rows into RatesToUsage (new)
+5.  Distribution     → reads per-rate costs from RatesToUsage + usage from daily summary → writes per-rate distributed rows back to RatesToUsage (REWRITTEN)
+5a. AGGREGATE        → DELETE + INSERT: SUM(RatesToUsage) → daily_summary cost columns (new)
 6.  UI summary       → UNCHANGED
-7.  Breakdown table  → populate OCPCostUIBreakDownP from RatesToUsage + distribution rows (new)
+7.  Breakdown table  → populate OCPCostUIBreakDownP from RatesToUsage (new)
 ```
 
-Step 4c runs `aggregate_rates_to_daily_summary.sql` which uses the
-same DELETE + INSERT pattern as `usage_costs.sql` (delete rows with
-`cost_model_rate_type IN ('Infrastructure', 'Supplementary')`, then
-INSERT aggregated rows from `RatesToUsage`). This ensures the
-downstream pipeline (distribution, UI summary) sees the same row
-structure it expects.
+Step 5 runs per-rate distribution SQL that joins `RatesToUsage` (source
+namespace costs at rate granularity) with `pod_effective_usage_*_hours`
+from `reporting_ocpusagelineitem_daily_summary` for proportional
+allocation, then writes recipient and negation rows back into
+`RatesToUsage` with `distributed_cost` populated.
 
-Step 7 runs after distribution so that `distributed_cost` values are
-available for the overhead branch of the breakdown tree.
+Step 5a runs `aggregate_rates_to_daily_summary.sql` **after**
+distribution so the daily summary reflects final values including
+distributed amounts. It uses the same DELETE + INSERT pattern as
+`usage_costs.sql` (delete rows with
+`cost_model_rate_type IN ('Infrastructure', 'Supplementary')`, then
+INSERT aggregated rows from `RatesToUsage`).
+
+Step 7 reads a **single** source (`RatesToUsage`) for both per-rate
+`calculated_cost` and per-rate `distributed_cost` leaves in the
+breakdown tree.
 
 ### Markup → RatesToUsage (Step 2)
 
@@ -204,7 +214,7 @@ def populate_markup_rates_to_usage(self, markup, start_date, end_date, cluster_i
 
     bulk = []
     for row in rows.iterator():
-        bulk.append(CostModelRatesToUsage(
+        bulk.append(RatesToUsage(
             rate=None,                          # markup has no Rate row
             cost_model_id=cost_model_id,
             report_period_id=row.report_period_id,
@@ -223,7 +233,7 @@ def populate_markup_rates_to_usage(self, markup, start_date, end_date, cluster_i
             calculated_cost=row.infrastructure_markup_cost,
             cost_category_id=row.cost_category_id,
         ))
-    CostModelRatesToUsage.objects.bulk_create(bulk, batch_size=5000)
+    RatesToUsage.objects.bulk_create(bulk, batch_size=5000)
 ```
 
 The `custom_name = "Markup"` is a fixed label (not from the `Rate` table)
@@ -235,19 +245,7 @@ into `cost_model_cpu_cost` etc.; they flow through `RatesToUsage` →
 
 #### R17 decision rationale — why ORM-first with SQL fallback
 
-| # | Approach | Pros | Cons | Verdict |
-|---|----------|------|------|---------|
-| A | **SQL-only from the start** — raw `INSERT...SELECT` for markup, matching the pattern used by usage costs | Single query, no Python memory overhead, fastest possible execution. | Markup is currently an ORM UPDATE (not SQL file). Introducing a SQL file for markup changes the existing pattern. Requires passing `cost_model_id` as a SQL parameter, which the current markup path doesn't do. Harder to test in isolation. | Viable but higher initial risk |
-| B | **ORM-only** — `bulk_create` with `batch_size`, matching the existing markup pattern (ORM UPDATE) | Consistent with how markup already works. Easier to debug (Python stack traces). `batch_size` controls memory. | O(N) Python iteration over daily summary rows. For large tenants (>100K rows), memory and time could be significant. | Viable but may not scale |
-| C | **ORM-first, SQL fallback** — start with ORM for simplicity; switch to SQL if benchmarks show ORM is too slow | Ships faster with lower risk. Phase 2 benchmark (#6) tests the ORM path with realistic data. SQL fallback is pre-designed and ready to deploy if needed. | Two implementations to maintain until the ORM path is retired (if ever). | **Selected** |
-
-**Why Option C**: Markup is the simplest cost type (fixed percentage,
-no rate identity, no Jinja parameters). Starting with ORM keeps the
-change small and testable. If the Phase 2 benchmark shows the ORM path
-exceeds 30 seconds (benchmark #6), the SQL fallback below is already
-designed and can be swapped in without redesigning the aggregation or
-breakdown pipeline. This "try simple first, optimize if needed" approach
-avoids premature optimization while having a concrete fallback ready.
+See [risk-register.md § R17](./risk-register.md#r17--markup-orm-overhead) for the full decision rationale (3 options evaluated).
 
 **SQL-based alternative**: If the ORM-based approach above proves too
 slow for large tenants, replace it with a raw SQL INSERT...SELECT that
@@ -255,7 +253,7 @@ avoids Python iteration entirely:
 
 ```sql
 -- insert_markup_rates_to_usage.sql (R17 fallback)
-INSERT INTO {{schema | sqlsafe}}.cost_model_rates_to_usage (
+INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, cost_model_id, report_period_id, source_uuid,
     usage_start, usage_end, node, namespace, cluster_id, cluster_alias,
     data_source, persistentvolumeclaim, pod_labels, volume_labels, all_labels,
@@ -311,7 +309,7 @@ DELETE-then-INSERT pattern used by `usage_costs.sql` and
 
 ```sql
 -- delete_rates_to_usage.sql
-DELETE FROM {{schema | sqlsafe}}.cost_model_rates_to_usage
+DELETE FROM {{schema | sqlsafe}}.rates_to_usage
 WHERE usage_start >= {{start_date}}
   AND usage_start <= {{end_date}}
   AND source_uuid = {{source_uuid}}
@@ -324,26 +322,13 @@ cleanup: `(source_uuid, report_period_id, date range)`.
 
 #### R11 decision rationale — why single DELETE (not per-rate-type)
 
-| # | Approach | Pros | Cons | Verdict |
-|---|----------|------|------|---------|
-| A | **Per-rate-type DELETE** — separate DELETEs for usage (`monthly_cost_type IS NULL`), monthly (`Node`, `Cluster`, etc.), and tag costs (`Tag`), mirroring the daily summary pattern | Matches existing koku convention. Allows partial recalculation (e.g., re-run only monthly costs). | Order-of-operations risk: if Step 3 (monthly) runs before Step 1's DELETE, stale rows survive. 5+ separate DELETE statements add execution overhead. Partial recalculation is not a current requirement. | **Rejected** — complexity without benefit |
-| B | **Single DELETE per window** — one DELETE scoped to `(source_uuid, report_period_id, date range)` before any INSERTs | Simple and safe: clears everything, then rebuilds. No order-of-operations risk. Single query. | Cannot partially recalculate one cost type without regenerating all. Slightly more work if only one rate changed. | **Selected** |
-| C | **UPSERT (INSERT ON CONFLICT)** — use a unique constraint on `(usage_start, cluster_id, namespace, node, custom_name, ...)` and update on conflict | Avoids DELETE entirely. Idempotent. | RatesToUsage has no natural unique key — the same (namespace, day, rate) can produce multiple rows due to different `pod_labels`. A composite unique constraint on all GROUP BY columns is impractical (includes JSONB). `label_hash` could serve as part of a unique key, but INSERT ON CONFLICT with a hash-based key risks silent overwrites on hash collision. | **Rejected** — no viable unique key |
-
-**Why Option B**: `RatesToUsage` rows are always regenerated as a
-complete set per recalculation window. There is no use case for
-preserving some rows while deleting others. A single DELETE is atomic,
-predictable, and eliminates the class of bugs where stale rows from a
-previous cost type survive because a per-type DELETE ran in the wrong
-order. The existing Redis lock (`WorkerCache.lock_single_task`) ensures
-only one recalculation runs per `(schema, provider, start, end)` at a
-time, so concurrent DELETEs on the same window are not possible.
+See [risk-register.md § R11](./risk-register.md#r11--concurrent-cost-model-updates) for the full decision rationale (3 options evaluated).
 
 ### SQL File Inventory
 
 #### Files That Need Modification (Phase 2-3)
 
-Each file gains an additional INSERT into `cost_model_rates_to_usage`
+Each file gains an additional INSERT into `rates_to_usage`
 alongside the existing INSERT into `reporting_ocpusagelineitem_daily_summary`.
 
 **`sql/openshift/cost_model/` (PostgreSQL path)**:
@@ -360,6 +345,16 @@ alongside the existing INSERT into `reporting_ocpusagelineitem_daily_summary`.
 | `monthly_cost_persistentvolumeclaim.sql` | 3 | Same as above |
 | `monthly_cost_persistentvolumeclaim_by_tag.sql` | 3 | Same as above |
 | `monthly_cost_virtual_machine.sql` | 3 | Same as above |
+
+**`sql/openshift/cost_model/distribute_cost/` (IQ-9 Option 1)**:
+
+| File | Phase | Change Description |
+|------|-------|--------------------|
+| `distribute_platform_cost.sql` | 4 | **REWRITTEN (IQ-9 Option 1):** new files read per-rate costs from `RatesToUsage` + usage metrics from daily summary, write per-rate distributed rows back to `RatesToUsage`. Old files deprecated for rollback. |
+| `distribute_worker_cost.sql` | 4 | Same |
+| `distribute_unattributed_storage_cost.sql` | 4 | Same |
+| `distribute_unattributed_network_cost.sql` | 4 | Same |
+| `distribute_unallocated_gpu_cost.sql` | 4 | Same |
 
 **`trino_sql/openshift/cost_model/` (Trino/cloud path)**:
 
@@ -382,11 +377,6 @@ Same 8 files as the Trino path — they mirror each other.
 
 | File | Reason |
 |------|--------|
-| `distribute_cost/distribute_platform_cost.sql` | Operates on aggregated `cost_model_*_cost` columns on daily summary |
-| `distribute_cost/distribute_worker_cost.sql` | Same |
-| `distribute_cost/distribute_unattributed_storage_cost.sql` | Same |
-| `distribute_cost/distribute_unattributed_network_cost.sql` | Same |
-| `distribute_cost/distribute_unallocated_gpu_cost.sql` | Same |
 | `delete_monthly_cost_model_rate_type.sql` | Operates on daily summary |
 | `delete_monthly_cost.sql` | Operates on daily summary |
 
@@ -397,8 +387,14 @@ Same 8 files as the Trino path — they mirror each other.
 | `sql/openshift/cost_model/delete_rates_to_usage.sql` | 2 | DELETE stale `RatesToUsage` rows before recalculation |
 | `sql/openshift/cost_model/insert_usage_rates_to_usage.sql` | 2 | CTE + UNION ALL INSERT into `RatesToUsage` per rate component — see [PoC](./poc/insert_usage_rates_to_usage.sql) |
 | `sql/openshift/cost_model/validate_rates_against_daily_summary.sql` | 2 | **CI-only** regression test: read-only comparison of `RatesToUsage` aggregates vs expected daily summary values. Used in integration tests to validate aggregation correctness. |
-| `sql/openshift/cost_model/aggregate_rates_to_daily_summary.sql` | 2 | DELETE + INSERT: aggregates `RatesToUsage` into daily summary `cost_model_*_cost` columns, replacing `usage_costs.sql` direct-write. See [The Aggregation Step](#the-aggregation-step). |
-| `sql/openshift/ui_summary/reporting_ocp_cost_breakdown_p.sql` | 4 | Populate `OCPCostUIBreakDownP` from `RatesToUsage` + daily summary distribution rows — see [PoC](./poc/reporting_ocp_cost_breakdown_p.sql) |
+| `sql/openshift/cost_model/aggregate_rates_to_daily_summary.sql` | 2 | DELETE + INSERT: aggregates `RatesToUsage` into daily summary `cost_model_*_cost` columns, replacing `usage_costs.sql` direct-write. Runs **after** per-rate distribution (step 5a). See [The Aggregation Step](#the-aggregation-step). |
+| `sql/openshift/cost_model/insert_raw_cost_rates_to_usage.sql` | 2 | INSERT infrastructure raw cost rows into `RatesToUsage` |
+| `sql/openshift/cost_model/distribute_platform_cost_per_rate.sql` | 4 | Per-rate platform distribution (replaces `distribute_platform_cost.sql`) |
+| `sql/openshift/cost_model/distribute_worker_cost_per_rate.sql` | 4 | Per-rate worker distribution |
+| `sql/openshift/cost_model/distribute_unattributed_storage_per_rate.sql` | 4 | Per-rate storage distribution |
+| `sql/openshift/cost_model/distribute_unattributed_network_per_rate.sql` | 4 | Per-rate network distribution |
+| `sql/openshift/cost_model/distribute_unallocated_gpu_per_rate.sql` | 4 | Per-rate GPU distribution |
+| `sql/openshift/ui_summary/reporting_ocp_cost_breakdown_p.sql` | 4 | Populate `OCPCostUIBreakDownP` from `RatesToUsage` — see [PoC](./poc/reporting_ocp_cost_breakdown_p.sql) |
 
 ---
 
@@ -507,9 +503,11 @@ New ORM-based method to write markup costs into `RatesToUsage`. See
 
 Bridge between per-rate `RatesToUsage` rows and the existing aggregated
 daily summary columns. `RatesToUsage` is the **single source of truth**
-for cost model calculations. The aggregation step ensures the downstream
-pipeline (distribution, UI summary) continues to work unchanged by
-populating the same `cost_model_*_cost` columns they already read from.
+for cost model calculations. Per-rate distribution (step 5) writes
+distributed amounts back into `RatesToUsage`; aggregation (step 5a) then
+rolls those rows up so the UI summary path still reads the same
+`cost_model_*_cost` columns on the daily summary, now including
+distributed cost in the totals.
 
 ### SQL Sketch — CI Validation Query (Read-Only)
 
@@ -560,7 +558,7 @@ LEFT JOIN (
         SUM(CASE WHEN metric_type = 'cpu'     THEN calculated_cost ELSE 0 END) AS total_cpu_cost,
         SUM(CASE WHEN metric_type = 'memory'  THEN calculated_cost ELSE 0 END) AS total_memory_cost,
         SUM(CASE WHEN metric_type = 'storage' THEN calculated_cost ELSE 0 END) AS total_volume_cost
-    FROM {{schema | sqlsafe}}.cost_model_rates_to_usage
+    FROM {{schema | sqlsafe}}.rates_to_usage
     WHERE usage_start >= {{start_date}}
       AND usage_start <= {{end_date}}
       AND source_uuid = {{source_uuid}}
@@ -614,8 +612,8 @@ existing DELETE + INSERT approach:
 
 ```sql
 -- aggregate_rates_to_daily_summary.sql (Phase 2+)
--- Runs after all cost writes to RatesToUsage and before distribution.
--- Replaces usage_costs.sql direct-write.
+-- Runs after all per-rate INSERTs to RatesToUsage **and** after per-rate
+-- distribution (step 5). Replaces usage_costs.sql direct-write.
 
 -- Step 1: Delete existing cost model rows (same scope as usage_costs.sql DELETE)
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
@@ -656,7 +654,7 @@ SELECT
     SUM(CASE WHEN rtu.metric_type = 'cpu'     THEN rtu.calculated_cost ELSE 0 END),
     SUM(CASE WHEN rtu.metric_type = 'memory'  THEN rtu.calculated_cost ELSE 0 END),
     SUM(CASE WHEN rtu.metric_type = 'storage' THEN rtu.calculated_cost ELSE 0 END)
-FROM {{schema | sqlsafe}}.cost_model_rates_to_usage rtu
+FROM {{schema | sqlsafe}}.rates_to_usage rtu
 WHERE rtu.usage_start >= {{start_date}}
   AND rtu.usage_start <= {{end_date}}
   AND rtu.source_uuid = {{source_uuid}}
@@ -679,10 +677,13 @@ GROUP BY
 **Why DELETE + INSERT instead of UPDATE?** `usage_costs.sql` creates new
 rows in the daily summary (with `uuid_generate_v4()` and
 `cost_model_rate_type = 'Infrastructure'/'Supplementary'`). It does not
-update existing base rows. The aggregation must follow the same pattern
-so that distribution SQL finds the same row structure it expects. An
-UPDATE would require matching pre-existing rows, which don't exist if
-we've removed the direct-write path.
+update existing base rows. The aggregation step must follow the same
+pattern so UI summary and other readers still see the same discrete
+cost-model rows on the daily summary. Per-rate distribution runs **first**
+on `RatesToUsage` (step 5); aggregation (step 5a) then rolls up RTU rows
+(including distributed amounts) into those columns. An UPDATE would require
+matching pre-existing rows, which don't exist if we've removed the
+direct-write path.
 
 The `WHERE metric_type IN ('cpu', 'memory', 'storage')` excludes markup
 and gpu rows from the aggregation into the three cost_model columns.
@@ -694,16 +695,13 @@ to `cost_model_cpu_cost` when `distribution = 'cpu'` but to
 Jinja2 conditional already used in `cte_node_cost`. See
 [README.md § IQ-2](./README.md#iq-2-cluster_cost_per_hour-metric_type-is-distribution-dependent-phase-2).
 
-**GPU direct-write path is preserved.** `cost_model_gpu_cost` is a 4th
-cost column on the daily summary, written directly by
-`monthly_cost_gpu.sql` via `populate_tag_based_costs()`. This column is
-never touched by `usage_costs.sql` or the aggregation step. GPU costs
-still get INSERT'd into `RatesToUsage` (with `metric_type = 'gpu'`) for
-the breakdown tree, but the aggregation INSERT only writes
-`cost_model_cpu_cost`, `cost_model_memory_cost`, and
-`cost_model_volume_cost`. GPU distribution
-(`distribute_unallocated_gpu_cost.sql`) reads `cost_model_gpu_cost`
-from the daily summary and continues to work unchanged.
+**GPU path:** `cost_model_gpu_cost` on the daily summary is still written
+by `monthly_cost_gpu.sql` via `populate_tag_based_costs()`. GPU costs are
+also INSERT'd into `RatesToUsage` (`metric_type = 'gpu'`). Per-rate GPU
+distribution uses `distribute_unallocated_gpu_per_rate.sql`, which reads
+GPU rows from `RatesToUsage` and daily-summary usage metrics, then writes
+per-rate distributed rows back to `RatesToUsage`; aggregation (step 5a)
+rolls GPU and other metrics into the daily summary as designed.
 
 ---
 
@@ -734,14 +732,17 @@ def update_summary_cost_model_costs(self, summary_range):
     self._update_vm_usage_costs(...)         # Step 4a (Trino/self-hosted + RatesToUsage)
     self._update_tag_based_costs(...)        # Step 4b (mixed paths + RatesToUsage)
 
-    # Step 4c (NEW): AGGREGATE — DELETE + INSERT from RatesToUsage → daily summary
-    # with OCPReportDBAccessor(self._schema) as accessor:
-    #     accessor.aggregate_rates_to_daily_summary(...)
+    # Steps 5–6: refactor distribute_costs_and_update_ui_summary() to run in order:
+    #   (5) DISTRIBUTE — per-rate SQL reads RatesToUsage + daily summary usage
+    #       metrics; writes per-rate distributed rows back to RatesToUsage
+    #       (distribute_*_per_rate.sql).
+    #   (5a) AGGREGATE — DELETE + INSERT: SUM(RatesToUsage) → daily_summary cost
+    #       columns (after distribution so totals include distributed amounts).
+    #   (6) UI summary — populate_ui_summary_tables() unchanged.
+    self.distribute_costs_and_update_ui_summary(summary_range)
 
-    self.distribute_costs_and_update_ui_summary(summary_range)  # Step 5-6 (UNCHANGED)
-
-    # Step 7 (NEW, Phase 4+): Populate breakdown table from RatesToUsage
-    # + distribution rows from daily summary
+    # Step 7 (NEW, Phase 4+): Populate breakdown table from RatesToUsage only
+    # (calculated_cost + distributed_cost both in RTU)
     # with OCPReportDBAccessor(self._schema) as accessor:
     #     accessor.populate_breakdown_table(...)
 ```
@@ -750,287 +751,124 @@ def update_summary_cost_model_costs(self, summary_range):
 
 ## Distribution Costs in the Breakdown Tree
 
-Distribution SQL (`distribute_platform_cost.sql`, `distribute_worker_cost.sql`,
-etc.) creates **new rows** in `reporting_ocpusagelineitem_daily_summary` with
-`cost_model_rate_type` set to `platform_distributed`, `worker_distributed`,
-`unattributed_storage`, `unattributed_network`, or `gpu_distributed`. These
-rows have `distributed_cost` set but no per-rate identity — they represent
-proportional allocation of overhead costs to projects.
-
-Distribution costs **do not flow through `CostModelRatesToUsage`**. The
-`RatesToUsage` table only stores per-rate costs from the cost model pipeline
-(with `cost_model_rate_type` = "Infrastructure" or "Supplementary").
+Per-rate distribution SQL (`distribute_*_per_rate.sql`) reads **per-rate
+costs** from `RatesToUsage` for the source namespace (Platform, Worker
+unallocated, etc.) and **usage weights** from
+`reporting_ocpusagelineitem_daily_summary` (`pod_effective_usage_*_hours` and
+related fields used today for proportional allocation). It writes rows back
+into `RatesToUsage`: source-namespace **negation** rows
+(`distributed_cost = -calculated_cost` at the contributing rate grain) and
+recipient-namespace rows with `distributed_cost = cost × usage_proportion`
+per rate. Rows carrying distribution use the same `cost_model_rate_type`
+discriminators as today (`platform_distributed`, `worker_distributed`, etc.)
+so breakdown paths like `overhead.platform_distributed.usage_cost.<custom_name>`
+remain consistent.
 
 The breakdown population SQL (`reporting_ocp_cost_breakdown_p.sql`, Phase 4)
-reads from **two sources**:
-
-1. `cost_model_rates_to_usage` — per-rate costs with `custom_name`,
-   populating breakdown paths like `project.usage_cost.OpenShift_Subscriptions`
-
-2. `reporting_ocpusagelineitem_daily_summary` — distribution rows only
-   (WHERE `cost_model_rate_type` IN `platform_distributed`,
-   `worker_distributed`, etc.), populating breakdown paths like
-   `overhead.platform_distributed.usage_cost`
+reads from **one** source: `rates_to_usage`. Each leaf row contributes either
+`calculated_cost` (undistributed per-rate cost) or `distributed_cost`
+(per-rate distributed amount), or both where the model emits both on the
+same row — the concrete SELECT uses `COALESCE` / `CASE` to map columns into
+the breakdown tree.
 
 ```sql
--- Sketch: breakdown population combines both sources
+-- Sketch: single-source breakdown population from RatesToUsage
 INSERT INTO {{schema}}.reporting_ocp_cost_breakdown_p (...)
 
--- Source 1: Per-rate costs from RatesToUsage
 SELECT
     r.usage_start, r.cluster_id, r.namespace, r.node,
     r.custom_name,
     r.metric_type,
     r.cost_model_rate_type,
     r.calculated_cost AS cost_value,
-    NULL AS distributed_cost,                   -- no distribution on per-rate rows
+    r.distributed_cost,
     build_path(r.cost_category_id, r.cost_model_rate_type, r.custom_name) AS path,
     ...
-FROM {{schema}}.cost_model_rates_to_usage r
+FROM {{schema}}.rates_to_usage r
 WHERE r.usage_start >= {{start_date}} AND r.usage_start <= {{end_date}}
   AND r.source_uuid = {{source_uuid}}
-
-UNION ALL
-
--- Source 2: Distribution costs from daily summary
-SELECT
-    lids.usage_start, lids.cluster_id, lids.namespace, lids.node,
-    lids.cost_model_rate_type AS custom_name,   -- e.g. "platform_distributed"
-    'distributed' AS metric_type,
-    lids.cost_model_rate_type,
-    NULL AS cost_value,
-    lids.distributed_cost,
-    build_path_distributed(lids.cost_model_rate_type) AS path,
-    ...
-FROM {{schema}}.reporting_ocpusagelineitem_daily_summary lids
-WHERE lids.usage_start >= {{start_date}} AND lids.usage_start <= {{end_date}}
-  AND lids.source_uuid = {{source_uuid}}
-  AND lids.cost_model_rate_type IN (
-      'platform_distributed', 'worker_distributed',
-      'unattributed_storage', 'unattributed_network', 'gpu_distributed'
+  AND (
+      COALESCE(r.calculated_cost, 0) != 0
+      OR COALESCE(r.distributed_cost, 0) != 0
   );
 ```
 
-This two-source approach keeps `CostModelRatesToUsage` focused on
-per-rate identity (what the user configured in their cost model) while
-letting distribution costs flow from their existing path (the daily
-summary) into the breakdown tree.
-
-**IQ-4 PROPOSAL**: `build_path()` and `build_path_distributed()` are
-implemented as CASE/WHEN expressions in the INSERT...SELECT, following
-koku's standard SQL pattern. Concrete SQL is proposed in
+**IQ-4 PROPOSAL**: `build_path()` (and variants for overhead vs project
+branches) are implemented as CASE/WHEN expressions in the INSERT...SELECT,
+following koku's standard SQL pattern. Concrete SQL is proposed in
 [README.md § IQ-4](./README.md#iq-4-build_path-logic-phase-4).
 Intermediate tree nodes (depth 1-3) are aggregated from leaf rows via
 a separate INSERT with `GROUP BY top_category, breakdown_category`.
 
 ---
 
-## Back-Allocation SQL Sketch
+## Per-Rate Distribution SQL Sketch (IQ-9 Option 1)
 
-**Context**: IQ-9 recommends Option 2 (back-allocate proportionally) to
-preserve per-rate identity for distributed costs. This section describes
-the SQL approach. See
-[README.md § IQ-9](./README.md#iq-9-distribution-per-rate-identity-gap)
-for the full investigation and rationale.
+**Context**: IQ-9 **Option 1** distributes at **per-rate** granularity:
+each `distribute_*_per_rate.sql` file mirrors the DELETE + INSERT pattern
+of the legacy `distribute_*.sql` files (no in-place UPDATE). See
+[README.md § IQ-9](./README.md#iq-9-distribution-per-rate-identity-gap).
 
-### R15 decision rationale — why 3-CTE approach
+For each distribution type:
 
-| # | Approach | Pros | Cons | Verdict |
-|---|----------|------|------|---------|
-| A | **Rewrite distribution SQL** — modify all 5 `distribute_*.sql` files to read from `RatesToUsage` instead of aggregated daily summary columns, producing per-rate distributed rows directly | Full per-rate identity at the source. No back-allocation needed. | HIGH invasiveness: touches 5 well-tested, critical SQL files. New GPU handling required. Must add synthetic "Infrastructure" rate or handle cloud billing separately. Risk of introducing bugs in production-critical distribution pipeline that has been stable for years. | **Rejected** — too risky for stable critical pipeline |
-| B | **Application-level split** — Python code in the cost model updater reads distribution rows and `RatesToUsage`, computes proportions, writes per-rate rows via ORM | Full control. Easier to debug (Python stack traces). | O(N×M) Python iteration (N distributions × M rates). Memory-intensive for large tenants. Breaks the SQL-first pattern used everywhere else in the pipeline. Cannot run as part of the existing breakdown population SQL. | **Rejected** — wrong execution model for this pipeline |
-| C | **3-CTE SQL** — `source_cost`, `rate_shares`, `distributed_rows` CTEs joined to produce per-rate shares in a single INSERT | Runs as a single SQL statement. Leverages PostgreSQL's query planner for JOIN optimization. Consistent with koku's SQL-heavy pipeline. Source namespaces are low-cardinality (1 Platform, 1 Worker per cluster), so JOINs are efficient. | SQL complexity: 3 CTEs + 2 UNION ALL sources. Harder to debug than Python. Requires careful JOIN conditions per distribution type. | **Selected** |
-| D | **Materialized view** — create a view that pre-joins distribution rows with `RatesToUsage` proportions | Reads cleanly. Can be refreshed on demand. | Materialized views add maintenance overhead (refresh timing, storage). Koku does not use materialized views anywhere — introducing one would be a new pattern. The breakdown table is already a materialized result; a view-of-a-view adds a layer. | **Rejected** — new pattern, no precedent in koku |
+- **Read** per-rate source costs from `RatesToUsage`, scoped to the source
+  namespace (Platform, Worker unallocated, etc.) using the mapping table
+  below.
+- **JOIN** `reporting_ocpusagelineitem_daily_summary` for recipient (and
+  source) rows that supply `pod_effective_usage_*_hours` (and the same
+  usage fields the legacy SQL uses) so allocation proportions match
+  today's behavior.
+- **DELETE** then **INSERT** into `RatesToUsage` for the affected window /
+  distribution type, same mechanical pattern as existing distribution SQL.
+- **Write** new `RatesToUsage` rows with `cost_model_rate_type` set to the
+  distribution discriminator (`platform_distributed`, …), `calculated_cost`
+  NULL or 0 as appropriate, and **`distributed_cost`** populated:
+  - **Source namespace**: negation rows, e.g. `distributed_cost =
+    -calculated_cost` for each contributing per-rate row (so net movement
+    balances).
+  - **Recipient namespaces**: positive rows,
+    `distributed_cost = rate_cost × usage_proportion` (per rate), where
+    `usage_proportion` is derived from effective usage hours vs totals across
+    recipients—identical proportion logic to the legacy files, but applied
+    per rate row.
 
-**Why Option C**: The back-allocation fundamentally requires three
-data sources (distribution rows, source cost composition, per-rate
-proportions). A CTE-based approach expresses this naturally as three
-named sub-queries joined together. The key insight that makes this
-efficient is that source namespaces (Platform, Worker unallocated, etc.)
-are low-cardinality — typically 1-2 per cluster — so the `source_cost`
-and `rate_shares` CTEs produce very few rows. The expensive part is the
-CROSS JOIN with `distributed_rows` (one per recipient namespace), but
-this is bounded by the number of receiving namespaces × number of rates,
-which is the same cardinality as the existing breakdown table. The
-approach keeps existing distribution SQL completely unchanged — the
-only new SQL is in the breakdown population file.
+Concrete column lists, JOIN keys, and DELETE predicates follow each
+existing `distribute_*.sql` file; only the cost input side moves from
+aggregated daily-summary columns to `RatesToUsage`, and the output side
+writes per-rate rows back to `RatesToUsage` instead of new daily-summary
+distribution rows.
 
-### Problem
-
-Distribution writes one `distributed_cost` per (namespace, node, day,
-distribution_type). We need to split that scalar into per-rate shares
-using proportions from `RatesToUsage` and the daily summary.
-
-### Data sources
-
-The back-allocation JOIN requires three data sets:
-
-1. **Distribution rows** (daily summary): the `distributed_cost` per
-   recipient namespace. Filter:
-   `cost_model_rate_type IN ('platform_distributed', 'worker_distributed', ...)`
-
-2. **Source cost composition** (daily summary): the total cost of the
-   source namespace (Platform, Worker unallocated, etc.), broken into
-   infrastructure (`infrastructure_raw_cost + infrastructure_markup_cost`)
-   and cost model (`cost_model_cpu_cost + cost_model_memory_cost +
-   cost_model_volume_cost`) portions.
-
-3. **Per-rate proportions** (`RatesToUsage`): each rate's
-   `calculated_cost` for the source namespace, giving us the rate's
-   share of the cost model portion.
-
-### SQL sketch
+### Example pattern (platform — illustrative)
 
 ```sql
--- Back-allocation: split distributed_cost into per-rate shares
--- This runs as part of the breakdown population SQL (Phase 4)
+-- distribute_platform_cost_per_rate.sql — pattern sketch (not full DDL)
 
-WITH source_cost AS (
-    -- Total cost composition for each source namespace (Platform, Worker, etc.)
-    SELECT
-        lids.usage_start,
-        lids.cluster_id,
-        lids.source_uuid,
-        cat.name AS category_name,
-        SUM(COALESCE(lids.infrastructure_raw_cost, 0)
-          + COALESCE(lids.infrastructure_markup_cost, 0)) AS infra_cost,
-        SUM(COALESCE(lids.cost_model_cpu_cost, 0)
-          + COALESCE(lids.cost_model_memory_cost, 0)
-          + COALESCE(lids.cost_model_volume_cost, 0)) AS cm_cost,
-        SUM(COALESCE(lids.infrastructure_raw_cost, 0)
-          + COALESCE(lids.infrastructure_markup_cost, 0)
-          + COALESCE(lids.cost_model_cpu_cost, 0)
-          + COALESCE(lids.cost_model_memory_cost, 0)
-          + COALESCE(lids.cost_model_volume_cost, 0)) AS total_cost
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
-        ON lids.cost_category_id = cat.id
-    WHERE lids.usage_start >= {{start_date}}::date
-        AND lids.usage_start <= {{end_date}}::date
-        AND lids.source_uuid = {{source_uuid}}
-        AND lids.cost_model_rate_type IS NULL
-        -- Platform: cat.name = 'Platform'
-        -- Worker: namespace = 'Worker unallocated'
-        -- (parameterized per distribution type)
-    GROUP BY lids.usage_start, lids.cluster_id, lids.source_uuid, cat.name
-),
+-- 1) Remove prior per-rate distribution rows for this type / window
+DELETE FROM {{schema | sqlsafe}}.rates_to_usage rtu
+WHERE rtu.usage_start >= {{start_date}}
+  AND rtu.usage_start <= {{end_date}}
+  AND rtu.source_uuid = {{source_uuid}}
+  AND rtu.cost_model_rate_type = 'platform_distributed';
 
-rate_shares AS (
-    -- Per-rate cost in the source namespace from RatesToUsage
-    SELECT
-        rtu.usage_start,
-        rtu.cluster_id,
-        rtu.source_uuid,
-        rtu.custom_name,
-        rtu.metric_type,
-        rtu.cost_model_rate_type AS rate_type,
-        SUM(rtu.calculated_cost) AS rate_cost
-    FROM {{schema | sqlsafe}}.cost_model_rates_to_usage rtu
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
-        ON rtu.cost_category_id = cat.id
-    WHERE rtu.usage_start >= {{start_date}}::date
-        AND rtu.usage_start <= {{end_date}}::date
-        AND rtu.source_uuid = {{source_uuid}}
-        -- Same source namespace filter as source_cost
-    GROUP BY rtu.usage_start, rtu.cluster_id, rtu.source_uuid,
-             rtu.custom_name, rtu.metric_type, rtu.cost_model_rate_type
-),
-
-distributed_rows AS (
-    -- Distribution rows written by distribute_*.sql
-    SELECT
-        lids.usage_start,
-        lids.cluster_id,
-        lids.namespace,
-        lids.node,
-        lids.source_uuid,
-        lids.cost_model_rate_type,
-        lids.distributed_cost
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
-    WHERE lids.usage_start >= {{start_date}}::date
-        AND lids.usage_start <= {{end_date}}::date
-        AND lids.source_uuid = {{source_uuid}}
-        AND lids.cost_model_rate_type IN (
-            'platform_distributed', 'worker_distributed',
-            'unattributed_storage', 'unattributed_network'
-        )
-        AND lids.distributed_cost IS NOT NULL
-        AND lids.distributed_cost != 0
-)
-
--- Per-rate distribution leaves (depth 5)
-INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p (...)
-SELECT
-    uuid_generate_v4(),
-    dr.usage_start,
-    dr.cluster_id,
-    dr.namespace,
-    dr.node,
-    rs.custom_name,
-    rs.metric_type,
-    dr.cost_model_rate_type,
-    rs.rate_type AS cost_type,
-    NULL AS cost_value,
-    -- Proportional split: rate's share of total source cost × distributed amount
-    (rs.rate_cost / NULLIF(sc.total_cost, 0)) * dr.distributed_cost
-        AS distributed_cost,
-    -- path: overhead.{dist_type}.{breakdown_cat}.{custom_name}
-    'overhead.' || dr.cost_model_rate_type || '.'
-        || CASE WHEN rs.metric_type = 'markup' THEN 'markup'
-                ELSE 'usage_cost' END
-        || '.' || rs.custom_name AS path,
-    5 AS depth,
-    'overhead.' || dr.cost_model_rate_type || '.'
-        || CASE WHEN rs.metric_type = 'markup' THEN 'markup'
-                ELSE 'usage_cost' END AS parent_path,
-    'overhead' AS top_category,
-    CASE WHEN rs.metric_type = 'markup' THEN 'markup'
-         ELSE 'usage_cost' END AS breakdown_category
-FROM distributed_rows dr
-JOIN source_cost sc
-    ON dr.usage_start = sc.usage_start
-    AND dr.cluster_id = sc.cluster_id
-    AND dr.source_uuid = sc.source_uuid
-JOIN rate_shares rs
-    ON sc.usage_start = rs.usage_start
-    AND sc.cluster_id = rs.cluster_id
-    AND sc.source_uuid = rs.source_uuid
-WHERE sc.total_cost != 0
-
-UNION ALL
-
--- Infrastructure aggregate entry (depth 4) under each distribution node
-SELECT
-    uuid_generate_v4(),
-    dr.usage_start,
-    dr.cluster_id,
-    dr.namespace,
-    dr.node,
-    'Infrastructure' AS custom_name,
-    'infrastructure' AS metric_type,
-    dr.cost_model_rate_type,
-    NULL AS cost_type,
-    NULL AS cost_value,
-    (sc.infra_cost / NULLIF(sc.total_cost, 0)) * dr.distributed_cost
-        AS distributed_cost,
-    'overhead.' || dr.cost_model_rate_type || '.infrastructure' AS path,
-    4 AS depth,
-    'overhead.' || dr.cost_model_rate_type AS parent_path,
-    'overhead' AS top_category,
-    'infrastructure' AS breakdown_category
-FROM distributed_rows dr
-JOIN source_cost sc
-    ON dr.usage_start = sc.usage_start
-    AND dr.cluster_id = sc.cluster_id
-    AND dr.source_uuid = sc.source_uuid
-WHERE sc.total_cost != 0
-    AND sc.infra_cost != 0;
+-- 2) INSERT source-namespace negation rows + recipient positive rows
+INSERT INTO {{schema | sqlsafe}}.rates_to_usage (...)
+SELECT ...
+FROM {{schema | sqlsafe}}.rates_to_usage src
+JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+  ON /* grain + cluster + day; usage hours for proportion */
+WHERE /* src rows: Platform category; not already distributed type */
+  -- Negation branch: UNION ALL
+  -- SELECT ..., distributed_cost = -src.calculated_cost, ...
+  -- Recipient branch:
+  -- SELECT ..., distributed_cost = src.calculated_cost * (lids.pod_effective_usage_cpu_core_hours / NULLIF(recipient_total_cpu_hours, 0)), ...
+;
 ```
 
 ### Mapping distribution type to source namespace
 
-Each distribution type has a different source namespace filter for the
-`source_cost` and `rate_shares` CTEs:
+Each distribution file applies the same source-namespace filter the legacy
+SQL used when resolving the **pool** to distribute (now reading that pool
+from `RatesToUsage` at rate granularity):
 
 | Distribution type | Source namespace filter |
 |-------------------|----------------------|
@@ -1040,94 +878,36 @@ Each distribution type has a different source namespace filter for the
 | `unattributed_network` | `namespace = 'Network unattributed'` |
 | `gpu_distributed` | `namespace = 'GPU unallocated'` (Phase 3+ only) |
 
-In practice, the back-allocation SQL can be parameterized or use
-CASE/WHEN to handle all distribution types in a single query, mapping
-`cost_model_rate_type` to the corresponding source filter.
+Parameterize per file or use CASE/WHEN if a shared template is preferred.
 
 ### GPU distribution note
 
-GPU distribution (`gpu_distributed`) uses `cost_model_gpu_cost`, which
-comes from `monthly_cost_gpu.sql` — a tag-based cost written in Phase 3.
-GPU rates may not be in `RatesToUsage` until Phase 3. GPU back-allocation
-should be deferred until Phase 3 scope is confirmed, or excluded if GPU
-rates are not tracked per-rate.
+GPU per-rate distribution (`distribute_unallocated_gpu_per_rate.sql`) reads
+GPU per-rate rows from `RatesToUsage` (`metric_type = 'gpu'`) and joins
+daily-summary usage the same way as `distribute_unallocated_gpu_cost.sql`.
+Phase alignment with `monthly_cost_gpu.sql` / Phase 3 tag GPU rates is
+unchanged; only the cost source and sink are `RatesToUsage`.
 
-### R14 Mitigation — Rounding Reconciliation Check
+### R14 — reconciliation check (N/A under Option 1)
 
-#### Why reconciliation check (and not another approach)
-
-| # | Approach | Pros | Cons | Verdict |
-|---|----------|------|------|---------|
-| A | **Adjust last row** — assign the remainder to the last per-rate row so totals always match exactly | Zero tolerance. Exact match guaranteed. | Breaks proportionality — the last rate absorbs all rounding error, which can be misleading in the UI (e.g., one rate appears $0.02 higher). Order-dependent: "last" row is arbitrary in SQL without explicit ordering. Adds complexity to the INSERT. | **Rejected** — trades correctness for precision theater |
-| B | **Use exact fractions** — compute `distributed_cost * rate_cost / total_cost` using PostgreSQL `NUMERIC` without rounding | `NUMERIC(33,15)` division is exact to 15 decimal places. No rounding occurs at typical cost magnitudes. | Does not eliminate rounding — it just makes it astronomically small. In theory, 15-digit division can still produce a 16th digit that gets truncated. More importantly, floating-point display in the UI may introduce apparent rounding regardless. | This is what we already do — the question is how to detect when it fails |
-| C | **Post-INSERT reconciliation check** — compare `SUM(per-rate shares)` against the original `distributed_cost` and log discrepancies > $0.01 | Non-invasive: does not change the INSERT logic. Observable: logs tell us if rounding ever matters in practice. Actionable: if discrepancies are found, a "Rounding" entry can absorb them. | Does not prevent the rounding — only detects it. Adds a read query after the INSERT. | **Selected** |
-
-**Why Option C**: The proportional split already uses PostgreSQL
-`NUMERIC(33,15)`, which provides 15 decimal places. At typical cost
-magnitudes ($0.01 to $1M), the division `rate_cost / total_cost`
-produces exact results within NUMERIC precision. Rounding errors > $0.01
-are theoretically possible but vanishingly unlikely. The reconciliation
-check confirms this assumption in production without adding complexity
-to the INSERT path. If it ever triggers, the remediation is
-straightforward: add a "Rounding" adjustment row at depth 5.
-
-After the back-allocation INSERT, verify that per-rate shares sum back
-to the original `distributed_cost`. This runs as a post-INSERT check
-and logs any discrepancies exceeding $0.01.
-
-```sql
--- Reconciliation: compare back-allocated shares vs original distributed_cost
-SELECT
-    dr.usage_start,
-    dr.cluster_id,
-    dr.namespace,
-    dr.cost_model_rate_type,
-    dr.distributed_cost AS original,
-    COALESCE(ba.total_allocated, 0) AS allocated,
-    ABS(dr.distributed_cost - COALESCE(ba.total_allocated, 0)) AS diff
-FROM (
-    SELECT usage_start, cluster_id, namespace, cost_model_rate_type,
-           SUM(distributed_cost) AS distributed_cost
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-    WHERE usage_start >= {{start_date}}::date
-      AND usage_start <= {{end_date}}::date
-      AND source_uuid = {{source_uuid}}
-      AND cost_model_rate_type IN (
-          'platform_distributed', 'worker_distributed',
-          'unattributed_storage', 'unattributed_network')
-      AND distributed_cost IS NOT NULL AND distributed_cost != 0
-    GROUP BY usage_start, cluster_id, namespace, cost_model_rate_type
-) dr
-LEFT JOIN (
-    SELECT usage_start, cluster_id, namespace, cost_model_rate_type,
-           SUM(distributed_cost) AS total_allocated
-    FROM {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p
-    WHERE usage_start >= {{start_date}}::date
-      AND usage_start <= {{end_date}}::date
-      AND top_category = 'overhead'
-      AND depth IN (4, 5)
-    GROUP BY usage_start, cluster_id, namespace, cost_model_rate_type
-) ba ON dr.usage_start = ba.usage_start
-    AND dr.cluster_id = ba.cluster_id
-    AND dr.namespace = ba.namespace
-    AND dr.cost_model_rate_type = ba.cost_model_rate_type
-WHERE ABS(dr.distributed_cost - COALESCE(ba.total_allocated, 0)) > 0.01;
-```
-
-If this returns rows, the remainder (`original - allocated`) should be
-assigned to a special "Rounding" entry at depth 5 to ensure the tree
-sums correctly. In practice, `NUMERIC(33, 15)` precision makes
-discrepancies > $0.01 extremely unlikely.
+R14 targeted **back-allocation** rounding: splitting a single scalar
+`distributed_cost` across inferred per-rate shares could drift from the
+original total. **Option 1 does not do that** — distribution computes
+`distributed_cost` per rate directly from `calculated_cost ×
+usage_proportion`, so there is no separate reconciliation step between a
+daily-summary scalar and derived shares. The prior post-INSERT
+reconciliation query and "Rounding" row mitigation are **not applicable**;
+keep using `NUMERIC(33,15)` as today.
 
 ### Intermediate nodes for distribution
 
-The back-allocation produces depth 5 per-rate leaves and depth 4
-infrastructure entries. Intermediate depth 4 nodes (e.g.,
-`overhead.platform_distributed.usage_cost`) are aggregated from the
-depth 5 leaves using the same `GROUP BY` + `SUM()` approach used for
-project-side intermediate nodes (Steps 2-4 in the existing PoC). The
-depth 3 distribution node (`overhead.platform_distributed`) aggregates
-depth 4 children.
+Per-rate `RatesToUsage` rows (undistributed `calculated_cost` and
+distributed `distributed_cost` leaves) feed `reporting_ocp_cost_breakdown_p`
+as in [Distribution Costs in the Breakdown Tree](#distribution-costs-in-the-breakdown-tree).
+Intermediate depth 4 nodes (e.g. `overhead.platform_distributed.usage_cost`)
+are aggregated from leaves with the same `GROUP BY` + `SUM()` approach as
+the existing PoC. The depth 3 distribution node (`overhead.platform_distributed`)
+aggregates depth 4 children.
 
 ---
 
@@ -1190,7 +970,7 @@ Trino-side storage for cost model data.
 
 ### Implications for `RatesToUsage` Writes
 
-Each SQL file that gains an INSERT into `cost_model_rates_to_usage` must
+Each SQL file that gains an INSERT into `rates_to_usage` must
 use the correct SQL dialect for its execution engine:
 
 - **`sql/` files** (PostgreSQL): Standard `INSERT INTO ... SELECT ...`
@@ -1201,7 +981,7 @@ use the correct SQL dialect for its execution engine:
   files (e.g., `hourly_cost_virtual_machine.sql` uses
   `postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary`):
   ```sql
-  INSERT INTO postgres.{{schema | sqlsafe}}.cost_model_rates_to_usage
+  INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage
   SELECT ... FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
   ```
   Trino uses `CAST({{rate}} AS DECIMAL(33, 15))` instead of
@@ -1217,12 +997,13 @@ use the correct SQL dialect for its execution engine:
 
 The RatesToUsage INSERT (`insert_usage_rates_to_usage.sql`),
 validation query (`validate_rates_against_daily_summary.sql`),
-aggregation (`aggregate_rates_to_daily_summary.sql`), and breakdown
-population (`reporting_ocp_cost_breakdown_p.sql`) live only in the
-`sql/` path. They read from `cost_model_rates_to_usage` (a PostgreSQL
-table) and write to PostgreSQL tables, so they always execute via
+aggregation (`aggregate_rates_to_daily_summary.sql`), per-rate
+distribution (`distribute_*_per_rate.sql`), and breakdown population
+(`reporting_ocp_cost_breakdown_p.sql`) live only in the `sql/` path.
+They read from `rates_to_usage` (a PostgreSQL table) and/or the daily
+summary as needed, and write to PostgreSQL tables, so they execute via
 `_prepare_and_execute_raw_sql_query` regardless of deployment mode. No
-Trino or self-hosted variants are needed.
+Trino or self-hosted variants are needed for these files.
 
 ---
 
@@ -1236,3 +1017,5 @@ Trino or self-hosted variants are needed.
 | v2.3 | 2026-03-17 | Blast-radius triage: remove erroneous `resource_id` from aggregation SQL sketch GROUP BY / SELECT (not in `usage_costs.sql` GROUP BY, confirmed by PoC). |
 | v2.4 | 2026-03-17 | Risk mitigation: R13 — rewrite aggregation and validation SQL to use `label_hash` instead of JSONB GROUP BY/JOIN. R14 — add reconciliation check SQL sketch. R17 — add SQL-based markup INSERT fallback (`insert_markup_rates_to_usage.sql`). |
 | v2.5 | 2026-03-17 | Decision rationales: add alternatives-evaluated tables for R11 (single DELETE scope, 3 options), R14 (reconciliation check, 3 options), R15 (3-CTE back-allocation, 4 options), R17 (ORM-first + SQL fallback, 3 options). |
+| v3.0 | 2026-03-19 | **IQ-9 Option 1 adopted.** Distribution reads per-rate costs from `RatesToUsage` + usage from daily summary, writes distributed rows back to `RatesToUsage`. New orchestration: distribution before aggregation. Replace back-allocation SQL with per-rate distribution sketch. Add 5 new distribution files + raw cost INSERT. Rename table references. Remove R14/R15 rationales. |
+| v3.1 | 2026-03-19 | **Risk extraction.** Move R11 and R17 decision rationale tables to [risk-register.md](./risk-register.md). Retain SQL fallback code inline. |

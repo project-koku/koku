@@ -118,20 +118,20 @@ class Rate(models.Model):
 - `custom_name` does not need to be unique across price lists
 - Maximum 50 characters (UI display constraint from PRD)
 
-### CostModelRatesToUsage
+### RatesToUsage
 
 Per-rate cost rows produced by the SQL pipeline. Partitioned by
 `usage_start` (same strategy as all OCP reporting tables).
 
 ```python
 # reporting/provider/ocp/models.py (new)
-class CostModelRatesToUsage(models.Model):
+class RatesToUsage(models.Model):
     class PartitionInfo:
         partition_type = "RANGE"
         partition_cols = ["usage_start"]
 
     class Meta:
-        db_table = "cost_model_rates_to_usage"
+        db_table = "rates_to_usage"
         indexes = [
             models.Index(fields=["usage_start", "source_uuid"], name="ratestousage_start_source_idx"),
             models.Index(fields=["report_period_id"], name="ratestousage_report_period_idx"),
@@ -163,6 +163,7 @@ class CostModelRatesToUsage(models.Model):
     cost_model_rate_type = models.TextField(null=True)     # "Infrastructure" or "Supplementary" (from Rate.cost_type)
     monthly_cost_type = models.TextField(null=True)        # NULL=usage, Node, Cluster, PVC, Tag, OCP_VM, etc.
     calculated_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)  # Option 1: per-rate distributed rows (+recipient, -source)
     cost_category = models.ForeignKey(
         "OpenshiftCostCategory", on_delete=models.CASCADE, null=True
     )
@@ -189,64 +190,9 @@ combined comparison cost dominates query time.
 The aggregation runs **on every cost model recalculation** (not just
 CI), so this is a production hot path.
 
-#### Options evaluated
+See [risk-register.md § R13](./risk-register.md#r13--jsonb-join-performance-label_hash) for the full decision rationale (5 options evaluated).
 
-| # | Approach | Pros | Cons | Verdict |
-|---|----------|------|------|---------|
-| A | **GIN indexes** on the 3 JSONB columns | Standard PostgreSQL pattern for JSONB | GIN supports containment operators (`@>`, `?`) but **does not support equality (`=`)**. Useless for GROUP BY / JOIN on exact match. Also adds significant write overhead per INSERT. | **Rejected** — wrong index type for this access pattern |
-| B | **B-tree indexes** on the 3 JSONB columns | Supports equality. PostgreSQL can B-tree-index JSONB since 9.4. | Comparison at each B-tree node is still O(document size). With large label documents this is expensive. Three separate indexes don't combine for a multi-column GROUP BY; a composite index would need all three columns. | **Rejected** — does not solve the core comparison cost problem |
-| C | **Hash index** (built-in PostgreSQL) on each JSONB column | PostgreSQL hash indexes are WAL-logged and crash-safe since v10. Equality-only, which is our use case. | Hash indexes don't support multi-column keys. Three separate hash indexes don't help a GROUP BY on the *combination* of all three. Also, the hash is computed on the full JSONB value at query time — still O(document size) per row. | **Rejected** — multi-column limitation, still O(n) per hash computation |
-| D | **Computed `label_hash` column** (md5 of concatenated text) | Fixed 32-char VARCHAR. B-tree indexable. O(1) comparison cost. Computed once at INSERT time, amortizing the JSONB→text cost over writes. Single column replaces 3 JSONB columns in GROUP BY. | Extra column and index on `RatesToUsage`. md5 collision risk (see below). JSONB columns must remain in the table for data access / debugging. | **Selected** |
-| E | **Accept the cost** (no mitigation) and benchmark first | Zero added complexity. | The aggregation runs on every cost model recalculation — if it's slow, it blocks the production pipeline. Retrofitting a hash column after Phase 2 ships requires a data migration. | **Rejected** — too risky to defer; easier to add now than retrofit |
-
-#### Why Option D
-
-1. **Single comparison replaces three.** GROUP BY `label_hash` (32 bytes,
-   fixed-length) replaces GROUP BY on three variable-size JSONB documents.
-   PostgreSQL's hash aggregation and sort algorithms operate on 32 bytes
-   instead of potentially kilobytes.
-
-2. **Amortizes cost to write time.** The `md5()` is computed once in the
-   CTE during the RatesToUsage INSERT. The aggregation SQL (which runs
-   second and is the bottleneck) only compares 32-char strings.
-
-3. **Index-friendly.** A B-tree on `VARCHAR(32)` is compact and cache-
-   efficient. PostgreSQL can use it for both GROUP BY (via index scan +
-   sort) and JOIN (via hash join or merge join on the indexed column).
-
-4. **JSONB columns stay for data access.** Label data is still queryable
-   for debugging, ad-hoc analysis, and the breakdown tree. The hash is
-   only used by aggregation and validation — it is not exposed to the
-   API or frontend.
-
-5. **Koku precedent.** Koku already uses computed columns for performance
-   in other contexts (e.g., `cluster_alias` denormalized on multiple
-   tables, `all_labels` itself is a computed union of `pod_labels` +
-   `volume_labels`). A computed hash follows the same pattern.
-
-6. **Cheap to add, expensive to retrofit.** Adding the column now (in
-   M4) is trivial. Adding it after Phase 2 ships requires a data
-   migration to backfill `label_hash` for all existing rows — which
-   could be hundreds of millions of rows.
-
-#### Hash collision risk
-
-md5 produces a 128-bit hash. The probability of a collision in a set
-of N distinct label combinations is approximately `N² / 2¹²⁹`
-([birthday paradox](https://en.wikipedia.org/wiki/Birthday_problem)).
-For 100 million distinct label combinations (extreme upper bound), the
-collision probability is ~`10¹⁶ / 10³⁸` ≈ `10⁻²²` — effectively zero.
-
-A collision would cause two rows with different labels to be aggregated
-together in the GROUP BY, producing a slightly incorrect cost split.
-This is detectable by the CI validation query (which compares aggregated
-costs against expected values).
-
-If the tech lead prefers a cryptographically stronger hash (e.g., `sha256`),
-the column can be widened to `VARCHAR(64)` with no other design changes.
-md5 was chosen for its lower computation cost and because collision
-resistance is not a security concern here — it is purely a performance
-optimization for grouping.
+At expected volumes, md5 collision probability is negligible; a collision would incorrectly merge two label groups and should surface as a CI validation diff.
 
 #### Computation
 
@@ -271,18 +217,19 @@ hash is deterministic even when one or more label columns are NULL.
   produce rows at the exact same granularity as the daily summary,
   enabling `RatesToUsage` to serve as the single source of truth
   (see [IQ-1 resolution](./README.md#iq-1-aggregation-granularity-mismatch-phase-2-3)).
-- **No `distributed_cost` column.** Distribution runs *after* the
-  aggregation step and writes new rows directly to the daily summary
-  (with `cost_model_rate_type` = `platform_distributed`, etc.). These
-  distribution rows are read directly from the daily summary by the
-  breakdown population SQL (`reporting_ocp_cost_breakdown_p.sql`) —
-  they do not pass through `RatesToUsage`. See
+- **`distributed_cost` (IQ-9 Option 1).** Distribution runs *after* base
+  `RatesToUsage` inserts and *before* aggregation. It writes **per-rate distributed rows** back to
+  `RatesToUsage`, populating `distributed_cost` (positive on recipient
+  namespaces, negative on source). `monthly_cost_type` on those rows
+  indicates the distribution kind (e.g. `platform_distributed`). The
+  breakdown population SQL reads these rows along with usage rows when
+  building the tree. See
   [sql-pipeline.md § Distribution Costs in Breakdown](#distribution-costs-in-the-breakdown-tree).
 
 ### OCPCostUIBreakDownP
 
 UI summary table for the breakdown API. Populated from
-`CostModelRatesToUsage`. Partitioned by `usage_start`.
+`RatesToUsage`. Partitioned by `usage_start`.
 
 ```python
 # reporting/provider/ocp/models.py (new)
@@ -316,15 +263,14 @@ class OCPCostUIBreakDownP(models.Model):
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     custom_name = models.CharField(max_length=50)
     metric_type = models.CharField(max_length=30)          # cpu, memory, storage, gpu
-    cost_model_rate_type = models.TextField(null=True)     # Per-rate rows: "Infrastructure"/"Supplementary"; Distribution rows: "platform_distributed", "worker_distributed", "unattributed_storage", "unattributed_network", "gpu_distributed"
-    cost_type = models.CharField(max_length=20, null=True)  # IQ-8: NULL for distribution rows — see README.md
+    cost_model_rate_type = models.TextField(null=True)     # All categorization: per-rate "Infrastructure"/"Supplementary"; distribution "platform_distributed", "worker_distributed", "unattributed_storage", "unattributed_network", "gpu_distributed", etc.
     cost_value = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     path = models.CharField(max_length=200)                # e.g. "project.usage_cost.OpenShift_Subscriptions"
-    depth = models.SmallIntegerField()                     # 1-5 (per-rate leaves at 4; distribution per-rate leaves at 5 with IQ-9 Option 2)
+    depth = models.SmallIntegerField()                     # 1-5 (per-rate leaves at 4; distribution per-rate leaves at 5 with IQ-9 Option 1)
     parent_path = models.CharField(max_length=200)         # e.g. "project.usage_cost"
     top_category = models.CharField(max_length=200)        # "project" or "overhead"
-    breakdown_category = models.CharField(max_length=50)   # "raw_cost", "usage_cost", "markup", "infrastructure" (IQ-9 Option 2)
+    breakdown_category = models.CharField(max_length=50)   # "raw_cost", "usage_cost", "markup", "infrastructure" (IQ-9 Option 1)
 ```
 
 **Registration points**:
@@ -333,12 +279,12 @@ class OCPCostUIBreakDownP(models.Model):
   `reporting/provider/ocp/models.py` — this ensures automatic partition
   creation (via `_handle_partitions()`) and cleanup (via
   `purge_expired_report_data_by_date()`)
-- Add `"cost_model_rates_to_usage"` to the purge table list in
+- Add `"rates_to_usage"` to the purge table list in
   `masu/processor/ocp/ocp_report_db_cleaner.py` — this is the same
   partition-based cleanup used for all partitioned OCP tables. Provider
   deletion and data expiration both work through partition cleanup, not
   FK cascade, since `source_uuid` is a `TextField` (not a FK).
-- For on-prem, also add `"cost_model_rates_to_usage"` to
+- For on-prem, also add `"rates_to_usage"` to
   `get_self_hosted_table_names()` in
   `reporting/provider/ocp/self_hosted_models.py`
 
@@ -350,11 +296,13 @@ fixed alongside this work.
 
 ## Tree Structure Definition
 
-The breakdown tree has a maximum depth of 4 levels for per-rate rows
-and 3 levels for distribution rows in the current design. If IQ-9
-Option 2 (back-allocation) is approved, distribution rows gain
-per-rate drill-down at depth 4-5. The `path` column encodes the full
-hierarchy as a dot-separated string.
+The breakdown tree has a maximum depth of 4 levels for project-side
+per-rate leaves and up to 5 levels under overhead when **IQ-9 Option 1
+(per-rate distribution)** is in effect. Distribution rows in the tree
+carry **full per-rate identity** at depth 4–5 because they are built from
+per-rate `RatesToUsage` rows (including `distributed_cost` and
+`monthly_cost_type` for the distribution kind). The `path` column encodes
+the full hierarchy as a dot-separated string.
 
 ### Hierarchy Patterns
 
@@ -363,26 +311,23 @@ hierarchy as a dot-separated string.
 | 1 | `total_cost` | `total_cost` | Aggregated from depth 2 |
 | 2 | `{top_category}` | `project`, `overhead` | Aggregated from depth 3 |
 | 3 | `{top_category}.{breakdown_category}` | `project.usage_cost`, `project.raw_cost` | Aggregated from depth 4 per-rate leaves |
-| 3 | `overhead.{distribution_type}` | `overhead.platform_distributed`, `overhead.worker_distributed` | Aggregated from depth 4 back-allocation children (IQ-9 Option 2) |
-| 4 | `{top_category}.{breakdown_category}.{name}` | `project.usage_cost.OpenShift_Subscriptions` | Per-rate leaf rows from `RatesToUsage` |
-| 4 | `overhead.{dist_type}.infrastructure` | `overhead.platform_distributed.infrastructure` | Infrastructure aggregate from back-allocation (IQ-9 Option 2) |
-| 4 | `overhead.{dist_type}.{breakdown_category}` | `overhead.platform_distributed.usage_cost` | Aggregated from depth 5 per-rate distribution leaves (IQ-9 Option 2) |
-| 5 | `overhead.{dist_type}.{breakdown_cat}.{name}` | `overhead.platform_distributed.usage_cost.OpenShift_Subscriptions` | Per-rate distribution leaf from back-allocation (IQ-9 Option 2) |
+| 3 | `overhead.{distribution_type}` | `overhead.platform_distributed`, `overhead.worker_distributed` | Aggregated from depth 4 children (per-rate distributed rows from `RatesToUsage`) |
+| 4 | `{top_category}.{breakdown_category}.{name}` | `project.usage_cost.OpenShift_Subscriptions` | Per-rate leaf rows from `RatesToUsage` (usage / calculated cost) |
+| 4 | `overhead.{dist_type}.infrastructure` | `overhead.platform_distributed.infrastructure` | Infrastructure aggregate (from distributed `RatesToUsage` rows where applicable) |
+| 4 | `overhead.{dist_type}.{breakdown_category}` | `overhead.platform_distributed.usage_cost` | Aggregated from depth 5 per-rate distribution leaves (IQ-9 Option 1) |
+| 5 | `overhead.{dist_type}.{breakdown_cat}.{name}` | `overhead.platform_distributed.usage_cost.OpenShift_Subscriptions` | Per-rate distribution leaf from `RatesToUsage` (`distributed_cost`, `monthly_cost_type` = distribution kind) |
 
-**Distribution back-allocation (IQ-9 Option 2)**: The recommended
-approach splits each `distributed_cost` into per-rate shares using
-proportions from `RatesToUsage`. Infrastructure costs (cloud billing,
-not cost model rates) appear as a single "Infrastructure" entry at
-depth 4. Cost model rates appear at depth 5 with full `custom_name`
-identity. This approach keeps existing distribution SQL unchanged.
-See [README.md § IQ-9](./README.md#iq-9-distribution-per-rate-identity-gap)
-and [sql-pipeline.md § Back-Allocation SQL](./sql-pipeline.md#back-allocation-sql-sketch).
+**IQ-9 Option 1 (per-rate distribution)**: Distribution writes per-rate
+rows back to `RatesToUsage` with `distributed_cost` and
+`monthly_cost_type` (e.g. `platform_distributed`). Those rows retain the
+same per-rate dimensions as usage rows (`custom_name`, `metric_type`,
+`cost_model_rate_type` for Infrastructure vs Supplementary where
+relevant), so the breakdown tree can drill to depth 4–5 under overhead
+without a separate back-allocation pass. See
+[README.md § IQ-9](./README.md#iq-9-distribution-per-rate-identity-gap)
+and [sql-pipeline.md § Distribution Costs in Breakdown](#distribution-costs-in-the-breakdown-tree).
 
-**Pending tech lead confirmation.** If IQ-9 is not approved, the
-overhead branch caps at depth 3 (distribution leaf nodes without
-per-rate drill-down).
-
-### Example Tree (with IQ-9 Option 2 back-allocation)
+### Example Tree (with IQ-9 Option 1 per-rate distribution)
 
 ```
 total_cost ($4000)
@@ -408,6 +353,10 @@ total_cost ($4000)
         └── usage_cost ($300)                            ← depth 4
             └── ...                                      ← depth 5
 ```
+
+Depth 5 leaves under overhead reflect **per-rate distributed rows in
+`RatesToUsage`** (Option 1), not a post-hoc back-allocation from the
+daily summary alone.
 
 ### Relationship to `cost_category`
 
@@ -442,7 +391,7 @@ graph TD
     end
 
     subgraph Phase2["Phase 2: Rate Calculation Isolation"]
-        M4["M4: Create CostModelRatesToUsage<br/>(partitioned)"]
+        M4["M4: Create RatesToUsage<br/>(partitioned)"]
     end
 
     subgraph Phase4["Phase 4: Breakdown UI"]
@@ -660,7 +609,7 @@ Typically small (hundreds, not millions). Should complete in seconds.
 
 ---
 
-### M4: Create `cost_model_rates_to_usage` Table (Partitioned)
+### M4: Create `rates_to_usage` Table (Partitioned)
 
 **Phase**: 2
 **Type**: Schema migration
@@ -668,7 +617,7 @@ Typically small (hundreds, not millions). Should complete in seconds.
 **Depends on**: M2 (needs `cost_model_rate` table for FK)
 
 ```sql
-CREATE TABLE cost_model_rates_to_usage (
+CREATE TABLE rates_to_usage (
     uuid                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     rate_id              UUID REFERENCES cost_model_rate(uuid) ON DELETE SET NULL,
     cost_model_id        UUID REFERENCES cost_model(uuid) ON DELETE SET NULL,
@@ -691,18 +640,19 @@ CREATE TABLE cost_model_rates_to_usage (
     cost_model_rate_type TEXT,
     monthly_cost_type    TEXT,
     calculated_cost      NUMERIC(33, 15),
+    distributed_cost     NUMERIC(33, 15),
     cost_category_id     INTEGER REFERENCES reporting_ocp_cost_category(id) ON DELETE CASCADE,
     labels               JSONB,
     label_hash           VARCHAR(32)      -- R13: md5(pod_labels || volume_labels || all_labels)
 ) PARTITION BY RANGE (usage_start);
 
-CREATE INDEX ratestousage_start_source_idx ON cost_model_rates_to_usage (usage_start, source_uuid);
-CREATE INDEX ratestousage_report_period_idx ON cost_model_rates_to_usage (report_period_id);
-CREATE INDEX ratestousage_namespace_idx ON cost_model_rates_to_usage (namespace);
-CREATE INDEX ratestousage_cluster_idx ON cost_model_rates_to_usage (cluster_id);
-CREATE INDEX ratestousage_custom_name_idx ON cost_model_rates_to_usage (custom_name);
-CREATE INDEX ratestousage_monthly_cost_idx ON cost_model_rates_to_usage (monthly_cost_type);
-CREATE INDEX ratestousage_label_hash_idx ON cost_model_rates_to_usage (label_hash);
+CREATE INDEX ratestousage_start_source_idx ON rates_to_usage (usage_start, source_uuid);
+CREATE INDEX ratestousage_report_period_idx ON rates_to_usage (report_period_id);
+CREATE INDEX ratestousage_namespace_idx ON rates_to_usage (namespace);
+CREATE INDEX ratestousage_cluster_idx ON rates_to_usage (cluster_id);
+CREATE INDEX ratestousage_custom_name_idx ON rates_to_usage (custom_name);
+CREATE INDEX ratestousage_monthly_cost_idx ON rates_to_usage (monthly_cost_type);
+CREATE INDEX ratestousage_label_hash_idx ON rates_to_usage (label_hash);
 ```
 
 **Partitioning**: Monthly partitions, managed by the same
@@ -710,7 +660,7 @@ CREATE INDEX ratestousage_label_hash_idx ON cost_model_rates_to_usage (label_has
 Koku's partition manager creates and drops monthly partitions
 automatically based on usage data date ranges.
 
-**Partition creation wiring**: `cost_model_rates_to_usage` is NOT a UI
+**Partition creation wiring**: `rates_to_usage` is NOT a UI
 summary table, so it is not covered by the `_handle_partitions()` call
 in `ocp_report_parquet_summary_updater.py`. Instead, partition creation
 must be wired in the cost model updater, following the pattern used by
@@ -722,7 +672,7 @@ from koku.pg_partition import get_or_create_partition
 
 get_or_create_partition(
     schema_name=self._schema,
-    table_name="cost_model_rates_to_usage",
+    table_name="rates_to_usage",
     start_date=start_date,
 )
 ```
@@ -731,7 +681,7 @@ This creates the monthly partition on demand, before the first INSERT
 for that month. See `write_to_self_hosted_table()` in
 `ocp_report_parquet_processor.py` for the existing pattern.
 
-**Rollback**: `DROP TABLE cost_model_rates_to_usage CASCADE;`
+**Rollback**: `DROP TABLE rates_to_usage CASCADE;`
 
 ---
 
@@ -756,7 +706,6 @@ CREATE TABLE reporting_ocp_cost_breakdown_p (
     custom_name          VARCHAR(50) NOT NULL,
     metric_type          VARCHAR(30) NOT NULL,
     cost_model_rate_type TEXT,
-    cost_type            VARCHAR(20),                -- NULL for distribution rows (IQ-8)
     cost_value           NUMERIC(33, 15),
     distributed_cost     NUMERIC(33, 15),
     path                 VARCHAR(200) NOT NULL,
@@ -841,7 +790,7 @@ On-prem deployments (`settings.ONPREM = True`) run migrations via the
 `koku-metrics-operator` or manual `django-admin migrate`. The migration
 sequence is the same. The only difference:
 
-- `CostModelRatesToUsage` must also be added to the self-hosted table
+- `RatesToUsage` must also be added to the self-hosted table
   cleanup in `get_self_hosted_table_names()` if on-prem uses the
   self-hosted SQL path
 - The `reporting_ocp_cost_breakdown_p` partition cleanup is automatic
@@ -876,9 +825,11 @@ This is handled by M3 above.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| v1.0 | 2026-03-17 | Initial: 4 Django models (PriceList, Rate, CostModelRatesToUsage, OCPCostUIBreakDownP), 6 migrations (M1-M6), tree structure definition (depth 1-5), custom_name generation algorithm. |
-| v2.0 | 2026-03-17 | IQ-1 resolved: add 4 fine-grained columns to CostModelRatesToUsage (pod_labels, volume_labels, persistentvolumeclaim, all_labels). Update M4 DDL. |
+| v1.0 | 2026-03-17 | Initial: 4 Django models (PriceList, Rate, RatesToUsage, OCPCostUIBreakDownP), 6 migrations (M1-M6), tree structure definition (depth 1-5), custom_name generation algorithm. |
+| v2.0 | 2026-03-17 | IQ-1 resolved: add 4 fine-grained columns to RatesToUsage (pod_labels, volume_labels, persistentvolumeclaim, all_labels). Update M4 DDL. |
 | v2.1 | 2026-03-17 | Fix tree depth inconsistency: align hierarchy table with PoC SQL (depth 4 per-rate, depth 3 distribution). Mark depth 5 as conditional on IQ-9. |
 | v2.2 | 2026-03-17 | IQ-9 investigation: update hierarchy table and example tree to show depth 4-5 back-allocation structure. Add IQ-9 Option 2 annotations. Clarify intro text for current vs proposed state. |
 | v2.3 | 2026-03-17 | Blast-radius triage: fix M1 DDL to remove IQ-6 columns (align with model), add "infrastructure" to breakdown_category comment, document `labels` field purpose. |
-| v2.4 | 2026-03-17 | R13 mitigation: add `label_hash` column to CostModelRatesToUsage model and M4 DDL. Add `ratestousage_label_hash_idx` index. Add full decision rationale with 5 options evaluated, collision risk analysis, and computation details. |
+| v2.4 | 2026-03-17 | R13 mitigation: add `label_hash` column to RatesToUsage model and M4 DDL. Add `ratestousage_label_hash_idx` index. Add full decision rationale with 5 options evaluated, collision risk analysis, and computation details. |
+| v3.0 | 2026-03-19 | **IQ-9 Option 1 adopted.** Add `distributed_cost` column to `RatesToUsage` model and M4 DDL. Drop `cost_type` from `OCPCostUIBreakDownP` and M5 DDL. Rename `CostModelRatesToUsage` → `RatesToUsage` / `cost_model_rates_to_usage` → `rates_to_usage`. Update tree structure for per-rate distribution. |
+| v3.1 | 2026-03-19 | **Risk extraction.** Move R13 decision rationale table to [risk-register.md](./risk-register.md). Retain problem statement and computation details inline. |
