@@ -29,7 +29,7 @@ design documents link here for details.
 | R15 | Back-allocation JOIN complexity | **REPLACED** | 4 | Replaced by simpler RTU × daily summary JOIN. |
 | R16 | Aggregation GROUP BY granularity mismatch | Active | 2 | `resource_id` confirmed absent from GROUP BY. |
 | R17 | Markup ORM overhead | **MITIGATED** | 2 | ORM-first + SQL fallback if >30s. |
-| R18 | Distribution SQL rewrite regression | Active | 4 | Old files preserved for rollback; regression tests. |
+| R18 | Distribution SQL rewrite regression | Active | 4 | Old files preserved for rollback; regression tests; [gaps identified](#known-gaps). |
 | R19 | Aggregation handling of `distributed_cost` | **Open** | 4 | [Details](#r19-aggregation-handling-of-distributed_cost) |
 
 ---
@@ -176,7 +176,7 @@ Phase 2 benchmark #6 triggers switch if ORM > 30s.
 
 ## R18 — Distribution SQL Rewrite Regression
 
-**Status**: Active (Phase 4)
+**Status**: Active (Phase 4) — mitigation designed, pending implementation
 
 5 new distribution SQL files replace the existing `distribute_*.sql`
 files. Old files preserved for rollback (code revert, no Unleash flag).
@@ -191,6 +191,33 @@ files. Old files preserved for rollback (code revert, no Unleash flag).
 3. Compare: totals must match within NUMERIC(33,15) precision.
 4. Per-rate drill-down: verify that individual per-rate distributed
    rows sum to the aggregated `distributed_cost` for each namespace.
+
+### Acceptance criteria (to be confirmed with tech lead)
+
+| # | Criterion | Threshold |
+|---|-----------|-----------|
+| 1 | Aggregate `distributed_cost` per (namespace, day, type) | Old vs new diff = 0 within NUMERIC(33,15) precision |
+| 2 | Per-rate distributed rows sum to namespace total | SUM(per-rate) = aggregated `distributed_cost` per namespace |
+| 3 | No orphaned distributed rows | Every distributed row traces back to a valid `RatesToUsage` source row |
+| 4 | Zero-cost namespaces | Namespaces with `calculated_cost = 0` produce zero distributed rows (no divide-by-zero) |
+| 5 | Single-node clusters | Distribution degenerates correctly (100% to the single node) |
+| 6 | GPU distribution | GPU rates distribute by GPU-specific metrics, not CPU/memory |
+| 7 | Execution time | New per-rate distribution ≤ 2× old distribution time per (source, date range) |
+
+### Known gaps
+
+- **Staging dataset**: No concrete plan for which dataset to use for
+  the old-vs-new comparison. Options: (a) largest staging tenant,
+  (b) synthetic data with known expected values, (c) anonymized
+  production snapshot. **Needs tech lead input.**
+- **CI gate**: The 4-step comparison is manual. Consider adding a CI
+  job that runs both old and new distribution SQL on every Phase 4 PR
+  and fails if totals diverge. This would catch regressions before
+  merge rather than after.
+- **Edge cases not yet covered**: Namespaces with no usage metrics
+  (would cause divide-by-zero in proportional distribution),
+  overlapping date ranges across cost model recalculations, tenants
+  with mixed distribution types (cpu + memory on same cluster).
 
 ### Orchestration phasing note
 
