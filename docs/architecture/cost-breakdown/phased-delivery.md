@@ -1,7 +1,7 @@
 # Phased Delivery Plan
 
 This document maps each phase to specific code artifacts, defines
-validation criteria, rollback strategies, and the risk register.
+validation criteria, rollback strategies, and the [risk register](./risk-register.md).
 
 ---
 
