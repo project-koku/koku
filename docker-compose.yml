@@ -147,7 +147,10 @@ services:
       - "./run_server.sh:/koku/run_server.sh"
       - "./dev/credentials:/etc/credentials"
     depends_on:
-      - koku-base
+      koku-base:
+        condition: service_started
+      trino:
+        condition: service_healthy
 
   koku-worker:
     image: koku_base
@@ -307,7 +310,10 @@ services:
       - "./db_functions:/koku/db_functions:z"
       - "./scripts:/koku/scripts:z"
     depends_on:
-      - koku-base
+      koku-base:
+        condition: service_started
+      trino:
+        condition: service_healthy
 
   subs-worker:
     container_name: subs_worker
