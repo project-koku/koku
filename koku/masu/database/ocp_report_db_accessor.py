@@ -184,8 +184,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             )
             count = result[0][0] if result else 0
             return bool(count)
-        # Only Trino/Hive execution errors: this helper never runs the partition check on PostgreSQL.
-        # On-prem (no GPU table in Trino) returns False above via trino_table_exists before this query.
+        # Trino query errors only; not Postgres. If trino_table_exists is False we return above.
+        # False early exit is typical for ONPREM=True (no Hive GPU table). Cloud (ONPREM=False)
+        # usually has the table after GPU ingest, so we run the query below.
         except (TrinoStatementExecError, TrinoUserError) as err:
             LOG.warning(
                 log_json(
