@@ -562,6 +562,79 @@ def _get_s3_objects(s3_path):
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
+def get_table_names_for_delete(provider_type):
+    """Return table names for on-prem postgres deletion, by provider type.
+
+    Used by both the downloader (date-scoped delete) and processor (full-month delete).
+    """
+    from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_DAILY
+    from reporting.provider.aws.models import TRINO_LINE_ITEM_TABLE as AWS_RAW
+    from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE as AWS_OCP
+    from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE as AZURE_RAW
+    from reporting.provider.azure.models import TRINO_OCP_ON_AZURE_DAILY_TABLE as AZURE_OCP
+
+    provider_type_stripped = provider_type.replace("-local", "")
+    if provider_type_stripped == Provider.PROVIDER_AWS:
+        return [AWS_RAW, AWS_DAILY, AWS_OCP]
+    elif provider_type_stripped == Provider.PROVIDER_AZURE:
+        return [AZURE_RAW, AZURE_OCP]
+    return []
+
+
+def _delete_old_data_postgres_by_date(
+    schema_name, provider_uuid, provider_type, year, month, manifest_id, processing_date
+):
+    """Delete postgres rows for dates >= processing_date with a different manifestid.
+
+    This is the on-prem equivalent of Trino's clear_s3_files which deletes
+    S3 parquet files from processing_date onwards. It ensures that only data
+    being reprocessed is deleted, preserving earlier days in the month.
+    """
+    from koku.reportdb_accessor import get_report_db_accessor
+
+    db_accessor = get_report_db_accessor()
+    table_names = get_table_names_for_delete(provider_type)
+
+    total_deleted = 0
+    for table_name in table_names:
+        check_table_sql = db_accessor.get_table_check_sql(table_name, schema_name)
+        with db_accessor.connect() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(check_table_sql)
+                if not cursor.fetchone():
+                    continue
+
+        delete_sql = db_accessor.get_delete_day_by_manifestid_and_date_sql(
+            schema_name, table_name, str(provider_uuid), year, month, str(manifest_id), str(processing_date)
+        )
+        with db_accessor.connect(schema=schema_name) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(delete_sql)
+                total_deleted += cursor.rowcount
+
+    LOG.info(
+        log_json(
+            msg="deleted old data from postgres (date-scoped)",
+            deleted_rows=total_deleted,
+            processing_date=str(processing_date),
+            schema=schema_name,
+        )
+    )
+
+
+def _clear_csv_only(csv_s3_path, manifest_id, manifest, manifest_accessor, context, request_id):
+    """Delete only CSV files from S3 and mark CSV cleared, leaving parquet for later processing."""
+    to_delete = get_s3_objects_not_matching_metadata(
+        request_id,
+        csv_s3_path,
+        metadata_key="manifestid",
+        metadata_value_check=str(manifest_id),
+        context=context,
+    )
+    delete_s3_objects(request_id, to_delete, context)
+    manifest_accessor.mark_s3_csv_cleared(manifest)
+
+
 def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_date, manifest_id, context, request_id):
     """
     Fetches latest processed date based on daily csv files and clears relevant s3 files
@@ -572,8 +645,25 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
     processing_date = manifest_accessor.get_manifest_daily_start_date(manifest_id)
     if processing_date:
         if not manifest_accessor.get_s3_parquet_cleared(manifest):
-            # Prevent other works running trino queries until all files are removed.
-            clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
+            if settings.ONPREM:
+                _clear_csv_only(csv_s3_path, manifest_id, manifest, manifest_accessor, context, request_id)
+                year = str(processing_date.year)
+                month = str(processing_date.month).zfill(2)
+                _delete_old_data_postgres_by_date(
+                    context.get("account"),
+                    provider_uuid,
+                    context.get("provider_type"),
+                    year,
+                    month,
+                    manifest_id,
+                    processing_date,
+                )
+                manifest_accessor.mark_s3_parquet_cleared(manifest)
+            else:
+                # Prevent other works running trino queries until all files are removed.
+                clear_s3_files(
+                    csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id
+                )
         return processing_date
     processing_date = start_date
     try:
@@ -592,8 +682,23 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
             )
             # Set processing date for all workers
             processing_date = manifest_accessor.set_manifest_daily_start_date(manifest_id, processing_date)
-        # Try to clear s3 files for dates. Small edge case, we may have parquet files even without csvs
-        clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
+        if settings.ONPREM:
+            _clear_csv_only(csv_s3_path, manifest_id, manifest, manifest_accessor, context, request_id)
+            year = str(processing_date.year)
+            month = str(processing_date.month).zfill(2)
+            _delete_old_data_postgres_by_date(
+                context.get("account"),
+                provider_uuid,
+                context.get("provider_type"),
+                year,
+                month,
+                manifest_id,
+                processing_date,
+            )
+            manifest_accessor.mark_s3_parquet_cleared(manifest)
+        else:
+            # Try to clear s3 files for dates. Small edge case, we may have parquet files even without csvs
+            clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
     except (EndpointConnectionError, ClientError, AttributeError, ValueError):
         msg = (
             "unable to fetch date from objects, "
