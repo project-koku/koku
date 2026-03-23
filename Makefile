@@ -352,18 +352,24 @@ docker-build:
 
 
 docker-up: docker-build
-	$(DOCKER_COMPOSE) up -d --wait trino hive-metastore
+	$(DOCKER_COMPOSE) up -d minio trino hive-metastore
+	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
+	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 docker-up-no-build: docker-up-db
-	$(DOCKER_COMPOSE) up -d --wait trino hive-metastore
+	$(DOCKER_COMPOSE) up -d minio trino hive-metastore
+	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
+	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 # basic dev environment targets
 docker-up-min: docker-build docker-up-min-no-build
 
 docker-up-min-no-build: docker-host-dir-setup docker-up-db
-	$(DOCKER_COMPOSE) up -d --wait trino hive-metastore
+	$(DOCKER_COMPOSE) up -d minio trino hive-metastore
+	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
+	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
 	$(DOCKER_COMPOSE) up -d koku-server masu-server
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-worker
 
@@ -434,10 +440,14 @@ docker-host-dir-setup:
 docker-trino-setup: delete-trino docker-host-dir-setup
 
 docker-trino-up: docker-trino-setup
-	$(DOCKER_COMPOSE) up --build -d --wait trino hive-metastore
+	$(DOCKER_COMPOSE) up --build -d minio trino hive-metastore
+	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
+	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
 
 docker-trino-up-no-build: docker-trino-setup
-	$(DOCKER_COMPOSE) up -d --wait trino hive-metastore
+	$(DOCKER_COMPOSE) up -d minio trino hive-metastore
+	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
+	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
 
 docker-trino-ps:
 	$(DOCKER_COMPOSE) ps trino hive-metastore
