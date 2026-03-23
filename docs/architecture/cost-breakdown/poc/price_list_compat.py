@@ -16,8 +16,8 @@ Usage:
 Or standalone:
     python docs/architecture/cost-breakdown/poc/price_list_compat.py
 """
+
 import copy
-from collections import defaultdict
 from dataclasses import dataclass
 from dataclasses import field
 from decimal import Decimal
@@ -29,13 +29,14 @@ from decimal import Decimal
 @dataclass
 class RateRow:
     """Simulates a cost_model_rate table row."""
+
     uuid: str
     price_list_id: str
     custom_name: str
     description: str
-    metric: str              # e.g. "cpu_core_usage_per_hour"
-    metric_type: str         # cpu, memory, storage, gpu
-    cost_type: str           # Infrastructure, Supplementary
+    metric: str  # e.g. "cpu_core_usage_per_hour"
+    metric_type: str  # cpu, memory, storage, gpu
+    cost_type: str  # Infrastructure, Supplementary
     default_rate: Decimal
     tag_key: str = ""
     tag_values: dict = field(default_factory=dict)
@@ -116,7 +117,9 @@ def price_list_from_json(rates_json: list[dict]) -> dict:
         if metric_name in metric_rate_map:
             metric_mapping = metric_rate_map[metric_name]
             if metric_cost_type in metric_mapping.get("tiered_rates", {}):
-                current_tiered_mapping = metric_mapping["tiered_rates"][metric_cost_type]
+                current_tiered_mapping = metric_mapping["tiered_rates"][
+                    metric_cost_type
+                ]
                 new_tiered_rate = rate.get("tiered_rates")
                 current_value = float(current_tiered_mapping[0].get("value"))
                 value_to_add = float(new_tiered_rate[0].get("value"))
@@ -169,7 +172,11 @@ def json_rates_to_rate_rows(rates_json: list[dict]) -> list[RateRow]:
         tiered_rates = rate_json.get("tiered_rates", [])
         tag_rates = rate_json.get("tag_rates", {})
 
-        default_rate = Decimal(str(tiered_rates[0].get("value", 0))) if tiered_rates else Decimal("0")
+        default_rate = (
+            Decimal(str(tiered_rates[0].get("value", 0)))
+            if tiered_rates
+            else Decimal("0")
+        )
 
         candidate = description[:50] if description else metric_name[:50]
         if candidate in used_names:
@@ -182,18 +189,20 @@ def json_rates_to_rate_rows(rates_json: list[dict]) -> list[RateRow]:
         used_names.add(candidate)
 
         counter += 1
-        rows.append(RateRow(
-            uuid=f"rate-{counter:04d}",
-            price_list_id="pl-0001",
-            custom_name=candidate,
-            description=description,
-            metric=metric_name,
-            metric_type=_derive_metric_type(metric_name),
-            cost_type=cost_type,
-            default_rate=default_rate,
-            tag_key=tag_rates.get("tag_key", ""),
-            tag_values=tag_rates.get("tag_values", {}),
-        ))
+        rows.append(
+            RateRow(
+                uuid=f"rate-{counter:04d}",
+                price_list_id="pl-0001",
+                custom_name=candidate,
+                description=description,
+                metric=metric_name,
+                metric_type=_derive_metric_type(metric_name),
+                cost_type=cost_type,
+                default_rate=default_rate,
+                tag_key=tag_rates.get("tag_key", ""),
+                tag_values=tag_rates.get("tag_values", {}),
+            )
+        )
 
     return rows
 
@@ -216,8 +225,11 @@ def _derive_metric_type(metric_name: str) -> str:
         return USAGE_METRIC_MAP[metric_name]
     if "gpu" in metric_name:
         return "gpu"
-    if metric_name in ("node_cost_per_month", "node_core_cost_per_month",
-                       "cluster_cost_per_month"):
+    if metric_name in (
+        "node_cost_per_month",
+        "node_core_cost_per_month",
+        "cluster_cost_per_month",
+    ):
         return "cpu"
     if metric_name == "pvc_cost_per_month":
         return "storage"
@@ -318,34 +330,79 @@ EMPTY_RATES_JSON: list = []
 
 # Fixture 5: Full realistic cost model (mirrors OCP_ON_PREM_COST_MODEL pattern)
 FULL_RATES_JSON = [
-    {"metric": {"name": "cpu_core_usage_per_hour"}, "cost_type": "Infrastructure",
-     "description": "CPU usage", "tiered_rates": [{"value": 0.22, "unit": "USD"}]},
-    {"metric": {"name": "cpu_core_request_per_hour"}, "cost_type": "Infrastructure",
-     "description": "CPU request", "tiered_rates": [{"value": 0.10, "unit": "USD"}]},
-    {"metric": {"name": "cpu_core_effective_usage_per_hour"}, "cost_type": "Infrastructure",
-     "description": "CPU effective", "tiered_rates": [{"value": 0.15, "unit": "USD"}]},
-    {"metric": {"name": "memory_gb_usage_per_hour"}, "cost_type": "Infrastructure",
-     "description": "Memory usage", "tiered_rates": [{"value": 0.01, "unit": "USD"}]},
-    {"metric": {"name": "memory_gb_request_per_hour"}, "cost_type": "Infrastructure",
-     "description": "Memory request", "tiered_rates": [{"value": 0.008, "unit": "USD"}]},
-    {"metric": {"name": "memory_gb_effective_usage_per_hour"}, "cost_type": "Infrastructure",
-     "description": "Memory effective", "tiered_rates": [{"value": 0.012, "unit": "USD"}]},
-    {"metric": {"name": "storage_gb_usage_per_month"}, "cost_type": "Infrastructure",
-     "description": "Storage usage", "tiered_rates": [{"value": 0.03, "unit": "USD"}]},
-    {"metric": {"name": "storage_gb_request_per_month"}, "cost_type": "Infrastructure",
-     "description": "Storage request", "tiered_rates": [{"value": 0.02, "unit": "USD"}]},
-    {"metric": {"name": "node_cost_per_month"}, "cost_type": "Supplementary",
-     "description": "Node monthly", "tiered_rates": [{"value": 100.0, "unit": "USD"}]},
-    {"metric": {"name": "cluster_cost_per_month"}, "cost_type": "Supplementary",
-     "description": "Cluster monthly", "tiered_rates": [{"value": 500.0, "unit": "USD"}]},
-    {"metric": {"name": "pvc_cost_per_month"}, "cost_type": "Infrastructure",
-     "description": "PVC monthly", "tiered_rates": [{"value": 10.0, "unit": "USD"}]},
+    {
+        "metric": {"name": "cpu_core_usage_per_hour"},
+        "cost_type": "Infrastructure",
+        "description": "CPU usage",
+        "tiered_rates": [{"value": 0.22, "unit": "USD"}],
+    },
+    {
+        "metric": {"name": "cpu_core_request_per_hour"},
+        "cost_type": "Infrastructure",
+        "description": "CPU request",
+        "tiered_rates": [{"value": 0.10, "unit": "USD"}],
+    },
+    {
+        "metric": {"name": "cpu_core_effective_usage_per_hour"},
+        "cost_type": "Infrastructure",
+        "description": "CPU effective",
+        "tiered_rates": [{"value": 0.15, "unit": "USD"}],
+    },
+    {
+        "metric": {"name": "memory_gb_usage_per_hour"},
+        "cost_type": "Infrastructure",
+        "description": "Memory usage",
+        "tiered_rates": [{"value": 0.01, "unit": "USD"}],
+    },
+    {
+        "metric": {"name": "memory_gb_request_per_hour"},
+        "cost_type": "Infrastructure",
+        "description": "Memory request",
+        "tiered_rates": [{"value": 0.008, "unit": "USD"}],
+    },
+    {
+        "metric": {"name": "memory_gb_effective_usage_per_hour"},
+        "cost_type": "Infrastructure",
+        "description": "Memory effective",
+        "tiered_rates": [{"value": 0.012, "unit": "USD"}],
+    },
+    {
+        "metric": {"name": "storage_gb_usage_per_month"},
+        "cost_type": "Infrastructure",
+        "description": "Storage usage",
+        "tiered_rates": [{"value": 0.03, "unit": "USD"}],
+    },
+    {
+        "metric": {"name": "storage_gb_request_per_month"},
+        "cost_type": "Infrastructure",
+        "description": "Storage request",
+        "tiered_rates": [{"value": 0.02, "unit": "USD"}],
+    },
+    {
+        "metric": {"name": "node_cost_per_month"},
+        "cost_type": "Supplementary",
+        "description": "Node monthly",
+        "tiered_rates": [{"value": 100.0, "unit": "USD"}],
+    },
+    {
+        "metric": {"name": "cluster_cost_per_month"},
+        "cost_type": "Supplementary",
+        "description": "Cluster monthly",
+        "tiered_rates": [{"value": 500.0, "unit": "USD"}],
+    },
+    {
+        "metric": {"name": "pvc_cost_per_month"},
+        "cost_type": "Infrastructure",
+        "description": "PVC monthly",
+        "tiered_rates": [{"value": 10.0, "unit": "USD"}],
+    },
 ]
 
 
 # ---------------------------------------------------------------------------
 # Comparison utilities
 # ---------------------------------------------------------------------------
+
 
 def normalize_price_list(pl: dict) -> dict:
     """
@@ -360,7 +417,10 @@ def normalize_price_list(pl: dict) -> dict:
     for metric_name, entry in sorted(pl.items()):
         tiered = {}
         for cost_type, rate_list in sorted(entry.get("tiered_rates", {}).items()):
-            tiered[cost_type] = [{"value": round(float(r["value"]), 10), "unit": r["unit"]} for r in rate_list]
+            tiered[cost_type] = [
+                {"value": round(float(r["value"]), 10), "unit": r["unit"]}
+                for r in rate_list
+            ]
         normalized[metric_name] = {
             "metric": {"name": metric_name},
             "tiered_rates": tiered,
@@ -407,6 +467,7 @@ def compare_price_lists(json_pl: dict, rate_pl: dict) -> list[str]:
 # Tests
 # ---------------------------------------------------------------------------
 
+
 def test_simple_rates():
     """Simple case: one rate per metric per cost_type."""
     json_pl = price_list_from_json(SIMPLE_RATES_JSON)
@@ -435,10 +496,18 @@ def test_duplicate_rates():
     assert not diffs, f"Differences found: {diffs}"
 
     expected_cpu_infra = 0.10 + 0.12
-    actual_json = json_pl["cpu_core_usage_per_hour"]["tiered_rates"]["Infrastructure"][0]["value"]
-    actual_rate = rate_pl["cpu_core_usage_per_hour"]["tiered_rates"]["Infrastructure"][0]["value"]
-    assert abs(actual_json - expected_cpu_infra) < 1e-9, f"JSON sum wrong: {actual_json}"
-    assert abs(actual_rate - expected_cpu_infra) < 1e-9, f"Rate sum wrong: {actual_rate}"
+    actual_json = json_pl["cpu_core_usage_per_hour"]["tiered_rates"]["Infrastructure"][
+        0
+    ]["value"]
+    actual_rate = rate_pl["cpu_core_usage_per_hour"]["tiered_rates"]["Infrastructure"][
+        0
+    ]["value"]
+    assert (
+        abs(actual_json - expected_cpu_infra) < 1e-9
+    ), f"JSON sum wrong: {actual_json}"
+    assert (
+        abs(actual_rate - expected_cpu_infra) < 1e-9
+    ), f"Rate sum wrong: {actual_rate}"
 
 
 def test_mixed_tiered_and_tag():
@@ -450,8 +519,12 @@ def test_mixed_tiered_and_tag():
     diffs = compare_price_lists(json_pl, rate_pl)
     assert not diffs, f"Differences found: {diffs}"
 
-    assert "node_cost_per_month" not in json_pl, "tag-only metric should not appear in JSON price_list"
-    assert "node_cost_per_month" not in rate_pl, "tag-only metric should not appear in Rate price_list"
+    assert (
+        "node_cost_per_month" not in json_pl
+    ), "tag-only metric should not appear in JSON price_list"
+    assert (
+        "node_cost_per_month" not in rate_pl
+    ), "tag-only metric should not appear in Rate price_list"
 
 
 def test_empty_rates():
