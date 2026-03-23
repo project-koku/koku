@@ -29,8 +29,8 @@ design documents link here for details.
 | R15 | Back-allocation JOIN complexity | **REPLACED** | 4 | Replaced by simpler RTU × daily summary JOIN. |
 | R16 | Aggregation GROUP BY granularity mismatch | Active | 2 | `resource_id` confirmed absent from GROUP BY. |
 | R17 | Markup ORM overhead | **MITIGATED** | 2 | ORM-first + SQL fallback if >30s. |
-| R18 | Distribution SQL rewrite regression | Active | 4 | Old files preserved for rollback; regression tests; [gaps identified](#known-gaps). |
-| R19 | Aggregation handling of `distributed_cost` | **Open** | 4 | [Details](#r19-aggregation-handling-of-distributed_cost) |
+| R18 | Distribution SQL rewrite regression | Active | 4 | Old files preserved for rollback; existing integration tests sufficient per tech lead. |
+| R19 | Aggregation handling of `distributed_cost` | **RESOLVED** | 4 | Aggregation sums both `calculated_cost` and `distributed_cost` (Option A). |
 
 ---
 
@@ -176,7 +176,7 @@ Phase 2 benchmark #6 triggers switch if ORM > 30s.
 
 ## R18 — Distribution SQL Rewrite Regression
 
-**Status**: Active (Phase 4) — mitigation designed, pending implementation
+**Status**: Active (Phase 4) — mitigation confirmed by tech lead
 
 5 new distribution SQL files replace the existing `distribute_*.sql`
 files. Old files preserved for rollback (code revert, no Unleash flag).
@@ -192,7 +192,11 @@ files. Old files preserved for rollback (code revert, no Unleash flag).
 4. Per-rate drill-down: verify that individual per-rate distributed
    rows sum to the aggregated `distributed_cost` for each namespace.
 
-### Acceptance criteria (to be confirmed with tech lead)
+### Acceptance criteria
+
+Per tech lead: existing integration tests that check distribution
+amounts on the daily summary table are sufficient to confirm no
+regressions. No separate CI gate or staging dataset comparison needed.
 
 | # | Criterion | Threshold |
 |---|-----------|-----------|
@@ -203,21 +207,6 @@ files. Old files preserved for rollback (code revert, no Unleash flag).
 | 5 | Single-node clusters | Distribution degenerates correctly (100% to the single node) |
 | 6 | GPU distribution | GPU rates distribute by GPU-specific metrics, not CPU/memory |
 | 7 | Execution time | New per-rate distribution ≤ 2× old distribution time per (source, date range) |
-
-### Known gaps
-
-- **Staging dataset**: No concrete plan for which dataset to use for
-  the old-vs-new comparison. Options: (a) largest staging tenant,
-  (b) synthetic data with known expected values, (c) anonymized
-  production snapshot. **Needs tech lead input.**
-- **CI gate**: The 4-step comparison is manual. Consider adding a CI
-  job that runs both old and new distribution SQL on every Phase 4 PR
-  and fails if totals diverge. This would catch regressions before
-  merge rather than after.
-- **Edge cases not yet covered**: Namespaces with no usage metrics
-  (would cause divide-by-zero in proportional distribution),
-  overlapping date ranges across cost model recalculations, tenants
-  with mixed distribution types (cpu + memory on same cluster).
 
 ### Orchestration phasing note
 
@@ -231,36 +220,33 @@ raw cost → distribute (on RatesToUsage) → aggregate → UI summary`.
 
 ## R19 — Aggregation Handling of `distributed_cost`
 
-**Status**: Open — requires tech lead input
+**Status**: **RESOLVED** — Option A adopted per tech lead direction
 
 ### Problem
 
 With IQ-9 Option 1, distribution writes per-rate distributed rows
 back to `RatesToUsage` with a `distributed_cost` column. The
-aggregation SQL (`aggregate_rates_to_daily_summary.sql`) currently
-only sums `calculated_cost` by `metric_type` into
-`cost_model_cpu_cost / memory_cost / volume_cost` on the daily summary.
+aggregation SQL (`aggregate_rates_to_daily_summary.sql`) needs to
+populate `distributed_cost` on the daily summary for UI summary
+tables and the Sankey chart.
 
-The daily summary also needs `distributed_cost` populated for:
-- UI summary tables (`reporting_ocp_cost_summary_*_p`)
-- Sankey chart (via report API)
+### Decision: Option A — Aggregation sums both columns
 
-### Options
+The aggregation SQL is extended to `SUM(COALESCE(rtu.distributed_cost, 0))`
+alongside the existing `calculated_cost` SUMs. This keeps a single write
+path to the daily summary, consistent with the single-source-of-truth
+principle.
 
-| # | Approach | Pros | Cons |
-|---|----------|------|------|
-| A | **Aggregation sums both** — extend aggregation SQL to also SUM `distributed_cost` from `RatesToUsage` into the daily summary | Single write path. Consistent with single-source-of-truth. | Aggregation SQL becomes more complex (two types of rows: rate calculations and distributed). |
-| B | **Distribution dual-writes** — new distribution SQL writes per-rate rows to `RatesToUsage` AND aggregated `distributed_cost` to daily summary | Aggregation SQL stays unchanged. Daily summary gets same format as today. | Distribution has two write targets; slight dual-path concern. |
+Existing integration tests that verify distribution amounts on the daily
+summary table confirm no regressions — no additional test infrastructure
+needed.
 
-**Recommendation**: Option B is lower risk. The new distribution SQL
-already JOINs the daily summary for usage metrics — writing the
-aggregated `distributed_cost` back to the daily summary in the same
-SQL is a trivial addition. This means:
-- `RatesToUsage` gets per-rate distributed rows (for breakdown tree)
-- Daily summary gets aggregated `distributed_cost` (for existing pipeline)
-- Aggregation SQL stays unchanged (only handles `calculated_cost`)
+### Options evaluated
 
-**Decision needed from tech lead.**
+| # | Approach | Pros | Cons | Verdict |
+|---|----------|------|------|---------|
+| A | **Aggregation sums both** | Single write path. Consistent with single-source-of-truth. | Aggregation SQL slightly more complex. | **Selected** |
+| B | **Distribution dual-writes** | Aggregation SQL unchanged. | Two write targets; dual-path concern. | Rejected |
 
 ---
 
@@ -286,7 +272,7 @@ R15                                         ██ (Option 1 distribution JOINs)
 R16                    ██ (GROUP BY granularity)
 R17                    ██         ██ (markup ORM)
 R18                                         ██ (distribution regression)
-R19                                         ██ (aggregation + distributed_cost)
+R19                                         ✓ (resolved — aggregation sums both columns)
 ```
 
 ---
@@ -296,3 +282,4 @@ R19                                         ██ (aggregation + distributed_co
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial: extracted from phased-delivery.md, data-model.md, sql-pipeline.md. Full risk register (R1-R19), decision rationales (R2/R3, R6, R11, R13, R17), Phase 2 benchmarks, R18 regression test approach, R19 aggregation question. |
+| v1.1 | 2026-03-23 | **R19 RESOLVED (Option A)**: aggregation sums both `calculated_cost` and `distributed_cost`. R18: acceptance criteria confirmed — existing integration tests sufficient per tech lead. |

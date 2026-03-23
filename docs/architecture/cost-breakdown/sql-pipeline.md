@@ -630,7 +630,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     usage_start, usage_end, data_source, source_uuid,
     persistentvolumeclaim, pod_labels, volume_labels, all_labels,
     cost_category_id, cost_model_rate_type,
-    cost_model_cpu_cost, cost_model_memory_cost, cost_model_volume_cost
+    cost_model_cpu_cost, cost_model_memory_cost, cost_model_volume_cost,
+    distributed_cost
 )
 SELECT
     uuid_generate_v4(),
@@ -653,7 +654,8 @@ SELECT
     rtu.cost_model_rate_type,
     SUM(CASE WHEN rtu.metric_type = 'cpu'     THEN rtu.calculated_cost ELSE 0 END),
     SUM(CASE WHEN rtu.metric_type = 'memory'  THEN rtu.calculated_cost ELSE 0 END),
-    SUM(CASE WHEN rtu.metric_type = 'storage' THEN rtu.calculated_cost ELSE 0 END)
+    SUM(CASE WHEN rtu.metric_type = 'storage' THEN rtu.calculated_cost ELSE 0 END),
+    SUM(COALESCE(rtu.distributed_cost, 0))
 FROM {{schema | sqlsafe}}.rates_to_usage rtu
 WHERE rtu.usage_start >= {{start_date}}
   AND rtu.usage_start <= {{end_date}}
@@ -1019,3 +1021,4 @@ Trino or self-hosted variants are needed for these files.
 | v2.5 | 2026-03-17 | Decision rationales: add alternatives-evaluated tables for R11 (single DELETE scope, 3 options), R14 (reconciliation check, 3 options), R15 (3-CTE back-allocation, 4 options), R17 (ORM-first + SQL fallback, 3 options). |
 | v3.0 | 2026-03-19 | **IQ-9 Option 1 adopted.** Distribution reads per-rate costs from `RatesToUsage` + usage from daily summary, writes distributed rows back to `RatesToUsage`. New orchestration: distribution before aggregation. Replace back-allocation SQL with per-rate distribution sketch. Add 5 new distribution files + raw cost INSERT. Rename table references. Remove R14/R15 rationales. |
 | v3.1 | 2026-03-19 | **Risk extraction.** Move R11 and R17 decision rationale tables to [risk-register.md](./risk-register.md). Retain SQL fallback code inline. |
+| v3.2 | 2026-03-23 | **R19 RESOLVED (Option A).** Add `distributed_cost` to aggregation SQL INSERT/SELECT. Aggregation sums both `calculated_cost` and `distributed_cost` from `RatesToUsage`. |

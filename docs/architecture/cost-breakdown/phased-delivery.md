@@ -345,7 +345,7 @@ Full details, decision rationales, and mitigation plans are in
 | R16 | Aggregation GROUP BY granularity | Active |
 | R17 | Markup ORM overhead | **MITIGATED** |
 | R18 | Distribution SQL rewrite regression | Active |
-| R19 | Aggregation + `distributed_cost` | **Open** |
+| R19 | Aggregation + `distributed_cost` | **RESOLVED** |
 
 ### Risk × Phase Matrix
 

@@ -47,8 +47,7 @@ See [risk-register.md](./risk-register.md) for full details on all risks.
 
 - **R6**: 25 SQL file modifications — per-file-per-PR + 8-point checklist
 - **R10**: Trino dialect edge cases — requires Trino-enabled dev environment
-- **R18**: Distribution SQL rewrite regression — old files preserved for rollback
-- **R19**: Aggregation handling of `distributed_cost` — **open, needs tech lead input**
+- **R18**: Distribution SQL rewrite regression — old files preserved for rollback; existing integration tests sufficient
 - **Phase 4 frontend accuracy**: `koku-ui` may change before Phase 4
 
 ---
@@ -665,3 +664,4 @@ are versioned together. Each version corresponds to a commit on the
 | v2.5 | 2026-03-17 | — | **Decision rationales.** Add alternatives-evaluated tables with pros/cons/verdict for all actively mitigated risks: R2/R3 (DELETE+INSERT aggregation, 3 options), R6 (per-file-per-PR, 4 options), R11 (single DELETE scope, 3 options), R13 (label_hash, 5 options — already in v2.4), R14 (reconciliation check, 3 options), R15 (3-CTE back-allocation, 4 options), R17 (ORM-first + SQL fallback, 3 options). |
 | v3.0 | 2026-03-19 | — | **IQ-9 RESOLVED (Option 1)**, **IQ-6 RESOLVED**, **IQ-8 RESOLVED**. Adopt per-rate distribution (Option 1): distribution reads from `RatesToUsage` + daily summary usage, writes per-rate distributed rows back to `RatesToUsage`. Drop `cost_type` from `OCPCostUIBreakDownP`. Rename `CostModelRatesToUsage` → `RatesToUsage` / `cost_model_rates_to_usage` → `rates_to_usage`. Add `distributed_cost` column and infrastructure raw cost row. Update mermaid: distribution before aggregation. R14 eliminated, R15 replaced, R18 added. |
 | v3.1 | 2026-03-19 | — | **Risk extraction.** Create [risk-register.md](./risk-register.md) as consolidated risk reference (R1-R19). Slim down decision rationale tables in data-model.md, sql-pipeline.md, phased-delivery.md to one-line links. Add R19 (aggregation + `distributed_cost` — open). Update document catalog. |
+| v3.2 | 2026-03-23 | — | **R19 RESOLVED (Option A).** Aggregation sums both `calculated_cost` and `distributed_cost`. R18 mitigation confirmed: existing integration tests sufficient. Update residual risks. |
