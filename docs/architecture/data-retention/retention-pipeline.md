@@ -6,17 +6,77 @@
 
 ## Overview
 
-This document covers three changes to the data retention pipeline:
+This document covers changes to the data retention pipeline:
 
-1. **Read path refactor** — all consumers read retention from the new
+1. **Blast radius analysis** — comprehensive inventory of all data
+   cleanup paths and which ones are affected.
+2. **Read path refactor** — all retention consumers read from the new
    helper instead of `settings.RETAIN_NUM_MONTHS` directly.
-2. **Calendar-month fix** — `_calculate_expiration_date()` switches from
+3. **Calendar-month fix** — `_calculate_expiration_date()` switches from
    `months × 30 days` to `relativedelta(months=N)`.
-3. **Kafka ingest gate** — updated to use the same helper.
+4. **Kafka ingest gate** — updated to use the same helper.
 
 ---
 
-## 1. Read Path Refactor
+## Blast Radius Analysis
+
+### Retention-Driven Cleanup (affected — must use `get_data_retention_months()`)
+
+These paths currently read `RETAIN_NUM_MONTHS` / `MASU_RETAIN_NUM_MONTHS`
+and must be updated to call `get_data_retention_months(schema)`:
+
+| # | Path | Schedule / Trigger | What It Deletes | Current Source |
+|---|------|--------------------|----------------|----------------|
+| 1 | `remove_expired_data` (Beat) → `Orchestrator` → `ExpiredDataRemover` → Provider Cleaners (AWS, Azure, GCP, OCP) | Monthly (1st, 00:00 UTC) | Postgres partitions, bills, usage periods, manifests | `Config.MASU_RETAIN_NUM_MONTHS` |
+| 2 | `remove_expired_trino_partitions` (same Beat job) → OCP cleaner | Same as above | Trino/Hive partitions per month per source | `Config.MASU_RETAIN_NUM_MONTHS` |
+| 3 | `kafka_msg_handler` — OCP ingest gate | Per Kafka message | Rejects + deletes temp payload for OCP data outside retention | `Config.MASU_RETAIN_NUM_MONTHS` |
+| 4 | `materialized_view_month_start()` — API date window | Per API request | No deletion — bounds valid `start_date`/`end_date` range | `settings.RETAIN_NUM_MONTHS` |
+
+**Provider cleaner detail** (all flow through `ExpiredDataRemover`):
+
+| Cleaner | File | Deletes |
+|---------|------|---------|
+| `AWSReportDBCleaner` | `masu/processor/aws/aws_report_db_cleaner.py` | `PartitionedTable` rows + `cascade_delete` bills |
+| `AzureReportDBCleaner` | `masu/processor/azure/azure_report_db_cleaner.py` | Same pattern |
+| `GCPReportDBCleaner` | `masu/processor/gcp/gcp_report_db_cleaner.py` | Same pattern |
+| `OCPReportDBCleaner` | `masu/processor/ocp/ocp_report_db_cleaner.py` | Postgres partitions + `cascade_delete` usage periods + Trino `delete_hive_partition_by_month` |
+| `ReportManifestDBAccessor` | `masu/database/report_manifest_db_accessor.py` | `purge_expired_report_manifest` / `purge_expired_report_manifest_provider_uuid` |
+
+### Hardcoded Values (affected — IQ-2)
+
+| # | Path | Schedule / Trigger | What It Deletes | Hardcoded Value |
+|---|------|--------------------|----------------|-----------------|
+| 5 | `migrate_trino_tables --remove-expired-partitions` | Manual (management command) | Trino partitions for `MANAGED_TABLES` | `months = 5` |
+
+### Event-Driven Cleanup (NOT affected — no retention dependency)
+
+These paths delete data based on provider deletion, ETL dedup, or
+ops commands. They do not use `RETAIN_NUM_MONTHS` and need no changes.
+
+| # | Path | Trigger | What It Deletes |
+|---|------|---------|----------------|
+| 6 | `delete_source_beat` → `delete_source` | Beat daily 04:00 | Sources/providers marked for deletion |
+| 7 | `delete_archived_data` | `Provider.post_delete` signal | S3 CSV/parquet + Trino rows for deleted provider |
+| 8 | `purge_s3_files` / `purge_manifest_records` | Manual API (Unleash-gated) | S3 objects + manifests by prefix |
+| 9 | `ParquetReportProcessor._delete_old_data` | ETL pipeline (per file) | Dedup: clears old parquet/Postgres data for reprocessed window |
+| 10 | `trigger_delayed_tasks` | Beat every 30 min | Expired `DelayedCeleryTasks` rows (fires queued work) |
+| 11 | `remove_stale_tenants` | Manual (not in Beat) | Tenant rows with no sources, older than 2 weeks (hardcoded) |
+| 12 | `delete_openshift_on_cloud_data` | Chained in OCP-on-cloud summary | TRUNCATE/DELETE line items for date range during summarization |
+| 13 | ETL SQL (`masu/database/sql/`) | Summary update tasks | DELETE/TRUNCATE during summary refresh (UI tables, tag tables) |
+| 14 | `aws_null_bill_cleanup` | Manual management command | AWS bills with null payer (hardcoded date list, one-off ops) |
+| 15 | `Provider.delete()` cascade | Source/provider deletion | Cross-schema cascade delete of all reporting tables for a provider |
+| 16 | `crawl_account_hierarchy` | Beat daily 00:00 | Soft-delete only (sets `deleted_timestamp` on AWS org rows) |
+
+### Summary
+
+```
+Affected:       5 code paths (4 read RETAIN_NUM_MONTHS + 1 hardcoded)
+Not affected:  11 code paths (event-driven, not retention-based)
+```
+
+---
+
+## 2. Read Path Refactor
 
 ### Current Call Sites
 
@@ -85,7 +145,7 @@ backwards compatibility for callers that don't have a schema.
 
 ---
 
-## 2. Calendar-Month Expiration Fix
+## 3. Calendar-Month Expiration Fix
 
 ### Current Bug
 
@@ -168,7 +228,7 @@ The `schema_name` is available in the Celery task that creates the
 
 ---
 
-## 3. Kafka Ingest Gate
+## 4. Kafka Ingest Gate
 
 ### Current Code
 
@@ -237,6 +297,7 @@ sequenceDiagram
 | `api/utils.py` | `materialized_view_month_start` accepts `schema_name` |
 | `masu/config.py` | `MASU_RETAIN_NUM_MONTHS` becomes fallback only |
 | `masu/processor/_tasks/remove_expired.py` | Pass `schema_name` to `ExpiredDataRemover` |
+| `masu/management/commands/migrate_trino_tables.py` | Replace hardcoded `months = 5` with `get_data_retention_months()` |
 
 ---
 
@@ -254,3 +315,4 @@ sequenceDiagram
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-11 | Initial draft |
+| v1.1 | 2026-03-11 | Add blast radius analysis: 5 affected paths, 11 unaffected event-driven paths |
