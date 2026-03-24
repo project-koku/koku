@@ -120,3 +120,12 @@ def publish_application_destroy_event(source: Sources) -> None:
         LOG.error(
             log_json(msg="failed to publish Application.destroy event", source_id=source.source_id, error=str(error))
         )
+
+
+
+
+
+
+
+
+

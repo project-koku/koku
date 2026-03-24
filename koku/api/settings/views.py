@@ -7,6 +7,7 @@ import typing as t
 from dataclasses import dataclass
 from dataclasses import field
 
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.utils.encoding import force_str
 from django.views.decorators.cache import never_cache
@@ -83,7 +84,7 @@ class SettingParamsHandler:
 class AccountSettings(APIView):
     """Settings views for all user settings."""
 
-    permission_classes = [SettingsAccessPermission]
+    permission_classes = [SettingsAccessPermission] if not getattr(settings, "ONPREM", False) else [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         """Gets a list of users current settings."""
@@ -100,6 +101,8 @@ class AccountSettings(APIView):
         """Set the user cost type preference."""
         if not kwargs:
             return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        if settings.ONPREM and not SettingsAccessPermission().has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
         param_handler = SettingParamsHandler(kwargs["setting"], request)
         return param_handler.update_param(self.request.user.customer.schema_name)
 
