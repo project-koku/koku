@@ -61,7 +61,7 @@ team prefers DB-first.
 |---|----------|--------|----------|
 | **IQ-0** | Initialization strategy: env-var fallback (A) vs seed migration (B)? | **Open** | See above. Lean A. |
 | **IQ-1** | Should `MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY` also become configurable, or remain env-var only? | Open | Keep as env-var only — it is an internal optimization knob, not user-facing. |
-| **IQ-2** | `migrate_trino_tables` hardcodes `months = 5` for partition cleanup — should it read from `TenantSettings`? | Open | Yes — read from `TenantSettings` to avoid orphaned partitions when retention > 5 months. |
+| **IQ-2** | `migrate_trino_tables` hardcodes `months = 5` for Trino partition cleanup, and the Postgres provider cleaners use the same static `Config.MASU_RETAIN_NUM_MONTHS` — both should read from `TenantSettings` to handle retention > 5 months. This applies to the full purge pipeline (Trino partitions + Postgres aggregated data). | Open | Yes — all cleanup paths (Trino partitions, Postgres partition deletes, manifest purge) should read from `get_data_retention_months()`. |
 | **IQ-3** | Deploy defaults are inconsistent (kustomize: `3`, Django: `4`, docker-compose: `4`). Which is authoritative? | Open | Align all to `3` per PRD. |
 | **IQ-4** | Frontend changes (koku-ui-onprem) — separate ticket or part of COST-573? | Open | Separate ticket — backend API ships first. |
 
@@ -142,6 +142,7 @@ flowchart TD
 | D3 | Env var `RETAIN_NUM_MONTHS` overrides DB and hides UI | PRD requirement for backwards compatibility with SaaS |
 | D4 | `relativedelta(months=N)` replaces `months × 30 days` | PRD explicitly requires full calendar months |
 | D5 | Single row per tenant (get-or-create pattern) | Simplicity; no multi-row coordination needed |
+| D6 | Backend logic is environment-agnostic | The API, read helpers, purge pipeline, and Kafka gate work identically on SaaS and on-prem. The `ONPREM` flag only gates the **UI route registration** — all internal code paths use `get_data_retention_months()` regardless of environment. On SaaS, the env var is always set, so the DB value is never reached; on on-prem without the env var, the DB value (or default) is used. No `if ONPREM` checks in the retention logic. |
 
 ---
 

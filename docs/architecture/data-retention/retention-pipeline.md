@@ -25,9 +25,17 @@ Every consumer currently reads a static value cached at startup:
 | Consumer | Current Source | File |
 |----------|---------------|------|
 | `ExpiredDataRemover.__init__` | `Config.MASU_RETAIN_NUM_MONTHS` | `masu/processor/expired_data_remover.py:51` |
+| Postgres provider cleaners (AWS, Azure, GCP, OCP) | via `ExpiredDataRemover` | `masu/processor/*/\*_report_db_cleaner.py` |
+| Trino partition cleanup | hardcoded `months = 5` | `masu/management/commands/migrate_trino_tables.py:467` |
 | `kafka_msg_handler` | `Config.MASU_RETAIN_NUM_MONTHS` | `masu/external/kafka_msg_handler.py:391` |
 | `materialized_view_month_start` | `settings.RETAIN_NUM_MONTHS` | `api/utils.py:514` |
 | `masu/api/status.py` | `Config.MASU_RETAIN_NUM_MONTHS` | `masu/api/status.py:55` |
+
+**Note**: The Postgres provider cleaners (partition deletes, bill/usage
+period deletes, manifest purge) all flow through `ExpiredDataRemover`,
+so updating the `ExpiredDataRemover` read path covers the full Postgres
+cleanup pipeline. The Trino `migrate_trino_tables` command is a separate
+code path with a hardcoded value that must be updated independently.
 
 ### Proposed Change
 
@@ -38,6 +46,13 @@ defined in [data-model.md § Read Helper](data-model.md#read-helper).
 Before:  Config.MASU_RETAIN_NUM_MONTHS  (static int, one value for all tenants)
 After:   get_data_retention_months(schema_name)  (per-tenant, DB-backed)
 ```
+
+**Environment-agnostic**: This refactor applies to both SaaS and
+on-prem code paths — there are no `if ONPREM` checks in the retention
+logic. On SaaS the `RETAIN_NUM_MONTHS` env var is always set, so the
+helper returns the env value and never hits the DB. On on-prem without
+the env var, it reads from `tenant_settings` (or falls back to default
+`3`). The distinction is transparent to callers.
 
 **Impact on `Config.MASU_RETAIN_NUM_MONTHS`**: This attribute is no
 longer the primary source of truth. It remains as a module-level
