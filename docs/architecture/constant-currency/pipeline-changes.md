@@ -51,7 +51,7 @@ deployments:
 
 - **Default**: `open.er-api.com` (Open Exchange Rates API, free tier)
 - **Custom**: Customers can point to any compatible exchange rate API
-- **Empty/unset**: Disables dynamic exchange rate fetching entirely (airgapped mode)
+- **Empty/unset**: Celery task skips the API fetch step (no dynamic rates fetched)
 
 Documentation should include the production API URL as an example for customers
 configuring their own on-premise deployment.
@@ -63,8 +63,8 @@ configuring their own on-premise deployment.
 ### New Orchestration Order
 
 1. `get_daily_currency_rates` Celery beat task fires daily
-2. **CHANGED**: Checks if `CURRENCY_URL` is configured; **skips API fetch entirely
-   if empty** (airgapped mode — only static rates are available)
+2. **CHANGED**: Checks if `CURRENCY_URL` is configured; **skips API fetch if
+   empty** (dynamic rates are simply not fetched; static rates still work)
 3. Fetches rates from `CURRENCY_URL` *(unchanged when URL is set)*
 4. Upserts `ExchangeRates` rows *(unchanged)*
 5. Rebuilds `ExchangeRateDictionary` *(unchanged)*
@@ -110,14 +110,16 @@ graph TD
 
 **File**: `koku/masu/celery/tasks.py`
 
-### Step 1: Airgapped guard
+### Step 1: Check for `CURRENCY_URL`
 
-If `CURRENCY_URL` is empty or unset, skip the entire API fetch and dynamic
-snapshot logic. Only static exchange rates are usable in this mode.
+If `CURRENCY_URL` is empty or unset, skip the API fetch and dynamic snapshot
+steps. The system does not require `CURRENCY_URL` to function — it uses
+whatever rates are available (static first, then dynamic, then error if
+neither exists for a given pair).
 
 ```python
 if not settings.CURRENCY_URL:
-    LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch (airgapped mode)"))
+    LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
     return
 ```
 
@@ -170,8 +172,9 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
 
 **Key behaviors**:
 
-- **Airgapped guard**: If `CURRENCY_URL` is not configured, the task returns
-  immediately. No dynamic currencies are discovered or snapshotted.
+- **URL check**: If `CURRENCY_URL` is not configured, the task skips the API
+  fetch. Dynamic rates are simply not fetched; the system uses whatever rates
+  are available (static first, dynamic fallback, error if neither exists).
 - **Currency discovery**: Creates `EnabledCurrency` rows with `enabled=False`
   for any new currencies returned by the API. These appear in Settings as
   disabled currencies that the administrator can enable.
@@ -186,7 +189,7 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
 **Risk linkage**: See [risk-register.md § R1](./risk-register.md#r1--celery-task-month-end-failure),
 [risk-register.md § R2](./risk-register.md#r2--task-runtime-with-many-tenantspairs),
 [risk-register.md § R7](./risk-register.md#r7--no-exchange-rate-for-selected-currency),
-[risk-register.md § R8](./risk-register.md#r8--airgapped-mode-with-no-rates-configured)
+[risk-register.md § R8](./risk-register.md#r8--no-rates-configured)
 
 ---
 
@@ -284,10 +287,10 @@ the API returns an error rather than silently showing zero or unconverted costs:
 > *"No exchange rate available. Ask your administrator to configure static
 > exchange rates or enable dynamic exchange rates."*
 
-When **no currencies are visible** (no `CURRENCY_URL` configured, no
-static rates defined, and all currencies disabled), the frontend either hides
-the currency dropdown entirely or shows *"No exchange rates available."* —
-whichever is simpler to implement.
+When **no currencies are visible** (no dynamic currencies enabled and no
+static rates defined), the frontend either hides the currency dropdown
+entirely or shows *"No exchange rates available."* — whichever is simpler to
+implement.
 
 See [api-and-frontend.md § Corner Case: No Exchange Rate](./api-and-frontend.md#corner-case-no-exchange-rate)
 for the full UX specification.
@@ -387,7 +390,7 @@ This is handled automatically by the unified `MonthlyExchangeRateSnapshot` table
 |------|--------|
 | `koku/api/currency/models.py` | `ExchangeRates` and `ExchangeRateDictionary` remain as-is; serve as data source for dynamic snapshots |
 | `koku/api/currency/utils.py` | `build_exchange_dictionary` unchanged |
-| `koku/koku/settings.py` | `CURRENCY_URL` unchanged (already configurable); empty value now has defined semantics (airgapped mode) |
+| `koku/koku/settings.py` | `CURRENCY_URL` unchanged (already configurable); empty value causes Celery task to skip API fetch |
 | `masu/database/sql/` | No SQL template changes (all changes are Django ORM) |
 | `masu/database/trino_sql/` | No Trino changes |
 | `masu/database/self_hosted_sql/` | No self-hosted changes |
@@ -401,3 +404,4 @@ This is handled automatically by the unified `MonthlyExchangeRateSnapshot` table
 | v1.0 | 2026-03-19 | Initial pipeline changes design |
 | v1.1 | 2026-03-24 | Added airgapped mode, currency discovery, enabled-currency filtering, available currency resolution |
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility. All currencies always stored and snapshotted. |
+| v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution is: static first, dynamic fallback, error if neither. `CURRENCY_URL` only affects whether the Celery task fetches from the API. |

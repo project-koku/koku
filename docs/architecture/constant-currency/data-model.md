@@ -167,11 +167,13 @@ returns an error: *"No exchange rate available. Ask your administrator to config
 static exchange rates or enable dynamic exchange rates."* See
 [api-and-frontend.md § Corner Case: No Exchange Rate](./api-and-frontend.md#corner-case-no-exchange-rate).
 
-**Airgapped mode** (no `CURRENCY_URL` configured): The table remains empty or
-contains only manually-created rows. No dynamic currencies are discovered. Only
-static exchange rates define available currencies. If no static rates exist and
-the table is empty/all disabled, the currency dropdown is hidden or shows
-*"No exchange rates available."*
+**No `CURRENCY_URL` configured**: When the URL is not set, no dynamic currencies
+are discovered by the Celery task, so no rows are created automatically. The
+table may still contain previously fetched currencies or manually-created rows.
+The system does not treat this as a special mode — it uses whatever rates are
+available (static first, dynamic fallback, error if neither exists). If no
+currencies are visible (all disabled and no static rates), the currency dropdown
+is hidden or shows *"No exchange rates available."*
 
 **Registration points**: None. Accessed via the Settings API (see
 [api-and-frontend.md § Currency Enablement](./api-and-frontend.md#currency-enablement-settings-api)).
@@ -398,3 +400,4 @@ changes required.
 | v1.0 | 2026-03-19 | Initial data model design |
 | v1.1 | 2026-03-24 | Added `EnabledCurrency` model, M4 migration |
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility, not snapshotting |
+| v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |

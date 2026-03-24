@@ -194,13 +194,13 @@ in the target currency dropdown. It does not affect the `MonthlyExchangeRateSnap
 `StaticExchangeRateDictionary` tables — all currencies are always stored and
 snapshotted regardless of their enabled status.
 
-### Airgapped Mode (No `CURRENCY_URL`)
+### No `CURRENCY_URL` Configured
 
-When no `CURRENCY_URL` is configured, the `EnabledCurrency` table will have no
-dynamically-discovered currencies. The GET response will return either an empty
-list or only currencies that were manually added. The Settings UI should indicate
-that dynamic exchange rates are unavailable and only static exchange rates can be
-used.
+When no `CURRENCY_URL` is configured, no dynamic currencies are discovered by the
+Celery task, so the `EnabledCurrency` table will have no dynamically-discovered
+rows. The GET response will return either an empty list or only currencies that
+were manually added. Previously fetched dynamic currencies (if the URL was
+removed later) remain in the table.
 
 ---
 
@@ -245,8 +245,7 @@ static rates, or both. This is informational for the frontend.
 
 When **no currencies are available at all** — meaning:
 
-- No `CURRENCY_URL` is configured (no dynamic rates) or all dynamic currencies
-  are disabled in `EnabledCurrency`, **and**
+- All dynamic currencies are disabled in `EnabledCurrency` (or none exist), **and**
 - No `StaticExchangeRate` rows exist (no static rates)
 
 Then the currency dropdown should either be **hidden** or show a message:
@@ -393,9 +392,9 @@ The frontend will:
 - **Handle the no-rate error**: When the user selects a target currency that
   has no conversion path from the bill currency, display the error message
   returned by the API
-- **Handle no currencies available**: When no currencies are visible (all
-  dynamic currencies disabled and no static rates), either hide the dropdown
-  or show *"No exchange rates available"*
+- **Handle no currencies available**: When no currencies are visible (all dynamic
+  currencies disabled and no static rates), either hide the dropdown or show
+  *"No exchange rates available"*
 
 ---
 
@@ -416,3 +415,4 @@ The frontend will:
 | v1.0 | 2026-03-19 | Initial API and frontend design |
 | v1.1 | 2026-03-24 | Added currency enablement Settings API, available-currencies endpoint, dropdown behavior, no-rate corner case, airgapped UX |
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility, not snapshotting. All currencies are always stored and snapshotted. |
+| v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |

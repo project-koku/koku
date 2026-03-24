@@ -46,7 +46,7 @@ pairs. Show rate provenance in report responses.
 | Available currencies view | `koku/api/settings/` or new file | Returns available target currencies for dropdown |
 | URL registration | `koku/cost_models/urls.py` | Router entry for `exchange-rate-pairs` |
 | Settings URL registration | `koku/api/urls.py` or `koku/api/settings/urls.py` | Routes for currency enablement and available currencies endpoints |
-| Celery task update | `koku/masu/celery/tasks.py` | Airgapped guard, currency discovery, snapshot upsert for all currencies per tenant |
+| Celery task update | `koku/masu/celery/tasks.py` | Currency discovery, snapshot upsert for all currencies per tenant (skips fetch if no `CURRENCY_URL`) |
 | Query handler update | `koku/api/query_handler.py` | Date-aware `Case`/`When` annotations, available currency resolution |
 | OCP handler update | `koku/api/report/ocp/query_handler.py` | OCP-specific snapshot-based rates |
 | Forecast handler update | `koku/forecast/forecast.py` | Snapshot-based rate resolution |
@@ -79,8 +79,8 @@ pairs. Show rate provenance in report responses.
 - [ ] **Currency enablement**: Dynamic currencies arrive as disabled in `EnabledCurrency`
 - [ ] **Currency enablement**: Administrator can enable/disable currencies via Settings API
 - [ ] **Currency enablement**: All currencies are snapshotted regardless of enabled status; `enabled` flag only controls dropdown visibility
-- [ ] **Airgapped mode**: Celery task skips API fetch when `CURRENCY_URL` is empty
-- [ ] **Airgapped mode**: Only static rates are available when no URL is configured
+- [ ] **Rate resolution**: Static rates take precedence over dynamic rates; error returned if neither exists for a given pair
+- [ ] **No `CURRENCY_URL`**: Celery task skips API fetch; system works with whatever rates are available
 - [ ] **Available currencies**: Dropdown shows only enabled dynamic currencies and static rate currencies (disabled currencies are stored but hidden)
 - [ ] **Available currencies**: Static rate currencies appear regardless of `EnabledCurrency` status
 - [ ] **No-rate corner case**: Selecting a target currency with no conversion path returns HTTP 400 with actionable error
@@ -93,7 +93,7 @@ pairs. Show rate provenance in report responses.
    single-rate annotation from `ExchangeRateDictionary`)
 2. Revert OCP query handler and forecast handler changes
 3. Revert Celery task changes in `koku/masu/celery/tasks.py` (remove per-tenant
-   snapshot logic, currency discovery, airgapped guard)
+   snapshot logic, currency discovery)
 4. Revert report meta changes in `koku/api/report/queries.py` (remove
    `exchange_rates_applied` metadata and no-rate error handling)
 5. Revert URL registration in `koku/cost_models/urls.py`
@@ -140,7 +140,7 @@ See [risk-register.md](./risk-register.md) for full details.
 | **R5** | Query handler performance | Open | 1 |
 | **R6** | Static rate deletion gap | Low | 1 |
 | **R7** | No exchange rate for selected currency | Mitigated | 1 |
-| **R8** | Airgapped mode with no rates configured | Accepted | 1 |
+| **R8** | No rates configured (static or dynamic) | Accepted | 1 |
 
 ---
 
@@ -174,3 +174,4 @@ design would be needed to handle path prioritization.
 | v1.0 | 2026-03-19 | Initial phased delivery plan |
 | v1.1 | 2026-03-24 | Added EnabledCurrency artifacts (M4, views, tests), currency enablement and airgapped validation items, R7/R8 risks, updated rollback steps |
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility. All currencies always stored and snapshotted. |
+| v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |

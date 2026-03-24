@@ -16,7 +16,7 @@ Single source of truth for risks related to the Constant Currency feature
 | **R5** | Query handler `Case`/`When` with many months/currencies may be slow | Open | 1 | Benchmark with realistic currency pair counts |
 | **R6** | Static rate deletion leaves gap before dynamic rate fills in | Low | 1 | Next daily task run populates dynamic rate; gap is at most 24 hours |
 | **R7** | User selects a target currency with no conversion path from bill currency | Mitigated | 1 | Show actionable error; currencies remain visible in dropdown |
-| **R8** | Airgapped deployment with no static rates configured | Accepted | 1 | Hide dropdown or show "no exchange rates available" message |
+| **R8** | No rates configured (static or dynamic) for a currency pair | Accepted | 1 | Static first, dynamic fallback, error if neither; hide dropdown when no currencies visible |
 
 ---
 
@@ -182,27 +182,35 @@ with unconverted or zero amounts.
 
 ---
 
-## R8 — Airgapped Mode with No Rates Configured
+## R8 — No Rates Configured
 
 **Decision**: Accepted. Graceful degradation.
 
-**Context**: In a fully airgapped, isolated, disconnected deployment:
+**Context**: When no exchange rate data is available for a given currency pair:
 
-- `CURRENCY_URL` is empty or unset (no access to `open.er-api.com`)
-- No dynamic currencies are discovered by the Celery task
-- If no static exchange rates have been defined either, there are no currencies
-  available for conversion
+- No static exchange rate has been defined for the pair
+- No dynamic exchange rate exists for the pair (either `CURRENCY_URL` was never
+  configured, the API never returned that pair, or no rates have been fetched yet)
 
-**Behavior**: The currency dropdown is either hidden or shows
-*"No exchange rates available"* — whichever is simpler to implement. The system
-does not fail or show errors unprompted; it simply indicates that currency
-conversion is not configured.
+The system does not treat this as a special mode — it simply has no data for
+that conversion.
+
+**Behavior**: Rate resolution follows a simple priority:
+
+1. **Static rates** — used if defined for the pair
+2. **Dynamic rates** — used as fallback if no static rate exists
+3. **Error** — if neither exists, the API returns an actionable error:
+   *"No exchange rate available. Ask your administrator to configure static
+   exchange rates or enable dynamic exchange rates."*
+
+If no currencies are visible at all (all disabled and no static rates), the
+currency dropdown is either hidden or shows *"No exchange rates available"*.
 
 **Recovery path**: The administrator can:
 
 1. Define static exchange rates via the CRUD API (`/exchange-rate-pairs/`)
-2. Configure `CURRENCY_URL` to point to an accessible exchange rate API
-3. Enable discovered currencies in Settings
+2. Configure `CURRENCY_URL` to fetch dynamic rates from an exchange rate API
+3. Enable discovered currencies in Settings to make them visible in the dropdown
 
 **Linked from**: [pipeline-changes.md § Writer 1](./pipeline-changes.md#modified-get_daily_currency_rates--writer-1),
 [data-model.md § EnabledCurrency](./data-model.md#enabledcurrency)
@@ -230,4 +238,5 @@ R8       ✓
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial risk register |
-| v1.1 | 2026-03-24 | Added R7 (no-rate corner case) and R8 (airgapped mode) |
+| v1.1 | 2026-03-24 | Added R7 (no-rate corner case) and R8 (no rates configured) |
+| v1.2 | 2026-03-24 | Reframed R8: removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
