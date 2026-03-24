@@ -15,6 +15,8 @@ Single source of truth for risks related to the Constant Currency feature
 | **R4** | Pre-deployment months have no snapshot data | Accepted | 1 | Fallback to `ExchangeRateDictionary` (current behavior unchanged) |
 | **R5** | Query handler `Case`/`When` with many months/currencies may be slow | Open | 1 | Benchmark with realistic currency pair counts |
 | **R6** | Static rate deletion leaves gap before dynamic rate fills in | Low | 1 | Next daily task run populates dynamic rate; gap is at most 24 hours |
+| **R7** | User selects a target currency with no conversion path from bill currency | Mitigated | 1 | Show actionable error; currencies remain visible in dropdown |
+| **R8** | Airgapped deployment with no static rates configured | Accepted | 1 | Hide dropdown or show "no exchange rates available" message |
 
 ---
 
@@ -150,6 +152,63 @@ practice.
 
 ---
 
+## R7 — No Exchange Rate for Selected Currency
+
+**Decision**: Mitigated via actionable error message.
+
+**Context**: A currency may be available in the target currency dropdown (because
+it appears in a static exchange rate pair or is an enabled dynamic currency) but
+have no exchange rate path from the bill's source currency. For example:
+
+- Cloud bill in `USD`
+- Static rates define `EUR↔CHF` and `CNY↔SAR` (but not `USD↔EUR`)
+- User selects `EUR` as target currency
+- No `USD→EUR` rate exists (static or dynamic)
+
+| # | Approach | Status |
+|---|----------|--------|
+| 1 | Filter dropdown to only show currencies with available conversion paths | **Rejected** — hides useful information from users; they can't see what currencies exist or what to ask their administrator to configure |
+| 2 | **Show all available currencies; return actionable error when no conversion path exists** | **Selected** — transparent, informative, tells user exactly what to do |
+
+**Error message**: *"No exchange rate available between {source} and {target}.
+Ask your administrator to configure static exchange rates or enable dynamic
+exchange rates."*
+
+The error is returned as an HTTP 400 response. The report data is not returned
+with unconverted or zero amounts.
+
+**Linked from**: [api-and-frontend.md § Corner Case: No Exchange Rate](./api-and-frontend.md#corner-case-no-exchange-rate),
+[pipeline-changes.md § Available Currency Resolution](./pipeline-changes.md#new-available-currency-resolution)
+
+---
+
+## R8 — Airgapped Mode with No Rates Configured
+
+**Decision**: Accepted. Graceful degradation.
+
+**Context**: In a fully airgapped, isolated, disconnected deployment:
+
+- `CURRENCY_URL` is empty or unset (no access to `open.er-api.com`)
+- No dynamic currencies are discovered by the Celery task
+- If no static exchange rates have been defined either, there are no currencies
+  available for conversion
+
+**Behavior**: The currency dropdown is either hidden or shows
+*"No exchange rates available"* — whichever is simpler to implement. The system
+does not fail or show errors unprompted; it simply indicates that currency
+conversion is not configured.
+
+**Recovery path**: The administrator can:
+
+1. Define static exchange rates via the CRUD API (`/exchange-rate-pairs/`)
+2. Configure `CURRENCY_URL` to point to an accessible exchange rate API
+3. Enable discovered currencies in Settings
+
+**Linked from**: [pipeline-changes.md § Writer 1](./pipeline-changes.md#modified-get_daily_currency_rates--writer-1),
+[data-model.md § EnabledCurrency](./data-model.md#enabledcurrency)
+
+---
+
 ## Risk × Phase Matrix
 
 ```
@@ -160,6 +219,8 @@ R3       ✓
 R4       ✓
 R5       ✓          ✓ (if query range expands)
 R6       ✓
+R7       ✓
+R8       ✓
 ```
 
 ---
@@ -169,3 +230,4 @@ R6       ✓
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial risk register |
+| v1.1 | 2026-03-24 | Added R7 (no-rate corner case) and R8 (airgapped mode) |

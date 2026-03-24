@@ -110,6 +110,72 @@ defined, each uses its own rate.
 (see [api-and-frontend.md](./api-and-frontend.md)) and has side effects on
 `MonthlyExchangeRateSnapshot` via the serializer.
 
+### `EnabledCurrency`
+
+Tracks which currencies are enabled for use in exchange rate conversions. Currencies
+must be explicitly enabled by an administrator before they appear in dropdowns
+or are used for dynamic exchange rate conversions.
+
+```python
+class EnabledCurrency(models.Model):
+    currency_code = models.CharField(max_length=5, unique=True)
+    enabled = models.BooleanField(default=False)
+    created_timestamp = models.DateTimeField(auto_now_add=True)
+    updated_timestamp = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "enabled_currency"
+        ordering = ["currency_code"]
+```
+
+**Example `enabled_currency` rows**:
+
+| id | currency_code | enabled | created_timestamp | updated_timestamp |
+|----|---------------|---------|-------------------|-------------------|
+| 1 | `USD` | `true` | `2026-01-01 06:00:00+00` | `2026-01-01 06:00:00+00` |
+| 2 | `EUR` | `true` | `2026-01-01 06:00:00+00` | `2026-01-15 10:30:00+00` |
+| 3 | `GBP` | `false` | `2026-01-01 06:00:00+00` | `2026-01-01 06:00:00+00` |
+| 4 | `CNY` | `false` | `2026-01-01 06:00:00+00` | `2026-01-01 06:00:00+00` |
+| 5 | `JPY` | `false` | `2026-01-01 06:00:00+00` | `2026-01-01 06:00:00+00` |
+
+In this example, `USD` and `EUR` are enabled — their dynamic exchange rates will
+be snapshotted and they will appear in currency dropdowns. `GBP`, `CNY`, and `JPY`
+were discovered by the daily Celery task (fetched from the exchange rate API) but
+have not yet been enabled by an administrator.
+
+**Lifecycle**:
+
+| Event | Action |
+|-------|--------|
+| Daily Celery task fetches from exchange rate API | Creates `EnabledCurrency` rows with `enabled=False` for any newly discovered currencies not already in the table |
+| Administrator enables a currency in Settings | Sets `enabled=True` |
+| Administrator disables a currency in Settings | Sets `enabled=False` |
+
+**How currencies become "available" in dropdowns**:
+
+A currency is available for selection in the target currency dropdown if **any**
+of the following are true:
+
+1. It has `enabled=True` in `EnabledCurrency` **and** has dynamic exchange rates
+   in `MonthlyExchangeRateSnapshot` or `ExchangeRateDictionary`
+2. It appears in any `StaticExchangeRate` pair (static rates make their currencies
+   available regardless of the `EnabledCurrency` status)
+
+**Corner case — no usable rate**: A currency may be available in the dropdown but
+have no exchange rate path from the bill's source currency. In this case, the API
+returns an error: *"No exchange rate available. Ask your administrator to configure
+static exchange rates or enable dynamic exchange rates."* See
+[api-and-frontend.md § Corner Case: No Exchange Rate](./api-and-frontend.md#corner-case-no-exchange-rate).
+
+**Airgapped mode** (no `CURRENCY_URL` configured): The table remains empty or
+contains only manually-created rows. No dynamic currencies are discovered. Only
+static exchange rates define available currencies. If no static rates exist and
+the table is empty/all disabled, the currency dropdown is hidden or shows
+*"No exchange rates available."*
+
+**Registration points**: None. Accessed via the Settings API (see
+[api-and-frontend.md § Currency Enablement](./api-and-frontend.md#currency-enablement-settings-api)).
+
 ### `StaticExchangeRateDictionary`
 
 Pre-computed cross-rate matrix for static rates. Mirrors the existing public
@@ -292,11 +358,25 @@ going forward by the daily Celery task and CRUD side effects.
 (or with a single row containing an empty dictionary). Populated and rebuilt
 automatically on each `StaticExchangeRate` CRUD operation.
 
+### M4: Create `enabled_currency` Table
+
+| Field | Value |
+|-------|-------|
+| **Phase** | 1 |
+| **Type** | `CreateModel` (standard, no partitioning) |
+| **App** | `cost_models` |
+| **Depends on** | Previous `cost_models` migration |
+| **Rollback** | `DeleteModel` |
+
+**What migration does NOT do**: No data migration needed. Table is populated
+going forward by the daily Celery task (which creates rows with `enabled=False`
+for newly discovered currencies) and by administrator actions in Settings.
+
 ### Phase-to-Migration Mapping
 
 | Phase | Migrations | Description |
 |-------|-----------|-------------|
-| 1 | M1, M2, M3 | Create all new tables |
+| 1 | M1, M2, M3, M4 | Create all new tables |
 | 2 | TBD | Audit history tables (future) |
 
 **Note**: No tables are partitioned (`set_pg_extended_mode` not needed).
@@ -316,3 +396,4 @@ changes required.
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial data model design |
+| v1.1 | 2026-03-24 | Added `EnabledCurrency` model, M4 migration |

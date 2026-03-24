@@ -21,6 +21,9 @@ All design decisions for Phase 1 have been resolved.
 | **IQ-2** | Unified snapshot table vs separate static/dynamic resolution at query time | **RESOLVED** | ~Phase 1~ | Single `MonthlyExchangeRateSnapshot` table as unified source. [Details](#iq-2-unified-snapshot-table--resolved) |
 | **IQ-3** | Dynamic rate snapshotting: end-of-month only vs daily rolling | **RESOLVED** | ~Phase 1~ | Daily `update_or_create` for current month; immutable after month ends. [Details](#iq-3-dynamic-rate-snapshotting-strategy--resolved) |
 | **IQ-4** | Month locking scope: static + dynamic vs dynamic only | **RESOLVED** | ~Phase 1~ | Locking applies only to dynamic rates; static rates are inherently stable. [Details](#iq-4-month-locking-scope--resolved) |
+| **IQ-5** | Currency enablement: implicit vs explicit | **RESOLVED** | ~Phase 1~ | Explicit enablement by administrator; dynamic currencies arrive disabled. [Details](#iq-5-currency-enablement--resolved) |
+| **IQ-6** | Airgapped mode: fail-open vs static-only | **RESOLVED** | ~Phase 1~ | Static-only; `CURRENCY_URL` empty disables dynamic fetch entirely. [Details](#iq-6-airgapped-mode--resolved) |
+| **IQ-7** | No-rate corner case: hide currency vs show with error | **RESOLVED** | ~Phase 1~ | Show currency in dropdown, return error when selected if no rate exists. [Details](#iq-7-no-rate-corner-case--resolved) |
 
 ---
 
@@ -101,6 +104,71 @@ to the dynamic fallback path: the Celery task overwrites the current month's
 dynamic rows daily, but once the month rolls over, those rows are never touched
 again.
 
+### IQ-5: Currency enablement — RESOLVED
+
+**Problem**: Should all currencies returned by the exchange rate API be
+immediately available for use, or should an administrator explicitly enable them?
+
+**Resolution**: Explicit enablement. Currencies fetched from the dynamic exchange
+rate API arrive in Cost Management as **disabled** by default (stored in the
+`EnabledCurrency` table with `enabled=False`). An administrator must explicitly
+enable currencies through the Settings UI before they are used for dynamic
+exchange rate conversions and appear in the target currency dropdown.
+
+**Rationale**: Explicit enablement gives administrators control over which
+currencies are supported in their deployment. In on-premise environments,
+customers may only need a small subset of the ~170 currencies available from
+the API. Enabling all currencies by default would clutter the UI and create
+unnecessary snapshot data.
+
+**Exception**: Static exchange rate pairs always make their currencies available
+in the dropdown, regardless of `EnabledCurrency` status. If an administrator
+defines a `USD→EUR` static rate, both `USD` and `EUR` are immediately available.
+
+### IQ-6: Airgapped mode — RESOLVED
+
+**Problem**: How should Cost Management behave in fully airgapped, isolated,
+disconnected deployments with no access to `open.er-api.com` or any exchange
+rate API?
+
+**Resolution**: Static-only mode. When `CURRENCY_URL` is empty or unset:
+
+- The daily Celery task skips the API fetch entirely
+- No dynamic currencies are discovered or snapshotted
+- Only user-defined static exchange rates ("bring your own currency exchange")
+  are available
+- If no static rates are defined, the currency dropdown is hidden or shows
+  *"No exchange rates available"*
+
+The `CURRENCY_URL` setting is documented with the production API URL
+(`open.er-api.com`) as a reference example. Only the free tier of the Open
+Exchange Rates API is supported in this design.
+
+**Rationale**: Airgapped customers cannot reach any external API. Rather than
+failing with connection errors, the system gracefully degrades to static-only
+mode. Customers can still define their own exchange rates via the CRUD API.
+
+### IQ-7: No-rate corner case — RESOLVED
+
+**Problem**: What happens when a currency is available in the dropdown (because
+it appears in a static rate pair or is an enabled dynamic currency) but there is
+no exchange rate path from the bill's source currency?
+
+**Example**: Bill in USD. Static rates define EUR↔CHF and CNY↔SAR. User selects
+EUR as the target currency. There is no USD→EUR rate.
+
+**Resolution** (preferred approach): Show all available currencies in the
+dropdown, but return an actionable error when the user selects a target currency
+for which no conversion rate exists:
+
+> *"No exchange rate available between USD and EUR. Ask your administrator to
+> configure static exchange rates or enable dynamic exchange rates."*
+
+**Rejected alternative**: Filter the dropdown to only show currencies with
+available conversion paths from the bill currency. This was rejected because it
+hides useful information from users — they wouldn't know which currencies exist
+in the system or what to ask their administrator to configure.
+
 ---
 
 ## Quick Start
@@ -159,17 +227,23 @@ to drift as rates change daily.
 
 ```mermaid
 graph LR
-    API["open.er-api.com"] -->|daily fetch| CT["Celery Task:<br/>get_daily_currency_rates"]
+    API["open.er-api.com<br/>(or custom URL)"] -->|"daily fetch<br/>(skipped if URL empty)"| CT["Celery Task:<br/>get_daily_currency_rates"]
     CT -->|upsert| ER["ExchangeRates<br/>(public schema)"]
     CT -->|rebuild| ERD["ExchangeRateDictionary<br/>(public schema)"]
-    CT -->|"Writer 1: per-tenant<br/>skip static pairs"| SNAP["MonthlyExchangeRateSnapshot<br/>(tenant schema)<br/>per-pair rows"]
+    CT -->|"discover currencies<br/>create as disabled"| EC["EnabledCurrency<br/>(tenant schema)<br/>enabled/disabled per currency"]
+    CT -->|"Writer 1: per-tenant<br/>skip static pairs<br/>only enabled currencies"| SNAP["MonthlyExchangeRateSnapshot<br/>(tenant schema)<br/>per-pair rows"]
+    EC -->|"filter: only enabled<br/>currencies snapshotted"| SNAP
     SNAP -->|read per-month rates| QH["QueryHandler<br/>date-aware Case/When"]
     QH -->|"per-month rates +<br/>rate metadata"| REPORT["Report Response<br/>+ exchange_rates_applied"]
+    QH -->|"no rate? →<br/>actionable error"| ERR["Error: no exchange rate<br/>available"]
     ERD -.->|"fallback for<br/>pre-deployment months"| QH
+    ADMIN["CM Admin"] -->|"enable/disable<br/>currencies"| EC
     USER["Price List Admin"] -->|CRUD| SER["Serializer"]
     SER -->|"write canonical<br/>rate record"| STATIC["StaticExchangeRate<br/>(tenant schema)"]
     SER -->|"Writer 2: upsert<br/>rate_type=static"| SNAP
     SER -->|"rebuild static<br/>cross-rate matrix"| SERD["StaticExchangeRateDictionary<br/>(tenant schema)<br/>static cross-rate matrix"]
+    EC -->|"available currencies<br/>= enabled dynamic ∪<br/>static rate currencies"| DD["Target Currency<br/>Dropdown"]
+    STATIC -->|"static currencies<br/>always available"| DD
 ```
 
 **Key changes**:
@@ -178,6 +252,10 @@ graph LR
 2. Query handler reads per-month rates instead of a single global rate
 3. Report responses include rate provenance metadata
 4. `StaticExchangeRateDictionary` mirrors `ExchangeRateDictionary` for static rates — rebuilt on every CRUD operation instead of daily
+5. **Currency enablement**: Dynamic currencies arrive as disabled; administrator enables them via Settings before they are used
+6. **Airgapped mode**: When `CURRENCY_URL` is empty, dynamic fetch is skipped entirely — only static rates are available
+7. **Dropdown availability**: Target currency dropdown shows the union of enabled dynamic currencies and static rate currencies
+8. **No-rate error**: If user selects a currency with no conversion path from the bill currency, an actionable error is returned
 
 ---
 
@@ -196,6 +274,10 @@ graph LR
 | 9 | **Forward-only snapshots** | Pre-deployment months have no snapshot rows; fall back to `ExchangeRateDictionary` |
 | 10 | **Per-pair rows, not JSON blob** | Enables `unique_together` constraint, simpler queries, cleaner ORM integration |
 | 11 | **`StaticExchangeRateDictionary` mirrors `ExchangeRateDictionary`** | Same cross-rate matrix format; dynamic matrix rebuilt daily by Celery, static matrix rebuilt on each CRUD operation |
+| 12 | **Explicit currency enablement** | Dynamic currencies arrive disabled; administrator enables them in Settings to control which currencies appear in dropdowns |
+| 13 | **Configurable exchange rate URL** | `CURRENCY_URL` is a variable; empty value enables airgapped mode (static-only). Documentation references `open.er-api.com` (free tier) as the production example |
+| 14 | **Show-then-error for no-rate currencies** | Available currencies appear in dropdown even without a conversion path from the bill currency; actionable error returned on selection |
+| 15 | **Static rates bypass enablement** | Currencies in static exchange rate pairs are always available in dropdowns regardless of `EnabledCurrency` status |
 
 ---
 
@@ -204,3 +286,4 @@ graph LR
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial technical design |
+| v1.1 | 2026-03-24 | Added currency enablement (IQ-5), airgapped mode (IQ-6), no-rate corner case (IQ-7), design decisions 12–15 |

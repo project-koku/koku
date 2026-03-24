@@ -43,20 +43,44 @@ historical data is misleading.
 
 ## Proposed Pipeline Changes
 
+### Configurable Exchange Rate API URL
+
+The exchange rate API URL is already configurable via `CURRENCY_URL` in
+`koku/koku/settings.py`. This design makes the URL meaningful for on-premise
+deployments:
+
+- **Default**: `open.er-api.com` (Open Exchange Rates API, free tier)
+- **Custom**: Customers can point to any compatible exchange rate API
+- **Empty/unset**: Disables dynamic exchange rate fetching entirely (airgapped mode)
+
+Documentation should include the production API URL as an example for customers
+configuring their own on-premise deployment.
+
+> **Scope**: Only the free tier of Open Exchange Rates API is supported.
+> Paid-tier features (e.g., historical rates, time-series) are out of scope
+> for this design and would be covered by a future PRD if needed.
+
 ### New Orchestration Order
 
 1. `get_daily_currency_rates` Celery beat task fires daily
-2. Fetches rates from `CURRENCY_URL` *(unchanged)*
-3. Upserts `ExchangeRates` rows *(unchanged)*
-4. Rebuilds `ExchangeRateDictionary` *(unchanged)*
-5. **NEW**: Per-tenant snapshot upsert into `MonthlyExchangeRateSnapshot`
+2. **CHANGED**: Checks if `CURRENCY_URL` is configured; **skips API fetch entirely
+   if empty** (airgapped mode — only static rates are available)
+3. Fetches rates from `CURRENCY_URL` *(unchanged when URL is set)*
+4. Upserts `ExchangeRates` rows *(unchanged)*
+5. Rebuilds `ExchangeRateDictionary` *(unchanged)*
+6. **NEW**: Per-tenant currency discovery — creates `EnabledCurrency` rows
+   with `enabled=False` for newly discovered currencies
+7. **NEW**: Per-tenant snapshot upsert into `MonthlyExchangeRateSnapshot`
+   — **only for enabled currencies**
 
 At query time:
 
-6. **CHANGED**: `QueryHandler.exchange_rate_annotation_dict` reads from
+8. **CHANGED**: `QueryHandler.exchange_rate_annotation_dict` reads from
    `MonthlyExchangeRateSnapshot` instead of `ExchangeRateDictionary`
-7. **CHANGED**: Builds per-month `Case`/`When` annotations (one rate per month)
-8. **NEW**: Report response includes `exchange_rates_applied` metadata
+9. **CHANGED**: Builds per-month `Case`/`When` annotations (one rate per month)
+10. **NEW**: Report response includes `exchange_rates_applied` metadata
+11. **NEW**: Available currencies for dropdown computed from enabled dynamic
+    currencies + static rate currencies
 
 ### Two Writers, One Reader
 
@@ -85,15 +109,47 @@ graph TD
 
 **File**: `koku/masu/celery/tasks.py`
 
-After existing logic (upsert `ExchangeRates`, rebuild `ExchangeRateDictionary`),
-add per-tenant snapshot upsert:
+### Step 1: Airgapped guard
+
+If `CURRENCY_URL` is empty or unset, skip the entire API fetch and dynamic
+snapshot logic. Only static exchange rates are usable in this mode.
+
+```python
+if not settings.CURRENCY_URL:
+    LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch (airgapped mode)"))
+    return
+```
+
+### Step 2: Fetch and store (unchanged)
+
+Fetch rates from `CURRENCY_URL`, upsert `ExchangeRates`, rebuild
+`ExchangeRateDictionary`. This logic is unchanged from today.
+
+### Step 3: Currency discovery + snapshot upsert (new)
+
+After rebuilding `ExchangeRateDictionary`, add per-tenant currency discovery
+and snapshot upsert:
 
 ```python
 current_month = dh.today.strftime("%Y-%m")
 exchange_dict = ExchangeRateDictionary.objects.first().currency_exchange_dictionary
+all_api_currencies = set(exchange_dict.keys())
 
 for tenant in Tenant.objects.exclude(schema_name="public"):
     with schema_context(tenant.schema_name):
+        # Currency discovery: create EnabledCurrency rows for newly seen currencies
+        existing_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+        new_currencies = all_api_currencies - existing_codes
+        EnabledCurrency.objects.bulk_create(
+            [EnabledCurrency(currency_code=code, enabled=False) for code in new_currencies],
+            ignore_conflicts=True,
+        )
+
+        # Only snapshot rates for enabled currencies
+        enabled_codes = set(
+            EnabledCurrency.objects.filter(enabled=True).values_list("currency_code", flat=True)
+        )
+
         # Pre-fetch all static pairs for this month in a single query
         static_pairs = set(
             MonthlyExchangeRateSnapshot.objects.filter(
@@ -106,6 +162,9 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
             for target_cur, rate in targets.items():
                 if base_cur == target_cur:
                     continue
+                # Only snapshot if BOTH currencies are enabled
+                if base_cur not in enabled_codes or target_cur not in enabled_codes:
+                    continue
                 if (base_cur, target_cur) not in static_pairs:
                     MonthlyExchangeRateSnapshot.objects.update_or_create(
                         year_month=current_month,
@@ -117,13 +176,23 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
 
 **Key behaviors**:
 
+- **Airgapped guard**: If `CURRENCY_URL` is not configured, the task returns
+  immediately. No dynamic currencies are discovered or snapshotted.
+- **Currency discovery**: Creates `EnabledCurrency` rows with `enabled=False`
+  for any new currencies returned by the API. These appear in Settings as
+  disabled currencies that the administrator can enable.
+- **Enabled-currency filter**: Only snapshots dynamic rates for pairs where
+  **both** the base and target currency are enabled. Disabled currencies are
+  never snapshotted.
 - Runs daily; overwrites current month's dynamic rows with latest rate
 - Skips pairs with `rate_type=RateType.STATIC` (static takes precedence)
 - Past months' rows are never updated (automatic finalization)
 - Forward-only: no backfill of months before deployment
 
 **Risk linkage**: See [risk-register.md § R1](./risk-register.md#r1--celery-task-month-end-failure),
-[risk-register.md § R2](./risk-register.md#r2--task-runtime-with-many-tenantspairs)
+[risk-register.md § R2](./risk-register.md#r2--task-runtime-with-many-tenantspairs),
+[risk-register.md § R7](./risk-register.md#r7--no-exchange-rate-for-selected-currency),
+[risk-register.md § R8](./risk-register.md#r8--airgapped-mode-with-no-rates-configured)
 
 ---
 
@@ -180,6 +249,55 @@ if not whens:
 
 **Risk linkage**: See [risk-register.md § R4](./risk-register.md#r4--pre-deployment-month-gap),
 [risk-register.md § R5](./risk-register.md#r5--query-handler-performance)
+
+### New: Available Currency Resolution
+
+The query handler (or a shared utility) computes the list of currencies
+available for the target currency dropdown. A currency is **available** if any
+of the following are true:
+
+1. It has `enabled=True` in `EnabledCurrency` **and** has exchange rates
+   (dynamic or static) in `MonthlyExchangeRateSnapshot` or
+   `ExchangeRateDictionary`
+2. It appears as either `base_currency` or `target_currency` in any
+   `StaticExchangeRate` row (static rates make their currencies available
+   regardless of `EnabledCurrency` status)
+
+```python
+@cached_property
+def available_currencies(self):
+    """Currencies available for the target currency dropdown."""
+    # Dynamic: enabled currencies with exchange rate data
+    enabled_codes = set(
+        EnabledCurrency.objects.filter(enabled=True).values_list("currency_code", flat=True)
+    )
+    dynamic_currencies = enabled_codes  # filtered to those with actual rates at query time
+
+    # Static: all currencies appearing in any static exchange rate pair
+    static_currencies = set(
+        StaticExchangeRate.objects.values_list("base_currency", flat=True)
+    ) | set(
+        StaticExchangeRate.objects.values_list("target_currency", flat=True)
+    )
+
+    return dynamic_currencies | static_currencies
+```
+
+When the user selects a target currency that is "available" but has **no
+exchange rate path** from the bill's source currency (e.g., bill is in USD, user
+selects EUR, but no USD→EUR rate exists — only EUR↔CHF and CNY↔SAR are defined),
+the API returns an error rather than silently showing zero or unconverted costs:
+
+> *"No exchange rate available. Ask your administrator to configure static
+> exchange rates or enable dynamic exchange rates."*
+
+When **no currencies are available at all** (no `CURRENCY_URL` configured, no
+static rates defined, and no enabled currencies), the frontend either hides the
+currency dropdown entirely or shows *"No exchange rates available."* — whichever
+is simpler to implement.
+
+See [api-and-frontend.md § Corner Case: No Exchange Rate](./api-and-frontend.md#corner-case-no-exchange-rate)
+for the full UX specification.
 
 ---
 
@@ -276,7 +394,7 @@ This is handled automatically by the unified `MonthlyExchangeRateSnapshot` table
 |------|--------|
 | `koku/api/currency/models.py` | `ExchangeRates` and `ExchangeRateDictionary` remain as-is; serve as data source for dynamic snapshots |
 | `koku/api/currency/utils.py` | `build_exchange_dictionary` unchanged |
-| `koku/koku/settings.py` | `CURRENCY_URL` unchanged |
+| `koku/koku/settings.py` | `CURRENCY_URL` unchanged (already configurable); empty value now has defined semantics (airgapped mode) |
 | `masu/database/sql/` | No SQL template changes (all changes are Django ORM) |
 | `masu/database/trino_sql/` | No Trino changes |
 | `masu/database/self_hosted_sql/` | No self-hosted changes |
@@ -288,3 +406,4 @@ This is handled automatically by the unified `MonthlyExchangeRateSnapshot` table
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial pipeline changes design |
+| v1.1 | 2026-03-24 | Added airgapped mode, currency discovery, enabled-currency filtering, available currency resolution |

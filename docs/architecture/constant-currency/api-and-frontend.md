@@ -138,6 +138,165 @@ This endpoint is always available. No Unleash feature flag gating.
 
 ---
 
+## Currency Enablement Settings API
+
+### URL
+
+```
+GET/PUT   /api/cost-management/v1/settings/currency/enabled-currencies/
+```
+
+This endpoint lists all known currencies and their enabled/disabled status, and
+allows an administrator to enable or disable currencies.
+
+### View
+
+**File**: Extend existing settings views in `koku/api/settings/` or add a new
+`EnabledCurrencyViewSet`.
+
+**Permission**: Cost Management Administrator role (same permission level as
+other Settings operations).
+
+### Example: GET Response
+
+```json
+{
+  "meta": { "count": 5 },
+  "data": [
+    { "currency_code": "USD", "enabled": true },
+    { "currency_code": "EUR", "enabled": true },
+    { "currency_code": "GBP", "enabled": false },
+    { "currency_code": "CNY", "enabled": false },
+    { "currency_code": "JPY", "enabled": false }
+  ]
+}
+```
+
+Currencies with `enabled: false` were discovered by the daily exchange rate API
+fetch but have not been enabled by an administrator. They will not be used for
+dynamic exchange rate conversions until enabled.
+
+### Example: PUT Request (Enable/Disable)
+
+```json
+{
+  "currencies": [
+    { "currency_code": "GBP", "enabled": true },
+    { "currency_code": "CNY", "enabled": true }
+  ]
+}
+```
+
+**Side effects**: When a currency is enabled, the next daily Celery task run
+will begin snapshotting dynamic exchange rates for pairs involving that
+currency. When disabled, future snapshots will skip pairs involving that
+currency (existing snapshots are not removed).
+
+### Airgapped Mode (No `CURRENCY_URL`)
+
+When no `CURRENCY_URL` is configured, the `EnabledCurrency` table will have no
+dynamically-discovered currencies. The GET response will return either an empty
+list or only currencies that were manually added. The Settings UI should indicate
+that dynamic exchange rates are unavailable and only static exchange rates can be
+used.
+
+---
+
+## Available Currencies for Dropdown
+
+The target currency dropdown in the UI must compute its list of available
+currencies from two sources:
+
+### Availability Rules
+
+| Source | Rule | Example |
+|--------|------|---------|
+| **Dynamic** | Currency has `enabled=True` in `EnabledCurrency` AND has exchange rates in `MonthlyExchangeRateSnapshot` or `ExchangeRateDictionary` | USD, EUR enabled → appear in dropdown |
+| **Static** | Currency appears in any `StaticExchangeRate` pair (as base or target) | Static rate EUR→CHF defined → both EUR and CHF appear in dropdown regardless of `EnabledCurrency` status |
+
+### Dropdown Endpoint
+
+**File**: New endpoint or extend existing currency-related views.
+
+```
+GET /api/cost-management/v1/settings/currency/available-currencies/
+```
+
+Returns the union of enabled dynamic currencies and static rate currencies:
+
+```json
+{
+  "data": [
+    { "currency_code": "USD", "source": "dynamic" },
+    { "currency_code": "EUR", "source": "both" },
+    { "currency_code": "CHF", "source": "static" },
+    { "currency_code": "GBP", "source": "dynamic" }
+  ]
+}
+```
+
+The `source` field indicates whether the currency is available via dynamic rates,
+static rates, or both. This is informational for the frontend.
+
+### No Currencies Available
+
+When **no currencies are available at all** — meaning:
+
+- No `CURRENCY_URL` is configured (no dynamic rates), **and**
+- No `StaticExchangeRate` rows exist (no static rates), **and/or**
+- All currencies in `EnabledCurrency` are disabled
+
+Then the currency dropdown should either be **hidden** or show a message:
+*"No exchange rates available."* Whichever approach is simpler to implement.
+
+---
+
+## Corner Case: No Exchange Rate
+
+A currency may appear in the dropdown (because it has static or enabled dynamic
+rates) but have **no exchange rate path** from the bill's source currency to
+the selected target currency.
+
+**Example**:
+- Cloud bill arrives in `USD`
+- Static rates define `EUR↔CHF` and `CNY↔SAR`
+- User wants to see costs in `EUR`
+- There is no `USD→EUR` rate (static or dynamic)
+
+### Behavior (Preferred Approach)
+
+**Make all available currencies visible** in the dropdown (`EUR`, `CHF`, `CNY`,
+`SAR`), but when the user selects a target currency for which no conversion rate
+exists from the bill currency, the API returns an error:
+
+```json
+{
+  "errors": [
+    {
+      "detail": "No exchange rate available between USD and EUR. Ask your administrator to configure static exchange rates or enable dynamic exchange rates.",
+      "status": 400,
+      "source": "currency"
+    }
+  ]
+}
+```
+
+The frontend should display this error message to the user. The report data is
+**not** returned with unconverted amounts — the request fails with a clear,
+actionable error.
+
+**Rationale**: This approach was preferred over filtering the dropdown to only
+show currencies with available conversion paths because:
+
+1. It shows users what currencies exist in the system, even if they can't
+   currently convert to them
+2. The error message tells the user exactly what to do (configure rates or
+   enable dynamic exchange)
+3. It avoids confusing situations where a user expects to see a currency but
+   it's silently hidden
+
+---
+
 ## Report Response Enhancement
 
 ### Changed: Report `meta` Output
@@ -201,16 +360,21 @@ Add endpoint definitions for:
 - `GET /api/cost-management/v1/exchange-rate-pairs/{uuid}/` — retrieve
 - `PUT /api/cost-management/v1/exchange-rate-pairs/{uuid}/` — update
 - `DELETE /api/cost-management/v1/exchange-rate-pairs/{uuid}/` — delete
+- `GET /api/cost-management/v1/settings/currency/enabled-currencies/` — list enabled/disabled currencies
+- `PUT /api/cost-management/v1/settings/currency/enabled-currencies/` — enable/disable currencies
+- `GET /api/cost-management/v1/settings/currency/available-currencies/` — list available target currencies
 
 Add `exchange_rates_applied` to report response schemas.
+
+Add error response schema for no-rate corner case (HTTP 400 with actionable
+error message).
 
 ---
 
 ## Frontend Changes (Phase 1 — Backend Only)
 
-Phase 1 focuses on the backend API. Frontend UI changes (Settings page
-"Currency" tab with exchange rate table, add/edit/remove buttons) are tracked
-separately and will consume the API defined above.
+Phase 1 focuses on the backend API. Frontend UI changes are tracked separately
+and will consume the APIs defined above.
 
 The frontend will:
 
@@ -218,6 +382,16 @@ The frontend will:
 - Allow Price List Administrators to add, edit, and remove rate pairs
 - Display validity periods (start/end month)
 - Show a note explaining dynamic rates are used when no static rate is defined
+- **Add a currency enablement section** in Settings for enabling/disabling
+  currencies discovered from the exchange rate API
+- **Populate the target currency dropdown** from the available-currencies
+  endpoint (union of enabled dynamic + static rate currencies)
+- **Handle the no-rate error**: When the user selects a target currency that
+  has no conversion path from the bill currency, display the error message
+  returned by the API
+- **Handle no currencies available**: When no currencies are available at all
+  (airgapped mode with no static rates, or all currencies disabled), either
+  hide the dropdown or show *"No exchange rates available"*
 
 ---
 
@@ -226,8 +400,8 @@ The frontend will:
 | Component | Reason |
 |-----------|--------|
 | Cost Model API (`/cost-models/`) | Unchanged; exchange rates are separate from cost model rates |
-| Report endpoints (`/reports/...`) | Existing endpoints gain `exchange_rates_applied` metadata; no new endpoints |
-| Settings API (`/settings/`) | Unchanged; currency display preference remains in UserSettings |
+| Report endpoints (`/reports/...`) | Existing endpoints gain `exchange_rates_applied` metadata and no-rate error handling; no new report endpoints |
+| Settings API (`/settings/`) — existing currency preference | Unchanged; the existing `UserSettings` currency display preference is separate from the new enablement API |
 
 ---
 
@@ -236,3 +410,4 @@ The frontend will:
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial API and frontend design |
+| v1.1 | 2026-03-24 | Added currency enablement Settings API, available-currencies endpoint, dropdown behavior, no-rate corner case, airgapped UX |
