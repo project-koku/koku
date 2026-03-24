@@ -18,6 +18,20 @@ new tenant-scoped models and their migrations.
 | `ExchangeRates` | `api.currency` | Raw API response rows. One row per `(base_currency, exchange_rates JSONField)`. Updated daily by `get_daily_currency_rates`. |
 | `ExchangeRateDictionary` | `api.currency` | Single row: `currency_exchange_dictionary` JSONField — nested dict `{base: {target: rate}}`. Rebuilt daily by `build_exchange_dictionary()` in `api/currency/utils.py`. |
 
+**Example `ExchangeRates` rows**:
+
+| id | base_currency | exchange_rates |
+|----|---------------|----------------|
+| 1 | `USD` | `{"EUR": 0.87, "GBP": 0.74, "CNY": 7.23, "JPY": 149.50}` |
+| 2 | `EUR` | `{"USD": 1.15, "GBP": 0.85, "CNY": 8.31, "JPY": 171.80}` |
+| 3 | `GBP` | `{"USD": 1.35, "EUR": 1.18, "CNY": 9.77, "JPY": 202.10}` |
+
+**Example `ExchangeRateDictionary` row** (single row in the table):
+
+| id | currency_exchange_dictionary | updated_timestamp |
+|----|------------------------------|-------------------|
+| 1 | *(see JSON below)* | `2026-03-24 06:00:00+00` |
+
 **Current exchange rate storage** (simplified):
 
 ```json
@@ -60,6 +74,19 @@ class StaticExchangeRate(models.Model):
         db_table = "static_exchange_rate"
         ordering = ["-updated_timestamp"]
 ```
+
+**Example `static_exchange_rate` rows**:
+
+| uuid | base_currency | target_currency | exchange_rate | start_date | end_date | version | created_timestamp | updated_timestamp |
+|------|---------------|-----------------|---------------|------------|----------|---------|-------------------|-------------------|
+| `a1b2c3d4-...` | `USD` | `EUR` | `0.920000000000000` | `2026-01-01` | `2026-03-31` | 1 | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
+| `e5f6a7b8-...` | `USD` | `GBP` | `0.780000000000000` | `2026-01-01` | `2026-01-31` | 2 | `2026-01-10 08:00:00+00` | `2026-01-20 14:22:00+00` |
+| `c9d0e1f2-...` | `EUR` | `GBP` | `0.848000000000000` | `2026-02-01` | `2026-06-30` | 1 | `2026-02-01 09:00:00+00` | `2026-02-01 09:00:00+00` |
+
+In this example:
+- The `USD→EUR` rate of `0.92` applies for Jan–Mar 2026 (overrides dynamic rates for those months)
+- The `USD→GBP` rate was updated once (`version=2`) and only covers January
+- The `EUR→GBP` rate covers Feb–Jun 2026
 
 **Constraints** (enforced in serializer validation):
 
@@ -107,6 +134,17 @@ class StaticExchangeRateDictionary(models.Model):
   "GBP": {"USD": 1.351351}
 }
 ```
+
+**Example `static_exchange_rate_dictionary` row** (single row in the table):
+
+| id | currency_exchange_dictionary | updated_timestamp |
+|----|------------------------------|-------------------|
+| 1 | `{"USD": {"EUR": 0.92, "GBP": 0.78}, "EUR": {"USD": 1.086957, "GBP": 0.848}, "GBP": {"USD": 1.282051, "EUR": 1.179245}}` | `2026-02-01 09:00:00+00` |
+
+Note how the dictionary includes implicit inverses: even though only `USD→EUR`,
+`USD→GBP`, and `EUR→GBP` were explicitly defined in `StaticExchangeRate`, the
+reverse directions (`EUR→USD`, `GBP→USD`, `GBP→EUR`) are computed as `1/rate`
+and included automatically.
 
 **Lifecycle**: Unlike `ExchangeRateDictionary` (rebuilt daily by a Celery task),
 `StaticExchangeRateDictionary` is rebuilt on every `StaticExchangeRate` CRUD
@@ -157,6 +195,31 @@ class MonthlyExchangeRateSnapshot(models.Model):
 
 - `unique_together` ensures one rate per `(month, base, target)` triple
 - `rate_type` is constrained to `RateType.choices` (`"static"` or `"dynamic"`)
+
+**Example `monthly_exchange_rate_snapshot` rows**:
+
+| id | year_month | base_currency | target_currency | exchange_rate | rate_type | created_timestamp | updated_timestamp |
+|----|------------|---------------|-----------------|---------------|-----------|-------------------|-------------------|
+| 1 | `2026-01` | `USD` | `EUR` | `0.920000000000000` | `static` | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
+| 2 | `2026-02` | `USD` | `EUR` | `0.920000000000000` | `static` | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
+| 3 | `2026-03` | `USD` | `EUR` | `0.920000000000000` | `static` | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
+| 4 | `2026-01` | `USD` | `GBP` | `0.780000000000000` | `static` | `2026-01-10 08:00:00+00` | `2026-01-20 14:22:00+00` |
+| 5 | `2026-02` | `USD` | `GBP` | `0.740000000000000` | `dynamic` | `2026-02-01 06:00:00+00` | `2026-02-01 06:00:00+00` |
+| 6 | `2026-03` | `USD` | `GBP` | `0.738500000000000` | `dynamic` | `2026-03-01 06:00:00+00` | `2026-03-24 06:00:00+00` |
+| 7 | `2026-01` | `USD` | `CNY` | `7.230000000000000` | `dynamic` | `2026-01-01 06:00:00+00` | `2026-01-31 06:00:00+00` |
+| 8 | `2026-02` | `USD` | `CNY` | `7.185000000000000` | `dynamic` | `2026-02-01 06:00:00+00` | `2026-02-28 06:00:00+00` |
+
+In this example:
+- **Rows 1–3**: `USD→EUR` uses a **static** rate (`0.92`) for all three months
+  because the user defined a static rate covering Jan–Mar 2026. The daily Celery
+  task skips this pair for those months.
+- **Row 4**: `USD→GBP` uses a **static** rate (`0.78`) for January only (the
+  static rate's `end_date` was `2026-01-31`).
+- **Rows 5–6**: `USD→GBP` falls back to **dynamic** rates for Feb and Mar since
+  no static rate covers those months. The dynamic rate is updated daily by the
+  Celery task.
+- **Rows 7–8**: `USD→CNY` has no static rate defined, so all months use
+  **dynamic** rates.
 
 **Two writers, one reader pattern**:
 
