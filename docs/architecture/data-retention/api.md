@@ -114,19 +114,21 @@ class GlobalSettingsView(APIView):
 
         serializer = TenantSettingsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        new_value = serializer.validated_data["data_retention_months"]
 
         schema = request.user.customer.schema_name
-        with schema_context(schema):
-            settings_row, _ = TenantSettings.objects.select_for_update().get_or_create(
-                defaults={
-                    "data_retention_months": Config.MASU_RETAIN_NUM_MONTHS,
-                }
+        with schema_context(schema), transaction.atomic():
+            settings_row, created = (
+                TenantSettings.objects
+                .select_for_update()
+                .get_or_create(
+                    defaults={"data_retention_months": new_value},
+                )
             )
-            settings_row.data_retention_months = serializer.validated_data[
-                "data_retention_months"
-            ]
-            settings_row.full_clean()
-            settings_row.save()
+            if not created:
+                settings_row.data_retention_months = new_value
+                settings_row.full_clean()
+                settings_row.save()
 
         invalidate_view_cache_for_tenant_and_all_source_types(schema)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -222,3 +224,4 @@ See full risk register in [phased-delivery.md § Risk Register](phased-delivery.
 |---------|------|---------|
 | v1.0 | 2026-03-11 | Initial draft |
 | v1.1 | 2026-03-11 | R10 fix: GET is now side-effect-free (no `get_or_create`); PUT seeds with startup default (`4`), uses `select_for_update()`, includes cache invalidation |
+| v1.2 | 2026-03-11 | PUT: single-write on creation (pass new value in `defaults`), wrap `select_for_update()` in `transaction.atomic()` |

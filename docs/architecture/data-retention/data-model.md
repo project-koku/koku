@@ -80,9 +80,9 @@ The table holds **exactly one row** per tenant schema.
 
 | Event | Behavior |
 |-------|----------|
-| **New tenant provisioned** | Template-clone copies the table with default row. If no default row exists in template, first API GET uses get-or-create. |
-| **GET endpoint** | `TenantSettings.objects.first()` — creates default row if none exists. |
-| **PUT endpoint** | Updates the single row. |
+| **New tenant provisioned** | Template-clone copies the table. If no row exists in template, the table starts empty. |
+| **GET endpoint** | Read-only — calls `get_data_retention_months(schema)` which returns env var, DB row, or startup default. No row is created. |
+| **PUT endpoint** | `get_or_create` with `select_for_update()` inside `transaction.atomic()`. Creates the row on first write; updates on subsequent writes. |
 | **Tenant deleted** | Row is dropped with the schema. |
 
 **Race condition mitigation**: The get-or-create path uses
@@ -280,3 +280,4 @@ See full risk register in [phased-delivery.md § Risk Register](phased-delivery.
 | v1.0 | 2026-03-11 | Initial draft |
 | v1.1 | 2026-03-11 | R7 exception-safe fallback in read helper; link to risk register |
 | v1.2 | 2026-03-11 | R10 fix: helper final fallback changed from `DEFAULT_RETENTION_MONTHS` (3) to `Config.MASU_RETAIN_NUM_MONTHS` (4); priority chain updated; seed migration uses startup default |
+| v1.3 | 2026-03-11 | Row lifecycle: GET is side-effect-free; PUT uses `transaction.atomic()` |

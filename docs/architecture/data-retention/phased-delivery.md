@@ -147,11 +147,12 @@ get-or-create fallback in the API (Phase 2) provides a safety net.
 Two concurrent requests to a newly provisioned tenant could both
 attempt get-or-create, inserting two rows.
 
-**Mitigation**: Use `select_for_update()` inside a transaction for
-the get-or-create path. Alternatively, add a database-level
-constraint (partial unique index on a constant column, or simply
-always read `.first()` and accept an extra row is harmless since
-all queries use `.first()`).
+**Mitigation**: Use `select_for_update()` inside `transaction.atomic()`
+for the get-or-create path in PUT. The GET endpoint is side-effect-free
+and does not create rows. Alternatively, add a database-level constraint
+(partial unique index on a constant column, or simply always read
+`.first()` and accept an extra row is harmless since all queries use
+`.first()`).
 
 ---
 
