@@ -1,0 +1,8 @@
+# Debug overlay for single-worker development (scale=1)
+# Automatically included by Makefile when scale=1
+# Adds debug port mapping for VSCode remote debugging with DEBUG_ATTACH=True
+
+services:
+  koku-worker:
+    ports:
+      - 5678:5678  # Debug port for single-worker debugging
