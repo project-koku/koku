@@ -101,8 +101,14 @@ env var.
 ```
 1. RETAIN_NUM_MONTHS env var is set  →  use env value, hide UI
 2. RETAIN_NUM_MONTHS env var unset   →  read from tenant_settings table
-3. No row in tenant_settings         →  use DEFAULT_RETENTION_MONTHS (3)
+3. No row in tenant_settings         →  use Config.MASU_RETAIN_NUM_MONTHS (4)
+4. DB read failure                   →  use Config.MASU_RETAIN_NUM_MONTHS (4)
 ```
+
+The fallback in steps 3 and 4 is `Config.MASU_RETAIN_NUM_MONTHS`
+(startup-cached from `settings.RETAIN_NUM_MONTHS`, default `4`) —
+**not** `TenantSettings.DEFAULT_RETENTION_MONTHS` (`3`). This
+preserves existing behavior. See [R10](phased-delivery.md#r10-helper-fallback-and-get-side-effect-reintroduce-r6).
 
 ### Read Helper
 
@@ -117,18 +123,31 @@ A utility function centralizes this logic. All consumers
 def get_data_retention_months(schema_name: str) -> int:
     """Return the effective data retention period in months.
 
-    Priority: env var > DB > default.
+    Priority: env var > DB row > startup-cached default.
+
+    The final fallback is Config.MASU_RETAIN_NUM_MONTHS (startup-
+    cached from settings.RETAIN_NUM_MONTHS, default 4) — NOT the
+    TenantSettings column default (3). This preserves existing
+    behavior for on-prem deployments that never set the env var
+    and haven't used the API. See R10 in phased-delivery.md.
     """
     env_val = os.environ.get("RETAIN_NUM_MONTHS")
     if env_val is not None:
         return int(env_val)
 
-    with schema_context(schema_name):
-        row = TenantSettings.objects.first()
-        if row:
-            return row.data_retention_months
+    try:
+        with schema_context(schema_name):
+            row = TenantSettings.objects.first()
+            if row:
+                return row.data_retention_months
+    except Exception:
+        LOG.error(
+            "Failed to read tenant_settings for %s, "
+            "falling back to MASU_RETAIN_NUM_MONTHS",
+            schema_name,
+        )
 
-    return TenantSettings.DEFAULT_RETENTION_MONTHS
+    return Config.MASU_RETAIN_NUM_MONTHS
 ```
 
 ### Visibility Rule
@@ -143,17 +162,25 @@ When `RETAIN_NUM_MONTHS` is set in the environment:
 
 ---
 
-## Deploy Default Alignment
+## Deploy Default Alignment — No Change
 
-The PRD specifies a default of **3 months**. Current defaults are
-inconsistent:
+We intentionally **do not** change `DEFAULT_RETAIN_NUM_MONTHS` in
+Django or docker-compose. See
+[R6](phased-delivery.md#r6-default-change-eliminated--no-phase-4)
+for the full reasoning.
 
-| Location | Current | Proposed |
-|----------|---------|----------|
-| `koku/settings.py` `DEFAULT_RETAIN_NUM_MONTHS` | `4` | `3` |
-| `docker-compose.yml` | `4` | `3` |
-| `deploy/kustomize/base/base.yaml` | `"3"` | `"3"` (no change) |
-| `TenantSettings.DEFAULT_RETENTION_MONTHS` | — (new) | `3` |
+| Location | Current | After this feature |
+|----------|---------|-------------------|
+| `koku/settings.py` `DEFAULT_RETAIN_NUM_MONTHS` | `4` | `4` (unchanged) |
+| `docker-compose.yml` | `4` | `4` (unchanged) |
+| `deploy/kustomize/base/base.yaml` | `"3"` | `"3"` (unchanged — SaaS env var) |
+| `TenantSettings.DEFAULT_RETENTION_MONTHS` | — (new) | `3` (DB column default for new opt-in rows) |
+
+The Django code default (`4`) is the fallback for existing deployments
+that never set the env var and never use the API. Changing it to `3`
+would silently reduce retention. The `TenantSettings` column default
+(`3`) only applies when an admin explicitly creates a row via the PUT
+endpoint, which is the PRD's minimum floor.
 
 ---
 
@@ -182,16 +209,17 @@ empty (get-or-create handles first access) or seeded with the default.
 
 M2 iterates all tenant schemas and inserts a row with
 `data_retention_months` set to the current `RETAIN_NUM_MONTHS` env var
-value (or code default `3`):
+value (or startup default `4`):
 
 ```python
 # reporting/migrations/0345_seed_tenantsettings.py (sketch)
 
 def seed_tenant_settings(apps, schema_editor):
     TenantSettings = apps.get_model("reporting", "TenantSettings")
+    from masu.config import Config
     retention = int(os.environ.get(
         "RETAIN_NUM_MONTHS",
-        TenantSettings.DEFAULT_RETENTION_MONTHS,
+        Config.MASU_RETAIN_NUM_MONTHS,
     ))
     for schema in get_all_tenant_schemas():
         with schema_context(schema):
@@ -227,19 +255,21 @@ for the full discussion. **Tech lead input requested.**
 | `reporting/tenant_settings/__init__.py` | New module |
 | `reporting/tenant_settings/models.py` | New `TenantSettings` model |
 | `reporting/migrations/0344_tenantsettings.py` | New migration |
-| `koku/koku/settings.py` | Align `DEFAULT_RETAIN_NUM_MONTHS` to `3` |
-| `docker-compose.yml` | Align `RETAIN_NUM_MONTHS` default to `3` |
 | `api/settings/utils.py` | New `get_data_retention_months()` helper |
 
 ---
 
 ## Risks
 
-| ID | Risk | Severity | Mitigation |
-|----|------|----------|------------|
-| R1 | Template-clone may not pick up new table if template schema is stale | Medium | Migration runs on template schema first; verify in CI |
-| R2 | Race condition creating duplicate rows on first access | Low | `select_for_update()` + get-or-create pattern |
-| R3 | Deploy default inconsistency causes confusion | Low | Align all to `3` in this PR |
+See full risk register in [phased-delivery.md § Risk Register](phased-delivery.md#risk-register).
+
+| ID | Risk | Severity | Relevant here |
+|----|------|----------|---------------|
+| R1 | Template-clone misses new table | Medium | DDL migration |
+| R2 | Duplicate row race condition | Low | Row lifecycle |
+| R7 | DB read failure in purge causes data loss | **High** | Read helper |
+| R8 | Seed migration reads wrong env var | Medium | Approach B only |
+| R10 | Helper fallback / GET side-effect reintroduce R6 | Medium | **Resolved** — fallback uses startup default; seed migration uses `Config.MASU_RETAIN_NUM_MONTHS` |
 
 ---
 
@@ -248,3 +278,5 @@ for the full discussion. **Tech lead input requested.**
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-11 | Initial draft |
+| v1.1 | 2026-03-11 | R7 exception-safe fallback in read helper; link to risk register |
+| v1.2 | 2026-03-11 | R10 fix: helper final fallback changed from `DEFAULT_RETENTION_MONTHS` (3) to `Config.MASU_RETAIN_NUM_MONTHS` (4); priority chain updated; seed migration uses startup default |

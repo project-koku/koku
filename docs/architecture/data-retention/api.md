@@ -95,20 +95,10 @@ class GlobalSettingsView(APIView):
     def get(self, request):
         schema = request.user.customer.schema_name
         env_override = os.environ.get("RETAIN_NUM_MONTHS") is not None
-
-        with schema_context(schema):
-            settings_row, _ = TenantSettings.objects.get_or_create(
-                defaults={
-                    "data_retention_months": TenantSettings.DEFAULT_RETENTION_MONTHS,
-                }
-            )
+        effective = get_data_retention_months(schema)
 
         data = {
-            "data_retention_months": (
-                int(os.environ["RETAIN_NUM_MONTHS"])
-                if env_override
-                else settings_row.data_retention_months
-            ),
+            "data_retention_months": effective,
             "env_override": env_override,
         }
         return Response(data)
@@ -122,22 +112,23 @@ class GlobalSettingsView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        serializer = TenantSettingsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
         schema = request.user.customer.schema_name
         with schema_context(schema):
-            settings_row, _ = TenantSettings.objects.get_or_create(
+            settings_row, _ = TenantSettings.objects.select_for_update().get_or_create(
                 defaults={
-                    "data_retention_months": TenantSettings.DEFAULT_RETENTION_MONTHS,
+                    "data_retention_months": Config.MASU_RETAIN_NUM_MONTHS,
                 }
             )
-            serializer = TenantSettingsSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-
             settings_row.data_retention_months = serializer.validated_data[
                 "data_retention_months"
             ]
             settings_row.full_clean()
             settings_row.save()
 
+        invalidate_view_cache_for_tenant_and_all_source_types(schema)
         return Response(status=status.HTTP_204_NO_CONTENT)
 ```
 
@@ -214,8 +205,20 @@ successful PUT (same pattern as currency update).
 
 ---
 
+## Risks
+
+See full risk register in [phased-delivery.md § Risk Register](phased-delivery.md#risk-register).
+
+| ID | Risk | Severity | Relevant here |
+|----|------|----------|---------------|
+| R2 | Duplicate row race condition | Low | PUT `get_or_create` uses `select_for_update()` |
+| R10 | Helper fallback / GET side-effect reintroduce R6 | Medium | GET is now side-effect-free; PUT seeds with `Config.MASU_RETAIN_NUM_MONTHS` |
+
+---
+
 ## Changelog
 
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-11 | Initial draft |
+| v1.1 | 2026-03-11 | R10 fix: GET is now side-effect-free (no `get_or_create`); PUT seeds with startup default (`4`), uses `select_for_update()`, includes cache invalidation |

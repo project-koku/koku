@@ -21,10 +21,10 @@ The central design question is how existing tenants acquire a
 
 - The `tenant_settings` table is created empty.
 - `get_data_retention_months(schema)` resolves the value using this
-  priority chain: **env var → DB row → code default (3)**.
+  priority chain: **env var → DB row → startup-cached default (4)**.
 - Existing tenants with no row in `tenant_settings` continue to behave
   exactly as today — they fall back to the `RETAIN_NUM_MONTHS` env var
-  (or its code default).
+  (or the startup-cached default `4`).
 - A DB row is created only when an admin explicitly sets a value via
   the new PUT endpoint (on-prem only).
 - **Pros**: Zero-risk rollout. No data migration. Behavior is identical
@@ -37,7 +37,7 @@ The central design question is how existing tenants acquire a
 
 - The `tenant_settings` table is created **and** a data migration seeds
   one row per existing tenant schema with `data_retention_months` set to
-  the current `RETAIN_NUM_MONTHS` env var value (or code default `3`).
+  the current `RETAIN_NUM_MONTHS` env var value (or startup default `4`).
 - `get_data_retention_months(schema)` still checks the env var first
   (backwards compatibility), but every tenant is guaranteed to have a
   DB row from day one.
@@ -62,8 +62,8 @@ team prefers DB-first.
 | **IQ-0** | Initialization strategy: env-var fallback (A) vs seed migration (B)? | **Open** | See above. Lean A. |
 | **IQ-1** | Should `MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY` also become configurable, or remain env-var only? | Open | Keep as env-var only — it is an internal optimization knob, not user-facing. |
 | **IQ-2** | `migrate_trino_tables` hardcodes `months = 5` for Trino partition cleanup, and the Postgres provider cleaners use the same static `Config.MASU_RETAIN_NUM_MONTHS` — both should read from `TenantSettings` to handle retention > 5 months. This applies to the full purge pipeline (Trino partitions + Postgres aggregated data). | Open | Yes — all cleanup paths (Trino partitions, Postgres partition deletes, manifest purge) should read from `get_data_retention_months()`. |
-| **IQ-3** | Deploy defaults are inconsistent (kustomize: `3`, Django: `4`, docker-compose: `4`). Which is authoritative? | Open | Align all to `3` per PRD. |
-| **IQ-4** | Frontend changes (koku-ui-onprem) — separate ticket or part of COST-573? | Open | Separate ticket — backend API ships first. |
+| **IQ-3** | Deploy defaults are inconsistent (kustomize: `3`, Django: `4`, docker-compose: `4`). Which is authoritative? | **Resolved** | Keep Django/compose at `4` (existing behavior). Kustomize `3` is SaaS-only via env var. `TenantSettings` column default is `3` for new opt-in tenants. See [R6](phased-delivery.md#r6-default-change-eliminated--no-phase-4). |
+| **IQ-4** | Frontend changes (koku-ui-onprem) — separate ticket or part of COST-573? | **Resolved** | Out of scope — handled by a separate team under a separate ticket. Backend API ships independently. |
 
 ---
 
@@ -159,7 +159,31 @@ Detailed per-file changes are in each sub-document.
 | **Expiration calc** | `masu/processor/expired_data_remover.py` | Modified — calendar-month fix |
 | **Materialized view** | `api/utils.py` | Modified — reads from helper |
 | **Kafka gate** | `masu/external/kafka_msg_handler.py` | Modified — reads from helper |
-| **Deploy defaults** | `koku/settings.py`, `docker-compose.yml` | Modified — align to 3 |
+| **Deploy defaults** | — | No change — Django stays at `4`, kustomize stays at `3` via env var |
+
+---
+
+## Risks
+
+Full risk register with expanded mitigations lives in
+[phased-delivery.md § Risk Register](phased-delivery.md#risk-register).
+
+| ID | Risk | Severity | Status |
+|----|------|----------|--------|
+| R1 | Template-clone misses new table | Medium | Mitigated |
+| R2 | Duplicate row race condition | Low | Mitigated |
+| R3 | Deploy default inconsistency | Low | Accepted — cosmetic |
+| R4 | Calendar-month fix shifts expiration date | Medium | Mitigated |
+| R5 | Kafka schema resolution overhead | Low | Mitigated |
+| R6 | Default 4→3 causes unexpected data deletion | ~~High~~ | **Resolved** — code default stays at `4`; Phase 4 removed |
+| **R7** | **DB read failure in purge causes data loss** | **High** | Mitigated — fallback to env-cached value |
+| R8 | Seed migration reads wrong env var (Approach B) | Medium | Mitigated |
+| R9 | Phase ordering violation | Low | Mitigated — code default unchanged |
+| R10 | Helper fallback / GET side-effect reintroduce R6 | Medium | **Resolved** — helper uses startup default; GET is side-effect-free |
+
+> **R7** is now the only High-severity risk. It is mitigated by the
+> exception-safe fallback to `Config.MASU_RETAIN_NUM_MONTHS` in the
+> read helper.
 
 ---
 
@@ -168,3 +192,6 @@ Detailed per-file changes are in each sub-document.
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-11 | Initial draft from PRD triage against koku codebase. 4 documents, 4 open questions. |
+| v1.2 | 2026-03-11 | Risk register expanded: R6–R9 added; README summary with link to phased-delivery.md |
+| v1.3 | 2026-03-11 | R6 resolved: keep code default at `4`, Phase 4 removed. IQ-3 resolved. R9 downgraded |
+| v1.4 | 2026-03-11 | R10 found and resolved: helper fallback + GET side-effect would have reintroduced R6. IQ-4 resolved (out of scope). Approach A/B descriptions updated |

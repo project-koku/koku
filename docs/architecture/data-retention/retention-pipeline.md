@@ -111,8 +111,16 @@ After:   get_data_retention_months(schema_name)  (per-tenant, DB-backed)
 on-prem code paths — there are no `if ONPREM` checks in the retention
 logic. On SaaS the `RETAIN_NUM_MONTHS` env var is always set, so the
 helper returns the env value and never hits the DB. On on-prem without
-the env var, it reads from `tenant_settings` (or falls back to default
-`3`). The distinction is transparent to callers.
+the env var, it reads from `tenant_settings` (or falls back to
+`Config.MASU_RETAIN_NUM_MONTHS` = `4`). The distinction is transparent
+to callers.
+
+**Failure safety** (see [R7](phased-delivery.md#r7-db-read-failure-in-purge-path-causes-data-loss)):
+If the DB query inside `get_data_retention_months()` raises an
+exception, the helper catches it, logs an error, and falls back to
+`Config.MASU_RETAIN_NUM_MONTHS` (the startup-cached env value) —
+**not** the code default. This ensures the purge path never silently
+shortens retention due to a transient DB failure.
 
 **Impact on `Config.MASU_RETAIN_NUM_MONTHS`**: This attribute is no
 longer the primary source of truth. It remains as a module-level
@@ -303,10 +311,16 @@ sequenceDiagram
 
 ## Risks
 
-| ID | Risk | Severity | Mitigation |
-|----|------|----------|------------|
-| R4 | Calendar-month change shifts expiration date — could delete or retain more data than before on first run | Medium | Compare old vs new expiration dates in tests; log both during transition |
-| R5 | Kafka handler schema resolution adds a DB query per message | Low | The manifest → provider → customer chain is already loaded; schema is cached on the provider |
+See full risk register in [phased-delivery.md § Risk Register](phased-delivery.md#risk-register).
+
+| ID | Risk | Severity | Relevant here |
+|----|------|----------|---------------|
+| R4 | Calendar-month fix shifts expiration date | Medium | Expiration calc |
+| R5 | Kafka schema resolution overhead | Low | Kafka ingest gate |
+| R6 | Default 4→3 causes unexpected data deletion | ~~High~~ | **Resolved** — code default stays at `4` |
+| R7 | DB read failure in purge causes data loss | **High** | Read helper fallback |
+| R9 | Phase ordering violation | Low | Code default unchanged, fallback is safe |
+| R10 | Helper fallback reintroduces R6 | Medium | **Resolved** — fallback uses `Config.MASU_RETAIN_NUM_MONTHS` |
 
 ---
 
@@ -316,3 +330,5 @@ sequenceDiagram
 |---------|------|---------|
 | v1.0 | 2026-03-11 | Initial draft |
 | v1.1 | 2026-03-11 | Add blast radius analysis: 5 affected paths, 11 unaffected event-driven paths |
+| v1.2 | 2026-03-11 | R7 failure-safe fallback note; link to risk register; R6/R9 cross-references |
+| v1.3 | 2026-03-11 | R6 resolved, R9 low, R10 resolved; helper fallback changed to `Config.MASU_RETAIN_NUM_MONTHS` |
