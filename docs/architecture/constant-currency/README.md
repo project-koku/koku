@@ -169,6 +169,7 @@ graph LR
     USER["Price List Admin"] -->|CRUD| SER["Serializer"]
     SER -->|"write canonical<br/>rate record"| STATIC["StaticExchangeRate<br/>(tenant schema)"]
     SER -->|"Writer 2: upsert<br/>rate_type=static"| SNAP
+    SER -->|"rebuild static<br/>cross-rate matrix"| SERD["StaticExchangeRateDictionary<br/>(tenant schema)<br/>static cross-rate matrix"]
 ```
 
 **Key changes**:
@@ -176,6 +177,7 @@ graph LR
 1. Two writers feed one snapshot table
 2. Query handler reads per-month rates instead of a single global rate
 3. Report responses include rate provenance metadata
+4. `StaticExchangeRateDictionary` mirrors `ExchangeRateDictionary` for static rates — rebuilt on every CRUD operation instead of daily
 
 ---
 
@@ -193,6 +195,7 @@ graph LR
 | 8 | **Automatic finalized month locking** | Dynamic rows overwritten daily during current month; untouched after month ends |
 | 9 | **Forward-only snapshots** | Pre-deployment months have no snapshot rows; fall back to `ExchangeRateDictionary` |
 | 10 | **Per-pair rows, not JSON blob** | Enables `unique_together` constraint, simpler queries, cleaner ORM integration |
+| 11 | **`StaticExchangeRateDictionary` mirrors `ExchangeRateDictionary`** | Same cross-rate matrix format; dynamic matrix rebuilt daily by Celery, static matrix rebuilt on each CRUD operation |
 
 ---
 

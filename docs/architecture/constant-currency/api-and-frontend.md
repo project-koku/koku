@@ -69,17 +69,22 @@ Administrator** role. Same permission used for cost model CRUD.
 | Version | Auto-increment `version` on update |
 | Name | Read-only computed field: `"{base_currency}-{target_currency}"` |
 
-**Side effects** (see [pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--snapshot--writer-2)):
+**Side effects** (see [pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--snapshot--dictionary--writer-2)):
 
 All side effects are wrapped in a database transaction (`transaction.atomic()`)
-together with the `StaticExchangeRate` write. If the snapshot update fails, the
+together with the `StaticExchangeRate` write. If any side effect fails, the
 `StaticExchangeRate` change is rolled back, preventing an inconsistent state.
 
-- **On create/update**: Writes `rate_type=RateType.STATIC` rows to
-  `MonthlyExchangeRateSnapshot` for each affected month
-- **On delete**: Removes `rate_type=RateType.STATIC` rows for affected months,
-  then proactively populates `rate_type=RateType.DYNAMIC` rows from the current
-  `ExchangeRateDictionary` to avoid a data gap until the next daily Celery run
+- **On create/update**:
+  1. Writes `rate_type=RateType.STATIC` rows to `MonthlyExchangeRateSnapshot`
+     for each affected month
+  2. Rebuilds `StaticExchangeRateDictionary` from all `StaticExchangeRate` rows
+- **On delete**:
+  1. Removes `rate_type=RateType.STATIC` rows for affected months, then
+     proactively populates `rate_type=RateType.DYNAMIC` rows from the current
+     `ExchangeRateDictionary` to avoid a data gap until the next daily Celery run
+  2. Rebuilds `StaticExchangeRateDictionary` from remaining `StaticExchangeRate`
+     rows (the deleted rate is excluded from the matrix)
 
 ### Example: List Response
 

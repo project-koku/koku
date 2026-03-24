@@ -83,6 +83,52 @@ defined, each uses its own rate.
 (see [api-and-frontend.md](./api-and-frontend.md)) and has side effects on
 `MonthlyExchangeRateSnapshot` via the serializer.
 
+### `StaticExchangeRateDictionary`
+
+Pre-computed cross-rate matrix for static rates. Mirrors the existing public
+schema `ExchangeRateDictionary` (which stores the dynamic cross-rate matrix)
+but lives in the tenant schema and contains only user-defined static rates.
+
+```python
+class StaticExchangeRateDictionary(models.Model):
+    currency_exchange_dictionary = JSONField(null=True)
+    updated_timestamp = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "static_exchange_rate_dictionary"
+```
+
+**Example content** (same nested dict format as `ExchangeRateDictionary`):
+
+```json
+{
+  "USD": {"EUR": 0.87, "GBP": 0.74},
+  "EUR": {"USD": 1.149425},
+  "GBP": {"USD": 1.351351}
+}
+```
+
+**Lifecycle**: Unlike `ExchangeRateDictionary` (rebuilt daily by a Celery task),
+`StaticExchangeRateDictionary` is rebuilt on every `StaticExchangeRate` CRUD
+operation:
+
+| Event | Action |
+|-------|--------|
+| User **creates** a static rate | Rebuild the dictionary from all `StaticExchangeRate` rows |
+| User **updates** a static rate | Rebuild the dictionary from all `StaticExchangeRate` rows |
+| User **deletes** a static rate | Rebuild the dictionary from all `StaticExchangeRate` rows |
+
+The rebuild is performed by the serializer inside the same `transaction.atomic()`
+block as the `StaticExchangeRate` write. See
+[pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--snapshot--writer-2).
+
+**Bidirectional behavior**: Implicit inverses (1/rate) are included in the matrix
+for pairs where only one direction is explicitly defined, matching the behavior
+of `ExchangeRateDictionary`.
+
+**Registration points**: None. Configuration/metadata table, not a reporting
+table.
+
 ### `MonthlyExchangeRateSnapshot`
 
 Unified table storing both static and dynamic rates as per-pair rows. Single
@@ -136,9 +182,10 @@ registry — this is a configuration/metadata table, not a reporting table.
 ```mermaid
 graph TD
     M1["M1: Create<br/>static_exchange_rate"] --> M2["M2: Create<br/>monthly_exchange_rate_snapshot"]
+    M1 --> M3["M3: Create<br/>static_exchange_rate_dictionary"]
 ```
 
-Both are standard `CreateModel` migrations in `cost_models/migrations/`. Since
+All are standard `CreateModel` migrations in `cost_models/migrations/`. Since
 `cost_models` is a tenant app, migrations run in each tenant schema via
 `migrate_schemas`.
 
@@ -168,16 +215,30 @@ populated via user CRUD.
 **What migration does NOT do**: No data migration or backfill. Table is populated
 going forward by the daily Celery task and CRUD side effects.
 
+### M3: Create `static_exchange_rate_dictionary` Table
+
+| Field | Value |
+|-------|-------|
+| **Phase** | 1 |
+| **Type** | `CreateModel` (standard, no partitioning) |
+| **App** | `cost_models` |
+| **Depends on** | M1 |
+| **Rollback** | `DeleteModel` |
+
+**What migration does NOT do**: No data migration needed. Table starts empty
+(or with a single row containing an empty dictionary). Populated and rebuilt
+automatically on each `StaticExchangeRate` CRUD operation.
+
 ### Phase-to-Migration Mapping
 
 | Phase | Migrations | Description |
 |-------|-----------|-------------|
-| 1 | M1, M2 | Create both new tables |
+| 1 | M1, M2, M3 | Create all new tables |
 | 2 | TBD | Audit history tables (future) |
 
-**Note**: Neither table is partitioned (`set_pg_extended_mode` not needed).
-Snapshot table volume is bounded by `months × currency_pairs`, which is small
-enough for standard tables.
+**Note**: No tables are partitioned (`set_pg_extended_mode` not needed).
+Snapshot table volume is bounded by `months × currency_pairs`, and the
+dictionary table holds a single row. Both are small enough for standard tables.
 
 ### On-Prem Considerations
 

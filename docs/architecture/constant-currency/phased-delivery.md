@@ -17,7 +17,7 @@ graph LR
 
 | Phase | Goal | User-Facing? | Migrations | Rollback |
 |-------|------|-------------|------------|----------|
-| **1** | Static rate CRUD, dynamic locking, report metadata | Yes | M1, M2 | Drop tables, revert code |
+| **1** | Static rate CRUD, dynamic locking, report metadata | Yes | M1, M2, M3 | Drop tables, revert code |
 | **2** | Audit history, clone/copy, adjustment workflows | Yes | TBD | TBD |
 
 ---
@@ -34,8 +34,10 @@ pairs. Show rate provenance in report responses.
 |----------|------|-------------|
 | `StaticExchangeRate` model | `koku/cost_models/models.py` | User-defined rate pairs with validity periods |
 | `MonthlyExchangeRateSnapshot` model | `koku/cost_models/models.py` | Unified per-month, per-pair rate storage |
+| `StaticExchangeRateDictionary` model | `koku/cost_models/models.py` | Pre-computed static cross-rate matrix |
 | Migration M1 | `koku/cost_models/migrations/XXXX_*.py` | Create `static_exchange_rate` table |
 | Migration M2 | `koku/cost_models/migrations/XXXX_*.py` | Create `monthly_exchange_rate_snapshot` table |
+| Migration M3 | `koku/cost_models/migrations/XXXX_*.py` | Create `static_exchange_rate_dictionary` table |
 | Serializer | `koku/cost_models/static_exchange_rate_serializer.py` | Validation + snapshot side-effects |
 | ViewSet | `koku/cost_models/static_exchange_rate_view.py` | CRUD API |
 | URL registration | `koku/cost_models/urls.py` | Router entry for `exchange-rate-pairs` |
@@ -63,7 +65,9 @@ pairs. Show rate provenance in report responses.
 - [ ] Fallback to `ExchangeRateDictionary` for pre-deployment months
 - [ ] `exchange_rates_applied` metadata appears in report responses
 - [ ] Consecutive months with same rate/type collapsed into one period string
-- [ ] Unit tests pass for serializer, view, snapshot logic, query handler
+- [ ] `StaticExchangeRateDictionary` rebuilt on create, update, and delete of static rates
+- [ ] `StaticExchangeRateDictionary` contains correct cross-rate matrix including implicit inverses
+- [ ] Unit tests pass for serializer, view, snapshot logic, dictionary rebuild, query handler
 - [ ] On-prem mode: full functionality without Trino
 
 ### Rollback

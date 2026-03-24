@@ -183,28 +183,68 @@ if not whens:
 
 ---
 
-## Static Rate → Snapshot — Writer 2
+## Static Rate → Snapshot + Dictionary — Writer 2
 
 **Trigger**: `StaticExchangeRate` CRUD operations (create, update, delete) via
 the serializer in `koku/cost_models/static_exchange_rate_serializer.py`.
 
-### On Create / Update
+Each CRUD operation performs **two side effects** inside a single
+`transaction.atomic()` block:
+
+1. **Snapshot upsert/delete** — writes to `MonthlyExchangeRateSnapshot`
+2. **Dictionary rebuild** — rebuilds `StaticExchangeRateDictionary`
+
+### Side Effect 1: Snapshot Upsert
+
+#### On Create / Update
 
 For each month between `start_date` and `end_date`, upsert a row in
 `MonthlyExchangeRateSnapshot` with `rate_type=RateType.STATIC` and the user-defined
 rate. This overwrites any existing dynamic row for that pair/month (the
 `unique_together` constraint ensures only one row per triple).
 
-### On Delete
+#### On Delete
 
 Remove `rate_type=RateType.STATIC` rows for the affected months, then
 proactively populate `rate_type=RateType.DYNAMIC` rows from the current
 `ExchangeRateDictionary` for those pairs/months. This eliminates the data gap
 that would otherwise exist until the next daily Celery task run.
 
-Both operations (delete static + insert dynamic) are wrapped in a database
-transaction (`transaction.atomic()`) together with the `StaticExchangeRate`
-delete, ensuring atomicity.
+### Side Effect 2: Rebuild `StaticExchangeRateDictionary`
+
+After every create, update, or delete, rebuild the `StaticExchangeRateDictionary`
+cross-rate matrix from all remaining `StaticExchangeRate` rows. This mirrors how
+the daily Celery task rebuilds `ExchangeRateDictionary` from `ExchangeRates`.
+
+```python
+def _rebuild_static_exchange_rate_dictionary():
+    """Rebuild the static cross-rate matrix from all StaticExchangeRate rows."""
+    static_rates = StaticExchangeRate.objects.all()
+    matrix = {}
+    for rate in static_rates:
+        matrix.setdefault(rate.base_currency, {})[rate.target_currency] = float(rate.exchange_rate)
+        # Implicit inverse
+        if rate.target_currency not in matrix or rate.base_currency not in matrix.get(rate.target_currency, {}):
+            matrix.setdefault(rate.target_currency, {})[rate.base_currency] = 1.0 / float(rate.exchange_rate)
+
+    StaticExchangeRateDictionary.objects.update_or_create(
+        defaults={"currency_exchange_dictionary": matrix},
+    )
+```
+
+| Event | Snapshot Action | Dictionary Action |
+|-------|----------------|-------------------|
+| **Create** | Upsert `rate_type=static` rows for affected months | Rebuild matrix from all `StaticExchangeRate` rows |
+| **Update** | Upsert `rate_type=static` rows for affected months | Rebuild matrix from all `StaticExchangeRate` rows |
+| **Delete** | Remove static rows, insert dynamic fallback rows | Rebuild matrix from remaining `StaticExchangeRate` rows |
+
+**Parallel with dynamic rates**: `ExchangeRateDictionary` (public schema) is
+rebuilt daily by the Celery task from `ExchangeRates`. `StaticExchangeRateDictionary`
+(tenant schema) is rebuilt on every CRUD operation from `StaticExchangeRate`.
+Both serve as pre-computed lookup matrices — one for dynamic rates, one for static.
+
+All operations (StaticExchangeRate write + snapshot upsert + dictionary rebuild)
+are wrapped in a single `transaction.atomic()` block, ensuring atomicity.
 
 **Risk linkage**: See [risk-register.md § R6](./risk-register.md#r6--static-rate-deletion-gap)
 
