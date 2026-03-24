@@ -158,21 +158,24 @@ transparency on which rates (static vs dynamic) were used and for which periods.
         "target_currency": "EUR",
         "rate": "0.870000000000000",
         "type": "static",
-        "period": "2026-01 to 2026-03"
+        "start_date": "2026-01-01",
+        "end_date": "2026-03-31"
       },
       {
         "base_currency": "USD",
         "target_currency": "EUR",
         "rate": "0.910000000000000",
         "type": "dynamic",
-        "period": "2026-04"
+        "start_date": "2026-04-01",
+        "end_date": "2026-04-30"
       },
       {
         "base_currency": "GBP",
         "target_currency": "EUR",
         "rate": "1.170000000000000",
         "type": "dynamic",
-        "period": "2026-03"
+        "start_date": "2026-03-01",
+        "end_date": "2026-03-31"
       }
     ]
   }
@@ -182,7 +185,8 @@ transparency on which rates (static vs dynamic) were used and for which periods.
 **Implementation**: The query handler's `effective_exchange_rates` property
 (see [pipeline-changes.md § Reader](./pipeline-changes.md#modified-query-handler--reader))
 provides the snapshot rows. The response formatter groups consecutive months
-with the same rate and type into a single `period` string.
+with the same rate and type into a single entry with `start_date` / `end_date`
+boundaries (first-of-month and last-day-of-month respectively).
 
 ---
 
