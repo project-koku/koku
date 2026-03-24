@@ -112,14 +112,18 @@ immediately available for use, or should an administrator explicitly enable them
 **Resolution**: Explicit enablement. Currencies fetched from the dynamic exchange
 rate API arrive in Cost Management as **disabled** by default (stored in the
 `EnabledCurrency` table with `enabled=False`). An administrator must explicitly
-enable currencies through the Settings UI before they are used for dynamic
-exchange rate conversions and appear in the target currency dropdown.
+enable currencies through the Settings UI before they appear in the target
+currency dropdown.
+
+All currencies are always stored and snapshotted regardless of their enabled
+status — the `enabled` flag only controls dropdown visibility, not data
+storage or snapshotting. This ensures the underlying data is complete and
+ready when an administrator enables a currency.
 
 **Rationale**: Explicit enablement gives administrators control over which
-currencies are supported in their deployment. In on-premise environments,
-customers may only need a small subset of the ~170 currencies available from
-the API. Enabling all currencies by default would clutter the UI and create
-unnecessary snapshot data.
+currencies appear in their UI. In on-premise environments, customers may only
+need a small subset of the ~170 currencies available from the API. Showing all
+currencies by default would clutter the dropdown.
 
 **Exception**: Static exchange rate pairs always make their currencies available
 in the dropdown, regardless of `EnabledCurrency` status. If an administrator
@@ -231,8 +235,7 @@ graph LR
     CT -->|upsert| ER["ExchangeRates<br/>(public schema)"]
     CT -->|rebuild| ERD["ExchangeRateDictionary<br/>(public schema)"]
     CT -->|"discover currencies<br/>create as disabled"| EC["EnabledCurrency<br/>(tenant schema)<br/>enabled/disabled per currency"]
-    CT -->|"Writer 1: per-tenant<br/>skip static pairs<br/>only enabled currencies"| SNAP["MonthlyExchangeRateSnapshot<br/>(tenant schema)<br/>per-pair rows"]
-    EC -->|"filter: only enabled<br/>currencies snapshotted"| SNAP
+    CT -->|"Writer 1: per-tenant<br/>skip static pairs<br/>all currencies"| SNAP["MonthlyExchangeRateSnapshot<br/>(tenant schema)<br/>per-pair rows"]
     SNAP -->|read per-month rates| QH["QueryHandler<br/>date-aware Case/When"]
     QH -->|"per-month rates +<br/>rate metadata"| REPORT["Report Response<br/>+ exchange_rates_applied"]
     QH -->|"no rate? →<br/>actionable error"| ERR["Error: no exchange rate<br/>available"]
@@ -242,7 +245,7 @@ graph LR
     SER -->|"write canonical<br/>rate record"| STATIC["StaticExchangeRate<br/>(tenant schema)"]
     SER -->|"Writer 2: upsert<br/>rate_type=static"| SNAP
     SER -->|"rebuild static<br/>cross-rate matrix"| SERD["StaticExchangeRateDictionary<br/>(tenant schema)<br/>static cross-rate matrix"]
-    EC -->|"available currencies<br/>= enabled dynamic ∪<br/>static rate currencies"| DD["Target Currency<br/>Dropdown"]
+    EC -->|"dropdown filter:<br/>enabled dynamic ∪<br/>static rate currencies"| DD["Target Currency<br/>Dropdown"]
     STATIC -->|"static currencies<br/>always available"| DD
 ```
 
@@ -252,9 +255,9 @@ graph LR
 2. Query handler reads per-month rates instead of a single global rate
 3. Report responses include rate provenance metadata
 4. `StaticExchangeRateDictionary` mirrors `ExchangeRateDictionary` for static rates — rebuilt on every CRUD operation instead of daily
-5. **Currency enablement**: Dynamic currencies arrive as disabled; administrator enables them via Settings before they are used
+5. **Currency enablement**: Dynamic currencies arrive as disabled; administrator enables them via Settings to make them visible in the dropdown (all currencies are always stored and snapshotted)
 6. **Airgapped mode**: When `CURRENCY_URL` is empty, dynamic fetch is skipped entirely — only static rates are available
-7. **Dropdown availability**: Target currency dropdown shows the union of enabled dynamic currencies and static rate currencies
+7. **Dropdown visibility**: Target currency dropdown shows only the union of enabled dynamic currencies and static rate currencies (disabled currencies are stored but hidden from the dropdown)
 8. **No-rate error**: If user selects a currency with no conversion path from the bill currency, an actionable error is returned
 
 ---
@@ -274,7 +277,7 @@ graph LR
 | 9 | **Forward-only snapshots** | Pre-deployment months have no snapshot rows; fall back to `ExchangeRateDictionary` |
 | 10 | **Per-pair rows, not JSON blob** | Enables `unique_together` constraint, simpler queries, cleaner ORM integration |
 | 11 | **`StaticExchangeRateDictionary` mirrors `ExchangeRateDictionary`** | Same cross-rate matrix format; dynamic matrix rebuilt daily by Celery, static matrix rebuilt on each CRUD operation |
-| 12 | **Explicit currency enablement** | Dynamic currencies arrive disabled; administrator enables them in Settings to control which currencies appear in dropdowns |
+| 12 | **Explicit currency enablement** | Dynamic currencies arrive disabled; administrator enables them in Settings to control which currencies appear in the dropdown. All currencies are always stored and snapshotted regardless of enabled status. |
 | 13 | **Configurable exchange rate URL** | `CURRENCY_URL` is a variable; empty value enables airgapped mode (static-only). Documentation references `open.er-api.com` (free tier) as the production example |
 | 14 | **Show-then-error for no-rate currencies** | Available currencies appear in dropdown even without a conversion path from the bill currency; actionable error returned on selection |
 | 15 | **Static rates bypass enablement** | Currencies in static exchange rate pairs are always available in dropdowns regardless of `EnabledCurrency` status |
@@ -287,3 +290,4 @@ graph LR
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial technical design |
 | v1.1 | 2026-03-24 | Added currency enablement (IQ-5), airgapped mode (IQ-6), no-rate corner case (IQ-7), design decisions 12–15 |
+| v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility, not snapshotting. All currencies always stored. |

@@ -112,9 +112,10 @@ defined, each uses its own rate.
 
 ### `EnabledCurrency`
 
-Tracks which currencies are enabled for use in exchange rate conversions. Currencies
-must be explicitly enabled by an administrator before they appear in dropdowns
-or are used for dynamic exchange rate conversions.
+Tracks which currencies are visible in the target currency dropdown. Currencies
+must be explicitly enabled by an administrator before they appear in the
+dropdown. All currencies are always stored and snapshotted regardless of their
+enabled status — the `enabled` flag only controls dropdown visibility.
 
 ```python
 class EnabledCurrency(models.Model):
@@ -138,10 +139,10 @@ class EnabledCurrency(models.Model):
 | 4 | `CNY` | `false` | `2026-01-01 06:00:00+00` | `2026-01-01 06:00:00+00` |
 | 5 | `JPY` | `false` | `2026-01-01 06:00:00+00` | `2026-01-01 06:00:00+00` |
 
-In this example, `USD` and `EUR` are enabled — their dynamic exchange rates will
-be snapshotted and they will appear in currency dropdowns. `GBP`, `CNY`, and `JPY`
-were discovered by the daily Celery task (fetched from the exchange rate API) but
-have not yet been enabled by an administrator.
+In this example, `USD` and `EUR` are enabled and will appear in the target
+currency dropdown. `GBP`, `CNY`, and `JPY` were discovered by the daily Celery
+task (fetched from the exchange rate API) but have not yet been enabled by an
+administrator — they are stored and snapshotted but hidden from the dropdown.
 
 **Lifecycle**:
 
@@ -153,13 +154,12 @@ have not yet been enabled by an administrator.
 
 **How currencies become "available" in dropdowns**:
 
-A currency is available for selection in the target currency dropdown if **any**
-of the following are true:
+A currency is visible in the target currency dropdown if **any** of the
+following are true:
 
-1. It has `enabled=True` in `EnabledCurrency` **and** has dynamic exchange rates
-   in `MonthlyExchangeRateSnapshot` or `ExchangeRateDictionary`
+1. It has `enabled=True` in `EnabledCurrency`
 2. It appears in any `StaticExchangeRate` pair (static rates make their currencies
-   available regardless of the `EnabledCurrency` status)
+   visible regardless of the `EnabledCurrency` status)
 
 **Corner case — no usable rate**: A currency may be available in the dropdown but
 have no exchange rate path from the bill's source currency. In this case, the API
@@ -397,3 +397,4 @@ changes required.
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial data model design |
 | v1.1 | 2026-03-24 | Added `EnabledCurrency` model, M4 migration |
+| v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility, not snapshotting |

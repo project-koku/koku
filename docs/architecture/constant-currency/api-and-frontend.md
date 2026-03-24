@@ -173,8 +173,9 @@ other Settings operations).
 ```
 
 Currencies with `enabled: false` were discovered by the daily exchange rate API
-fetch but have not been enabled by an administrator. They will not be used for
-dynamic exchange rate conversions until enabled.
+fetch but have not been enabled by an administrator. They will not appear in the
+target currency dropdown until enabled. All currencies are always stored and
+snapshotted regardless of their enabled status.
 
 ### Example: PUT Request (Enable/Disable)
 
@@ -187,10 +188,11 @@ dynamic exchange rate conversions until enabled.
 }
 ```
 
-**Side effects**: When a currency is enabled, the next daily Celery task run
-will begin snapshotting dynamic exchange rates for pairs involving that
-currency. When disabled, future snapshots will skip pairs involving that
-currency (existing snapshots are not removed).
+**Side effects**: Enabling or disabling a currency only affects its visibility
+in the target currency dropdown. It does not affect the `MonthlyExchangeRateSnapshot`,
+`ExchangeRateDictionary`, `ExchangeRates`, `StaticExchangeRate`, or
+`StaticExchangeRateDictionary` tables — all currencies are always stored and
+snapshotted regardless of their enabled status.
 
 ### Airgapped Mode (No `CURRENCY_URL`)
 
@@ -211,7 +213,7 @@ currencies from two sources:
 
 | Source | Rule | Example |
 |--------|------|---------|
-| **Dynamic** | Currency has `enabled=True` in `EnabledCurrency` AND has exchange rates in `MonthlyExchangeRateSnapshot` or `ExchangeRateDictionary` | USD, EUR enabled → appear in dropdown |
+| **Dynamic** | Currency has `enabled=True` in `EnabledCurrency` | USD, EUR enabled → appear in dropdown |
 | **Static** | Currency appears in any `StaticExchangeRate` pair (as base or target) | Static rate EUR→CHF defined → both EUR and CHF appear in dropdown regardless of `EnabledCurrency` status |
 
 ### Dropdown Endpoint
@@ -222,7 +224,8 @@ currencies from two sources:
 GET /api/cost-management/v1/settings/currency/available-currencies/
 ```
 
-Returns the union of enabled dynamic currencies and static rate currencies:
+Returns the currencies visible to the user — the union of enabled dynamic
+currencies and static rate currencies:
 
 ```json
 {
@@ -242,9 +245,9 @@ static rates, or both. This is informational for the frontend.
 
 When **no currencies are available at all** — meaning:
 
-- No `CURRENCY_URL` is configured (no dynamic rates), **and**
-- No `StaticExchangeRate` rows exist (no static rates), **and/or**
-- All currencies in `EnabledCurrency` are disabled
+- No `CURRENCY_URL` is configured (no dynamic rates) or all dynamic currencies
+  are disabled in `EnabledCurrency`, **and**
+- No `StaticExchangeRate` rows exist (no static rates)
 
 Then the currency dropdown should either be **hidden** or show a message:
 *"No exchange rates available."* Whichever approach is simpler to implement.
@@ -385,13 +388,14 @@ The frontend will:
 - **Add a currency enablement section** in Settings for enabling/disabling
   currencies discovered from the exchange rate API
 - **Populate the target currency dropdown** from the available-currencies
-  endpoint (union of enabled dynamic + static rate currencies)
+  endpoint (union of enabled dynamic currencies + static rate currencies).
+  Disabled currencies are stored and snapshotted but hidden from this dropdown.
 - **Handle the no-rate error**: When the user selects a target currency that
   has no conversion path from the bill currency, display the error message
   returned by the API
-- **Handle no currencies available**: When no currencies are available at all
-  (airgapped mode with no static rates, or all currencies disabled), either
-  hide the dropdown or show *"No exchange rates available"*
+- **Handle no currencies available**: When no currencies are visible (all
+  dynamic currencies disabled and no static rates), either hide the dropdown
+  or show *"No exchange rates available"*
 
 ---
 
@@ -411,3 +415,4 @@ The frontend will:
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial API and frontend design |
 | v1.1 | 2026-03-24 | Added currency enablement Settings API, available-currencies endpoint, dropdown behavior, no-rate corner case, airgapped UX |
+| v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility, not snapshotting. All currencies are always stored and snapshotted. |

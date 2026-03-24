@@ -46,7 +46,7 @@ pairs. Show rate provenance in report responses.
 | Available currencies view | `koku/api/settings/` or new file | Returns available target currencies for dropdown |
 | URL registration | `koku/cost_models/urls.py` | Router entry for `exchange-rate-pairs` |
 | Settings URL registration | `koku/api/urls.py` or `koku/api/settings/urls.py` | Routes for currency enablement and available currencies endpoints |
-| Celery task update | `koku/masu/celery/tasks.py` | Airgapped guard, currency discovery, enabled-currency filtered snapshot upsert per tenant |
+| Celery task update | `koku/masu/celery/tasks.py` | Airgapped guard, currency discovery, snapshot upsert for all currencies per tenant |
 | Query handler update | `koku/api/query_handler.py` | Date-aware `Case`/`When` annotations, available currency resolution |
 | OCP handler update | `koku/api/report/ocp/query_handler.py` | OCP-specific snapshot-based rates |
 | Forecast handler update | `koku/forecast/forecast.py` | Snapshot-based rate resolution |
@@ -78,10 +78,10 @@ pairs. Show rate provenance in report responses.
 - [ ] On-prem mode: full functionality without Trino
 - [ ] **Currency enablement**: Dynamic currencies arrive as disabled in `EnabledCurrency`
 - [ ] **Currency enablement**: Administrator can enable/disable currencies via Settings API
-- [ ] **Currency enablement**: Only enabled currencies are snapshotted by the daily task
+- [ ] **Currency enablement**: All currencies are snapshotted regardless of enabled status; `enabled` flag only controls dropdown visibility
 - [ ] **Airgapped mode**: Celery task skips API fetch when `CURRENCY_URL` is empty
 - [ ] **Airgapped mode**: Only static rates are available when no URL is configured
-- [ ] **Available currencies**: Dropdown shows union of enabled dynamic currencies and static rate currencies
+- [ ] **Available currencies**: Dropdown shows only enabled dynamic currencies and static rate currencies (disabled currencies are stored but hidden)
 - [ ] **Available currencies**: Static rate currencies appear regardless of `EnabledCurrency` status
 - [ ] **No-rate corner case**: Selecting a target currency with no conversion path returns HTTP 400 with actionable error
 - [ ] **No currencies available**: Dropdown hidden or shows "No exchange rates available" when no currencies are available
@@ -173,3 +173,4 @@ design would be needed to handle path prioritization.
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial phased delivery plan |
 | v1.1 | 2026-03-24 | Added EnabledCurrency artifacts (M4, views, tests), currency enablement and airgapped validation items, R7/R8 risks, updated rollback steps |
+| v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility. All currencies always stored and snapshotted. |

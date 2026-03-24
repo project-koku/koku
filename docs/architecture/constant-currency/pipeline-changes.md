@@ -71,7 +71,7 @@ configuring their own on-premise deployment.
 6. **NEW**: Per-tenant currency discovery — creates `EnabledCurrency` rows
    with `enabled=False` for newly discovered currencies
 7. **NEW**: Per-tenant snapshot upsert into `MonthlyExchangeRateSnapshot`
-   — **only for enabled currencies**
+   for all currencies returned by the API
 
 At query time:
 
@@ -80,7 +80,8 @@ At query time:
 9. **CHANGED**: Builds per-month `Case`/`When` annotations (one rate per month)
 10. **NEW**: Report response includes `exchange_rates_applied` metadata
 11. **NEW**: Available currencies for dropdown computed from enabled dynamic
-    currencies + static rate currencies
+    currencies + static rate currencies (`enabled` flag controls dropdown
+    visibility only, not storage)
 
 ### Two Writers, One Reader
 
@@ -145,11 +146,6 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
             ignore_conflicts=True,
         )
 
-        # Only snapshot rates for enabled currencies
-        enabled_codes = set(
-            EnabledCurrency.objects.filter(enabled=True).values_list("currency_code", flat=True)
-        )
-
         # Pre-fetch all static pairs for this month in a single query
         static_pairs = set(
             MonthlyExchangeRateSnapshot.objects.filter(
@@ -158,12 +154,10 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
             ).values_list("base_currency", "target_currency")
         )
 
+        # Snapshot ALL currencies — enabled flag only controls dropdown visibility
         for base_cur, targets in exchange_dict.items():
             for target_cur, rate in targets.items():
                 if base_cur == target_cur:
-                    continue
-                # Only snapshot if BOTH currencies are enabled
-                if base_cur not in enabled_codes or target_cur not in enabled_codes:
                     continue
                 if (base_cur, target_cur) not in static_pairs:
                     MonthlyExchangeRateSnapshot.objects.update_or_create(
@@ -181,9 +175,9 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
 - **Currency discovery**: Creates `EnabledCurrency` rows with `enabled=False`
   for any new currencies returned by the API. These appear in Settings as
   disabled currencies that the administrator can enable.
-- **Enabled-currency filter**: Only snapshots dynamic rates for pairs where
-  **both** the base and target currency are enabled. Disabled currencies are
-  never snapshotted.
+- **All currencies snapshotted**: Snapshots dynamic rates for all currency
+  pairs returned by the API. The `enabled` flag on `EnabledCurrency` only
+  controls dropdown visibility, not snapshotting.
 - Runs daily; overwrites current month's dynamic rows with latest rate
 - Skips pairs with `rate_type=RateType.STATIC` (static takes precedence)
 - Past months' rows are never updated (automatic finalization)
@@ -253,25 +247,24 @@ if not whens:
 ### New: Available Currency Resolution
 
 The query handler (or a shared utility) computes the list of currencies
-available for the target currency dropdown. A currency is **available** if any
+visible in the target currency dropdown. All currencies are stored and
+snapshotted regardless of their enabled status — the `enabled` flag only
+controls dropdown visibility. A currency is **visible in the dropdown** if any
 of the following are true:
 
-1. It has `enabled=True` in `EnabledCurrency` **and** has exchange rates
-   (dynamic or static) in `MonthlyExchangeRateSnapshot` or
-   `ExchangeRateDictionary`
+1. It has `enabled=True` in `EnabledCurrency`
 2. It appears as either `base_currency` or `target_currency` in any
-   `StaticExchangeRate` row (static rates make their currencies available
+   `StaticExchangeRate` row (static rates make their currencies visible
    regardless of `EnabledCurrency` status)
 
 ```python
 @cached_property
 def available_currencies(self):
-    """Currencies available for the target currency dropdown."""
-    # Dynamic: enabled currencies with exchange rate data
+    """Currencies visible in the target currency dropdown."""
+    # Dynamic: enabled currencies (all are snapshotted; enabled controls visibility only)
     enabled_codes = set(
         EnabledCurrency.objects.filter(enabled=True).values_list("currency_code", flat=True)
     )
-    dynamic_currencies = enabled_codes  # filtered to those with actual rates at query time
 
     # Static: all currencies appearing in any static exchange rate pair
     static_currencies = set(
@@ -280,7 +273,7 @@ def available_currencies(self):
         StaticExchangeRate.objects.values_list("target_currency", flat=True)
     )
 
-    return dynamic_currencies | static_currencies
+    return enabled_codes | static_currencies
 ```
 
 When the user selects a target currency that is "available" but has **no
@@ -291,10 +284,10 @@ the API returns an error rather than silently showing zero or unconverted costs:
 > *"No exchange rate available. Ask your administrator to configure static
 > exchange rates or enable dynamic exchange rates."*
 
-When **no currencies are available at all** (no `CURRENCY_URL` configured, no
-static rates defined, and no enabled currencies), the frontend either hides the
-currency dropdown entirely or shows *"No exchange rates available."* — whichever
-is simpler to implement.
+When **no currencies are visible** (no `CURRENCY_URL` configured, no
+static rates defined, and all currencies disabled), the frontend either hides
+the currency dropdown entirely or shows *"No exchange rates available."* —
+whichever is simpler to implement.
 
 See [api-and-frontend.md § Corner Case: No Exchange Rate](./api-and-frontend.md#corner-case-no-exchange-rate)
 for the full UX specification.
@@ -407,3 +400,4 @@ This is handled automatically by the unified `MonthlyExchangeRateSnapshot` table
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial pipeline changes design |
 | v1.1 | 2026-03-24 | Added airgapped mode, currency discovery, enabled-currency filtering, available currency resolution |
+| v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility. All currencies always stored and snapshotted. |
