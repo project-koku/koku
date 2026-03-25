@@ -42,11 +42,11 @@ and must be updated to call `get_data_retention_months(schema)`:
 | `OCPReportDBCleaner` | `masu/processor/ocp/ocp_report_db_cleaner.py` | Postgres partitions + `cascade_delete` usage periods + Trino `delete_hive_partition_by_month` |
 | `ReportManifestDBAccessor` | `masu/database/report_manifest_db_accessor.py` | `purge_expired_report_manifest` / `purge_expired_report_manifest_provider_uuid` |
 
-### Hardcoded Values (affected — IQ-2)
+### Trino Paths (NOT affected — on-prem does not use Trino)
 
-| # | Path | Schedule / Trigger | What It Deletes | Hardcoded Value |
-|---|------|--------------------|----------------|-----------------|
-| 5 | `migrate_trino_tables --remove-expired-partitions` | Manual (management command) | Trino partitions for `MANAGED_TABLES` | `months = 5` |
+| # | Path | Schedule / Trigger | What It Deletes | Hardcoded Value | Why Excluded |
+|---|------|--------------------|----------------|-----------------|--------------|
+| 5 | `migrate_trino_tables --remove-expired-partitions` | Manual (management command) | Trino partitions for `MANAGED_TABLES` | `months = 5` | This feature is on-prem only; on-prem does not use Trino. See IQ-2. |
 
 ### Event-Driven Cleanup (NOT affected — no retention dependency)
 
@@ -70,8 +70,8 @@ ops commands. They do not use `RETAIN_NUM_MONTHS` and need no changes.
 ### Summary
 
 ```
-Affected:       5 code paths (4 read RETAIN_NUM_MONTHS + 1 hardcoded)
-Not affected:  11 code paths (event-driven, not retention-based)
+Affected:       4 code paths (read RETAIN_NUM_MONTHS → switch to get_data_retention_months())
+Not affected:  12 code paths (11 event-driven + 1 Trino-only, excluded for on-prem)
 ```
 
 ---
@@ -86,7 +86,6 @@ Every consumer currently reads a static value cached at startup:
 |----------|---------------|------|
 | `ExpiredDataRemover.__init__` | `Config.MASU_RETAIN_NUM_MONTHS` | `masu/processor/expired_data_remover.py:51` |
 | Postgres provider cleaners (AWS, Azure, GCP, OCP) | via `ExpiredDataRemover` | `masu/processor/*/\*_report_db_cleaner.py` |
-| Trino partition cleanup | hardcoded `months = 5` | `masu/management/commands/migrate_trino_tables.py:467` |
 | `kafka_msg_handler` | `Config.MASU_RETAIN_NUM_MONTHS` | `masu/external/kafka_msg_handler.py:391` |
 | `materialized_view_month_start` | `settings.RETAIN_NUM_MONTHS` | `api/utils.py:514` |
 | `masu/api/status.py` | `Config.MASU_RETAIN_NUM_MONTHS` | `masu/api/status.py:55` |
@@ -94,8 +93,8 @@ Every consumer currently reads a static value cached at startup:
 **Note**: The Postgres provider cleaners (partition deletes, bill/usage
 period deletes, manifest purge) all flow through `ExpiredDataRemover`,
 so updating the `ExpiredDataRemover` read path covers the full Postgres
-cleanup pipeline. The Trino `migrate_trino_tables` command is a separate
-code path with a hardcoded value that must be updated independently.
+cleanup pipeline. `migrate_trino_tables` is excluded — this feature is
+on-prem only and on-prem does not use Trino (see IQ-2).
 
 ### Proposed Change
 
@@ -117,10 +116,12 @@ to callers.
 
 **Failure safety** (see [R7](phased-delivery.md#r7-db-read-failure-in-purge-path-causes-data-loss)):
 If the DB query inside `get_data_retention_months()` raises an
-exception, the helper catches it, logs an error, and falls back to
-`Config.MASU_RETAIN_NUM_MONTHS` (the startup-cached env value) —
-**not** the code default. This ensures the purge path never silently
-shortens retention due to a transient DB failure.
+exception, the helper catches it, logs an error, and **returns `None`**.
+The caller (`ExpiredDataRemover` / orchestrator loop) interprets `None`
+as "skip purge for this tenant" — no data is deleted. This is the most
+conservative approach: potential data accumulation during a DB outage is
+preferable to accidental data loss. The operator can investigate and
+re-run purge once the DB is healthy.
 
 **Impact on `Config.MASU_RETAIN_NUM_MONTHS`**: This attribute is no
 longer the primary source of truth. It remains as a module-level
@@ -305,7 +306,6 @@ sequenceDiagram
 | `api/utils.py` | `materialized_view_month_start` accepts `schema_name` |
 | `masu/config.py` | `MASU_RETAIN_NUM_MONTHS` becomes fallback only |
 | `masu/processor/_tasks/remove_expired.py` | Pass `schema_name` to `ExpiredDataRemover` |
-| `masu/management/commands/migrate_trino_tables.py` | Replace hardcoded `months = 5` with `get_data_retention_months()` |
 
 ---
 
@@ -318,7 +318,7 @@ See full risk register in [phased-delivery.md § Risk Register](phased-delivery.
 | R4 | Calendar-month fix shifts expiration date | Medium | Expiration calc |
 | R5 | Kafka schema resolution overhead | Low | Kafka ingest gate |
 | R6 | Default 4→3 causes unexpected data deletion | ~~High~~ | **Resolved** — code default stays at `4` |
-| R7 | DB read failure in purge causes data loss | **High** | Read helper fallback |
+| R7 | DB read failure in purge causes data loss | **High** | Read helper returns `None`; caller skips purge |
 | R9 | Phase ordering violation | Low | Code default unchanged, fallback is safe |
 | R10 | Helper fallback reintroduces R6 | Medium | **Resolved** — fallback uses `Config.MASU_RETAIN_NUM_MONTHS` |
 
@@ -332,3 +332,4 @@ See full risk register in [phased-delivery.md § Risk Register](phased-delivery.
 | v1.1 | 2026-03-11 | Add blast radius analysis: 5 affected paths, 11 unaffected event-driven paths |
 | v1.2 | 2026-03-11 | R7 failure-safe fallback note; link to risk register; R6/R9 cross-references |
 | v1.3 | 2026-03-11 | R6 resolved, R9 low, R10 resolved; helper fallback changed to `Config.MASU_RETAIN_NUM_MONTHS` |
+| v1.4 | 2026-03-25 | IQ-2: `migrate_trino_tables` excluded (on-prem doesn't use Trino). Blast radius narrowed to 4 affected paths. R7: skip purge on DB error |

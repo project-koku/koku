@@ -59,9 +59,9 @@ team prefers DB-first.
 
 | # | Decision | Status | Proposal |
 |---|----------|--------|----------|
-| **IQ-0** | Initialization strategy: env-var fallback (A) vs seed migration (B)? | **Open** | See above. Lean A. |
-| **IQ-1** | Should `MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY` also become configurable, or remain env-var only? | Open | Keep as env-var only — it is an internal optimization knob, not user-facing. |
-| **IQ-2** | `migrate_trino_tables` hardcodes `months = 5` for Trino partition cleanup, and the Postgres provider cleaners use the same static `Config.MASU_RETAIN_NUM_MONTHS` — both should read from `TenantSettings` to handle retention > 5 months. This applies to the full purge pipeline (Trino partitions + Postgres aggregated data). | Open | Yes — all cleanup paths (Trino partitions, Postgres partition deletes, manifest purge) should read from `get_data_retention_months()`. |
+| **IQ-0** | Storage model and initialization strategy | **Open** | Tech lead asked why not reuse `UserSettings`. Three options presented: (A) add column to `Customer`, (B) new `TenantSettings` table, (C) extend `UserSettings` JSONB. Recommend B. Awaiting tech lead input. See [PR #5958 discussion](https://github.com/project-koku/koku/pull/5958#discussion_r2989196814). |
+| **IQ-1** | Should `MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY` also become configurable, or remain env-var only? | **Resolved** | Dead code — `_line_items_months` is set in `ExpiredDataRemover.__init__()` but never read after construction. Relic from pre-Trino era. Remove it (timing TBD — part of this story or follow-up). |
+| **IQ-2** | `migrate_trino_tables` hardcodes `months = 5` for Trino partition cleanup, and the Postgres provider cleaners use the same static `Config.MASU_RETAIN_NUM_MONTHS` — should these read from `TenantSettings`? | **Resolved** | `migrate_trino_tables` is out of scope — this feature is on-prem only and on-prem doesn't use Trino. Remaining Postgres cleanup paths (partition deletes, manifest purge via `ExpiredDataRemover`) will read from `get_data_retention_months()`. |
 | **IQ-3** | Deploy defaults are inconsistent (kustomize: `3`, Django: `4`, docker-compose: `4`). Which is authoritative? | **Resolved** | Keep Django/compose at `4` (existing behavior). Kustomize `3` is SaaS-only via env var. `TenantSettings` column default is `3` for new opt-in tenants. See [R6](phased-delivery.md#r6-default-change-eliminated--no-phase-4). |
 | **IQ-4** | Frontend changes (koku-ui-onprem) — separate ticket or part of COST-573? | **Resolved** | Out of scope — handled by a separate team under a separate ticket. Backend API ships independently. |
 
@@ -159,6 +159,7 @@ Detailed per-file changes are in each sub-document.
 | **Expiration calc** | `masu/processor/expired_data_remover.py` | Modified — calendar-month fix |
 | **Materialized view** | `api/utils.py` | Modified — reads from helper |
 | **Kafka gate** | `masu/external/kafka_msg_handler.py` | Modified — reads from helper |
+| **Dead code removal** | `masu/config.py`, `masu/processor/expired_data_remover.py` | Modified — remove `MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY` (IQ-1, timing TBD) |
 | **Deploy defaults** | — | No change — Django stays at `4`, kustomize stays at `3` via env var |
 
 ---
@@ -176,14 +177,14 @@ Full risk register with expanded mitigations lives in
 | R4 | Calendar-month fix shifts expiration date | Medium | Mitigated |
 | R5 | Kafka schema resolution overhead | Low | Mitigated |
 | R6 | Default 4→3 causes unexpected data deletion | ~~High~~ | **Resolved** — code default stays at `4`; Phase 4 removed |
-| **R7** | **DB read failure in purge causes data loss** | **High** | Mitigated — fallback to env-cached value |
+| **R7** | **DB read failure in purge causes data loss** | **High** | Mitigated — helper returns `None`; caller skips purge for that tenant |
 | R8 | Seed migration reads wrong env var (Approach B) | Medium | Mitigated |
 | R9 | Phase ordering violation | Low | Mitigated — code default unchanged |
 | R10 | Helper fallback / GET side-effect reintroduce R6 | Medium | **Resolved** — helper uses startup default; GET is side-effect-free |
 
-> **R7** is now the only High-severity risk. It is mitigated by the
-> exception-safe fallback to `Config.MASU_RETAIN_NUM_MONTHS` in the
-> read helper.
+> **R7** is now the only High-severity risk. It is mitigated by
+> returning `None` on DB error so the caller skips purge for that
+> tenant — no data is deleted until the DB is healthy again.
 
 ---
 
@@ -195,3 +196,4 @@ Full risk register with expanded mitigations lives in
 | v1.2 | 2026-03-11 | Risk register expanded: R6–R9 added; README summary with link to phased-delivery.md |
 | v1.3 | 2026-03-11 | R6 resolved: keep code default at `4`, Phase 4 removed. IQ-3 resolved. R9 downgraded |
 | v1.4 | 2026-03-11 | R10 found and resolved: helper fallback + GET side-effect would have reintroduced R6. IQ-4 resolved (out of scope). Approach A/B descriptions updated |
+| v1.5 | 2026-03-25 | Tech lead review: IQ-1 resolved (dead code), IQ-2 resolved (Trino out of scope), R6 context (no existing deployments), R7 updated (skip purge on DB error), IQ-0 expanded (3 storage options) |

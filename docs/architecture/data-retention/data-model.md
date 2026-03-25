@@ -102,13 +102,17 @@ env var.
 1. RETAIN_NUM_MONTHS env var is set  →  use env value, hide UI
 2. RETAIN_NUM_MONTHS env var unset   →  read from tenant_settings table
 3. No row in tenant_settings         →  use Config.MASU_RETAIN_NUM_MONTHS (4)
-4. DB read failure                   →  use Config.MASU_RETAIN_NUM_MONTHS (4)
+4. DB read failure                   →  return None (caller skips purge)
 ```
 
-The fallback in steps 3 and 4 is `Config.MASU_RETAIN_NUM_MONTHS`
+The fallback in step 3 is `Config.MASU_RETAIN_NUM_MONTHS`
 (startup-cached from `settings.RETAIN_NUM_MONTHS`, default `4`) —
 **not** `TenantSettings.DEFAULT_RETENTION_MONTHS` (`3`). This
 preserves existing behavior. See [R10](phased-delivery.md#r10-helper-fallback-and-get-side-effect-reintroduce-r6).
+
+In step 4, a DB read failure returns `None` so the purge caller can
+skip that tenant entirely rather than risk deleting data with a stale
+value. See [R7](phased-delivery.md#r7-db-read-failure-in-purge-path-causes-data-loss).
 
 ### Read Helper
 
@@ -120,12 +124,13 @@ A utility function centralizes this logic. All consumers
 ```python
 # api/settings/utils.py (new function)
 
-def get_data_retention_months(schema_name: str) -> int:
+def get_data_retention_months(schema_name: str) -> int | None:
     """Return the effective data retention period in months.
 
     Priority: env var > DB row > startup-cached default.
+    Returns None on DB error so the caller can skip purge.
 
-    The final fallback is Config.MASU_RETAIN_NUM_MONTHS (startup-
+    The "no row" fallback is Config.MASU_RETAIN_NUM_MONTHS (startup-
     cached from settings.RETAIN_NUM_MONTHS, default 4) — NOT the
     TenantSettings column default (3). This preserves existing
     behavior for on-prem deployments that never set the env var
@@ -142,10 +147,11 @@ def get_data_retention_months(schema_name: str) -> int:
                 return row.data_retention_months
     except Exception:
         LOG.error(
-            "Failed to read tenant_settings for %s, "
-            "falling back to MASU_RETAIN_NUM_MONTHS",
+            "Failed to read tenant_settings for %s; "
+            "skipping purge for this tenant",
             schema_name,
         )
+        return None
 
     return Config.MASU_RETAIN_NUM_MONTHS
 ```
@@ -267,7 +273,7 @@ See full risk register in [phased-delivery.md § Risk Register](phased-delivery.
 |----|------|----------|---------------|
 | R1 | Template-clone misses new table | Medium | DDL migration |
 | R2 | Duplicate row race condition | Low | Row lifecycle |
-| R7 | DB read failure in purge causes data loss | **High** | Read helper |
+| R7 | DB read failure in purge causes data loss | **High** | Read helper returns `None`; caller skips purge |
 | R8 | Seed migration reads wrong env var | Medium | Approach B only |
 | R10 | Helper fallback / GET side-effect reintroduce R6 | Medium | **Resolved** — fallback uses startup default; seed migration uses `Config.MASU_RETAIN_NUM_MONTHS` |
 
@@ -281,3 +287,4 @@ See full risk register in [phased-delivery.md § Risk Register](phased-delivery.
 | v1.1 | 2026-03-11 | R7 exception-safe fallback in read helper; link to risk register |
 | v1.2 | 2026-03-11 | R10 fix: helper final fallback changed from `DEFAULT_RETENTION_MONTHS` (3) to `Config.MASU_RETAIN_NUM_MONTHS` (4); priority chain updated; seed migration uses startup default |
 | v1.3 | 2026-03-11 | Row lifecycle: GET is side-effect-free; PUT uses `transaction.atomic()` |
+| v1.4 | 2026-03-25 | R7: read helper returns `None` on DB error (caller skips purge). Priority chain step 4 updated |

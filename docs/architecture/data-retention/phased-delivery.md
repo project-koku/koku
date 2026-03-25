@@ -241,6 +241,10 @@ the DB column default (for new `TenantSettings` rows) and the `CHECK`
 constraint floor — both only come into play when an admin actively
 uses the new Global Settings feature.
 
+**Additional context** (tech lead confirmation): There are no existing
+on-prem deployments at this time, further de-risking this decision.
+Even if the default were changed, no live data would be affected.
+
 ---
 
 ### R7: DB read failure in purge path causes data loss
@@ -253,19 +257,30 @@ a shorter retention than the tenant's actual setting. If the tenant's
 actual retention is `12` and the fallback is `4`, this could cause the
 purge to delete 8 months of data.
 
-**Mitigation**:
-1. The helper falls back to the **env var first** (which is always set
-   on SaaS). On-prem without the env var falls to
-   `Config.MASU_RETAIN_NUM_MONTHS` (startup-cached default `4`).
-2. If the DB query raises an exception, the helper logs an error and
-   falls back to `Config.MASU_RETAIN_NUM_MONTHS` — the same startup-
-   cached value. This preserves current behavior on failure.
-3. `ExpiredDataRemover` already supports `simulate=True` — the
-   scheduled Beat job can be configured to simulate first and only
-   purge after verification.
+**Mitigation** (updated per tech lead feedback):
+1. The helper checks the **env var first** (which is always set on
+   SaaS). If set, it returns the env value — no DB access needed.
+2. If the env var is not set, the helper reads the DB row.
+3. If the DB query raises an exception, the helper logs an error and
+   **returns `None`**. The caller (`ExpiredDataRemover`) interprets
+   `None` as "skip purge for this tenant" — no data is deleted.
+4. If no DB row exists (Approach A, tenant never opted in), the helper
+   returns `Config.MASU_RETAIN_NUM_MONTHS` (startup-cached default
+   `4`) — same behavior as today.
+
+The "skip purge on DB error" approach is more conservative than the
+previous "fall back to env-cached value" design. The trade-off is
+potential data accumulation during a DB outage, but that is preferable
+to accidental data loss. The operator can investigate and re-run purge
+once the DB is healthy.
 
 ```python
-def get_data_retention_months(schema_name: str) -> int:
+def get_data_retention_months(schema_name: str) -> int | None:
+    """Return the effective data retention period in months.
+
+    Priority: env var > DB row > startup-cached default.
+    Returns None on DB error so the caller can skip purge.
+    """
     env_val = os.environ.get("RETAIN_NUM_MONTHS")
     if env_val is not None:
         return int(env_val)
@@ -277,15 +292,27 @@ def get_data_retention_months(schema_name: str) -> int:
                 return row.data_retention_months
     except Exception:
         LOG.error(
-            "Failed to read tenant_settings for %s, "
-            "falling back to MASU_RETAIN_NUM_MONTHS",
+            "Failed to read tenant_settings for %s; "
+            "skipping purge for this tenant",
             schema_name,
         )
+        return None
 
-    # Fallback is Config.MASU_RETAIN_NUM_MONTHS (startup-cached,
+    # No row exists — tenant has not opted in via the API.
+    # Fall back to Config.MASU_RETAIN_NUM_MONTHS (startup-cached,
     # default 4) — NOT TenantSettings.DEFAULT_RETENTION_MONTHS (3).
     # See R10 for the reasoning.
     return Config.MASU_RETAIN_NUM_MONTHS
+```
+
+The caller handles `None`:
+
+```python
+# In ExpiredDataRemover / Orchestrator loop
+retention = get_data_retention_months(schema)
+if retention is None:
+    LOG.warning("Skipping purge for %s — DB read failed", schema)
+    continue
 ```
 
 ---
@@ -376,7 +403,7 @@ This ensures R6 stays eliminated across all code paths.
 | R4 | Calendar-month fix shifts expiration date | 3 | Medium | Mitigated — dual-log + unit tests + simulate |
 | R5 | Kafka schema resolution overhead | 3 | Low | Mitigated — no extra query |
 | R6 | Default 4→3 causes unexpected data deletion | — | ~~High~~ | **Resolved** — eliminated by keeping code default at `4`; Phase 4 removed |
-| R7 | DB read failure in purge causes data loss | 3 | **High** | Mitigated — exception handler falls back to env-cached value |
+| R7 | DB read failure in purge causes data loss | 3 | **High** | Mitigated — helper returns `None` on DB error; caller skips purge for that tenant |
 | R8 | Seed migration reads wrong env var | 1 | Medium | Mitigated — docs + logging (Approach B only) |
 | R9 | Phase ordering violation | 2–3 | Low | Mitigated — code default unchanged, fallback is safe |
 | R10 | Helper fallback / GET side-effect reintroduce R6 | 2–3 | Medium | **Resolved** — helper fallback changed to `Config.MASU_RETAIN_NUM_MONTHS`; GET is side-effect-free |
@@ -391,3 +418,4 @@ This ensures R6 stays eliminated across all code paths.
 | v1.1 | 2026-03-11 | Expanded risk register: R6 (default change data loss), R7 (DB failure fallback), R8 (seed env mismatch), R9 (phase ordering) |
 | v1.2 | 2026-03-11 | R6 resolved: keep `DEFAULT_RETAIN_NUM_MONTHS = 4`, remove Phase 4. R3 accepted, R9 downgraded to Low |
 | v1.3 | 2026-03-11 | R10 found and resolved: helper fallback + GET side-effect would have reintroduced R6. Helper uses startup-cached default; GET is read-only; PUT seeds with `4` and includes `select_for_update()` + cache invalidation |
+| v1.4 | 2026-03-25 | R6: added "no existing deployments" context. R7: changed from "fall back to env-cached value" to "return None / skip purge" per tech lead feedback |
