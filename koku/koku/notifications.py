@@ -86,7 +86,6 @@ class NotificationService:
         LOG.info(f"Notification kafka message: {msg}")
         return msg
 
-    @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
     def send_notification(self, msg):
         """
         Send kafka notification message to Insights Notifications Service.
@@ -103,6 +102,11 @@ class NotificationService:
                 )
             )
             return
+        self._produce_kafka_notification_msg(msg)
+
+    @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
+    def _produce_kafka_notification_msg(self, msg):
+        """Produce a message to the Kafka notifications topic."""
         producer = get_producer()
         producer.produce(NOTIFICATION_TOPIC, value=msg, callback=delivery_callback)
         producer.poll(0)
