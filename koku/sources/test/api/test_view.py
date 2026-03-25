@@ -16,7 +16,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.test.utils import override_settings
 from django.urls import reverse
-from rest_framework import viewsets
+from rest_framework import mixins
 from rest_framework.response import Response
 
 from api.common.permissions import RESOURCE_TYPE_MAP
@@ -620,9 +620,7 @@ class SourcesViewCreateTests(IamTestCase):
         mock_request = Mock()
         mock_request.user.customer.schema_name = "test_schema"
 
-        # Mock create on GenericViewSet (which IS in the MRO) since CreateModelMixin
-        # is only added when DEVELOPMENT or ONPREM is True (not the case in tox).
-        with patch.object(viewsets.GenericViewSet, "create", create=True, return_value=Response(status=201)):
+        with patch.object(mixins.CreateModelMixin, "create", return_value=Response(status=201)):
             result = viewset.create(request=mock_request)
             self.assertEqual(result.status_code, 201)
             mock_invalidate.assert_called_once()
@@ -637,9 +635,7 @@ class SourcesViewCreateTests(IamTestCase):
         mock_request = Mock()
         mock_request.user.customer.schema_name = "test_schema"
 
-        with patch.object(
-            viewsets.GenericViewSet, "create", create=True, side_effect=SourcesStorageError("test error")
-        ):
+        with patch.object(mixins.CreateModelMixin, "create", side_effect=SourcesStorageError("test error")):
             with self.assertRaises(SourcesException):
                 viewset.create(request=mock_request)
 
@@ -653,9 +649,7 @@ class SourcesViewCreateTests(IamTestCase):
         mock_request = Mock()
         mock_request.user.customer.schema_name = "test_schema"
 
-        with patch.object(
-            viewsets.GenericViewSet, "create", create=True, side_effect=SourcesDependencyError("dep error")
-        ):
+        with patch.object(mixins.CreateModelMixin, "create", side_effect=SourcesDependencyError("dep error")):
             with self.assertRaises(SourcesDependencyException):
                 viewset.create(request=mock_request)
 
