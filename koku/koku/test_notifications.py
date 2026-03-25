@@ -66,8 +66,8 @@ class NotificationsTest(TestCase):
 
     @patch("koku.notifications.get_producer")
     @override_settings(ONPREM=False)
-    def test_send_notification(self, mock_producer):
-        """Test sending notification payload."""
+    def test_send_notification_saas_produces_to_kafka(self, mock_producer):
+        """SaaS sends notification to Kafka producer."""
         msg = "notification-test-message"
         notification = NotificationService()
         notification.send_notification(msg)
@@ -83,15 +83,6 @@ class NotificationsTest(TestCase):
             notification.send_notification(msg)
         self.assertTrue(any("Notification event" in line for line in captured.output))
         mock_producer.assert_not_called()
-
-    @patch("koku.notifications.get_producer")
-    @override_settings(ONPREM=False)
-    def test_send_notification_saas_produces_to_kafka(self, mock_producer):
-        """SaaS sends notification to Kafka producer."""
-        msg = "notification-test-message"
-        notification = NotificationService()
-        notification.send_notification(msg)
-        mock_producer.assert_called()
 
     def test_building_notification_json(self):
         """Test sending notification payload."""
