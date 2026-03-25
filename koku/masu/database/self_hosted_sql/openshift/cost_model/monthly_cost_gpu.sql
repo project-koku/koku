@@ -139,8 +139,10 @@ WITH cte_unutilized_uptime_hours AS (
                 THEN count(node_ut.interval_start) * gpu.physical_gpu_count * gpu.max_slices_per_gpu - COALESCE(gpu.aggregated_slice_uptime, 0)
             WHEN gpu.physical_gpu_count IS NULL AND (node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy' = 'mixed'
                 THEN count(node_ut.interval_start) * CAST((node_ut.node_labels::jsonb)->>'nvidia_com_gpu_count' AS DECIMAL(33, 15))
-            WHEN gpu.physical_gpu_count IS NULL AND (node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy' = 'single'
+            WHEN gpu.physical_gpu_count IS NULL AND (node_ut.node_labels::jsonb)->>'nvidia_com_miga_strategy' = 'single'
                 THEN count(node_ut.interval_start) * (CAST((node_ut.node_labels::jsonb)->>'nvidia_com_gpu_count' AS DECIMAL(33, 15)) / 7)
+            WHEN gpu.physical_gpu_count IS NULL AND (node_ut.node_labels::jsonb)->>'nvidia_com_miga_strategy' IS NULL
+                THEN count(node_ut.interval_start) * 1
             ELSE 0
         END as unutilized_uptime
     FROM {{schema | sqlsafe}}.openshift_node_labels_line_items as node_ut
