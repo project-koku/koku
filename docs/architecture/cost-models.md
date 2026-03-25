@@ -1156,14 +1156,86 @@ Total OCP cost: $1,000 (AWS) + $7.00 (cost model) = $1,007.00
 
 ---
 
+## GPU Cost Models
+
+### Overview
+
+GPU cost models enable cost tracking for OpenShift workloads using NVIDIA GPUs. Unlike CPU/memory metrics, GPU costs are calculated based on:
+- **GPU Model:** Different rates per GPU type (A100, H100, etc.)
+- **Uptime:** How long a pod used the GPU
+- **MIG Partitioning:** Proportional cost based on compute slice allocation (if MIG enabled)
+
+### GPU Cost Calculation
+
+**Basic Formula:**
+```
+cost = (rate / days_in_month) × (gpu_pod_uptime / 86400)
+```
+
+**With MIG Partitioning:**
+```
+cost = (rate / days_in_month) × (gpu_pod_uptime / 86400) × (mig_slices / max_slices)
+```
+
+### GPU Unallocated Cost
+
+Similar to worker unallocated cost, GPU capacity that is not assigned to pods is tracked as "GPU Unallocated" and can be distributed back to namespaces based on their GPU usage.
+
+**Distribution Settings:**
+```json
+{
+  "distribution_info": {
+    "gpu_unallocated": true  // Distribute GPU unallocated costs
+  }
+}
+```
+
+### Tag-Based GPU Rates
+
+GPU rates support tag-based pricing by `gpu_model_name`:
+
+```json
+{
+  "metric": {"name": "gpu_cost_per_month"},
+  "tag_rates": {
+    "tag_key": "gpu-model",
+    "tag_values": [
+      {"tag_value": "NVIDIA A100-SXM4-40GB", "value": 3000, "default": false},
+      {"tag_value": "NVIDIA H100", "value": 5000, "default": false},
+      {"tag_value": "default", "value": 2000, "default": true}
+    ]
+  },
+  "cost_type": "Supplementary"
+}
+```
+
+### MIG (Multi-Instance GPU) Support
+
+For NVIDIA MIG-enabled GPUs, cost models automatically handle partitioned GPU instances:
+
+- **Slice-Based Costing:** Costs are proportional to compute slices (e.g., `3g.20gb` = 3/7 of A100 cost)
+- **Unallocated Tracking:** Unused MIG slices tracked as "GPU Unallocated"
+- **Slice-Time Distribution:** Unallocated costs distributed by `uptime × slices`
+
+**See:** [MIG GPU Support Architecture](./mig-gpu-support.md) for detailed implementation.
+
+### SQL Implementation
+
+**Files:**
+- [`koku/masu/database/trino_sql/openshift/cost_model/monthly_cost_gpu.sql`](../../koku/masu/database/trino_sql/openshift/cost_model/monthly_cost_gpu.sql) - Allocated and unallocated GPU cost calculation
+- [`koku/masu/database/trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql`](../../koku/masu/database/trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql) - GPU unallocated cost distribution
+
+---
+
 ## Further Reading
 
 - [Cost Management Docs](https://access.redhat.com/documentation/en-us/cost_management_service/2023/html-single/using_cost_models/index)
 - [OCP CSV Processing Architecture](./csv-processing-ocp.md)
+- [MIG GPU Support Architecture](./mig-gpu-support.md)
 - [Distributing Cost Documentation](../distributing_cost.md)
 - [Cost Model Examples](../../dev/scripts/cost_models/)
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** October 21, 2025
+**Document Version:** 1.1
+**Last Updated:** March 4, 2026
