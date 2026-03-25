@@ -174,6 +174,7 @@ class AdminSourcesSerializer(SourcesSerializer):
         data["org_id"] = self._validate_org_id(data.get("org_id"))
         return data
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         """Update source; sync paused to linked Provider when provided."""
         paused = validated_data.get("paused")
