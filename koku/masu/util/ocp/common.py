@@ -297,6 +297,8 @@ GPU_MAX_SLICES_BY_MODEL = {
     "H100-PCIE": 7,
     "H100-SXM": 7,
     "A30": 4,
+    "RXT": 4,
+    "B200": 7,
 }
 
 # new_required_columns are columns that appear in new operator reports.
