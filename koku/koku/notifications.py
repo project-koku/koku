@@ -8,6 +8,9 @@ import json
 import logging
 import uuid
 
+from django.conf import settings
+
+from api.common import log_json
 from api.provider.models import Provider
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
@@ -92,6 +95,14 @@ class NotificationService:
         Returns:
             None
         """
+        if settings.ONPREM:
+            LOG.warning(
+                log_json(
+                    msg="Notification event",
+                    notification_payload=msg.decode("utf-8") if isinstance(msg, bytes) else msg,
+                )
+            )
+            return
         producer = get_producer()
         producer.produce(NOTIFICATION_TOPIC, value=msg, callback=delivery_callback)
         producer.poll(0)

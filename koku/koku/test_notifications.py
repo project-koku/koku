@@ -6,6 +6,7 @@
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.test.utils import override_settings
 
 from api.provider.models import Provider
 from koku.notifications import NotificationService
@@ -64,8 +65,29 @@ class NotificationsTest(TestCase):
     #     mock_send_notification.assert_called()
 
     @patch("koku.notifications.get_producer")
+    @override_settings(ONPREM=False)
     def test_send_notification(self, mock_producer):
         """Test sending notification payload."""
+        msg = "notification-test-message"
+        notification = NotificationService()
+        notification.send_notification(msg)
+        mock_producer.assert_called()
+
+    @patch("koku.notifications.get_producer")
+    @override_settings(ONPREM=True)
+    def test_send_notification_onprem_logs_warning(self, mock_producer):
+        """On-prem logs notification-equivalent message and does not produce to Kafka."""
+        msg = b'{"event_type": "missing-cost-model"}'
+        notification = NotificationService()
+        with self.assertLogs("koku.notifications", "WARNING") as captured:
+            notification.send_notification(msg)
+        self.assertTrue(any("Notification event" in line for line in captured.output))
+        mock_producer.assert_not_called()
+
+    @patch("koku.notifications.get_producer")
+    @override_settings(ONPREM=False)
+    def test_send_notification_saas_produces_to_kafka(self, mock_producer):
+        """SaaS sends notification to Kafka producer."""
         msg = "notification-test-message"
         notification = NotificationService()
         notification.send_notification(msg)
