@@ -83,12 +83,17 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
 
 
 LOG = logging.getLogger(__name__)
-MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet]
-HTTP_METHOD_LIST = ["get", "head"]
 
-if settings.ONPREM or settings.DEVELOPMENT:
-    MIXIN_LIST.extend([mixins.CreateModelMixin, mixins.UpdateModelMixin, DestroySourceMixin])
-    HTTP_METHOD_LIST.extend(["post", "patch", "delete"])
+# Write mixins are always on the class; ONPREM/DEVELOPMENT gate methods per-request in initial()
+# so tests can @override_settings(ONPREM=True) without re-importing this module (CI uses False at import).
+MIXIN_LIST = [
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    DestroySourceMixin,
+    viewsets.GenericViewSet,
+]
 
 
 class SourceFilter(FilterSet):
@@ -163,7 +168,14 @@ class SourcesViewSet(*MIXIN_LIST):
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
-    http_method_names = HTTP_METHOD_LIST
+
+    def initial(self, request, *args, **kwargs):
+        """Allow POST/PATCH/DELETE only when ONPREM or DEVELOPMENT (evaluated per request)."""
+        names = ["get", "head"]
+        if settings.ONPREM or settings.DEVELOPMENT:
+            names.extend(["post", "patch", "delete"])
+        self.http_method_names = names
+        super().initial(request, *args, **kwargs)
 
     @action(methods=["get"], detail=False, permission_classes=[AllowAny], url_path="aws-s3-regions")
     def aws_s3_regions(self, request):
