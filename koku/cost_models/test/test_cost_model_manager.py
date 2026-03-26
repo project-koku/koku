@@ -17,6 +17,7 @@ from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from cost_models.models import PriceListCostModelMap
 
 
 class MockResponse:
@@ -374,3 +375,139 @@ class CostModelManagerTest(IamTestCase):
             with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                 cost_model_obj = manager.update(**data)
                 self.assertEqual(manager.instance.distribution, update_distribution)
+
+    def test_create_with_rates_creates_price_list(self):
+        """Test that creating a cost model with rates also creates a PriceList."""
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        source_type = Provider.PROVIDER_OCP
+        tiered_rates = [{"unit": "USD", "value": 0.22}]
+        rates = [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}]
+        data = {
+            "name": "Test CM with PL",
+            "description": "Test",
+            "rates": rates,
+        }
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+                cost_model_obj = manager.create(**data)
+
+            mapping = PriceListCostModelMap.objects.filter(cost_model=cost_model_obj).first()
+            self.assertIsNotNone(mapping)
+            self.assertEqual(mapping.priority, 1)
+            self.assertEqual(mapping.price_list.rates, rates)
+            self.assertEqual(mapping.price_list.currency, cost_model_obj.currency)
+            self.assertEqual(mapping.price_list.name, "Test CM with PL prices")
+
+    def test_create_without_rates_no_price_list(self):
+        """Test that creating a cost model without rates does not create a PriceList."""
+        data = {
+            "name": "Test CM no rates",
+            "description": "Test",
+            "markup": {"value": 10, "unit": "percent"},
+        }
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+                cost_model_obj = manager.create(**data)
+
+            mapping = PriceListCostModelMap.objects.filter(cost_model=cost_model_obj).first()
+            self.assertIsNone(mapping)
+
+    def test_update_with_rates_syncs_to_price_list(self):
+        """Test that updating rates syncs them to the linked PriceList."""
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        source_type = Provider.PROVIDER_OCP
+        original_rates = [
+            {"metric": {"name": metric}, "source_type": source_type, "tiered_rates": [{"unit": "USD", "value": 0.22}]}
+        ]
+        data = {
+            "name": "Test CM sync",
+            "description": "Test",
+            "rates": original_rates,
+        }
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+                cost_model_obj = manager.create(**data)
+
+            # Verify PriceList was created with original rates
+            mapping = PriceListCostModelMap.objects.get(cost_model=cost_model_obj)
+            self.assertEqual(mapping.price_list.rates, original_rates)
+
+            # Update rates
+            updated_rates = [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": [{"unit": "USD", "value": 0.50}],
+                }
+            ]
+            manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
+            manager.update(rates=updated_rates)
+
+            # Verify PriceList was synced
+            mapping.price_list.refresh_from_db()
+            self.assertEqual(mapping.price_list.rates, updated_rates)
+
+    def test_update_with_rates_creates_price_list_if_missing(self):
+        """Test that updating rates creates a PriceList if no mapping exists."""
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        source_type = Provider.PROVIDER_OCP
+        rates = [
+            {"metric": {"name": metric}, "source_type": source_type, "tiered_rates": [{"unit": "USD", "value": 0.22}]}
+        ]
+
+        with tenant_context(self.tenant):
+            # Create cost model and remove the auto-created PriceList link
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+                cost_model_obj = manager.create(name="Test CM no PL link", description="Test", rates=rates)
+            PriceListCostModelMap.objects.filter(cost_model=cost_model_obj).delete()
+
+            # Update should recreate the PriceList
+            manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
+            updated_rates = [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": [{"unit": "USD", "value": 0.99}],
+                }
+            ]
+            manager.update(rates=updated_rates)
+            self.assertEqual(manager.instance.rates, updated_rates)
+
+            mapping = PriceListCostModelMap.objects.filter(cost_model=cost_model_obj).first()
+            self.assertIsNotNone(mapping)
+            self.assertEqual(mapping.price_list.rates, updated_rates)
+
+    def test_update_without_rates_no_sync(self):
+        """Test that updating without rates in data does not sync to PriceList."""
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        source_type = Provider.PROVIDER_OCP
+        original_rates = [
+            {"metric": {"name": metric}, "source_type": source_type, "tiered_rates": [{"unit": "USD", "value": 0.22}]}
+        ]
+        data = {
+            "name": "Test CM no sync",
+            "description": "Test",
+            "rates": original_rates,
+        }
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+                cost_model_obj = manager.create(**data)
+
+            mapping = PriceListCostModelMap.objects.get(cost_model=cost_model_obj)
+
+            # Update only name, no rates
+            manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
+            manager.update(name="Renamed CM")
+
+            # PriceList rates should be unchanged
+            mapping.price_list.refresh_from_db()
+            self.assertEqual(mapping.price_list.rates, original_rates)
