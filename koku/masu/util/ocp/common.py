@@ -297,7 +297,7 @@ GPU_MAX_SLICES_BY_MODEL = {
     "H100-PCIE": 7,
     "H100-SXM": 7,
     "A30": 4,
-    "RXT": 4,
+    "RTX": 4,
     "RTX PRO 6000 Blackwell": 4,
     "B200": 7,
 }
