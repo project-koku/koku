@@ -15,8 +15,10 @@ from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import IntegerField
 from django.db.models import Value
 from django.db.models import When
+from django.db.models.expressions import RawSQL
 from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
@@ -31,8 +33,11 @@ from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from reporting.provider.ocp.models import OCPGpuSummaryP
 
 LOG = logging.getLogger(__name__)
+
+_GPU_TABLE = f'"{OCPGpuSummaryP._meta.db_table}"'
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -134,6 +139,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
+            # Skip gpu_count here for GPU report
+            if self._report_type == "gpu" and q_param == "gpu_count":
+                continue
             annotations[q_param] = F(db_field)
         if is_grouped_by_project(self.parameters):
             if self._category:
@@ -154,6 +162,51 @@ class OCPReportQueryHandler(ReportQueryHandler):
             annotations.update(special_annotations)
 
         return annotations
+
+    @property
+    def report_annotations(self):
+        """Return annotations for the grouped query; for GPU report use unique GPU count."""
+        base = self._mapper.report_type_map.get("annotations", {})
+        if self._report_type != "gpu":
+            return base
+        gpu_ann = self._gpu_count_annotation()
+        if gpu_ann is not None:
+            return {**base, "gpu_count": gpu_ann}
+        return base
+
+    def _gpu_count_annotation(self):
+        """Build a RawSQL annotation for unique GPU count that respects active ORM filters."""
+        if self.resolution == "daily":
+            return None
+
+        qs = self.query_table.objects.filter(self.query_filter)
+        if self.query_exclusions:
+            qs = qs.exclude(self.query_exclusions)
+
+        compiler = qs.query.get_compiler(using="default")
+        where_sql, where_params = qs.query.where.as_sql(compiler, compiler.connection)
+
+        filter_clause = ""
+        if where_sql:
+            p2_ref = '"p2"'
+            filter_clause = f" AND {where_sql.replace(_GPU_TABLE, p2_ref)}"
+
+        namespace_corr = ""
+        if is_grouped_by_project(self.parameters):
+            namespace_corr = f' AND "p2"."namespace" = {_GPU_TABLE}."namespace"'
+
+        sql = f"""(SELECT COALESCE(SUM(m), 0) FROM (
+            SELECT MAX("p2"."gpu_count") AS m
+            FROM {_GPU_TABLE} AS "p2"
+            WHERE "p2"."vendor_name" = {_GPU_TABLE}."vendor_name"
+              AND "p2"."model_name" = {_GPU_TABLE}."model_name"
+              AND "p2"."node" = {_GPU_TABLE}."node"
+              AND "p2"."cluster_id" = {_GPU_TABLE}."cluster_id"
+              {namespace_corr}
+              {filter_clause}
+            GROUP BY "p2"."namespace", "p2"."node"
+        ) t)"""
+        return RawSQL(sql, list(where_params), output_field=IntegerField())
 
     @cached_property
     def source_to_currency_map(self):
@@ -224,12 +277,29 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         output["data"] = self.query_data
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
+        if "score" in self.query_sum:
+            self.query_sum["total_score"] = self.query_sum.pop("score")
         output["total"] = self.query_sum
 
         if self._delta:
             output["delta"] = self.query_delta
 
         return output
+
+    def _pack_score(self, row, should_compute):
+        """Shape efficiency annotations into the score response object."""
+        if should_compute:
+            row["score"] = {
+                "usage_efficiency_percent": row.pop("usage_efficiency", 0),
+                "wasted_cost": {
+                    "value": row.pop("wasted_cost", Decimal(0)),
+                    "units": self.currency,
+                },
+            }
+        else:
+            row.pop("usage_efficiency", None)
+            row.pop("wasted_cost", None)
+            row["score"] = {}
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
@@ -278,10 +348,19 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_sum.update(total_capacity)
                 calculate_unused(query_sum)
 
+            if self._report_type in ("cpu", "memory"):
+                has_tag_interaction = self._tag_group_by or self.get_tag_filter_keys()
+                should_compute = not has_tag_interaction and len(group_by_value) <= 1
+                self._pack_score(query_sum, should_compute)
+
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
             query_data = self.order_by(query_data, query_order_by)
+
+            if self._report_type in ("cpu", "memory"):
+                for row in query_data:
+                    self._pack_score(row, should_compute)
 
             for row in query_data:
                 if tag_iterable := row.get("tags"):

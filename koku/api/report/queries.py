@@ -1217,6 +1217,8 @@ class ReportQueryHandler(QueryHandler):
             "request_memory",
             "gpu_memory",
             "gpu_count",
+            "usage_efficiency",
+            "wasted_cost",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data

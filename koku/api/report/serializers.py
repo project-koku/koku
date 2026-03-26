@@ -359,6 +359,8 @@ class ParamSerializer(BaseSerializer):
         "capacity",
         "cost_total_distributed",
         "storage_class",
+        "usage_efficiency",
+        "wasted_cost",
     )
 
     def validate(self, data):
