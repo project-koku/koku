@@ -222,6 +222,8 @@ class OCPProviderMap(ProviderMap):
                     "vm_name": {"field": "vm_name", "operation": "icontains"},
                     "gpu_vendor": {"field": "vendor_name", "operation": "icontains"},
                     "gpu_model": {"field": "model_name", "operation": "icontains"},
+                    "gpu_mode": {"field": "gpu_mode", "operation": "icontains"},
+                    "mig_profile": {"field": "mig_profile", "operation": "icontains"},
                     "infrastructures": {
                         "field": "cluster_id",
                         "operation": "exact",
@@ -996,8 +998,18 @@ class OCPProviderMap(ProviderMap):
                                 "node",
                                 output_field=TextField(),  # Specify output field type
                             ),
+                            # Note: gpu_mode and mig_profile are model fields, not annotations
                         },
-                        "group_by_options": ["cluster", "project", "gpu_vendor", "gpu_model", "gpu_name"],
+                        "group_by_options": [
+                            "cluster",
+                            "project",
+                            "node",
+                            "gpu_vendor",
+                            "gpu_model",
+                            "gpu_name",
+                            "gpu_mode",
+                            # "mig_profile",
+                        ],
                         "tag_column": "all_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -1047,6 +1059,18 @@ class OCPProviderMap(ProviderMap):
                             "gpu_memory_units": Value("GB", output_field=CharField()),
                             "gpu_count": Sum("gpu_count", default=Value(0, output_field=IntegerField())),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
+                            # MIG fields - these work here because they're applied after .values()
+                            "gpu_mode": F("gpu_mode"),
+                            # "mig_profile": F("mig_profile"),
+                            # "mig_slice_count": Max(
+                            #     Coalesce(F("mig_slice_count"), Value(0, output_field=IntegerField()))
+                            # ),
+                            # "gpu_max_slices": Max(
+                            #     Coalesce(F("gpu_max_slices"), Value(0, output_field=IntegerField()))
+                            # ),
+                            # "mig_memory_capacity_gb": Max(
+                            #     Coalesce(F("mig_memory_capacity_gb"), Value(0, output_field=DecimalField()))
+                            # ),
                         },
                         "aggregate_ranks_exclusions": [
                             "gpu_model",
@@ -1062,6 +1086,61 @@ class OCPProviderMap(ProviderMap):
                             "sup_total",
                             "infra_total",
                         ],
+                    },
+                    "mig_profiles": {
+                        "tables": {"query": OCPGpuSummaryP},
+                        "report_type_annotations": {
+                            "gpu_vendor": F("vendor_name"),
+                            "gpu_model": F("model_name"),
+                            "gpu_name": Concat(
+                                "vendor_name",
+                                Value("_"),
+                                "model_name",
+                                Value("_"),
+                                "node",
+                                output_field=TextField(),
+                            ),
+                        },
+                        "group_by_options": ["cluster", "node", "namespace"],
+                        "tag_column": "all_labels",
+                        "aggregates": {},
+                        "default_ordering": {"mig_profile": "asc"},
+                        "capacity_aggregate": {},
+                        "annotations": {
+                            "gpu_model": F("model_name"),
+                            "gpu_vendor": F("vendor_name"),
+                            "gpu_name": Concat(
+                                "vendor_name",
+                                Value("_"),
+                                "model_name",
+                                Value("_"),
+                                "node",
+                                output_field=TextField(),
+                            ),
+                            # MIG fields - these work here because they're applied after .values()
+                            "node": F("node"),
+                            "mig_profile": F("mig_profile"),
+                            "mig_slice_count": Max(
+                                Coalesce(F("mig_slice_count"), Value(0, output_field=IntegerField()))
+                            ),
+                            "gpu_max_slices": Max(
+                                Coalesce(F("gpu_max_slices"), Value(0, output_field=IntegerField()))
+                            ),
+                            "mig_memory_capacity_gb": Max(
+                                Coalesce(F("mig_memory_capacity_gb"), Value(0, output_field=DecimalField()))
+                            ),
+                        },
+                        "aggregate_ranks_exclusions": [
+                            "gpu_model",
+                            "gpu_vendor",
+                            "node",
+                            "mig_profile",
+                        ],
+                        "delta_key": {},
+                        "filter": [{"field": "mig_profile", "operation": "isnull", "parameter": False}],
+                        "group_by": ["mig_profile"],
+                        "cost_units_key": "raw_currency",
+                        "sum_columns": [],
                     },
                     "virtual_machines": {
                         "tag_column": "pod_labels",
