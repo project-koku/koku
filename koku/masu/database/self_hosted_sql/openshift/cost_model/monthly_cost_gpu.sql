@@ -128,21 +128,17 @@ WITH cte_unutilized_uptime_hours AS (
     -- Each GPU model has its own max_slices value (e.g., A100=7, T4=1).
     SELECT
         node_ut.node,
-        gpu.gpu_model_name as model,
-        node_ut.interval_start,
+        regexp_replace(COALESCE(gpu.gpu_model_name, (node_ut.node_labels::jsonb)->>'nvidia_com_gpu_product'), '[^a-zA-Z0-9]+', ' ', 'g') as model,
+        node_ut.usage_start,
         COALESCE(gpu.max_slices_per_gpu, 1) as max_slices_per_gpu,
         -- Calculate unallocated slice-hours for this GPU model on this node
         -- total_capacity = node_uptime_hours * gpu_count * max_slices
         -- gpu_uuid is the physical GPU UUID, so count distinct gives physical GPU count
         CASE
-            WHEN gpu.physical_gpu_count IS NOT NULL
-                THEN count(node_ut.interval_start) * gpu.physical_gpu_count * gpu.max_slices_per_gpu - COALESCE(gpu.aggregated_slice_uptime, 0)
-            WHEN gpu.physical_gpu_count IS NULL AND (node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy' = 'mixed'
-                THEN count(node_ut.interval_start) * CAST((node_ut.node_labels::jsonb)->>'nvidia_com_gpu_count' AS DECIMAL(33, 15))
-            WHEN gpu.physical_gpu_count IS NULL AND (node_ut.node_labels::jsonb)->>'nvidia_com_miga_strategy' = 'single'
-                THEN count(node_ut.interval_start) * (CAST((node_ut.node_labels::jsonb)->>'nvidia_com_gpu_count' AS DECIMAL(33, 15)) / 7)
-            WHEN gpu.physical_gpu_count IS NULL AND (node_ut.node_labels::jsonb)->>'nvidia_com_miga_strategy' IS NULL
-                THEN count(node_ut.interval_start) * 1
+            WHEN (node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy' IS NULL OR (node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy' = 'mixed'
+                THEN count(node_ut.interval_start) * CAST((node_ut.node_labels::jsonb)->>'nvidia_com_gpu_count' AS DECIMAL(33, 15)) - coalesce(max(gpu.aggregated_slice_uptime), 0)
+            WHEN (node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy' = 'single'
+                THEN count(node_ut.interval_start) * (CAST((node_ut.node_labels::jsonb)->>'nvidia_com_gpu_count' AS DECIMAL(33, 15)) / 7) - coalesce(max(gpu.aggregated_slice_uptime), 0)
             ELSE 0
         END as unutilized_uptime
     FROM {{schema | sqlsafe}}.openshift_node_labels_line_items as node_ut
@@ -179,7 +175,8 @@ WITH cte_unutilized_uptime_hours AS (
         AND node_ut.month = {{month}}
         AND node_ut.year = {{year}}
         AND node_ut.source = {{source_uuid}}
-    GROUP BY node_ut.node, gpu.gpu_model_name, node_ut.interval_start, gpu.max_slices_per_gpu,
+        AND node_ut.node_labels like '%%"nvidia_com_gpu_present": "True"%%'
+    GROUP BY node_ut.node, gpu.gpu_model_name, node_ut.usage_start, gpu.max_slices_per_gpu,
              gpu.physical_gpu_count, gpu.aggregated_slice_uptime, node_ut.node_labels
 )
 SELECT
@@ -188,8 +185,8 @@ SELECT
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
     'GPU' as data_source,
-    hrs.interval_start as usage_start,
-    hrs.interval_start as usage_end,
+    hrs.usage_start as usage_start,
+    hrs.usage_start as usage_end,
     'GPU unallocated' as namespace,
     hrs.node,
     jsonb_build_object(
