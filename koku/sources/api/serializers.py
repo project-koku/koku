@@ -158,6 +158,8 @@ class AdminSourcesSerializer(SourcesSerializer):
             data["source_id"] = self._validate_source_id(data.get("id"))
             data["offset"] = self._validate_offset(data.get("offset"))
             data["source_uuid"] = uuid4()
+            data["account_id"] = self._validate_account_id(data.get("account_id"))
+            data["org_id"] = self._validate_org_id(data.get("org_id"))
 
         # Handle source_ref -> authentication.credentials.cluster_id for OCP sources
         if "source_ref" in data:
@@ -169,9 +171,6 @@ class AdminSourcesSerializer(SourcesSerializer):
                 if "credentials" not in data["authentication"]:
                     data["authentication"]["credentials"] = {}
                 data["authentication"]["credentials"]["cluster_id"] = source_ref
-
-        data["account_id"] = self._validate_account_id(data.get("account_id"))
-        data["org_id"] = self._validate_org_id(data.get("org_id"))
         return data
 
     @transaction.atomic
