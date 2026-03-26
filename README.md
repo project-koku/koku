@@ -35,9 +35,12 @@ do the following:
 
 ### Setting env
 
-1.  Copy [`.env.example`](.env.example) into a `.env` and update the following in your `.env`:
+1.  Navigate into the `koku` directory:
 
         cd koku
+
+2.  Copy [`.env.example`](.env.example) to create your environment file:
+
         cp .env.example .env
 
     **For AWS**
