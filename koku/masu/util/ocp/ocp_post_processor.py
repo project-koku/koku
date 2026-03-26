@@ -9,10 +9,93 @@ from api.common import log_json
 from api.models import Provider
 from masu.util.common import populate_enabled_tag_rows_with_false
 from masu.util.common import safe_float
+from masu.util.common import safe_float_or_none
+from masu.util.common import safe_int_or_none
+from masu.util.ocp.common import GPU_MAX_SLICES_BY_MODEL
 from masu.util.ocp.common import OCP_REPORT_TYPES
 from masu.util.ocp.common import THRESHOLDS
 
 LOG = logging.getLogger(__name__)
+
+
+def parse_mig_profile(profile: str | None) -> tuple[int | None, int | None]:
+    """Parse a MIG profile string to extract slice count and memory in MiB.
+
+    MIG profile format: "{compute}g.{memory}gb" (e.g., "1g.5gb", "4g.40gb")
+
+    Args:
+        profile: MIG profile string (e.g., "1g.5gb", "4g.40gb")
+
+    Returns:
+        Tuple of (slice_count, memory_mib) or (None, None) if profile is invalid/empty
+    """
+    if not profile or not isinstance(profile, str):
+        return None, None
+
+    profile = profile.strip().lower()
+    if not profile:
+        return None, None
+
+    try:
+        # Format: {compute}g.{memory}gb
+        parts = profile.split(".")
+        if len(parts) != 2:
+            LOG.warning(f"Invalid MIG profile format: {profile}")
+            return None, None
+
+        compute_part = parts[0]  # e.g., "1g", "4g"
+        memory_part = parts[1]  # e.g., "5gb", "40gb"
+
+        # Extract slice count from compute part (remove 'g' suffix)
+        if not compute_part.endswith("g"):
+            LOG.warning(f"Invalid MIG profile compute part: {compute_part}")
+            return None, None
+        slice_count = int(compute_part[:-1])
+
+        # Extract memory from memory part (remove 'gb' suffix)
+        if not memory_part.endswith("gb"):
+            LOG.warning(f"Invalid MIG profile memory part: {memory_part}")
+            return None, None
+        memory_gb = int(memory_part[:-2])
+        memory_mib = memory_gb * 1024  # Convert GB to MiB
+
+        return slice_count, memory_mib
+    except (ValueError, IndexError) as e:
+        LOG.warning(f"Failed to parse MIG profile '{profile}': {e}")
+        return None, None
+
+
+def get_gpu_max_slices(gpu_model: str | None) -> int | None:
+    """Get the maximum number of MIG slices for a GPU model.
+
+    Args:
+        gpu_model: GPU model name (e.g., "A100", "H100")
+
+    Returns:
+        Maximum number of slices for the GPU model, or None if model is unrecognized
+        (MIG fields should be cleared and GPU treated as dedicated).
+    """
+    if not gpu_model:
+        return None
+
+    # Normalize model name for lookup
+    model_upper = gpu_model.upper().strip()
+
+    # Try exact match first
+    if model_upper in GPU_MAX_SLICES_BY_MODEL:
+        return GPU_MAX_SLICES_BY_MODEL[model_upper]
+
+    # Try partial match (e.g., "NVIDIA A100-80GB-PCIe" should match "A100")
+    for known_model, max_slices in GPU_MAX_SLICES_BY_MODEL.items():
+        if known_model in model_upper:
+            return max_slices
+
+    # Unknown model - return None to indicate MIG fields should be cleared
+    LOG.warning(
+        f"GPU model '{gpu_model}' not found in MIG max slices mapping and no observed data. "
+        f"MIG data will be cleared and GPU will be treated as dedicated."
+    )
+    return None
 
 
 def process_openshift_datetime(val):
@@ -129,6 +212,10 @@ class OCPPostProcessor:
             "vm_disk_allocated_size_byte_seconds": safe_float,
             "gpu_memory_capacity_mib": safe_float,
             "gpu_pod_uptime": safe_float,
+            # MIG fields - convert empty strings to None for nullable columns
+            "mig_slice_count": safe_int_or_none,
+            "gpu_max_slices": safe_int_or_none,
+            "mig_memory_capacity_mib": safe_float_or_none,
             "pod_labels": process_openshift_labels_to_json,
             "persistentvolume_labels": process_openshift_labels_to_json,
             "persistentvolumeclaim_labels": process_openshift_labels_to_json,
@@ -180,6 +267,74 @@ class OCPPostProcessor:
 
         return data_frame.loc[~mask]
 
+    def _ensure_mig_columns(self, data_frame):
+        """Ensure MIG-related columns exist in the dataframe."""
+        for col in ("mig_slice_count", "mig_memory_capacity_mib", "gpu_max_slices", "mig_strategy"):
+            if col not in data_frame.columns:
+                data_frame[col] = pd.NA
+        return data_frame
+
+    def _parse_mig_profile_for_rows(self, data_frame, has_mig_data):
+        """Parse MIG profiles to derive slice count and memory.
+
+        These values are always derived from the profile - they are not provided by the operator.
+        """
+        for idx in data_frame[has_mig_data].index:
+            profile = data_frame.at[idx, "mig_profile"]
+            slice_count, memory_mib = parse_mig_profile(profile)
+
+            if slice_count is not None:
+                data_frame.at[idx, "mig_slice_count"] = slice_count
+
+            if memory_mib is not None:
+                data_frame.at[idx, "mig_memory_capacity_mib"] = memory_mib
+
+    def _clear_mig_fields_for_row(self, data_frame, idx):
+        """Clear all MIG fields for a row, treating it as a dedicated GPU."""
+        data_frame.at[idx, "mig_profile"] = pd.NA
+        data_frame.at[idx, "mig_slice_count"] = pd.NA
+        data_frame.at[idx, "mig_memory_capacity_mib"] = pd.NA
+        data_frame.at[idx, "gpu_max_slices"] = pd.NA
+        data_frame.at[idx, "mig_strategy"] = pd.NA
+        if "mig_instance_id" in data_frame.columns:
+            data_frame.at[idx, "mig_instance_id"] = pd.NA
+
+    def _populate_mig_fields_from_profile(self, data_frame):
+        """Populate MIG fields (mig_memory_capacity_mib, gpu_max_slices) from mig_profile.
+
+        The operator may not provide these fields directly, so we derive them:
+        - mig_memory_capacity_mib: parsed from mig_profile (e.g., "1g.5gb" -> 5120 MiB)
+        - gpu_max_slices: looked up from GPU model, or computed from sum of slice counts
+        - mig_slice_count: parsed from mig_profile if not present (e.g., "1g.5gb" -> 1)
+
+        If the GPU model is unknown and we cannot determine max_slices, all MIG fields are
+        cleared and the GPU is treated as dedicated.
+        """
+        if self.report_type != "gpu_usage" or "mig_profile" not in data_frame.columns:
+            return data_frame
+
+        has_mig_data = data_frame["mig_profile"].notna() & (data_frame["mig_profile"] != "")
+        if not has_mig_data.any():
+            return data_frame
+
+        data_frame = self._ensure_mig_columns(data_frame)
+        self._parse_mig_profile_for_rows(data_frame, has_mig_data)
+
+        # Populate gpu_max_slices or clear MIG fields for unknown models
+        for idx in data_frame[has_mig_data].index:
+            if not pd.isna(data_frame.at[idx, "gpu_max_slices"]):
+                continue
+
+            gpu_model = data_frame.at[idx, "gpu_model_name"] if "gpu_model_name" in data_frame.columns else None
+            max_slices = get_gpu_max_slices(gpu_model)
+
+            if max_slices is None:
+                self._clear_mig_fields_for_row(data_frame, idx)
+            else:
+                data_frame.at[idx, "gpu_max_slices"] = max_slices
+
+        return data_frame
+
     def process_dataframe(self, data_frame, filename):
         data_frame = self._remove_anomalies(data_frame, filename)
         label_columns = {
@@ -200,6 +355,10 @@ class OCPPostProcessor:
         if gpu_column in data_frame.columns:
             data_frame[gpu_column] = data_frame[gpu_column].replace("nvidia_com_gpu", "nvidia")
         self.enabled_tag_keys.update(label_key_set)
+
+        # Populate MIG fields from profile for GPU reports
+        data_frame = self._populate_mig_fields_from_profile(data_frame)
+
         return data_frame, self._generate_daily_data(data_frame)
 
     def finalize_post_processing(self):

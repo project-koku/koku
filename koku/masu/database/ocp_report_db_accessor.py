@@ -126,19 +126,34 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         GPU information exists, but the customer has not set up a cost model.
         """
         sql_params = copy.deepcopy(params)
-        gpu_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP["gpu_usage"]
-        if not trino_table_exists(self.schema, gpu_table):
-            return
         source_uuid = sql_params.get("source_uuid")
-        source_sql = get_report_db_accessor().get_check_source_in_partitions_sql(
-            schema_name=self.schema, table_name=gpu_table, source_uuid=source_uuid
-        )
-        source_available = self._execute_trino_raw_sql_query(
-            source_sql,
-            log_ref=f"Checking if source is in {gpu_table}",
-        )[0][0]
-        if not source_available:
-            return
+
+        # On-prem mode uses PostgreSQL directly, SaaS uses Trino
+        is_onprem = self.get_sql_folder_name() == "self_hosted_sql"
+
+        if is_onprem:
+            # Check if GPU data exists in PostgreSQL for this source
+            from reporting.provider.ocp.self_hosted_models import OCPGPUUsageLineItem
+
+            with schema_context(self.schema):
+                gpu_data_exists = OCPGPUUsageLineItem.objects.filter(source=source_uuid).exists()
+            if not gpu_data_exists:
+                return
+        else:
+            # SaaS mode: check Trino tables
+            gpu_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP["gpu_usage"]
+            if not trino_table_exists(self.schema, gpu_table):
+                return
+            source_sql = get_report_db_accessor().get_check_source_in_partitions_sql(
+                schema_name=self.schema, table_name=gpu_table, source_uuid=source_uuid
+            )
+            source_available = self._execute_trino_raw_sql_query(
+                source_sql,
+                log_ref=f"Checking if source is in {gpu_table}",
+            )[0][0]
+            if not source_available:
+                return
+
         # Don't use context manager here - its __exit__ resets schema to public,
         # which would break subsequent ORM operations in the calling code
         cost_model_accessor = CostModelDBAccessor(self.schema, sql_params.get("source_uuid"))
@@ -161,7 +176,15 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             f"{self.get_sql_folder_name()}/openshift/ui_summary/reporting_ocp_gpu_summary_p_usage_only.sql",
         )
         populate_gpu_usage_info = populate_gpu_usage_info.decode("utf-8")
-        self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
+
+        if is_onprem:
+            # On-prem: execute via PostgreSQL
+            self._prepare_and_execute_raw_sql_query(
+                "reporting_ocp_gpu_summary_p", populate_gpu_usage_info, sql_params, operation="INSERT"
+            )
+        else:
+            # SaaS: execute via Trino
+            self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
 
     def _populate_virtualization_ui_summary_table(self, params):
         """

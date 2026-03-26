@@ -1,0 +1,86 @@
+---
+description: On-premise vs SaaS architectural patterns and decision guidance
+globs: "**/*.py"
+alwaysApply: true
+---
+
+# On-Prem vs SaaS Architecture
+
+## Fundamental Differences
+
+| Aspect | SaaS (Cloud) | On-Prem (Self-Hosted) |
+|--------|--------------|----------------------|
+| Data storage | S3 + Trino/Hive | PostgreSQL only |
+| Supported providers | OCP, AWS, Azure, GCP | OCP only |
+| Data aggregation | Trino SQL over Parquet | PostgreSQL SQL |
+| Table creation | Runtime (Trino DDL) | Django migrations |
+| Data cleanup | Hive partition drops + S3 deletes | Django ORM deletes |
+
+## Key Flag: `settings.ONPREM`
+
+Use this flag to conditionally execute mode-specific logic:
+
+```python
+from django.conf import settings
+
+if settings.ONPREM:
+    # PostgreSQL-only path
+    accessor.delete_self_hosted_data_by_source(provider_uuid)
+else:
+    # Trino/Hive path
+    accessor.delete_hive_partitions_by_source(table, column, provider_uuid)
+```
+
+## SQL Template Directories
+
+| Directory | Mode | Purpose |
+|-----------|------|---------|
+| `masu/database/sql/` | Both | Shared PostgreSQL operations |
+| `masu/database/trino_sql/` | SaaS only | Trino aggregation queries |
+| `masu/database/self_hosted_sql/` | On-prem only | PostgreSQL equivalents of trino_sql |
+
+**Parallel directories:** Changes to `trino_sql/` likely need mirroring in `self_hosted_sql/`.
+
+## Self-Hosted Models
+
+On-prem line item tables are defined as Django models in:
+`reporting/provider/ocp/self_hosted_models.py`
+
+Key exports:
+- `SELF_HOSTED_MODEL_MAP` — report type to model mapping
+- `SELF_HOSTED_DAILY_MODEL_MAP` — report type to daily model mapping
+- `get_self_hosted_models()` — all self-hosted models
+- `get_self_hosted_table_names()` — all self-hosted table names
+
+## Avoid Leaky Abstractions
+
+**DO NOT** create unified abstractions that hide Trino vs PostgreSQL differences.
+
+Trino is a query engine, not a database. Trino "deletes" are actually:
+1. Hive metastore partition metadata removal
+2. S3 directory/file deletion
+
+PostgreSQL has ACID, B-tree indexes, efficient range deletes.
+
+**Bad:** Routing PostgreSQL through `delete_ocp_hive_partition_by_day`
+**Good:** Separate `delete_self_hosted_data_by_source` for on-prem
+
+Prioritize semantic accuracy and debuggability over superficial uniformity.
+
+**Directory clarity:**
+- `trino_sql/` — Trino queries over Parquet in S3 (SaaS only)
+- `self_hosted_sql/` — PostgreSQL queries replacing Trino operations (on-prem only)
+- `sql/` — PostgreSQL queries shared by both modes (UI summaries, cost models, tags)
+
+## On-Prem Limitations
+
+- Only OCP data is supported (AWS/Azure/GCP throw `NotImplementedError`)
+- `subs_task` and `hcs_task` are skipped (internal Red Hat data sharing)
+- `TRINO_MANAGED_TABLES` is empty
+- CMMO compatibility endpoints are enabled (`source_types`, `application_types`)
+
+## Docker Compose
+
+- `docker-compose.yml` — Core services (both modes)
+- `docker-compose.saas.yml` — SaaS: minio, trino, hive-metastore
+- `docker-compose.onprem.yml` — On-prem: kafka, zookeeper, koku-listener
