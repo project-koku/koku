@@ -391,7 +391,7 @@ class SourcesViewTests(IamTestCase):
         self.assertEqual(sorted(list(set(excluded))), sorted(list(set(expected))))
 
 
-@unittest.skipUnless(settings.ONPREM or settings.DEVELOPMENT, "Write endpoints require ONPREM or DEVELOPMENT")
+@unittest.skipUnless(settings.ONPREM, "ONPREM-only: write endpoints require ONPREM=True")
 @override_settings(ROOT_URLCONF="sources.urls")
 class SourcesViewPatchTests(IamTestCase):
     """PATCH syncs Source changes to linked Provider (enabled when ONPREM or DEVELOPMENT)."""
@@ -645,7 +645,7 @@ class SourceFilterTests(IamTestCase):
             )
 
 
-@unittest.skipUnless(settings.ONPREM or settings.DEVELOPMENT, "Write endpoints require ONPREM or DEVELOPMENT")
+@unittest.skipUnless(settings.ONPREM, "ONPREM-only: write endpoints require ONPREM=True")
 @override_settings(ROOT_URLCONF="sources.urls")
 class SourcesViewCreateTests(IamTestCase):
     """Test Cases for the SourcesViewSet.create method."""
