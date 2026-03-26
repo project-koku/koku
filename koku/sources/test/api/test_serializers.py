@@ -83,38 +83,6 @@ class AdminSourcesSerializerTests(IamTestCase):
         )
         self.aws_obj.save()
 
-    def test_partial_update_pause_without_source_type(self):
-        """PATCH-style payload with only paused is valid and does not require source_type."""
-        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
-        context = {"request": mock_request}
-        serializer = AdminSourcesSerializer(
-            instance=self.azure_obj,
-            data={"paused": True},
-            partial=True,
-            context=context,
-        )
-        self.assertTrue(serializer.is_valid(raise_exception=True))
-        self.assertTrue(serializer.validated_data["paused"])
-
-    def test_partial_update_preserves_primary_key_and_uuid(self):
-        """Update must not regenerate source_id or source_uuid (FLPATH-3423)."""
-        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
-        context = {"request": mock_request}
-        prior_id = self.azure_obj.source_id
-        prior_uuid = self.azure_obj.source_uuid
-        serializer = AdminSourcesSerializer(
-            instance=self.azure_obj,
-            data={"paused": True},
-            partial=True,
-            context=context,
-        )
-        self.assertTrue(serializer.is_valid(raise_exception=True))
-        serializer.save()
-        self.azure_obj.refresh_from_db()
-        self.assertEqual(self.azure_obj.source_id, prior_id)
-        self.assertEqual(self.azure_obj.source_uuid, prior_uuid)
-        self.assertTrue(self.azure_obj.paused)
-
     def _create_linked_azure_provider(self):
         """Create a fully linked Azure Provider + Source for update tests."""
         customer_obj = iam_models.Customer.objects.get(schema_name=self.tenant.schema_name)
@@ -150,6 +118,8 @@ class AdminSourcesSerializerTests(IamTestCase):
         """PATCH syncs paused, authentication, and billing_source to the linked Provider."""
         prov = self._create_linked_azure_provider()
         self.assertFalse(prov.paused)
+        prior_id = self.azure_obj.source_id
+        prior_uuid = self.azure_obj.source_uuid
         new_creds = {
             "client_id": "new_client",
             "tenant_id": "new_tenant",
@@ -171,7 +141,10 @@ class AdminSourcesSerializerTests(IamTestCase):
             )
             self.assertTrue(serializer.is_valid(raise_exception=True))
             serializer.save()
+        self.azure_obj.refresh_from_db()
         prov.refresh_from_db()
+        self.assertEqual(self.azure_obj.source_id, prior_id)
+        self.assertEqual(self.azure_obj.source_uuid, prior_uuid)
         self.assertTrue(prov.paused)
         self.assertEqual(prov.authentication.credentials, new_creds)
         self.assertEqual(prov.billing_source.data_source, new_billing)
