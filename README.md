@@ -96,7 +96,7 @@ do the following:
 
         pre-commit install
 
-2. inspect the pre-commit
+2. Run the pre-commit hooks against all files to inspect the repository:
 
         pre-commit run --all-files
 
