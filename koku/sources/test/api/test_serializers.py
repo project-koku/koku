@@ -20,6 +20,8 @@ from providers.provider_errors import SkipStatusPush
 from sources.api import get_param_from_header
 from sources.api import HEADER_X_RH_IDENTITY
 from sources.api.serializers import AdminSourcesSerializer
+from sources.api.serializers import SourcesSerializer
+from sources.api.source_type_mapping import PROVIDER_TYPE_TO_CMMO_ID
 from sources.config import Config
 
 fake = Faker()
@@ -179,3 +181,139 @@ class AdminSourcesSerializerTests(IamTestCase):
                             "offset": 10,
                         }
                     )
+
+
+class SourcesSerializerFieldsTest(IamTestCase):
+    """Test Cases for new SourcesSerializer fields (source_type_id, source_ref)."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        customer = self._create_customer_data()
+        user_data = self._create_user_data()
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+
+        self.ocp_obj = Sources(
+            source_id=100,
+            auth_header=self.request_context["request"].META,
+            account_id=customer.get("account_id"),
+            offset=100,
+            source_type=Provider.PROVIDER_OCP,
+            name="Test OCP Source",
+            authentication={"credentials": {"cluster_id": "my-cluster-id-123"}},
+        )
+        self.ocp_obj.save()
+
+        self.aws_obj = Sources(
+            source_id=101,
+            auth_header=self.request_context["request"].META,
+            account_id=customer.get("account_id"),
+            offset=101,
+            source_type=Provider.PROVIDER_AWS,
+            name="Test AWS Source",
+            authentication={"credentials": {"role_arn": "arn:aws:iam::111:role/Test"}},
+        )
+        self.aws_obj.save()
+
+    def test_get_source_id_returns_string(self):
+        """Test that get_source_id returns source_id as a string."""
+        serializer = SourcesSerializer(self.ocp_obj)
+        self.assertEqual(serializer.data["id"], str(self.ocp_obj.source_id))
+        self.assertIsInstance(serializer.data["id"], str)
+
+    def test_get_source_type_id_ocp(self):
+        """Test that source_type_id is correctly mapped for OCP."""
+        serializer = SourcesSerializer(self.ocp_obj)
+        self.assertEqual(serializer.data["source_type_id"], PROVIDER_TYPE_TO_CMMO_ID[Provider.PROVIDER_OCP])
+
+    def test_get_source_type_id_aws(self):
+        """Test that source_type_id is correctly mapped for AWS."""
+        serializer = SourcesSerializer(self.aws_obj)
+        self.assertEqual(serializer.data["source_type_id"], PROVIDER_TYPE_TO_CMMO_ID[Provider.PROVIDER_AWS])
+
+    def test_get_source_ref_ocp(self):
+        """Test that source_ref returns cluster_id for OCP sources."""
+        serializer = SourcesSerializer(self.ocp_obj)
+        self.assertEqual(serializer.data["source_ref"], "my-cluster-id-123")
+
+    def test_get_source_ref_aws_returns_none(self):
+        """Test that source_ref returns None for non-OCP sources."""
+        serializer = SourcesSerializer(self.aws_obj)
+        self.assertIsNone(serializer.data["source_ref"])
+
+    def test_get_source_ref_ocp_no_authentication(self):
+        """Test source_ref returns None for OCP source with no authentication."""
+        self.ocp_obj.authentication = None
+        # Don't save - authentication=None violates the NOT NULL constraint.
+        # Just test serializer behavior with the in-memory object.
+        serializer = SourcesSerializer(self.ocp_obj)
+        self.assertIsNone(serializer.data["source_ref"])
+
+    def test_get_source_ref_ocp_no_credentials(self):
+        """Test source_ref returns None for OCP source with empty authentication."""
+        self.ocp_obj.authentication = {}
+        self.ocp_obj.save()
+        serializer = SourcesSerializer(self.ocp_obj)
+        self.assertIsNone(serializer.data["source_ref"])
+
+
+class AdminSourcesSerializerValidateTest(IamTestCase):
+    """Test Cases for AdminSourcesSerializer.validate with source_type_id and source_ref."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        customer = self._create_customer_data()
+        user_data = self._create_user_data()
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+
+    def test_validate_with_source_type_id(self):
+        """Test validate converts source_type_id to source_type."""
+        source_data = {
+            "name": "test-ocp-via-type-id",
+            "source_type_id": "1",  # OCP
+            "authentication": {"credentials": {"cluster_id": "test-cluster"}},
+        }
+        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
+        context = {"request": mock_request}
+        serializer = AdminSourcesSerializer(data=source_data, context=context)
+        self.assertTrue(serializer.is_valid(raise_exception=True))
+        self.assertEqual(serializer.validated_data["source_type"], Provider.PROVIDER_OCP)
+
+    def test_validate_with_invalid_source_type_id(self):
+        """Test validate raises error for invalid source_type_id."""
+        source_data = {
+            "name": "test-invalid",
+            "source_type_id": "999",
+        }
+        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
+        context = {"request": mock_request}
+        serializer = AdminSourcesSerializer(data=source_data, context=context)
+        with self.assertRaises(ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_validate_without_source_type_or_source_type_id(self):
+        """Test validate raises error when neither source_type nor source_type_id provided."""
+        source_data = {
+            "name": "test-no-type",
+            "authentication": {"credentials": {"cluster_id": "test-cluster"}},
+        }
+        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
+        context = {"request": mock_request}
+        serializer = AdminSourcesSerializer(data=source_data, context=context)
+        with self.assertRaises(ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_validate_source_ref_ocp(self):
+        """Test validate converts source_ref to authentication.credentials.cluster_id for OCP."""
+        source_data = {
+            "name": "test-ocp-ref",
+            "source_type_id": "1",  # OCP
+            "source_ref": "my-cluster-uuid",
+        }
+        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
+        context = {"request": mock_request}
+        serializer = AdminSourcesSerializer(data=source_data, context=context)
+        self.assertTrue(serializer.is_valid(raise_exception=True))
+        cluster_id = serializer.validated_data["authentication"]["credentials"]["cluster_id"]
+        self.assertEqual(cluster_id, "my-cluster-uuid")

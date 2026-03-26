@@ -147,10 +147,12 @@ services:
       - "./run_server.sh:/koku/run_server.sh"
       - "./dev/credentials:/etc/credentials"
     depends_on:
-      - koku-base
+      koku-base:
+        condition: service_started
+      trino:
+        condition: service_healthy
 
   koku-worker:
-    hostname: koku-worker-1
     image: koku_base
     working_dir: /koku/koku
     entrypoint:
@@ -221,7 +223,7 @@ services:
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 6001-6020:9000
-      - 5678:5678
+      # Debug port 5678 is conditionally added via docker-compose.debug.yml when scale=1
     volumes:
       - "./koku:/koku/koku:z"
       - "./dev/containers/unleash:/koku/.unleash:z"
@@ -244,7 +246,10 @@ services:
       - "./testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3:z"
       - "./dev/credentials:/etc/credentials:z"
     depends_on:
-      - koku-base
+      koku-base:
+        condition: service_started
+      trino:
+        condition: service_healthy
 
   koku-listener:
     container_name: koku_listener
@@ -305,7 +310,10 @@ services:
       - "./db_functions:/koku/db_functions:z"
       - "./scripts:/koku/scripts:z"
     depends_on:
-      - koku-base
+      koku-base:
+        condition: service_started
+      trino:
+        condition: service_healthy
 
   subs-worker:
     container_name: subs_worker
@@ -656,17 +664,21 @@ services:
     image: minio/mc:latest
     depends_on:
       - minio
+    environment:
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
+      - S3_SECRET=${S3_SECRET-kokuminiosecret}
     entrypoint: >
       /bin/sh -c "
-      /usr/bin/mc config host rm local;
-      /usr/bin/mc config host add --quiet --api s3v4 local $MINIO_ENDPOINT $S3_ACCESS_KEY $S3_SECRET;
-      /usr/bin/mc rb --force local/koku-bucket/;
+      /usr/bin/mc alias rm local || true;
+      /usr/bin/mc alias set local $MINIO_ENDPOINT $S3_ACCESS_KEY $S3_SECRET --api s3v4;
+      /usr/bin/mc rb --force local/koku-bucket/ || true;
       /usr/bin/mc mb --quiet local/koku-bucket/;
       /usr/bin/mc anonymous set public local/koku-bucket;
-      /usr/bin/mc rb --force local/ocp-ingress/;
+      /usr/bin/mc rb --force local/ocp-ingress/ || true;
       /usr/bin/mc mb --quiet local/ocp-ingress/;
       /usr/bin/mc anonymous set public local/ocp-ingress;
-      /usr/bin/mc rb --force local/metastore/;
+      /usr/bin/mc rb --force local/metastore/ || true;
       /usr/bin/mc mb --quiet local/metastore/;
       /usr/bin/mc anonymous set public local/metastore;
       "
@@ -732,7 +744,55 @@ services:
       - hive-metastore
     depends_on:
       - hive-metastore
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/v1/info | grep -q '\"starting\":false'"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
     ulimits:
       nofile:
         soft: 4096
         hard: 4096
+
+  kafka-zookeeper:
+    container_name: koku-zookeeper
+    image: confluentinc/cp-zookeeper:7.8.6
+    profiles: ["onprem"]
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=32181
+      - ZOOKEEPER_SERVER_ID=1
+
+  kafka:
+    container_name: koku-kafka
+    image: confluentinc/cp-kafka:7.8.6
+    profiles: ["onprem"]
+    environment:
+      - KAFKA_ADVERTISED_LISTENERS=DOCKER://kafka:29092,LOCALHOST://localhost:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=DOCKER:PLAINTEXT,LOCALHOST:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=DOCKER
+      - KAFKA_BROKER_ID=1
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_ZOOKEEPER_CONNECT=kafka-zookeeper:32181
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    ports:
+      - 9092:9092
+      - 29092:29092
+    depends_on:
+      - kafka-zookeeper
+
+  init-kafka:
+    image: confluentinc/cp-kafka:7.8.6
+    profiles: ["onprem"]
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      # blocks until kafka is reachable
+      kafka-topics --bootstrap-server kafka:29092 --list
+
+      echo -e 'Creating kafka topic'
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic platform.sources.event-stream --replication-factor 1 --partitions 1
+
+      echo -e 'Successfully created the following topics:'
+      kafka-topics --bootstrap-server kafka:29092 --list
+    depends_on:
+      - kafka

@@ -27,7 +27,7 @@ This architecture document provides a comprehensive deep-dive into how Koku proc
 | **File Format**          | CSV in cloud storage   | **tar.gz with CSV files uploaded to ingress**         |
 | **Manifest**             | JSON in cloud storage  | **JSON embedded in tar.gz**                           |
 | **Update Frequency**     | Daily/hourly export    | **Every 6 hours (configurable)**                      |
-| **Report Types**         | Single billing file    | **5 types: pod, storage, node labels, namespace, VM** |
+| **Report Types**         | Single billing file    | **6 types: pod, storage, node labels, namespace, VM, GPU** |
 | **Cost Information**     | Included in data       | **Applied via cost models**                           |
 | **Infrastructure Costs** | Direct billing         | **Matched to cloud provider via resource ID**         |
 | **Authentication**       | Cloud credentials      | **Sources integration or basic auth**                 |
@@ -84,7 +84,7 @@ This architecture document provides a comprehensive deep-dive into how Koku proc
 
 ## Report Types and Structure
 
-OpenShift generates **5 distinct report types** (not a single unified billing file like cloud providers):
+OpenShift generates **6 distinct report types** (not a single unified billing file like cloud providers):
 
 ### **1. Pod Usage Report** (`pod_usage`)
 
@@ -164,6 +164,35 @@ report_period_start,report_period_end,interval_start,interval_end,namespace,pod,
 - `vm_memory_request_bytes`, `vm_memory_request_byte_seconds`
 - `vm_memory_usage_byte_seconds`
 - `vm_disk_allocated_size_byte_seconds`
+
+### **6. GPU Usage Report** (`gpu_usage`) [NVIDIA GPU Workloads]
+
+**Purpose:** GPU usage for pods consuming NVIDIA GPUs
+
+**Columns:**
+- `report_period_start`, `report_period_end`
+- `interval_start`, `interval_end`
+- `namespace`, `node`, `pod`
+- `gpu_uuid` - Physical GPU unique identifier
+- `gpu_model_name` - GPU model (e.g., "NVIDIA A100-SXM4-40GB")
+- `gpu_vendor_name` - GPU vendor (e.g., "nvidia")
+- `gpu_memory_capacity_mib` - GPU memory in MiB
+- `gpu_pod_uptime` - Time pod used the GPU (seconds)
+
+**MIG (Multi-Instance GPU) Columns** (when MIG enabled):
+- `mig_instance_uuid` - Unique identifier for the MIG instance
+- `mig_profile` - MIG profile (e.g., "1g.5gb", "3g.20gb")
+- `mig_compute_slices` - Number of compute slices allocated
+- `parent_gpu_uuid` - Reference to physical GPU UUID
+- `parent_gpu_max_slices` - Max slices for the GPU model
+
+**Example Row:**
+```csv
+report_period_start,report_period_end,interval_start,interval_end,namespace,node,pod,gpu_uuid,gpu_model_name,gpu_vendor_name,gpu_memory_capacity_mib,gpu_pod_uptime,mig_instance_uuid,mig_profile,mig_compute_slices,parent_gpu_uuid,parent_gpu_max_slices
+2026-01-01,2026-02-01,2026-01-15T00:00:00Z,2026-01-15T01:00:00Z,ml-training,gpu-node-1,train-pod,MIG-abc123,NVIDIA A100-SXM4-40GB,nvidia,5120,3600,MIG-abc123,1g.5gb,1,GPU-xyz789,7
+```
+
+**See:** [MIG GPU Support Architecture](./mig-gpu-support.md) for detailed MIG cost calculation.
 
 ---
 
@@ -374,7 +403,7 @@ org1234567/openshift/parquet/
 4. **Populate cluster information** (cluster-level metadata)
 5. **Process in date chunks** (`TRINO_DATE_STEP`):
    - **DELETE** existing summary data (preserves infrastructure costs)
-   - **INSERT** new data via Trino SQL (joins all 5 report types)
+   - **INSERT** new data via Trino SQL (joins all 6 report types)
    - **Populate UI summary tables** (cost, pod, volume summaries)
 6. **Populate label summary tables** (pod and volume labels)
 7. **Apply tag mappings** to daily summary
@@ -383,7 +412,7 @@ org1234567/openshift/parquet/
 
 #### **Trino SQL: Multi-Report Aggregation**
 
-The Trino SQL joins **all 5 report types** to create a unified daily summary.
+The Trino SQL joins **all 6 report types** to create a unified daily summary.
 
 **Implementation:** See [`reporting_ocpusagelineitem_daily_summary.sql`](../../koku/masu/database/trino_sql/openshift/reporting_ocpusagelineitem_daily_summary.sql) in `trino_sql/openshift/`
 
@@ -735,7 +764,7 @@ This pattern is repeated for different aggregation levels:
 | ------------------------------- | --------------- | -------------------------------------- |
 | **Kafka Message Processing**    | 10-30 seconds   | Download + extract + split             |
 | **CSV Splitting**               | 5-15 seconds    | Pandas groupby interval_start          |
-| **Parquet Conversion**          | 5-20 minutes    | All 5 report types                     |
+| **Parquet Conversion**          | 5-20 minutes    | All 6 report types                     |
 | **Trino Summarization**         | 3-15 minutes    | Multi-table JOIN + aggregation         |
 | **Cost Model Application**      | 2-8 minutes     | PostgreSQL UPDATE with CASE statements |
 | **Infrastructure Matching**     | 5-20 minutes    | Trino JOIN between OCP and cloud data  |
@@ -744,7 +773,7 @@ This pattern is repeated for different aggregation levels:
 | **Initial Ingest (full month)** | 2-8 hours       | For 30 days from 1 cluster             |
 | **Line Items per Day**          | 10K - 1M        | Depends on number of pods/PVCs         |
 | **Summary Rows per Day**        | 1K - 100K       | ~10-100x reduction                     |
-| **Parquet Size**                | 5-50 MB/day     | All 5 report types combined            |
+| **Parquet Size**                | 5-50 MB/day     | All 6 report types combined            |
 | **PostgreSQL Storage**          | 50-500 MB/month | Daily summary + UI summaries           |
 
 ### **Scalability Considerations**
@@ -871,7 +900,7 @@ This pattern is repeated for different aggregation levels:
 | **Data Source**          | Operator on customer cluster                          | Cloud provider billing export |
 | **Collection**           | Push (Kafka)                                          | Pull (download)               |
 | **Cost Data**            | **Not included** - calculated via cost models         | Included in billing data      |
-| **Report Types**         | **5 types:** pod, storage, node labels, namespace, VM | 1 unified billing file        |
+| **Report Types**         | **6 types:** pod, storage, node labels, namespace, VM, GPU | 1 unified billing file        |
 | **Granularity**          | Hourly                                                | Hourly/daily                  |
 | **Label Sources**        | **3 sources:** pod + node + namespace                 | Single tags/labels field      |
 | **Capacity Tracking**    | **Required:** node + cluster capacity                 | Not applicable                |
@@ -902,7 +931,7 @@ For testing OCP processing, generate synthetic CSV reports with realistic data:
 
 ### **Key Test Scenarios**
 
-1. **Multi-report type processing:** Ensure all 5 report types are handled
+1. **Multi-report type processing:** Ensure all 6 report types are handled
 2. **Daily splitting:** Verify CSVs are split correctly by interval_start
 3. **Label merging:** Test pod + node + namespace label combination
 4. **Effective usage calculation:** Verify min(usage, request)
@@ -963,6 +992,8 @@ For testing OCP processing, generate synthetic CSV reports with realistic data:
 
 - **Daily Summary (Trino):** `koku/masu/database/trino_sql/openshift/reporting_ocpusagelineitem_daily_summary.sql`
 - **Cost Model (PostgreSQL):** `koku/masu/database/sql/openshift/cost_model/*.sql`
+- **GPU Cost Model (Trino):** `koku/masu/database/trino_sql/openshift/cost_model/monthly_cost_gpu.sql`
+- **GPU Distribution (Trino):** `koku/masu/database/trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql`
 - **OCP-AWS Matching (Trino):** `koku/masu/database/trino_sql/aws/openshift/populate_daily_summary/*.sql`
 - **OCP-Azure Matching (Trino):** `koku/masu/database/trino_sql/azure/openshift/populate_daily_summary/*.sql`
 - **OCP-GCP Matching (Trino):** `koku/masu/database/trino_sql/gcp/openshift/populate_daily_summary/*.sql`
@@ -976,8 +1007,16 @@ For testing OCP processing, generate synthetic CSV reports with realistic data:
 
 ---
 
+## Related Documentation
+
+- [Cost Models Architecture](./cost-models.md) - Cost model configuration and application
+- [MIG GPU Support Architecture](./mig-gpu-support.md) - Multi-Instance GPU cost tracking
+- [Celery Tasks Architecture](./celery-tasks.md) - Task scheduling and execution
+
+---
+
 ## Document Metadata
 
-- **Last Updated:** 2025-01-21
+- **Last Updated:** 2026-03-04
 - **Koku Version:** Current
 - **Author:** Architecture Documentation Team
