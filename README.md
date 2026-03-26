@@ -33,7 +33,14 @@ This project is developed using the Django web framework. Many
 configuration settings can be read in from a `.env` file. To configure,
 do the following:
 
+### Setting env
+
 1.  Copy [`.env.example`](.env.example) into a `.env` and update the following in your `.env`:
+
+        cd koku
+        cp .env.example .env
+
+    **For AWS**
 
         AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
 
@@ -44,39 +51,51 @@ do the following:
 
 2.  Copy [`dev/credentials/aws.example`](dev/credentials/aws.example) into `dev/credentials/aws`, obtain AWS credentials, then update the credentials file:
 
+        cp dev/credentials/aws.example dev/credentials/aws
+
         [default]
         aws_access_key_id=YOUR_AWS_ACCESS_KEY_ID
         aws_secret_access_key=YOUR_AWS_SECRET_ACCESS_KEY
 
-3.  (macOS only) Install libraries for building wheels on ARM:
+### Mac or Fedora
+
+1.  (macOS only) Install libraries for building wheels on ARM:
 
         brew install openssl librdkafka postgresql@16
 
-3.  (Fedora only) Install libraries for building wheels on Linux:
+2.  (Fedora only) Install libraries for building wheels on Linux:
 
         dnf install openssl-devel libpq-devel postgresql golang-sigs-k8s-kustomize
 
-4.  (macOS only) Also add the following to your `.env` or shell profile:
+3.  (macOS only) Also add the following to your `.env` or shell profile:
 
         LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix librdkafka)/lib"
         CPPFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix librdkafka)/include"
         PATH="$PATH:$(brew --prefix postgresql@16)/bin"
 
-5.  Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment and dependency management. To install `pipenv`:
+### Pipenv
+
+1.  Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment and dependency management. To install `pipenv`:
 
         pip3 install pipenv
 
-6.  Then project dependencies and a virtual environment can be created using:
+2.  Then project dependencies and a virtual environment can be created using:
 
         pipenv install --dev
 
-7.  To activate the virtual environment run:
+3.  To activate the virtual environment run:
 
         pipenv shell
+        
+### Pre-commit hook
 
-8.  Install the pre-commit hooks for the repository:
+1.  Install the pre-commit hooks for the repository:
 
         pre-commit install
+
+2. inspect the pre-commit
+
+        pre-commit run --all-files
 
 ### Developing with Docker Compose
 
