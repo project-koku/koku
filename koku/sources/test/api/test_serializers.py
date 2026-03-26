@@ -6,6 +6,7 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from django_tenants.utils import schema_context
 from faker import Faker
 from model_bakery import baker
 from rest_framework.serializers import ValidationError
@@ -13,10 +14,13 @@ from rest_framework.serializers import ValidationError
 from api.iam import models as iam_models
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
+from reporting.models import TenantAPIProvider
 from sources.api import get_param_from_header
 from sources.api import HEADER_X_RH_IDENTITY
 from sources.api.serializers import AdminSourcesSerializer
@@ -111,25 +115,66 @@ class AdminSourcesSerializerTests(IamTestCase):
         self.assertEqual(self.azure_obj.source_uuid, prior_uuid)
         self.assertTrue(self.azure_obj.paused)
 
-    def test_partial_update_syncs_provider_paused_when_linked(self):
-        """When Sources.provider is set, paused updates the linked Provider."""
+    def _create_linked_azure_provider(self):
+        """Create a fully linked Azure Provider + Source for update tests."""
         customer_obj = iam_models.Customer.objects.get(schema_name=self.tenant.schema_name)
-        prov = Provider(name="PauseLinkedProv", type=Provider.PROVIDER_AWS, customer=customer_obj)
+        azure_creds = {
+            "client_id": "test_client",
+            "tenant_id": "test_tenant",
+            "client_secret": "test_secret",
+            "subscription_id": "test_sub",
+        }
+        azure_billing = {"resource_group": "test-rg", "storage_account": "test-sa"}
+        auth = ProviderAuthentication.objects.create(credentials=azure_creds)
+        billing = ProviderBillingSource.objects.create(data_source=azure_billing)
+        prov = Provider(
+            name=self.azure_name,
+            type=Provider.PROVIDER_AZURE,
+            customer=customer_obj,
+            authentication=auth,
+            billing_source=billing,
+        )
         prov.save()
+        with schema_context(self.tenant.schema_name):
+            TenantAPIProvider.objects.create(uuid=prov.uuid, name=prov.name, type=prov.type, provider=prov)
+
         self.azure_obj.koku_uuid = prov.uuid
         self.azure_obj.provider = prov
+        self.azure_obj.org_id = customer_obj.org_id
+        self.azure_obj.authentication = {"credentials": azure_creds}
+        self.azure_obj.billing_source = {"data_source": azure_billing}
         self.azure_obj.save()
+        return prov
+
+    def test_partial_update_syncs_to_provider(self):
+        """PATCH syncs paused, authentication, and billing_source to the linked Provider."""
+        prov = self._create_linked_azure_provider()
+        self.assertFalse(prov.paused)
+        new_creds = {
+            "client_id": "new_client",
+            "tenant_id": "new_tenant",
+            "client_secret": "new_secret",
+            "subscription_id": "new_sub",
+        }
+        new_billing = {"resource_group": "new-rg", "storage_account": "new-sa"}
         mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
-        serializer = AdminSourcesSerializer(
-            instance=self.azure_obj,
-            data={"paused": True},
-            partial=True,
-            context={"request": mock_request},
-        )
-        self.assertTrue(serializer.is_valid(raise_exception=True))
-        serializer.save()
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", return_value=True):
+            serializer = AdminSourcesSerializer(
+                instance=self.azure_obj,
+                data={
+                    "paused": True,
+                    "authentication": {"credentials": new_creds},
+                    "billing_source": {"data_source": new_billing},
+                },
+                partial=True,
+                context={"request": mock_request},
+            )
+            self.assertTrue(serializer.is_valid(raise_exception=True))
+            serializer.save()
         prov.refresh_from_db()
         self.assertTrue(prov.paused)
+        self.assertEqual(prov.authentication.credentials, new_creds)
+        self.assertEqual(prov.billing_source.data_source, new_billing)
 
     def test_create_via_admin_serializer(self):
         """Test create source with admin serializer."""

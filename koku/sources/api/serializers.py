@@ -175,13 +175,12 @@ class AdminSourcesSerializer(SourcesSerializer):
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        """Update source; sync paused to linked Provider when provided."""
-        paused = validated_data.get("paused")
+        """Update source and sync all changes to the linked Provider."""
         instance = super().update(instance, validated_data)
-        if paused is not None and instance.provider_id:
-            provider = instance.provider
-            provider.paused = paused
-            provider.save(update_fields=["paused"])
+        if instance.koku_uuid and instance.provider_id:
+            auth_header = get_auth_header(self.context.get("request"))
+            manager = ProviderBuilder(auth_header, instance.account_id, instance.org_id)
+            manager.update_provider_from_source(instance)
         return instance
 
     @transaction.atomic
