@@ -344,10 +344,13 @@ transparency on which rates (static vs dynamic) were used and for which periods.
 ```
 
 **Implementation**: The query handler's `effective_exchange_rates` property
-(see [pipeline-changes.md § Reader](./pipeline-changes.md#modified-query-handler--reader))
-provides the snapshot rows. The response formatter groups consecutive months
-with the same rate and type into a single entry with `start_date` / `end_date`
-boundaries (first-of-month and last-day-of-month respectively).
+(see [pipeline-changes.md § Rate Resolution](./pipeline-changes.md#rate-resolution-strategy))
+provides the resolved rates — from `MonthlyExchangeRateSnapshot` for past
+months and from the dictionaries (`StaticExchangeRateDictionary` /
+`ExchangeRateDictionary`) for the current month. The response formatter groups
+consecutive months with the same rate and type into a single entry with
+`start_date` / `end_date` boundaries (first-of-month and last-day-of-month
+respectively).
 
 ---
 
@@ -416,3 +419,4 @@ The frontend will:
 | v1.1 | 2026-03-24 | Added currency enablement Settings API, available-currencies endpoint, dropdown behavior, no-rate corner case, airgapped UX |
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility, not snapshotting. All currencies are always stored and snapshotted. |
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
+| v1.4 | 2026-03-26 | Updated report response implementation to reference two-tier rate resolution. |

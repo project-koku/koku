@@ -75,34 +75,48 @@ configuring their own on-premise deployment.
 
 At query time:
 
-8. **CHANGED**: `QueryHandler.exchange_rate_annotation_dict` reads from
-   `MonthlyExchangeRateSnapshot` instead of `ExchangeRateDictionary`
+8. **CHANGED**: `QueryHandler.exchange_rate_annotation_dict` uses two-tier
+   resolution — `StaticExchangeRateDictionary` / `ExchangeRateDictionary` for
+   current month, `MonthlyExchangeRateSnapshot` for past months
 9. **CHANGED**: Builds per-month `Case`/`When` annotations (one rate per month)
 10. **NEW**: Report response includes `exchange_rates_applied` metadata
 11. **NEW**: Available currencies for dropdown computed from enabled dynamic
     currencies + static rate currencies (`enabled` flag controls dropdown
     visibility only, not storage)
 
-### Two Writers, One Reader
+### Two Sources of Truth, One Snapshot Store
 
-The `MonthlyExchangeRateSnapshot` table has two writers and one reader:
+The architecture has two authoritative rate dictionaries and one historical
+snapshot table:
 
 ```mermaid
 graph TD
-    subgraph "Writers"
+    subgraph "Sources of Truth"
+        SERD["StaticExchangeRateDictionary<br/>(tenant schema)<br/>static source of truth"]
+        ERD["ExchangeRateDictionary<br/>(public schema)<br/>dynamic source of truth"]
+    end
+    subgraph "Writers → Snapshot"
         W1["Writer 1:<br/>Celery Task<br/>(dynamic rates)"]
         W2["Writer 2:<br/>CRUD Serializer<br/>(static rates)"]
     end
-    subgraph "Table"
-        SNAP["MonthlyExchangeRateSnapshot<br/>unique_together: year_month, base, target"]
+    subgraph "Historical Store"
+        SNAP["MonthlyExchangeRateSnapshot<br/>unique_together: year_month, base, target<br/>locked rates for past months"]
     end
     subgraph "Reader"
         QH["QueryHandler<br/>(date-aware Case/When)"]
     end
     W1 -->|"update_or_create<br/>rate_type=dynamic<br/>skip if static exists"| SNAP
     W2 -->|"update_or_create<br/>rate_type=static<br/>overwrites dynamic"| SNAP
-    SNAP --> QH
+    SERD -->|"current month:<br/>static rates (priority)"| QH
+    ERD -->|"current month:<br/>dynamic fallback"| QH
+    SNAP -->|"past months:<br/>historical locked rates"| QH
 ```
+
+The dictionaries serve the same role they always have: `ExchangeRateDictionary`
+is the authoritative source for dynamic rates (rebuilt daily),
+`StaticExchangeRateDictionary` is the authoritative source for static rates
+(rebuilt on every CRUD operation). The snapshot table is a derived store that
+locks rates at month boundaries for historical report accuracy.
 
 ---
 
@@ -199,21 +213,92 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
 
 | File | Change |
 |------|--------|
-| `koku/api/query_handler.py` | Base `QueryHandler`: new `effective_exchange_rates` cached property, date-aware `Case`/`When` |
-| `koku/api/report/ocp/query_handler.py` | OCP override: use snapshot-based rates |
-| `koku/forecast/forecast.py` | Forecast handler: use snapshot-based rate resolution |
+| `koku/api/query_handler.py` | Base `QueryHandler`: new rate resolution logic, date-aware `Case`/`When` |
+| `koku/api/report/ocp/query_handler.py` | OCP override: use two-tier rate resolution |
+| `koku/forecast/forecast.py` | Forecast handler: use two-tier rate resolution |
+
+### Rate Resolution Strategy
+
+The query handler resolves exchange rates using a two-tier approach:
+
+| Month | Source | Rationale |
+|-------|--------|-----------|
+| **Past (finalized) months** | `MonthlyExchangeRateSnapshot` | Locked rates that were in effect during that month |
+| **Current month** | `StaticExchangeRateDictionary` (priority) → `ExchangeRateDictionary` (fallback) | Live authoritative rates from the sources of truth |
+| **Pre-deployment months** | `ExchangeRateDictionary` (legacy fallback) | No snapshot rows exist; preserves current behavior |
+
+This mirrors the existing pattern: today, `ExchangeRateDictionary` is the sole
+source of truth for exchange rates. The new design adds
+`StaticExchangeRateDictionary` as a higher-priority source for static rates,
+and uses the snapshot table to lock historical rates for past months.
 
 ### New: `effective_exchange_rates` Property
 
 ```python
 @cached_property
 def effective_exchange_rates(self):
-    """Load pre-computed exchange rates for the query date range."""
-    months = [m.strftime("%Y-%m") for m in self._iter_months()]
-    return MonthlyExchangeRateSnapshot.objects.filter(
-        year_month__in=months,
-        target_currency=self.currency,
-    )
+    """Load exchange rates for the query date range.
+
+    Past months: from MonthlyExchangeRateSnapshot (locked historical rates).
+    Current month: from StaticExchangeRateDictionary (static priority),
+    then ExchangeRateDictionary (dynamic fallback).
+    """
+    current_month = self.dh.today.strftime("%Y-%m")
+    past_months = [m.strftime("%Y-%m") for m in self._iter_months() if m.strftime("%Y-%m") != current_month]
+
+    rates = {}
+
+    # Past months: read from snapshot (locked historical rates)
+    if past_months:
+        for snap in MonthlyExchangeRateSnapshot.objects.filter(
+            year_month__in=past_months,
+            target_currency=self.currency,
+        ):
+            rates[snap.year_month] = snap
+
+    # Current month: read from dictionaries (sources of truth)
+    if current_month in [m.strftime("%Y-%m") for m in self._iter_months()]:
+        rate = self._resolve_current_month_rate()
+        if rate:
+            rates[current_month] = rate
+
+    return rates
+```
+
+### New: `_resolve_current_month_rate`
+
+Resolves the current month's rate from the authoritative dictionaries, with
+static rates taking priority over dynamic:
+
+```python
+def _resolve_current_month_rate(self):
+    """Resolve current month rate from dictionaries (sources of truth).
+
+    Priority: StaticExchangeRateDictionary > ExchangeRateDictionary.
+    """
+    # Static dictionary (source of truth for static rates)
+    static_dict = StaticExchangeRateDictionary.objects.first()
+    if static_dict and static_dict.currency_exchange_dictionary:
+        for base_cur, targets in static_dict.currency_exchange_dictionary.items():
+            if self.currency in targets:
+                return SimpleNamespace(
+                    base_currency=base_cur,
+                    exchange_rate=targets[self.currency],
+                    rate_type="static",
+                )
+
+    # Dynamic dictionary (source of truth for dynamic rates)
+    dynamic_dict = ExchangeRateDictionary.objects.first()
+    if dynamic_dict and dynamic_dict.currency_exchange_dictionary:
+        for base_cur, targets in dynamic_dict.currency_exchange_dictionary.items():
+            if self.currency in targets:
+                return SimpleNamespace(
+                    base_currency=base_cur,
+                    exchange_rate=targets[self.currency],
+                    rate_type="dynamic",
+                )
+
+    return None
 ```
 
 ### Changed: `exchange_rate_annotation_dict`
@@ -222,13 +307,13 @@ Replace single-rate annotation with per-month `Case`/`When`:
 
 ```python
 whens = []
-for snapshot_row in self.effective_exchange_rates:
-    month_start, month_end = month_bounds(snapshot_row.year_month)
+for year_month, rate_info in self.effective_exchange_rates.items():
+    month_start, month_end = month_bounds(year_month)
     whens.append(When(
         usage_start__gte=month_start,
         usage_start__lt=month_end,
-        **{self._mapper.cost_units_key: snapshot_row.base_currency},
-        then=Value(snapshot_row.exchange_rate),
+        **{self._mapper.cost_units_key: rate_info.base_currency},
+        then=Value(rate_info.exchange_rate),
     ))
 return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
 ```
@@ -355,7 +440,10 @@ def _rebuild_static_exchange_rate_dictionary():
 **Parallel with dynamic rates**: `ExchangeRateDictionary` (public schema) is
 rebuilt daily by the Celery task from `ExchangeRates`. `StaticExchangeRateDictionary`
 (tenant schema) is rebuilt on every CRUD operation from `StaticExchangeRate`.
-Both serve as pre-computed lookup matrices — one for dynamic rates, one for static.
+Both serve as **sources of truth** for their respective rate types — query
+handlers read from both dictionaries for current-month rate resolution (static
+priority, dynamic fallback). The snapshot table stores the historical record
+for past months.
 
 All operations (StaticExchangeRate write + snapshot upsert + dictionary rebuild)
 are wrapped in a single `transaction.atomic()` block, ensuring atomicity.
@@ -388,7 +476,7 @@ This is handled automatically by the unified `MonthlyExchangeRateSnapshot` table
 
 | File | Reason |
 |------|--------|
-| `koku/api/currency/models.py` | `ExchangeRates` and `ExchangeRateDictionary` remain as-is; serve as data source for dynamic snapshots |
+| `koku/api/currency/models.py` | `ExchangeRates` and `ExchangeRateDictionary` remain as-is; `ExchangeRateDictionary` continues as the source of truth for dynamic rates (now also used for current-month dynamic rate resolution alongside `StaticExchangeRateDictionary` for static rates) |
 | `koku/api/currency/utils.py` | `build_exchange_dictionary` unchanged |
 | `koku/koku/settings.py` | `CURRENCY_URL` unchanged (already configurable); empty value causes Celery task to skip API fetch |
 | `masu/database/sql/` | No SQL template changes (all changes are Django ORM) |
@@ -405,3 +493,4 @@ This is handled automatically by the unified `MonthlyExchangeRateSnapshot` table
 | v1.1 | 2026-03-24 | Added airgapped mode, currency discovery, enabled-currency filtering, available currency resolution |
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility. All currencies always stored and snapshotted. |
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution is: static first, dynamic fallback, error if neither. `CURRENCY_URL` only affects whether the Celery task fetches from the API. |
+| v1.4 | 2026-03-26 | Two-tier rate resolution: dictionaries as sources of truth for current month, snapshots for historical report rates. Updated query handler pseudocode. |

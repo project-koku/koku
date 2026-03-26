@@ -18,7 +18,7 @@ All design decisions for Phase 1 have been resolved.
 | # | Decision | Status | Blocking Phase | Proposal |
 |---|----------|--------|---------------|----------|
 | **IQ-1** | Model placement: `cost_models` (tenant) vs `api` (shared) | **RESOLVED** | ~Phase 1~ | Both models in `cost_models` app (tenant schema). [Details](#iq-1-model-placement--resolved) |
-| **IQ-2** | Unified snapshot table vs separate static/dynamic resolution at query time | **RESOLVED** | ~Phase 1~ | Single `MonthlyExchangeRateSnapshot` table as unified source. [Details](#iq-2-unified-snapshot-table--resolved) |
+| **IQ-2** | Unified snapshot table vs separate static/dynamic resolution at query time | **RESOLVED** | ~Phase 1~ | Two-tier resolution: dictionaries as source of truth, snapshots for historical report rates. [Details](#iq-2-unified-snapshot-table--resolved) |
 | **IQ-3** | Dynamic rate snapshotting: end-of-month only vs daily rolling | **RESOLVED** | ~Phase 1~ | Daily `update_or_create` for current month; immutable after month ends. [Details](#iq-3-dynamic-rate-snapshotting-strategy--resolved) |
 | **IQ-4** | Month locking scope: static + dynamic vs dynamic only | **RESOLVED** | ~Phase 1~ | Locking applies only to dynamic rates; static rates are inherently stable. [Details](#iq-4-month-locking-scope--resolved) |
 | **IQ-5** | Currency enablement: implicit vs explicit | **RESOLVED** | ~Phase 1~ | Explicit enablement by administrator; dynamic currencies arrive disabled. [Details](#iq-5-currency-enablement--resolved) |
@@ -47,9 +47,12 @@ relatively lightweight. Why add a snapshot table?
 **Resolution**: The snapshot table serves multiple purposes beyond performance:
 
 1. **Historical stability** — finalized months retain their last recorded rate
-2. **Static rate precedence** — static rates override dynamic without query-time merging logic
-3. **Auditability** — each month's effective rate is recorded with its type (`static`/`dynamic`)
-4. **Simplified query handler** — reads from one table, no multi-source merging at query time
+2. **Auditability** — each month's effective rate is recorded with its type (`static`/`dynamic`)
+3. **Month locking** — dynamic rates are locked at month-end; the snapshot preserves whatever rate was in effect
+
+The dictionaries (`StaticExchangeRateDictionary` and `ExchangeRateDictionary`)
+are the authoritative sources of truth for current rates. The snapshot table
+is a derived store used only for historical per-month rate resolution in reports.
 
 ---
 
@@ -74,13 +77,23 @@ via `django-tenants`.
 (`StaticExchangeRate` + `ExchangeRateDictionary`) at query time, or read from a
 single pre-merged table?
 
-**Resolution**: Single `MonthlyExchangeRateSnapshot` table. Both writers (Celery
-task for dynamic, CRUD serializer for static) write to the same table. Query
-handlers read **only** from this table.
+**Resolution**: Two-tier rate resolution:
 
-**Rationale**: Eliminates query-time merging complexity. `rate_type` column tracks
-provenance for report metadata. See
-[pipeline-changes.md § Two Writers, One Reader](./pipeline-changes.md#two-writers-one-reader).
+- **Source of truth (current rates)**: `StaticExchangeRateDictionary` for static
+  rates and `ExchangeRateDictionary` for dynamic rates — the same pattern used
+  today for dynamic rates, extended to static.
+- **Historical rates (reports)**: `MonthlyExchangeRateSnapshot` stores
+  per-month, per-pair rates for historical report queries. Both writers (Celery
+  task for dynamic, CRUD serializer for static) write to the snapshot table.
+
+Query handlers use the dictionaries for the current month and the snapshot table
+for finalized (past) months. The `rate_type` column in the snapshot tracks
+provenance for report metadata.
+
+**Rationale**: The dictionaries provide immediate, authoritative rate lookup (the
+same role `ExchangeRateDictionary` plays today). The snapshot table adds
+historical stability — finalized months retain their locked rates. See
+[pipeline-changes.md § Rate Resolution](./pipeline-changes.md#rate-resolution-strategy).
 
 ### IQ-3: Dynamic rate snapshotting strategy — RESOLVED
 
@@ -236,10 +249,12 @@ to drift as rates change daily.
 graph LR
     API["open.er-api.com<br/>(or custom URL)"] -->|"daily fetch<br/>(skipped if no URL)"| CT["Celery Task:<br/>get_daily_currency_rates"]
     CT -->|upsert| ER["ExchangeRates<br/>(public schema)"]
-    CT -->|rebuild| ERD["ExchangeRateDictionary<br/>(public schema)"]
+    CT -->|rebuild| ERD["ExchangeRateDictionary<br/>(public schema)<br/>dynamic source of truth"]
     CT -->|"discover currencies<br/>create as disabled"| EC["EnabledCurrency<br/>(tenant schema)<br/>enabled/disabled per currency"]
-    CT -->|"Writer 1: per-tenant<br/>skip static pairs<br/>all currencies"| SNAP["MonthlyExchangeRateSnapshot<br/>(tenant schema)<br/>per-pair rows"]
-    SNAP -->|read per-month rates| QH["QueryHandler<br/>date-aware Case/When"]
+    CT -->|"Writer 1: per-tenant<br/>skip static pairs<br/>all currencies"| SNAP["MonthlyExchangeRateSnapshot<br/>(tenant schema)<br/>historical per-month rates"]
+    SERD -->|"current month:<br/>static rates<br/>(source of truth)"| QH["QueryHandler<br/>date-aware Case/When"]
+    ERD -->|"current month:<br/>dynamic fallback<br/>(source of truth)"| QH
+    SNAP -->|"past months:<br/>historical locked rates"| QH
     QH -->|"per-month rates +<br/>rate metadata"| REPORT["Report Response<br/>+ exchange_rates_applied"]
     QH -->|"no rate? →<br/>actionable error"| ERR["Error: no exchange rate<br/>available"]
     ERD -.->|"fallback for<br/>pre-deployment months"| QH
@@ -247,19 +262,19 @@ graph LR
     USER["Price List Admin"] -->|CRUD| SER["Serializer"]
     SER -->|"write canonical<br/>rate record"| STATIC["StaticExchangeRate<br/>(tenant schema)"]
     SER -->|"Writer 2: upsert<br/>rate_type=static"| SNAP
-    SER -->|"rebuild static<br/>cross-rate matrix"| SERD["StaticExchangeRateDictionary<br/>(tenant schema)<br/>static cross-rate matrix"]
+    SER -->|"rebuild static<br/>cross-rate matrix"| SERD["StaticExchangeRateDictionary<br/>(tenant schema)<br/>static source of truth"]
     EC -->|"dropdown filter:<br/>enabled dynamic ∪<br/>static rate currencies"| DD["Target Currency<br/>Dropdown"]
     STATIC -->|"static currencies<br/>always available"| DD
 ```
 
 **Key changes**:
 
-1. Two writers feed one snapshot table
-2. Query handler reads per-month rates instead of a single global rate
-3. Report responses include rate provenance metadata
-4. `StaticExchangeRateDictionary` mirrors `ExchangeRateDictionary` for static rates — rebuilt on every CRUD operation instead of daily
-5. **Currency enablement**: Dynamic currencies arrive as disabled; administrator enables them via Settings to make them visible in the dropdown (all currencies are always stored and snapshotted)
-6. **Rate resolution**: Static rates take precedence; dynamic rates are the fallback; error if neither exists. `CURRENCY_URL` only affects whether dynamic rates are fetched — the system works with whatever data is available
+1. **Two sources of truth**: `StaticExchangeRateDictionary` for static rates and `ExchangeRateDictionary` for dynamic rates — query handlers read from both for the current month
+2. **Snapshot for history**: `MonthlyExchangeRateSnapshot` stores locked rates for finalized (past) months; two writers feed it
+3. **Rate resolution**: Current month uses dictionaries (static priority, dynamic fallback); past months use snapshots; error if no rate exists
+4. Report responses include rate provenance metadata
+5. `StaticExchangeRateDictionary` mirrors `ExchangeRateDictionary` for static rates — rebuilt on every CRUD operation instead of daily
+6. **Currency enablement**: Dynamic currencies arrive as disabled; administrator enables them via Settings to make them visible in the dropdown (all currencies are always stored and snapshotted)
 7. **Dropdown visibility**: Target currency dropdown shows only the union of enabled dynamic currencies and static rate currencies (disabled currencies are stored but hidden from the dropdown)
 8. **No-rate error**: If user selects a currency with no conversion path from the bill currency, an actionable error is returned
 
@@ -269,7 +284,7 @@ graph LR
 
 | # | Decision | Rationale |
 |---|----------|-----------|
-| 1 | **Unified rate table**: `MonthlyExchangeRateSnapshot` stores both static and dynamic rates as per-pair rows | Query handlers read from one source; `rate_type` distinguishes provenance |
+| 1 | **Two-tier rate resolution**: Dictionaries are the source of truth; snapshots store historical rates | `StaticExchangeRateDictionary` (static) and `ExchangeRateDictionary` (dynamic) are authoritative; `MonthlyExchangeRateSnapshot` provides locked historical rates for reports |
 | 2 | **Model placement in `cost_models`** (tenant schema) | Static rates are tenant-specific; dynamic rates written per-tenant for isolation |
 | 3 | **Static rates take precedence** | Daily task skips pairs with existing static rates for the current month |
 | 4 | **No multi-hop conversion** | No chain conversion (e.g., USD→EUR→CNY) to avoid prioritization complexity |
@@ -279,7 +294,7 @@ graph LR
 | 8 | **Automatic finalized month locking** | Dynamic rows overwritten daily during current month; untouched after month ends |
 | 9 | **Forward-only snapshots** | Pre-deployment months have no snapshot rows; fall back to `ExchangeRateDictionary` |
 | 10 | **Per-pair rows, not JSON blob** | Enables `unique_together` constraint, simpler queries, cleaner ORM integration |
-| 11 | **`StaticExchangeRateDictionary` mirrors `ExchangeRateDictionary`** | Same cross-rate matrix format; dynamic matrix rebuilt daily by Celery, static matrix rebuilt on each CRUD operation |
+| 11 | **`StaticExchangeRateDictionary` mirrors `ExchangeRateDictionary`** | Same cross-rate matrix format; same role as source of truth. Dynamic matrix rebuilt daily by Celery, static matrix rebuilt on each CRUD operation. Query handlers read from both dictionaries for current rates. |
 | 12 | **Explicit currency enablement** | Dynamic currencies arrive disabled; administrator enables them in Settings to control which currencies appear in the dropdown. All currencies are always stored and snapshotted regardless of enabled status. |
 | 13 | **Configurable exchange rate URL** | `CURRENCY_URL` is a variable; empty value skips dynamic rate fetching. System works with whatever rates are available (static first, dynamic fallback, error if neither). Documentation references `open.er-api.com` (free tier) as the production example |
 | 14 | **Show-then-error for no-rate currencies** | Available currencies appear in dropdown even without a conversion path from the bill currency; actionable error returned on selection |
@@ -295,3 +310,4 @@ graph LR
 | v1.1 | 2026-03-24 | Added currency enablement (IQ-5), airgapped mode (IQ-6), no-rate corner case (IQ-7), design decisions 12–15 |
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility, not snapshotting. All currencies always stored. |
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. `CURRENCY_URL` only affects API fetch. |
+| v1.4 | 2026-03-26 | Clarified two-tier rate resolution: dictionaries are sources of truth, snapshots are for historical report rates. Updated data flow diagram to show query handler reading from `StaticExchangeRateDictionary`. |

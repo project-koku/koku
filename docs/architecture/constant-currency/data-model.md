@@ -180,9 +180,12 @@ is hidden or shows *"No exchange rates available."*
 
 ### `StaticExchangeRateDictionary`
 
-Pre-computed cross-rate matrix for static rates. Mirrors the existing public
-schema `ExchangeRateDictionary` (which stores the dynamic cross-rate matrix)
-but lives in the tenant schema and contains only user-defined static rates.
+**Source of truth for static exchange rates.** Pre-computed cross-rate matrix
+for static rates, mirroring the role of `ExchangeRateDictionary` for dynamic
+rates. Lives in the tenant schema and contains only user-defined static rates.
+Query handlers read from this dictionary for current-month static rate
+resolution, the same way they read from `ExchangeRateDictionary` for dynamic
+rates.
 
 ```python
 class StaticExchangeRateDictionary(models.Model):
@@ -232,13 +235,16 @@ block as the `StaticExchangeRate` write. See
 for pairs where only one direction is explicitly defined, matching the behavior
 of `ExchangeRateDictionary`.
 
-**Registration points**: None. Configuration/metadata table, not a reporting
-table.
+**Registration points**: None. Read by query handlers for current-month static
+rate resolution (same role as `ExchangeRateDictionary` for dynamic rates).
 
 ### `MonthlyExchangeRateSnapshot`
 
-Unified table storing both static and dynamic rates as per-pair rows. Single
-source of truth for query-time resolution.
+Historical rate storage for reports. Stores both static and dynamic rates as
+per-pair rows, locked at month boundaries. Query handlers read from this table
+for finalized (past) months; for the current month, they read from the
+dictionaries (`StaticExchangeRateDictionary` and `ExchangeRateDictionary`)
+which are the authoritative sources of truth.
 
 ```python
 class RateType(models.TextChoices):
@@ -289,7 +295,7 @@ In this example:
 - **Rows 7–8**: `USD→CNY` has no static rate defined, so all months use
   **dynamic** rates.
 
-**Two writers, one reader pattern**:
+**Two writers, two reader paths**:
 
 - **Writer 1** (Celery task): Upserts `rate_type=RateType.DYNAMIC` rows daily for
   current month, skipping pairs with existing static rates. See
@@ -297,9 +303,12 @@ In this example:
 - **Writer 2** (CRUD serializer): Upserts `rate_type=RateType.STATIC` rows for each
   month in a static rate's validity period. See
   [pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--snapshot--writer-2).
-- **Reader** (query handler): Reads all rows for the query's date range, builds
-  per-month `Case`/`When` annotations. See
-  [pipeline-changes.md § Reader](./pipeline-changes.md#modified-query-handler--reader).
+- **Reader — past months** (query handler): Reads snapshot rows for finalized
+  months, builds per-month `Case`/`When` annotations for historical report data.
+- **Reader — current month** (query handler): Reads from
+  `StaticExchangeRateDictionary` (static priority) then `ExchangeRateDictionary`
+  (dynamic fallback). See
+  [pipeline-changes.md § Rate Resolution](./pipeline-changes.md#rate-resolution-strategy).
 
 **Registration points**: None. Not added to `UI_SUMMARY_TABLES` or any cleaner
 registry — this is a configuration/metadata table, not a reporting table.
@@ -401,3 +410,4 @@ changes required.
 | v1.1 | 2026-03-24 | Added `EnabledCurrency` model, M4 migration |
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility, not snapshotting |
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
+| v1.4 | 2026-03-26 | Clarified `StaticExchangeRateDictionary` as source of truth for static rates; `MonthlyExchangeRateSnapshot` as historical rate storage for reports. |

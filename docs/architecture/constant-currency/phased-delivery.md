@@ -47,9 +47,9 @@ pairs. Show rate provenance in report responses.
 | URL registration | `koku/cost_models/urls.py` | Router entry for `exchange-rate-pairs` |
 | Settings URL registration | `koku/api/urls.py` or `koku/api/settings/urls.py` | Routes for currency enablement and available currencies endpoints |
 | Celery task update | `koku/masu/celery/tasks.py` | Currency discovery, snapshot upsert for all currencies per tenant (skips fetch if no `CURRENCY_URL`) |
-| Query handler update | `koku/api/query_handler.py` | Date-aware `Case`/`When` annotations, available currency resolution |
-| OCP handler update | `koku/api/report/ocp/query_handler.py` | OCP-specific snapshot-based rates |
-| Forecast handler update | `koku/forecast/forecast.py` | Snapshot-based rate resolution |
+| Query handler update | `koku/api/query_handler.py` | Two-tier rate resolution: dictionaries for current month, snapshots for past months |
+| OCP handler update | `koku/api/report/ocp/query_handler.py` | OCP-specific two-tier rate resolution |
+| Forecast handler update | `koku/forecast/forecast.py` | Two-tier rate resolution |
 | Report meta update | `koku/api/report/queries.py` | `exchange_rates_applied` metadata, no-rate error handling |
 | OpenAPI update | `koku/docs/specs/openapi.json` | New endpoint definitions (exchange-rate-pairs, enabled-currencies, available-currencies) |
 | Serializer tests | `koku/cost_models/test/test_static_exchange_rate_serializer.py` | Validation tests |
@@ -68,6 +68,8 @@ pairs. Show rate provenance in report responses.
 - [ ] Dynamic rate daily snapshot creation per tenant
 - [ ] Static rate precedence: task skips pairs with existing static rates
 - [ ] Finalized month immutability: past month rows never overwritten
+- [ ] Two-tier rate resolution: dictionaries for current month, snapshots for past months
+- [ ] Current month reads from `StaticExchangeRateDictionary` (static priority) then `ExchangeRateDictionary` (dynamic fallback)
 - [ ] Date-aware `Case`/`When` annotations produce correct per-month rates
 - [ ] Fallback to `ExchangeRateDictionary` for pre-deployment months
 - [ ] `exchange_rates_applied` metadata appears in report responses
@@ -175,3 +177,4 @@ design would be needed to handle path prioritization.
 | v1.1 | 2026-03-24 | Added EnabledCurrency artifacts (M4, views, tests), currency enablement and airgapped validation items, R7/R8 risks, updated rollback steps |
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility. All currencies always stored and snapshotted. |
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
+| v1.4 | 2026-03-26 | Updated artifacts and validation to reflect two-tier rate resolution (dictionaries + snapshots). |
