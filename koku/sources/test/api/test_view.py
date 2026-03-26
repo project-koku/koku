@@ -16,7 +16,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.test.utils import override_settings
 from django.urls import reverse
-from rest_framework import viewsets
+from rest_framework import mixins
 from rest_framework.response import Response
 
 from api.common.permissions import RESOURCE_TYPE_MAP
@@ -387,6 +387,76 @@ class SourcesViewTests(IamTestCase):
         self.assertEqual(sorted(list(set(excluded))), sorted(list(set(expected))))
 
 
+@override_settings(ONPREM=True, ROOT_URLCONF="sources.urls")
+class SourcesViewPatchPauseTests(IamTestCase):
+    """PATCH pause/resume on sources (enabled when ONPREM or DEVELOPMENT)."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        self.test_account = "10001"
+        self.test_org_id = "1234567"
+        user_data = self._create_user_data()
+        customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+        self.test_source_id = 8801
+        name = "Patch Pause Azure Source"
+        customer_obj = Customer.objects.get(org_id=customer.get("org_id"))
+        self.azure_provider = Provider(name=name, type=Provider.PROVIDER_AZURE, customer=customer_obj)
+        self.azure_provider.save()
+
+        self.azure_obj = Sources(
+            source_id=self.test_source_id,
+            auth_header=self.request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=8801,
+            source_type=Provider.PROVIDER_AZURE,
+            name=name,
+            authentication={
+                "credentials": {"client_id": "test_client", "tenant_id": "test_tenant", "client_secret": "x"}
+            },
+            source_uuid=self.azure_provider.uuid,
+            koku_uuid=self.azure_provider.uuid,
+        )
+        self.azure_obj.provider = self.azure_provider
+        self.azure_obj.save()
+
+        mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
+        SourcesViewSet.url = mock_url
+
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    def test_patch_pause_and_resume_updates_source_and_provider(self, _mock_invalidate):
+        """PATCH paused true then false updates Sources and linked Provider both ways."""
+        cache.clear()
+        url = reverse("sources-detail", kwargs={"pk": str(self.azure_provider.uuid)})
+        meta = self.request_context["request"].META
+
+        response = self.client.patch(
+            url,
+            json.dumps({"paused": True}),
+            content_type="application/json",
+            **meta,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.azure_obj.refresh_from_db()
+        self.azure_provider.refresh_from_db()
+        self.assertTrue(self.azure_obj.paused)
+        self.assertTrue(self.azure_provider.paused)
+
+        response = self.client.patch(
+            url,
+            json.dumps({"paused": False}),
+            content_type="application/json",
+            **meta,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.azure_obj.refresh_from_db()
+        self.azure_provider.refresh_from_db()
+        self.assertFalse(self.azure_obj.paused)
+        self.assertFalse(self.azure_provider.paused)
+
+
 @override_settings(ROOT_URLCONF="sources.urls")
 class SourceFilterTests(IamTestCase):
     """Test Cases for SourceFilter custom filters."""
@@ -550,9 +620,7 @@ class SourcesViewCreateTests(IamTestCase):
         mock_request = Mock()
         mock_request.user.customer.schema_name = "test_schema"
 
-        # Mock create on GenericViewSet (which IS in the MRO) since CreateModelMixin
-        # is only added when DEVELOPMENT or ONPREM is True (not the case in tox).
-        with patch.object(viewsets.GenericViewSet, "create", create=True, return_value=Response(status=201)):
+        with patch.object(mixins.CreateModelMixin, "create", return_value=Response(status=201)):
             result = viewset.create(request=mock_request)
             self.assertEqual(result.status_code, 201)
             mock_invalidate.assert_called_once()
@@ -567,9 +635,7 @@ class SourcesViewCreateTests(IamTestCase):
         mock_request = Mock()
         mock_request.user.customer.schema_name = "test_schema"
 
-        with patch.object(
-            viewsets.GenericViewSet, "create", create=True, side_effect=SourcesStorageError("test error")
-        ):
+        with patch.object(mixins.CreateModelMixin, "create", side_effect=SourcesStorageError("test error")):
             with self.assertRaises(SourcesException):
                 viewset.create(request=mock_request)
 
@@ -583,9 +649,7 @@ class SourcesViewCreateTests(IamTestCase):
         mock_request = Mock()
         mock_request.user.customer.schema_name = "test_schema"
 
-        with patch.object(
-            viewsets.GenericViewSet, "create", create=True, side_effect=SourcesDependencyError("dep error")
-        ):
+        with patch.object(mixins.CreateModelMixin, "create", side_effect=SourcesDependencyError("dep error")):
             with self.assertRaises(SourcesDependencyException):
                 viewset.create(request=mock_request)
 

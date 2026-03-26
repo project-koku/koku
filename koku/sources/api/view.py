@@ -83,12 +83,17 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
 
 
 LOG = logging.getLogger(__name__)
-MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet]
-HTTP_METHOD_LIST = ["get", "head"]
 
-if settings.ONPREM or settings.DEVELOPMENT:
-    MIXIN_LIST.extend([mixins.CreateModelMixin, mixins.UpdateModelMixin, DestroySourceMixin])
-    HTTP_METHOD_LIST.extend(["post", "patch", "delete"])
+# Write mixins are always on the class; ONPREM/DEVELOPMENT gate methods per-request in initial()
+# so tests can @override_settings(ONPREM=True) without re-importing this module (CI uses False at import).
+MIXIN_LIST = [
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    DestroySourceMixin,
+    viewsets.GenericViewSet,
+]
 
 
 class SourceFilter(FilterSet):
@@ -163,7 +168,14 @@ class SourcesViewSet(*MIXIN_LIST):
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
-    http_method_names = HTTP_METHOD_LIST
+
+    def initial(self, request, *args, **kwargs):
+        """Allow POST/PATCH/DELETE only when ONPREM or DEVELOPMENT (evaluated per request)."""
+        names = ["get", "head"]
+        if settings.ONPREM or settings.DEVELOPMENT:
+            names.extend(["post", "patch", "delete"])
+        self.http_method_names = names
+        super().initial(request, *args, **kwargs)
 
     @action(methods=["get"], detail=False, permission_classes=[AllowAny], url_path="aws-s3-regions")
     def aws_s3_regions(self, request):
@@ -258,7 +270,7 @@ class SourcesViewSet(*MIXIN_LIST):
         """Create a Source."""
         schema_name = request.user.customer.schema_name
         try:
-            response = super().create(request=request, args=args, kwargs=kwargs)
+            response = super().create(request, *args, **kwargs)
             invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
             return response
         except (SourcesStorageError, ParseError) as error:
@@ -271,7 +283,7 @@ class SourcesViewSet(*MIXIN_LIST):
         """Update a Source."""
         schema_name = request.user.customer.schema_name
         try:
-            result = super().update(request=request, args=args, kwargs=kwargs)
+            result = super().update(request, *args, **kwargs)
             invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
             return result
         except (SourcesStorageError, ParseError) as error:
@@ -285,7 +297,7 @@ class SourcesViewSet(*MIXIN_LIST):
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
 
-        response = super().list(request=request, args=args, kwargs=kwargs)
+        response = super().list(request, *args, **kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:
             if (
@@ -331,7 +343,7 @@ class SourcesViewSet(*MIXIN_LIST):
     @method_decorator(never_cache)
     def retrieve(self, request, *args, **kwargs):
         """Get a source."""
-        response = super().retrieve(request=request, args=args, kwargs=kwargs)
+        response = super().retrieve(request, *args, **kwargs)
         _, tenant = self._get_account_and_tenant(request)
 
         if response.data.get("authentication", {}).get("credentials", {}).get("client_secret"):

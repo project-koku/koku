@@ -79,6 +79,58 @@ class AdminSourcesSerializerTests(IamTestCase):
         )
         self.aws_obj.save()
 
+    def test_partial_update_pause_without_source_type(self):
+        """PATCH-style payload with only paused is valid and does not require source_type."""
+        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
+        context = {"request": mock_request}
+        serializer = AdminSourcesSerializer(
+            instance=self.azure_obj,
+            data={"paused": True},
+            partial=True,
+            context=context,
+        )
+        self.assertTrue(serializer.is_valid(raise_exception=True))
+        self.assertTrue(serializer.validated_data["paused"])
+
+    def test_partial_update_preserves_primary_key_and_uuid(self):
+        """Update must not regenerate source_id or source_uuid (FLPATH-3423)."""
+        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
+        context = {"request": mock_request}
+        prior_id = self.azure_obj.source_id
+        prior_uuid = self.azure_obj.source_uuid
+        serializer = AdminSourcesSerializer(
+            instance=self.azure_obj,
+            data={"paused": True},
+            partial=True,
+            context=context,
+        )
+        self.assertTrue(serializer.is_valid(raise_exception=True))
+        serializer.save()
+        self.azure_obj.refresh_from_db()
+        self.assertEqual(self.azure_obj.source_id, prior_id)
+        self.assertEqual(self.azure_obj.source_uuid, prior_uuid)
+        self.assertTrue(self.azure_obj.paused)
+
+    def test_partial_update_syncs_provider_paused_when_linked(self):
+        """When Sources.provider is set, paused updates the linked Provider."""
+        customer_obj = iam_models.Customer.objects.get(schema_name=self.tenant.schema_name)
+        prov = Provider(name="PauseLinkedProv", type=Provider.PROVIDER_AWS, customer=customer_obj)
+        prov.save()
+        self.azure_obj.koku_uuid = prov.uuid
+        self.azure_obj.provider = prov
+        self.azure_obj.save()
+        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
+        serializer = AdminSourcesSerializer(
+            instance=self.azure_obj,
+            data={"paused": True},
+            partial=True,
+            context={"request": mock_request},
+        )
+        self.assertTrue(serializer.is_valid(raise_exception=True))
+        serializer.save()
+        prov.refresh_from_db()
+        self.assertTrue(prov.paused)
+
     def test_create_via_admin_serializer(self):
         """Test create source with admin serializer."""
         source_data = {
@@ -317,3 +369,30 @@ class AdminSourcesSerializerValidateTest(IamTestCase):
         self.assertTrue(serializer.is_valid(raise_exception=True))
         cluster_id = serializer.validated_data["authentication"]["credentials"]["cluster_id"]
         self.assertEqual(cluster_id, "my-cluster-uuid")
+
+    def test_validate_source_ref_on_update_uses_instance_source_type(self):
+        """source_ref in PATCH without source_type still maps when instance is OCP."""
+        customer = self._create_customer_data()
+        ocp = Sources(
+            source_id=9301,
+            auth_header={},
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=9301,
+            source_type=Provider.PROVIDER_OCP,
+            name="ocp-patch-ref",
+            authentication={"credentials": {"cluster_id": "old-id"}},
+        )
+        ocp.save()
+        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
+        serializer = AdminSourcesSerializer(
+            instance=ocp,
+            data={"source_ref": "new-cluster-id"},
+            partial=True,
+            context={"request": mock_request},
+        )
+        self.assertTrue(serializer.is_valid(raise_exception=True))
+        self.assertEqual(
+            serializer.validated_data["authentication"]["credentials"]["cluster_id"],
+            "new-cluster-id",
+        )
