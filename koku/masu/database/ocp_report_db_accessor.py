@@ -186,22 +186,31 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             # SaaS: execute via Trino
             self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
 
-    def _reporting_period_has_gpu_data(self, source_uuid: uuid.UUID) -> bool:
+    def _reporting_period_has_gpu_data(self, source_uuid: uuid.UUID, start_date) -> bool:
         """
-        Return True if the cluster/source has any GPU data in the reporting tables.
+        Return True if the cluster/source has GPU data for the given reporting period.
 
-        Used as a gate to skip GPU full-month summary and UI table updates when
-        the cluster has no GPU data, avoiding unnecessary work for non-GPU customers.
+        Used as a gate to skip GPU full-month summary and distribution when
+        the cluster has no GPU data for the period, avoiding unnecessary work.
+
+        Args:
+            source_uuid: Provider UUID to check.
+            start_date: A date/datetime in the target month. Year and month are extracted from it.
         """
         gpu_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP["gpu_usage"]
         if not trino_table_exists(self.schema, gpu_table):
             return False
-        source_sql = get_report_db_accessor().get_check_source_in_partitions_sql(
-            schema_name=self.schema, table_name=gpu_table, source_uuid=source_uuid
-        )
+        year = str(start_date.year)
+        month = str(start_date.month).zfill(2)
+        source_sql = f"""
+SELECT count(*) FROM hive.{self.schema}."{gpu_table}$partitions"
+WHERE source = '{source_uuid}'
+AND year = '{year}'
+AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+"""
         source_available = self._execute_trino_raw_sql_query(
             source_sql,
-            log_ref=f"Checking if source has GPU data in {gpu_table}",
+            log_ref=f"Checking if source has GPU data in {gpu_table} for {year}-{month}",
         )[0][0]
         return bool(source_available)
 
@@ -636,17 +645,20 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 if summary_range.is_current_month:
                     # Trigger distribution for previous month on the second of the current month
                     if dh.now_utc.day == 2:
-                        # Gate: skip GPU full-month path if cluster has no GPU data
-                        if cost_model_key == metric_constants.GPU_UNALLOCATED:
-                            if not self._reporting_period_has_gpu_data(provider_uuid):
-                                msg = "Skipping GPU full-month summary: no GPU data for cluster"
-                                LOG.info(
-                                    log_json(
-                                        msg=msg,
-                                        context={"schema": self.schema, "provider_uuid": str(provider_uuid)},
-                                    )
+                        # Gate: skip GPU full-month path if cluster has no GPU data for the previous month
+                        if (
+                            cost_model_key == metric_constants.GPU_UNALLOCATED
+                            and distribution_info.get(cost_model_key, config.distribute_by_default)
+                            and not self._reporting_period_has_gpu_data(provider_uuid, dh.last_month_start)
+                        ):
+                            msg = "Skipping GPU full-month summary: no GPU data for cluster"
+                            LOG.info(
+                                log_json(
+                                    msg=msg,
+                                    context={"schema": self.schema, "provider_uuid": str(provider_uuid)},
                                 )
-                                continue
+                            )
+                            continue
                         sql_params["start_date"] = summary_range.start_of_previous_month
                         sql_params["end_date"] = summary_range.end_of_previous_month
                         summary_range.summarize_previous_month = True
@@ -655,6 +667,20 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         LOG.info(log_json(msg=msg, context={"schema": self.schema, "cost_model_key": cost_model_key}))
                         continue
                 else:
+                    # Gate: skip GPU full-month path if cluster has no GPU data for the period
+                    if (
+                        cost_model_key == metric_constants.GPU_UNALLOCATED
+                        and distribution_info.get(cost_model_key, config.distribute_by_default)
+                        and not self._reporting_period_has_gpu_data(provider_uuid, summary_range.start_date)
+                    ):
+                        msg = "Skipping GPU full-month summary: no GPU data for cluster"
+                        LOG.info(
+                            log_json(
+                                msg=msg,
+                                context={"schema": self.schema, "provider_uuid": str(provider_uuid)},
+                            )
+                        )
+                        continue
                     sql_params["start_date"] = summary_range.start_of_month
                     sql_params["end_date"] = summary_range.end_of_month
 

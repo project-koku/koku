@@ -1245,12 +1245,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_trino_execute.assert_not_called()
             self.assertFalse(summary_range.summarize_previous_month)
 
+    @patch(
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data", return_value=True
+    )
     @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_distributed_cost_sql_gpu_runs_for_previous_month(
-        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists, mock_has_gpu_data
     ):
         """Test that GPU distribution runs when directly processing a previous month."""
         start_date = self.dh.last_month_start.date()
@@ -1566,29 +1569,44 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
         """Test that _reporting_period_has_gpu_data returns False when GPU table does not exist."""
         mock_trino_table_exists.return_value = False
         with self.accessor as acc:
-            self.assertFalse(acc._reporting_period_has_gpu_data(self.ocp_provider.uuid))
+            self.assertFalse(acc._reporting_period_has_gpu_data(self.ocp_provider.uuid, self.dh.last_month_start))
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     def test_reporting_period_has_gpu_data_returns_false_when_source_not_in_partitions(
         self, mock_trino_table_exists, mock_trino_raw_sql
     ):
-        """Test that _reporting_period_has_gpu_data returns False when source has no GPU data."""
+        """Test that _reporting_period_has_gpu_data returns False when source has no GPU data for the period."""
         mock_trino_table_exists.return_value = True
         mock_trino_raw_sql.return_value = [[0]]
         with self.accessor as acc:
-            self.assertFalse(acc._reporting_period_has_gpu_data(self.ocp_provider.uuid))
+            self.assertFalse(acc._reporting_period_has_gpu_data(self.ocp_provider.uuid, self.dh.last_month_start))
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     def test_reporting_period_has_gpu_data_returns_true_when_source_has_data(
         self, mock_trino_table_exists, mock_trino_raw_sql
     ):
-        """Test that _reporting_period_has_gpu_data returns True when source has GPU data in partitions."""
+        """Test that _reporting_period_has_gpu_data returns True when source has GPU data for the period."""
         mock_trino_table_exists.return_value = True
         mock_trino_raw_sql.return_value = [[3]]
         with self.accessor as acc:
-            self.assertTrue(acc._reporting_period_has_gpu_data(self.ocp_provider.uuid))
+            self.assertTrue(acc._reporting_period_has_gpu_data(self.ocp_provider.uuid, self.dh.last_month_start))
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    def test_reporting_period_has_gpu_data_filters_by_year_and_month(
+        self, mock_trino_table_exists, mock_trino_raw_sql
+    ):
+        """Test that _reporting_period_has_gpu_data passes year and month in the SQL query."""
+        mock_trino_table_exists.return_value = True
+        mock_trino_raw_sql.return_value = [[1]]
+        test_date = self.dh.last_month_start
+        with self.accessor as acc:
+            acc._reporting_period_has_gpu_data(self.ocp_provider.uuid, test_date)
+        executed_sql = mock_trino_raw_sql.call_args[0][0]
+        self.assertIn(f"year = '{test_date.year}'", executed_sql)
+        self.assertIn(f"'{str(test_date.month).zfill(2)}'", executed_sql)
 
     @patch("masu.database.ocp_report_db_accessor.get_cluster_id_from_provider")
     @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
