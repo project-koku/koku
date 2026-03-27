@@ -19,7 +19,6 @@ from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django_tenants.utils import schema_context
-from trino.exceptions import TrinoUserError
 
 from api.common import log_json
 from api.metrics import constants as metric_constants
@@ -200,26 +199,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         source_sql = get_report_db_accessor().get_check_source_in_partitions_sql(
             schema_name=self.schema, table_name=gpu_table, source_uuid=source_uuid
         )
-        try:
-            result = self._execute_trino_raw_sql_query(
-                source_sql,
-                log_ref=f"Checking if source has GPU data in {gpu_table}",
-            )
-            count = result[0][0] if result else 0
-            return bool(count)
-        # Trino query errors only; not Postgres. If trino_table_exists is False we return above.
-        # False early exit is typical for ONPREM=True (no Hive GPU table). Cloud (ONPREM=False)
-        # usually has the table after GPU ingest, so we run the query below.
-        except (TrinoStatementExecError, TrinoUserError) as err:
-            LOG.warning(
-                log_json(
-                    msg="GPU data check failed, skipping GPU full-month path",
-                    schema=self.schema,
-                    source_uuid=str(source_uuid),
-                    error=str(err),
-                )
-            )
-            return False
+        source_available = self._execute_trino_raw_sql_query(
+            source_sql,
+            log_ref=f"Checking if source has GPU data in {gpu_table}",
+        )[0][0]
+        return bool(source_available)
 
     def _populate_virtualization_ui_summary_table(self, params):
         """

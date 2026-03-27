@@ -1590,20 +1590,6 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
         with self.accessor as acc:
             self.assertTrue(acc._reporting_period_has_gpu_data(self.ocp_provider.uuid))
 
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
-    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    def test_reporting_period_has_gpu_data_returns_false_on_trino_error(
-        self, mock_trino_table_exists, mock_trino_raw_sql
-    ):
-        """Test that _reporting_period_has_gpu_data returns False when Trino query raises."""
-        mock_trino_table_exists.return_value = True
-        trino_error = TrinoUserError(
-            {"errorType": "USER_ERROR", "errorName": "GENERIC_USER_ERROR", "message": "Table not found"}
-        )
-        mock_trino_raw_sql.side_effect = TrinoStatementExecError("SELECT 1", 1, {}, trino_error)
-        with self.accessor as acc:
-            self.assertFalse(acc._reporting_period_has_gpu_data(self.ocp_provider.uuid))
-
     @patch("masu.database.ocp_report_db_accessor.get_cluster_id_from_provider")
     @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
