@@ -13,6 +13,17 @@
                 "pipenv"
             ],
             "matchUpdateTypes": [
+                "lockFileMaintenance"
+            ],
+            "addLabels": [
+                "smoke-tests"
+            ]
+        },
+        {
+            "matchManagers": [
+                "pipenv"
+            ],
+            "matchUpdateTypes": [
                 "major",
                 "minor",
                 "patch",
