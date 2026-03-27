@@ -135,10 +135,10 @@ WITH cte_unutilized_uptime_hours AS (
         -- total_capacity = node_uptime_hours * gpu_count * max_slices
         -- gpu_uuid is the physical GPU UUID, so count distinct gives physical GPU count
         CASE
-            WHEN (node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy' IS NULL OR (node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy' = 'mixed'
-                THEN count(node_ut.interval_start) * CAST((node_ut.node_labels::jsonb)->>'nvidia_com_gpu_count' AS DECIMAL(33, 15)) * gpu.max_slices_per_gpu - coalesce(max(gpu.aggregated_slice_uptime), 0)
-            WHEN (node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy' = 'single'
-                THEN count(node_ut.interval_start) * CAST((node_ut.node_labels::jsonb)->>'nvidia_com_gpu_count' AS DECIMAL(33, 15)) - coalesce(max(gpu.aggregated_slice_uptime), 0)
+            WHEN LOWER(TRIM((node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy')) IS NULL OR LOWER(TRIM((node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy')) = 'mixed'
+                THEN count(node_ut.interval_start) * CAST(TRIM((node_ut.node_labels::jsonb)->>'nvidia_com_gpu_count') AS DECIMAL(33, 15)) * gpu.max_slices_per_gpu - coalesce(max(gpu.aggregated_slice_uptime), 0)
+            WHEN LOWER(TRIM((node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy')) = 'single'
+                THEN count(node_ut.interval_start) * CAST(TRIM((node_ut.node_labels::jsonb)->>'nvidia_com_gpu_count') AS DECIMAL(33, 15)) - coalesce(max(gpu.aggregated_slice_uptime), 0)
             ELSE 0
         END as unutilized_uptime
     FROM {{schema | sqlsafe}}.openshift_node_labels_line_items as node_ut

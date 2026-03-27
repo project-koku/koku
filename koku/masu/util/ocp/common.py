@@ -287,19 +287,13 @@ GPU_AGG = {
 # MIG (Multi-Instance GPU) configuration
 # Max slices by GPU model - used to determine parent gpu max slices
 GPU_MAX_SLICES_BY_MODEL = {
-    "A100": 7,
-    "A100-40GB": 7,
-    "A100-80GB": 7,
-    "A100-PCIE": 7,
-    "A100-SXM": 7,
-    "H100": 7,
-    "H100-80GB": 7,
-    "H100-PCIE": 7,
-    "H100-SXM": 7,
     "A30": 4,
-    "RTX": 4,
-    "RTX PRO 6000 Blackwell": 4,
+    "A100": 7,
+    "H100": 7,
+    "H200": 7,
     "B200": 7,
+    "RTX PRO 6000": 4,
+    "RTX PRO 5000": 2,
 }
 
 # new_required_columns are columns that appear in new operator reports.
