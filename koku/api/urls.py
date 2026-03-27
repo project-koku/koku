@@ -48,6 +48,7 @@ from api.views import GCPStorageView
 from api.views import GCPTagView
 from api.views import get_currency
 from api.views import get_exchange_rates
+from api.views import GlobalSettingsView
 from api.views import IngressReportsDetailView
 from api.views import IngressReportsView
 from api.views import metrics
@@ -129,6 +130,11 @@ urlpatterns = [
     path("exchange-rates/", get_exchange_rates, name="exchange-rates"),
     path("cost-type/", UserCostTypeSettings.as_view(), name="cost-type"),
     path("account-settings/", AccountSettings.as_view(), name="account-settings"),
+    *(
+        [path("account-settings/data-retention/", GlobalSettingsView.as_view(), name="data-retention")]
+        if settings.ONPREM
+        else []
+    ),
     path("account-settings/<str:setting>/", AccountSettings.as_view(), name="get-account-setting"),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
