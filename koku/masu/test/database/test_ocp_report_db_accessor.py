@@ -1275,6 +1275,35 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.assertIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_called()
 
+    @patch(
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data", return_value=False
+    )
+    @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_distributed_cost_sql_skips_gpu_non_current_month_when_no_gpu_data(
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists, mock_has_gpu_data
+    ):
+        """Test that GPU distribution is skipped for non-current month when cluster has no GPU data."""
+        start_date = self.dh.last_month_start.date()
+        end_date = self.dh.last_month_end.date()
+        masu_database, mock_jinja = self._setup_distributed_cost_sql_mocks(start_date, end_date)
+
+        with self.accessor as acc:
+            acc.prepare_query = mock_jinja
+            summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
+            acc.populate_distributed_cost_sql(
+                summary_range,
+                self.ocp_test_provider_uuid,
+                {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+            )
+            gpu_call = call(
+                masu_database,
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
+            )
+            self.assertNotIn(gpu_call, mock_data_get.call_args_list)
+
     @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
