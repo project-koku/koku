@@ -645,20 +645,6 @@ AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{
                 if summary_range.is_current_month:
                     # Trigger distribution for previous month on the second of the current month
                     if dh.now_utc.day == 2:
-                        # Gate: skip GPU full-month path if cluster has no GPU data for the previous month
-                        if (
-                            cost_model_key == metric_constants.GPU_UNALLOCATED
-                            and distribution_info.get(cost_model_key, config.distribute_by_default)
-                            and not self._reporting_period_has_gpu_data(provider_uuid, dh.last_month_start)
-                        ):
-                            msg = "Skipping GPU full-month summary: no GPU data for cluster"
-                            LOG.info(
-                                log_json(
-                                    msg=msg,
-                                    context={"schema": self.schema, "provider_uuid": str(provider_uuid)},
-                                )
-                            )
-                            continue
                         sql_params["start_date"] = summary_range.start_of_previous_month
                         sql_params["end_date"] = summary_range.end_of_previous_month
                         summary_range.summarize_previous_month = True
@@ -667,20 +653,6 @@ AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{
                         LOG.info(log_json(msg=msg, context={"schema": self.schema, "cost_model_key": cost_model_key}))
                         continue
                 else:
-                    # Gate: skip GPU full-month path if cluster has no GPU data for the period
-                    if (
-                        cost_model_key == metric_constants.GPU_UNALLOCATED
-                        and distribution_info.get(cost_model_key, config.distribute_by_default)
-                        and not self._reporting_period_has_gpu_data(provider_uuid, summary_range.start_date)
-                    ):
-                        msg = "Skipping GPU full-month summary: no GPU data for cluster"
-                        LOG.info(
-                            log_json(
-                                msg=msg,
-                                context={"schema": self.schema, "provider_uuid": str(provider_uuid)},
-                            )
-                        )
-                        continue
                     sql_params["start_date"] = summary_range.start_of_month
                     sql_params["end_date"] = summary_range.end_of_month
 
@@ -699,6 +671,13 @@ AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{
             self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
             populate = distribution_info.get(cost_model_key, config.distribute_by_default)
             if not populate:
+                continue
+            # Gate: skip GPU distribution if cluster has no GPU data for the period
+            if cost_model_key == metric_constants.GPU_UNALLOCATED and not self._reporting_period_has_gpu_data(
+                provider_uuid, sql_params["start_date"]
+            ):
+                msg = "Skipping GPU full-month summary: no GPU data for cluster"
+                LOG.info(log_json(msg=msg, context={"schema": self.schema, "provider_uuid": str(provider_uuid)}))
                 continue
             sql_params["distribution"] = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
             sql = pkgutil.get_data("masu.database", config.get_full_path())
