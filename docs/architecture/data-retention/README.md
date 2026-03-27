@@ -59,7 +59,7 @@ team prefers DB-first.
 
 | # | Decision | Status | Proposal |
 |---|----------|--------|----------|
-| **IQ-0** | Storage model and initialization strategy | **Open** | Tech lead asked why not reuse `UserSettings`. Three options presented: (A) add column to `Customer`, (B) new `TenantSettings` table, (C) extend `UserSettings` JSONB. Recommend B. Awaiting tech lead input. See [PR #5958 discussion](https://github.com/project-koku/koku/pull/5958#discussion_r2989196814). |
+| **IQ-0** | Storage model and initialization strategy | **Resolved** | Tech lead approved dedicated `TenantSettings` model (Option B). Approach A (env-var fallback, no seed migration) for initialization. See [PR #5958 discussion](https://github.com/project-koku/koku/pull/5958#discussion_r2996022561). |
 | **IQ-1** | Should `MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY` also become configurable, or remain env-var only? | **Resolved** | Dead code — `_line_items_months` is set in `ExpiredDataRemover.__init__()` but never read after construction. Relic from pre-Trino era. Remove it (timing TBD — part of this story or follow-up). |
 | **IQ-2** | `migrate_trino_tables` hardcodes `months = 5` for Trino partition cleanup, and the Postgres provider cleaners use the same static `Config.MASU_RETAIN_NUM_MONTHS` — should these read from `TenantSettings`? | **Resolved** | `migrate_trino_tables` is out of scope — this feature is on-prem only and on-prem doesn't use Trino. Remaining Postgres cleanup paths (partition deletes, manifest purge via `ExpiredDataRemover`) will read from `get_data_retention_months()`. |
 | **IQ-3** | Deploy defaults are inconsistent (kustomize: `3`, Django: `4`, docker-compose: `4`). Which is authoritative? | **Resolved** | Keep Django/compose at `4` (existing behavior). Kustomize `3` is SaaS-only via env var. `TenantSettings` column default is `3` for new opt-in tenants. See [R6](phased-delivery.md#r6-default-change-eliminated--no-phase-4). |
@@ -197,3 +197,4 @@ Full risk register with expanded mitigations lives in
 | v1.3 | 2026-03-11 | R6 resolved: keep code default at `4`, Phase 4 removed. IQ-3 resolved. R9 downgraded |
 | v1.4 | 2026-03-11 | R10 found and resolved: helper fallback + GET side-effect would have reintroduced R6. IQ-4 resolved (out of scope). Approach A/B descriptions updated |
 | v1.5 | 2026-03-25 | Tech lead review: IQ-1 resolved (dead code), IQ-2 resolved (Trino out of scope), R6 context (no existing deployments), R7 updated (skip purge on DB error), IQ-0 expanded (3 storage options) |
+| v1.6 | 2026-03-26 | IQ-0 resolved: tech lead approved `TenantSettings` model + Approach A. All IQs now resolved. |
