@@ -2,6 +2,8 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import logging
+import os
 import typing as t
 from copy import deepcopy
 
@@ -22,7 +24,11 @@ from api.settings.settings import COST_TYPES
 from api.settings.settings import DEFAULT_USER_SETTINGS
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
+from masu.config import Config
+from reporting.tenant_settings.models import TenantSettings
 from reporting.user_settings.models import UserSettings
+
+LOG = logging.getLogger(__name__)
 
 """Utilities for Settings."""
 
@@ -241,3 +247,26 @@ def set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
         else:
             account_current_setting.settings["cost_type"] = cost_type_code
             account_current_setting.save()
+
+
+def get_data_retention_months(schema_name: str) -> "int | None":
+    """Return the effective data-retention period for the given tenant.
+
+    Priority: env var > DB > Config default.
+    Returns None on DB read failure (caller should skip purge).
+    """
+    env_val = os.environ.get("RETAIN_NUM_MONTHS")
+    if env_val is not None:
+        return int(env_val)
+    try:
+        with schema_context(schema_name):
+            row = TenantSettings.objects.first()
+            if row:
+                return row.data_retention_months
+    except Exception:
+        LOG.error(
+            "Failed to read tenant_settings for %s; skipping purge for this tenant",
+            schema_name,
+        )
+        return None
+    return Config.MASU_RETAIN_NUM_MONTHS

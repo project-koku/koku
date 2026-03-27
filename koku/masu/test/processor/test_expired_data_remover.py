@@ -106,6 +106,30 @@ class ExpiredDataRemoverTest(MasuTestCase):
                 expire_date = remover._calculate_expiration_date()
                 self.assertEqual(expire_date, test_case.get("expected_expire"))
 
+    def test_calculate_expiration_date_uses_calendar_months(self):
+        """Verify relativedelta (not 30*days) is used for calendar-month accuracy.
+
+        With 47 months retention from Jul 31 2025:
+        - relativedelta: Jul 31 - 47 months = Aug 31 2021 → first = Aug 1, 2021
+        - 30*days: Jul 15 - 1410 days = Sep 4, 2021 → first = Sep 1, 2021  (WRONG)
+        """
+        with patch("masu.processor.expired_data_remover.DateHelper.today", new_callable=PropertyMock) as mock_dh:
+            mock_dh.return_value = datetime(year=2025, month=7, day=31)
+            remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS, 47)
+            expire_date = remover._calculate_expiration_date()
+            expected = datetime(year=2025, month=7, day=1, tzinfo=settings.UTC) - relativedelta(months=47)
+            self.assertEqual(expire_date, expected)
+
+    def test_calculate_expiration_date_first_of_month(self):
+        """Expiration date is always the first of the month."""
+        with patch("masu.processor.expired_data_remover.DateHelper.today", new_callable=PropertyMock) as mock_dh:
+            mock_dh.return_value = datetime(year=2025, month=11, day=15)
+            remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS, 6)
+            expire_date = remover._calculate_expiration_date()
+            self.assertEqual(expire_date.day, 1)
+            expected = datetime(year=2025, month=5, day=1, tzinfo=settings.UTC)
+            self.assertEqual(expire_date, expected)
+
     def test_remove(self):
         """Test that removes the expired data based on the retention policy."""
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
