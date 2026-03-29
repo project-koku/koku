@@ -14,7 +14,7 @@ Single source of truth for risks related to the Constant Currency feature
 | **R3** | Overlapping static rates bypass serializer validation | Mitigated | 1 | DB-level `unique_together` on snapshot; serializer checks on `StaticExchangeRate` |
 | **R4** | Pre-deployment months have no snapshot data | Accepted | 1 | Fallback to `ExchangeRateDictionary` (current behavior unchanged) |
 | **R5** | Query handler `Case`/`When` with many months/currencies may be slow | Open | 1 | Benchmark with realistic currency pair counts |
-| **R6** | Static rate deletion leaves gap before dynamic rate fills in | Low | 1 | Next daily task run populates dynamic rate; gap is at most 24 hours |
+| **R6** | Static rate deletion leaves gap before dynamic rate fills in | Mitigated | 1 | Serializer proactively populates dynamic rows on static rate deletion; no gap |
 | **R7** | User selects a target currency with no conversion path from bill currency | Mitigated | 1 | Show actionable error; currencies remain visible in dropdown |
 | **R8** | No rates configured (static or dynamic) for a currency pair | Accepted | 1 | Static first, dynamic fallback, error if neither; hide dropdown when no currencies visible |
 
@@ -132,21 +132,13 @@ performance should be validated with realistic data.
 
 ## R6 — Static Rate Deletion Gap
 
-**Decision**: Low risk, acceptable.
+**Decision**: Mitigated via proactive dynamic rate population on delete.
 
-When a static rate is deleted, the `rate_type="static"` rows are removed from
-`MonthlyExchangeRateSnapshot`. Until the next daily Celery task run (within 24
-hours), queries for the affected month/pair will fall through to the `Case`/`When`
-default value of `1` (no conversion).
-
-**Impact**: A report queried during this gap window may show unconverted amounts
-for the affected currency pair for the current month only. Past months are
-unaffected (their dynamic rows were already finalized).
-
-**Mitigation**: The serializer could proactively populate `rate_type="dynamic"`
-rows from `ExchangeRateDictionary` when deleting a static rate, eliminating the
-gap entirely. This is a Phase 1 enhancement if the gap proves problematic in
-practice.
+When a static rate is deleted, the serializer removes `rate_type="static"` rows
+from `MonthlyExchangeRateSnapshot` and proactively populates
+`rate_type="dynamic"` rows from the current `ExchangeRateDictionary` for the
+affected pairs/months. This eliminates the data gap that would otherwise exist
+until the next daily Celery task run.
 
 **Linked from**: [pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--snapshot--writer-2)
 
@@ -240,3 +232,4 @@ R8       ✓
 | v1.0 | 2026-03-19 | Initial risk register |
 | v1.1 | 2026-03-24 | Added R7 (no-rate corner case) and R8 (no rates configured) |
 | v1.2 | 2026-03-24 | Reframed R8: removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
+| v1.3 | 2026-03-29 | R6: upgraded from Low to Mitigated — serializer proactively populates dynamic rows on delete (aligns with pipeline-changes.md and api-and-frontend.md) |
