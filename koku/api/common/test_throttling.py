@@ -210,3 +210,20 @@ class AwsTagQueryThrottleGetCacheKeyTest(TestCase):
                 key = throttle.get_cache_key(request, None)
                 self.assertIsNotNone(key, f"time_scope_value={value} should be heavy")
                 self.assertEqual(key, "tag_query_throttle:aws:acct123")
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_filter_prefix_keys_returns_key(self, mock_flag):
+        """Real API sends filter[time_scope_units] and filter[time_scope_value]; throttle must apply."""
+        throttle = AwsTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct7049367"
+        request.query_params = {
+            "filter[tag:namespace]": "vulnerability-engine-stage",
+            "filter[time_scope_units]": "month",
+            "filter[time_scope_value]": "-1",
+            "filter[resolution]": "monthly",
+            "group_by[service]": "*",
+        }
+        key = throttle.get_cache_key(request, None)
+        self.assertIsNotNone(key, "filter[] param keys must be recognized as heavy")
+        self.assertEqual(key, "tag_query_throttle:aws:acct7049367")

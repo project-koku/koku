@@ -74,6 +74,8 @@ class InventoryOrderBySerializer(OCPOrderBySerializer):
     usage = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
     request = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
     limit = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
+    usage_efficiency = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
+    wasted_cost = serializers.ChoiceField(choices=OCPOrderBySerializer.ORDER_CHOICES, required=False)
 
 
 class OCPFilterSerializer(BaseFilterSerializer):
@@ -345,25 +347,29 @@ class OCPVirtualMachinesQueryParamSerializer(OCPQueryParamSerializer):
 class OCPGpuGroupBySerializer(GroupSerializer):
     """Serializer for handling GPU query parameter group_by."""
 
-    _opfields = ("cluster", "node", "project", "gpu_vendor", "gpu_model")
+    _opfields = ("cluster", "node", "project", "gpu_vendor", "gpu_model", "gpu_mode", "mig_profile")
 
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
     gpu_vendor = StringOrListField(child=serializers.CharField(), required=False)
     gpu_model = StringOrListField(child=serializers.CharField(), required=False)
     gpu_name = StringOrListField(child=serializers.CharField(), required=False)
+    gpu_mode = StringOrListField(child=serializers.CharField(), required=False)
+    mig_profile = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPGpuFilterSerializer(BaseFilterSerializer):
     """Serializer for handling GPU query parameter filter."""
 
-    _opfields = ("cluster", "node", "project", "gpu_vendor", "gpu_model")
+    _opfields = ("cluster", "node", "project", "gpu_vendor", "gpu_model", "gpu_mode", "mig_profile")
 
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
     gpu_vendor = StringOrListField(child=serializers.CharField(), required=False)
     gpu_model = StringOrListField(child=serializers.CharField(), required=False)
+    gpu_mode = StringOrListField(child=serializers.CharField(), required=False)
+    mig_profile = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPGpuOrderBySerializer(OrderSerializer):
@@ -375,6 +381,8 @@ class OCPGpuOrderBySerializer(OrderSerializer):
         "project",
         "gpu_vendor",
         "gpu_model",
+        "gpu_mode",
+        "mig_profile",
         "date",
         "cost",
         "cost_model_gpu_cost",
@@ -394,6 +402,8 @@ class OCPGpuOrderBySerializer(OrderSerializer):
     gpu_vendor = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     gpu_model = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     gpu_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    gpu_mode = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    mig_profile = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
     cost_model_gpu_cost = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     gpu_memory = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
@@ -438,3 +448,40 @@ class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
                     data[key] = self._drop_tag_keys_from_param(data[key])
             kwargs = {**kwargs, "data": data}
         super().__init__(*args, **kwargs)
+
+
+class OCPMigProfilesFilterSerializer(BaseFilterSerializer):
+    """Serializer for handling MIG profiles filter parameters.
+
+    Requires vendor, model, and node filters.
+    """
+
+    _opfields = ("cluster", "node", "namespace", "gpu_vendor", "gpu_model")
+
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=True)
+    namespace = StringOrListField(child=serializers.CharField(), required=False)
+    gpu_vendor = StringOrListField(child=serializers.CharField(), required=True)
+    gpu_model = StringOrListField(child=serializers.CharField(), required=True)
+
+
+class OCPMigProfilesQueryParamSerializer(OCPQueryParamSerializer):
+    """Serializer for handling MIG profiles query parameters."""
+
+    FILTER_SERIALIZER = OCPMigProfilesFilterSerializer
+
+    def validate(self, data):
+        """Validate that required filters are present."""
+        data = super().validate(data)
+        filter_data = data.get("filter", {})
+
+        required_filters = ["gpu_vendor", "gpu_model", "node"]
+        missing = [f for f in required_filters if f not in filter_data or not filter_data[f]]
+
+        if missing:
+            raise serializers.ValidationError(
+                f"MIG profiles endpoint requires filters: {', '.join(required_filters)}. "
+                f"Missing: {', '.join(missing)}"
+            )
+
+        return data

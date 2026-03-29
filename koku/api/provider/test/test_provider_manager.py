@@ -204,6 +204,17 @@ class ProviderManagerTest(IamTestCase):
         self.assertEqual(manager.get_last_polling_time(provider.uuid), expected_time.strftime("%Y-%m-%d %H:%M:%S"))
         self.assertEqual(manager.get_last_polling_time(), expected_time.strftime("%Y-%m-%d %H:%M:%S"))
 
+    def test_get_created_timestamp(self):
+        """Test getting created_timestamp from a provider."""
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name="ts_provider", created_by=self.user, customer=self.customer)
+        manager = ProviderManager(provider.uuid)
+        self.assertIsNotNone(manager.get_created_timestamp())
+        self.assertEqual(
+            manager.get_created_timestamp(),
+            provider.created_timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
     def test_data_flags(self):
         """Test the data status flag."""
         # Get Provider UUID

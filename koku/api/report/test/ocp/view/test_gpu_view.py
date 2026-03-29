@@ -179,3 +179,54 @@ class OCPGpuViewTest(IamTestCase):
         err_msg = f"GPU API must accept tag filter (UI parity). Got: {getattr(response, 'data', response.content)}"
         self.assertEqual(response.status_code, status.HTTP_200_OK, err_msg)
         self.assertIn("data", response.data)
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_mig_profiles_endpoint_exists(self, mock_unleash):
+        """Test that the MIG profiles endpoint is accessible."""
+        url = reverse("reports-openshift-gpu-mig-profiles")
+        query_params = {
+            "filter[gpu_vendor]": "nvidia",
+            "filter[gpu_model]": "A100",
+            "filter[node]": "test_node",
+        }
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_mig_profiles_endpoint_requires_filters(self, mock_unleash):
+        """Test that MIG profiles endpoint requires vendor, model, and node filters."""
+        url = reverse("reports-openshift-gpu-mig-profiles")
+        # Without required filters, endpoint returns 400
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_gpu_endpoint_includes_gpu_mode_field(self, mock_unleash):
+        """Test that GPU endpoint response includes gpu_mode field."""
+        url = reverse("reports-openshift-gpu")
+        query_params = {"group_by[gpu_model]": "*"}
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Check structure for gpu_mode field
+        data = response.data
+        if data.get("data") and len(data["data"]) > 0:
+            models = data["data"][0].get("gpu_models", [])
+            if models:
+                gpu_names = models[0].get("gpu_names", [])
+                if gpu_names:
+                    values = gpu_names[0].get("values", [])
+                    if values:
+                        # gpu_mode should be present in annotations
+                        self.assertIn("gpu_mode", values[0], "gpu_mode field should be present in GPU response")
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_gpu_endpoint_with_group_by_gpu_mode(self, mock_unleash):
+        """Test GPU endpoint with group_by gpu_mode."""
+        url = reverse("reports-openshift-gpu")
+        query_params = {"group_by[gpu_mode]": "*"}
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("data", response.data)
