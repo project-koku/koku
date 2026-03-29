@@ -100,7 +100,7 @@ graph TD
         W2["Writer 2:<br/>CRUD Serializer<br/>(static rates)"]
     end
     subgraph "Historical Store"
-        SNAP["MonthlyExchangeRateSnapshot<br/>unique_together: year_month, base, target<br/>locked rates for past months"]
+        SNAP["MonthlyExchangeRateSnapshot<br/>unique_together: effective_date, base, target<br/>locked rates for past months"]
     end
     subgraph "Reader"
         QH["QueryHandler<br/>(date-aware Case/When)"]
@@ -148,7 +148,7 @@ After rebuilding `ExchangeRateDictionary`, add per-tenant currency discovery
 and snapshot upsert:
 
 ```python
-current_month = dh.today.strftime("%Y-%m")
+current_month = dh.this_month_start  # date(2026, 3, 1)
 exchange_dict = ExchangeRateDictionary.objects.first().currency_exchange_dictionary
 all_api_currencies = set(exchange_dict.keys())
 
@@ -165,7 +165,7 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
         # Pre-fetch all static pairs for this month in a single query
         static_pairs = set(
             MonthlyExchangeRateSnapshot.objects.filter(
-                year_month=current_month,
+                effective_date=current_month,
                 rate_type=RateType.STATIC,
             ).values_list("base_currency", "target_currency")
         )
@@ -177,7 +177,7 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
                     continue
                 if (base_cur, target_cur) not in static_pairs:
                     MonthlyExchangeRateSnapshot.objects.update_or_create(
-                        year_month=current_month,
+                        effective_date=current_month,
                         base_currency=base_cur,
                         target_currency=target_cur,
                         defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
@@ -243,21 +243,21 @@ def effective_exchange_rates(self):
     Current month: from StaticExchangeRateDictionary (static priority),
     then ExchangeRateDictionary (dynamic fallback).
     """
-    current_month = self.dh.today.strftime("%Y-%m")
-    past_months = [m.strftime("%Y-%m") for m in self._iter_months() if m.strftime("%Y-%m") != current_month]
+    current_month = self.dh.this_month_start  # date(2026, 3, 1)
+    past_months = [m for m in self._iter_months() if m != current_month]
 
     rates = {}
 
     # Past months: read from snapshot (locked historical rates)
     if past_months:
         for snap in MonthlyExchangeRateSnapshot.objects.filter(
-            year_month__in=past_months,
+            effective_date__in=past_months,
             target_currency=self.currency,
         ):
-            rates[snap.year_month] = snap
+            rates[snap.effective_date] = snap
 
     # Current month: read from dictionaries (sources of truth)
-    if current_month in [m.strftime("%Y-%m") for m in self._iter_months()]:
+    if current_month in self._iter_months():
         rate = self._resolve_current_month_rate()
         if rate:
             rates[current_month] = rate
@@ -307,8 +307,8 @@ Replace single-rate annotation with per-month `Case`/`When`:
 
 ```python
 whens = []
-for year_month, rate_info in self.effective_exchange_rates.items():
-    month_start, month_end = month_bounds(year_month)
+for effective_date, rate_info in self.effective_exchange_rates.items():
+    month_start, month_end = month_bounds(effective_date)
     whens.append(When(
         usage_start__gte=month_start,
         usage_start__lt=month_end,
@@ -494,3 +494,4 @@ This is handled automatically by the unified `MonthlyExchangeRateSnapshot` table
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility. All currencies always stored and snapshotted. |
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution is: static first, dynamic fallback, error if neither. `CURRENCY_URL` only affects whether the Celery task fetches from the API. |
 | v1.4 | 2026-03-26 | Two-tier rate resolution: dictionaries as sources of truth for current month, snapshots for historical report rates. Updated query handler pseudocode. |
+| v1.5 | 2026-03-29 | Replaced `year_month` CharField references with `effective_date` DateField in all pseudocode and diagrams. |

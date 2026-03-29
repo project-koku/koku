@@ -151,11 +151,12 @@ See [risk-register.md](./risk-register.md) for full details.
 ### Shorter Validity Periods
 
 Future requirements may allow validity periods shorter than
-one month (e.g., weekly). The current design stores `year_month` as a
-`CharField(max_length=7)` in `MonthlyExchangeRateSnapshot`. Migrating to
+one month (e.g., weekly). The current design stores `effective_date` as a
+`DateField` in `MonthlyExchangeRateSnapshot` (first day of month). Migrating to
 shorter periods would require:
 
-- A new snapshot table or column scheme (e.g., `period_start` / `period_end` dates)
+- Writing snapshot rows at a finer granularity (e.g., weekly start dates)
+- Updating the `unique_together` constraint if multiple rows per month are needed
 - Updated query handler to build `Case`/`When` at finer granularity
 - Updated Celery task to snapshot at the appropriate frequency
 
@@ -178,3 +179,4 @@ design would be needed to handle path prioritization.
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility. All currencies always stored and snapshotted. |
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
 | v1.4 | 2026-03-26 | Updated artifacts and validation to reflect two-tier rate resolution (dictionaries + snapshots). |
+| v1.5 | 2026-03-29 | Updated future scalability section: `year_month` CharField replaced by `effective_date` DateField. |

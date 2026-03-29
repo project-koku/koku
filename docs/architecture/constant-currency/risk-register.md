@@ -70,7 +70,7 @@ list), this is ~17,000 `update_or_create` calls. Each call involves a
   Returns HTTP 400 if overlap detected.
 
 - **Level 2 — Snapshot table**: The `unique_together` constraint on
-  `(year_month, base_currency, target_currency)` in `MonthlyExchangeRateSnapshot`
+  `(effective_date, base_currency, target_currency)` in `MonthlyExchangeRateSnapshot`
   prevents duplicate rows at the database level, regardless of which writer
   created them.
 

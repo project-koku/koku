@@ -252,7 +252,7 @@ class RateType(models.TextChoices):
     DYNAMIC = "dynamic", "Dynamic"
 
 class MonthlyExchangeRateSnapshot(models.Model):
-    year_month = models.CharField(max_length=7)       # "2026-03"
+    effective_date = models.DateField()                 # First day of month: 2026-03-01
     base_currency = models.CharField(max_length=5)
     target_currency = models.CharField(max_length=5)
     exchange_rate = models.DecimalField(max_digits=33, decimal_places=15)
@@ -262,26 +262,28 @@ class MonthlyExchangeRateSnapshot(models.Model):
 
     class Meta:
         db_table = "monthly_exchange_rate_snapshot"
-        unique_together = ("year_month", "base_currency", "target_currency")
+        unique_together = ("effective_date", "base_currency", "target_currency")
 ```
 
 **Constraints**:
 
-- `unique_together` ensures one rate per `(month, base, target)` triple
+- `unique_together` ensures one rate per `(effective_date, base, target)` triple
+- `effective_date` stores the first day of the month (`2026-03-01`), consistent
+  with existing patterns like `usage_start` and `billing_period_start`
 - `rate_type` is constrained to `RateType.choices` (`"static"` or `"dynamic"`)
 
 **Example `monthly_exchange_rate_snapshot` rows**:
 
-| id | year_month | base_currency | target_currency | exchange_rate | rate_type | created_timestamp | updated_timestamp |
-|----|------------|---------------|-----------------|---------------|-----------|-------------------|-------------------|
-| 1 | `2026-01` | `USD` | `EUR` | `0.920000000000000` | `static` | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
-| 2 | `2026-02` | `USD` | `EUR` | `0.920000000000000` | `static` | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
-| 3 | `2026-03` | `USD` | `EUR` | `0.920000000000000` | `static` | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
-| 4 | `2026-01` | `USD` | `GBP` | `0.780000000000000` | `static` | `2026-01-10 08:00:00+00` | `2026-01-20 14:22:00+00` |
-| 5 | `2026-02` | `USD` | `GBP` | `0.740000000000000` | `dynamic` | `2026-02-01 06:00:00+00` | `2026-02-01 06:00:00+00` |
-| 6 | `2026-03` | `USD` | `GBP` | `0.738500000000000` | `dynamic` | `2026-03-01 06:00:00+00` | `2026-03-24 06:00:00+00` |
-| 7 | `2026-01` | `USD` | `CNY` | `7.230000000000000` | `dynamic` | `2026-01-01 06:00:00+00` | `2026-01-31 06:00:00+00` |
-| 8 | `2026-02` | `USD` | `CNY` | `7.185000000000000` | `dynamic` | `2026-02-01 06:00:00+00` | `2026-02-28 06:00:00+00` |
+| id | effective_date | base_currency | target_currency | exchange_rate | rate_type | created_timestamp | updated_timestamp |
+|----|----------------|---------------|-----------------|---------------|-----------|-------------------|-------------------|
+| 1 | `2026-01-01` | `USD` | `EUR` | `0.920000000000000` | `static` | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
+| 2 | `2026-02-01` | `USD` | `EUR` | `0.920000000000000` | `static` | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
+| 3 | `2026-03-01` | `USD` | `EUR` | `0.920000000000000` | `static` | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
+| 4 | `2026-01-01` | `USD` | `GBP` | `0.780000000000000` | `static` | `2026-01-10 08:00:00+00` | `2026-01-20 14:22:00+00` |
+| 5 | `2026-02-01` | `USD` | `GBP` | `0.740000000000000` | `dynamic` | `2026-02-01 06:00:00+00` | `2026-02-01 06:00:00+00` |
+| 6 | `2026-03-01` | `USD` | `GBP` | `0.738500000000000` | `dynamic` | `2026-03-01 06:00:00+00` | `2026-03-24 06:00:00+00` |
+| 7 | `2026-01-01` | `USD` | `CNY` | `7.230000000000000` | `dynamic` | `2026-01-01 06:00:00+00` | `2026-01-31 06:00:00+00` |
+| 8 | `2026-02-01` | `USD` | `CNY` | `7.185000000000000` | `dynamic` | `2026-02-01 06:00:00+00` | `2026-02-28 06:00:00+00` |
 
 In this example:
 - **Rows 1–3**: `USD→EUR` uses a **static** rate (`0.92`) for all three months
@@ -411,3 +413,4 @@ changes required.
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility, not snapshotting |
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
 | v1.4 | 2026-03-26 | Clarified `StaticExchangeRateDictionary` as source of truth for static rates; `MonthlyExchangeRateSnapshot` as historical rate storage for reports. |
+| v1.5 | 2026-03-29 | Replaced `year_month` CharField with `effective_date` DateField on `MonthlyExchangeRateSnapshot` for consistency with existing date field patterns (`usage_start`, `billing_period_start`). |
