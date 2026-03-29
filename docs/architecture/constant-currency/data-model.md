@@ -252,7 +252,7 @@ class RateType(models.TextChoices):
     DYNAMIC = "dynamic", "Dynamic"
 
 class MonthlyExchangeRateSnapshot(models.Model):
-    effective_date = models.DateField()                 # First day of month: 2026-03-01
+    effective_date = models.DateField()
     base_currency = models.CharField(max_length=5)
     target_currency = models.CharField(max_length=5)
     exchange_rate = models.DecimalField(max_digits=33, decimal_places=15)
