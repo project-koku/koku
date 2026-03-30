@@ -23,6 +23,8 @@ from api.utils import get_currency
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
+from cost_models.models import PriceListCostModelMap
+from cost_models.price_list_manager import PriceListManager
 
 MARKUP_CHOICES = (("percent", "%"),)
 TAG_RATE_ONLY = (metric_constants.OCP_PROJECT_MONTH,)
@@ -438,6 +440,8 @@ class CostModelSerializer(BaseSerializer):
 
     currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
 
+    price_list_uuids = serializers.ListField(child=serializers.UUIDField(), required=False)
+
     @property
     def customer(self):
         """Return the customer for the request."""
@@ -593,15 +597,25 @@ class CostModelSerializer(BaseSerializer):
     def create(self, validated_data):
         """Create the cost model object in the database."""
         source_uuids = validated_data.pop("source_uuids", [])
+        price_list_uuids = validated_data.pop("price_list_uuids", [])
         validated_data.update({"provider_uuids": source_uuids})
         try:
-            return CostModelManager().create(**validated_data)
+            cost_model = CostModelManager().create(**validated_data)
         except CostModelException as error:
             raise serializers.ValidationError(error_obj("cost-models", str(error)))
+        if price_list_uuids:
+            from cost_models.price_list_manager import PriceListException
+
+            try:
+                PriceListManager.attach_price_lists_to_cost_model(cost_model.uuid, price_list_uuids)
+            except PriceListException as error:
+                raise serializers.ValidationError(error_obj("cost-models", str(error)))
+        return cost_model
 
     def update(self, instance, validated_data, *args, **kwargs):
         """Update the rate object in the database."""
         source_uuids = validated_data.pop("source_uuids", [])
+        price_list_uuids = validated_data.pop("price_list_uuids", None)
         new_providers_for_instance = []
         for uuid in source_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
@@ -611,6 +625,13 @@ class CostModelSerializer(BaseSerializer):
             manager.update(**validated_data)
         except CostModelException as error:
             raise serializers.ValidationError(error_obj("cost-models", str(error)))
+        if price_list_uuids is not None:
+            from cost_models.price_list_manager import PriceListException
+
+            try:
+                PriceListManager.attach_price_lists_to_cost_model(instance.uuid, price_list_uuids)
+            except PriceListException as error:
+                raise serializers.ValidationError(error_obj("cost-models", str(error)))
         return manager.instance
 
     def to_representation(self, cost_model_obj):
@@ -644,6 +665,21 @@ class CostModelSerializer(BaseSerializer):
         cm_uuid = cost_model_obj.uuid
         source_uuids = CostModelManager(cm_uuid).get_provider_names_uuids()
         rep.update({"sources": source_uuids})
+
+        price_list_maps = (
+            PriceListCostModelMap.objects.filter(cost_model__uuid=cm_uuid)
+            .select_related("price_list")
+            .order_by("priority")
+        )
+        rep["price_lists"] = [
+            {
+                "uuid": str(m.price_list.uuid),
+                "name": m.price_list.name,
+                "priority": m.priority,
+            }
+            for m in price_list_maps
+        ]
+
         return rep
 
     def to_internal_value(self, data):
