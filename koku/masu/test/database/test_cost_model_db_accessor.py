@@ -4,6 +4,7 @@
 #
 """Test the CostModelDBAccessor utility object."""
 import random
+from datetime import date
 
 from django_tenants.utils import schema_context
 
@@ -11,6 +12,8 @@ from api.metrics import constants as metric_constants
 from api.models import Provider
 from api.report.test.util.constants import OCP_ON_PREM_COST_MODEL
 from cost_models.models import CostModel
+from cost_models.models import PriceList
+from cost_models.models import PriceListCostModelMap
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
@@ -440,3 +443,40 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
             result_infra_rates = cost_model_accessor.tag_infrastructure_rates.get("node_cost_per_month")
             self.assertEqual(result_infra_rates, expected)
+
+    def test_effective_rates_no_target_date_falls_back(self):
+        """Test that effective_rates falls back to CostModel.rates when no target_date."""
+        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+            rates = cost_model_accessor.effective_rates
+            self.assertEqual(rates, cost_model_accessor.cost_model.rates)
+
+    def test_effective_rates_with_target_date_uses_price_list(self):
+        """Test that effective_rates resolves via price list when target_date is provided."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            test_rates = [
+                {
+                    "metric": {"name": "cpu_core_usage_per_hour"},
+                    "tiered_rates": [{"value": "9.99", "unit": "USD"}],
+                    "cost_type": "Infrastructure",
+                }
+            ]
+            pl = PriceList.objects.create(
+                name="Test PL",
+                effective_start_date=date(2026, 1, 1),
+                effective_end_date=date(2026, 12, 31),
+                rates=test_rates,
+            )
+            PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model, priority=1)
+
+        with CostModelDBAccessor(
+            self.schema, self.provider_uuid, target_date=date(2026, 6, 15)
+        ) as cost_model_accessor:
+            rates = cost_model_accessor.effective_rates
+            self.assertEqual(rates, test_rates)
+
+    def test_effective_rates_with_target_date_no_matching_price_list(self):
+        """Test that effective_rates returns empty when no price list covers the date."""
+        with CostModelDBAccessor(self.schema, self.provider_uuid, target_date=date(2099, 1, 1)) as cost_model_accessor:
+            rates = cost_model_accessor.effective_rates
+            self.assertEqual(rates, {})
