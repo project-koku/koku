@@ -14,9 +14,10 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
 )
 WITH unattributed_gpu_cost as (
     SELECT
-        sum(cost_model_gpu_cost) as gpu_unallocated_cost,
+        cost_model_gpu_cost as gpu_unallocated_cost,
         node,
         json_extract_scalar(all_labels, '$["gpu-model"]') AS gpu_model,
+        usage_start,
         cluster_alias,
         cluster_id,
         report_period_id
@@ -25,13 +26,14 @@ WITH unattributed_gpu_cost as (
       AND usage_start >= DATE({{start_date}})
       AND usage_start <= DATE({{end_date}})
       AND source_uuid = CAST({{source_uuid}} AS UUID)
-    GROUP BY node, 3, cluster_alias, cluster_id, report_period_id
 ),
 namespace_usage_information as (
+    -- MIG-aware distribution: use slice-hours instead of just uptime
+    -- slice_hours = sum(uptime * slice_count)
     SELECT gpu_model_name,
         gpu_usage.namespace,
         gpu_usage.node,
-        sum(gpu_pod_uptime) as pod_usage_uptime,
+        sum(gpu_pod_uptime * COALESCE(gpu_usage.mig_slice_count, 1)) as pod_usage_slice_hours,
         DATE(interval_start) as usage_start
     FROM hive.{{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu_usage
     INNER JOIN unattributed_gpu_cost AS ungpu
@@ -40,6 +42,12 @@ namespace_usage_information as (
       AND year = {{year}}
       AND month = {{month}}
     group by gpu_model_name, gpu_usage.node, namespace, DATE(interval_start)
+),
+total_usage as (
+    SELECT node, gpu_model_name, usage_start,
+           sum(pod_usage_slice_hours) as total_slice_hours
+    FROM namespace_usage_information
+    GROUP BY node, gpu_model_name, usage_start
 )
 SELECT
     uuid(),
@@ -53,14 +61,16 @@ SELECT
     nsp_usage.node,
     CAST({{source_uuid}} AS UUID),
     {{cost_model_rate_type}},
-    max(nsp_usage.pod_usage_uptime / total_usage.total_pod_uptime * unattributed.gpu_unallocated_cost) as distributed_cost
+    max(nsp_usage.pod_usage_slice_hours / NULLIF(total_usage.total_slice_hours, 0) * unattributed.gpu_unallocated_cost) as distributed_cost
 FROM namespace_usage_information as nsp_usage
 JOIN unattributed_gpu_cost as unattributed
     ON unattributed.node = nsp_usage.node
-JOIN (
-    SELECT sum(pod_usage_uptime) as total_pod_uptime, node FROM namespace_usage_information group by node
-) as total_usage
-    ON unattributed.node = total_usage.node
+    AND unattributed.gpu_model = nsp_usage.gpu_model_name
+    AND unattributed.usage_start = nsp_usage.usage_start
+JOIN total_usage
+    ON total_usage.node = nsp_usage.node
+    AND total_usage.gpu_model_name = nsp_usage.gpu_model_name
+    AND total_usage.usage_start = nsp_usage.usage_start
 GROUP BY nsp_usage.usage_start, nsp_usage.node, nsp_usage.namespace
 
 UNION
