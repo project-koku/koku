@@ -9,10 +9,10 @@ Single source of truth for risks related to the Constant Currency feature
 
 | ID | Risk | Status | Phase | Mitigation |
 |----|------|--------|-------|------------|
-| **R1** | Celery task failure on month-end leaves no snapshot | Mitigated | 1 | Daily rolling `update_or_create`; last successful rate persists |
+| **R1** | Celery task failure on month-end leaves no rate row | Mitigated | 1 | Daily rolling `update_or_create`; last successful rate persists |
 | **R2** | Large number of currency pairs × tenants increases task runtime | Open | 1 | Monitor task duration; batch operations if needed |
-| **R3** | Overlapping static rates bypass serializer validation | Mitigated | 1 | DB-level `unique_together` on snapshot; serializer checks on `StaticExchangeRate` |
-| **R4** | Pre-deployment months have no snapshot data | Accepted | 1 | Fallback to `ExchangeRateDictionary` (current behavior unchanged) |
+| **R3** | Overlapping static rates bypass serializer validation | Mitigated | 1 | DB-level `unique_together` on `MonthlyExchangeRate`; serializer checks on `StaticExchangeRate` |
+| **R4** | Pre-deployment months have no `MonthlyExchangeRate` data | Accepted | 1 | Fallback to `ExchangeRateDictionary` (current behavior unchanged) |
 | **R5** | Query handler `Case`/`When` with many months/currencies may be slow | Open | 1 | Benchmark with realistic currency pair counts |
 | **R6** | Static rate deletion leaves gap before dynamic rate fills in | Mitigated | 1 | Serializer proactively populates dynamic rows on static rate deletion; no gap |
 | **R7** | User selects a target currency with no conversion path from bill currency | Mitigated | 1 | Show actionable error; currencies remain visible in dropdown |
@@ -22,15 +22,15 @@ Single source of truth for risks related to the Constant Currency feature
 
 ## R1 — Celery Task Month-End Failure
 
-**Decision**: Mitigated via daily rolling snapshots.
+**Decision**: Mitigated via daily rolling updates.
 
-The snapshot for the current month is updated every day, not just on the last
-day. If the task fails on the last day of the month, the snapshot retains the
-rate from the most recent successful run.
+The current month's row in `MonthlyExchangeRate` is updated every day, not just
+on the last day. If the task fails on the last day of the month, the table
+retains the rate from the most recent successful run.
 
 | # | Approach | Status |
 |---|----------|--------|
-| 1 | Snapshot only on last day of month | **Rejected** — single point of failure at month boundary |
+| 1 | Write only on last day of month | **Rejected** — single point of failure at month boundary |
 | 2 | **Daily rolling `update_or_create`** | **Selected** — resilient to task failures; rate from most recent successful day persists |
 
 **Linked from**: [pipeline-changes.md § Writer 1](./pipeline-changes.md#modified-get_daily_currency_rates--writer-1)
@@ -69,13 +69,13 @@ list), this is ~17,000 `update_or_create` calls. Each call involves a
   target_currency)` pair before creating/updating a `StaticExchangeRate`.
   Returns HTTP 400 if overlap detected.
 
-- **Level 2 — Snapshot table**: The `unique_together` constraint on
-  `(effective_date, base_currency, target_currency)` in `MonthlyExchangeRateSnapshot`
+- **Level 2 — `MonthlyExchangeRate` table**: The `unique_together` constraint on
+  `(effective_date, base_currency, target_currency)` in `MonthlyExchangeRate`
   prevents duplicate rows at the database level, regardless of which writer
   created them.
 
 **Linked from**: [data-model.md § StaticExchangeRate](./data-model.md#staticexchangerate),
-[data-model.md § MonthlyExchangeRateSnapshot](./data-model.md#monthlyexchangeratesnapshot)
+[data-model.md § MonthlyExchangeRate](./data-model.md#monthlyexchangerate)
 
 ---
 
@@ -83,17 +83,17 @@ list), this is ~17,000 `update_or_create` calls. Each call involves a
 
 **Decision**: Accepted. Forward-only design.
 
-Months before deployment have no snapshot rows in `MonthlyExchangeRateSnapshot`.
-The query handler falls back to `ExchangeRateDictionary` for these months,
-preserving current behavior exactly. Users see no change for historical data
-that predates the feature deployment.
+Months before deployment have no rows in `MonthlyExchangeRate`. The query
+handler falls back to `ExchangeRateDictionary` for these months, preserving
+current behavior exactly. Users see no change for historical data that
+predates the feature deployment.
 
 **Rejected alternative**: Backfilling historical months from
 `ExchangeRateDictionary` at deployment time. This was rejected because:
 
 1. `ExchangeRateDictionary` only stores the *latest* rates, not historical ones
-2. Backfilling would create misleading "locked" rates that were never actually
-   the rate for that month
+2. Backfilling would create misleading rates that were never actually the rate
+   for that month
 3. The fallback path preserves the exact pre-deployment behavior
 
 **Linked from**: [pipeline-changes.md § Reader](./pipeline-changes.md#modified-query-handler--reader)
@@ -135,12 +135,12 @@ performance should be validated with realistic data.
 **Decision**: Mitigated via proactive dynamic rate population on delete.
 
 When a static rate is deleted, the serializer removes `rate_type="static"` rows
-from `MonthlyExchangeRateSnapshot` and proactively populates
-`rate_type="dynamic"` rows from the current `ExchangeRateDictionary` for the
-affected pairs/months. This eliminates the data gap that would otherwise exist
-until the next daily Celery task run.
+from `MonthlyExchangeRate` and proactively populates `rate_type="dynamic"` rows
+from the current `ExchangeRateDictionary` for the affected pairs/months. This
+eliminates the data gap that would otherwise exist until the next daily Celery
+task run.
 
-**Linked from**: [pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--snapshot--writer-2)
+**Linked from**: [pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--monthlyexchangerate-upsert--writer-2)
 
 ---
 
@@ -233,3 +233,4 @@ R8       ✓
 | v1.1 | 2026-03-24 | Added R7 (no-rate corner case) and R8 (no rates configured) |
 | v1.2 | 2026-03-24 | Reframed R8: removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
 | v1.3 | 2026-03-29 | R6: upgraded from Low to Mitigated — serializer proactively populates dynamic rows on delete (aligns with pipeline-changes.md and api-and-frontend.md) |
+| v1.4 | 2026-03-30 | Renamed `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate` throughout. Updated R3, R4, R6 references. |
