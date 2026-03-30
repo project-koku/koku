@@ -58,6 +58,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     usage_start,
     usage_end,
     namespace,
+    pod,
     node,
     resource_id,
     pod_labels,
