@@ -284,18 +284,56 @@ All are standard `CreateModel` migrations in `cost_models/migrations/`. Since
 **What migration does NOT do**: No data migration needed. Table starts empty;
 populated via user CRUD.
 
-### M2: Create `monthly_exchange_rate` Table
+### M2: Create and seed `monthly_exchange_rate` Table
 
 | Field | Value |
 |-------|-------|
 | **Phase** | 1 |
-| **Type** | `CreateModel` (standard, no partitioning) |
+| **Type** | `CreateModel` + `RunPython` (seed current month) |
 | **App** | `cost_models` |
 | **Depends on** | M1 |
-| **Rollback** | `DeleteModel` |
+| **Rollback** | `DeleteModel` (seed data dropped with the table) |
 
-**What migration does NOT do**: No data migration or backfill. Table is populated
-going forward by the daily Celery task and CRUD side effects.
+**Seed step**: After creating the table, a `RunPython` step reads from
+`ExchangeRateDictionary` (public schema) and populates `MonthlyExchangeRate`
+with `rate_type=dynamic` rows for the **current month** in each tenant schema.
+This ensures the query handler has data from the moment of deployment — no
+legacy fallback code path is needed.
+
+```python
+def seed_current_month(apps, schema_editor):
+    """Seed MonthlyExchangeRate with current-month rates from ExchangeRateDictionary."""
+    ExchangeRateDictionary = apps.get_model("api", "ExchangeRateDictionary")
+    MonthlyExchangeRate = apps.get_model("cost_models", "MonthlyExchangeRate")
+    Tenant = apps.get_model("api", "Tenant")
+
+    erd = ExchangeRateDictionary.objects.first()
+    if not erd or not erd.currency_exchange_dictionary:
+        return
+
+    current_month = date.today().replace(day=1)
+
+    for tenant in Tenant.objects.exclude(schema_name="public"):
+        with schema_context(tenant.schema_name):
+            rows = []
+            for base_cur, targets in erd.currency_exchange_dictionary.items():
+                for target_cur, rate in targets.items():
+                    if base_cur == target_cur:
+                        continue
+                    rows.append(MonthlyExchangeRate(
+                        effective_date=current_month,
+                        base_currency=base_cur,
+                        target_currency=target_cur,
+                        exchange_rate=rate,
+                        rate_type="dynamic",
+                    ))
+            MonthlyExchangeRate.objects.bulk_create(rows, ignore_conflicts=True)
+```
+
+If `ExchangeRateDictionary` is empty (e.g., fresh deployment with no
+`CURRENCY_URL` configured), the seed step is a no-op — there are no dynamic
+rates to seed, and the table starts empty. The daily Celery task and static
+rate CRUD will populate it going forward.
 
 ### M3: Create `enabled_currency` Table
 
@@ -341,3 +379,4 @@ changes required.
 | v1.4 | 2026-03-26 | Clarified `StaticExchangeRateDictionary` as source of truth for static rates; `MonthlyExchangeRateSnapshot` as historical rate storage for reports. |
 | v1.5 | 2026-03-29 | Replaced `year_month` CharField with `effective_date` DateField on `MonthlyExchangeRateSnapshot` for consistency with existing date field patterns (`usage_start`, `billing_period_start`). |
 | v1.6 | 2026-03-30 | Renamed `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate` and promoted it to single source of truth for all months (current and past). Removed `StaticExchangeRateDictionary` — no longer needed since query handlers read from `MonthlyExchangeRate` for all months. Renumbered migrations (M3 is now `enabled_currency`; old M3 removed). |
+| v1.7 | 2026-03-30 | M2 now seeds current-month data from `ExchangeRateDictionary` during migration. Eliminates `ExchangeRateDictionary` fallback in query handler. |

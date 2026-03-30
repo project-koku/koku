@@ -37,7 +37,7 @@ pairs. Show rate provenance in report responses.
 | `MonthlyExchangeRate` model | `koku/cost_models/models.py` | Single source of truth: per-month, per-pair rate storage for all months |
 | `EnabledCurrency` model | `koku/cost_models/models.py` | Tracks enabled/disabled currencies per tenant |
 | Migration M1 | `koku/cost_models/migrations/XXXX_*.py` | Create `static_exchange_rate` table |
-| Migration M2 | `koku/cost_models/migrations/XXXX_*.py` | Create `monthly_exchange_rate` table |
+| Migration M2 | `koku/cost_models/migrations/XXXX_*.py` | Create `monthly_exchange_rate` table + seed current-month data from `ExchangeRateDictionary` |
 | Migration M3 | `koku/cost_models/migrations/XXXX_*.py` | Create `enabled_currency` table |
 | Serializer | `koku/cost_models/static_exchange_rate_serializer.py` | Validation + `MonthlyExchangeRate` upsert side-effects |
 | ViewSet | `koku/cost_models/static_exchange_rate_view.py` | CRUD API for static rates |
@@ -46,7 +46,7 @@ pairs. Show rate provenance in report responses.
 | URL registration | `koku/cost_models/urls.py` | Router entry for `exchange-rate-pairs` |
 | Settings URL registration | `koku/api/urls.py` or `koku/api/settings/urls.py` | Routes for currency enablement and available currencies endpoints |
 | Celery task update | `koku/masu/celery/tasks.py` | Currency discovery, `MonthlyExchangeRate` upsert for all currencies per tenant (skips fetch if no `CURRENCY_URL`) |
-| Query handler update | `koku/api/query_handler.py` | Read from `MonthlyExchangeRate` for all months; fallback to `ExchangeRateDictionary` for pre-deployment months |
+| Query handler update | `koku/api/query_handler.py` | Read from `MonthlyExchangeRate` for all months (no fallback; M2 seeds current month) |
 | OCP handler update | `koku/api/report/ocp/query_handler.py` | OCP-specific rate resolution from `MonthlyExchangeRate` |
 | Forecast handler update | `koku/forecast/forecast.py` | Rate resolution from `MonthlyExchangeRate` |
 | Report meta update | `koku/api/report/queries.py` | `exchange_rates_applied` metadata, no-rate error handling |
@@ -67,9 +67,10 @@ pairs. Show rate provenance in report responses.
 - [ ] Dynamic rate daily `MonthlyExchangeRate` upsert per tenant
 - [ ] Static rate precedence: task skips pairs with existing static rates
 - [ ] Finalized month immutability: past month rows never overwritten
-- [ ] `MonthlyExchangeRate` is the single source of truth: query handler reads from it for all months
+- [ ] `MonthlyExchangeRate` is the single source of truth: query handler reads from it for all months (no fallback)
+- [ ] M2 migration seeds current-month data from `ExchangeRateDictionary` into `MonthlyExchangeRate`
 - [ ] Date-aware `Case`/`When` annotations produce correct per-month rates
-- [ ] Fallback to `ExchangeRateDictionary` for pre-deployment months (no `MonthlyExchangeRate` rows)
+- [ ] Pre-deployment months (no rows) correctly default to rate=1 (no conversion)
 - [ ] `exchange_rates_applied` metadata appears in report responses
 - [ ] Consecutive months with same rate/type collapsed into one period string
 - [ ] Unit tests pass for serializer, view, MonthlyExchangeRate logic, query handler
@@ -134,7 +135,7 @@ See [risk-register.md](./risk-register.md) for full details.
 | **R1** | Celery task month-end failure | Mitigated | 1 |
 | **R2** | Task runtime with many tenants/pairs | Open | 1 |
 | **R3** | Overlapping static rates | Mitigated | 1 |
-| **R4** | Pre-deployment month gap | Accepted | 1 |
+| **R4** | Pre-deployment month gap | Resolved | 1 |
 | **R5** | Query handler performance | Open | 1 |
 | **R6** | Static rate deletion gap | Low | 1 |
 | **R7** | No exchange rate for selected currency | Mitigated | 1 |
@@ -177,3 +178,4 @@ design would be needed to handle path prioritization.
 | v1.4 | 2026-03-26 | Updated artifacts and validation to reflect two-tier rate resolution (dictionaries + snapshots). |
 | v1.5 | 2026-03-29 | Updated future scalability section: `year_month` CharField replaced by `effective_date` DateField. |
 | v1.6 | 2026-03-30 | `MonthlyExchangeRate` replaces `MonthlyExchangeRateSnapshot` as single source of truth. Removed `StaticExchangeRateDictionary` artifacts (model, M3 migration). Renumbered M4 → M3. Simplified validation items and rollback steps. |
+| v1.7 | 2026-03-30 | M2 now seeds current-month data. Removed fallback validation item. Added M2 seed and pre-deployment default validation items. R4 resolved. |

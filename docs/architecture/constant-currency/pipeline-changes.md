@@ -104,7 +104,6 @@ graph TD
     W1 -->|"update_or_create<br/>rate_type=dynamic<br/>skip if static exists"| MER
     W2 -->|"update_or_create<br/>rate_type=static<br/>overwrites dynamic"| MER
     MER -->|"all months:<br/>per-month rates"| QH
-    ERD["ExchangeRateDictionary<br/>(public schema)"] -.->|"fallback for<br/>pre-deployment months"| QH
 ```
 
 For the current month, dynamic rows are overwritten daily with the latest rate
@@ -219,15 +218,19 @@ table that serves as the source of truth for all months:
 
 | Month | Source | Rationale |
 |-------|--------|-----------|
-| **All months (current + past)** | `MonthlyExchangeRate` | Single source of truth; current month rows are kept up to date by writers; past month rows are locked |
-| **Pre-deployment months** | `ExchangeRateDictionary` (legacy fallback) | No `MonthlyExchangeRate` rows exist; preserves current behavior |
+| **All months** | `MonthlyExchangeRate` | Single source of truth; current month rows are kept up to date by writers; past month rows are locked |
 
-This simplifies the previous design: instead of reading from two dictionaries
-for the current month and a separate table for past months, the query handler
-reads from one table for everything. The `rate_type` column tracks whether each
-rate is static or dynamic (static rows take precedence via the `unique_together`
-constraint — when a static rate is written, it overwrites any existing dynamic
-row for the same triple).
+No fallback to `ExchangeRateDictionary` is needed. The M2 migration seeds the
+current month's data from `ExchangeRateDictionary` at deployment time (see
+[data-model.md § M2](./data-model.md#m2-create-and-seed-monthly_exchange_rate-table)),
+so `MonthlyExchangeRate` has data from the moment of deployment. For months
+before deployment, no `MonthlyExchangeRate` rows exist, and no currency
+conversion is applied (effectively a rate of 1) — this correctly reflects that
+per-month rate tracking did not exist before the feature was deployed.
+
+The `rate_type` column tracks whether each rate is static or dynamic (static
+rows take precedence via the `unique_together` constraint — when a static rate
+is written, it overwrites any existing dynamic row for the same triple).
 
 ### New: `effective_exchange_rates` Property
 
@@ -267,20 +270,19 @@ for effective_date, rate_info in self.effective_exchange_rates.items():
 return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
 ```
 
-### Fallback for Pre-Deployment Months
+### Pre-Deployment Months
 
-For months without `MonthlyExchangeRate` rows (before deployment), fall back to
-the live `ExchangeRateDictionary` (current behavior). This ensures backward
-compatibility:
+Months before deployment have no `MonthlyExchangeRate` rows. The query handler
+does not fall back to `ExchangeRateDictionary` — if no row exists for a month,
+no currency conversion is applied for that month (the `default=1` in the
+`Case`/`When` means amounts pass through unconverted). This correctly reflects
+that per-month rate tracking did not exist before the feature was deployed.
 
-```python
-if not whens:
-    # No MonthlyExchangeRate data — fall back to ExchangeRateDictionary
-    return self._legacy_exchange_rate_annotation_dict()
-```
+The M2 migration seeds the current month at deployment time, so there is no gap
+for the current month. Going forward, the daily Celery task and CRUD operations
+populate future months.
 
-**Risk linkage**: See [risk-register.md § R4](./risk-register.md#r4--pre-deployment-month-gap),
-[risk-register.md § R5](./risk-register.md#r5--query-handler-performance)
+**Risk linkage**: See [risk-register.md § R5](./risk-register.md#r5--query-handler-performance)
 
 ### New: Available Currency Resolution
 
@@ -382,8 +384,8 @@ This is handled automatically by the `MonthlyExchangeRate` table:
   unless explicitly edited. No locking needed.
 - **Resilience**: If the daily task fails on the last day of the month, the
   table still has the rate from the most recent successful day.
-- **Forward-only**: Months before deployment have no `MonthlyExchangeRate` rows
-  and fall back to the live `ExchangeRateDictionary`.
+- **Forward-only**: Months before deployment have no `MonthlyExchangeRate` rows;
+  the current month is seeded during M2 migration.
 
 ---
 
@@ -391,7 +393,7 @@ This is handled automatically by the `MonthlyExchangeRate` table:
 
 | File | Reason |
 |------|--------|
-| `koku/api/currency/models.py` | `ExchangeRates` and `ExchangeRateDictionary` remain as-is; `ExchangeRateDictionary` is still rebuilt daily by the Celery task and serves as the intermediate source for dynamic rates (the task reads from it to populate `MonthlyExchangeRate`). Also used as a legacy fallback for pre-deployment months. |
+| `koku/api/currency/models.py` | `ExchangeRates` and `ExchangeRateDictionary` remain as-is; `ExchangeRateDictionary` is still rebuilt daily by the Celery task and serves as the intermediate source for dynamic rates (the task reads from it to populate `MonthlyExchangeRate`). The M2 migration also reads from it to seed current-month data. No longer used by the query handler at query time. |
 | `koku/api/currency/utils.py` | `build_exchange_dictionary` unchanged |
 | `koku/koku/settings.py` | `CURRENCY_URL` unchanged (already configurable); empty value causes Celery task to skip API fetch |
 | `masu/database/sql/` | No SQL template changes (all changes are Django ORM) |
@@ -411,3 +413,4 @@ This is handled automatically by the `MonthlyExchangeRate` table:
 | v1.4 | 2026-03-26 | Two-tier rate resolution: dictionaries as sources of truth for current month, snapshots for historical report rates. Updated query handler pseudocode. |
 | v1.5 | 2026-03-29 | Replaced `year_month` CharField references with `effective_date` DateField in all pseudocode and diagrams. |
 | v1.6 | 2026-03-30 | `MonthlyExchangeRate` is now the single source of truth for all months (current and past). Removed `StaticExchangeRateDictionary` and two-tier resolution. Query handler reads from one table. Writer 2 simplified to upsert only. |
+| v1.7 | 2026-03-30 | Removed `ExchangeRateDictionary` fallback from query handler. M2 migration seeds current-month data at deployment. Pre-deployment months have no conversion (rate=1). |

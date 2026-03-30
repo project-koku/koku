@@ -52,9 +52,10 @@ relatively lightweight. Why add a dedicated table?
 3. **Auditability** — each month's effective rate is recorded with its type (`static`/`dynamic`)
 4. **Month locking** — dynamic rates are locked at month-end; the table preserves whatever rate was in effect
 
-Query handlers read from `MonthlyExchangeRate` for all months. For
-pre-deployment months with no rows, the query handler falls back to
-`ExchangeRateDictionary` (preserving current behavior).
+Query handlers read from `MonthlyExchangeRate` for all months. The M2 migration
+seeds current-month data from `ExchangeRateDictionary` at deployment time, so
+data is available immediately. Pre-deployment months have no rows and no
+conversion is applied (rate defaults to 1).
 
 ---
 
@@ -258,7 +259,6 @@ graph LR
     MER -->|"all months:<br/>per-month rates"| QH["QueryHandler<br/>date-aware Case/When"]
     QH -->|"per-month rates +<br/>rate metadata"| REPORT["Report Response<br/>+ exchange_rates_applied"]
     QH -->|"no rate? →<br/>actionable error"| ERR["Error: no exchange rate<br/>available"]
-    ERD -.->|"fallback for<br/>pre-deployment months"| QH
     ADMIN["CM Admin"] -->|"enable/disable<br/>currencies"| EC
     USER["Price List Admin"] -->|CRUD| SER["Serializer"]
     SER -->|"write canonical<br/>rate record"| STATIC["StaticExchangeRate<br/>(tenant schema)"]
@@ -271,7 +271,7 @@ graph LR
 
 1. **Single source of truth**: `MonthlyExchangeRate` stores rates for all months (current and past); query handlers read from this one table
 2. **Two writers**: Celery task writes dynamic rates daily for the current month; CRUD serializer writes static rates for affected months
-3. **Rate resolution**: All months read from `MonthlyExchangeRate`; pre-deployment months fall back to `ExchangeRateDictionary`; error if no rate exists
+3. **Rate resolution**: All months read from `MonthlyExchangeRate`; M2 migration seeds current-month data at deployment; pre-deployment months have no conversion (rate=1); error if no rate exists for post-deployment months
 4. Report responses include rate provenance metadata
 5. **Currency enablement**: Dynamic currencies arrive as disabled; administrator enables them via Settings to make them visible in the dropdown (all currencies are always stored)
 6. **Dropdown visibility**: Target currency dropdown shows only the union of enabled dynamic currencies and static rate currencies (disabled currencies are stored but hidden from the dropdown)
@@ -291,7 +291,7 @@ graph LR
 | 6 | **Natural month boundaries** | Start/end dates must align to first/last day of month; no mid-month validity periods |
 | 7 | **Simple integer versioning** | Auto-increment on `StaticExchangeRate.version`; Phase 2 adds full audit history |
 | 8 | **Automatic finalized month locking** | Dynamic rows overwritten daily during current month; untouched after month ends |
-| 9 | **Forward-only** | Pre-deployment months have no `MonthlyExchangeRate` rows; fall back to `ExchangeRateDictionary` |
+| 9 | **Forward-only with current-month seed** | M2 migration seeds current-month data from `ExchangeRateDictionary`; pre-deployment months have no rows (rate defaults to 1) |
 | 10 | **Per-pair rows, not JSON blob** | Enables `unique_together` constraint, simpler queries, cleaner ORM integration |
 | 11 | **Explicit currency enablement** | Dynamic currencies arrive disabled; administrator enables them in Settings to control which currencies appear in the dropdown. All currencies are always stored regardless of enabled status. |
 | 12 | **Configurable exchange rate URL** | `CURRENCY_URL` is a variable; empty value skips dynamic rate fetching. System works with whatever rates are available (static first, dynamic fallback, error if neither). Documentation references `open.er-api.com` (free tier) as the production example |
@@ -310,3 +310,4 @@ graph LR
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. `CURRENCY_URL` only affects API fetch. |
 | v1.4 | 2026-03-26 | Clarified two-tier rate resolution: dictionaries are sources of truth, snapshots are for historical report rates. Updated data flow diagram to show query handler reading from `StaticExchangeRateDictionary`. |
 | v1.5 | 2026-03-30 | `MonthlyExchangeRate` replaces `MonthlyExchangeRateSnapshot` as single source of truth for all months. Removed `StaticExchangeRateDictionary`. Simplified data flow diagram and design decisions. Renumbered decisions (old 11 removed, old 12–15 → 11–14). |
+| v1.6 | 2026-03-30 | Removed `ExchangeRateDictionary` fallback from query handler. M2 seeds current-month data. Decision #9 updated. |
