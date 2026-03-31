@@ -250,17 +250,19 @@ class OCPGpuViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data
-        if data.get("data") and len(data["data"]) > 0:
-            models = data["data"][0].get("gpu_models", [])
-            if models:
-                gpu_names = models[0].get("gpu_names", [])
-                if gpu_names:
-                    values = gpu_names[0].get("values", [])
-                    if values:
-                        self.assertIn("mig_profile", values[0])
-                        self.assertIn("mig_slice_count", values[0])
-                        self.assertIn("gpu_max_slices", values[0])
-                        self.assertIn("mig_memory_capacity_gb", values[0])
+        self.assertIn("data", data)
+        if not data["data"]:
+            self.skipTest("No GPU data available in test database")
+        models = data["data"][0].get("gpu_models", [])
+        if not models:
+            self.skipTest("No gpu_models in response — test DB lacks GPU fixture data")
+        values = models[0].get("gpu_names", [{}])[0].get("values", [])
+        if not values:
+            self.skipTest("No values in response — test DB lacks GPU fixture data")
+        self.assertIn("mig_profile", values[0])
+        self.assertIn("mig_slice_count", values[0])
+        self.assertIn("gpu_max_slices", values[0])
+        self.assertIn("mig_memory_capacity_gb", values[0])
 
     @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
     def test_mig_profiles_endpoint_with_valid_filters(self, mock_unleash):
