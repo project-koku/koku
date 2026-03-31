@@ -959,8 +959,8 @@ class RemoveOutliersEdgeCaseTest(IamTestCase):
         points and making the regression meaningless.
         """
         # Use varied values so IQR is non-zero (avoids the all-identical path).
-        # MINIMUM - 1 varied base values + 1 extreme outlier → after filtering
-        # only MINIMUM - 1 points remain, which is below MINIMUM → fallback.
+        # MINIMUM - 1 varied base values + 1 extreme outlier -> after filtering
+        # only MINIMUM - 1 points remain, which is below MINIMUM -> fallback.
         n = AWSForecast.MINIMUM - 1
         values = [10 + i for i in range(n)] + [10_000]  # one extreme outlier
         data = self._make_data(values)
@@ -978,8 +978,8 @@ class RemoveOutliersEdgeCaseTest(IamTestCase):
     def test_remove_outliers_no_fallback_when_enough_data_remains(self):
         """When enough clean points remain after outlier removal, the outlier IS removed."""
         # Use varied base values so IQR is non-zero and the extreme outlier is
-        # actually detected and removed.  MINIMUM varied points + 1 outlier →
-        # MINIMUM points remain after removal → no fallback needed.
+        # actually detected and removed.  MINIMUM varied points + 1 outlier ->
+        # MINIMUM points remain after removal -> no fallback needed.
         n = AWSForecast.MINIMUM
         values = [10 + i for i in range(n)] + [10_000]
         data = self._make_data(values)
@@ -999,7 +999,7 @@ class RemoveOutliersEdgeCaseTest(IamTestCase):
         The fallback restores the original data (MINIMUM points total), so
         predict() should still succeed.
         """
-        n = AWSForecast.MINIMUM - 1  # varied base points; outlier removal leaves n < MINIMUM → fallback
+        n = AWSForecast.MINIMUM - 1  # varied base points; outlier removal leaves n < MINIMUM -> fallback
         expected = []
         for i in range(n):
             expected.append(

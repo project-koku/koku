@@ -280,7 +280,7 @@ class Forecast:
         if not values:
             return data
 
-        # Convert to float for np.percentile — mixing Decimal and float in numpy
+        # Convert to float for np.percentile - mixing Decimal and float in numpy
         # operations raises TypeError because numpy returns float64 from percentile.
         float_values = [float(v) for v in values]
         third_quartile, first_quartile = np.percentile(float_values, [75, 25])
