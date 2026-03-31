@@ -257,7 +257,11 @@ def get_data_retention_months(schema_name: str) -> "int | None":
     """
     env_val = os.environ.get("RETAIN_NUM_MONTHS")
     if env_val is not None:
-        return int(env_val)
+        try:
+            return int(env_val)
+        except (ValueError, TypeError):
+            LOG.error("RETAIN_NUM_MONTHS env var is not a valid integer: %r", env_val)
+            return None
     try:
         with schema_context(schema_name):
             row = TenantSettings.objects.first()
@@ -267,6 +271,7 @@ def get_data_retention_months(schema_name: str) -> "int | None":
         LOG.error(
             "Failed to read tenant_settings for %s; skipping purge for this tenant",
             schema_name,
+            exc_info=True,
         )
         return None
     return Config.MASU_RETAIN_NUM_MONTHS
