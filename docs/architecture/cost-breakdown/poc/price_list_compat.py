@@ -16,7 +16,6 @@ Usage:
 Or standalone:
     python docs/architecture/cost-breakdown/poc/price_list_compat.py
 """
-
 import copy
 from dataclasses import dataclass
 from dataclasses import field
@@ -117,9 +116,7 @@ def price_list_from_json(rates_json: list[dict]) -> dict:
         if metric_name in metric_rate_map:
             metric_mapping = metric_rate_map[metric_name]
             if metric_cost_type in metric_mapping.get("tiered_rates", {}):
-                current_tiered_mapping = metric_mapping["tiered_rates"][
-                    metric_cost_type
-                ]
+                current_tiered_mapping = metric_mapping["tiered_rates"][metric_cost_type]
                 new_tiered_rate = rate.get("tiered_rates")
                 current_value = float(current_tiered_mapping[0].get("value"))
                 value_to_add = float(new_tiered_rate[0].get("value"))
@@ -172,11 +169,7 @@ def json_rates_to_rate_rows(rates_json: list[dict]) -> list[RateRow]:
         tiered_rates = rate_json.get("tiered_rates", [])
         tag_rates = rate_json.get("tag_rates", {})
 
-        default_rate = (
-            Decimal(str(tiered_rates[0].get("value", 0)))
-            if tiered_rates
-            else Decimal("0")
-        )
+        default_rate = Decimal(str(tiered_rates[0].get("value", 0))) if tiered_rates else Decimal("0")
 
         candidate = description[:50] if description else metric_name[:50]
         if candidate in used_names:
@@ -312,9 +305,7 @@ MIXED_RATES_JSON = [
         "description": "",
         "tag_rates": {
             "tag_key": "app",
-            "tag_values": [
-                {"tag_value": "smoke", "value": 123, "unit": "USD", "default": True}
-            ],
+            "tag_values": [{"tag_value": "smoke", "value": 123, "unit": "USD", "default": True}],
         },
     },
     {
@@ -417,10 +408,7 @@ def normalize_price_list(pl: dict) -> dict:
     for metric_name, entry in sorted(pl.items()):
         tiered = {}
         for cost_type, rate_list in sorted(entry.get("tiered_rates", {}).items()):
-            tiered[cost_type] = [
-                {"value": round(float(r["value"]), 10), "unit": r["unit"]}
-                for r in rate_list
-            ]
+            tiered[cost_type] = [{"value": round(float(r["value"]), 10), "unit": r["unit"]} for r in rate_list]
         normalized[metric_name] = {
             "metric": {"name": metric_name},
             "tiered_rates": tiered,
@@ -496,18 +484,10 @@ def test_duplicate_rates():
     assert not diffs, f"Differences found: {diffs}"
 
     expected_cpu_infra = 0.10 + 0.12
-    actual_json = json_pl["cpu_core_usage_per_hour"]["tiered_rates"]["Infrastructure"][
-        0
-    ]["value"]
-    actual_rate = rate_pl["cpu_core_usage_per_hour"]["tiered_rates"]["Infrastructure"][
-        0
-    ]["value"]
-    assert (
-        abs(actual_json - expected_cpu_infra) < 1e-9
-    ), f"JSON sum wrong: {actual_json}"
-    assert (
-        abs(actual_rate - expected_cpu_infra) < 1e-9
-    ), f"Rate sum wrong: {actual_rate}"
+    actual_json = json_pl["cpu_core_usage_per_hour"]["tiered_rates"]["Infrastructure"][0]["value"]
+    actual_rate = rate_pl["cpu_core_usage_per_hour"]["tiered_rates"]["Infrastructure"][0]["value"]
+    assert abs(actual_json - expected_cpu_infra) < 1e-9, f"JSON sum wrong: {actual_json}"
+    assert abs(actual_rate - expected_cpu_infra) < 1e-9, f"Rate sum wrong: {actual_rate}"
 
 
 def test_mixed_tiered_and_tag():
@@ -519,12 +499,8 @@ def test_mixed_tiered_and_tag():
     diffs = compare_price_lists(json_pl, rate_pl)
     assert not diffs, f"Differences found: {diffs}"
 
-    assert (
-        "node_cost_per_month" not in json_pl
-    ), "tag-only metric should not appear in JSON price_list"
-    assert (
-        "node_cost_per_month" not in rate_pl
-    ), "tag-only metric should not appear in Rate price_list"
+    assert "node_cost_per_month" not in json_pl, "tag-only metric should not appear in JSON price_list"
+    assert "node_cost_per_month" not in rate_pl, "tag-only metric should not appear in Rate price_list"
 
 
 def test_empty_rates():
