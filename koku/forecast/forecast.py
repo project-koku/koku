@@ -280,19 +280,16 @@ class Forecast:
         if not values:
             return data
 
-        third_quartile, first_quartile = np.percentile(values, [Decimal(75), Decimal(25)])
+        # Convert to float for np.percentile — mixing Decimal and float in numpy
+        # operations raises TypeError because numpy returns float64 from percentile.
+        float_values = [float(v) for v in values]
+        third_quartile, first_quartile = np.percentile(float_values, [75, 25])
         interquartile_range = third_quartile - first_quartile
 
-        # When IQR is zero (e.g. all values are identical), the boundaries collapse to the
-        # same value and the filter would remove every point.  Return the data unchanged so
-        # that the downstream MINIMUM check can decide whether to proceed.
-        if interquartile_range == 0:
-            return data
+        upper_boundary = third_quartile + (1.5 * interquartile_range)
+        lower_boundary = first_quartile - (1.5 * interquartile_range)
 
-        upper_boundary = third_quartile + (Decimal(1.5) * interquartile_range)
-        lower_boundary = first_quartile - (Decimal(1.5) * interquartile_range)
-
-        cleaned = {key: value for key, value in data.items() if lower_boundary <= value <= upper_boundary}
+        cleaned = {key: value for key, value in data.items() if lower_boundary <= float(value) <= upper_boundary}
 
         if len(cleaned) < self.MINIMUM:
             LOG.warning(

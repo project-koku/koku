@@ -939,12 +939,8 @@ class RemoveOutliersEdgeCaseTest(IamTestCase):
         self.assertEqual(result, {})
 
     def test_remove_outliers_all_identical_values(self):
-        """When all values are identical IQR is zero; data must be returned unchanged.
-
-        Previously the boundaries would collapse to the single value and the filter
-        would still pass everything through, but only by accident.  The explicit
-        IQR==0 guard makes the intent clear and prevents future regressions.
-        """
+        """When all values are identical IQR is zero; boundaries collapse to the value
+        itself so all points pass the filter and data is returned unchanged."""
         data = self._make_data([10] * 10)
         result = self.forecast._remove_outliers(data)
         self.assertEqual(result, data)
@@ -962,12 +958,11 @@ class RemoveOutliersEdgeCaseTest(IamTestCase):
         filtering to discard almost all data points, leaving fewer than MINIMUM
         points and making the regression meaningless.
         """
-        # Build MINIMUM + 1 identical values plus one extreme outlier.
-        # After IQR filtering the outlier is removed, leaving exactly MINIMUM points —
-        # that is still >= MINIMUM so no fallback.  Use MINIMUM - 1 identical values
-        # so that removing the outlier leaves MINIMUM - 1 < MINIMUM points.
+        # Use varied values so IQR is non-zero (avoids the all-identical path).
+        # MINIMUM - 1 varied base values + 1 extreme outlier → after filtering
+        # only MINIMUM - 1 points remain, which is below MINIMUM → fallback.
         n = AWSForecast.MINIMUM - 1
-        values = [10] * n + [10_000]  # one extreme outlier
+        values = [10 + i for i in range(n)] + [10_000]  # one extreme outlier
         data = self._make_data(values)
 
         with self.assertLogs(logger="forecast.forecast", level=logging.WARNING) as cm:
@@ -982,9 +977,11 @@ class RemoveOutliersEdgeCaseTest(IamTestCase):
 
     def test_remove_outliers_no_fallback_when_enough_data_remains(self):
         """When enough clean points remain after outlier removal, the outlier IS removed."""
-        # MINIMUM clean points + 1 outlier → MINIMUM points remain → no fallback needed.
+        # Use varied base values so IQR is non-zero and the extreme outlier is
+        # actually detected and removed.  MINIMUM varied points + 1 outlier →
+        # MINIMUM points remain after removal → no fallback needed.
         n = AWSForecast.MINIMUM
-        values = [10] * n + [10_000]
+        values = [10 + i for i in range(n)] + [10_000]
         data = self._make_data(values)
 
         result = self.forecast._remove_outliers(data)
@@ -997,10 +994,12 @@ class RemoveOutliersEdgeCaseTest(IamTestCase):
     def test_predict_warns_when_outlier_removal_causes_fallback(self):
         """End-to-end: predict() still produces a result when outlier removal triggers the fallback.
 
-        The fallback restores the original data, so predict() should succeed
-        (assuming the restored data has >= MINIMUM points).
+        Uses MINIMUM - 1 varied base points + 1 extreme outlier so that outlier
+        removal leaves fewer than MINIMUM points, triggering the fallback.
+        The fallback restores the original data (MINIMUM points total), so
+        predict() should still succeed.
         """
-        n = AWSForecast.MINIMUM  # enough points even with the outlier present
+        n = AWSForecast.MINIMUM - 1  # varied base points; outlier removal leaves n < MINIMUM → fallback
         expected = []
         for i in range(n):
             expected.append(
@@ -1020,6 +1019,7 @@ class RemoveOutliersEdgeCaseTest(IamTestCase):
                 "supplementary_cost": 0,
             }
         )
+        # Total data points = n + 1 = MINIMUM, which is enough for predict() after fallback.
         mock_qset = MockQuerySet(expected)
         params = self.mocked_query_params("?", AWSCostForecastView)
         instance = AWSForecast(params)
