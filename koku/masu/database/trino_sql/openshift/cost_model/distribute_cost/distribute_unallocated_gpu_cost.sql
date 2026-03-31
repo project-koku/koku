@@ -28,19 +28,17 @@ WITH unattributed_gpu_cost as (
       AND source_uuid = CAST({{source_uuid}} AS UUID)
 ),
 namespace_usage_information as (
-    -- MIG-aware distribution: use slice-hours instead of just uptime
-    -- slice_hours = sum(uptime * slice_count)
     SELECT gpu_model_name,
         gpu_usage.namespace,
         gpu_usage.node,
         sum(gpu_pod_uptime * COALESCE(gpu_usage.mig_slice_count, 1)) as pod_usage_slice_hours,
         DATE(interval_start) as usage_start
     FROM hive.{{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu_usage
-    INNER JOIN unattributed_gpu_cost AS ungpu
-        ON ungpu.node = gpu_usage.node
     WHERE source = {{source_uuid}}
       AND year = {{year}}
       AND month = {{month}}
+      AND DATE(interval_start) >= DATE({{start_date}})
+      AND DATE(interval_start) <= DATE({{end_date}})
     group by gpu_model_name, gpu_usage.node, namespace, DATE(interval_start)
 ),
 total_usage as (
@@ -77,19 +75,29 @@ UNION
 
 SELECT
     uuid(),
-    report_period_id,
-    cluster_id,
-    cluster_alias,
+    unalloc.report_period_id,
+    unalloc.cluster_id,
+    unalloc.cluster_alias,
     'GPU' as data_source,
-    usage_start as usage_start,
-    usage_start as usage_end,
-    namespace,
-    node,
+    unalloc.usage_start as usage_start,
+    unalloc.usage_start as usage_end,
+    unalloc.namespace,
+    unalloc.node,
     CAST({{source_uuid}} AS UUID),
     {{cost_model_rate_type}},
-    0 - cost_model_gpu_cost as distributed_cost
-FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-WHERE namespace = 'GPU unallocated'
-    AND usage_start >= DATE({{start_date}})
-    AND usage_start <= DATE({{end_date}})
-    AND source_uuid = CAST({{source_uuid}} AS UUID);
+    0 - unalloc.cost_model_gpu_cost as distributed_cost
+FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as unalloc
+WHERE unalloc.namespace = 'GPU unallocated'
+    AND unalloc.data_source = 'GPU'
+    AND unalloc.usage_start >= DATE({{start_date}})
+    AND unalloc.usage_start <= DATE({{end_date}})
+    AND unalloc.source_uuid = CAST({{source_uuid}} AS UUID)
+    AND EXISTS (
+        SELECT 1 FROM hive.{{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily as gpu
+        WHERE gpu.node = unalloc.node
+          AND gpu.gpu_model_name = json_extract_scalar(unalloc.all_labels, '$["gpu-model"]')
+          AND DATE(gpu.interval_start) = unalloc.usage_start
+          AND gpu.source = {{source_uuid}}
+          AND gpu.year = {{year}}
+          AND gpu.month = {{month}}
+    );

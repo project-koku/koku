@@ -93,7 +93,7 @@ WHERE date(gpu.interval_start) >= DATE({{start_date}})
   AND gpu.source = {{source_uuid}}
   AND gpu.year = {{year}}
   AND gpu.month = {{month}}
-  AND gpu.gpu_vendor_name = '{{tag_key | sqlsafe}}'
+  AND gpu.gpu_vendor_name LIKE '{{tag_key | sqlsafe}}%'
   {%- if value_rates is defined %}
   AND (
       {%- for value, value_rate in value_rates.items() %}
@@ -157,7 +157,7 @@ WITH cte_unutilized_uptime_hours AS (
             AND gpu.month = {{month}}
             AND date(gpu.interval_start) >= DATE({{start_date}})
             AND date(gpu.interval_start) <= DATE({{end_date}})
-            AND gpu.gpu_vendor_name = '{{tag_key | sqlsafe}}'
+            AND gpu.gpu_vendor_name LIKE '{{tag_key | sqlsafe}}%'
             {%- if value_rates is defined %}
             AND (
                 {%- for value, value_rate in value_rates.items() %}
