@@ -277,15 +277,34 @@ class Forecast:
         We use a box plot method without plotting the box.
         """
         values = list(data.values())
-        if values:
-            third_quartile, first_quartile = np.percentile(values, [Decimal(75), Decimal(25)])
-            interquartile_range = third_quartile - first_quartile
+        if not values:
+            return data
 
-            upper_boundary = third_quartile + (Decimal(1.5) * interquartile_range)
-            lower_boundary = first_quartile - (Decimal(1.5) * interquartile_range)
+        third_quartile, first_quartile = np.percentile(values, [Decimal(75), Decimal(25)])
+        interquartile_range = third_quartile - first_quartile
 
-            return {key: value for key, value in data.items() if (value >= lower_boundary and value <= upper_boundary)}
-        return data
+        # When IQR is zero (e.g. all values are identical), the boundaries collapse to the
+        # same value and the filter would remove every point.  Return the data unchanged so
+        # that the downstream MINIMUM check can decide whether to proceed.
+        if interquartile_range == 0:
+            return data
+
+        upper_boundary = third_quartile + (Decimal(1.5) * interquartile_range)
+        lower_boundary = first_quartile - (Decimal(1.5) * interquartile_range)
+
+        cleaned = {key: value for key, value in data.items() if lower_boundary <= value <= upper_boundary}
+
+        if len(cleaned) < self.MINIMUM:
+            LOG.warning(
+                "Outlier removal reduced data elements from %s to %s (minimum is %s). "
+                "Falling back to unfiltered data.",
+                len(data),
+                len(cleaned),
+                self.MINIMUM,
+            )
+            return data
+
+        return cleaned
 
     def _key_results_by_date(self, results):
         """Take results formatted by cost type, and return results keyed by date."""
