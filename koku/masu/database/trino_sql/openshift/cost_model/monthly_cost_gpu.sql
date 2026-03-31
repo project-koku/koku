@@ -137,9 +137,9 @@ WITH cte_unutilized_uptime_hours AS (
         gpu.max_slices_per_gpu as max_slices_per_gpu,
         CASE
             WHEN LOWER(TRIM(json_extract_scalar(node_ut.node_labels, '$.nvidia_com_mig_strategy'))) IS NULL OR LOWER(TRIM(json_extract_scalar(node_ut.node_labels, '$.nvidia_com_mig_strategy'))) = 'mixed'
-                THEN count(node_ut.interval_start) * CAST(TRIM(json_extract_scalar(node_ut.node_labels, '$.nvidia_com_gpu_count')) AS DECIMAL(33, 15)) * gpu.max_slices_per_gpu - coalesce(max(gpu.aggregated_slice_uptime), 0)
+                THEN count(node_ut.interval_start) * CAST(TRIM(json_extract_scalar(node_ut.node_labels, '$.nvidia_com_gpu_count')) AS DECIMAL(33, 15)) * gpu.max_slices_per_gpu - coalesce(gpu.aggregated_slice_uptime, 0)
             WHEN LOWER(TRIM(json_extract_scalar(node_ut.node_labels, '$.nvidia_com_mig_strategy'))) = 'single'
-                THEN count(node_ut.interval_start) * CAST(TRIM(json_extract_scalar(node_ut.node_labels, '$.nvidia_com_gpu_count')) AS DECIMAL(33, 15)) - coalesce(max(gpu.aggregated_slice_uptime), 0)
+                THEN count(node_ut.interval_start) * CAST(TRIM(json_extract_scalar(node_ut.node_labels, '$.nvidia_com_gpu_count')) AS DECIMAL(33, 15)) - coalesce(gpu.aggregated_slice_uptime, 0)
             ELSE 0
         END as unutilized_uptime
     FROM openshift_node_labels_line_items as node_ut
@@ -176,7 +176,8 @@ WITH cte_unutilized_uptime_hours AS (
         AND node_ut.year = {{year}}
         AND node_ut.source = {{source_uuid}}
         AND node_labels like '%"nvidia_com_gpu_present": "True"%'
-    GROUP BY node_ut.node, gpu.gpu_model_name, DATE(node_ut.interval_start), gpu.max_slices_per_gpu,
+    GROUP BY node_ut.node, gpu.gpu_model_name, json_extract_scalar(node_ut.node_labels, '$.nvidia_com_gpu_product'),
+             DATE(node_ut.interval_start), gpu.max_slices_per_gpu,
              gpu.physical_gpu_count, gpu.aggregated_slice_uptime, node_ut.node_labels
 )
 SELECT
