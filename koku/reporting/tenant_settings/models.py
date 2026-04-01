@@ -18,6 +18,7 @@ class TenantSettings(models.Model):
     class Meta:
         db_table = "tenant_settings"
 
+    singleton = models.BooleanField(default=True, unique=True)
     data_retention_months = models.IntegerField(
         default=DEFAULT_RETENTION_MONTHS,
         validators=[
