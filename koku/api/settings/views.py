@@ -147,7 +147,8 @@ class GlobalSettingsView(APIView):
             )
             if not created:
                 settings_row.data_retention_months = new_value
-                settings_row.full_clean()
+            settings_row.full_clean()
+            if not created:
                 settings_row.save()
         invalidate_view_cache_for_tenant_and_all_source_types(schema)
         return Response(status=status.HTTP_204_NO_CONTENT)
