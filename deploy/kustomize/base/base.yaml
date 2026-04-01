@@ -184,7 +184,7 @@ objects:
   kind: Secret # For ephemeral/local environment only
   metadata:
     name: koku-secret
-  data:
+  stringData:
     django-secret-key: "${SECRET_KEY}"
 
 - apiVersion: v1
