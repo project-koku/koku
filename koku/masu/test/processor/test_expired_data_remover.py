@@ -30,22 +30,18 @@ class ExpiredDataRemoverTest(MasuTestCase):
         """Test to init."""
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
         self.assertEqual(remover._months_to_keep, Config.MASU_RETAIN_NUM_MONTHS)
-        self.assertEqual(remover._line_items_months, Config.MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY)
-        remover2 = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS, 2, 2)
+        remover2 = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS, 2)
         self.assertEqual(remover2._months_to_keep, 2)
-        self.assertEqual(remover2._line_items_months, 2)
 
     def test_initializer_ocp(self):
         """Test to init for OCP."""
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_OCP)
         self.assertEqual(remover._months_to_keep, Config.MASU_RETAIN_NUM_MONTHS)
-        self.assertEqual(remover._line_items_months, Config.MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY)
 
     def test_initializer_azure(self):
         """Test to init for Azure."""
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AZURE)
         self.assertEqual(remover._months_to_keep, Config.MASU_RETAIN_NUM_MONTHS)
-        self.assertEqual(remover._line_items_months, Config.MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY)
 
     def test_initializer_invalid_provider(self):
         """Test to init with unknown provider."""

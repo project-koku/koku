@@ -36,7 +36,7 @@ class ExpiredDataRemover:
 
     """
 
-    def __init__(self, customer_schema, provider, num_of_months_to_keep=None, line_items_month_to_keep=None):
+    def __init__(self, customer_schema, provider, num_of_months_to_keep=None):
         """
         Initializer.
 
@@ -50,9 +50,6 @@ class ExpiredDataRemover:
         self._months_to_keep = num_of_months_to_keep
         if self._months_to_keep is None:
             self._months_to_keep = Config.MASU_RETAIN_NUM_MONTHS
-        self._line_items_months = line_items_month_to_keep
-        if self._line_items_months is None:
-            self._line_items_months = Config.MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY
         try:
             self._cleaner = self._set_cleaner()
         except Exception as err:
