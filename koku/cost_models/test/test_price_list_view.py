@@ -31,12 +31,15 @@ class PriceListViewTests(IamTestCase):
         self.price_list_data = {
             "name": "Test Price List",
             "description": "A test price list",
+            "currency": "USD",
             "effective_start_date": "2026-01-01",
             "effective_end_date": "2026-12-31",
             "rates": [
                 {
                     "metric": {"name": "cpu_core_usage_per_hour"},
-                    "tiered_rates": [{"value": "1.50", "unit": "USD"}],
+                    "tiered_rates": [
+                        {"value": "1.50", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}
+                    ],
                     "cost_type": "Infrastructure",
                 }
             ],
@@ -119,7 +122,7 @@ class PriceListViewTests(IamTestCase):
         update_data["rates"] = [
             {
                 "metric": {"name": "cpu_core_usage_per_hour"},
-                "tiered_rates": [{"value": "3.00", "unit": "USD"}],
+                "tiered_rates": [{"value": "3.00", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}],
                 "cost_type": "Infrastructure",
             }
         ]
