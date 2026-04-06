@@ -43,6 +43,13 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 metric_constants.DISTRIBUTION_TYPE, metric_constants.DEFAULT_DISTRIBUTION_TYPE
             )
             self._distribution_info = cost_model_accessor.distribution_info
+        self._infra_rates = {}
+        self._tag_infra_rates = {}
+        self._tag_default_infra_rates = {}
+        self._supplementary_rates = {}
+        self._tag_supplementary_rates = {}
+        self._tag_default_supplementary_rates = {}
+        self.metric_to_tag_params_map = {}
 
     def _load_rates(self, target_date):
         """Load rates from the effective price list for the given billing date."""
