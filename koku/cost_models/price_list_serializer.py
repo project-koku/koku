@@ -11,6 +11,8 @@ from api.report.serializers import BaseSerializer
 from cost_models.models import PriceList
 from cost_models.price_list_manager import PriceListException
 from cost_models.price_list_manager import PriceListManager
+from cost_models.serializers import CostModelSerializer
+from cost_models.serializers import RateSerializer
 
 LOG = logging.getLogger(__name__)
 
@@ -29,9 +31,16 @@ class PriceListSerializer(BaseSerializer):
     effective_end_date = serializers.DateField(required=False)
     enabled = serializers.BooleanField(required=False)
     version = serializers.IntegerField(read_only=True)
-    rates = serializers.ListField(required=False)
+    rates = RateSerializer(many=True, required=False)
     created_timestamp = serializers.DateTimeField(read_only=True)
     updated_timestamp = serializers.DateTimeField(read_only=True)
+
+    def validate_rates(self, rates):
+        """Validate rates — reuse CostModelSerializer's tag key uniqueness check."""
+        tag_rates = [rate for rate in rates if rate.get("tag_rates")]
+        if tag_rates:
+            CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
+        return rates
 
     def validate(self, data):
         """Validate that effective_end_date is after effective_start_date."""
@@ -44,6 +53,9 @@ class PriceListSerializer(BaseSerializer):
 
         if start and end and end < start:
             raise serializers.ValidationError("effective_end_date must be on or after effective_start_date.")
+
+        if data.get("rates"):
+            CostModelSerializer.validate_rates_currency(data)
 
         return data
 

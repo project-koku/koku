@@ -556,7 +556,8 @@ class CostModelSerializer(BaseSerializer):
 
         return source_uuids
 
-    def validate_rates_currency(self, data):
+    @staticmethod
+    def validate_rates_currency(data):
         """Validate incoming currency and rates all match."""
         err_msg = "Rate units must match currency provided in a cost model."
         for rate in data.get("rates"):
