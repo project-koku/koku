@@ -23,6 +23,7 @@ from api.utils import get_currency
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
+from masu.processor import is_cost_model_writes_disabled
 
 MARKUP_CHOICES = (("percent", "%"),)
 TAG_RATE_ONLY = (metric_constants.OCP_PROJECT_MONTH,)
@@ -211,6 +212,8 @@ class RateSerializer(serializers.Serializer):
     DECIMALS = ("value", "usage_start", "usage_end")
     RATE_TYPES = ("tiered_rates", "tag_rates")
 
+    rate_id = serializers.UUIDField(required=False, allow_null=True)
+    custom_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
     metric = serializers.DictField(required=True)
     cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
     description = serializers.CharField(allow_blank=True, max_length=500, required=False)
@@ -360,9 +363,11 @@ class RateSerializer(serializers.Serializer):
             "description": rate_obj.get("description", ""),
         }
 
-        # Specifically handling only tiered rates now
-        # with the expectation that this code will be generalized
-        # when other rate types (e.g. markup) are introduced
+        if "rate_id" in rate_obj:
+            out["rate_id"] = rate_obj["rate_id"]
+        if "custom_name" in rate_obj:
+            out["custom_name"] = rate_obj["custom_name"]
+
         tiered_rates = rate_obj.get("tiered_rates", [])
         if tiered_rates:
             for rates in tiered_rates:
@@ -395,7 +400,24 @@ class RateSerializer(serializers.Serializer):
         return out
 
     def to_internal_value(self, data):
-        """Convert the JSON representation of rate to DB representation."""
+        """Convert the JSON representation of rate to DB representation.
+
+        Validates rate_id and custom_name via their declared fields, then
+        returns the original data dict with the metric normalized. We cannot
+        call super().to_internal_value() because validate_cost_type has a
+        non-standard signature (2 args) that DRF's field-level validation
+        would call incorrectly.
+        """
+        errors = {}
+        for field_name in ("rate_id", "custom_name"):
+            value = data.get(field_name)
+            if value is not None:
+                try:
+                    self.fields[field_name].run_validation(value)
+                except serializers.ValidationError as e:
+                    errors[field_name] = e.detail
+        if errors:
+            raise serializers.ValidationError(errors)
         metric = data.get("metric", {})
         new_metric = {"name": metric.get("name")}
         data["metric"] = new_metric
@@ -590,8 +612,17 @@ class CostModelSerializer(BaseSerializer):
             raise serializers.ValidationError(error_msg)
         return distribution
 
+    def _check_write_freeze(self):
+        """Raise ValidationError if cost model writes are frozen for migration."""
+        schema = self.customer.schema_name if self.customer else None
+        if schema and is_cost_model_writes_disabled(schema):
+            raise serializers.ValidationError(
+                error_obj("cost-models", "Cost model writes are temporarily disabled during migration.")
+            )
+
     def create(self, validated_data):
         """Create the cost model object in the database."""
+        self._check_write_freeze()
         source_uuids = validated_data.pop("source_uuids", [])
         validated_data.update({"provider_uuids": source_uuids})
         try:
@@ -601,6 +632,7 @@ class CostModelSerializer(BaseSerializer):
 
     def update(self, instance, validated_data, *args, **kwargs):
         """Update the rate object in the database."""
+        self._check_write_freeze()
         source_uuids = validated_data.pop("source_uuids", [])
         new_providers_for_instance = []
         for uuid in source_uuids:
