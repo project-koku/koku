@@ -230,3 +230,50 @@ class OCPGpuViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("data", response.data)
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_gpu_endpoint_with_group_by_mig_profile(self, mock_unleash):
+        """Test GPU endpoint with group_by mig_profile is accepted."""
+        url = reverse("reports-openshift-gpu")
+        query_params = {"group_by[mig_profile]": "*"}
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("data", response.data)
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_gpu_endpoint_includes_mig_fields(self, mock_unleash):
+        """Test that GPU endpoint response includes MIG-related fields."""
+        url = reverse("reports-openshift-gpu")
+        query_params = {"group_by[gpu_model]": "*"}
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        self.assertIn("data", data)
+        if not data["data"]:
+            self.skipTest("No GPU data available in test database")
+        models = data["data"][0].get("gpu_models", [])
+        if not models:
+            self.skipTest("No gpu_models in response — test DB lacks GPU fixture data")
+        values = models[0].get("gpu_names", [{}])[0].get("values", [])
+        if not values:
+            self.skipTest("No values in response — test DB lacks GPU fixture data")
+        self.assertIn("mig_profile", values[0])
+        self.assertIn("mig_slice_count", values[0])
+        self.assertIn("gpu_max_slices", values[0])
+        self.assertIn("mig_memory_capacity_gb", values[0])
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_mig_profiles_endpoint_with_valid_filters(self, mock_unleash):
+        """Test MIG profiles endpoint returns 200 with all required filters."""
+        url = reverse("reports-openshift-gpu-mig-profiles")
+        query_params = {
+            "filter[gpu_vendor]": "nvidia",
+            "filter[gpu_model]": "A100",
+            "filter[node]": "gpu_node_0",
+        }
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("data", response.data)
