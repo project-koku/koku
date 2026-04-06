@@ -46,6 +46,23 @@ All three phases are delivered in a single branch/PR, using phases as logical ch
 | SaaS        | RBAC (default)        | `AUTHORIZATION_BACKEND=rbac` (default, no env var needed)        |
 | SaaS future | ReBAC (Kessel)        | Unleash flag overrides to `rebac` per org (documented hook only) |
 
+### 1.2.1 Compatibility and Upgrade Guardrails
+
+This design is **API-contract compatible**, not hard-version-pinned in
+application startup code.
+
+| Integration edge | Required compatibility contract | Current guardrail | Operator response on incompatibility |
+|---|---|---|---|
+| Koku → Inventory API (gRPC) | Inventory API v1beta2 supports `Check`, `StreamedListObjects`, `ReportResource`, `DeleteResource` | Contract tests in this PR + runtime error logging/retries | Upgrade/downgrade Kessel/Inventory deployment to a compatible API contract |
+| Koku → Relations API (REST) | Tuples endpoints (`CreateTuples`, `DeleteTuples`, `ImportBulkTuples`) available and authenticated | Integration tests + deployment-time auth validation | Align Relations API version/config with expected endpoints |
+| Relations API → SpiceDB | Schema supports all referenced resource types/permissions | Additive schema policy + deployment hook applies `.zed` | Apply compatible schema and re-run role seeding |
+| Koku release ↔ deployment stack | Companion deployment artifacts (Helm/scripts) ship compatible Kessel/SpiceDB config | Release process + deployment hooks | Use matched release artifacts; avoid partial upgrades |
+
+**Important**: this branch does not add a hard startup version gate in
+Koku itself. Incompatibility is surfaced via failed API calls, logs, and
+health checks; deployment-level version pinning/enforcement is the
+authoritative control point.
+
 ### 1.3 Design Principles
 
 - **Deployment-agnostic code**: The `ONPREM` check is confined to `settings.py` (startup-time derivation). The rest of the codebase reads only `AUTHORIZATION_BACKEND`.

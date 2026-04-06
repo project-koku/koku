@@ -353,7 +353,7 @@ sequenceDiagram
     PermClass->>AuthAdapter: has_permission(<br/>user="alice",<br/>resource_type="openshift.cluster",<br/>action="read")
     activate AuthAdapter
     
-    Note over AuthAdapter: Check cache (30s TTL)
+    Note over AuthAdapter: Check cache (300s TTL default)
     
     AuthAdapter->>Kessel: Check workspace first, SLO fallback<br/>(Inventory API v1beta2)<br/>e.g. Check(principal:alice,<br/>cost_management_openshift_cluster_view,<br/>workspace:{org_id}) for wildcard
     activate Kessel
@@ -363,7 +363,7 @@ sequenceDiagram
     Kessel-->>AuthAdapter: ALLOWED ✓ (access map populated)
     deactivate Kessel
     
-    Note over AuthAdapter: Cache result for 30s
+    Note over AuthAdapter: Cache result for 300s (default)
     
     AuthAdapter-->>PermClass: True
     deactivate AuthAdapter
@@ -502,7 +502,7 @@ sequenceDiagram
     
     AuthAdapter->>Cache: Check cached permission
     
-    alt Cache HIT (within 30s TTL)
+    alt Cache HIT (within 300s default TTL)
         Cache-->>AuthAdapter: ALLOWED ✓ (cached)
         AuthAdapter-->>API: True (from cache)
         
@@ -1678,71 +1678,24 @@ Create Grafana dashboards for:
 
 ### Troubleshooting Tools
 
-**1. Kessel Connection Tester**
+This branch does **not** ship Django management commands such as
+`kessel_healthcheck`, `kessel_debug_permission`, `kessel_sync_status`,
+or `kessel_sync_resources`.
 
-Django management command to verify Kessel connectivity:
+Current operational tooling is:
 
-```bash
-python manage.py kessel_healthcheck
+1. **Deployment-layer validation** (companion Helm/deployment tooling):
+   verify Inventory API, Relations API, and SpiceDB are healthy and
+   correctly authenticated.
+2. **Koku runtime diagnostics**: inspect Koku logs for auth and API
+   failures (`Failed to refresh Kessel auth token`,
+   `Kessel StreamedListObjects failed`, `Kessel Check failed`) and for
+   resource lifecycle events from `resource_reporter.py`.
+3. **Sync-tracking visibility**: inspect `KesselSyncedResource` rows in
+   Postgres to identify unsynced resources and replay windows.
 
-# Output:
-✓ Kessel endpoint: kessel.example.com:8443
-✓ Authentication: OK
-✓ Schema version: 2026-01-30
-✓ Test permission check: OK (42ms)
-✓ Test resource lookup: OK (38ms)
-```
-
-**2. Permission Debugger**
-
-API endpoint or CLI tool to debug why a user has/doesn't have permission:
-
-```bash
-python manage.py kessel_debug_permission \
-  --user alice@example.com \
-  --resource openshift.cluster \
-  --action read
-
-# Output:
-Checking permission for alice@example.com...
-✓ User exists in Kessel
-✓ User has role_binding: alice-viewer
-✓ Role binding grants role: cost-openshift-viewer
-✓ Role has permission: cost_management_openshift_cluster_read
-✓ Role binding bound to tenant: acme-corp
-Result: ALLOWED
-Path: principal:alice → role_binding:alice-viewer → role:cost-openshift-viewer → permission
-```
-
-**3. Resource Sync Status**
-
-View synchronization status of providers:
-
-```bash
-python manage.py kessel_sync_status
-
-# Output:
-Provider ID | Cluster ID      | Sync Status | Last Sync       | Errors
-------------|-----------------|-------------|-----------------|-------
-123         | prod-east-1     | ✓ Synced    | 2026-01-30 10:30| 0
-124         | prod-west-1     | ✓ Synced    | 2026-01-30 10:25| 0
-125         | dev-central-1   | ✗ Failed    | 2026-01-30 09:00| Timeout
-```
-
-**4. Bulk Resource Resync**
-
-Management command to resync all or specific providers to Kessel:
-
-```bash
-# Resync all OCP providers
-python manage.py kessel_sync_resources --provider-type ocp
-
-# Resync specific provider
-python manage.py kessel_sync_resources --provider-id 123
-
-# Dry-run mode (show what would be synced)
-python manage.py kessel_sync_resources --dry-run
-```
+Planned management commands should be documented as follow-up work, not
+as shipped behavior in this PR.
 
 ### Logging Strategy
 
@@ -1778,35 +1731,24 @@ All Kessel-related logs include:
 
 ### Backup & Recovery
 
-**Kessel State Recovery**:
+Koku on-prem keeps critical state in **two systems**:
 
-If Kessel data is lost or corrupted:
+- **Postgres** (providers, cost/reporting state, `KesselSyncedResource`)
+- **Kessel/SpiceDB** (resource graph, tuples, role bindings)
 
-1. **Role Recovery**: Use platform-provided role seeding tooling
- - Platform team should provide mechanism to re-seed roles from `rbac-config/roles/cost-management.json`
- - Until platform tooling is available, manual recreation via Kessel API is required
+Recovery requires an explicit restore order by failure mode:
 
-2. **Resource Recovery**: Bulk resync all providers
-   ```bash
-   python manage.py kessel_sync_resources --provider-type ocp --all
-   ```
+| Failure mode | Restore order | Why |
+|---|---|---|
+| Kessel/SpiceDB lost, Postgres intact | 1) Restore schema/roles in Kessel 2) Replay Koku resource registration from existing Postgres-backed data processing 3) Validate sample permission checks | Postgres is source-of-truth for discovered resources; Kessel must be repopulated from it |
+| Postgres lost, Kessel/SpiceDB intact | 1) Restore Postgres first 2) Reconcile stale Kessel resources/tuples that no longer map to restored Postgres state 3) Validate provider and access paths | Koku runtime depends on Postgres; Kessel can temporarily contain stale auth graph edges |
+| Both lost | 1) Restore Postgres snapshot 2) Restore Kessel schema/roles 3) Replay resource registration 4) Reapply role bindings 5) Validate end-to-end access | Rebuilding Kessel before Postgres creates drift and orphaned graph state |
 
-3. **User Access Recovery**: Requires manual restoration from audit logs
- - Export audit logs from Postgres
- - Replay role assignments via Access Management API
- - Verify with permission checks
-
-**Data Consistency Checks**:
-
-Periodic job to verify Postgres ↔ Kessel consistency:
-```bash
-python manage.py kessel_verify_consistency
-
-# Checks:
-# - All OCP providers in Postgres exist in Kessel
-# - No orphaned resources in Kessel
-# - Report discrepancies for manual review
-```
+**Consistency validation checklist**:
+- Providers expected in Postgres are present in Kessel Inventory
+- No stale/orphaned Kessel resources for deleted/expired providers
+- Randomized permission checks (wildcard + resource-specific) return expected results
+- `KesselSyncedResource` backlog is empty or trending to zero
 
 ### Capacity Planning
 
@@ -1823,7 +1765,7 @@ As Koku usage grows, monitor:
 - Large deployment: 1000 clusters, 5000 users → ~100,000 permission checks/min
 
 **Scaling Recommendations**:
-- Enable permission caching (30s TTL) to reduce Kessel load
+- Enable permission caching (default 300s via `KESSEL_CACHE_TIMEOUT`) to reduce Kessel load
 - Use Kessel read replicas for permission checks
 - Consider batch permission checks for list endpoints
 
@@ -1851,8 +1793,8 @@ As Koku usage grows, monitor:
 2. Review error logs for specific failure reason
 3. Verify schema is deployed correctly
 4. Check for resource validation errors
-5. Manually retry sync for affected providers
-6. If persistent, use bulk resync command
+5. Trigger replay through normal ingestion/data-processing paths for affected providers
+6. If persistent, run deployment-layer reconciliation tooling and compare against `KesselSyncedResource`
 
 ### Schema Upgrade Strategy
 
@@ -1861,28 +1803,24 @@ As Koku usage grows, monitor:
 **Design Principle**: All schema changes MUST be **additive**. New definitions, relations, and permissions can be added, but existing ones must never be removed or renamed. This guarantees that existing tuples in SpiceDB remain valid after a schema update.
 
 **Schema Version Tracking**:
-- A `KESSEL_SCHEMA_VERSION` setting tracks which schema version is deployed
-- Each Koku release bumps this version if the schema changed
+- Schema version is tracked in deployment artifacts and release notes
+- No Django `KESSEL_SCHEMA_VERSION` setting is used in this branch
 
 **Upgrade Workflow**:
 
 ```
-┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│  Helm upgrade │────▶│ kessel_update_   │────▶│ kessel_seed_     │
-│  (new Koku)   │     │ schema           │     │ roles --incr     │
-└──────────────┘     └──────────────────┘     └──────────────────┘
-                      │ Checks version   │     │ Seeds only new   │
-                      │ Applies new .zed │     │ roles/perms      │
-                      │ Logs changes     │     │                  │
+┌──────────────┐     ┌──────────────────────┐
+│  Helm upgrade │────▶│ deploy-layer schema  │
+│  (new Koku)   │     │ + role-seeding step  │
+└──────────────┘     └──────────────────────┘
 ```
 
-**Management Command**: `python manage.py kessel_update_schema`
-1. Reads current deployed schema version
-2. If behind the version shipped with this Koku release, applies the new `schema.zed` via `spicedb schema write`
-3. If new roles were added, invokes `kessel_seed_roles --incremental` to seed only new entries
-4. Logs all changes for auditability
+**Implementation status in this branch**:
+1. Schema upgrades are applied by deployment tooling using `spicedb schema write`
+2. Role seeding is handled by deployment tooling
+3. There is no Django `kessel_update_schema` management command in this PR
 
-**Helm Integration**: The upgrade command runs as a post-upgrade hook in the Helm chart, similar to Django's `migrate`. Operators using manual deployments run it as part of their upgrade procedure.
+**Helm Integration**: Schema/role upgrade actions run as deployment hooks in the companion deployment layer. Operators using manual deployments must run the same steps explicitly.
 
 **Safety Guarantees**:
 - Additive-only policy prevents tuple invalidation
@@ -2080,9 +2018,9 @@ As Koku usage grows, monitor:
 - **Note**: The original recommendation was fail-closed (HTTP 424). The implementation chose fail-open per-type for resilience. `KesselConnectionError` is defined but unused; the middleware handler exists as a safety net for future explicit raises.
 
 **Q2: Should we cache Kessel permission checks?**
-- **Decision Needed**: Cache TTL and invalidation strategy
-- **Recommendation**: 30-second TTL (matching current RBAC cache)
-- **Rationale**: Balance between performance and permission freshness
+- **Resolved**: Use `KESSEL_CACHE_TIMEOUT` (default 300 seconds)
+- **Authoritative source**: `koku/koku/settings.py` cache config
+- **Rationale**: Reduces Kessel API pressure while keeping permission updates reasonably fresh
 
 **Q3: How are role instances seeded into Kessel for on-premise deployments?**
 - **Critical Question**: Who provides tooling to seed roles from `rbac-config/roles/cost-management.json`?
@@ -2120,8 +2058,8 @@ As Koku usage grows, monitor:
 
 **Q6: Should we support bulk resource synchronization?**
 - **Use Case**: Operator adds Kessel to existing Koku deployment with many clusters
-- **Recommendation**: Add management command for bulk resync
-- **Example**: `python manage.py kessel_sync_resources --provider-type ocp`
+- **Status**: Deferred to deployment-layer tooling
+- **Note**: No Django management command for bulk resync is shipped in this PR
 
 **Q7: How to handle Kessel schema version updates?**
 - **Decision Needed**: Schema migration strategy
@@ -2183,13 +2121,18 @@ As Koku usage grows, monitor:
 
 **Required Environment Variables**:
 - `ONPREM=true` - Enables Kessel authorization backend
-- `KESSEL_ENDPOINT` - Kessel server endpoint (e.g., `kessel.example.com:8443`)
-- `KESSEL_TOKEN` - Authentication token for Kessel API
+- `KESSEL_INVENTORY_HOST` - Inventory API gRPC host
+- `KESSEL_INVENTORY_PORT` - Inventory API gRPC port
+- `KESSEL_RELATIONS_URL` - Relations API base URL
 
 **Optional Environment Variables**:
-- `KESSEL_TIMEOUT` - Connection timeout in seconds (default: 10)
-- `KESSEL_CACHE_ENABLED` - Enable permission caching (default: true)
-- `KESSEL_CACHE_TTL` - Cache TTL in seconds (default: 30)
+- `KESSEL_CA_PATH` - TLS CA path (empty means insecure channel for local dev)
+- `KESSEL_AUTH_ENABLED` - Enable OIDC auth for Kessel calls (defaults to `ONPREM`)
+- `KESSEL_AUTH_CLIENT_ID` - OIDC client ID (required when auth enabled)
+- `KESSEL_AUTH_CLIENT_SECRET` - OIDC client secret (required when auth enabled)
+- `KESSEL_AUTH_OIDC_ISSUER` - OIDC issuer URL (required when auth enabled)
+- `KESSEL_AUTH_TOKEN_URL` - Optional explicit token URL override
+- `KESSEL_CACHE_TIMEOUT` - Cache TTL in seconds (default: 300)
 
 **Django Settings Integration**:
 - Validate required variables when `ONPREM=True`

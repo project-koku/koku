@@ -937,6 +937,31 @@ Kessel API authentication is **mandatory** — there is no unauthenticated mode.
 3. `deploy-kessel.sh` configures Relations API with `ENABLEAUTH=true` and Inventory API with OIDC authentication — **fails hard** if the Inventory client secret is missing
 4. Koku pods always set `KESSEL_AUTH_ENABLED=True` and mount the `kessel-koku-client` secret
 
+#### Operational Rotation of Kessel Credentials
+
+Token refresh and secret rotation are different operations:
+
+- **JWT access tokens** are rotated automatically in-process by
+  `TokenProvider` (`client_credentials` flow, refresh before expiry).
+- **OIDC client secrets** are loaded from Kubernetes Secrets at process
+  startup and require rollout/restart to take effect after rotation.
+
+Recommended rotation runbook:
+
+1. Create/rotate the client secret in Keycloak for
+   `cost-management-koku` and/or `cost-management-inventory`.
+2. Update Kubernetes Secrets used by Koku and Inventory API pods.
+3. Roll out dependent deployments so processes reload environment and
+   mounted secrets.
+4. Verify:
+   - Koku logs show successful token refresh and no auth errors
+   - Inventory↔Relations calls succeed with auth enabled
+   - sample Kessel permission checks return expected results
+5. Revoke old secret only after verification passes.
+
+This ADR documents the required operational order; it does not claim
+hot-reload of client secrets inside already-running pods.
+
 ---
 
 ## PRD12 Requirements Coverage
