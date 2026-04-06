@@ -199,12 +199,24 @@ class CostModelManager:
     COST_AFFECTING_FIELDS = {"default_rate", "tag_values", "metric", "cost_type"}
 
     @staticmethod
+    def _resolve_custom_name(rate_data, existing_names):
+        """Return the custom_name for a rate, generating one if absent.
+
+        If rate_data already contains a truthy custom_name, returns it.
+        Otherwise generates a unique name via generate_custom_name() and
+        stamps it onto rate_data["custom_name"] before returning.
+        """
+        custom_name = rate_data.get("custom_name")
+        if not custom_name:
+            custom_name = generate_custom_name(rate_data, existing_names)
+            rate_data["custom_name"] = custom_name
+        return custom_name
+
+    @staticmethod
     def _rate_fields_from_data(rate_data, existing_names=None):
         """Extract Rate model fields from a rate data dict."""
         tag_rates = rate_data.get("tag_rates") or {}
-        custom_name = rate_data.get("custom_name")
-        if not custom_name:
-            custom_name = generate_custom_name(rate_data, existing_names or set())
+        custom_name = CostModelManager._resolve_custom_name(rate_data, existing_names or set())
         metric_name = rate_data.get("metric", {}).get("name", "")
         cost_type = rate_data.get("cost_type", "")
         if not cost_type:
@@ -264,13 +276,10 @@ class CostModelManager:
                 incoming_ids.add(rate_uuid)
                 to_update.append((rate_obj, rate_data))
             else:
-                custom_name = rate_data.get("custom_name")
-                if not custom_name:
-                    used_names = all_existing_names | {
-                        rd.get("custom_name", "") for rd in rates_data if rd.get("custom_name")
-                    }
-                    custom_name = generate_custom_name(rate_data, used_names)
-                    rate_data["custom_name"] = custom_name
+                used_names = all_existing_names | {
+                    rd.get("custom_name", "") for rd in rates_data if rd.get("custom_name")
+                }
+                custom_name = self._resolve_custom_name(rate_data, used_names)
                 if custom_name in existing_by_name:
                     rate_obj = existing_by_name[custom_name]
                     incoming_ids.add(rate_obj.uuid)
