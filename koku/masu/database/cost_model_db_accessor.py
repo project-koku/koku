@@ -5,6 +5,7 @@
 """Database accessor for OCP rate data."""
 import copy
 import logging
+import re
 from collections import defaultdict
 
 from django.db import transaction
@@ -131,11 +132,15 @@ class CostModelDBAccessor:
             tag_rate_param["rate_type"] = rate["cost_type"]
             tag_rate_param["tag_key"] = tag_rate.get("tag_key")
             kv_pairs_rates = {}
+            is_gpu_metric = metric_name == metric_constants.OCP_GPU_MONTH
             for tag_value in tag_rate.get("tag_values"):
                 if tag_value.get("default"):
                     tag_rate_param["default_rate"] = float(tag_value.get("value"))
                 else:
-                    kv_pairs_rates[tag_value.get("tag_value")] = float(tag_value.get("value"))
+                    key = tag_value.get("tag_value")
+                    if is_gpu_metric:
+                        key = re.sub(r"[^a-zA-Z0-9]+", " ", key).strip()
+                    kv_pairs_rates[key] = float(tag_value.get("value"))
             if kv_pairs_rates:
                 tag_rate_param["value_rates"] = kv_pairs_rates
             tag_rate_list.append({metric_name: tag_rate_param})

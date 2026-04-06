@@ -1061,7 +1061,7 @@ class OCPProviderMap(ProviderMap):
                             "gpu_count": Sum("gpu_count", default=Value(0, output_field=IntegerField())),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
                             "gpu_mode": F("gpu_mode"),
-                            "mig_profile": F("mig_profile"),
+                            "mig_profile": Max("mig_profile"),
                             "mig_slice_count": Max(
                                 Coalesce(F("mig_slice_count"), Value(0, output_field=IntegerField()))
                             ),
