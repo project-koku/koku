@@ -32,11 +32,12 @@ graph LR
 
 | Phase | Goal | User-Facing? | Migrations | Rollback Strategy |
 |-------|------|-------------|------------|-------------------|
-| 1 | Normalize rate storage | No | M1, M2, M3 | Revert code to JSON read path; dual-write preserves JSON |
-| 2 | Per-rate cost tracking (usage costs only) | No | M4 | Revert code; truncate `RatesToUsage`; direct-write still active |
+| (prereq) | PriceList infrastructure | No | COST-575: 0010, 0011 | Already on `main` |
+| 1 | Normalize rate storage | No | M1, M2 | Drop Rate table; revert JSON; PriceList stays (COST-575) |
+| 2 | Per-rate cost tracking (usage costs only) | No | M3 | Revert code; truncate `RatesToUsage`; direct-write still active |
 | 3 | Migrate all remaining SQL files | No | None | Revert individual SQL files |
-| 4 | Expose breakdown data to UI | Yes | M5 | Unregister URL; leave table empty |
-| 5 | Remove legacy JSON path | No | M6 | Restore from backup |
+| 4 | Expose breakdown data to UI | Yes | M4 | Unregister URL; leave table empty |
+| 5 | Remove legacy JSON path | No | M5 | Restore from backup |
 
 ---
 
@@ -44,23 +45,37 @@ graph LR
 
 **Goal**: Normalize rate storage without changing cost calculation behavior.
 
+**Prerequisite**: COST-575 migrations `0010` (PriceList + PriceListCostModelMap
+models) and `0011` (data migration copying CostModel.rates to PriceList.rates)
+are already on `main`. Phase 1 builds on this foundation by adding a
+normalized `Rate` table underneath the existing `PriceList`.
+
 ### Artifacts
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| `PriceList` model | `cost_models/models.py` | New Django model |
-| `Rate` model | `cost_models/models.py` | New Django model with `custom_name` |
-| Migration M1 | `cost_models/migrations/XXXX_create_price_list.py` | DDL for `cost_model_price_list` |
-| Migration M2 | `cost_models/migrations/XXXX_create_rate.py` | DDL for `cost_model_rate` |
-| Migration M3 | `cost_models/migrations/XXXX_migrate_json_to_rate.py` | Data migration: JSON → Rate rows |
-| `RateSerializer` update | `cost_models/serializers.py` | Add `custom_name` field (required) |
-| `CostModelSerializer` update | `cost_models/serializers.py` | Dual-write to JSON + Rate table |
-| `CostModelDBAccessor` update | `masu/database/cost_model_db_accessor.py` | Read from Rate table (dual-write preserves JSON as fallback) |
+| `Rate` model | `cost_models/models.py` | New Django model with `custom_name`, FK to existing `PriceList` |
+| Migration M1 | `cost_models/migrations/0012_create_rate.py` | DDL for `cost_model_rate` (depends on `0011`) |
+| Migration M2 | `cost_models/migrations/0013_migrate_json_to_rate.py` | Data migration: PriceList.rates JSON → Rate rows |
+| `RateSerializer` update | `cost_models/serializers.py` | Add `custom_name` field (`required=False`) |
+| `CostModelSerializer` update | `cost_models/serializers.py` | Extend dual-write: JSON + PriceList.rates + Rate table |
+| `CostModelManager` update | `cost_models/cost_model_manager.py` | Add `_sync_rate_table()` — delete + recreate Rate rows on every write |
+| Write-freeze flag helper | `masu/processor/__init__.py` | `is_cost_model_writes_disabled()` — Unleash flag to block cost model writes during migration |
+| Write-freeze gating | `cost_models/serializers.py` | Check flag in `CostModelSerializer.create()` and `update()` via `self.customer.schema_name` → HTTP 503 |
+| `CostModelDBAccessor` update | `masu/database/cost_model_db_accessor.py` | Read from Rate table via PriceListCostModelMap (dual-write preserves JSON as fallback) |
+
+### Deployment Procedure for M2
+
+1. Enable Unleash flag `cost-management.backend.disable-cost-model-writes`
+   (blocks cost model API writes with HTTP 503)
+2. Run `django-admin migrate` (executes M1 + M2)
+3. Validate: all `PriceList` rows with rates have corresponding `Rate` rows
+4. Disable Unleash flag (restores normal API writes)
 
 ### Validation
 
-- All existing `CostModel` rows have corresponding `PriceList` + `Rate`
-  rows after M3
+- All existing `PriceList` rows with non-empty rates have corresponding
+  `Rate` rows after M2
 - `custom_name` is populated for every rate (no NULLs)
 - API backward-compatible: `GET /cost-models/{uuid}/` returns rates with
   `custom_name` added (existing fields unchanged)
@@ -72,9 +87,10 @@ graph LR
 
 1. Revert `CostModelDBAccessor` code → reads from JSON (which is still
    populated via dual-write)
-2. Revert dual-write code → API writes to JSON only
-3. Reverse M3 → remove `custom_name` from JSON, delete Rate/PriceList rows
-4. Drop tables via reverse M2, M1
+2. Revert `_sync_rate_table()` code → API writes to JSON + PriceList.rates only
+3. Reverse M2 → remove `custom_name` from JSON blobs, delete Rate rows
+4. Drop Rate table via reverse M1
+5. PriceList and PriceListCostModelMap remain untouched (COST-575 owns them)
 
 ---
 
@@ -91,7 +107,7 @@ costs (`usage_costs.sql` only).
 | Artifact | File | Description |
 |----------|------|-------------|
 | `RatesToUsage` model | `reporting/provider/ocp/models.py` | New partitioned Django model |
-| Migration M4 | `reporting/migrations/XXXX_create_rates_to_usage.py` | DDL for `rates_to_usage` |
+| Migration M3 | `reporting/migrations/XXXX_create_rates_to_usage.py` | DDL for `rates_to_usage` |
 | RatesToUsage INSERT SQL | `masu/database/sql/openshift/cost_model/insert_usage_rates_to_usage.sql` | CTE + UNION ALL producing per-rate rows at fine granularity — **replaces** `usage_costs.sql` direct-write. See [PoC](./poc/insert_usage_rates_to_usage.sql) |
 | Aggregation SQL | `masu/database/sql/openshift/cost_model/aggregate_rates_to_daily_summary.sql` | DELETE + INSERT: aggregates `RatesToUsage` → daily summary `cost_model_*_cost` columns. Replaces `usage_costs.sql` direct-write. |
 | Orchestration update | `masu/processor/ocp/ocp_cost_model_cost_updater.py` | Replace `self._update_usage_costs()` with RatesToUsage INSERT + aggregation. No dual-path. |
@@ -101,6 +117,36 @@ costs (`usage_costs.sql` only).
 | Partition wiring | `masu/processor/ocp/ocp_cost_model_cost_updater.py` | Call `get_or_create_partition()` before writing to `RatesToUsage` (not in `UI_SUMMARY_TABLES`) |
 | Purge update | `masu/processor/ocp/ocp_report_db_cleaner.py` | Add `rates_to_usage` to `purge_expired_report_data_by_date()` |
 | DELETE for recalculation | `masu/database/ocp_report_db_accessor.py` | New `delete_rates_to_usage()` method — runs before each recalculation cycle |
+| Prometheus instrumentation | `masu/prometheus_stats.py`, `masu/processor/ocp/ocp_cost_model_cost_updater.py` | Histograms and gauge for cost model pipeline timing and row counts. See [Concern 2 resolution](#concern-2-resolution--observability-instrumentation). |
+
+### Concern 2 Resolution — Observability Instrumentation
+
+`ocp_cost_model_cost_updater.py` currently has zero timing
+instrumentation. The only related Prometheus metric is
+`charge_update_attempts_count` (a task attempt counter in
+`masu/prometheus_stats.py`). Koku has Prometheus infrastructure in
+place (`WORKER_REGISTRY` in `masu/prometheus_stats.py`, exposed via
+`/metrics` in `koku/probe_server.py`, Grafana dashboards in
+`dashboards/`), but the cost model calculation pipeline is not
+instrumented.
+
+Phase 2 adds the following metrics, registered in
+`masu/prometheus_stats.py` using `WORKER_REGISTRY` (existing pattern):
+
+| Metric | Type | Labels | Threshold |
+|--------|------|--------|-----------|
+| `cost_model_rtu_insert_duration_seconds` | Histogram | `schema`, `source_uuid` | Benchmark #2: < 60s |
+| `cost_model_aggregation_duration_seconds` | Histogram | `schema`, `source_uuid` | Benchmark #3: < 30s |
+| `cost_model_rtu_row_count` | Gauge | `schema`, `source_uuid` | Benchmark #1: < 100M/month |
+| `cost_model_update_total_duration_seconds` | Histogram | `schema`, `source_uuid` | Benchmark #7: < 5 min |
+
+Instrumentation is added in `ocp_cost_model_cost_updater.py` around
+the `RatesToUsage` INSERT, aggregation, and end-to-end update calls
+using `time.perf_counter()` (same pattern as other koku timing code).
+
+Thresholds mirror the Phase 2 benchmark acceptance criteria, enabling
+Grafana dashboard panels and alerting rules to monitor the new pipeline
+in production.
 
 ### Validation
 
@@ -248,7 +294,7 @@ self-hosted (mirrors Trino). Tag-rate files before monthly-cost files
 | Artifact | File | Description |
 |----------|------|-------------|
 | `OCPCostUIBreakDownP` model | `reporting/provider/ocp/models.py` | New partitioned Django model |
-| Migration M5 | `reporting/migrations/XXXX_create_breakdown_p.py` | DDL for `reporting_ocp_cost_breakdown_p` |
+| Migration M4 | `reporting/migrations/XXXX_create_breakdown_p.py` | DDL for `reporting_ocp_cost_breakdown_p` |
 | Breakdown population SQL | `masu/database/sql/openshift/ui_summary/reporting_ocp_cost_breakdown_p.sql` | Populate from **single source** `RatesToUsage` (per-rate costs and per-rate distributed rows after IQ-9 Option 1) with tree paths — no separate back-allocation in breakdown SQL |
 | Distribution per-rate SQL (IQ-9 Option 1) | 5 new distribution SQL files | Read per-rate costs from `RatesToUsage` + usage from daily summary, write per-rate distributed rows back to `RatesToUsage`. Old files deprecated. |
 | `UI_SUMMARY_TABLES` update | `reporting/provider/ocp/models.py` | Add to tuple for partition cleanup |
@@ -261,6 +307,58 @@ self-hosted (mirrors Trino). Tag-rate files before monthly-cost files
 | Frontend: flat list | `routes/details/components/costOverview/` | `CostBreakdownTable` component |
 | Frontend: tab restructure | `routes/details/components/breakdown/breakdownBase.tsx` | Move usage cards to "Usage overview" tab |
 | Frontend: export | `api/export/ocpExport.ts` | Breakdown CSV export |
+| Distribution integration tests | `masu/test/database/test_ocp_report_db_accessor.py` | Execute actual distribution SQL against test data (not mocked); assert per-rate proportional correctness and edge cases. See [Concern 1 resolution](#concern-1-resolution--distribution-integration-tests). |
+
+### Concern 1 Resolution — Distribution Integration Tests
+
+Existing distribution tests in `test_ocp_report_db_accessor.py` mock
+`_execute_raw_sql_query` and assert orchestration (method was called),
+not mathematical correctness. The distribution SQL files contain
+commented-out validation SQL that is never executed by tests. This means
+R18's original mitigation ("existing integration tests sufficient") only
+verifies the code path, not the numbers.
+
+Phase 4 adds integration tests that execute the actual distribution SQL
+against the test database (using `OCPReportDBAccessor` without mocking
+the SQL execution layer) and assert:
+
+1. Per-rate proportional correctness:
+   `distributed_cost[rate] / total_distributed == rate_cost / total_cost`
+2. `SUM(per-rate distributed rows)` = aggregate `distributed_cost` per
+   (namespace, day, distribution_type)
+3. No orphaned distributed rows (every row traces to a valid source)
+4. Edge cases: single-node clusters (100% to one node), zero-cost
+   namespaces (no divide-by-zero), GPU distribution by GPU-specific
+   metrics
+5. **Independent cross-check (Option 2's formula)**: Compute the expected
+   per-rate distributed cost by proportionally splitting the daily
+   summary's aggregate `distributed_cost` by `rate_cost / total_cost`.
+   Assert it matches the actual per-rate `RatesToUsage` distributed rows
+   within NUMERIC(33,15) precision. This encodes Option 2's back-allocation
+   math as a test assertion — the mathematical safety net that Option 2
+   would have provided in production.
+6. **Cost conservation**: Net `SUM(distributed_cost)` across source
+   (negative) + recipient (positive) rows = 0 per (day,
+   distribution_type). Total distributed to recipients equals total
+   removed from source namespaces.
+7. **Sign invariant**: Source namespace rows have negative
+   `distributed_cost`, recipient rows have positive, for each (day,
+   distribution_type, rate).
+8. **Idempotency**: Run distribution twice → identical `RatesToUsage`
+   state. The DELETE + INSERT pattern guarantees this; the test confirms
+   no duplication or partial deletes.
+9. **Multi-rate proportionality**: With rate A at cost 3× rate B,
+   `distributed_cost[A] / distributed_cost[B] = 3` for the same
+   (namespace, day). Tests with 3+ rates of varying magnitudes.
+10. **Rate mutation regression**: Modify a rate value, trigger
+    recalculation, and verify distributed costs reflect the updated
+    value (no stale cached amounts surviving recalculation).
+
+These 10 assertions collectively replicate the safety net that IQ-9
+Option 2 (back-allocation) would have provided at runtime. The tech lead
+should be aware that these tests are now the sole verification mechanism
+for per-rate distribution correctness, replacing Option 2 as the
+fallback.
 
 ### Validation
 
@@ -291,7 +389,7 @@ direct-write code.
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| Migration M6 | `cost_models/migrations/XXXX_drop_rates_json.py` | `ALTER TABLE cost_model DROP COLUMN rates` |
+| Migration M5 | `cost_models/migrations/XXXX_drop_rates_json.py` | `ALTER TABLE cost_model DROP COLUMN rates` + `ALTER TABLE price_list DROP COLUMN rates` |
 | Remove dual-write | `cost_models/serializers.py` | API writes to Rate table only |
 | Remove JSON read path | `masu/database/cost_model_db_accessor.py` | Remove `_price_list_from_json()` fallback |
 | Remove `usage_costs.sql` direct-write | `masu/database/sql/openshift/cost_model/usage_costs.sql`, `ocp_report_db_accessor.py` | Dead code since Phase 2 aggregation took over. Remove the direct-write INSERT and its orchestration call. |
@@ -303,8 +401,9 @@ All of these must be verified before executing Phase 5:
 
 - [ ] All tenants have been processed through the Rate table path
 - [ ] No code path reads from `CostModel.rates` JSON
-- [ ] Backup of `cost_model` table taken
+- [ ] Backup of `cost_model` and `price_list` tables taken
 - [ ] Full regression test suite passes
+- [ ] Unleash write-freeze flag (`cost-management.backend.disable-cost-model-writes`) enabled
 
 ### Validation
 
@@ -314,7 +413,7 @@ All of these must be verified before executing Phase 5:
 
 ### Rollback
 
-- Restore `rates` column from backup
+- Restore `rates` column on both `cost_model` and `price_list` from backup
 - Re-add dual-write code
 - This is the only phase where rollback is practically difficult
 
@@ -338,7 +437,7 @@ Full details, decision rationales, and mitigation plans are in
 | R9 | Frontend tab restructure | Active |
 | R10 | Trino SQL dialect | Active |
 | R11 | Concurrent updates | Active |
-| R12 | Missing `@transaction.atomic` | Active |
+| R12 | Missing `@transaction.atomic` | **MITIGATED** |
 | R13 | JSONB JOIN performance | **MITIGATED** |
 | R14 | Back-allocation rounding | **N/A** |
 | R15 | Back-allocation JOIN complexity | **REPLACED** |
@@ -346,6 +445,7 @@ Full details, decision rationales, and mitigation plans are in
 | R17 | Markup ORM overhead | **MITIGATED** |
 | R18 | Distribution SQL rewrite regression | Active |
 | R19 | Aggregation + `distributed_cost` | **RESOLVED** |
+| R20 | Migration write-corruption | **MITIGATED** |
 
 ### Risk × Phase Matrix
 
@@ -390,7 +490,8 @@ set of rate configurations.
 
 ## Timeline Considerations
 
-Phase 1 can start immediately — it has no open questions. The
+Phase 1 can start immediately — COST-575 prerequisites are on `main`
+(migrations `0010`, `0011`) and all open questions are resolved. The
 `_price_list_from_rate_table()` format compatibility has been validated
 by PoC tests ([`poc/price_list_compat.py`](./poc/price_list_compat.py),
 6/6 pass).
@@ -414,7 +515,7 @@ for a sufficient period (recommended: at least one full billing cycle).
 ### Blocking dependencies
 
 ```
-Phase 1 ← no blockers (start now)
+Phase 1 ← COST-575 on main (0010, 0011) ✅
 Phase 2 ← Phase 1 (IQ-1 confirmed — single source of truth, no dual-path)
 Phase 3 ← Phase 2 + R13 benchmark acceptable
 Phase 4 ← Phase 3 (IQ-3 confirmed — flat DB rows, both API formats)
@@ -435,3 +536,8 @@ Phase 5 ← Phase 4 validated in production
 | v2.5 | 2026-03-17 | Decision rationales: add alternatives-evaluated tables for R6 (per-file-per-PR, 4 options) and R2/R3 (DELETE+INSERT aggregation, 3 options + threshold derivation). |
 | v3.0 | 2026-03-19 | **IQ-9 RESOLVED (Option 1).** Phase 4: replace back-allocation with 5 new per-rate distribution SQL files. Risk register: R14 eliminated, R15 replaced, R18 added (distribution rewrite regression). Rename `CostModelRatesToUsage` → `RatesToUsage`. |
 | v3.1 | 2026-03-19 | **Risk extraction.** Move full risk register and decision rationales to [risk-register.md](./risk-register.md). Compact risk table retained here. Add R19. Replace R2/R3 and R6 rationale tables with links. |
+| v4.0 | 2026-04-02 | **Align with COST-575.** Phase 1 prerequisite: COST-575 0010/0011 on `main`. Remove M1 (PriceList creation). Phase 1 artifacts: `Rate` model + M1 (Rate table) + M2 (data migration). Renumber M4→M3, M5→M4, M6→M5. Phase 1 rollback updated: PriceList stays (COST-575 owns it). Phase 5 drops both `CostModel.rates` and `PriceList.rates`. |
+| v4.1 | 2026-04-02 | **R20: Migration write-freeze.** Add Unleash write-freeze flag to Phase 1 artifacts. Add deployment procedure for M2 (enable/disable flag around migration). Add flag to Phase 5 preconditions. Add R20 to risk summary. |
+| v4.2 | 2026-04-02 | **Critical review.** Move write-freeze gating artifact from `cost_model_manager.py` to `serializers.py` (serializer has schema context). |
+| v4.3 | 2026-04-02 | **Self-resolve concerns 1, 2.** Add distribution integration tests as Phase 4 artifact (Concern 1). Add Prometheus instrumentation as Phase 2 artifact (Concern 2). |
+| v4.4 | 2026-04-03 | **Strengthen Concern 1 tests.** Expand distribution integration test assertions from 4 to 10. Add Option 2's back-allocation formula as independent cross-check (#5), cost conservation (#6), sign invariant (#7), idempotency (#8), multi-rate proportionality (#9), rate mutation regression (#10). These replace Option 2 as the safety net for per-rate distribution correctness. |
