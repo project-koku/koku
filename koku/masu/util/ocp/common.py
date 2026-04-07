@@ -34,7 +34,6 @@ from api.common import log_json
 from api.provider.models import Provider
 from api.provider.models import Sources
 from api.utils import DateHelper as dh
-from masu.processor import is_cross_org_cluster_lookup_enabled
 from masu.util.common import trino_table_exists
 from masu.util.ocp.operator_versions import OPERATOR_VERSIONS
 
@@ -560,15 +559,12 @@ def get_cluster_alias_from_cluster_id(cluster_id):
     return cluster_alias
 
 
-def get_source_and_provider_from_cluster_id(cluster_id, org_id):
-    """Return the provider given the cluster ID."""
-    source = None
+def get_source_and_provider_from_cluster_id(cluster_id, org_id, skip_org_id_filter=False):
+    """Return the source given the cluster ID."""
     credentials = {"cluster_id": cluster_id}
 
-    skip_org_id_lookup = is_cross_org_cluster_lookup_enabled(org_id)
-
     query = Sources.objects.select_related("provider").filter(provider__authentication__credentials=credentials)
-    if not skip_org_id_lookup:
+    if not skip_org_id_filter:
         query = query.filter(org_id=org_id)
 
     if source := query.first():
@@ -580,7 +576,7 @@ def get_source_and_provider_from_cluster_id(cluster_id, org_id):
                     "provider_uuid": source.koku_uuid,
                     "cluster_id": cluster_id,
                     "org_id": org_id,
-                    "skip_org_id_lookup": skip_org_id_lookup,
+                    "skip_org_id_filter": skip_org_id_filter,
                 },
             )
         )
