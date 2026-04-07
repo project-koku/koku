@@ -34,6 +34,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from api.provider.models import Sources
 from api.utils import DateHelper as dh
+from masu.processor import is_cross_org_cluster_lookup_enabled
 from masu.util.common import trino_table_exists
 from masu.util.ocp.operator_versions import OPERATOR_VERSIONS
 
@@ -563,14 +564,26 @@ def get_source_and_provider_from_cluster_id(cluster_id, org_id):
     """Return the provider given the cluster ID."""
     source = None
     credentials = {"cluster_id": cluster_id}
-    if (
-        source := Sources.objects.select_related("provider")
-        .filter(provider__authentication__credentials=credentials)
-        .filter(org_id=org_id)
-        .first()
-    ):
-        context = {"provider_uuid": source.koku_uuid, "cluster_id": cluster_id}
-        LOG.info(log_json("", msg="found provider for cluster-id", context=context))
+
+    skip_org_id_lookup = is_cross_org_cluster_lookup_enabled(org_id)
+
+    query = Sources.objects.select_related("provider").filter(provider__authentication__credentials=credentials)
+    if not skip_org_id_lookup:
+        query = query.filter(org_id=org_id)
+
+    if source := query.first():
+        LOG.info(
+            log_json(
+                "",
+                msg="found provider for cluster-id",
+                context={
+                    "provider_uuid": source.koku_uuid,
+                    "cluster_id": cluster_id,
+                    "org_id": org_id,
+                    "skip_org_id_lookup": skip_org_id_lookup,
+                },
+            )
+        )
     return source
 
 
