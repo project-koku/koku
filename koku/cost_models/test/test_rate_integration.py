@@ -24,7 +24,9 @@ class RateIntegrationTest(IamTestCase):
 
     def setUp(self):
         super().setUp()
-        self.customer = Customer.objects.get(account_id=self.customer_data["account_id"])
+        self.customer = Customer.objects.get(
+            account_id=self.customer_data["account_id"]
+        )
         self.user = User.objects.get(username=self.user_data["username"])
         self.ocp_metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
 
@@ -93,9 +95,11 @@ class RateIntegrationTest(IamTestCase):
                     }
                 ]
             )
-            serializer = CostModelSerializer(instance=cost_model, data=update_data, context=self.request_context)
+            serializer = CostModelSerializer(
+                instance=cost_model, data=update_data, context=self.request_context
+            )
             serializer.is_valid(raise_exception=True)
-            updated = serializer.save()
+            serializer.save()
 
             rate = Rate.objects.get(price_list=mapping.price_list)
             self.assertEqual(rate.uuid, original_uuid)
@@ -111,7 +115,9 @@ class RateIntegrationTest(IamTestCase):
             serializer.is_valid(raise_exception=True)
             cost_model = serializer.save()
 
-            read_serializer = CostModelSerializer(instance=cost_model, context=self.request_context)
+            read_serializer = CostModelSerializer(
+                instance=cost_model, context=self.request_context
+            )
             output = read_serializer.data
             rates = output.get("rates", [])
             self.assertTrue(len(rates) > 0)
@@ -123,7 +129,15 @@ class RateIntegrationTest(IamTestCase):
     def test_create_with_tag_rate_round_trip(self, mock_task, mock_flag):
         """Test full round-trip for tag-based rates."""
         with tenant_context(self.tenant):
-            tag_values = [{"tag_value": "web", "value": "0.5", "unit": "USD", "default": False, "description": "web tier"}]
+            tag_values = [
+                {
+                    "tag_value": "web",
+                    "value": "0.5",
+                    "unit": "USD",
+                    "default": False,
+                    "description": "web tier",
+                }
+            ]
             data = self._build_cost_model_data(
                 rates=[
                     {
@@ -180,7 +194,9 @@ class RateIntegrationTest(IamTestCase):
                 rates=rates,
             )
             mapping = PriceListCostModelMap.objects.get(cost_model=cm)
-            self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 1)
+            self.assertEqual(
+                Rate.objects.filter(price_list=mapping.price_list).count(), 1
+            )
 
             manager2 = CostModelManager(cost_model_uuid=cm.uuid)
             manager2.update(
@@ -193,8 +209,12 @@ class RateIntegrationTest(IamTestCase):
                     }
                 ]
             )
-            self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 2)
+            self.assertEqual(
+                Rate.objects.filter(price_list=mapping.price_list).count(), 2
+            )
 
             manager3 = CostModelManager(cost_model_uuid=cm.uuid)
             manager3.update(rates=[])
-            self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 0)
+            self.assertEqual(
+                Rate.objects.filter(price_list=mapping.price_list).count(), 0
+            )

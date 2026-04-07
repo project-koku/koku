@@ -56,7 +56,11 @@ def generate_custom_name(rate_data, existing_names):
     """Generate a unique custom_name for a rate based on metric, cost_type, and tag_key."""
     metric_name = rate_data.get("metric", {}).get("name", "unknown")
     cost_type = rate_data.get("cost_type", "unknown")
-    tag_key = rate_data.get("tag_rates", {}).get("tag_key", "") if rate_data.get("tag_rates") else ""
+    tag_key = (
+        rate_data.get("tag_rates", {}).get("tag_key", "")
+        if rate_data.get("tag_rates")
+        else ""
+    )
 
     if tag_key:
         base = f"{metric_name}-{cost_type}-{tag_key}"
@@ -134,22 +138,32 @@ class CostModelManager:
         for rate_map_instance in CostModelMap.objects.filter(cost_model=self._model):
             current_providers_for_instance.append(str(rate_map_instance.provider_uuid))
 
-        providers_to_delete = set(current_providers_for_instance).difference(provider_uuids)
-        providers_to_create = set(provider_uuids).difference(current_providers_for_instance)
+        providers_to_delete = set(current_providers_for_instance).difference(
+            provider_uuids
+        )
+        providers_to_create = set(provider_uuids).difference(
+            current_providers_for_instance
+        )
         all_providers = set(current_providers_for_instance).union(provider_uuids)
 
         for provider_uuid in providers_to_delete:
-            CostModelMap.objects.filter(provider_uuid=provider_uuid, cost_model=self._model).delete()
+            CostModelMap.objects.filter(
+                provider_uuid=provider_uuid, cost_model=self._model
+            ).delete()
 
         for provider_uuid in providers_to_create:
             # Raise exception if source is already associated with another cost model.
-            existing_cost_model = CostModelMap.objects.filter(provider_uuid=provider_uuid)
+            existing_cost_model = CostModelMap.objects.filter(
+                provider_uuid=provider_uuid
+            )
             if existing_cost_model.exists():
                 cost_model_uuid = existing_cost_model.first().cost_model.uuid
                 log_msg = f"Source {provider_uuid} is already associated with cost model: {cost_model_uuid}."
                 LOG.warning(log_msg)
                 raise CostModelException(log_msg)
-            CostModelMap.objects.create(cost_model=self._model, provider_uuid=provider_uuid)
+            CostModelMap.objects.create(
+                cost_model=self._model, provider_uuid=provider_uuid
+            )
 
         start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
         end_date = DateHelper().today.strftime("%Y-%m-%d")
@@ -159,7 +173,9 @@ class CostModelManager:
             try:
                 provider = Provider.objects.get(uuid=provider_uuid)
             except Provider.DoesNotExist:
-                LOG.info(f"Provider {provider_uuid} does not exist. Skipping cost-model update.")
+                LOG.info(
+                    f"Provider {provider_uuid} does not exist. Skipping cost-model update."
+                )
             else:
                 if provider.active:
                     schema_name = provider.customer.schema_name
@@ -187,7 +203,9 @@ class CostModelManager:
         self._model.rates = data.get("rates", self._model.rates)
         self._model.markup = data.get("markup", self._model.markup)
         self._model.distribution = data.get("distribution", self._model.distribution)
-        self._model.distribution_info = data.get("distribution_info", self._model.distribution_info)
+        self._model.distribution_info = data.get(
+            "distribution_info", self._model.distribution_info
+        )
         self._model.currency = data.get("currency", self._model.currency)
         self._model.save()
 
@@ -216,11 +234,15 @@ class CostModelManager:
     def _rate_fields_from_data(rate_data, existing_names=None):
         """Extract Rate model fields from a rate data dict."""
         tag_rates = rate_data.get("tag_rates") or {}
-        custom_name = CostModelManager._resolve_custom_name(rate_data, existing_names or set())
+        custom_name = CostModelManager._resolve_custom_name(
+            rate_data, existing_names or set()
+        )
         metric_name = rate_data.get("metric", {}).get("name", "")
         cost_type = rate_data.get("cost_type", "")
         if not cost_type:
-            LOG.warning(f"Rate for metric '{metric_name}' has no cost_type; storing empty string")
+            LOG.warning(
+                f"Rate for metric '{metric_name}' has no cost_type; storing empty string"
+            )
         return {
             "custom_name": custom_name,
             "description": rate_data.get("description", ""),
@@ -243,21 +265,13 @@ class CostModelManager:
                     changed = True
         return changed
 
-    def _sync_rate_table(self, price_list, rates_data):
-        """Synchronize Rate table rows with the rates JSON blob using diff-based sync.
+    def _classify_incoming_rates(
+        self, rates_data, existing_by_uuid, existing_by_name, all_existing_names
+    ):
+        """Classify each incoming rate as update-existing or create-new.
 
-        Matches incoming rates to existing Rate rows by rate_id (UUID) first.
-        If rate_id is absent, falls back to custom_name matching (backward-compat).
-        If rate_id is present but does not belong to this price_list, raises CostModelException.
-
-        Operations are ordered delete -> update -> create to avoid transient
-        UniqueConstraint violations on (price_list, custom_name).
+        Returns (incoming_ids, to_update, to_create_data).
         """
-        LOG.info(f"Syncing {len(rates_data)} rates to Rate table for PriceList {price_list.uuid}")
-        existing_by_uuid = {r.uuid: r for r in Rate.objects.filter(price_list=price_list)}
-        existing_by_name = {r.custom_name: r for r in existing_by_uuid.values()}
-        all_existing_names = set(existing_by_name.keys())
-
         incoming_ids = set()
         to_update = []
         to_create_data = []
@@ -277,7 +291,9 @@ class CostModelManager:
                 to_update.append((rate_obj, rate_data))
             else:
                 used_names = all_existing_names | {
-                    rd.get("custom_name", "") for rd in rates_data if rd.get("custom_name")
+                    rd.get("custom_name", "")
+                    for rd in rates_data
+                    if rd.get("custom_name")
                 }
                 custom_name = self._resolve_custom_name(rate_data, used_names)
                 if custom_name in existing_by_name:
@@ -287,11 +303,35 @@ class CostModelManager:
                 else:
                     to_create_data.append(rate_data)
 
-        # Phase 1: DELETE stale rows (those not referenced by any incoming rate)
+        return incoming_ids, to_update, to_create_data
+
+    def _sync_rate_table(self, price_list, rates_data):
+        """Synchronize Rate table rows with the rates JSON blob using diff-based sync.
+
+        Operations are ordered delete -> update -> create to avoid transient
+        UniqueConstraint violations on (price_list, custom_name).
+        """
+        LOG.info(
+            f"Syncing {len(rates_data)} rates to Rate table for PriceList {price_list.uuid}"
+        )
+        existing_by_uuid = {
+            r.uuid: r for r in Rate.objects.filter(price_list=price_list)
+        }
+        existing_by_name = {r.custom_name: r for r in existing_by_uuid.values()}
+        all_existing_names = set(existing_by_name.keys())
+
+        incoming_ids, to_update, to_create_data = self._classify_incoming_rates(
+            rates_data, existing_by_uuid, existing_by_name, all_existing_names
+        )
+
         to_delete_uuids = [uid for uid in existing_by_uuid if uid not in incoming_ids]
         if to_delete_uuids:
-            deleted_count, _ = Rate.objects.filter(price_list=price_list, uuid__in=to_delete_uuids).delete()
-            LOG.info(f"Deleted {deleted_count} stale Rate rows from PriceList {price_list.uuid}")
+            deleted_count, _ = Rate.objects.filter(
+                price_list=price_list, uuid__in=to_delete_uuids
+            ).delete()
+            LOG.info(
+                f"Deleted {deleted_count} stale Rate rows from PriceList {price_list.uuid}"
+            )
 
         # Phase 2: UPDATE matched rows
         for rate_obj, rate_data in to_update:
@@ -316,7 +356,9 @@ class CostModelManager:
                 rate_data["rate_id"] = str(rate_uuid)
                 rate_data["custom_name"] = fields["custom_name"]
             Rate.objects.bulk_create(rates_to_create)
-            LOG.info(f"Created {len(rates_to_create)} new Rate rows for PriceList {price_list.uuid}")
+            LOG.info(
+                f"Created {len(rates_to_create)} new Rate rows for PriceList {price_list.uuid}"
+            )
 
         self._model.rates = rates_data
         self._model.save(update_fields=["rates"])
@@ -357,7 +399,11 @@ class CostModelManager:
         provider_uuids = [provider.provider_uuid for provider in providers_query]
         providers_qs_list = Provider.objects.filter(uuid__in=provider_uuids)
         provider_names_uuids = [
-            {"uuid": str(provider.uuid), "name": provider.name, "last_processed": provider.data_updated_timestamp}
+            {
+                "uuid": str(provider.uuid),
+                "name": provider.name,
+                "last_processed": provider.data_updated_timestamp,
+            }
             for provider in providers_qs_list
         ]
         return provider_names_uuids
