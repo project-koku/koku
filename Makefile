@@ -29,7 +29,16 @@ ifneq ($(DOCKER_COMPOSE_CHECK), 0)
 	DOCKER_COMPOSE_BIN = $(DOCKER)-compose
 endif
 
-DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN)
+# Conditionally include debug compose file for single-worker debugging
+# When scale=1: includes docker-compose.debug.yml (adds debug port 5678)
+# When scale>1: excludes debug file (prevents port conflicts for multi-worker)
+ifeq ($(scale),1)
+	COMPOSE_FILES = -f docker-compose.yml -f docker-compose.debug.yml
+else
+	COMPOSE_FILES = -f docker-compose.yml
+endif
+
+DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN) $(COMPOSE_FILES)
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
@@ -95,7 +104,7 @@ help:
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
-	@echo "  make-migrations                       make migrations for the database"
+	@echo "  make-migrations [name=<name>]         make migrations for the database (optional custom name)"
 	@echo "  requirements                          generate Pipfile.lock"
 	@echo "  clowdapp                              generates a new clowdapp.yaml"
 	@echo "  delete-db                             delete local directory $(TOPDIR)/dev/containers/postgresql/data"
@@ -127,6 +136,9 @@ help:
 	@echo "                                         user:     admin"
 	@echo "                                         password: admin12"
 	@echo "  docker-up-min                        run database, koku/masu servers and worker"
+	@echo "  docker-up-kafka                      start Kafka, Zookeeper, and init topics"
+	@echo "  docker-up-onprem                     run on-prem stack (core + kafka, no Trino/S3)"
+	@echo "  docker-up-onprem-no-build            run on-prem stack without building"
 	@echo "  docker-down                          shut down all containers"
 	@echo "  docker-up-min-trino                 start minimum targets for Trino usage"
 	@echo "  docker-up-min-trino-no-build        start minimum targets for Trino usage without building koku base"
@@ -217,7 +229,7 @@ collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
 
 make-migrations:
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models key_metrics
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models key_metrics $(if $(name),--name $(name),)
 
 delete-db:
 	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/postgresql/data/
@@ -340,16 +352,26 @@ docker-build:
 
 
 docker-up: docker-build
+	$(DOCKER_COMPOSE) up -d minio trino hive-metastore
+	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
+	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 docker-up-no-build: docker-up-db
+	$(DOCKER_COMPOSE) up -d minio trino hive-metastore
+	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
+	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 # basic dev environment targets
 docker-up-min: docker-build docker-up-min-no-build
 
 docker-up-min-no-build: docker-host-dir-setup docker-up-db
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-server masu-server koku-worker trino hive-metastore
+	$(DOCKER_COMPOSE) up -d minio trino hive-metastore
+	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
+	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
+	$(DOCKER_COMPOSE) up -d koku-server masu-server
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-worker
 
 # basic dev environment targets
 docker-up-min-with-subs: docker-up-min
@@ -369,6 +391,22 @@ docker-up-db:
 	$(DOCKER_COMPOSE) up -d db
 	$(DOCKER_COMPOSE) up -d unleash
 	$(PYTHON) dev/scripts/setup_unleash.py
+
+docker-up-kafka:
+	$(DOCKER_COMPOSE) up -d kafka-zookeeper kafka
+	@echo "Waiting for Kafka to be ready..."
+	@sleep 5
+	$(DOCKER_COMPOSE) up -d init-kafka
+	@echo "Kafka is ready."
+
+# On-prem development environment (core + kafka, no Trino/S3)
+docker-up-onprem: docker-build docker-up-onprem-no-build
+
+docker-up-onprem-no-build: docker-host-dir-setup docker-up-db docker-up-kafka
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-server masu-server koku-worker koku-beat koku-listener sources-client
+	@echo "Stopping SaaS-only services..."
+	-$(DOCKER_COMPOSE) stop trino hive-metastore minio subs-worker create-parquet-bucket 2>/dev/null || true
+	@echo "On-prem environment ready (core + kafka, no Trino/S3)"
 
 docker-up-db-monitor:
 	$(DOCKER_COMPOSE) up --build -d grafana
@@ -402,10 +440,14 @@ docker-host-dir-setup:
 docker-trino-setup: delete-trino docker-host-dir-setup
 
 docker-trino-up: docker-trino-setup
-	$(DOCKER_COMPOSE) up --build -d trino hive-metastore
+	$(DOCKER_COMPOSE) up --build -d minio trino hive-metastore
+	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
+	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
 
 docker-trino-up-no-build: docker-trino-setup
-	$(DOCKER_COMPOSE) up -d trino hive-metastore
+	$(DOCKER_COMPOSE) up -d minio trino hive-metastore
+	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
+	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
 
 docker-trino-ps:
 	$(DOCKER_COMPOSE) ps trino hive-metastore
@@ -416,9 +458,9 @@ docker-trino-down:
 
 docker-trino-down-all: docker-trino-down docker-down
 
-docker-up-min-trino: docker-up-min docker-trino-up
+docker-up-min-trino: docker-up-min
 
-docker-up-min-trino-no-build: docker-up-min-no-build docker-trino-up-no-build
+docker-up-min-trino-no-build: docker-up-min-no-build
 
 
 ### Source targets ###

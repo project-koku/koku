@@ -101,6 +101,27 @@ This will explain how to start the server and its dependencies using Docker (or 
 
 With all containers running any source added will be processed by saving CSV files in MinIO and storing Parquet files in MinIO. The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
 
+##### Multi-Worker Support
+
+Koku supports running multiple Celery workers locally:
+
+```bash
+# Start with multiple workers (e.g., 3 workers)
+make docker-up-min scale=3
+
+# Or with Trino
+make docker-up-min-trino-no-build scale=3
+
+# View logs from all workers
+make docker-logs
+```
+
+The `scale` parameter works with any docker-compose target:
+- `scale=1` (default): Single worker with debug port available for VSCode debugging
+- `scale>1`: Multiple workers without debug port (prevents port conflicts)
+
+**Note:** Debug port 5678 is automatically managed - included for single worker (`scale=1`), excluded for multi-worker to prevent conflicts.
+
 To add test sources and data:
 
     make create-test-customer

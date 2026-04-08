@@ -254,7 +254,20 @@ GPU_USAGE_COLUMNS = {
     "gpu_pod_uptime",
 }
 
-GPU_GROUP_BY = ["node", "namespace", "pod", "gpu_uuid"]
+# MIG (Multi-Instance GPU) columns - optional, may not be present in older operator versions
+# Note: mig_slice_count, mig_memory_capacity_mib, and parent_gpu_max_slices are derived
+# in post-processor from mig_profile and gpu_model_name, not from the operator
+GPU_USAGE_NEWV_COLUMNS_AND_TYPES = {
+    "mig_instance_id": pd.StringDtype(storage="pyarrow"),
+    "mig_profile": pd.StringDtype(storage="pyarrow"),
+    "mig_strategy": pd.StringDtype(storage="pyarrow"),  # "single" or "mixed" or Null
+    # These are derived in post-processor, not from operator:
+    "mig_slice_count": pd.Int64Dtype(),
+    "mig_memory_capacity_mib": pd.Int64Dtype(),
+    "gpu_max_slices": pd.Int64Dtype(),
+}
+
+GPU_GROUP_BY = ["node", "namespace", "pod", "gpu_uuid", "mig_instance_id"]
 
 GPU_AGG = {
     "report_period_start": ["max"],
@@ -263,6 +276,24 @@ GPU_AGG = {
     "gpu_vendor_name": ["max"],
     "gpu_memory_capacity_mib": ["max"],
     "gpu_pod_uptime": ["sum"],
+    # MIG aggregations (mig_instance_id is in GROUP_BY, so not included here)
+    "mig_profile": ["max"],
+    "mig_slice_count": ["max"],
+    "gpu_max_slices": ["max"],
+    "mig_memory_capacity_mib": ["max"],
+    "mig_strategy": ["max"],
+}
+
+# MIG (Multi-Instance GPU) configuration
+# Max slices by GPU model - used to determine parent gpu max slices
+GPU_MAX_SLICES_BY_MODEL = {
+    "A30": 4,
+    "A100": 7,
+    "H100": 7,
+    "H200": 7,
+    "B200": 7,
+    "RTX PRO 6000": 4,
+    "RTX PRO 5000": 2,
 }
 
 # new_required_columns are columns that appear in new operator reports.
@@ -313,7 +344,7 @@ OCP_REPORT_TYPES = {
         "enum": OCPReportTypes.GPU_USAGE,
         "group_by": GPU_GROUP_BY,
         "agg": GPU_AGG,
-        "new_required_columns": {},
+        "new_required_columns": GPU_USAGE_NEWV_COLUMNS_AND_TYPES,
     },
 }
 
