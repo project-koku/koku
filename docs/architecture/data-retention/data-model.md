@@ -59,7 +59,7 @@ class TenantSettings(models.Model):
     )
 ```
 
-### DDL (Migration 0344)
+### DDL (Migration 0345)
 
 ```sql
 CREATE TABLE tenant_settings (
