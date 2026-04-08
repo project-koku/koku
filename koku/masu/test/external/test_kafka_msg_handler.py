@@ -809,18 +809,22 @@ class KafkaMsgHandlerTest(MasuTestCase):
                             "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
                         ):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                msg_handler.extract_payload(
-                                    payload_url,
-                                    "test_request_id",
-                                    "fake_identity",
-                                    {"account": "1234", "org_id": "5678"},
-                                )
-                                expected_path = (
-                                    f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.date_range}/"
-                                )
-                                self.assertTrue(os.path.isdir(expected_path))
-                                shutil.rmtree(fake_dir)
-                                shutil.rmtree(fake_data_dir)
+                                with patch(
+                                    "masu.external.kafka_msg_handler.is_cross_org_cluster_lookup_enabled",
+                                    return_value=True,
+                                ):
+                                    msg_handler.extract_payload(
+                                        payload_url,
+                                        "test_request_id",
+                                        "fake_identity",
+                                        {"account": "1234", "org_id": "5678"},
+                                    )
+                                    expected_path = (
+                                        f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.date_range}/"
+                                    )
+                                    self.assertTrue(os.path.isdir(expected_path))
+                                    shutil.rmtree(fake_dir)
+                                    shutil.rmtree(fake_data_dir)
 
     @patch("masu.external.kafka_msg_handler.ROSReportShipper")
     def test_extract_payload_ROS_report(self, mock_ros_shipper):
@@ -841,18 +845,22 @@ class KafkaMsgHandlerTest(MasuTestCase):
                             "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
                         ):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                msg_handler.extract_payload(
-                                    payload_url,
-                                    "test_request_id",
-                                    "fake_identity",
-                                    {"account": "1234", "org_id": "5678"},
-                                )
-                                mock_ros_shipper.return_value.process_manifest_reports.assert_called_once()
-                                # call_args is a tuple of arguments
-                                # process_manifest_reports takes a list of tuples and the 1st value is the filename
-                                call_args, _ = mock_ros_shipper.return_value.process_manifest_reports.call_args
-                                self.assertTrue(call_args[0][0][0], ros_file_name)
-                                shutil.rmtree(fake_dir)
+                                with patch(
+                                    "masu.external.kafka_msg_handler.is_cross_org_cluster_lookup_enabled",
+                                    return_value=True,
+                                ):
+                                    msg_handler.extract_payload(
+                                        payload_url,
+                                        "test_request_id",
+                                        "fake_identity",
+                                        {"account": "1234", "org_id": "5678"},
+                                    )
+                                    mock_ros_shipper.return_value.process_manifest_reports.assert_called_once()
+                                    # call_args is a tuple of arguments
+                                    # process_manifest_reports takes a list of tuples and the 1st value is the filename
+                                    call_args, _ = mock_ros_shipper.return_value.process_manifest_reports.call_args
+                                    self.assertTrue(call_args[0][0][0], ros_file_name)
+                                    shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_pvc_dir)
 
     @patch("masu.external.kafka_msg_handler.ROSReportShipper")
@@ -903,19 +911,23 @@ class KafkaMsgHandlerTest(MasuTestCase):
                             "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
                         ):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                msg_handler.extract_payload(
-                                    payload_url,
-                                    "test_request_id",
-                                    "fake_identity",
-                                    {"account": "1234", "org_id": "5678"},
-                                )
-                                expected_path = (
-                                    f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/"
-                                    "16b9a60d-0774-4102-9028-bd28d6c38ac2/21230801-21230901"
-                                )
-                                self.assertTrue(os.path.isdir(expected_path))
-                                shutil.rmtree(fake_dir)
-                                shutil.rmtree(fake_data_dir)
+                                with patch(
+                                    "masu.external.kafka_msg_handler.is_cross_org_cluster_lookup_enabled",
+                                    return_value=True,
+                                ):
+                                    msg_handler.extract_payload(
+                                        payload_url,
+                                        "test_request_id",
+                                        "fake_identity",
+                                        {"account": "1234", "org_id": "5678"},
+                                    )
+                                    expected_path = (
+                                        f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/"
+                                        "16b9a60d-0774-4102-9028-bd28d6c38ac2/21230801-21230901"
+                                    )
+                                    self.assertTrue(os.path.isdir(expected_path))
+                                    shutil.rmtree(fake_dir)
+                                    shutil.rmtree(fake_data_dir)
 
     def test_extract_payload_no_account(self):
         """Test to verify extracting payload when no provider exists."""
@@ -939,6 +951,82 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         shutil.rmtree(fake_dir)
                         shutil.rmtree(fake_data_dir)
 
+    def test_cross_org_cluster_lookup_validation(self):
+        """Test org_id validation with different cross-org feature flag states."""
+        test_cases = [
+            {
+                "name": "reject_mismatch_when_disabled",
+                "cross_org_enabled": False,
+                "context_org_id": "5678",  # mismatch with self.org_id="1234567"
+                "should_accept": False,
+            },
+            {
+                "name": "accept_match_when_disabled",
+                "cross_org_enabled": False,
+                "context_org_id": self.org_id,  # "1234567" - matches source
+                "should_accept": True,
+            },
+            {
+                "name": "accept_mismatch_when_enabled",
+                "cross_org_enabled": True,
+                "context_org_id": "5678",  # mismatch, but cross-org is enabled
+                "should_accept": True,
+            },
+        ]
+
+        for test_case in test_cases:
+            with self.subTest(test_case["name"]):
+                payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+                with requests_mock.mock() as m:
+                    m.get(payload_url, content=self.tarball_file)
+
+                    fake_dir = tempfile.mkdtemp()
+                    fake_data_dir = tempfile.mkdtemp()
+                    try:
+                        with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
+                            with patch.object(Config, "TMP_DIR", fake_dir):
+                                with patch(
+                                    "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                                    return_value=self.ocp_source,
+                                ):
+                                    with patch(
+                                        "masu.external.kafka_msg_handler.is_cross_org_cluster_lookup_enabled",
+                                        return_value=test_case["cross_org_enabled"],
+                                    ):
+                                        if test_case["should_accept"]:
+                                            with patch(
+                                                "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest",
+                                                return_value=1,
+                                            ):
+                                                with patch(
+                                                    "masu.external.kafka_msg_handler.record_report_status",
+                                                    returns=None,
+                                                ):
+                                                    result = msg_handler.extract_payload(
+                                                        payload_url,
+                                                        "test_request_id",
+                                                        "fake_identity",
+                                                        {"account": "1234", "org_id": test_case["context_org_id"]},
+                                                    )
+                                                    expected_path = (
+                                                        f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/"
+                                                        f"{self.cluster_id}/{self.date_range}/"
+                                                    )
+                                                    self.assertTrue(os.path.isdir(expected_path))
+                                                    self.assertIsNotNone(result[0])
+                                        else:
+                                            result = msg_handler.extract_payload(
+                                                payload_url,
+                                                "test_request_id",
+                                                "fake_identity",
+                                                {"org_id": test_case["context_org_id"]},
+                                            )
+                                            self.assertIsNone(result[0])
+                                            self.assertIsNotNone(result[1])  # manifest_uuid should be returned
+                    finally:
+                        shutil.rmtree(fake_dir)
+                        shutil.rmtree(fake_data_dir)
+
     def test_extract_incomplete_file_payload(self):
         """Test to verify extracting payload missing report files is successful."""
         payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
@@ -957,18 +1045,22 @@ class KafkaMsgHandlerTest(MasuTestCase):
                             "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
                         ):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
-                                msg_handler.extract_payload(
-                                    payload_url,
-                                    "test_request_id",
-                                    "fake_identity",
-                                    {"account": "1234", "org_id": "5678"},
-                                )
-                                expected_path = (
-                                    f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.date_range}/"
-                                )
-                                self.assertFalse(os.path.isdir(expected_path))
-                                shutil.rmtree(fake_dir)
-                                shutil.rmtree(fake_data_dir)
+                                with patch(
+                                    "masu.external.kafka_msg_handler.is_cross_org_cluster_lookup_enabled",
+                                    return_value=True,
+                                ):
+                                    msg_handler.extract_payload(
+                                        payload_url,
+                                        "test_request_id",
+                                        "fake_identity",
+                                        {"account": "1234", "org_id": "5678"},
+                                    )
+                                    expected_path = (
+                                        f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.date_range}/"
+                                    )
+                                    self.assertFalse(os.path.isdir(expected_path))
+                                    shutil.rmtree(fake_dir)
+                                    shutil.rmtree(fake_data_dir)
 
     def test_extract_payload_outside_retention(self):
         """Test to verify extracting payload is skipped if data is old."""
@@ -988,17 +1080,21 @@ class KafkaMsgHandlerTest(MasuTestCase):
                             "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
                         ):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                msg_handler.extract_payload(
-                                    payload_url,
-                                    "test_request_id",
-                                    "fake_identity",
-                                    {"account": "1234", "org_id": "5678"},
-                                )
-                                expected_path = (
-                                    f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.date_range}/"
-                                )
-                                self.assertFalse(os.path.isdir(expected_path))
-                                shutil.rmtree(fake_dir)
+                                with patch(
+                                    "masu.external.kafka_msg_handler.is_cross_org_cluster_lookup_enabled",
+                                    return_value=True,
+                                ):
+                                    msg_handler.extract_payload(
+                                        payload_url,
+                                        "test_request_id",
+                                        "fake_identity",
+                                        {"account": "1234", "org_id": "5678"},
+                                    )
+                                    expected_path = (
+                                        f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.date_range}/"
+                                    )
+                                    self.assertFalse(os.path.isdir(expected_path))
+                                    shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_data_dir)
 
     def test_extract_no_manifest(self):
@@ -1037,6 +1133,10 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         return_value=self.ocp_source,
                     ),
                     patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket"),
+                    patch(
+                        "masu.external.kafka_msg_handler.is_cross_org_cluster_lookup_enabled",
+                        return_value=True,
+                    ),
                 ):
                     with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.WARNING):
                         report_metas, manifest_uuid = msg_handler.extract_payload(
