@@ -14,6 +14,7 @@ from uuid import uuid4
 import requests_mock
 from django.conf import settings
 from django.core.cache import cache
+from django.db import IntegrityError
 from django.test.utils import override_settings
 from django.urls import reverse
 from rest_framework import viewsets
@@ -386,6 +387,12 @@ class SourcesViewTests(IamTestCase):
         ]
         self.assertEqual(sorted(list(set(excluded))), sorted(list(set(expected))))
 
+    def test_source_get_non_numeric_non_uuid_returns_404(self):
+        """Test the GET endpoint with a string that is neither int nor UUID."""
+        url = reverse("sources-detail", kwargs={"pk": "not-a-number"})
+        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+        self.assertEqual(response.status_code, 404)
+
 
 @override_settings(ROOT_URLCONF="sources.urls")
 class SourceFilterTests(IamTestCase):
@@ -589,6 +596,50 @@ class SourcesViewCreateTests(IamTestCase):
             with self.assertRaises(SourcesDependencyException):
                 viewset.create(request=mock_request)
 
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    def test_update_method_success(self, mock_invalidate):
+        """Test the update method calls super and invalidates cache."""
+        viewset = SourcesViewSet()
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+
+        with patch.object(viewsets.GenericViewSet, "update", create=True, return_value=Response(status=200)):
+            result = viewset.update(request=mock_request)
+            self.assertEqual(result.status_code, 200)
+            mock_invalidate.assert_called_once()
+
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    def test_update_method_storage_error(self, mock_invalidate):
+        """Test the update method raises SourcesException on SourcesStorageError."""
+        from sources.api.view import SourcesException
+        from sources.storage import SourcesStorageError
+
+        viewset = SourcesViewSet()
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+
+        with patch.object(
+            viewsets.GenericViewSet, "update", create=True, side_effect=SourcesStorageError("test error")
+        ):
+            with self.assertRaises(SourcesException):
+                viewset.update(request=mock_request)
+
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    def test_update_method_dependency_error(self, mock_invalidate):
+        """Test the update method raises SourcesDependencyException on SourcesDependencyError."""
+        from sources.api.serializers import SourcesDependencyError
+        from sources.api.view import SourcesDependencyException
+
+        viewset = SourcesViewSet()
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+
+        with patch.object(
+            viewsets.GenericViewSet, "update", create=True, side_effect=SourcesDependencyError("dep error")
+        ):
+            with self.assertRaises(SourcesDependencyException):
+                viewset.update(request=mock_request)
+
 
 class DestroySourceMixinTests(IamTestCase):
     """Test Cases for the DestroySourceMixin.destroy with ONPREM publish."""
@@ -673,3 +724,87 @@ class DestroySourceMixinTests(IamTestCase):
             DestroySourceMixin.destroy(view, request=mock_request)
 
             mock_publish.assert_not_called()
+
+    @patch("sources.api.view.publish_application_destroy_event")
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @override_settings(ONPREM=True)
+    def test_destroy_retries_on_integrity_error(self, mock_invalidate, mock_publish):
+        """Test that destroy retries on IntegrityError then succeeds."""
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+        mock_request.user.customer.account_id = self.test_account
+        mock_request.user.customer.org_id = self.test_org_id
+        mock_request.user.identity_header = {"encoded": "test-header"}
+
+        view = DestroySourceMixin()
+        view.get_object = Mock(return_value=self.source)
+
+        with (
+            patch("sources.api.view.ProviderBuilder") as mock_builder,
+            patch("rest_framework.mixins.DestroyModelMixin.destroy", return_value=Response(status=204)),
+        ):
+            mock_builder.return_value.destroy_provider.side_effect = [IntegrityError("retry"), None]
+            result = DestroySourceMixin.destroy(view, request=mock_request)
+            self.assertEqual(result.status_code, 204)
+            self.assertEqual(mock_builder.return_value.destroy_provider.call_count, 2)
+
+    @patch("sources.api.view.publish_application_destroy_event")
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @override_settings(ONPREM=True)
+    def test_destroy_generic_exception_returns_500(self, mock_invalidate, mock_publish):
+        """Test that a generic exception during destroy returns 500."""
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+        mock_request.user.customer.account_id = self.test_account
+        mock_request.user.customer.org_id = self.test_org_id
+        mock_request.user.identity_header = {"encoded": "test-header"}
+
+        view = DestroySourceMixin()
+        view.get_object = Mock(return_value=self.source)
+
+        with patch("sources.api.view.ProviderBuilder") as mock_builder:
+            mock_builder.return_value.destroy_provider.side_effect = RuntimeError("unexpected")
+            result = DestroySourceMixin.destroy(view, request=mock_request)
+            self.assertEqual(result.status_code, 500)
+
+    @patch("sources.api.view.publish_application_destroy_event")
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    @override_settings(ONPREM=True)
+    def test_destroy_retry_exhausted_returns_500(self, mock_invalidate, mock_publish):
+        """Test that exhausting all retries returns 500."""
+        mock_request = Mock()
+        mock_request.user.customer.schema_name = "test_schema"
+        mock_request.user.customer.account_id = self.test_account
+        mock_request.user.customer.org_id = self.test_org_id
+        mock_request.user.identity_header = {"encoded": "test-header"}
+
+        view = DestroySourceMixin()
+        view.get_object = Mock(return_value=self.source)
+
+        with patch("sources.api.view.ProviderBuilder") as mock_builder:
+            mock_builder.return_value.destroy_provider.side_effect = IntegrityError("always fails")
+            result = DestroySourceMixin.destroy(view, request=mock_request)
+            self.assertEqual(result.status_code, 500)
+            self.assertEqual(mock_builder.return_value.destroy_provider.call_count, 5)
+
+
+class SourcesViewPermissionClassTests(IamTestCase):
+    """Test Cases for SourcesViewSet and ApplicationsView permission_classes conditional."""
+
+    def test_sources_viewset_permission_class_conditional(self):
+        """Verify SourcesViewSet uses SourcesAccessPermission when ONPREM."""
+        import inspect
+        from sources.api import view as view_module
+
+        source_code = inspect.getsource(view_module)
+        self.assertIn("SourcesAccessPermission", source_code)
+        self.assertIn("settings.ONPREM", source_code)
+
+    def test_applications_view_permission_class_conditional(self):
+        """Verify ApplicationsView uses SourcesAccessPermission when ONPREM."""
+        import inspect
+        from sources.api import application_views as app_module
+
+        source_code = inspect.getsource(app_module)
+        self.assertIn("SourcesAccessPermission", source_code)
+        self.assertIn("settings.ONPREM", source_code)

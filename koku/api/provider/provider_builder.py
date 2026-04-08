@@ -22,6 +22,8 @@ from api.provider.serializers import ProviderSerializer
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import SOURCES_CACHE_PREFIX
 from koku.middleware import IdentityHeaderMiddleware
+from koku_rebac.resource_reporter import create_structural_tuple
+from koku_rebac.resource_reporter import on_resource_created
 
 LOG = logging.getLogger(__name__)
 
@@ -51,6 +53,17 @@ class ProviderBuilder:
         except ValueError:
             db_dict = {}
         return db_dict
+
+    @staticmethod
+    def _report_ocp_resource(cluster_id: str, org_id: str, provider_uuid: str = "") -> None:
+        """Report an OCP cluster to Kessel Inventory."""
+        on_resource_created("openshift_cluster", cluster_id, org_id, provider_uuid=provider_uuid)
+
+    @staticmethod
+    def _report_integration(source_uuid: str, cluster_id: str, org_id: str, provider_uuid: str = "") -> None:
+        """Report an integration resource and link it to its cluster."""
+        on_resource_created("integration", source_uuid, org_id, provider_uuid=provider_uuid)
+        create_structural_tuple("integration", source_uuid, "has_cluster", "openshift_cluster", cluster_id)
 
     def _build_credentials_auth(self, provider_type, authentication):
         credentials = authentication.get("credentials")
@@ -133,6 +146,12 @@ class ProviderBuilder:
         try:
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
+                if provider_type.lower().startswith("ocp"):
+                    cluster_id = source.authentication.get("credentials", {}).get("cluster_id") or str(instance.uuid)
+                    p_uuid = str(instance.uuid)
+                    self._report_ocp_resource(cluster_id, self.org_id, provider_uuid=p_uuid)
+                    if source.source_uuid:
+                        self._report_integration(str(source.source_uuid), cluster_id, self.org_id, provider_uuid=p_uuid)
         finally:
             invalidate_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
             connection.set_schema_to_public()
