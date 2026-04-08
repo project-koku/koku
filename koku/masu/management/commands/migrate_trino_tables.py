@@ -46,6 +46,8 @@ EXTERNAL_TABLES = {
     "openshift_pod_usage_line_items_daily",
     "openshift_storage_usage_line_items",
     "openshift_storage_usage_line_items_daily",
+    "openshift_gpu_usage_line_items",
+    "openshift_gpu_usage_line_items_daily",
 }
 
 # Managed tables should be altered not dropped as we will lose all of the data
