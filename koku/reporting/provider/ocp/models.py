@@ -143,6 +143,7 @@ class OCPUsageLineItemDailySummary(models.Model):
     data_source = models.CharField(max_length=64, null=True)
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=True)
+    pod = models.CharField(max_length=253, null=True)
     node = models.CharField(max_length=253, null=True)
     # Another node identifier used to tie the node to an EC2 instance
     resource_id = models.CharField(max_length=253, null=True)
