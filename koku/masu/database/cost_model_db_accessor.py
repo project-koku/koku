@@ -18,18 +18,20 @@ LOG = logging.getLogger(__name__)
 class CostModelDBAccessor:
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, provider_uuid, target_date=None):
+    def __init__(self, schema, provider_uuid, *, price_list_effective_on=None):
         """Establish the database connection.
 
         Args:
             schema (str): The customer schema to associate with
             provider_uuid (str): Provider uuid
-            target_date (date, optional): Billing date for price list resolution
+            price_list_effective_on (date, optional): When set, tiered/tag rates are resolved
+                via the effective price list for this date. When omitted, rates come from
+                CostModel.rates directly.
 
         """
         self.schema = schema
         self.provider_uuid = provider_uuid
-        self.target_date = target_date
+        self.price_list_effective_on = price_list_effective_on
         self._cost_model = None
         self._effective_rates = None
 
@@ -55,22 +57,22 @@ class CostModelDBAccessor:
     def effective_rates(self):
         """Return rates from the effective price list for the target date.
 
-        When target_date is provided, resolves rates via price list priority.
+        When price_list_effective_on is provided, resolves rates via price list priority.
         Returns empty rates if no price list covers the date (zero costs per PRD).
-        When target_date is None, falls back to CostModel.rates for backward compatibility.
+        When price_list_effective_on is None, falls back to CostModel.rates for backward compatibility.
         """
         if self._effective_rates is not None:
             return self._effective_rates
         if not self.cost_model:
             self._effective_rates = {}
             return self._effective_rates
-        if self.target_date is None:
+        if self.price_list_effective_on is None:
             # No target date — fall back to CostModel.rates for backward compatibility
             self._effective_rates = self.cost_model.rates or {}
             return self._effective_rates
         from cost_models.price_list_manager import PriceListManager
 
-        effective_pl = PriceListManager.get_effective_price_list(self.cost_model.uuid, self.target_date)
+        effective_pl = PriceListManager.get_effective_price_list(self.cost_model.uuid, self.price_list_effective_on)
         if effective_pl:
             self._effective_rates = effective_pl.rates or {}
         else:

@@ -158,7 +158,9 @@ class GCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.gcp_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(
+            self.schema, self.gcp_provider.uuid, price_list_effective_on=None
+        ) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 

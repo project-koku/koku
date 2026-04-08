@@ -7,6 +7,7 @@ import logging
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+from django_filters import BooleanFilter
 from django_filters import CharFilter
 from django_filters import FilterSet
 from django_filters import UUIDFilter
@@ -32,7 +33,7 @@ class PriceListFilter(FilterSet):
 
     name = CharFilter(field_name="name", lookup_expr="icontains")
     uuid = UUIDFilter(field_name="uuid")
-    enabled = CharFilter(field_name="enabled")
+    enabled = BooleanFilter(field_name="enabled")
 
     class Meta:
         model = PriceList

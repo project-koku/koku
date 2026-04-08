@@ -23,7 +23,6 @@ from api.utils import get_currency
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
-from cost_models.models import PriceListCostModelMap
 from cost_models.price_list_manager import PriceListManager
 
 MARKUP_CHOICES = (("percent", "%"),)
@@ -667,11 +666,7 @@ class CostModelSerializer(BaseSerializer):
         source_uuids = CostModelManager(cm_uuid).get_provider_names_uuids()
         rep.update({"sources": source_uuids})
 
-        price_list_maps = (
-            PriceListCostModelMap.objects.filter(cost_model__uuid=cm_uuid)
-            .select_related("price_list")
-            .order_by("priority")
-        )
+        price_list_maps = cost_model_obj.price_list_maps.all()
         rep["price_lists"] = [
             {
                 "uuid": str(m.price_list.uuid),
