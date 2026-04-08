@@ -75,8 +75,9 @@ team prefers DB-first.
 | 2 | [api.md](api.md) | DD | Global Settings endpoint, serializer, permissions, validation rules |
 | 3 | [retention-pipeline.md](retention-pipeline.md) | DD | Purge flow changes, calendar-month fix, read-path refactor, Kafka ingest gate |
 | 4 | [phased-delivery.md](phased-delivery.md) | DD | Implementation phases, per-phase artifacts, validation criteria, rollback strategy |
+| 5 | [test-plan.md](test-plan.md) | TP | IEEE 829 test plan — tiers, test cases, traceability, gap analysis |
 
-**Reading order**: 1 → 2 → 3 → 4
+**Reading order**: 1 → 2 → 3 → 4 → 5
 
 ---
 
@@ -153,7 +154,7 @@ Detailed per-file changes are in each sub-document.
 | Area | Files | Change Type |
 |------|-------|-------------|
 | **Model** | `reporting/tenant_settings/models.py` | New |
-| **Migration** | `reporting/migrations/0344_tenantsettings.py` | New |
+| **Migration** | `reporting/migrations/0345_tenantsettings.py` | New |
 | **API** | `api/settings/views.py`, `api/settings/serializers.py`, `api/urls.py` | Modified |
 | **Retention read path** | `api/settings/utils.py` (new helpers), `masu/config.py`, `koku/settings.py` | Modified |
 | **Expiration calc** | `masu/processor/expired_data_remover.py` | Modified — calendar-month fix |
