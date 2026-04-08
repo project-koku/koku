@@ -258,7 +258,7 @@ class SourcesViewSet(*MIXIN_LIST):
         """Create a Source."""
         schema_name = request.user.customer.schema_name
         try:
-            response = super().create(request=request, args=args, kwargs=kwargs)
+            response = super().create(request, *args, **kwargs)
             invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
             return response
         except (SourcesStorageError, ParseError) as error:
@@ -271,7 +271,7 @@ class SourcesViewSet(*MIXIN_LIST):
         """Update a Source."""
         schema_name = request.user.customer.schema_name
         try:
-            result = super().update(request=request, args=args, kwargs=kwargs)
+            result = super().update(request, *args, **kwargs)
             invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
             return result
         except (SourcesStorageError, ParseError) as error:
@@ -285,7 +285,7 @@ class SourcesViewSet(*MIXIN_LIST):
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
 
-        response = super().list(request=request, args=args, kwargs=kwargs)
+        response = super().list(request, *args, **kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:
             if (
@@ -331,7 +331,7 @@ class SourcesViewSet(*MIXIN_LIST):
     @method_decorator(never_cache)
     def retrieve(self, request, *args, **kwargs):
         """Get a source."""
-        response = super().retrieve(request=request, args=args, kwargs=kwargs)
+        response = super().retrieve(request, *args, **kwargs)
         _, tenant = self._get_account_and_tenant(request)
 
         if response.data.get("authentication", {}).get("credentials", {}).get("client_secret"):
