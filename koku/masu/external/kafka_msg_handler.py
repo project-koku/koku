@@ -380,27 +380,36 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
             context=context,
         )
     )
-    credentials = {"cluster_id": manifest.cluster_id}
-    provider = (
-        Provider.objects.select_related("customer", "authentication")
-        .filter(authentication__credentials=credentials)
-        .first()
-    )
-    schema_name = provider.customer.schema_name if provider and provider.customer else None
-    context["provider_type"] = provider.type
-    context["schema"] = schema_name
-    # for anemic accounts, use `no_account`
-    context["account"] = context["account"] or provider.account.get("account_id") or "no_account"
-
-    skip_org_id_filter = bool(schema_name and is_cross_org_cluster_lookup_enabled(schema_name))
+    # Single DB query: fetch source+provider by cluster_id without org_id filter
+    # We'll validate org_id in Python after checking the feature flag
     source = utils.get_source_and_provider_from_cluster_id(
-        manifest.cluster_id, org_id=context["org_id"], skip_org_id_filter=skip_org_id_filter
+        manifest.cluster_id, org_id=context["org_id"], skip_org_id_filter=True
     )
     if not source:
         msg = f"Received unexpected OCP report from {manifest.cluster_id}"
         LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
         shutil.rmtree(payload_path.parent)
         return None, manifest.uuid
+
+    # Get provider and schema to check feature flag
+    provider: Provider = source.provider
+    schema_name: str = provider.account.get("schema_name")
+
+    # Check if cross-org cluster lookup is enabled for this schema
+    cross_org_enabled = bool(schema_name and is_cross_org_cluster_lookup_enabled(schema_name))
+
+    # If feature flag is disabled, enforce org_id matching
+    if not cross_org_enabled and source.org_id != context["org_id"]:
+        msg = f"Received unexpected OCP report from {manifest.cluster_id} (org_id mismatch)"
+        LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
+        shutil.rmtree(payload_path.parent)
+        return None, manifest.uuid
+
+    # Set context with provider information
+    context["provider_type"] = provider.type
+    context["schema"] = schema_name
+    # for anemic accounts, use `no_account`
+    context["account"] = context["account"] or provider.account.get("account_id") or "no_account"
 
     dh = DateHelper()
     manifest_end = manifest.end or dh.month_end(manifest.date)
