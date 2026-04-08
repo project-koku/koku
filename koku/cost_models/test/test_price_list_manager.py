@@ -337,6 +337,22 @@ class PriceListManagerAttachTest(MasuTestCase):
             with self.assertRaises(PriceListException):
                 PriceListManager.attach_price_lists_to_cost_model(self.cost_model.uuid, [self.pl1.uuid])
 
+    def test_attach_currency_mismatch_raises(self):
+        """Test that attaching a price list with different currency raises."""
+        with tenant_context(self.tenant):
+            manager = PriceListManager()
+            pl_eur = manager.create(
+                name="EUR PL",
+                description="Euro price list",
+                currency="EUR",
+                effective_start_date=date(2026, 1, 1),
+                effective_end_date=date(2026, 12, 31),
+                rates=[],
+            )
+            with self.assertRaises(PriceListException) as ctx:
+                PriceListManager.attach_price_lists_to_cost_model(self.cost_model.uuid, [pl_eur.uuid])
+            self.assertIn("Currency mismatch", str(ctx.exception))
+
 
 class PriceListManagerQueryTest(MasuTestCase):
     """Test cases for PriceListManager query methods."""

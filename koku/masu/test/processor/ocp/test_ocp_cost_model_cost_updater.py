@@ -597,3 +597,28 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
                     for item in node_line_items:
                         self.assertNotEqual(getattr(item, column), 0)
+
+    @patch(
+        "masu.processor.ocp.ocp_cost_model_cost_updater."
+        "OCPCostModelCostUpdater.distribute_costs_and_update_ui_summary"
+    )
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._update_markup_cost")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._update_monthly_cost")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._update_usage_costs")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._load_rates")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_update_summary_loads_rates_per_month(
+        self, mock_cost_accessor, mock_load_rates, mock_usage, mock_monthly, mock_markup, mock_distribute
+    ):
+        """Test that _load_rates is called once per month in a multi-month range."""
+        start_date = self.dh.this_month_start - relativedelta(months=2)
+        end_date = self.dh.this_month_end
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
+        updater.update_summary_cost_model_costs(summary_range)
+
+        months = list(summary_range.iter_summary_range_by_month())
+        self.assertEqual(mock_load_rates.call_count, len(months))
+        for month_range, call_args in zip(months, mock_load_rates.call_args_list):
+            self.assertEqual(call_args[0][0], month_range.start_date)

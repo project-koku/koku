@@ -170,6 +170,11 @@ class PriceListManager:
                 raise PriceListException(f"PriceList with UUID {pl_uuid} does not exist.")
             if not pl.enabled:
                 raise PriceListException(f"Cannot attach disabled price list '{pl.name}' to a cost model.")
+            if pl.currency != cost_model.currency:
+                raise PriceListException(
+                    f"Currency mismatch: price list '{pl.name}' uses '{pl.currency}' "
+                    f"but cost model uses '{cost_model.currency}'."
+                )
 
         with transaction.atomic():
             PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
@@ -195,11 +200,11 @@ class PriceListManager:
         return [{"price_list": m.price_list, "priority": m.priority} for m in maps]
 
     @staticmethod
-    def get_effective_price_list(cost_model_uuid, target_date):
+    def get_effective_price_list(cost_model_uuid, effective_date):
         """Resolve which price list is effective for a cost model on a given date.
 
         Finds all price lists (including disabled) assigned to the cost model where
-        the target_date falls within the validity period, then returns the one with
+        the effective_date falls within the validity period, then returns the one with
         the lowest priority number. Disabled price lists still participate in
         calculation — enabled/disabled only controls whether a list can be newly
         attached to a cost model.
@@ -209,8 +214,8 @@ class PriceListManager:
         maps = (
             PriceListCostModelMap.objects.filter(
                 cost_model__uuid=cost_model_uuid,
-                price_list__effective_start_date__lte=target_date,
-                price_list__effective_end_date__gte=target_date,
+                price_list__effective_start_date__lte=effective_date,
+                price_list__effective_end_date__gte=effective_date,
             )
             .select_related("price_list")
             .order_by("priority")
