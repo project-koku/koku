@@ -915,3 +915,120 @@ class LinearForecastResultTest(IamTestCase):
         self.assertEqual(lfr.pvalues, ["99999.00000000", "88888.00000000"])
         self.assertEqual(lfr.slope, 77777)
         self.assertEqual(lfr.intercept, 66666)
+
+
+class RemoveOutliersEdgeCaseTest(IamTestCase):
+    """Tests for _remove_outliers edge cases."""
+
+    def setUp(self):
+        super().setUp()
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        self.forecast = AWSForecast(params)
+        self.dh = DateHelper()
+
+    def _make_data(self, values):
+        """Build a date-keyed dict from a list of values."""
+        return {
+            (self.dh.this_month_start + timedelta(days=i)).date(): Decimal(v)
+            for i, v in enumerate(values)
+        }
+
+    def test_remove_outliers_empty_input(self):
+        """_remove_outliers with an empty dict returns an empty dict."""
+        result = self.forecast._remove_outliers({})
+        self.assertEqual(result, {})
+
+    def test_remove_outliers_all_identical_values(self):
+        """When all values are identical IQR is zero; boundaries collapse to the value
+        itself so all points pass the filter and data is returned unchanged."""
+        data = self._make_data([10] * 10)
+        result = self.forecast._remove_outliers(data)
+        self.assertEqual(result, data)
+
+    def test_remove_outliers_all_zeros(self):
+        """All-zero cost data (IQR == 0) must be returned unchanged."""
+        data = self._make_data([0] * 10)
+        result = self.forecast._remove_outliers(data)
+        self.assertEqual(result, data)
+
+    def test_remove_outliers_fallback_when_below_minimum(self):
+        """When outlier removal would drop data below MINIMUM, original data is returned with a warning.
+
+        This guards against the case where a single large spike causes IQR-based
+        filtering to discard almost all data points, leaving fewer than MINIMUM
+        points and making the regression meaningless.
+        """
+        # Use varied values so IQR is non-zero (avoids the all-identical path).
+        # MINIMUM - 1 varied base values + 1 extreme outlier -> after filtering
+        # only MINIMUM - 1 points remain, which is below MINIMUM -> fallback.
+        n = AWSForecast.MINIMUM - 1
+        values = [10 + i for i in range(n)] + [10_000]  # one extreme outlier
+        data = self._make_data(values)
+
+        with self.assertLogs(logger="forecast.forecast", level=logging.WARNING) as cm:
+            result = self.forecast._remove_outliers(data)
+
+        # The fallback returns the original unfiltered data.
+        self.assertEqual(result, data)
+        self.assertTrue(
+            any("Falling back to unfiltered data" in line for line in cm.output),
+            msg="Expected fallback warning was not logged",
+        )
+
+    def test_remove_outliers_no_fallback_when_enough_data_remains(self):
+        """When enough clean points remain after outlier removal, the outlier IS removed."""
+        # Use varied base values so IQR is non-zero and the extreme outlier is
+        # actually detected and removed.  MINIMUM varied points + 1 outlier ->
+        # MINIMUM points remain after removal -> no fallback needed.
+        n = AWSForecast.MINIMUM
+        values = [10 + i for i in range(n)] + [10_000]
+        data = self._make_data(values)
+
+        result = self.forecast._remove_outliers(data)
+
+        # The outlier day should be gone.
+        outlier_date = (self.dh.this_month_start + timedelta(days=n)).date()
+        self.assertNotIn(outlier_date, result)
+        self.assertEqual(len(result), n)
+
+    def test_predict_warns_when_outlier_removal_causes_fallback(self):
+        """End-to-end: predict() still produces a result when outlier removal triggers the fallback.
+
+        Uses MINIMUM - 1 varied base points + 1 extreme outlier so that outlier
+        removal leaves fewer than MINIMUM points, triggering the fallback.
+        The fallback restores the original data (MINIMUM points total), so
+        predict() should still succeed.
+        """
+        n = AWSForecast.MINIMUM - 1  # varied base points; outlier removal leaves n < MINIMUM -> fallback
+        expected = []
+        for i in range(n):
+            expected.append(
+                {
+                    "usage_start": self.dh.n_days_ago(self.dh.today, n - i).date(),
+                    "total_cost": 10 + (0.01 * i),
+                    "infrastructure_cost": 6 + (0.01 * i),
+                    "supplementary_cost": 4 + (0.01 * i),
+                }
+            )
+        # Inject an extreme outlier as the last data point.
+        expected.append(
+            {
+                "usage_start": self.dh.yesterday.date(),
+                "total_cost": 999_999,
+                "infrastructure_cost": 999_999,
+                "supplementary_cost": 0,
+            }
+        )
+        # Total data points = n + 1 = MINIMUM, which is enough for predict() after fallback.
+        mock_qset = MockQuerySet(expected)
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params)
+
+        with patch("forecast.forecast.AWSForecast.get_data", return_value=mock_qset):
+            results = instance.predict()
+
+        # predict() must return a non-empty list regardless of the outlier.
+        self.assertNotEqual(results, [])
+        for result in results:
+            for val in result.get("values", []):
+                self.assertIsInstance(val.get("date"), date)
