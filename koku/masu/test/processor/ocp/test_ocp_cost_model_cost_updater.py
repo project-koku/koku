@@ -134,6 +134,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         end_date = self.dh.this_month_end
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._load_rates(start_date)
         updater._update_usage_costs(start_date, end_date)
 
         with schema_context(self.schema):
@@ -182,6 +183,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         start_date = usage_period.report_period_start.date()
         end_date = usage_period.report_period_end.date() - relativedelta(days=1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._load_rates(start_date)
         updater._update_monthly_cost(start_date, end_date)
         with schema_context(self.schema):
             monthly_costs = (
@@ -226,6 +228,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         start_date = usage_period.report_period_start.date()
         end_date = usage_period.report_period_end.date() - relativedelta(days=1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._load_rates(start_date)
         updater._update_monthly_cost(start_date, end_date)
         mock_db_accessor.assert_called_once()
 
@@ -251,6 +254,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
             end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._load_rates(start_date)
         updater._update_monthly_cost(start_date, end_date)
         with self.accessor:
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
@@ -366,6 +370,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._load_rates(start_date)
         updater._update_tag_usage_costs(start_date, end_date)
         # assert that populate_tag_usage_costs was called with the correct info
         mock_update_usage.assert_called_once_with(
