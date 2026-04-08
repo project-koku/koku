@@ -8,6 +8,7 @@ import logging
 from rest_framework import serializers
 
 from api.report.serializers import BaseSerializer
+from api.utils import get_currency
 from cost_models.models import PriceList
 from cost_models.price_list_manager import PriceListException
 from cost_models.price_list_manager import PriceListManager
@@ -24,7 +25,7 @@ class PriceListSerializer(BaseSerializer):
         model = PriceList
 
     uuid = serializers.UUIDField(read_only=True)
-    name = serializers.CharField(max_length=255, required=False)
+    name = serializers.CharField(max_length=255)
     description = serializers.CharField(allow_blank=True, required=False)
     currency = serializers.CharField(required=False)
     effective_start_date = serializers.DateField(required=False)
@@ -53,6 +54,9 @@ class PriceListSerializer(BaseSerializer):
 
         if start and end and end < start:
             raise serializers.ValidationError("effective_end_date must be on or after effective_start_date.")
+
+        if not data.get("currency"):
+            data["currency"] = get_currency(self.context.get("request"))
 
         if data.get("rates"):
             CostModelSerializer.validate_rates_currency(data)

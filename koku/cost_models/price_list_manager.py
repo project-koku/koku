@@ -115,19 +115,14 @@ class PriceListManager:
             "provider_uuid", flat=True
         )
 
-        for provider_uuid in provider_uuids:
-            try:
-                provider = Provider.objects.get(uuid=provider_uuid)
-            except Provider.DoesNotExist:
-                continue
-            if not provider.active:
-                continue
+        providers = Provider.objects.filter(uuid__in=provider_uuids, active=True).select_related("customer")
+        for provider in providers:
             schema_name = provider.customer.schema_name
             fallback_queue = get_customer_queue(schema_name, PriorityQueue)
             tracing_id = uuid_mod.uuid4()
             LOG.info(
                 f"Price list '{self._model.name}' changed — triggering recalculation "
-                f"for provider {provider_uuid} with tracing_id {tracing_id}"
+                f"for provider {provider.uuid} with tracing_id {tracing_id}"
             )
             try:
                 update_cost_model_costs.s(
@@ -139,7 +134,7 @@ class PriceListManager:
                     queue_name=fallback_queue,
                 ).set(queue=fallback_queue).apply_async()
             except Exception as exc:
-                LOG.warning(f"Failed to dispatch recalculation for provider {provider_uuid}: {exc}")
+                LOG.warning(f"Failed to dispatch recalculation for provider {provider.uuid}: {exc}")
 
     def delete(self):
         """Delete a price list. Only allowed if not assigned to any cost model."""
@@ -168,22 +163,26 @@ class PriceListManager:
         except CostModel.DoesNotExist:
             raise PriceListException(f"CostModel with UUID {cost_model_uuid} does not exist.")
 
+        price_lists = {str(pl.uuid): pl for pl in PriceList.objects.filter(uuid__in=price_list_uuids)}
         for pl_uuid in price_list_uuids:
-            try:
-                pl = PriceList.objects.get(uuid=pl_uuid)
-            except PriceList.DoesNotExist:
+            pl = price_lists.get(str(pl_uuid))
+            if not pl:
                 raise PriceListException(f"PriceList with UUID {pl_uuid} does not exist.")
             if not pl.enabled:
                 raise PriceListException(f"Cannot attach disabled price list '{pl.name}' to a cost model.")
 
         with transaction.atomic():
             PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
-            for priority, pl_uuid in enumerate(price_list_uuids, start=1):
-                PriceListCostModelMap.objects.create(
-                    price_list_id=pl_uuid,
-                    cost_model=cost_model,
-                    priority=priority,
-                )
+            PriceListCostModelMap.objects.bulk_create(
+                [
+                    PriceListCostModelMap(
+                        price_list_id=pl_uuid,
+                        cost_model=cost_model,
+                        priority=priority,
+                    )
+                    for priority, pl_uuid in enumerate(price_list_uuids, start=1)
+                ]
+            )
 
     @staticmethod
     def get_cost_model_price_lists(cost_model_uuid):
