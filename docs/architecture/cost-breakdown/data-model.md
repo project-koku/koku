@@ -51,37 +51,102 @@ Example JSON structure:
 name, and sums tiered rate values when multiple rates share the same
 metric and cost type. Per-rate identity is lost at this point.
 
+### COST-575 Foundation (Already on `main`)
+
+[COST-575](https://redhat.atlassian.net/browse/COST-575) landed a
+`PriceList` infrastructure that this design builds on. Two PRs
+established the base:
+
+| PR | What it delivered | Migration |
+|----|-------------------|-----------|
+| [#5963](https://github.com/project-koku/koku/pull/5963) | `PriceList` model (`price_list` table), `PriceListCostModelMap` junction table, dual-write in `CostModelManager` | `0010_add_price_list_models` |
+| [#5957](https://github.com/project-koku/koku/pull/5957) | Data migration copying `CostModel.rates` JSON into `PriceList.rates` for all existing cost models | `0011_migrate_cost_model_rates_to_price_lists` |
+
+The existing `PriceList` stores rates as a **JSON blob** — the same
+denormalized format as `CostModel.rates`. This design extends it with
+a normalized `Rate` table that extracts individual rates into relational
+rows, adding the `custom_name` field required for per-rate breakdown
+display.
+
+The tech lead's [migration coordination gist](https://gist.github.com/myersCody/91195a531ada9c09d39a5c5234993654)
+describes the shared dual-write strategy that both COST-575 and cost
+breakdown follow:
+
+```
+CostModel (1) ──< (many) PriceList (1) ──< (many) Rate
+```
+
+**Key design decision**: We reuse the existing `price_list` table and
+`price_list_cost_model_map` junction table from COST-575 rather than
+creating parallel tables. The `Rate` table is the only new schema
+addition in Phase 1.
+
+The existing models on `main`:
+
+```python
+# cost_models/models.py (existing, from COST-575)
+class PriceList(models.Model):
+    class Meta:
+        db_table = "price_list"
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["name"], name="price_list_name_idx"),
+            models.Index(fields=["effective_start_date", "effective_end_date"], name="price_list_validity_idx"),
+        ]
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    name = models.TextField()
+    description = models.TextField()
+    currency = models.TextField()
+    effective_start_date = models.DateField()
+    effective_end_date = models.DateField()
+    enabled = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+    rates = JSONField()                                    # denormalized — supplemented by Rate table in Phase 1, dropped in Phase 5
+    created_timestamp = models.DateTimeField(auto_now_add=True)
+    updated_timestamp = models.DateTimeField(auto_now=True)
+
+class PriceListCostModelMap(models.Model):
+    class Meta:
+        db_table = "price_list_cost_model_map"
+        ordering = ["priority"]
+        unique_together = ("price_list", "cost_model")
+
+    price_list = models.ForeignKey("PriceList", on_delete=models.CASCADE, related_name="cost_model_maps")
+    cost_model = models.ForeignKey("CostModel", on_delete=models.CASCADE, related_name="price_list_maps")
+    priority = models.PositiveIntegerField()
+```
+
+**What COST-575 dual-write already does** (in `CostModelManager`):
+
+- On `create()`: if rates are present, calls `_get_or_create_price_list()`
+  which creates a `PriceList` row with the JSON blob and links it via
+  `PriceListCostModelMap`
+- On `update()`: if rates changed, syncs `PriceList.rates` JSON from
+  `CostModel.rates`. Wrapped in `@transaction.atomic`.
+- Data migration `0011`: for existing cost models, creates `PriceList`
+  rows locked with `SELECT ... FOR UPDATE`, skips already-mapped models
+  (idempotent)
+
 ---
 
 ## New Models
 
-### PriceList
+### PriceList (Existing — from COST-575)
 
-Normalizes the relationship between a cost model and its rates.
-Replaces the JSON blob as the source of truth (via dual-write from
-`CostModelManager` during Phases 1-4).
+The `PriceList` model and `PriceListCostModelMap` junction table already
+exist on `main` (see [Current State § COST-575 Foundation](#cost-575-foundation-already-on-main)).
+No new PriceList table is created in Phase 1.
 
-```python
-# cost_models/models.py (new)
-class PriceList(models.Model):
-    class Meta:
-        db_table = "cost_model_price_list"
-        indexes = [
-            models.Index(fields=["cost_model"], name="pricelist_cost_model_idx"),
-        ]
+The existing `price_list` table includes `effective_start_date` and
+`effective_end_date` fields. **IQ-6 is superseded**: the original
+proposal to remove date-bounding fields is moot because COST-575
+shipped them. They remain as-is.
 
-    uuid = models.UUIDField(primary_key=True, default=uuid4)
-    cost_model = models.ForeignKey("CostModel", on_delete=models.CASCADE, related_name="price_lists")
-    primary = models.BooleanField(default=True)
-    fallback = models.BooleanField(default=False)
-    # IQ-6 PROPOSAL: Remove usage_start/usage_end — PRD does not
-    # require time-bounded pricing. Can be added in a future migration.
-```
-
-**IQ-6 PROPOSAL**: Remove `usage_start` and `usage_end`. Koku's
-existing models are minimal (`CostModel` has no date-bounding). The
-PRD doesn't require time-bounded rates. See
-[README.md § IQ-6](./README.md#iq-6-pricelistusage_startusage_end-phase-1).
+The link between `CostModel` and `PriceList` is through the
+`PriceListCostModelMap` junction table (many-to-many), not a direct FK.
+This supports future scenarios where multiple cost models share a price
+list, or a cost model has multiple price lists.
 
 ### Rate
 
@@ -89,7 +154,7 @@ Individual rate definition. The `custom_name` field is the key addition
 that enables per-rate breakdown display.
 
 ```python
-# cost_models/models.py (new)
+# cost_models/models.py (new — Phase 1)
 class Rate(models.Model):
     class Meta:
         db_table = "cost_model_rate"
@@ -101,7 +166,7 @@ class Rate(models.Model):
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
-    price_list = models.ForeignKey("PriceList", on_delete=models.CASCADE, related_name="rates")
+    price_list = models.ForeignKey("PriceList", on_delete=models.CASCADE, related_name="rate_rows")
     custom_name = models.CharField(max_length=50)          # NOT NULL, user-visible label
     description = models.TextField(blank=True, default="")
     metric = models.CharField(max_length=100)              # e.g. "cpu_core_usage_per_hour"
@@ -111,6 +176,11 @@ class Rate(models.Model):
     tag_key = models.CharField(max_length=253, blank=True, default="")
     tag_values = JSONField(default=dict)                   # [{tag_value, value, unit, ...}]
 ```
+
+The `Rate` FK points to the existing `price_list` table from COST-575.
+The `related_name` is `rate_rows` (not `rates`) to avoid collision with
+the existing `PriceList.rates` JSONField. The path from `CostModel` to
+`Rate` is: `CostModel → PriceListCostModelMap → PriceList → Rate`.
 
 **Constraints**:
 
@@ -381,68 +451,51 @@ later migrations depend on earlier ones.
 
 ### Migration Sequence Overview
 
+COST-575 migrations `0010` and `0011` are prerequisites. Phase 1 adds
+only the `Rate` table (M1) and a data migration to populate it (M2).
+
 ```mermaid
 graph TD
+    subgraph COST575["COST-575 (already on main)"]
+        M0010["0010: PriceList +<br/>PriceListCostModelMap"]
+        M0011["0011: Data migration<br/>CostModel.rates → PriceList.rates"]
+        M0010 --> M0011
+    end
+
     subgraph Phase1["Phase 1: Schema Normalization"]
-        M1["M1: Create PriceList table"]
-        M2["M2: Create Rate table"]
-        M3["M3: Data migration<br/>JSON → Rate rows + custom_name"]
-        M1 --> M2 --> M3
+        M1["M1: Create Rate table"]
+        M2["M2: Data migration<br/>PriceList.rates JSON → Rate rows + custom_name"]
+        M1 --> M2
     end
 
     subgraph Phase2["Phase 2: Rate Calculation Isolation"]
-        M4["M4: Create RatesToUsage<br/>(partitioned)"]
+        M3["M3: Create RatesToUsage<br/>(partitioned)"]
     end
 
     subgraph Phase4["Phase 4: Breakdown UI"]
-        M5["M5: Create OCPCostUIBreakDownP<br/>(partitioned)"]
+        M4["M4: Create OCPCostUIBreakDownP<br/>(partitioned)"]
     end
 
     subgraph Phase5["Phase 5: Cleanup"]
-        M6["M6: Drop CostModel.rates<br/>JSONField column"]
+        M5["M5: Drop CostModel.rates<br/>+ PriceList.rates JSONFields"]
     end
 
-    Phase1 --> Phase2 --> Phase4 --> Phase5
+    COST575 --> Phase1 --> Phase2 --> Phase4 --> Phase5
 ```
 
 ---
 
-### M1: Create `cost_model_price_list` Table
-
-**Phase**: 1
-**Type**: Schema migration (auto-generated by `makemigrations`)
-**App**: `cost_models`
-**Depends on**: latest existing `cost_models` migration
-
-```sql
-CREATE TABLE cost_model_price_list (
-    uuid         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    cost_model_id UUID NOT NULL REFERENCES cost_model(uuid) ON DELETE CASCADE,
-    "primary"    BOOLEAN NOT NULL DEFAULT TRUE,
-    fallback     BOOLEAN NOT NULL DEFAULT FALSE
-    -- IQ-6 PROPOSAL: usage_start and usage_end removed.
-    -- PRD does not require time-bounded pricing.
-    -- Can be added in a future migration if needed.
-);
-
-CREATE INDEX pricelist_cost_model_idx ON cost_model_price_list (cost_model_id);
-```
-
-**Rollback**: `DROP TABLE cost_model_price_list CASCADE;`
-
----
-
-### M2: Create `cost_model_rate` Table
+### M1: Create `cost_model_rate` Table
 
 **Phase**: 1
 **Type**: Schema migration (auto-generated)
 **App**: `cost_models`
-**Depends on**: M1
+**Depends on**: `0011_migrate_cost_model_rates_to_price_lists` (COST-575)
 
 ```sql
 CREATE TABLE cost_model_rate (
     uuid          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    price_list_id UUID NOT NULL REFERENCES cost_model_price_list(uuid) ON DELETE CASCADE,
+    price_list_id UUID NOT NULL REFERENCES price_list(uuid) ON DELETE CASCADE,
     custom_name   VARCHAR(50) NOT NULL,
     description   TEXT NOT NULL DEFAULT '',
     metric        VARCHAR(100) NOT NULL,
@@ -460,81 +513,101 @@ CREATE INDEX rate_custom_name_idx ON cost_model_rate (custom_name);
 CREATE INDEX rate_metric_idx ON cost_model_rate (metric);
 ```
 
-**Rollback**: `DROP TABLE cost_model_rate CASCADE;` (cascades from
-`cost_model_price_list` if M1 is also rolled back)
+The FK references the existing `price_list` table (COST-575), not a new
+table. This ensures a single `PriceList` concept shared between COST-575
+(lifecycle management) and cost breakdown (per-rate normalization).
+
+**Rollback**: `DROP TABLE cost_model_rate CASCADE;`
 
 ---
 
-### M3: Data Migration — JSON to Rate Rows
+### M2: Data Migration — PriceList JSON to Rate Rows
 
 **Phase**: 1
 **Type**: Data migration (`RunPython`)
 **App**: `cost_models`
-**Depends on**: M2
+**Depends on**: M1
 
-This is the critical migration that populates `PriceList` and `Rate`
-from the existing `CostModel.rates` JSON blob.
+This migration extracts individual rates from the existing
+`PriceList.rates` JSON blob (populated by COST-575's migration `0011`)
+into normalized `Rate` rows with auto-generated `custom_name`.
 
 ```python
 # Pseudocode for the RunPython forward function
-def migrate_rates_to_tables(apps, schema_editor):
-    CostModel = apps.get_model("cost_models", "CostModel")
+def migrate_rates_to_rate_table(apps, schema_editor):
     PriceList = apps.get_model("cost_models", "PriceList")
+    PriceListCostModelMap = apps.get_model("cost_models", "PriceListCostModelMap")
     Rate = apps.get_model("cost_models", "Rate")
+    CostModel = apps.get_model("cost_models", "CostModel")
 
-    for cost_model in CostModel.objects.all():
-        if not cost_model.rates:
-            continue
+    mapping_ids = list(
+        PriceListCostModelMap.objects.select_related("price_list", "cost_model")
+        .values_list("id", flat=True)
+    )
 
-        # 1. Create one PriceList per CostModel
-        price_list = PriceList.objects.create(
-            cost_model=cost_model,
-            primary=True,
-            fallback=False,
-        )
+    for mapping_id in mapping_ids:
+        with transaction.atomic():
+            mapping = PriceListCostModelMap.objects.select_related(
+                "price_list", "cost_model"
+            ).get(id=mapping_id)
+            price_list = PriceList.objects.select_for_update().get(uuid=mapping.price_list_id)
+            cost_model = CostModel.objects.select_for_update().get(uuid=mapping.cost_model_id)
 
-        # 2. Generate custom_name for each rate and create Rate rows
-        used_names = set()
-        rates_json = cost_model.rates if isinstance(cost_model.rates, list) else []
-        updated_rates = []
+            if not price_list.rates:
+                continue
 
-        for rate_json in rates_json:
-            custom_name = generate_custom_name(
-                description=rate_json.get("description", ""),
-                metric=rate_json.get("metric", {}).get("name", "unknown"),
-                used_names=used_names,
-            )
-            used_names.add(custom_name)
+            # 1. Generate custom_name for each rate and create Rate rows
+            used_names = set()
+            rates_json = price_list.rates if isinstance(price_list.rates, list) else []
+            updated_rates = []
 
-            # Determine metric_type from metric name
-            metric_name = rate_json.get("metric", {}).get("name", "")
-            metric_type = derive_metric_type(metric_name)
+            for rate_json in rates_json:
+                custom_name = generate_custom_name(
+                    description=rate_json.get("description", ""),
+                    metric=rate_json.get("metric", {}).get("name", "unknown"),
+                    used_names=used_names,
+                )
+                used_names.add(custom_name)
 
-            # Extract rate value
-            tiered_rates = rate_json.get("tiered_rates", [])
-            tag_rates = rate_json.get("tag_rates", {})
-            default_rate = tiered_rates[0].get("value", 0) if tiered_rates else 0
+                metric_name = rate_json.get("metric", {}).get("name", "")
+                metric_type = derive_metric_type(metric_name)
 
-            Rate.objects.create(
-                price_list=price_list,
-                custom_name=custom_name,
-                description=rate_json.get("description", ""),
-                metric=metric_name,
-                metric_type=metric_type,
-                cost_type=rate_json.get("cost_type", "Infrastructure"),
-                default_rate=default_rate,
-                tag_key=tag_rates.get("tag_key", ""),
-                tag_values=tag_rates.get("tag_values", {}),
-            )
+                tiered_rates = rate_json.get("tiered_rates", [])
+                tag_rates = rate_json.get("tag_rates", {})
+                raw_value = tiered_rates[0].get("value", 0) if tiered_rates else 0
+                default_rate = Decimal(str(raw_value))  # JSON values may be strings ("0.0070000000")
 
-            # 3. Inject custom_name back into JSON for dual-write compatibility
-            rate_json["custom_name"] = custom_name
-            updated_rates.append(rate_json)
+                Rate.objects.create(
+                    price_list=price_list,
+                    custom_name=custom_name,
+                    description=rate_json.get("description", ""),
+                    metric=metric_name,
+                    metric_type=metric_type,
+                    cost_type=rate_json.get("cost_type", "Infrastructure"),
+                    default_rate=default_rate,
+                    tag_key=tag_rates.get("tag_key", ""),
+                    tag_values=tag_rates.get("tag_values", {}),
+                )
 
-        # 4. Update the JSON blob with custom_name added
-        cost_model.rates = updated_rates
-        cost_model.save(update_fields=["rates"])
+                # 2. Inject custom_name back into JSON for dual-write compatibility
+                rate_json["custom_name"] = custom_name
+                updated_rates.append(rate_json)
+
+            # 3. Update both JSON blobs with custom_name added
+            price_list.rates = updated_rates
+            price_list.save(update_fields=["rates", "updated_timestamp"])
+            cost_model.rates = updated_rates
+            cost_model.save(update_fields=["rates"])
 ```
+
+**Row-level locking** (`select_for_update`): Each mapping is processed
+inside its own `transaction.atomic()` block with `select_for_update()`
+on both the `PriceList` and `CostModel` rows. This matches COST-575's
+migration `0011` pattern and serves as defense-in-depth for on-prem
+deployments where the Unleash write-freeze flag is not available
+(`MockUnleashClient` returns `False` by default). On SaaS, the Unleash
+flag blocks API writes at a higher level; `select_for_update()` is a
+complementary safeguard.
 
 **`generate_custom_name` algorithm**:
 
@@ -593,33 +666,44 @@ def derive_metric_type(metric_name: str) -> str:
 | `storage_gb_request_per_month` | `storage` |
 | `cluster_core_cost_per_hour` | `cpu` |
 
+**Precondition**: Enable the Unleash write-freeze flag
+(`cost-management.backend.disable-cost-model-writes`) before running M2.
+This prevents concurrent API writes from modifying `CostModel.rates` or
+`PriceList.rates` JSON while the migration is iterating and injecting
+`custom_name`. Disable the flag after M2 completes and validation passes.
+See [api-and-frontend.md § Migration Write-Freeze Flag](./api-and-frontend.md#migration-write-freeze-flag-unleash)
+and [risk-register.md § R20](./risk-register.md#r20--migration-write-corruption).
+
 **What this migration does NOT do**:
 
+- Does not create `PriceList` rows (COST-575's `0011` already did that)
 - Does not modify `CostModelDBAccessor` read path (that's a code change,
   not a migration)
-- Does not remove the `rates` JSON column (that's Phase 5)
+- Does not remove the `rates` JSON columns (that's Phase 5)
 - Does not create partitioned tables (those are separate migrations)
 
-**Rollback**: `RunPython(reverse_code=migrate_tables_to_json)` — deletes
-all `Rate` and `PriceList` rows, removes `custom_name` key from
-`CostModel.rates` JSON blobs.
+**Rollback**: `RunPython(reverse_code=reverse_rate_migration)` — deletes
+all `Rate` rows, removes `custom_name` key from `CostModel.rates` and
+`PriceList.rates` JSON blobs. Does NOT delete `PriceList` rows (those
+belong to COST-575).
 
-**Estimated runtime**: O(N) where N = total number of cost models.
-Typically small (hundreds, not millions). Should complete in seconds.
+**Estimated runtime**: O(N) where N = total number of price list
+mappings. Typically small (hundreds, not millions). Should complete in
+seconds.
 
 ---
 
-### M4: Create `rates_to_usage` Table (Partitioned)
+### M3: Create `rates_to_usage` Table (Partitioned)
 
 **Phase**: 2
 **Type**: Schema migration
 **App**: `reporting` (lives in `reporting/provider/ocp/models.py`)
-**Depends on**: M2 (needs `cost_model_rate` table for FK)
+**Depends on**: M1 (needs `cost_model_rate` table for FK)
 
 ```sql
 CREATE TABLE rates_to_usage (
     uuid                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    rate_id              UUID REFERENCES cost_model_rate(uuid) ON DELETE SET NULL,
+    rate_id              UUID REFERENCES cost_model_rate(uuid) ON DELETE SET NULL,  -- FK to new Rate table (Phase 1)
     cost_model_id        UUID REFERENCES cost_model(uuid) ON DELETE SET NULL,
     report_period_id     INTEGER,
     source_uuid          TEXT NOT NULL,
@@ -685,12 +769,12 @@ for that month. See `write_to_self_hosted_table()` in
 
 ---
 
-### M5: Create `reporting_ocp_cost_breakdown_p` Table (Partitioned)
+### M4: Create `reporting_ocp_cost_breakdown_p` Table (Partitioned)
 
 **Phase**: 4
 **Type**: Schema migration
 **App**: `reporting`
-**Depends on**: M4
+**Depends on**: M3
 
 ```sql
 CREATE TABLE reporting_ocp_cost_breakdown_p (
@@ -736,16 +820,21 @@ revert the `UI_SUMMARY_TABLES` / cleaner changes.
 
 ---
 
-### M6: Drop `CostModel.rates` JSONField
+### M5: Drop `CostModel.rates` and `PriceList.rates` JSONFields
 
 **Phase**: 5
 **Type**: Schema migration (auto-generated by `makemigrations`)
 **App**: `cost_models`
-**Depends on**: M3, M4, M5, and confirmation that all tenants are migrated
+**Depends on**: M2, M3, M4, and confirmation that all tenants are migrated
 
 ```sql
 ALTER TABLE cost_model DROP COLUMN rates;
+ALTER TABLE price_list DROP COLUMN rates;
 ```
+
+Both JSON columns are dropped — `CostModel.rates` (the original) and
+`PriceList.rates` (the COST-575 mirror). By this point, the `Rate`
+table is the sole source of truth.
 
 **Preconditions** (must all be true before running):
 
@@ -754,9 +843,12 @@ ALTER TABLE cost_model DROP COLUMN rates;
 - `CostModelDBAccessor` reads exclusively from the `Rate` table
   (JSON read path removed)
 - All SQL files use `RatesToUsage` path (no fallback to JSON)
-- Backup of `cost_model` table taken
+- Backup of `cost_model` and `price_list` tables taken
+- Unleash write-freeze flag (`cost-management.backend.disable-cost-model-writes`)
+  enabled before running M5
 
 **Rollback**: `ALTER TABLE cost_model ADD COLUMN rates JSONB DEFAULT '{}'::jsonb;`
+and `ALTER TABLE price_list ADD COLUMN rates JSONB DEFAULT '{}'::jsonb;`
 followed by a data migration to repopulate from the `Rate` table. This is
 the only migration that is practically irreversible without a backup.
 
@@ -766,23 +858,25 @@ the only migration that is practically irreversible without a backup.
 
 ```mermaid
 graph LR
-    M1["M1<br/>PriceList table"] --> M2["M2<br/>Rate table"]
-    M2 --> M3["M3<br/>JSON → Rate<br/>data migration"]
-    M2 --> M4["M4<br/>RatesToUsage<br/>(partitioned)"]
-    M4 --> M5["M5<br/>BreakdownP<br/>(partitioned)"]
-    M3 --> M6["M6<br/>Drop JSON column"]
-    M4 --> M6
-    M5 --> M6
+    C575_0010["COST-575<br/>0010: PriceList"] --> C575_0011["COST-575<br/>0011: Data migration"]
+    C575_0011 --> M1["M1<br/>Rate table"]
+    M1 --> M2["M2<br/>JSON → Rate<br/>data migration"]
+    M1 --> M3["M3<br/>RatesToUsage<br/>(partitioned)"]
+    M3 --> M4["M4<br/>BreakdownP<br/>(partitioned)"]
+    M2 --> M5["M5<br/>Drop JSON columns"]
+    M3 --> M5
+    M4 --> M5
 ```
 
 ### Phase-to-Migration Mapping
 
 | Phase | Migrations | Reversible? | Estimated Runtime |
 |-------|-----------|-------------|-------------------|
-| 1 | M1, M2, M3 | Yes (drop tables, revert JSON) | Seconds |
-| 2 | M4 | Yes (drop table) | Seconds (empty table creation) |
-| 4 | M5 | Yes (drop table) | Seconds (empty table creation) |
-| 5 | M6 | Requires backup | Seconds (column drop) |
+| (prereq) | COST-575: 0010, 0011 | Yes (already on main) | N/A |
+| 1 | M1, M2 | Yes (drop Rate table, revert JSON) | Seconds |
+| 2 | M3 | Yes (drop table) | Seconds (empty table creation) |
+| 4 | M4 | Yes (drop table) | Seconds (empty table creation) |
+| 5 | M5 | Requires backup | Seconds (column drop) |
 
 ### On-Prem Considerations
 
@@ -801,7 +895,7 @@ sequence is the same. The only difference:
 ## Migration Strategy: `custom_name` Generation
 
 Since `custom_name` is new and mandatory, existing rates must be migrated.
-This is handled by M3 above.
+This is handled by M2 above.
 
 ### Edge Cases
 
@@ -813,8 +907,9 @@ This is handled by M3 above.
   separate `custom_name` values.
 - **Very long descriptions**: Truncated descriptions that collide after
   truncation get the incremental suffix treatment.
-- **Empty cost models**: Cost models with `rates = {}` or `rates = []` are
-  skipped — no `PriceList` or `Rate` rows are created.
+- **Empty cost models**: Cost models with empty rates are skipped. Note
+  that COST-575's data migration `0011` already skips these for PriceList
+  creation, so no `PriceListCostModelMap` exists to iterate in M2.
 - **Rates with no tiered_rates or tag_rates**: These exist in the JSON but
   are skipped by `CostModelDBAccessor.price_list` today. They should still
   get `Rate` rows (with `default_rate = 0`) so the migration is complete.
@@ -833,3 +928,7 @@ This is handled by M3 above.
 | v2.4 | 2026-03-17 | R13 mitigation: add `label_hash` column to RatesToUsage model and M4 DDL. Add `ratestousage_label_hash_idx` index. Add full decision rationale with 5 options evaluated, collision risk analysis, and computation details. |
 | v3.0 | 2026-03-19 | **IQ-9 Option 1 adopted.** Add `distributed_cost` column to `RatesToUsage` model and M4 DDL. Drop `cost_type` from `OCPCostUIBreakDownP` and M5 DDL. Rename `CostModelRatesToUsage` → `RatesToUsage` / `cost_model_rates_to_usage` → `rates_to_usage`. Update tree structure for per-rate distribution. |
 | v3.1 | 2026-03-19 | **Risk extraction.** Move R13 decision rationale table to [risk-register.md](./risk-register.md). Retain problem statement and computation details inline. |
+| v4.0 | 2026-04-02 | **Align Phase 1 with COST-575.** Remove proposed `cost_model_price_list` model — reuse existing `price_list` table from COST-575 ([#5963](https://github.com/project-koku/koku/pull/5963), [#5957](https://github.com/project-koku/koku/pull/5957)). `Rate` FK now references `price_list(uuid)`. Drop M1 (PriceList creation) — already exists via COST-575 migrations `0010`/`0011`. Renumber M2→M1, M3→M2, M4→M3, M5→M4, M6→M5. M5 now drops both `CostModel.rates` and `PriceList.rates` JSON columns. IQ-6 superseded (COST-575 shipped `effective_start_date`/`effective_end_date`). Add COST-575 Foundation section to Current State. Reference tech lead's [migration coordination gist](https://gist.github.com/myersCody/91195a531ada9c09d39a5c5234993654). |
+| v4.1 | 2026-04-02 | **R20: Migration write-freeze.** Add Unleash write-freeze precondition to M2 and M5. |
+| v4.2 | 2026-04-02 | **Critical review.** Add `Decimal()` conversion to M2 pseudocode `default_rate`. Clarify `PriceList.rates` lifecycle comment (supplemented in Phase 1, dropped in Phase 5). |
+| v4.3 | 2026-04-02 | **Self-resolve Concern 4.** Add `transaction.atomic()` + `select_for_update()` to M2 pseudocode for on-prem defense-in-depth, matching COST-575 0011 pattern. |
