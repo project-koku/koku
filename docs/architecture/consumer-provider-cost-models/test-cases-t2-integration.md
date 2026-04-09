@@ -682,22 +682,118 @@
 
 ---
 
-### TC-72 through TC-76: Placeholder tests
+### TC-72: Pipeline step order (placeholder)
 
 | Field | Value |
 |-------|-------|
-| Identifiers | TC-72, TC-73, TC-74, TC-75, TC-76 |
-| BACs | BAC-17, BAC-32, BAC-24 |
-| Status | **Placeholder** — behavioral coverage deferred to E2E tests |
+| Identifier | TC-72 |
+| BAC | BAC-17 |
+| Module | `masu/test/processor/ocp/test_context_pipeline.py` |
+| Status | **Placeholder** — behavioral coverage deferred to E2E TC-91 |
 
-These tests assert `True` with a comment referencing the E2E test that provides
-the actual coverage:
+**Scenario**: Pipeline step-order behavior is deferred to E2E coverage.
 
-- **TC-72** (BAC-17): Pipeline step order → covered by E2E TC-91
-- **TC-73** (BAC-32): Empty context zero cost → covered by E2E TC-93
-- **TC-74** (BAC-32): Empty context preserves usage → covered by E2E TC-93
-- **TC-75** (BAC-17): Sequential runs no corruption → covered by E2E TC-91, TC-98
-- **TC-76** (BAC-24): Cloud infra in all contexts → covered by E2E TC-99
+**Given**
+- Placeholder assertion in integration suite (`assert True`)
+
+**When**
+- `MultiContextPipelineTest.test_tc72_pipeline_step_order_placeholder` is executed
+
+**Then**
+- The test passes as a documented placeholder
+- Behavioral assurance comes from E2E TC-91
+
+---
+
+### TC-73: Empty context zero cost (placeholder)
+
+| Field | Value |
+|-------|-------|
+| Identifier | TC-73 |
+| BAC | BAC-32 |
+| Module | `masu/test/processor/ocp/test_context_pipeline.py` |
+| Status | **Placeholder** — behavioral coverage deferred to E2E TC-93 |
+
+**Scenario**: Empty-context zero-cost behavior is deferred to E2E coverage.
+
+**Given**
+- Placeholder assertion in integration suite (`assert True`)
+
+**When**
+- `MultiContextPipelineTest.test_tc73_empty_context_zero_cost_placeholder` is executed
+
+**Then**
+- The test passes as a documented placeholder
+- Behavioral assurance comes from E2E TC-93
+
+---
+
+### TC-74: Empty context preserves usage (placeholder)
+
+| Field | Value |
+|-------|-------|
+| Identifier | TC-74 |
+| BAC | BAC-32 |
+| Module | `masu/test/processor/ocp/test_context_pipeline.py` |
+| Status | **Placeholder** — behavioral coverage deferred to E2E TC-93 |
+
+**Scenario**: Empty-context usage-preservation behavior is deferred to E2E coverage.
+
+**Given**
+- Placeholder assertion in integration suite (`assert True`)
+
+**When**
+- `MultiContextPipelineTest.test_tc74_empty_context_preserves_usage_placeholder` is executed
+
+**Then**
+- The test passes as a documented placeholder
+- Behavioral assurance comes from E2E TC-93
+
+---
+
+### TC-75: Sequential runs no corruption (placeholder)
+
+| Field | Value |
+|-------|-------|
+| Identifier | TC-75 |
+| BAC | BAC-17 |
+| Module | `masu/test/processor/ocp/test_context_pipeline.py` |
+| Status | **Placeholder** — behavioral coverage deferred to E2E TC-91 and TC-98 |
+
+**Scenario**: Sequential-run consistency behavior is deferred to E2E coverage.
+
+**Given**
+- Placeholder assertion in integration suite (`assert True`)
+
+**When**
+- `MultiContextPipelineTest.test_tc75_sequential_runs_no_corruption_placeholder` is executed
+
+**Then**
+- The test passes as a documented placeholder
+- Behavioral assurance comes from E2E TC-91 and TC-98
+
+---
+
+### TC-76: Cloud infra in all contexts (placeholder)
+
+| Field | Value |
+|-------|-------|
+| Identifier | TC-76 |
+| BAC | BAC-24 |
+| Module | `masu/test/processor/ocp/test_context_pipeline.py` |
+| Status | **Placeholder** — behavioral coverage deferred to E2E TC-99 |
+
+**Scenario**: Cloud-infrastructure context neutrality is deferred to E2E coverage.
+
+**Given**
+- Placeholder assertion in integration suite (`assert True`)
+
+**When**
+- `MultiContextPipelineTest.test_tc76_cloud_infra_all_contexts_placeholder` is executed
+
+**Then**
+- The test passes as a documented placeholder
+- Behavioral assurance comes from E2E TC-99
 
 See [Deliberate Deviations](./test-plan.md#11-deliberate-deviations-from-spec) in the
 test plan.
