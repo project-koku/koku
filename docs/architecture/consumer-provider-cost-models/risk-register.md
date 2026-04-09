@@ -327,10 +327,11 @@ clause alongside `rate_type`.
 
 | Option | Description | Pros | Cons |
 |--------|-------------|------|------|
-| **A — Add `context` to all SQL WHERE clauses** | `AND context = {{context}}` in DELETE and source-filtering clauses | Clean; explicit; correct; follows existing `rate_type` scoping pattern | 29+ SQL files to modify (plus self-hosted) |
+| **A — Add `context` to all SQL WHERE clauses** | `AND context = {{context}}` in DELETE and source-filtering clauses | Clean; explicit; correct; follows existing `rate_type` scoping pattern | 49 SQL files to modify (standard + self-hosted + Trino + UI summary) |
 | **B — Use `cost_model_rate_type` to encode context** | Prefix rate type: `Infrastructure:Provider` | No new column needed | Breaks existing semantics; fragile; ugly |
 
-**Proposed**: **Option A**. Mechanical change across ~37 SQL files.
+**Proposed**: **Option A**. Mechanical change across 49 SQL files
+(16 standard + 9 self-hosted + 9 Trino + 13 UI summary + 2 variants).
 Repetitive but straightforward. The pattern is identical to existing
 `cost_model_rate_type` scoping — add `AND context = {{context}}`
 next to every `AND cost_model_rate_type = {{rate_type}}`. Create a
