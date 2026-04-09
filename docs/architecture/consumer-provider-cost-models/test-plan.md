@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | Test Plan Identifier | COST-3920-TP-001 |
-| Version | 3.0 |
+| Version | 3.1 |
 | Date | 2026-04-09 |
 | Author | COST-3920 Engineering |
 | Status | Design Proposal |
@@ -213,39 +213,39 @@ requirements) are in the per-tier companion documents:
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-01 | BAC-1 | Tenant schema with no contexts | `baker.make("CostModelContext", name="provider", display_name="Provider", position=2, is_default=False)` | Context persists with correct `name`, `display_name`, `position`, `uuid`, `created_timestamp` |
-| TC-02 | BAC-2 | 3 contexts already exist (positions 1-3) | `baker.make("CostModelContext", position=4)` inside `transaction.atomic()` | `IntegrityError` raised (DB CHECK constraint rejects position > 3) |
-| TC-03 | BAC-3 | 1 context with `is_default=True` exists | `baker.make("CostModelContext", is_default=True)` inside `transaction.atomic()` | `IntegrityError` raised (partial unique index blocks 2nd default) |
-| TC-04a | BAC-2 | Empty tenant schema | Create contexts with positions 1, 2, 3 sequentially | All 3 persist with correct positions |
-| TC-04b | BAC-2 | Empty tenant schema | Create context with position 0, 4, or -1 inside `transaction.atomic()` | `IntegrityError` for each invalid position |
-| TC-05a | BAC-4 | Context with `is_default=True` exists | `default_ctx.delete()` | `ValidationError` or `IntegrityError` raised — deletion blocked |
-| TC-05b | BAC-4 | Non-default context exists | `ctx.delete()` | Context deleted; `CostModelContext.objects.filter(uuid=ctx_uuid).exists()` returns `False` |
+| [TC-01](./test-cases-t1-unit.md#tc-01-context-creation-with-valid-data) | BAC-1 | Tenant schema with no contexts | `baker.make("CostModelContext", name="provider", display_name="Provider", position=2, is_default=False)` | Context persists with correct `name`, `display_name`, `position`, `uuid`, `created_timestamp` |
+| [TC-02](./test-cases-t1-unit.md#tc-02-max-3-contexts-enforced-by-db-check) | BAC-2 | 3 contexts already exist (positions 1-3) | `baker.make("CostModelContext", position=4)` inside `transaction.atomic()` | `IntegrityError` raised (DB CHECK constraint rejects position > 3) |
+| [TC-03](./test-cases-t1-unit.md#tc-03-one-default-context-enforced-by-partial-unique-index) | BAC-3 | 1 context with `is_default=True` exists | `baker.make("CostModelContext", is_default=True)` inside `transaction.atomic()` | `IntegrityError` raised (partial unique index blocks 2nd default) |
+| [TC-04a](./test-cases-t1-unit.md#tc-04a-valid-positions-1-2-3-accepted) | BAC-2 | Empty tenant schema | Create contexts with positions 1, 2, 3 sequentially | All 3 persist with correct positions |
+| [TC-04b](./test-cases-t1-unit.md#tc-04b-invalid-positions-0-4--1-rejected) | BAC-2 | Empty tenant schema | Create context with position 0, 4, or -1 inside `transaction.atomic()` | `IntegrityError` for each invalid position |
+| [TC-05a](./test-cases-t1-unit.md#tc-05a-default-context-deletion-is-blocked) | BAC-4 | Context with `is_default=True` exists | `default_ctx.delete()` | `ValidationError` or `IntegrityError` raised — deletion blocked |
+| [TC-05b](./test-cases-t1-unit.md#tc-05b-non-default-context-deletion-is-allowed) | BAC-4 | Non-default context exists | `ctx.delete()` | Context deleted; `CostModelContext.objects.filter(uuid=ctx_uuid).exists()` returns `False` |
 
 #### Class: `CostModelMapContextTest` — T1 Unit
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-09 | BAC-5 | Two contexts ("consumer", "provider") and one cost model | Create 2 `CostModelMap` rows for same `provider_uuid` with different contexts | Both rows persist; `CostModelMap.objects.filter(provider_uuid=uuid).count() == 2` |
-| TC-10 | BAC-6 | One `CostModelMap` row exists for `(provider_uuid, context)` | Create second `CostModelMap` for same `(provider_uuid, context)` inside `transaction.atomic()` | `IntegrityError` raised (unique constraint) |
+| [TC-09](./test-cases-t1-unit.md#tc-09-same-provider-with-different-contexts-allowed) | BAC-5 | Two contexts ("consumer", "provider") and one cost model | Create 2 `CostModelMap` rows for same `provider_uuid` with different contexts | Both rows persist; `CostModelMap.objects.filter(provider_uuid=uuid).count() == 2` |
+| [TC-10](./test-cases-t1-unit.md#tc-10-duplicate-provider--context-rejected) | BAC-6 | One `CostModelMap` row exists for `(provider_uuid, context)` | Create second `CostModelMap` for same `(provider_uuid, context)` inside `transaction.atomic()` | `IntegrityError` raised (unique constraint) |
 
 #### Class: `CostModelManagerContextTest` — T1 Unit
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-06 | BAC-7 | Two contexts exist; cost model 1 assigned to consumer | `CostModelManager(cm2).update_provider_uuids([uuid], cost_model_context=provider)` | Succeeds; 2 `CostModelMap` rows for same provider |
-| TC-07 | BAC-8 | Context exists; cost model 1 already assigned to `(uuid, ctx)` | `CostModelManager(cm2).update_provider_uuids([uuid], cost_model_context=ctx)` | `CostModelException` raised with descriptive message |
-| TC-08 | BAC-7 | Default context exists; `cost_model_context` not passed | `CostModelManager(cm).update_provider_uuids([uuid])` | `CostModelMap.cost_model_context.name == "default"` — auto-resolved |
+| [TC-06](./test-cases-t1-unit.md#tc-06-manager-allows-same-provider-in-different-contexts) | BAC-7 | Two contexts exist; cost model 1 assigned to consumer | `CostModelManager(cm2).update_provider_uuids([uuid], cost_model_context=provider)` | Succeeds; 2 `CostModelMap` rows for same provider |
+| [TC-07](./test-cases-t1-unit.md#tc-07-manager-rejects-same-provider--same-context) | BAC-8 | Context exists; cost model 1 already assigned to `(uuid, ctx)` | `CostModelManager(cm2).update_provider_uuids([uuid], cost_model_context=ctx)` | `CostModelException` raised with descriptive message |
+| [TC-08](./test-cases-t1-unit.md#tc-08-manager-defaults-to-tenants-default-context-when-none) | BAC-7 | Default context exists; `cost_model_context` not passed | `CostModelManager(cm).update_provider_uuids([uuid])` | `CostModelMap.cost_model_context.name == "default"` — auto-resolved |
 
 #### Class: `CostModelContextSerializerTest` — T1 Unit
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-11 | BAC-1 | Default context exists | `CostModelContextSerializer(data={"name": "provider", "display_name": "Provider"}).is_valid()` | Returns `True` |
-| TC-12 | BAC-2 | 3 contexts already exist | `CostModelContextSerializer(data={"name": "c4", "display_name": "C4"}).is_valid()` | Returns `False` — 4th rejected |
-| TC-13 | BAC-4 | Default context exists | `default_ctx.delete()` | `ValidationError` or `IntegrityError` raised |
-| TC-14 | BAC-5 | Default context exists | `CostModelSerializer(data={..., "cost_model_context": str(ctx.uuid)}).is_valid()` | Returns `True` — context UUID accepted |
-| TC-15 | BAC-7 | Default context exists; no `cost_model_context` in data | `CostModelSerializer(data={..., no context field}).is_valid()` | Returns `True` — defaults to tenant's default context |
-| TC-XX | BAC-7 | Default context exists; no `cost_model_context` in data | `serializer.save()` | Instance created successfully — backward-compatible |
+| [TC-11](./test-cases-t1-unit.md#tc-11-serializer-accepts-valid-context-data) | BAC-1 | Default context exists | `CostModelContextSerializer(data={"name": "provider", "display_name": "Provider"}).is_valid()` | Returns `True` |
+| [TC-12](./test-cases-t1-unit.md#tc-12-serializer-rejects-4th-context) | BAC-2 | 3 contexts already exist | `CostModelContextSerializer(data={"name": "c4", "display_name": "C4"}).is_valid()` | Returns `False` — 4th rejected |
+| [TC-13](./test-cases-t1-unit.md#tc-13-default-context-not-deletable-via-serializermodel-guard) | BAC-4 | Default context exists | `default_ctx.delete()` | `ValidationError` or `IntegrityError` raised |
+| [TC-14](./test-cases-t1-unit.md#tc-14-costmodelserializer-accepts-context-uuid) | BAC-5 | Default context exists | `CostModelSerializer(data={..., "cost_model_context": str(ctx.uuid)}).is_valid()` | Returns `True` — context UUID accepted |
+| [TC-15](./test-cases-t1-unit.md#tc-15-costmodelserializer-defaults-context-when-absent) | BAC-7 | Default context exists; no `cost_model_context` in data | `CostModelSerializer(data={..., no context field}).is_valid()` | Returns `True` — defaults to tenant's default context |
+| [TC-XX](./test-cases-t1-unit.md#tc-xx-backward-compatible-cost-model-creation-without-context) | BAC-7 | Default context exists; no `cost_model_context` in data | `serializer.save()` | Instance created successfully — backward-compatible |
 
 ---
 
@@ -255,7 +255,7 @@ requirements) are in the per-tier companion documents:
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-85 | BAC-30 | Default context exists; authenticated API client | POST `/cost-model-contexts/` → GET list → PUT detail → DELETE detail → GET detail | POST=201 (created); GET=200 (name in list); PUT=200 (display_name updated); DELETE=204; final GET=404 |
+| [TC-85](./test-cases-t3-e2e.md#tc-85-context-crud-api-lifecycle) | BAC-30 | Default context exists; authenticated API client | POST `/cost-model-contexts/` → GET list → PUT detail → DELETE detail → GET detail | POST=201 (created); GET=200 (name in list); PUT=200 (display_name updated); DELETE=204; final GET=404 |
 
 ---
 
@@ -265,12 +265,12 @@ requirements) are in the per-tier companion documents:
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-30 | BAC-9 | Schema at `MIGRATE_FROM` with one `CostModel` row | Run forward migration to `MIGRATE_TO_DATA` | `CostModelContext(is_default=True, name="default", display_name="Consumer", position=1)` exists |
-| TC-31 | BAC-10 | Schema at `MIGRATE_FROM` with `CostModelMap` row (raw SQL INSERT) | Run forward migration to `MIGRATE_TO_DATA` | `CostModelMap.cost_model_context` is set, `is_default=True`, `name="default"` |
-| TC-32 | BAC-6 | Schema at `MIGRATE_TO_DATA` with default context | Create 2 `CostModelMap` rows for same `(provider_uuid, context)` | `IntegrityError` — new unique constraint active |
-| TC-33 | BAC-5 | Schema at `MIGRATE_TO_DATA` with 2 contexts | Create 2 `CostModelMap` rows for same `(provider_uuid, cost_model)` but different contexts | Succeeds — old `(provider_uuid, cost_model)` constraint dropped |
-| TC-34 | BAC-9 | Schema at `MIGRATE_TO_DATA` with contexts and map rows | Reverse migration to `MIGRATE_FROM` | `cost_model_context_id` column dropped; `cost_model_context` table dropped; `CostModelMap` row survives |
-| TC-35 | BAC-3 | Schema at `MIGRATE_TO_DATA` with one default context | Create second context with `is_default=True` inside `transaction.atomic()` | `IntegrityError` — partial unique index active |
+| [TC-30](./test-cases-t2-integration.md#tc-30-forward-migration-creates-default-context-per-tenant) | BAC-9 | Schema at `MIGRATE_FROM` with one `CostModel` row | Run forward migration to `MIGRATE_TO_DATA` | `CostModelContext(is_default=True, name="default", display_name="Consumer", position=1)` exists |
+| [TC-31](./test-cases-t2-integration.md#tc-31-forward-migration-assigns-existing-costmodelmap-rows-to-default) | BAC-10 | Schema at `MIGRATE_FROM` with `CostModelMap` row (raw SQL INSERT) | Run forward migration to `MIGRATE_TO_DATA` | `CostModelMap.cost_model_context` is set, `is_default=True`, `name="default"` |
+| [TC-32](./test-cases-t2-integration.md#tc-32-new-unique-constraint-is-active-post-migration) | BAC-6 | Schema at `MIGRATE_TO_DATA` with default context | Create 2 `CostModelMap` rows for same `(provider_uuid, context)` | `IntegrityError` — new unique constraint active |
+| [TC-33](./test-cases-t2-integration.md#tc-33-old-unique-constraint-is-dropped-post-migration) | BAC-5 | Schema at `MIGRATE_TO_DATA` with 2 contexts | Create 2 `CostModelMap` rows for same `(provider_uuid, cost_model)` but different contexts | Succeeds — old `(provider_uuid, cost_model)` constraint dropped |
+| [TC-34](./test-cases-t2-integration.md#tc-34-reverse-migration-removes-context-cleanly) | BAC-9 | Schema at `MIGRATE_TO_DATA` with contexts and map rows | Reverse migration to `MIGRATE_FROM` | `cost_model_context_id` column dropped; `cost_model_context` table dropped; `CostModelMap` row survives |
+| [TC-35](./test-cases-t2-integration.md#tc-35-partial-unique-index-blocks-second-default-after-migration) | BAC-3 | Schema at `MIGRATE_TO_DATA` with one default context | Create second context with `is_default=True` inside `transaction.atomic()` | `IntegrityError` — partial unique index active |
 
 ---
 
@@ -280,18 +280,18 @@ requirements) are in the per-tier companion documents:
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-WF1 | BAC-34 | Default context exists; `is_context_writes_disabled` patched to return `True` | POST `/cost-model-contexts/` with `{"name": "provider", "display_name": "Provider"}` | HTTP 400; response body contains "frozen" |
-| TC-WF2 | BAC-35 | Default context exists; freeze flag active | PUT `/cost-model-contexts/{uuid}/` with updated display_name | HTTP 400; response body contains "frozen" |
-| TC-WF3 | BAC-36 | Default context exists; freeze flag active | GET `/cost-model-contexts/` | HTTP 200 — reads not blocked |
-| TC-WF4 | BAC-34 | Default context exists; `is_context_writes_disabled` patched to return `False` | POST `/cost-model-contexts/` with `{"name": "provider", "display_name": "Provider"}` | HTTP 201 — creation proceeds |
+| [TC-WF1](./test-cases-t3-e2e.md#tc-wf1-context-creation-blocked-when-freeze-active) | BAC-34 | Default context exists; `is_context_writes_disabled` patched to return `True` | POST `/cost-model-contexts/` with `{"name": "provider", "display_name": "Provider"}` | HTTP 400; response body contains "frozen" |
+| [TC-WF2](./test-cases-t3-e2e.md#tc-wf2-context-update-blocked-when-freeze-active) | BAC-35 | Default context exists; freeze flag active | PUT `/cost-model-contexts/{uuid}/` with updated display_name | HTTP 400; response body contains "frozen" |
+| [TC-WF3](./test-cases-t3-e2e.md#tc-wf3-context-read-allowed-during-freeze) | BAC-36 | Default context exists; freeze flag active | GET `/cost-model-contexts/` | HTTP 200 — reads not blocked |
+| [TC-WF4](./test-cases-t3-e2e.md#tc-wf4-context-creation-allowed-when-freeze-off) | BAC-34 | Default context exists; `is_context_writes_disabled` patched to return `False` | POST `/cost-model-contexts/` with `{"name": "provider", "display_name": "Provider"}` | HTTP 201 — creation proceeds |
 
 #### Class: `PipelineWriteFreezeTest` — T2 Integration
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-WF5 | BAC-37 | Freeze flag active; `CostModelCostUpdater` and `WorkerCache` mocked | `update_cost_model_costs(..., cost_model_context="consumer", synchronous=True)` | `CostModelCostUpdater` never instantiated — pipeline returns early |
-| TC-WF6 | BAC-37 | Freeze flag disabled; `CostModelCostUpdater` and `Provider` mocked | `update_cost_model_costs(..., cost_model_context="consumer", synchronous=True)` | `CostModelCostUpdater` called once — pipeline executes |
-| TC-WF7 | BAC-38 | All `CostModelContext` objects deleted; freeze flag mock tracked | `update_cost_model_costs(..., cost_model_context=None, synchronous=True)` | `is_context_writes_disabled` never called; `CostModelCostUpdater` called once |
+| [TC-WF5](./test-cases-t2-integration.md#tc-wf5-pipeline-skips-context-tagged-writes-when-freeze-active) | BAC-37 | Freeze flag active; `CostModelCostUpdater` and `WorkerCache` mocked | `update_cost_model_costs(..., cost_model_context="consumer", synchronous=True)` | `CostModelCostUpdater` never instantiated — pipeline returns early |
+| [TC-WF6](./test-cases-t2-integration.md#tc-wf6-pipeline-runs-normally-when-freeze-off) | BAC-37 | Freeze flag disabled; `CostModelCostUpdater` and `Provider` mocked | `update_cost_model_costs(..., cost_model_context="consumer", synchronous=True)` | `CostModelCostUpdater` called once — pipeline executes |
+| [TC-WF7](./test-cases-t2-integration.md#tc-wf7-legacy-path-none-context-does-not-trigger-freeze-guard) | BAC-38 | All `CostModelContext` objects deleted; freeze flag mock tracked | `update_cost_model_costs(..., cost_model_context=None, synchronous=True)` | `is_context_writes_disabled` never called; `CostModelCostUpdater` called once |
 
 ---
 
@@ -301,19 +301,15 @@ requirements) are in the per-tier companion documents:
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-70 | BAC-16 | 2 contexts ("consumer", "provider"); `CostModelCostUpdater` mocked | `update_cost_model_costs(..., synchronous=True)` with no explicit context | `mock_updater.update_cost_model_costs.call_count >= 2` — dispatched per context |
-| TC-71 | BAC-14 | Context "default" with cost model ($10 CPU rate); `CostModelMap` assigned | `CostModelDBAccessor(schema, uuid, cost_model_context="default")` | `accessor.cost_model == cm_consumer` — correct model resolved |
-| TC-72 | BAC-17 | — | — | Placeholder — covered by E2E TC-91 |
-| TC-73 | BAC-32 | — | — | Placeholder — covered by E2E TC-93 |
-| TC-74 | BAC-32 | — | — | Placeholder — covered by E2E TC-93 |
-| TC-75 | BAC-17 | — | — | Placeholder — covered by E2E TC-91/TC-98 |
-| TC-76 | BAC-24 | — | — | Placeholder — covered by E2E TC-99 |
+| [TC-70](./test-cases-t2-integration.md#tc-70-pipeline-dispatches-once-per-context) | BAC-16 | 2 contexts ("consumer", "provider"); `CostModelCostUpdater` mocked | `update_cost_model_costs(..., synchronous=True)` with no explicit context | `mock_updater.update_cost_model_costs.call_count >= 2` — dispatched per context |
+| [TC-71](./test-cases-t2-integration.md#tc-71-accessor-resolves-correct-rates-per-context) | BAC-14 | Context "default" with cost model ($10 CPU rate); `CostModelMap` assigned | `CostModelDBAccessor(schema, uuid, cost_model_context="default")` | `accessor.cost_model == cm_consumer` — correct model resolved |
+| [TC-72–76](./test-cases-t2-integration.md#tc-72-through-tc-76-placeholder-tests) | BAC-17,32,24 | — | — | Placeholders — covered by E2E TC-91, TC-93, TC-98, TC-99 |
 
 #### Class: `AuditTriggerContextTest` — T2 Integration
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-57 | BAC-31 | — | — | Placeholder — M5 audit trigger not yet implemented |
+| [TC-57](./test-cases-t2-integration.md#tc-57-audit-trigger-captures-context-placeholder) | BAC-31 | — | — | Placeholder — M5 audit trigger not yet implemented |
 
 ---
 
@@ -323,40 +319,40 @@ requirements) are in the per-tier companion documents:
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-40 | BAC-14 | Context "default" with cost model assigned via `CostModelMap` | `CostModelDBAccessor(schema, uuid, cost_model_context="default")` | `accessor.cost_model == cm` |
-| TC-41 | BAC-15 | Context "default" with cost model assigned; no explicit context param | `CostModelDBAccessor(schema, uuid)` | `accessor.cost_model == cm` — falls back to default |
-| TC-42 | BAC-14 | Cost model assigned to "consumer" context only | `CostModelDBAccessor(schema, uuid, cost_model_context="provider")` | `accessor.cost_model is None` — no model for requested context |
+| [TC-40](./test-cases-t2-integration.md#tc-40-accessor-filters-by-explicit-context) | BAC-14 | Context "default" with cost model assigned via `CostModelMap` | `CostModelDBAccessor(schema, uuid, cost_model_context="default")` | `accessor.cost_model == cm` |
+| [TC-41](./test-cases-t2-integration.md#tc-41-accessor-defaults-to-tenants-default-context-when-none) | BAC-15 | Context "default" with cost model assigned; no explicit context param | `CostModelDBAccessor(schema, uuid)` | `accessor.cost_model == cm` — falls back to default |
+| [TC-42](./test-cases-t2-integration.md#tc-42-accessor-returns-none-for-unassigned-context) | BAC-14 | Cost model assigned to "consumer" context only | `CostModelDBAccessor(schema, uuid, cost_model_context="provider")` | `accessor.cost_model is None` — no model for requested context |
 
 #### Class: `UsageCostsSQLContextTest` — T2 Integration
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-43 | BAC-17 | `usage_costs.sql` file loaded | Parse DELETE section (before first INSERT) | String `"cost_model_context"` present in DELETE section |
-| TC-44 | BAC-18 | `usage_costs.sql` file loaded | Parse INSERT section (after first INSERT keyword) | String `"cost_model_context"` present in INSERT section |
-| TC-45 | BAC-17 | `usage_costs.sql` file loaded | Search for exact template marker | `"cost_model_context = {{cost_model_context}}"` found in SQL |
-| TC-49 | BAC-19 | `distribute_platform_cost.sql` loaded | Search for context reference | String `"cost_model_context"` present |
-| TC-50 | BAC-24 | `AWSCostEntryLineItemDailySummary` model inspected | Check for attribute | `hasattr(model, "cost_model_context")` returns `False` — AWS model unaffected |
+| [TC-43](./test-cases-t2-integration.md#tc-43-usage-costs-delete-scoped-by-context) | BAC-17 | `usage_costs.sql` file loaded | Parse DELETE section (before first INSERT) | String `"cost_model_context"` present in DELETE section |
+| [TC-44](./test-cases-t2-integration.md#tc-44-usage-costs-insert-includes-context-column) | BAC-18 | `usage_costs.sql` file loaded | Parse INSERT section (after first INSERT keyword) | String `"cost_model_context"` present in INSERT section |
+| [TC-45](./test-cases-t2-integration.md#tc-45-cross-context-isolation-via-sql-template-marker) | BAC-17 | `usage_costs.sql` file loaded | Search for exact template marker | `"cost_model_context = {{cost_model_context}}"` found in SQL |
+| [TC-49](./test-cases-t2-integration.md#tc-49-distribution-sql-scoped-by-context) | BAC-19 | `distribute_platform_cost.sql` loaded | Search for context reference | String `"cost_model_context"` present |
+| [TC-50](./test-cases-t2-integration.md#tc-50-cloud-model-rows-unaffected-no-context-field) | BAC-24 | `AWSCostEntryLineItemDailySummary` model inspected | Check for attribute | `hasattr(model, "cost_model_context")` returns `False` — AWS model unaffected |
 
 #### Class: `CacheKeyContextTest` — T2 Integration
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-51 | BAC-23 | Cache key created with args including `"default"` context | `create_single_task_cache_key(task_name, [..., "default", ...])` | `"default"` substring present in returned key |
-| TC-52 | BAC-23 | Two cache keys with different context args ("default" vs "provider") | Compare both keys | Keys are not equal — different contexts produce different keys |
+| [TC-51](./test-cases-t2-integration.md#tc-51-cache-key-includes-context-string) | BAC-23 | Cache key created with args including `"default"` context | `create_single_task_cache_key(task_name, [..., "default", ...])` | `"default"` substring present in returned key |
+| [TC-52](./test-cases-t2-integration.md#tc-52-different-contexts-produce-different-cache-keys) | BAC-23 | Two cache keys with different context args ("default" vs "provider") | Compare both keys | Keys are not equal — different contexts produce different keys |
 
 #### Class: `SelfHostedTrinoSQLContextTest` — T2 Integration
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-53 | BAC-20 | All `.sql` files under `self_hosted_sql/openshift/cost_model/` | Read each file | Every file contains `"cost_model_context"` |
-| TC-54 | BAC-21 | All `.sql` files under `trino_sql/openshift/cost_model/` | Read each file | Every file contains `"cost_model_context"` |
+| [TC-53](./test-cases-t2-integration.md#tc-53-all-self-hosted-sql-files-include-context-param) | BAC-20 | All `.sql` files under `self_hosted_sql/openshift/cost_model/` | Read each file | Every file contains `"cost_model_context"` |
+| [TC-54](./test-cases-t2-integration.md#tc-54-all-trino-sql-files-include-context-param) | BAC-21 | All `.sql` files under `trino_sql/openshift/cost_model/` | Read each file | Every file contains `"cost_model_context"` |
 
 #### Class: `InlineSQLContextTest` — T2 Integration
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-55 | BAC-22 | `OCPCostModelCostUpdater._delete_tag_usage_costs` source inspected | `inspect.getsource(method)` | Source contains `"cost_model_context"` |
-| TC-56 | BAC-22 | `OCPReportDBAccessor.populate_usage_costs` source inspected | `inspect.getsource(method)` | Source contains `"cost_model_context"` |
+| [TC-55](./test-cases-t2-integration.md#tc-55-inline-delete-method-handles-context) | BAC-22 | `OCPCostModelCostUpdater._delete_tag_usage_costs` source inspected | `inspect.getsource(method)` | Source contains `"cost_model_context"` |
+| [TC-56](./test-cases-t2-integration.md#tc-56-populate_usage_costs-passes-context-in-sql-params) | BAC-22 | `OCPReportDBAccessor.populate_usage_costs` source inspected | `inspect.getsource(method)` | Source contains `"cost_model_context"` |
 
 ---
 
@@ -366,9 +362,9 @@ requirements) are in the per-tier companion documents:
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-60 | BAC-11 | Schema at `MIGRATE_FROM` | Run migration to `MIGRATE_TO` | `information_schema.columns` confirms `cost_model_context` on `reporting_ocpusagelineitem_daily_summary` |
-| TC-61 | BAC-12 | Schema at `MIGRATE_FROM` | Run migration to `MIGRATE_TO` | `cost_model_context` column exists on all 13 `reporting_ocp_*_summary_p` tables (verified with `subTest`) |
-| TC-62 | BAC-11 | Schema at `MIGRATE_TO` with context column present | Reverse migration to `MIGRATE_FROM` | `cost_model_context` column no longer exists on daily summary table |
+| [TC-60](./test-cases-t2-integration.md#tc-60-daily-summary-table-gets-context-column) | BAC-11 | Schema at `MIGRATE_FROM` | Run migration to `MIGRATE_TO` | `information_schema.columns` confirms `cost_model_context` on `reporting_ocpusagelineitem_daily_summary` |
+| [TC-61](./test-cases-t2-integration.md#tc-61-all-13-ui-summary-tables-get-context-column) | BAC-12 | Schema at `MIGRATE_FROM` | Run migration to `MIGRATE_TO` | `cost_model_context` column exists on all 13 `reporting_ocp_*_summary_p` tables (verified with `subTest`) |
+| [TC-62](./test-cases-t2-integration.md#tc-62-reverse-migration-removes-context-column) | BAC-11 | Schema at `MIGRATE_TO` with context column present | Reverse migration to `MIGRATE_FROM` | `cost_model_context` column no longer exists on daily summary table |
 
 ---
 
@@ -378,18 +374,18 @@ requirements) are in the per-tier companion documents:
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-22 | BAC-26 | Authenticated client | GET `/reports/openshift/costs/?cost_model_context=consumer` | HTTP 200; `response.meta.cost_model_context == "consumer"` |
-| TC-23 | BAC-33 | Authenticated client | GET `/reports/openshift/costs/` (no context param) | HTTP 200; `"cost_model_context" not in response.meta` — backward-compatible |
+| [TC-22](./test-cases-t3-e2e.md#tc-22-cost_model_context-parameter-accepted) | BAC-26 | Authenticated client | GET `/reports/openshift/costs/?cost_model_context=consumer` | HTTP 200; `response.meta.cost_model_context == "consumer"` |
+| [TC-23](./test-cases-t3-e2e.md#tc-23-missing-cost_model_context-has-no-context-in-meta) | BAC-33 | Authenticated client | GET `/reports/openshift/costs/` (no context param) | HTTP 200; `"cost_model_context" not in response.meta` — backward-compatible |
 
 #### Class: `OCPContextReportAPITest` — T3 E2E
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-80 | BAC-26 | Authenticated client | GET `/reports/openshift/costs/?cost_model_context=consumer` | HTTP 200 |
-| TC-81 | BAC-27 | Authenticated client | GET `/reports/openshift/costs/?cost_model_context=consumer` | `response.meta.cost_model_context == "consumer"` |
-| TC-82 | BAC-33 | Authenticated client | GET `/reports/openshift/costs/` (no context param) | HTTP 200 — no regression |
-| TC-83 | BAC-27 | Authenticated client | GET `/reports/openshift/costs/?cost_model_context=consumer` | Response includes data (verify currency annotation is context-aware) |
-| TC-84 | BAC-29 | Authenticated client | GET `/reports/openshift/costs/?cost_model_context=nonexistent` | HTTP 200 or 400 — unpermitted/nonexistent context handled gracefully |
+| [TC-80](./test-cases-t3-e2e.md#tc-80-cost-endpoint-with-context-returns-200) | BAC-26 | Authenticated client | GET `/reports/openshift/costs/?cost_model_context=consumer` | HTTP 200 |
+| [TC-81](./test-cases-t3-e2e.md#tc-81-response-filtered-by-context) | BAC-27 | Authenticated client | GET `/reports/openshift/costs/?cost_model_context=consumer` | `response.meta.cost_model_context == "consumer"` |
+| [TC-82](./test-cases-t3-e2e.md#tc-82-missing-context-uses-default-no-regression) | BAC-33 | Authenticated client | GET `/reports/openshift/costs/` (no context param) | HTTP 200 — no regression |
+| [TC-83](./test-cases-t3-e2e.md#tc-83-currency-annotation-context-aware) | BAC-27 | Authenticated client | GET `/reports/openshift/costs/?cost_model_context=consumer` | Response includes data (verify currency annotation is context-aware) |
+| [TC-84](./test-cases-t3-e2e.md#tc-84-unpermittednonexistent-context-handled-gracefully) | BAC-29 | Authenticated client | GET `/reports/openshift/costs/?cost_model_context=nonexistent` | HTTP 200 or 400 — unpermitted/nonexistent context handled gracefully |
 
 ---
 
@@ -399,13 +395,13 @@ requirements) are in the per-tier companion documents:
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-16 | BAC-28 | `ENHANCED_ORG_ADMIN=True`; admin user; `query_params={"cost_model_context": "provider"}` | `perm.has_permission(request, None)` | Returns `True` — admin bypass |
-| TC-17 | BAC-29 | User with `cost_model.read=[]` (empty); `query_params={"cost_model_context": "consumer"}` | `perm.has_permission(request, None)` | Returns `False` — denied |
-| TC-18 | BAC-33 | User with `cost_model.read=["*"]`; `query_params={}` (no context param) | `perm.has_permission(request, None)` | Returns `True` — pass-through when no context requested |
-| TC-19a | BAC-29 | User with `access=None`, `customer=None`; `query_params={"cost_model_context": "consumer"}` | `perm.has_permission(request, None)` | Returns `False` |
-| TC-19b | BAC-33 | User with `access=None`; `query_params={}` (no context param) | `perm.has_permission(request, None)` | Returns `True` — pass-through |
-| TC-20 | BAC-29 | User with `access={}` (empty dict); `query_params={"cost_model_context": "consumer"}` | `perm.has_permission(request, None)` | Returns `False` |
-| TC-21 | BAC-29 | User with `access={"aws.account": {"read": ["*"]}}` (no `cost_model` key); context requested | `perm.has_permission(request, None)` | Returns `False` — no `KeyError` raised |
+| [TC-16](./test-cases-t1-unit.md#tc-16-admin-user-bypasses-context-check) | BAC-28 | `ENHANCED_ORG_ADMIN=True`; admin user; `query_params={"cost_model_context": "provider"}` | `perm.has_permission(request, None)` | Returns `True` — admin bypass |
+| [TC-17](./test-cases-t1-unit.md#tc-17-unpermitted-user-denied) | BAC-29 | User with `cost_model.read=[]` (empty); `query_params={"cost_model_context": "consumer"}` | `perm.has_permission(request, None)` | Returns `False` — denied |
+| [TC-18](./test-cases-t1-unit.md#tc-18-permitted-user-allowed-no-context-param) | BAC-33 | User with `cost_model.read=["*"]`; `query_params={}` (no context param) | `perm.has_permission(request, None)` | Returns `True` — pass-through when no context requested |
+| [TC-19a](./test-cases-t1-unit.md#tc-19a-missing-customer-attribute-returns-false) | BAC-29 | User with `access=None`, `customer=None`; `query_params={"cost_model_context": "consumer"}` | `perm.has_permission(request, None)` | Returns `False` |
+| [TC-19b](./test-cases-t1-unit.md#tc-19b-no-context-param-allows-access-regardless) | BAC-33 | User with `access=None`; `query_params={}` (no context param) | `perm.has_permission(request, None)` | Returns `True` — pass-through |
+| [TC-20](./test-cases-t1-unit.md#tc-20-empty-access-dict-returns-false) | BAC-29 | User with `access={}` (empty dict); `query_params={"cost_model_context": "consumer"}` | `perm.has_permission(request, None)` | Returns `False` |
+| [TC-21](./test-cases-t1-unit.md#tc-21-missing-cost_model-key-does-not-raise-keyerror) | BAC-29 | User with `access={"aws.account": {"read": ["*"]}}` (no `cost_model` key); context requested | `perm.has_permission(request, None)` | Returns `False` — no `KeyError` raised |
 
 ---
 
@@ -415,23 +411,23 @@ requirements) are in the per-tier companion documents:
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-90 | BAC-16, BAC-27 | Context "default" with cost model ($10/core-hour CPU, Infrastructure); `CostModelMap` assigned; Trino mocked | Run pipeline for `cost_model_context="default"`; then GET `/reports/openshift/costs/?cost_model_context=default` | DB: `OCPUsageLineItemDailySummary` rows with `cost_model_context="default"` and `cost_model_rate_type="Infrastructure"` exist; `sum(cost_model_cpu_cost) > 0`. API: `response.meta.cost_model_context == "default"` |
-| TC-91 | BAC-16, BAC-17 | Two contexts: consumer ($10), provider ($20); both assigned to same cluster; Trino mocked | Run pipeline for "consumer" then "provider" | DB: `provider_cost / consumer_cost ≈ 2.0 (±0.1)`. API: each context returns its own `cost_model_context` in meta. Cross-context isolation verified |
+| [TC-90](./test-cases-t3-e2e.md#tc-90-single-context-pipeline-smoke-test) | BAC-16, BAC-27 | Context "default" with cost model ($10/core-hour CPU, Infrastructure); `CostModelMap` assigned; Trino mocked | Run pipeline for `cost_model_context="default"`; then GET `/reports/openshift/costs/?cost_model_context=default` | DB: `OCPUsageLineItemDailySummary` rows with `cost_model_context="default"` and `cost_model_rate_type="Infrastructure"` exist; `sum(cost_model_cpu_cost) > 0`. API: `response.meta.cost_model_context == "default"` |
+| [TC-91](./test-cases-t3-e2e.md#tc-91-dual-context-isolation-smoke-test) | BAC-16, BAC-17 | Two contexts: consumer ($10), provider ($20); both assigned to same cluster; Trino mocked | Run pipeline for "consumer" then "provider" | DB: `provider_cost / consumer_cost ≈ 2.0 (±0.1)`. API: each context returns its own `cost_model_context` in meta. Cross-context isolation verified |
 
 #### Class: `APIContextE2ETest` — T3 E2E
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| TC-92 | BAC-33, BAC-27 | Default context with rate; pipeline run for "default" | GET with `?cost_model_context=default` vs GET without param | Explicit: `meta.cost_model_context == "default"`. Implicit: `"cost_model_context" not in meta` |
-| TC-93 | BAC-32 | Context "empty" with no `CostModelMap` assignment; default also exists | GET `/reports/openshift/costs/?cost_model_context=empty` | HTTP 200; `meta.cost_model_context == "empty"` — $0 cost reported |
-| TC-94 | BAC-27 | Default context with $10 rate; pipeline run | Update rate to $50; re-run pipeline | `cost_after / cost_before ≈ 5.0 (±0.5)` — rate propagation verified |
-| TC-95 | BAC-17 | Default context with rate; pipeline run; then `CostModelMap` deleted | Re-run pipeline for "default" | All `cost_model_cpu_cost > 0` rows for context "default" are cleared |
-| TC-96 | BAC-16 | Default context with rate assigned in test tenant; pipeline run | Query `OCPUsageLineItemDailySummary` in `public` schema | 0 rows or `ProgrammingError` — no cross-tenant leakage |
-| TC-97 | BAC-29 | `CostModelContextPermission.has_permission` patched to `False` | GET `/reports/openshift/costs/?cost_model_context=default` | HTTP 403 |
-| TC-98 | BAC-17, BAC-27 | Two contexts: "default" ($10) and "alternate" ($30); both pipelines run | GET for each context | Each response has its own `cost_model_context` in meta — cross-context isolation via API |
-| TC-99 | BAC-24 | — | Inspect `AWSCostEntryLineItemDailySummary` model | `hasattr(model, "cost_model_context")` returns `False` |
-| TC-100 | BAC-25 | — | Inspect `OCPCostSummaryP` model | `hasattr(model, "cost_model_context")` returns `True` |
-| TC-101 | BAC-19 | Default context with rate; pipeline run | Query `OCPUsageLineItemDailySummary` for `cost_model_rate_type IN ("platform_distributed", "worker_distributed")` | All distributed rows have `cost_model_context == "default"` |
+| [TC-92](./test-cases-t3-e2e.md#tc-92-explicit-default-equals-implicit-backward-compat) | BAC-33, BAC-27 | Default context with rate; pipeline run for "default" | GET with `?cost_model_context=default` vs GET without param | Explicit: `meta.cost_model_context == "default"`. Implicit: `"cost_model_context" not in meta` |
+| [TC-93](./test-cases-t3-e2e.md#tc-93-empty-context-shows-0-cost) | BAC-32 | Context "empty" with no `CostModelMap` assignment; default also exists | GET `/reports/openshift/costs/?cost_model_context=empty` | HTTP 200; `meta.cost_model_context == "empty"` — $0 cost reported |
+| [TC-94](./test-cases-t3-e2e.md#tc-94-rate-update-propagation) | BAC-27 | Default context with $10 rate; pipeline run | Update rate to $50; re-run pipeline | `cost_after / cost_before ≈ 5.0 (±0.5)` — rate propagation verified |
+| [TC-95](./test-cases-t3-e2e.md#tc-95-assignment-removal-clears-context-costs) | BAC-17 | Default context with rate; pipeline run; then `CostModelMap` deleted | Re-run pipeline for "default" | All `cost_model_cpu_cost > 0` rows for context "default" are cleared |
+| [TC-96](./test-cases-t3-e2e.md#tc-96-multi-tenant-isolation) | BAC-16 | Default context with rate assigned in test tenant; pipeline run | Query `OCPUsageLineItemDailySummary` in `public` schema | 0 rows or `ProgrammingError` — no cross-tenant leakage |
+| [TC-97](./test-cases-t3-e2e.md#tc-97-rbac-denies-unpermitted-context-access) | BAC-29 | `CostModelContextPermission.has_permission` patched to `False` | GET `/reports/openshift/costs/?cost_model_context=default` | HTTP 403 |
+| [TC-98](./test-cases-t3-e2e.md#tc-98-cross-context-isolation-via-api) | BAC-17, BAC-27 | Two contexts: "default" ($10) and "alternate" ($30); both pipelines run | GET for each context | Each response has its own `cost_model_context` in meta — cross-context isolation via API |
+| [TC-99](./test-cases-t3-e2e.md#tc-99-cloud-rows-unaffected-by-context) | BAC-24 | — | Inspect `AWSCostEntryLineItemDailySummary` model | `hasattr(model, "cost_model_context")` returns `False` |
+| [TC-100](./test-cases-t3-e2e.md#tc-100-ui-summary-model-has-context-field) | BAC-25 | — | Inspect `OCPCostSummaryP` model | `hasattr(model, "cost_model_context")` returns `True` |
+| [TC-101](./test-cases-t3-e2e.md#tc-101-distributed-costs-tagged-with-context) | BAC-19 | Default context with rate; pipeline run | Query `OCPUsageLineItemDailySummary` for `cost_model_rate_type IN ("platform_distributed", "worker_distributed")` | All distributed rows have `cost_model_context == "default"` |
 
 ---
 
@@ -635,3 +631,4 @@ acceptance, report filtering, CRUD lifecycle, and write-freeze guards.
 | v1.0 | 2026-04-08 | Initial IEEE 829 test plan |
 | v2.0 | 2026-04-09 | Full rewrite: BDD Given/When/Then for all 82 test cases derived from implementation code; correct BAC-to-phase mapping; add write-freeze TCs; add test plan identifier, approval section, deliberate deviations, implementation phases with checkpoints |
 | v3.0 | 2026-04-09 | IEEE 829 compliance: split detailed test case specifications into per-tier companion documents (T1/T2/T3) with full Given/When/Then blocks; test-plan.md retains summary tables with links to specs |
+| v3.1 | 2026-04-09 | Add deep links from every TC identifier in summary tables to its corresponding heading in the per-tier companion documents |
