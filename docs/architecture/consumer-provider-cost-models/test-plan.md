@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | Test Plan Identifier | COST-3920-TP-001 |
-| Version | 2.0 |
+| Version | 3.0 |
 | Date | 2026-04-09 |
 | Author | COST-3920 Engineering |
 | Status | Design Proposal |
@@ -197,6 +197,15 @@ Each implementation phase follows strict Red-Green-Refactor:
 ---
 
 ## 5. Test Cases (82 tests across 10 modules)
+
+Each test case below is summarized in table form for quick reference.
+Full IEEE 829 Test Case Specifications (with structured
+Given/When/Then scenarios, test items, dependencies, and special
+requirements) are in the per-tier companion documents:
+
+- **[test-cases-t1-unit.md](./test-cases-t1-unit.md)** — 25 unit tests (model, serializer, permission, manager)
+- **[test-cases-t2-integration.md](./test-cases-t2-integration.md)** — 34 integration tests (SQL, accessor, migration, DB constraints, pipeline)
+- **[test-cases-t3-e2e.md](./test-cases-t3-e2e.md)** — 24 E2E tests (full pipeline, API, cross-context isolation, write-freeze)
 
 ### 5.1 Module: `cost_models/test/test_cost_model_context.py` (17 tests)
 
@@ -625,3 +634,4 @@ acceptance, report filtering, CRUD lifecycle, and write-freeze guards.
 |---------|------|---------|
 | v1.0 | 2026-04-08 | Initial IEEE 829 test plan |
 | v2.0 | 2026-04-09 | Full rewrite: BDD Given/When/Then for all 82 test cases derived from implementation code; correct BAC-to-phase mapping; add write-freeze TCs; add test plan identifier, approval section, deliberate deviations, implementation phases with checkpoints |
+| v3.0 | 2026-04-09 | IEEE 829 compliance: split detailed test case specifications into per-tier companion documents (T1/T2/T3) with full Given/When/Then blocks; test-plan.md retains summary tables with links to specs |
