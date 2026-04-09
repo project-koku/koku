@@ -162,7 +162,7 @@ graph TD
 | 3 | [prd-gap-analysis.md](prd-gap-analysis.md) | DD | PRD requirements with proposed implementation and code sketches |
 | 4 | [dependency-analysis.md](dependency-analysis.md) | DD | In-flight PR analysis, merge ordering, conflict risks |
 | 5 | [risk-register.md](risk-register.md) | Ref | Risk register: 21 risks, mitigations, decision rationales |
-| 6 | [test-plan.md](test-plan.md) | TP | IEEE 829 test plan: 104 test cases, 38 BACs, 4 tiers |
+| 6 | [test-plan.md](test-plan.md) | TP | IEEE 829 test plan: 82 test cases, 38 BACs, 3 tiers |
 | 7 | [phased-delivery.md](phased-delivery.md) | DD | Phased delivery plan, PR structure, deployment runbook |
 
 ---

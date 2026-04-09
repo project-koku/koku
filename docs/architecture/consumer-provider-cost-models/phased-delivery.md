@@ -34,8 +34,8 @@ graph LR
 
 | Phase | Goal | User-Facing? | Migrations | Rollback Strategy |
 |-------|------|-------------|------------|-------------------|
-| 1 | Context entity, assignment schema, data migration | No | cost_models 0012-0017 | Reverse migrations; remove CostModelContext rows |
-| 2 | Context column on reporting tables + backfill | No | reporting 0345-0348 | Reverse migrations; column drops to NULL |
+| 1 | Context entity, assignment schema, data migration | No | cost_models M1-M6 (0012-0017) | Reverse migrations; remove CostModelContext rows |
+| 2 | Context column on reporting tables + backfill | No | reporting M7-M10 (0345-0348) | Reverse migrations; column drops to NULL |
 | 3 | Per-context pipeline execution + SQL scoping | No | None | Revert code; pipeline falls back to single-context |
 | 4 | API parameter, RBAC, report filtering | Yes | None | Unregister URL route; remove query param |
 | 5 | Write-freeze guards for migration consistency | No | None | Disable Unleash flag; guards become no-op |
@@ -87,8 +87,8 @@ changes — existing behavior unchanged.
 | Migration M2 | `cost_models/migrations/0013_add_context_to_cost_model_map.py` | AddField: nullable FK `cost_model_context` on CostModelMap |
 | Migration M3 | `cost_models/migrations/0014_alter_unique_cost_model_map.py` | AlterUniqueTogether: `(provider_uuid, cost_model_context)` |
 | Migration M4 | `cost_models/migrations/0015_create_default_context.py` | RunPython: create default "Consumer" context per tenant; assign all CostModelMap rows |
-| Audit trigger | `cost_models/migrations/0016_update_audit_trigger.py` | Include context array in audit row |
-| NOT NULL constraint | `cost_models/migrations/0017_set_context_not_null.py` | After M4 backfill, set FK NOT NULL |
+| Migration M5 | `cost_models/migrations/0016_update_audit_trigger.py` | Include context array in audit row |
+| Migration M6 | `cost_models/migrations/0017_set_context_not_null.py` | After M4 backfill, set FK NOT NULL |
 
 ### Validation Criteria
 
@@ -101,7 +101,7 @@ changes — existing behavior unchanged.
 
 ### Rollback
 
-1. Reverse M17 → M12 in order
+1. Reverse M6 → M1 in order
 2. `CostModelContext` table dropped; `CostModelMap` reverts to
    original schema
 3. No data loss — cost models and assignments remain intact (FK was
@@ -119,10 +119,10 @@ and all 13 UI summary tables. Backfill existing cost-model rows with
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| Migration M5 | `reporting/migrations/0345_add_context_to_daily_summary.py` | AddField: nullable `cost_model_context` on `reporting_ocpusagelineitem_daily_summary` |
-| Migration M6 | `reporting/migrations/0346_add_context_to_ui_summary_tables.py` | AddField: nullable `cost_model_context` on all 13 `reporting_ocp_*_summary_p` tables |
-| Migration M7a | `reporting/migrations/0347_backfill_context_daily_summary.py` | RunSQL: `SET cost_model_context = 'default' WHERE cost_model_rate_type IS NOT NULL AND cost_model_context IS NULL` |
-| Migration M7b | `reporting/migrations/0348_backfill_context_ui_summary_tables.py` | RunSQL: same backfill on all 13 UI summary tables |
+| Migration M7 | `reporting/migrations/0345_add_context_to_daily_summary.py` | AddField: nullable `cost_model_context` on `reporting_ocpusagelineitem_daily_summary` |
+| Migration M8 | `reporting/migrations/0346_add_context_to_ui_summary_tables.py` | AddField: nullable `cost_model_context` on all 13 `reporting_ocp_*_summary_p` tables |
+| Migration M9 | `reporting/migrations/0347_backfill_context_daily_summary.py` | RunSQL: `SET cost_model_context = 'default' WHERE cost_model_rate_type IS NOT NULL AND cost_model_context IS NULL` |
+| Migration M10 | `reporting/migrations/0348_backfill_context_ui_summary_tables.py` | RunSQL: same backfill on all 13 UI summary tables |
 
 ### Tables Modified
 
@@ -170,8 +170,8 @@ match them. On the next pipeline run, new rows with `cost_model_context
 
 ### Rollback
 
-1. Reverse M7b, M7a → backfilled values set back to NULL
-2. Reverse M6, M5 → columns dropped
+1. Reverse M10, M9 → backfilled values set back to NULL
+2. Reverse M8, M7 → columns dropped
 3. No data loss — cost data in existing columns is unchanged
 
 ---
@@ -380,7 +380,7 @@ Step 1: Enable Unleash flag
 
 Step 2: Deploy PR 2 (migrations)
         Runs: cost_models M1-M6 (DDL + data migration)
-              reporting M5-M7b (DDL + backfill)
+              reporting M7-M10 (DDL + backfill)
         Verify: Default context exists per tenant
                 All CostModelMap rows have context assigned
                 All reporting rows backfilled
@@ -434,13 +434,13 @@ flowchart TD
             M1["M1: CreateModel\nCostModelContext"] --> M2["M2: AddField\nCostModelMap.cost_model_context"]
             M2 --> M3["M3: AlterUnique\n(provider_uuid, context)"]
             M3 --> M4["M4: RunPython\nDefault context + assign"]
-            M4 --> M5a["M5: Audit trigger update"]
-            M5a --> M6a["M6: NOT NULL constraint"]
+            M4 --> M5["M5: Audit trigger update"]
+            M5 --> M6["M6: NOT NULL constraint"]
         end
         subgraph Phase2 [Phase 2: reporting]
-            M5["M5: AddField\ndaily_summary.cost_model_context"] --> M6["M6: AddField\n13 UI summary tables"]
-            M6 --> M7a["M7a: RunSQL\nBackfill daily_summary"]
-            M7a --> M7b["M7b: RunSQL\nBackfill 13 UI tables"]
+            M7["M7: AddField\ndaily_summary.cost_model_context"] --> M8["M8: AddField\n13 UI summary tables"]
+            M8 --> M9["M9: RunSQL\nBackfill daily_summary"]
+            M9 --> M10["M10: RunSQL\nBackfill 13 UI tables"]
         end
     end
 ```
