@@ -296,16 +296,17 @@ populated via user CRUD.
 
 **Seed step**: After creating the table, a `RunPython` step reads from
 `ExchangeRateDictionary` (public schema) and populates `MonthlyExchangeRate`
-with `rate_type=dynamic` rows for the **current month** in each tenant schema.
-This ensures the query handler has data from the moment of deployment — no
-legacy fallback code path is needed.
+with `rate_type=dynamic` rows for the **current month**. Since `cost_models`
+is a tenant app, `migrate_schemas` already executes this migration once per
+tenant with the correct schema context — no explicit tenant loop is needed.
+`ExchangeRateDictionary` (a shared/public model) remains accessible because
+`django-tenants` sets `search_path` to `<tenant_schema>, public`.
 
 ```python
 def seed_current_month(apps, schema_editor):
     """Seed MonthlyExchangeRate with current-month rates from ExchangeRateDictionary."""
     ExchangeRateDictionary = apps.get_model("api", "ExchangeRateDictionary")
     MonthlyExchangeRate = apps.get_model("cost_models", "MonthlyExchangeRate")
-    Tenant = apps.get_model("api", "Tenant")
 
     erd = ExchangeRateDictionary.objects.first()
     if not erd or not erd.currency_exchange_dictionary:
@@ -313,21 +314,19 @@ def seed_current_month(apps, schema_editor):
 
     current_month = date.today().replace(day=1)
 
-    for tenant in Tenant.objects.exclude(schema_name="public"):
-        with schema_context(tenant.schema_name):
-            rows = []
-            for base_cur, targets in erd.currency_exchange_dictionary.items():
-                for target_cur, rate in targets.items():
-                    if base_cur == target_cur:
-                        continue
-                    rows.append(MonthlyExchangeRate(
-                        effective_date=current_month,
-                        base_currency=base_cur,
-                        target_currency=target_cur,
-                        exchange_rate=rate,
-                        rate_type="dynamic",
-                    ))
-            MonthlyExchangeRate.objects.bulk_create(rows, ignore_conflicts=True)
+    rows = []
+    for base_cur, targets in erd.currency_exchange_dictionary.items():
+        for target_cur, rate in targets.items():
+            if base_cur == target_cur:
+                continue
+            rows.append(MonthlyExchangeRate(
+                effective_date=current_month,
+                base_currency=base_cur,
+                target_currency=target_cur,
+                exchange_rate=rate,
+                rate_type="dynamic",
+            ))
+    MonthlyExchangeRate.objects.bulk_create(rows, ignore_conflicts=True)
 ```
 
 If `ExchangeRateDictionary` is empty (e.g., fresh deployment with no
