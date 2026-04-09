@@ -163,7 +163,7 @@ graph TD
 | 4 | [dependency-analysis.md](dependency-analysis.md) | DD | In-flight PR analysis, merge ordering, conflict risks |
 | 5 | [risk-register.md](risk-register.md) | Ref | Risk register: 21 risks, mitigations, decision rationales |
 | 6 | [test-plan.md](test-plan.md) | TP | IEEE 829 test plan: 82 test cases, 38 BACs, 3 tiers (summary) |
-| 6a | [test-cases-t1-unit.md](test-cases-t1-unit.md) | TCS | IEEE 829 test case specs: 25 unit tests (Given/When/Then) |
+| 6a | [test-cases-t1-unit.md](test-cases-t1-unit.md) | TCS | IEEE 829 test case specs: 24 unit tests + supplemental TC-XX compatibility scenario (Given/When/Then) |
 | 6b | [test-cases-t2-integration.md](test-cases-t2-integration.md) | TCS | IEEE 829 test case specs: 34 integration tests (Given/When/Then) |
 | 6c | [test-cases-t3-e2e.md](test-cases-t3-e2e.md) | TCS | IEEE 829 test case specs: 24 E2E tests (Given/When/Then) |
 | 7 | [phased-delivery.md](phased-delivery.md) | DD | Phased delivery plan, PR structure, deployment runbook |

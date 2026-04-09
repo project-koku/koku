@@ -8,7 +8,8 @@
 | Tier | T1 — Unit |
 | Base Class | `IamTestCase`, `TestCase` |
 | Coverage Target | ≥85% |
-| Test Count | 25 |
+| Test Count | 24 |
+| Supplemental Case | `TC-XX` (backward-compat scenario, excluded from canonical 82 count) |
 
 ---
 
@@ -475,6 +476,7 @@
 | BAC | BAC-7 |
 | Module | `cost_models/test/test_cost_model_context.py` |
 | Dependencies | TC-15 |
+| Classification | Supplemental (excluded from canonical 82-count tally) |
 
 **Scenario**: POST/PUT without cost_model_context field succeeds (backward-compat).
 
