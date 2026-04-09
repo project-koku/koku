@@ -69,22 +69,20 @@ Administrator** role. Same permission used for cost model CRUD.
 | Version | Auto-increment `version` on update |
 | Name | Read-only computed field: `"{base_currency}-{target_currency}"` |
 
-**Side effects** (see [pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--snapshot--dictionary--writer-2)):
+**Side effects** (see [pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--monthlyexchangerate-upsert--writer-2)):
 
 All side effects are wrapped in a database transaction (`transaction.atomic()`)
 together with the `StaticExchangeRate` write. If any side effect fails, the
 `StaticExchangeRate` change is rolled back, preventing an inconsistent state.
 
 - **On create/update**:
-  1. Writes `rate_type=RateType.STATIC` rows to `MonthlyExchangeRateSnapshot`
-     for each affected month
-  2. Rebuilds `StaticExchangeRateDictionary` from all `StaticExchangeRate` rows
+  1. Upserts `rate_type=RateType.STATIC` rows in `MonthlyExchangeRate`
+     for each affected month (overwrites any existing dynamic row for the same
+     pair/month via the `unique_together` constraint)
 - **On delete**:
   1. Removes `rate_type=RateType.STATIC` rows for affected months, then
      proactively populates `rate_type=RateType.DYNAMIC` rows from the current
      `ExchangeRateDictionary` to avoid a data gap until the next daily Celery run
-  2. Rebuilds `StaticExchangeRateDictionary` from remaining `StaticExchangeRate`
-     rows (the deleted rate is excluded from the matrix)
 
 ### Example: List Response
 
@@ -189,10 +187,9 @@ snapshotted regardless of their enabled status.
 ```
 
 **Side effects**: Enabling or disabling a currency only affects its visibility
-in the target currency dropdown. It does not affect the `MonthlyExchangeRateSnapshot`,
-`ExchangeRateDictionary`, `ExchangeRates`, `StaticExchangeRate`, or
-`StaticExchangeRateDictionary` tables — all currencies are always stored and
-snapshotted regardless of their enabled status.
+in the target currency dropdown. It does not affect the `MonthlyExchangeRate`,
+`ExchangeRateDictionary`, `ExchangeRates`, or `StaticExchangeRate`
+tables — all currencies are always stored regardless of their enabled status.
 
 ### No `CURRENCY_URL` Configured
 
@@ -345,9 +342,8 @@ transparency on which rates (static vs dynamic) were used and for which periods.
 
 **Implementation**: The query handler's `effective_exchange_rates` property
 (see [pipeline-changes.md § Rate Resolution](./pipeline-changes.md#rate-resolution-strategy))
-provides the resolved rates — from `MonthlyExchangeRateSnapshot` for past
-months and from the dictionaries (`StaticExchangeRateDictionary` /
-`ExchangeRateDictionary`) for the current month. The response formatter groups
+provides the resolved rates from `MonthlyExchangeRate` for all months
+(current and past). The response formatter groups
 consecutive months with the same rate and type into a single entry with
 `start_date` / `end_date` boundaries (first-of-month and last-day-of-month
 respectively).
@@ -420,3 +416,4 @@ The frontend will:
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility, not snapshotting. All currencies are always stored and snapshotted. |
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
 | v1.4 | 2026-03-26 | Updated report response implementation to reference two-tier rate resolution. |
+| v1.5 | 2026-04-09 | Replaced stale `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate`, removed `StaticExchangeRateDictionary` references (removed in pipeline-changes v1.6). |
