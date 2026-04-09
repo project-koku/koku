@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | Test Plan Identifier | COST-3920-TP-001 |
-| Version | 3.1 |
+| Version | 3.2 |
 | Date | 2026-04-09 |
 | Author | COST-3920 Engineering |
 | Status | Design Proposal |
@@ -203,7 +203,7 @@ Full IEEE 829 Test Case Specifications (with structured
 Given/When/Then scenarios, test items, dependencies, and special
 requirements) are in the per-tier companion documents:
 
-- **[test-cases-t1-unit.md](./test-cases-t1-unit.md)** — 25 unit tests (model, serializer, permission, manager)
+- **[test-cases-t1-unit.md](./test-cases-t1-unit.md)** — 24 unit tests + 1 supplemental backward-compat scenario (model, serializer, permission, manager)
 - **[test-cases-t2-integration.md](./test-cases-t2-integration.md)** — 34 integration tests (SQL, accessor, migration, DB constraints, pipeline)
 - **[test-cases-t3-e2e.md](./test-cases-t3-e2e.md)** — 24 E2E tests (full pipeline, API, cross-context isolation, write-freeze)
 
@@ -245,7 +245,7 @@ requirements) are in the per-tier companion documents:
 | [TC-13](./test-cases-t1-unit.md#tc-13-default-context-not-deletable-via-serializermodel-guard) | BAC-4 | Default context exists | `default_ctx.delete()` | `ValidationError` or `IntegrityError` raised |
 | [TC-14](./test-cases-t1-unit.md#tc-14-costmodelserializer-accepts-context-uuid) | BAC-5 | Default context exists | `CostModelSerializer(data={..., "cost_model_context": str(ctx.uuid)}).is_valid()` | Returns `True` — context UUID accepted |
 | [TC-15](./test-cases-t1-unit.md#tc-15-costmodelserializer-defaults-context-when-absent) | BAC-7 | Default context exists; no `cost_model_context` in data | `CostModelSerializer(data={..., no context field}).is_valid()` | Returns `True` — defaults to tenant's default context |
-| [TC-XX](./test-cases-t1-unit.md#tc-xx-backward-compatible-cost-model-creation-without-context) | BAC-7 | Default context exists; no `cost_model_context` in data | `serializer.save()` | Instance created successfully — backward-compatible |
+| [TC-XX](./test-cases-t1-unit.md#tc-xx-backward-compatible-cost-model-creation-without-context) *(supplemental)* | BAC-7 | Default context exists; no `cost_model_context` in data | `serializer.save()` | Instance created successfully — backward-compatible |
 
 ---
 
@@ -303,7 +303,11 @@ requirements) are in the per-tier companion documents:
 |----|-----|-------|------|------|
 | [TC-70](./test-cases-t2-integration.md#tc-70-pipeline-dispatches-once-per-context) | BAC-16 | 2 contexts ("consumer", "provider"); `CostModelCostUpdater` mocked | `update_cost_model_costs(..., synchronous=True)` with no explicit context | `mock_updater.update_cost_model_costs.call_count >= 2` — dispatched per context |
 | [TC-71](./test-cases-t2-integration.md#tc-71-accessor-resolves-correct-rates-per-context) | BAC-14 | Context "default" with cost model ($10 CPU rate); `CostModelMap` assigned | `CostModelDBAccessor(schema, uuid, cost_model_context="default")` | `accessor.cost_model == cm_consumer` — correct model resolved |
-| [TC-72–76](./test-cases-t2-integration.md#tc-72-through-tc-76-placeholder-tests) | BAC-17,32,24 | — | — | Placeholders — covered by E2E TC-91, TC-93, TC-98, TC-99 |
+| [TC-72](./test-cases-t2-integration.md#tc-72-pipeline-step-order-placeholder) | BAC-17 | — | — | Placeholder — covered by E2E TC-91 |
+| [TC-73](./test-cases-t2-integration.md#tc-73-empty-context-zero-cost-placeholder) | BAC-32 | — | — | Placeholder — covered by E2E TC-93 |
+| [TC-74](./test-cases-t2-integration.md#tc-74-empty-context-preserves-usage-placeholder) | BAC-32 | — | — | Placeholder — covered by E2E TC-93 |
+| [TC-75](./test-cases-t2-integration.md#tc-75-sequential-runs-no-corruption-placeholder) | BAC-17 | — | — | Placeholder — covered by E2E TC-91, TC-98 |
+| [TC-76](./test-cases-t2-integration.md#tc-76-cloud-infra-in-all-contexts-placeholder) | BAC-24 | — | — | Placeholder — covered by E2E TC-99 |
 
 #### Class: `AuditTriggerContextTest` — T2 Integration
 
@@ -632,3 +636,4 @@ acceptance, report filtering, CRUD lifecycle, and write-freeze guards.
 | v2.0 | 2026-04-09 | Full rewrite: BDD Given/When/Then for all 82 test cases derived from implementation code; correct BAC-to-phase mapping; add write-freeze TCs; add test plan identifier, approval section, deliberate deviations, implementation phases with checkpoints |
 | v3.0 | 2026-04-09 | IEEE 829 compliance: split detailed test case specifications into per-tier companion documents (T1/T2/T3) with full Given/When/Then blocks; test-plan.md retains summary tables with links to specs |
 | v3.1 | 2026-04-09 | Add deep links from every TC identifier in summary tables to its corresponding heading in the per-tier companion documents |
+| v3.2 | 2026-04-09 | Normalize tier counts to maintain 82 canonical tests (TC-XX marked supplemental) and split TC-72..TC-76 into individually linkable summary rows |

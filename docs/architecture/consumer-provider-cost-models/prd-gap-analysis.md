@@ -197,7 +197,7 @@ regardless of context — identical to today's behavior.
    key to prevent dedup collisions across contexts.
 
 **Risk**: [R2](./risk-register.md#r2-pipeline-runs-n-per-cluster),
-[R5](./risk-register.md#r5-costmodeldbccessor-single-model-assumption),
+[R5](./risk-register.md#r5-costmodeldbaccessor-single-model-assumption),
 [R6](./risk-register.md#r6-sql-deleteinsert-overwrites-without-context-discriminator),
 [R19](./risk-register.md#r19-celery-task-dedup-collision)
 
