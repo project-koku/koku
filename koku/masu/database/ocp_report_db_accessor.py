@@ -157,7 +157,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # Don't use context manager here - its __exit__ resets schema to public,
         # which would break subsequent ORM operations in the calling code
         cost_model_accessor = CostModelDBAccessor(
-            self.schema, sql_params.get("source_uuid"), price_list_effective_on=None
+            self.schema,
+            sql_params.get("source_uuid"),
+            price_list_effective_on=DateHelper().parse_to_date(sql_params.get("start_date")),
         )
         # Check to see if the cost model is set up to give cost
         if cost_model_accessor.metric_to_tag_params_map.get(metric_constants.OCP_GPU_MONTH):
