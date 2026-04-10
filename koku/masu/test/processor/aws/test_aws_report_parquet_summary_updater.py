@@ -96,7 +96,9 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(
+            self.schema, self.aws_provider.uuid, price_list_effective_on=None
+        ) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
@@ -165,7 +167,9 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(
+            self.schema, self.aws_provider.uuid, price_list_effective_on=None
+        ) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
