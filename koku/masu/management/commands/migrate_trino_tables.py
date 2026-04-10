@@ -129,6 +129,7 @@ class Action(BaseModel):
         LOG.info("Finding schemas...")
         result = set()
         for col in self.list_of_cols.list:
+            LOG.info(f"Finding schemas for column {col.column} in table {col.table}")
             schemas = run_trino_sql(textwrap.dedent(self.find_query.format(col=col)))
             schemas = [
                 schema
@@ -137,7 +138,7 @@ class Action(BaseModel):
                 if schema not in ["default", "information_schema"]
             ]
             result.update(schemas)
-
+            LOG.info(f"Found {len(schemas)} schemas for column {col.column} in table {col.table}")
         return result
 
     def run(self) -> None:
