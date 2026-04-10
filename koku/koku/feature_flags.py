@@ -45,7 +45,7 @@ class MockUnleashClient:
         """No-op initialization."""
         pass
 
-    def is_enabled(self, feature_name: str, context: dict = None, fallback_function=None):
+    def is_enabled(self, feature_name: str, context: dict = None, fallback_function=None, **kwargs):
         """Return fallback value for feature flags."""
         if feature_name in self.ONPREM_FLAG_DEFAULTS:
             return self.ONPREM_FLAG_DEFAULTS[feature_name]
