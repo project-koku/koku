@@ -36,7 +36,10 @@ class MockUnleashClientTest(TestCase):
 
     def test_override_takes_precedence_over_fallback(self):
         """Override map is checked before the fallback function."""
-        always_false = lambda name, ctx: False
+
+        def always_false(name, ctx):
+            return False
+
         result = self.client.is_enabled(
             "cost-management.backend.ocp_gpu_cost_model",
             fallback_function=always_false,
