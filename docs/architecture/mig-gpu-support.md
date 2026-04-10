@@ -497,7 +497,7 @@ distributed_cost = (slice_time / total_slice_time) × unallocated_cost
             "mig-profiles": [
                 {
                     "mig-profile": "1g.10gb",
-                    "physical_gpu_uuid": "uuid-123",
+                    "gpu_uuid": "uuid-123",
                     "compute": "1g",
                     "memory": "10gb",
                     "gpu_name": "nvidia_H100_node",
@@ -505,7 +505,7 @@ distributed_cost = (slice_time / total_slice_time) × unallocated_cost
                 },
                 {
                     "mig-profile": "2g.20gb",
-                    "physical_gpu_uuid": "uuid-456",
+                    "gpu_uuid": "uuid-456",
                     "compute": "2g",
                     "memory": "20gb",
                     "gpu_name": "nvidia_H100_node",

@@ -11,7 +11,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocp_gpu_summary_p (
     memory_capacity_gb,
     -- gpu_count,
     mig_instance_id,
-    physical_gpu_uuid,
+    gpu_uuid,
     gpu_mode,
     mig_profile,
     mig_slice_count,
@@ -33,7 +33,7 @@ SELECT uuid(),
     max(gpu.gpu_memory_capacity_mib) * 0.001048576 as memory_capacity_gb,
     -- count(DISTINCT COALESCE(gpu.mig_instance_id, gpu.gpu_uuid)) as gpu_count,
     max(gpu.mig_instance_id) as mig_instance_id,
-    max(gpu.gpu_uuid) as physical_gpu_uuid,
+    max(gpu.gpu_uuid) as gpu_uuid,
     CASE WHEN max(gpu.mig_profile) IS NOT NULL THEN 'MIG' ELSE 'dedicated' END as gpu_mode,
     max(gpu.mig_profile) as mig_profile,
     CAST(max(gpu.mig_slice_count) AS INTEGER) as mig_slice_count,
@@ -50,4 +50,11 @@ WHERE gpu.source = {{source_uuid}}
     AND lpad(gpu.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND date(gpu.interval_start) >= date({{start_date}})
     AND date(gpu.interval_start) <= date({{end_date}})
-GROUP BY gpu.namespace, gpu.node, gpu.gpu_vendor_name, gpu.gpu_model_name, gpu.mig_profile, gpu.interval_start
+GROUP BY gpu.namespace,
+    gpu.node,
+    gpu.gpu_vendor_name,
+    gpu.gpu_model_name,
+    gpu.mig_profile,
+    gpu.interval_start,
+    gpu.mig_instance_id,
+    gpu.gpu_uuid

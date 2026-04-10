@@ -1059,7 +1059,7 @@ class OCPProviderMap(ProviderMap):
                                 Coalesce(F("memory_capacity_gb"), Value(0, output_field=DecimalField()))
                             ),
                             "gpu_memory_units": Value("GB", output_field=CharField()),
-                            "gpu_count": Count("physical_gpu_uuid", distinct=True),
+                            "gpu_count": Count("gpu_uuid", distinct=True),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
                             "gpu_mode": F("gpu_mode"),
                         },

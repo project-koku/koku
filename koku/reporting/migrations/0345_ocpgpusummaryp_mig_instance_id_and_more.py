@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="ocpgpusummaryp",
-            name="physical_gpu_uuid",
+            name="gpu_uuid",
             field=models.CharField(max_length=128, null=True),
         ),
     ]
