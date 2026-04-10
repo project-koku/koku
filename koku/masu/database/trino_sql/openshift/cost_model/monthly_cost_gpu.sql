@@ -28,7 +28,7 @@ SELECT
     gpu.node as node,
     gpu.gpu_uuid as resource_id,
     cast(map(
-        ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'mig-profile', 'mig-slice-count', 'gpu-max-slices', 'mig-strategy', 'mig-memory-mib', 'gpu-mode'],
+        ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'mig-profile', 'mig-slice-count', 'gpu-max-slices', 'mig-strategy', 'mig-memory-mib', 'gpu-mode', 'gpu-uuid', 'mig-instance-id'],
         ARRAY[
             gpu.gpu_model_name,
             gpu.gpu_vendor_name,
@@ -38,7 +38,9 @@ SELECT
             CAST(CAST(gpu.gpu_max_slices AS INTEGER) AS varchar),
             gpu.mig_strategy,
             CAST(CAST(gpu.mig_memory_capacity_mib AS INTEGER) AS varchar),
-            CASE WHEN gpu.mig_profile IS NOT NULL AND gpu.mig_profile != '' THEN 'MIG' ELSE 'dedicated' END
+            CASE WHEN gpu.mig_profile IS NOT NULL AND gpu.mig_profile != '' THEN 'MIG' ELSE 'dedicated' END,
+            gpu.gpu_uuid,
+            gpu.mig_instance_id
         ]
     ) as json) as all_labels,
     CAST(gpu.source AS uuid) as source_uuid,
