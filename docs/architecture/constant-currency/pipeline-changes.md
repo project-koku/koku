@@ -35,6 +35,21 @@ graph LR
     ANN --> SQL["Django ORM query"]
 ```
 
+**OCP dual-annotation pattern**: The OCP query handler overrides
+`exchange_rate_annotation_dict` to produce **two** annotations instead of one:
+
+- **`exchange_rate`** — matches on `source_uuid`. Currency is resolved via
+  `source_uuid` → `CostModelMap` → `CostModel.currency`. Used for
+  supplementary/cost-model costs (CPU, memory, volume, GPU rates) and
+  distributed platform/worker/GPU costs.
+- **`infra_exchange_rate`** — matches on `cost_units_key` (`raw_currency`).
+  Currency comes from the underlying cloud provider's bill. Used for
+  `infrastructure_raw_cost`, `infrastructure_markup_cost`, and distributed
+  unattributed storage/network costs.
+
+This split is necessary because OCP line items carry costs from two different
+currency sources on the same row (cost model currency vs cloud bill currency).
+
 **Problem**: When a user queries a 6-month report, every month uses today's
 exchange rate. If the rate changed significantly over those 6 months, the
 historical data is misleading.
@@ -207,8 +222,9 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
 
 | File | Change |
 |------|--------|
-| `koku/api/query_handler.py` | Base `QueryHandler`: new rate resolution logic, date-aware `Case`/`When` |
-| `koku/api/report/ocp/query_handler.py` | OCP override: use `MonthlyExchangeRate` for rate resolution |
+| `koku/api/query_handler.py` | Base `QueryHandler`: new `effective_exchange_rates` property, date-aware `Case`/`When` in `exchange_rate_annotation_dict` |
+| `koku/api/report/ocp/query_handler.py` | OCP override: dual-annotation pattern (`exchange_rate` + `infra_exchange_rate`) with per-month rates from `MonthlyExchangeRate`. `source_to_currency_map` unchanged. |
+| `koku/api/report/ocp/provider_map.py` | **No changes** — already references `exchange_rate` and `infra_exchange_rate` by name |
 | `koku/forecast/forecast.py` | Forecast handler: use `MonthlyExchangeRate` for rate resolution |
 
 ### Rate Resolution Strategy
@@ -240,6 +256,7 @@ def effective_exchange_rates(self):
     """Load exchange rates for the query date range.
 
     All months (current and past): from MonthlyExchangeRate.
+    Returns: {(effective_date, base_currency): MonthlyExchangeRate row}
     """
     query_months = list(self._iter_months())
 
@@ -248,27 +265,127 @@ def effective_exchange_rates(self):
         effective_date__in=query_months,
         target_currency=self.currency,
     ):
-        rates[row.effective_date] = row
+        rates[(row.effective_date, row.base_currency)] = row
 
     return rates
 ```
 
-### Changed: `exchange_rate_annotation_dict`
+The dict is keyed by `(effective_date, base_currency)` so both the base and
+OCP query handlers can look up the correct rate for a given month and source
+currency.
 
-Replace single-rate annotation with per-month `Case`/`When`:
+### Changed: Base `exchange_rate_annotation_dict`
+
+Replace single-rate annotation with per-month `Case`/`When`. This is the
+base implementation in `ReportQueryHandler` used by AWS, Azure, and GCP:
 
 ```python
-whens = []
-for effective_date, rate_info in self.effective_exchange_rates.items():
-    month_start, month_end = month_bounds(effective_date)
-    whens.append(When(
-        usage_start__gte=month_start,
-        usage_start__lt=month_end,
-        **{self._mapper.cost_units_key: rate_info.base_currency},
-        then=Value(rate_info.exchange_rate),
-    ))
-return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+@cached_property
+def exchange_rate_annotation_dict(self):
+    whens = []
+    for (effective_date, base_cur), rate_info in self.effective_exchange_rates.items():
+        month_start, month_end = month_bounds(effective_date)
+        whens.append(When(
+            usage_start__gte=month_start,
+            usage_start__lt=month_end,
+            **{self._mapper.cost_units_key: base_cur},
+            then=Value(rate_info.exchange_rate),
+        ))
+    return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
 ```
+
+For cloud providers (AWS, Azure, GCP), `cost_units_key` points to the bill's
+currency column (e.g., `currency_code`). All cost columns use the same
+currency (the cloud bill currency), so a single `exchange_rate` annotation is
+sufficient.
+
+### Changed: OCP `exchange_rate_annotation_dict` (Dual-Annotation Pattern)
+
+The OCP query handler **overrides** `exchange_rate_annotation_dict` to produce
+**two** annotations instead of one. This is necessary because OCP line items
+carry costs from two different currency sources on the same row:
+
+| Annotation | Matches on | Currency source | Used for |
+|------------|-----------|-----------------|----------|
+| `exchange_rate` | `source_uuid` | Cost model currency (`CostModel.currency` via `CostModelMap`) | Supplementary/cost-model costs: CPU, memory, volume, GPU rates; platform and worker distributed costs; GPU unallocated |
+| `infra_exchange_rate` | `cost_units_key` (`raw_currency`) | Cloud bill currency (from the underlying AWS/Azure/GCP bill) | Infrastructure costs: `infrastructure_raw_cost`, `infrastructure_markup_cost`; unattributed storage and network |
+
+**Why two annotations?** OCP clusters don't have a "bill currency" for
+cost-model-derived costs — the currency is determined by the cost model
+assigned to each source. Meanwhile, infrastructure costs (for OCP-on-cloud)
+come from the underlying cloud provider's bill and carry their own currency
+in the `raw_currency` column. These can be different currencies on the same
+row, so they need independent exchange rate lookups.
+
+**Existing code** (`koku/api/report/ocp/query_handler.py`):
+
+- `source_to_currency_map` resolves `source_uuid` → `CostModel.currency`
+  via `CostModelMap` → `CostModel`
+- `exchange_rate` `Case`/`When` matches on `source_uuid`
+- `infra_exchange_rate` `Case`/`When` matches on `cost_units_key`
+  (`raw_currency`)
+
+**Updated pseudocode** — the per-month constant-currency version:
+
+```python
+@cached_property
+def exchange_rate_annotation_dict(self):
+    # Supplementary / cost-model costs: currency from cost model, per month
+    exchange_rate_whens = []
+    for uuid, cur in self.source_to_currency_map.items():
+        for (effective_date, base_cur), rate_info in self.effective_exchange_rates.items():
+            if base_cur != cur:
+                continue
+            month_start, month_end = month_bounds(effective_date)
+            exchange_rate_whens.append(When(
+                source_uuid=uuid,
+                usage_start__gte=month_start,
+                usage_start__lt=month_end,
+                then=Value(rate_info.exchange_rate),
+            ))
+
+    # Infrastructure costs: currency from cloud bill column, per month
+    infra_exchange_rate_whens = []
+    for (effective_date, base_cur), rate_info in self.effective_exchange_rates.items():
+        month_start, month_end = month_bounds(effective_date)
+        infra_exchange_rate_whens.append(When(
+            usage_start__gte=month_start,
+            usage_start__lt=month_end,
+            **{self._mapper.cost_units_key: base_cur},
+            then=Value(rate_info.exchange_rate),
+        ))
+
+    return {
+        "exchange_rate": Case(
+            *exchange_rate_whens, default=1, output_field=DecimalField()
+        ),
+        "infra_exchange_rate": Case(
+            *infra_exchange_rate_whens, default=1, output_field=DecimalField()
+        ),
+    }
+```
+
+**Which annotation is used where** (in `koku/api/report/ocp/provider_map.py`
+— these ORM expressions are unchanged by this feature):
+
+| Provider map property | Annotation | Rationale |
+|-----------------------|------------|-----------|
+| `__cost_model_cost` (CPU + mem + vol + GPU) | `exchange_rate` | Cost model currency |
+| `__cost_model_cpu_cost` | `exchange_rate` | Cost model currency |
+| `__cost_model_memory_cost` | `exchange_rate` | Cost model currency |
+| `__cost_model_volume_cost` | `exchange_rate` | Cost model currency |
+| `__cost_model_gpu_cost` | `exchange_rate` | Cost model currency |
+| `cloud_infrastructure_cost` | `infra_exchange_rate` | Cloud bill currency |
+| `markup_cost` | `infra_exchange_rate` | Derived from infra cost |
+| `distributed_platform_cost` | `exchange_rate` | Cost model rates |
+| `distributed_worker_cost` | `exchange_rate` | Cost model rates |
+| `distributed_unallocated_gpu_cost` | `exchange_rate` | Cost model rates |
+| `distributed_unattributed_storage_cost` | `infra_exchange_rate` | Infrastructure-sourced |
+| `distributed_unattributed_network_cost` | `infra_exchange_rate` | Infrastructure-sourced |
+
+The provider map itself requires **no changes** — it already references
+`exchange_rate` and `infra_exchange_rate` by name, and the query handler
+produces both annotations.
 
 ### Pre-Deployment Months
 
@@ -414,3 +531,4 @@ This is handled automatically by the `MonthlyExchangeRate` table:
 | v1.5 | 2026-03-29 | Replaced `year_month` CharField references with `effective_date` DateField in all pseudocode and diagrams. |
 | v1.6 | 2026-03-30 | `MonthlyExchangeRate` is now the single source of truth for all months (current and past). Removed `StaticExchangeRateDictionary` and two-tier resolution. Query handler reads from one table. Writer 2 simplified to upsert only. |
 | v1.7 | 2026-03-30 | Removed `ExchangeRateDictionary` fallback from query handler. M2 migration seeds current-month data at deployment. Pre-deployment months have no conversion (rate=1). |
+| v1.8 | 2026-04-12 | Documented OCP dual-annotation pattern (`exchange_rate` + `infra_exchange_rate`). Updated `effective_exchange_rates` return type to `{(effective_date, base_currency): row}`. Added OCP override pseudocode and annotation-to-cost-type mapping table. |
