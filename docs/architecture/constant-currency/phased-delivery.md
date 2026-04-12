@@ -137,7 +137,7 @@ See [risk-register.md](./risk-register.md) for full details.
 | **R3** | Overlapping static rates | Mitigated | 1 |
 | **R4** | Pre-deployment month gap | Resolved | 1 |
 | **R5** | Query handler performance | Open | 1 |
-| **R6** | Static rate deletion gap | Low | 1 |
+| **R6** | Static rate deletion gap | Mitigated | 1 |
 | **R7** | No exchange rate for selected currency | Mitigated | 1 |
 | **R8** | No rates configured (static or dynamic) | Accepted | 1 |
 
@@ -179,3 +179,4 @@ design would be needed to handle path prioritization.
 | v1.5 | 2026-03-29 | Updated future scalability section: `year_month` CharField replaced by `effective_date` DateField. |
 | v1.6 | 2026-03-30 | `MonthlyExchangeRate` replaces `MonthlyExchangeRateSnapshot` as single source of truth. Removed `StaticExchangeRateDictionary` artifacts (model, M3 migration). Renumbered M4 → M3. Simplified validation items and rollback steps. |
 | v1.7 | 2026-03-30 | M2 now seeds current-month data. Removed fallback validation item. Added M2 seed and pre-deployment default validation items. R4 resolved. |
+| v1.8 | 2026-04-12 | Fixed R6 status from "Low" to "Mitigated" to match risk-register.md. |

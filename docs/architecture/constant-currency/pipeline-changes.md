@@ -256,13 +256,17 @@ def effective_exchange_rates(self):
     """Load exchange rates for the query date range.
 
     All months (current and past): from MonthlyExchangeRate.
+    Uses self.start_datetime / self.end_datetime (set by QueryHandler
+    from query parameters or _get_timeframe()).
     Returns: {(effective_date, base_currency): MonthlyExchangeRate row}
     """
-    query_months = list(self._iter_months())
+    start_month = self.start_datetime.date().replace(day=1)
+    end_month = self.end_datetime.date().replace(day=1)
 
     rates = {}
     for row in MonthlyExchangeRate.objects.filter(
-        effective_date__in=query_months,
+        effective_date__gte=start_month,
+        effective_date__lte=end_month,
         target_currency=self.currency,
     ):
         rates[(row.effective_date, row.base_currency)] = row
@@ -272,7 +276,37 @@ def effective_exchange_rates(self):
 
 The dict is keyed by `(effective_date, base_currency)` so both the base and
 OCP query handlers can look up the correct rate for a given month and source
-currency.
+currency. The date range comes from `self.start_datetime` and
+`self.end_datetime`, which `QueryHandler` already sets from query parameters
+(or `_get_timeframe()` when no explicit dates are provided).
+
+### Design Note: `Case`/`When` vs `Subquery`
+
+An alternative to the per-month `Case`/`When` pattern is a correlated
+`Subquery` that joins `MonthlyExchangeRate` by truncating `usage_start` to its
+month:
+
+```python
+rate_subquery = MonthlyExchangeRate.objects.filter(
+    effective_date=TruncMonth(OuterRef("usage_start")),
+    base_currency=OuterRef("currency"),
+    target_currency=self.currency,
+).values("exchange_rate")[:1]
+queryset = queryset.annotate(
+    exchange_rate=Coalesce(Subquery(rate_subquery), Value(Decimal("1")))
+)
+```
+
+This is simpler for cloud providers (AWS, Azure, GCP), where the bill currency
+lives in a column that `OuterRef` can reference. However, it does not work for
+the **OCP dual-annotation pattern**: the `exchange_rate` annotation matches on
+`source_uuid` → cost model currency, which is resolved in Python via
+`source_to_currency_map` and has no single column that `OuterRef` can reference.
+
+The `Case`/`When` approach is used because it handles both the simple cloud case
+and the OCP dual-annotation case uniformly. If performance benchmarking (R5)
+reveals issues with large `CASE` expressions, the cloud query handlers could
+be refactored to use `Subquery` independently while OCP retains `Case`/`When`.
 
 ### Changed: Base `exchange_rate_annotation_dict`
 
@@ -506,6 +540,50 @@ This is handled automatically by the `MonthlyExchangeRate` table:
 
 ---
 
+## Cache Invalidation
+
+The Koku API uses `cache_page` backed by Valkey/Redis (default TTL: 1 hour).
+When exchange rates change, cached report responses will serve stale currency
+conversions until the cache expires. Both write paths must invalidate the
+tenant's report cache to ensure users see updated conversions immediately.
+
+**Existing pattern**: Cost model updates already invalidate the cache via
+`invalidate_view_cache_for_tenant_and_source_type()` in
+`koku/masu/processor/cost_model_cost_updater.py`. Exchange rate changes follow
+the same approach.
+
+### CRUD Serializer (Writer 2)
+
+After a static rate create, update, or delete, the serializer flushes the
+tenant's report cache for all source types. Since exchange rates affect all
+provider reports (not just a single source type), use
+`invalidate_view_cache_for_tenant_and_all_source_types()`:
+
+```python
+# In StaticExchangeRateSerializer, after MonthlyExchangeRate upsert/delete:
+from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
+
+invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+```
+
+### Celery Task (Writer 1)
+
+After the daily `MonthlyExchangeRate` upsert completes for a tenant, flush
+that tenant's report cache. This runs inside the existing per-tenant loop:
+
+```python
+# In get_daily_currency_rates, after MonthlyExchangeRate upsert per tenant:
+from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
+
+invalidate_view_cache_for_tenant_and_all_source_types(tenant.schema_name)
+```
+
+**Why all source types?** Exchange rates apply across all providers — a USD→EUR
+rate change affects AWS, Azure, GCP, and OCP reports equally. Invalidating
+per-source-type would miss cross-provider reports (e.g., OCP-on-AWS).
+
+---
+
 ## Unchanged Components
 
 | File | Reason |
@@ -532,3 +610,4 @@ This is handled automatically by the `MonthlyExchangeRate` table:
 | v1.6 | 2026-03-30 | `MonthlyExchangeRate` is now the single source of truth for all months (current and past). Removed `StaticExchangeRateDictionary` and two-tier resolution. Query handler reads from one table. Writer 2 simplified to upsert only. |
 | v1.7 | 2026-03-30 | Removed `ExchangeRateDictionary` fallback from query handler. M2 migration seeds current-month data at deployment. Pre-deployment months have no conversion (rate=1). |
 | v1.8 | 2026-04-12 | Documented OCP dual-annotation pattern (`exchange_rate` + `infra_exchange_rate`). Updated `effective_exchange_rates` return type to `{(effective_date, base_currency): row}`. Added OCP override pseudocode and annotation-to-cost-type mapping table. |
+| v1.9 | 2026-04-12 | Replaced `_iter_months()` with explicit `start_datetime`/`end_datetime` range filter. Added design note justifying `Case`/`When` over `Subquery` (OCP dual-annotation incompatibility). Added cache invalidation section for both CRUD and Celery writers. |
