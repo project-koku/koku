@@ -240,10 +240,23 @@ table that serves as the source of truth for all months:
 No fallback to `ExchangeRateDictionary` is needed. The M2 migration seeds the
 current month's data from `ExchangeRateDictionary` at deployment time (see
 [data-model.md § M2](./data-model.md#m2-create-and-seed-monthly_exchange_rate-table)),
-so `MonthlyExchangeRate` has data from the moment of deployment. For months
-before deployment, no `MonthlyExchangeRate` rows exist, and no currency
-conversion is applied (effectively a rate of 1) — this correctly reflects that
-per-month rate tracking did not exist before the feature was deployed.
+so `MonthlyExchangeRate` has data from the moment of deployment.
+
+**Pre-deployment months**: For months before deployment, no
+`MonthlyExchangeRate` rows exist for the exact month. Instead of defaulting to
+a rate of 1 (no conversion), the query handler falls back to the **earliest
+available rate** for that currency pair. For example, if the feature is deployed
+in March, a query for February will use March's rate — the best available
+approximation. This is implemented as a second `Subquery` inside `Coalesce`
+(see [base annotation](#changed-base-exchange_rate_annotation_dict) and
+[OCP annotation](#changed-ocp-exchange_rate_annotation_dict-dual-annotation-pattern)).
+
+**Missing rates**: If no rate exists at all for a required currency pair (both
+the exact-month and earliest-available subqueries return `NULL`), the annotation
+evaluates to `NULL`. A [post-query validation step](#post-query-exchange-rate-validation)
+detects these `NULL` values and raises an exception — this indicates a system
+configuration error (e.g., the Celery seeding task failed or
+`MonthlyExchangeRate` was not populated).
 
 The `rate_type` column tracks whether each rate is static or dynamic (static
 rows take precedence via the `unique_together` constraint — when a static rate
@@ -258,17 +271,36 @@ base implementation in `ReportQueryHandler` used by AWS, Azure, and GCP:
 ```python
 @cached_property
 def exchange_rate_annotation_dict(self):
+    # Primary: exact month match
     rate_subquery = MonthlyExchangeRate.objects.filter(
         effective_date=TruncMonth(OuterRef("usage_start")),
         base_currency=OuterRef(self._mapper.cost_units_key),
         target_currency=self.currency,
     ).values("exchange_rate")[:1]
+
+    # Fallback: earliest available rate for this currency pair
+    # (covers pre-deployment months where no exact-month row exists)
+    earliest_rate_subquery = MonthlyExchangeRate.objects.filter(
+        base_currency=OuterRef(self._mapper.cost_units_key),
+        target_currency=self.currency,
+    ).order_by("effective_date").values("exchange_rate")[:1]
+
     return {
         "exchange_rate": Coalesce(
-            Subquery(rate_subquery), Value(Decimal("1")), output_field=DecimalField()
+            Subquery(rate_subquery),
+            Subquery(earliest_rate_subquery),
+            output_field=DecimalField(),
         )
     }
 ```
+
+**Three-level resolution**:
+
+| Priority | Source | When it applies |
+|----------|--------|-----------------|
+| 1st | Exact month match | Normal case — rate exists for that month |
+| 2nd | Earliest available rate | Pre-deployment months (no row for that month, but rows exist for later months) |
+| 3rd | `NULL` | No rates at all for this currency pair — caught by [post-query validation](#post-query-exchange-rate-validation) |
 
 For cloud providers (AWS, Azure, GCP), `cost_units_key` points to the bill's
 currency column (e.g., `currency_code`). All cost columns use the same
@@ -282,6 +314,10 @@ The `Subquery` approach delegates the lookup to the database via a correlated
 subquery — no Python-side rate pre-fetching, no growing `CASE` expressions,
 and PostgreSQL can leverage the `unique_together` index on
 `(effective_date, base_currency, target_currency)` for efficient lookups.
+
+**Performance note**: PostgreSQL evaluates `Coalesce` lazily — the
+`earliest_rate_subquery` only executes when the first subquery returns `NULL`.
+The `order_by("effective_date")[:1]` is efficient with the existing index.
 
 ### Changed: OCP `exchange_rate_annotation_dict` (Dual-Annotation Pattern)
 
@@ -327,6 +363,12 @@ def exchange_rate_annotation_dict(self):
         target_currency=self.currency,
     ).values("exchange_rate")[:1]
 
+    # Step 2b: Fallback — earliest available rate for cost model currency pair
+    earliest_exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
+        base_currency=Subquery(cost_model_currency),
+        target_currency=self.currency,
+    ).order_by("effective_date").values("exchange_rate")[:1]
+
     # Step 3: Infrastructure costs — rate by cloud bill currency column
     infra_exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
         effective_date=TruncMonth(OuterRef("usage_start")),
@@ -334,17 +376,29 @@ def exchange_rate_annotation_dict(self):
         target_currency=self.currency,
     ).values("exchange_rate")[:1]
 
+    # Step 3b: Fallback — earliest available rate for infra currency pair
+    earliest_infra_rate_subquery = MonthlyExchangeRate.objects.filter(
+        base_currency=OuterRef(self._mapper.cost_units_key),
+        target_currency=self.currency,
+    ).order_by("effective_date").values("exchange_rate")[:1]
+
     return {
         "exchange_rate": Coalesce(
-            Subquery(exchange_rate_subquery), Value(Decimal("1")),
+            Subquery(exchange_rate_subquery),
+            Subquery(earliest_exchange_rate_subquery),
             output_field=DecimalField(),
         ),
         "infra_exchange_rate": Coalesce(
-            Subquery(infra_exchange_rate_subquery), Value(Decimal("1")),
+            Subquery(infra_exchange_rate_subquery),
+            Subquery(earliest_infra_rate_subquery),
             output_field=DecimalField(),
         ),
     }
 ```
+
+Both annotations follow the same three-level resolution as the
+[base implementation](#changed-base-exchange_rate_annotation_dict): exact month
+→ earliest available → `NULL` (caught by post-query validation).
 
 **Key change from current code**: `source_to_currency_map` (Python dict) is
 replaced by a nested `Subquery` that resolves `source_uuid` → `CostModel.currency`
@@ -375,17 +429,81 @@ produces both annotations.
 
 ### Pre-Deployment Months
 
-Months before deployment have no `MonthlyExchangeRate` rows. The query handler
-does not fall back to `ExchangeRateDictionary` — if no row exists for a month,
-no currency conversion is applied for that month (the `Coalesce` default of
-`Decimal("1")` means amounts pass through unconverted). This correctly reflects
-that per-month rate tracking did not exist before the feature was deployed.
+Months before deployment have no `MonthlyExchangeRate` rows for the exact month.
+The query handler falls back to the **earliest available rate** for that currency
+pair — typically the rate from the deployment month (seeded by the M2 migration).
+This provides the best available approximation rather than showing unconverted
+costs.
+
+For example, if the feature is deployed in March 2026 and a user queries
+January–April data:
+
+| Month | Resolution | Rate used |
+|-------|-----------|-----------|
+| January 2026 | No exact match → earliest available (March) | March rate |
+| February 2026 | No exact match → earliest available (March) | March rate |
+| March 2026 | Exact match | March rate |
+| April 2026 | Exact match | April rate |
 
 The M2 migration seeds the current month at deployment time, so there is no gap
-for the current month. Going forward, the daily Celery task and CRUD operations
-populate future months.
+for the deployment month. Going forward, the daily Celery task and CRUD
+operations populate future months.
+
+If no rate exists at all for a required currency pair (both subqueries return
+`NULL`), the [post-query validation](#post-query-exchange-rate-validation) raises
+an exception.
 
 **Risk linkage**: See [risk-register.md § R5](./risk-register.md#r5--query-handler-performance)
+
+### Post-Query Exchange Rate Validation
+
+After the queryset is evaluated but before the response is serialized, the query
+handler checks for `NULL` exchange rate annotations. A `NULL` value means both
+the exact-month and earliest-available subqueries returned no result — indicating
+that `MonthlyExchangeRate` has no data at all for that currency pair. This is a
+system configuration error, not normal operation.
+
+```python
+def _validate_exchange_rates(self, queryset):
+    """Raise if any rows have NULL exchange rates (no rate data for currency pair)."""
+    if not self.currency:
+        return
+
+    null_rate_filter = Q(exchange_rate__isnull=True)
+    # OCP has a second annotation to check
+    if hasattr(self, "_mapper") and hasattr(self._mapper, "cost_units_key"):
+        null_rate_filter |= Q(infra_exchange_rate__isnull=True)
+
+    if queryset.filter(null_rate_filter).exists():
+        missing_currencies = (
+            queryset.filter(null_rate_filter)
+            .values_list(self._mapper.cost_units_key, flat=True)
+            .distinct()
+        )
+        raise ExchangeRateNotFound(
+            f"No exchange rates found for base currencies "
+            f"{list(missing_currencies)} → {self.currency}. "
+            f"MonthlyExchangeRate table may not be seeded."
+        )
+```
+
+**Key design choices**:
+
+- **Post-query, not pre-query**: The validation runs after the query because
+  the base currency varies per row (it comes from the data, not the request).
+  A pre-query check could only verify that *some* rates exist for the target
+  currency, but would miss cases where rates exist for one base currency but
+  not another.
+- **Performance**: The `.filter(...).exists()` check is a lightweight query
+  that only adds overhead when the annotation produced `NULL` values. The
+  `.values_list().distinct()` for the error message only runs on the error
+  path.
+- **Exception type**: `ExchangeRateNotFound` is a custom exception caught by
+  the view layer and returned as an appropriate HTTP error response. This is a
+  system configuration issue (missing rate data), not a user input error.
+- **OCP dual annotations**: The OCP query handler must validate both
+  `exchange_rate` and `infra_exchange_rate` since they resolve against
+  different base currencies (cost model currency vs cloud bill currency).
 
 ### New: Available Currency Resolution
 
@@ -488,7 +606,8 @@ This is handled automatically by the `MonthlyExchangeRate` table:
 - **Resilience**: If the daily task fails on the last day of the month, the
   table still has the rate from the most recent successful day.
 - **Forward-only**: Months before deployment have no `MonthlyExchangeRate` rows;
-  the current month is seeded during M2 migration.
+  the current month is seeded during M2 migration. Pre-deployment months use the
+  earliest available rate (see [Pre-Deployment Months](#pre-deployment-months)).
 
 ---
 
@@ -564,3 +683,4 @@ per-source-type would miss cross-provider reports (e.g., OCP-on-AWS).
 | v1.8 | 2026-04-12 | Documented OCP dual-annotation pattern (`exchange_rate` + `infra_exchange_rate`). Updated `effective_exchange_rates` return type to `{(effective_date, base_currency): row}`. Added OCP override pseudocode and annotation-to-cost-type mapping table. |
 | v1.9 | 2026-04-12 | Replaced `_iter_months()` with explicit date range filter. Added cache invalidation section for both CRUD and Celery writers. |
 | v2.0 | 2026-04-12 | Adopted `Subquery` approach for rate resolution (replaces `Case`/`When`). Removed `effective_exchange_rates` property. OCP uses nested `Subquery` for `source_uuid` → cost model currency resolution. R5 mitigated. |
+| v2.1 | 2026-04-12 | Pre-deployment months now fall back to earliest available rate instead of defaulting to 1. Added post-query validation that raises `ExchangeRateNotFound` when no rate exists for a currency pair. Removed `Value(Decimal("1"))` from `Coalesce` in both base and OCP annotations. |
