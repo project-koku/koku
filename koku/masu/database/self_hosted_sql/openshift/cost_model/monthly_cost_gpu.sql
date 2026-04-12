@@ -36,7 +36,9 @@ SELECT
         'gpu-max-slices', gpu.gpu_max_slices::varchar,
         'mig-strategy', gpu.mig_strategy,
         'mig-memory-mib', gpu.mig_memory_capacity_mib::varchar,
-        'gpu-mode', CASE WHEN NULLIF(gpu.mig_profile, '') IS NOT NULL THEN 'MIG' ELSE 'dedicated' END
+        'gpu-mode', CASE WHEN NULLIF(gpu.mig_profile, '') IS NOT NULL THEN 'MIG' ELSE 'dedicated' END,
+        'gpu-uuid', gpu.gpu_uuid,
+        'mig-instance-id', gpu.mig_instance_id
     ) as all_labels,
     gpu.source::uuid as source_uuid,
     {{rate_type}} AS cost_model_rate_type,
