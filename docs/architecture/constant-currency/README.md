@@ -256,7 +256,7 @@ graph LR
     CT -->|rebuild| ERD["ExchangeRateDictionary<br/>(public schema)"]
     CT -->|"discover currencies<br/>create as disabled"| EC["EnabledCurrency<br/>(tenant schema)<br/>enabled/disabled per currency"]
     CT -->|"Writer 1: per-tenant<br/>skip static pairs<br/>all currencies"| MER["MonthlyExchangeRate<br/>(tenant schema)<br/>single source of truth"]
-    MER -->|"all months:<br/>per-month rates"| QH["QueryHandler<br/>date-aware Case/When"]
+    MER -->|"all months:<br/>per-month rates"| QH["QueryHandler<br/>Subquery annotation"]
     QH -->|"per-month rates +<br/>rate metadata"| REPORT["Report Response<br/>+ exchange_rates_applied"]
     QH -->|"no rate? →<br/>actionable error"| ERR["Error: no exchange rate<br/>available"]
     ADMIN["CM Admin"] -->|"enable/disable<br/>currencies"| EC
@@ -311,3 +311,4 @@ graph LR
 | v1.4 | 2026-03-26 | Clarified two-tier rate resolution: dictionaries are sources of truth, snapshots are for historical report rates. Updated data flow diagram to show query handler reading from `StaticExchangeRateDictionary`. |
 | v1.5 | 2026-03-30 | `MonthlyExchangeRate` replaces `MonthlyExchangeRateSnapshot` as single source of truth for all months. Removed `StaticExchangeRateDictionary`. Simplified data flow diagram and design decisions. Renumbered decisions (old 11 removed, old 12–15 → 11–14). |
 | v1.6 | 2026-03-30 | Removed `ExchangeRateDictionary` fallback from query handler. M2 seeds current-month data. Decision #9 updated. |
+| v1.7 | 2026-04-12 | Updated data flow diagram: query handler uses `Subquery` annotation instead of `Case`/`When`. |

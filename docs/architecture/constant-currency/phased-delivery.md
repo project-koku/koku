@@ -69,7 +69,7 @@ pairs. Show rate provenance in report responses.
 - [ ] Finalized month immutability: past month rows never overwritten
 - [ ] `MonthlyExchangeRate` is the single source of truth: query handler reads from it for all months (no fallback)
 - [ ] M2 migration seeds current-month data from `ExchangeRateDictionary` into `MonthlyExchangeRate`
-- [ ] Date-aware `Case`/`When` annotations produce correct per-month rates
+- [ ] `Subquery` annotations produce correct per-month rates from `MonthlyExchangeRate`
 - [ ] Pre-deployment months (no rows) correctly default to rate=1 (no conversion)
 - [ ] `exchange_rates_applied` metadata appears in report responses
 - [ ] Consecutive months with same rate/type collapsed into one period string
@@ -136,7 +136,7 @@ See [risk-register.md](./risk-register.md) for full details.
 | **R2** | Task runtime with many tenants/pairs | Open | 1 |
 | **R3** | Overlapping static rates | Mitigated | 1 |
 | **R4** | Pre-deployment month gap | Resolved | 1 |
-| **R5** | Query handler performance | Open | 1 |
+| **R5** | Query handler performance | Mitigated | 1 |
 | **R6** | Static rate deletion gap | Mitigated | 1 |
 | **R7** | No exchange rate for selected currency | Mitigated | 1 |
 | **R8** | No rates configured (static or dynamic) | Accepted | 1 |
@@ -154,7 +154,7 @@ periods would require:
 
 - Writing `MonthlyExchangeRate` rows at a finer granularity (e.g., weekly start dates)
 - Updating the `unique_together` constraint if multiple rows per month are needed
-- Updated query handler to build `Case`/`When` at finer granularity
+- Updated query handler `Subquery` filter to match finer granularity
 - Updated Celery task to write rates at the appropriate frequency
 
 This is explicitly out of scope for Phase 1.
@@ -180,3 +180,4 @@ design would be needed to handle path prioritization.
 | v1.6 | 2026-03-30 | `MonthlyExchangeRate` replaces `MonthlyExchangeRateSnapshot` as single source of truth. Removed `StaticExchangeRateDictionary` artifacts (model, M3 migration). Renumbered M4 → M3. Simplified validation items and rollback steps. |
 | v1.7 | 2026-03-30 | M2 now seeds current-month data. Removed fallback validation item. Added M2 seed and pre-deployment default validation items. R4 resolved. |
 | v1.8 | 2026-04-12 | Fixed R6 status from "Low" to "Mitigated" to match risk-register.md. |
+| v1.9 | 2026-04-12 | R5 mitigated (Subquery replaces Case/When). Updated validation to reflect Subquery approach. |

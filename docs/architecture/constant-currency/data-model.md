@@ -249,8 +249,8 @@ In this example:
 - **Writer 2** (CRUD serializer): Upserts `rate_type=RateType.STATIC` rows for each
   month in a static rate's validity period. See
   [pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--monthlyexchangerate-upsert--writer-2).
-- **Reader** (query handler): Reads rows for all months in the query range
-  (current and past), builds per-month `Case`/`When` annotations. See
+- **Reader** (query handler): Resolves per-month rates via correlated
+  `Subquery` annotations on `MonthlyExchangeRate`. See
   [pipeline-changes.md § Rate Resolution](./pipeline-changes.md#rate-resolution-strategy).
 
 **Registration points**: None. Not added to `UI_SUMMARY_TABLES` or any cleaner
@@ -379,3 +379,4 @@ changes required.
 | v1.5 | 2026-03-29 | Replaced `year_month` CharField with `effective_date` DateField on `MonthlyExchangeRateSnapshot` for consistency with existing date field patterns (`usage_start`, `billing_period_start`). |
 | v1.6 | 2026-03-30 | Renamed `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate` and promoted it to single source of truth for all months (current and past). Removed `StaticExchangeRateDictionary` — no longer needed since query handlers read from `MonthlyExchangeRate` for all months. Renumbered migrations (M3 is now `enabled_currency`; old M3 removed). |
 | v1.7 | 2026-03-30 | M2 now seeds current-month data from `ExchangeRateDictionary` during migration. Eliminates `ExchangeRateDictionary` fallback in query handler. |
+| v1.8 | 2026-04-12 | Updated reader description to reflect `Subquery`-based rate resolution (replaces `Case`/`When`). |

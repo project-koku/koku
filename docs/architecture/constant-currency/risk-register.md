@@ -13,7 +13,7 @@ Single source of truth for risks related to the Constant Currency feature
 | **R2** | Large number of currency pairs × tenants increases task runtime | Open | 1 | Monitor task duration; batch operations if needed |
 | **R3** | Overlapping static rates bypass serializer validation | Mitigated | 1 | DB-level `unique_together` on `MonthlyExchangeRate`; serializer checks on `StaticExchangeRate` |
 | **R4** | Pre-deployment months have no `MonthlyExchangeRate` data | Resolved | 1 | M2 migration seeds current month; pre-deployment months default to rate=1 (no conversion) |
-| **R5** | Query handler `Case`/`When` with many months/currencies may be slow | Open | 1 | Benchmark with realistic currency pair counts |
+| **R5** | Query handler subquery performance with many months/currencies | Mitigated | 1 | `Subquery` approach uses indexed lookups instead of growing `CASE` expressions |
 | **R6** | Static rate deletion leaves gap before dynamic rate fills in | Mitigated | 1 | Serializer proactively populates dynamic rows on static rate deletion; no gap |
 | **R7** | User selects a target currency with no conversion path from bill currency | Mitigated | 1 | Show actionable error; currencies remain visible in dropdown |
 | **R8** | No rates configured (static or dynamic) for a currency pair | Accepted | 1 | Static first, dynamic fallback, error if neither; hide dropdown when no currencies visible |
@@ -102,29 +102,22 @@ month avoids fabricating historical data.
 
 ## R5 — Query Handler Performance
 
-**Status**: Open. Requires benchmarking.
+**Decision**: Mitigated by adopting `Subquery` over `Case`/`When`.
 
-**Context**: The `Case`/`When` annotation grows with
-`months × unique_base_currencies` in the query range.
+**Context**: The original design used `Case`/`When` annotations that grew with
+`months × unique_base_currencies` in the query range (e.g., 120 `WHEN` clauses
+for a 12-month, 10-currency query). This was replaced with a correlated
+`Subquery` that performs an indexed lookup on `MonthlyExchangeRate` per row.
 
-| Query Range | Base Currencies | `When` Clauses |
-|-------------|----------------|----------------|
-| 1 month | 1 | 1 |
-| 3 months | 3 | 9 |
-| 12 months | 5 | 60 |
-| 12 months | 10 | 120 |
+The `Subquery` approach leverages the `unique_together` index on
+`(effective_date, base_currency, target_currency)`, keeping lookup cost
+constant regardless of the number of months or currencies in the query range.
 
-Django translates `Case`/`When` into SQL `CASE WHEN ... END` expressions.
-PostgreSQL handles these efficiently for small-to-medium clause counts, but
-performance should be validated with realistic data.
-
-**Mitigation** (apply if benchmarking shows issues):
-
-| # | Approach | Trade-off |
-|---|----------|-----------|
-| 1 | Cache resolved rates per request in `effective_exchange_rates` | Already implemented via `@cached_property` |
-| 2 | Pre-compute exchange rate multiplier into a temp table or CTE | More complex SQL, but avoids large `CASE` expressions |
-| 3 | Limit query range to 12 months maximum | Business constraint, may not be acceptable |
+**Residual risk**: Correlated subqueries add one additional indexed lookup per
+row in the result set. For very large result sets, this could be slower than
+a single `CASE` expression evaluated inline. Monitor query execution times
+after deployment; if needed, PostgreSQL `LATERAL JOIN` or a CTE-based approach
+can replace the `Subquery`.
 
 **Linked from**: [pipeline-changes.md § Reader](./pipeline-changes.md#modified-query-handler--reader)
 
@@ -235,3 +228,4 @@ R8       ✓
 | v1.3 | 2026-03-29 | R6: upgraded from Low to Mitigated — serializer proactively populates dynamic rows on delete (aligns with pipeline-changes.md and api-and-frontend.md) |
 | v1.4 | 2026-03-30 | Renamed `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate` throughout. Updated R3, R4, R6 references. |
 | v1.5 | 2026-03-30 | R4 resolved: M2 seeds current-month data, eliminating need for `ExchangeRateDictionary` fallback. |
+| v1.6 | 2026-04-12 | R5 mitigated: `Subquery` approach replaces `Case`/`When`, eliminating O(months × currencies) scaling concern. |

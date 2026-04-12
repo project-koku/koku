@@ -340,12 +340,11 @@ transparency on which rates (static vs dynamic) were used and for which periods.
 }
 ```
 
-**Implementation**: The query handler's `effective_exchange_rates` property
-(see [pipeline-changes.md § Rate Resolution](./pipeline-changes.md#rate-resolution-strategy))
-provides the resolved rates from `MonthlyExchangeRate` for all months
-(current and past). The response formatter groups
-consecutive months with the same rate and type into a single entry with
-`start_date` / `end_date` boundaries (first-of-month and last-day-of-month
+**Implementation**: The response formatter queries `MonthlyExchangeRate` for
+the report's date range and target currency
+(see [pipeline-changes.md § Rate Resolution](./pipeline-changes.md#rate-resolution-strategy)),
+then groups consecutive months with the same rate and type into a single entry
+with `start_date` / `end_date` boundaries (first-of-month and last-day-of-month
 respectively).
 
 ---
@@ -417,3 +416,4 @@ The frontend will:
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
 | v1.4 | 2026-03-26 | Updated report response implementation to reference two-tier rate resolution. |
 | v1.5 | 2026-04-09 | Replaced stale `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate`, removed `StaticExchangeRateDictionary` references (removed in pipeline-changes v1.6). |
+| v1.6 | 2026-04-12 | Updated `exchange_rates_applied` implementation to reflect `Subquery`-based rate resolution (removed `effective_exchange_rates` reference). |

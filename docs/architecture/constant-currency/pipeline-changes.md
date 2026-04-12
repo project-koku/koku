@@ -90,9 +90,10 @@ configuring their own on-premise deployment.
 
 At query time:
 
-8. **CHANGED**: `QueryHandler.exchange_rate_annotation_dict` reads from
-   `MonthlyExchangeRate` for all months (current and past)
-9. **CHANGED**: Builds per-month `Case`/`When` annotations (one rate per month)
+8. **CHANGED**: `QueryHandler.exchange_rate_annotation_dict` resolves rates
+   from `MonthlyExchangeRate` via `Subquery` (correlated by month and currency)
+9. **CHANGED**: Per-month rate resolution via `Subquery` annotation (replaces
+   single-rate `Case`/`When`)
 10. **NEW**: Report response includes `exchange_rates_applied` metadata
 11. **NEW**: Available currencies for dropdown computed from enabled dynamic
     currencies + static rate currencies (`enabled` flag controls dropdown
@@ -114,7 +115,7 @@ graph TD
         MER["MonthlyExchangeRate<br/>unique_together: effective_date, base, target<br/>all months (current + past)"]
     end
     subgraph "Reader"
-        QH["QueryHandler<br/>(date-aware Case/When)"]
+        QH["QueryHandler<br/>(Subquery annotation)"]
     end
     W1 -->|"update_or_create<br/>rate_type=dynamic<br/>skip if static exists"| MER
     W2 -->|"update_or_create<br/>rate_type=static<br/>overwrites dynamic"| MER
@@ -222,8 +223,8 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
 
 | File | Change |
 |------|--------|
-| `koku/api/query_handler.py` | Base `QueryHandler`: new `effective_exchange_rates` property, date-aware `Case`/`When` in `exchange_rate_annotation_dict` |
-| `koku/api/report/ocp/query_handler.py` | OCP override: dual-annotation pattern (`exchange_rate` + `infra_exchange_rate`) with per-month rates from `MonthlyExchangeRate`. `source_to_currency_map` unchanged. |
+| `koku/api/query_handler.py` | Base `QueryHandler`: `Subquery`-based `exchange_rate_annotation_dict` using `MonthlyExchangeRate` correlated by `TruncMonth(usage_start)` and `cost_units_key` |
+| `koku/api/report/ocp/query_handler.py` | OCP override: dual-annotation `Subquery` pattern (`exchange_rate` via cost model currency + `infra_exchange_rate` via `raw_currency`). `source_to_currency_map` no longer needed. |
 | `koku/api/report/ocp/provider_map.py` | **No changes** — already references `exchange_rate` and `infra_exchange_rate` by name |
 | `koku/forecast/forecast.py` | Forecast handler: use `MonthlyExchangeRate` for rate resolution |
 
@@ -248,90 +249,39 @@ The `rate_type` column tracks whether each rate is static or dynamic (static
 rows take precedence via the `unique_together` constraint — when a static rate
 is written, it overwrites any existing dynamic row for the same triple).
 
-### New: `effective_exchange_rates` Property
-
-```python
-@cached_property
-def effective_exchange_rates(self):
-    """Load exchange rates for the query date range.
-
-    All months (current and past): from MonthlyExchangeRate.
-    Uses self.start_datetime / self.end_datetime (set by QueryHandler
-    from query parameters or _get_timeframe()).
-    Returns: {(effective_date, base_currency): MonthlyExchangeRate row}
-    """
-    start_month = self.start_datetime.date().replace(day=1)
-    end_month = self.end_datetime.date().replace(day=1)
-
-    rates = {}
-    for row in MonthlyExchangeRate.objects.filter(
-        effective_date__gte=start_month,
-        effective_date__lte=end_month,
-        target_currency=self.currency,
-    ):
-        rates[(row.effective_date, row.base_currency)] = row
-
-    return rates
-```
-
-The dict is keyed by `(effective_date, base_currency)` so both the base and
-OCP query handlers can look up the correct rate for a given month and source
-currency. The date range comes from `self.start_datetime` and
-`self.end_datetime`, which `QueryHandler` already sets from query parameters
-(or `_get_timeframe()` when no explicit dates are provided).
-
-### Design Note: `Case`/`When` vs `Subquery`
-
-An alternative to the per-month `Case`/`When` pattern is a correlated
-`Subquery` that joins `MonthlyExchangeRate` by truncating `usage_start` to its
-month:
-
-```python
-rate_subquery = MonthlyExchangeRate.objects.filter(
-    effective_date=TruncMonth(OuterRef("usage_start")),
-    base_currency=OuterRef("currency"),
-    target_currency=self.currency,
-).values("exchange_rate")[:1]
-queryset = queryset.annotate(
-    exchange_rate=Coalesce(Subquery(rate_subquery), Value(Decimal("1")))
-)
-```
-
-This is simpler for cloud providers (AWS, Azure, GCP), where the bill currency
-lives in a column that `OuterRef` can reference. However, it does not work for
-the **OCP dual-annotation pattern**: the `exchange_rate` annotation matches on
-`source_uuid` → cost model currency, which is resolved in Python via
-`source_to_currency_map` and has no single column that `OuterRef` can reference.
-
-The `Case`/`When` approach is used because it handles both the simple cloud case
-and the OCP dual-annotation case uniformly. If performance benchmarking (R5)
-reveals issues with large `CASE` expressions, the cloud query handlers could
-be refactored to use `Subquery` independently while OCP retains `Case`/`When`.
-
 ### Changed: Base `exchange_rate_annotation_dict`
 
-Replace single-rate annotation with per-month `Case`/`When`. This is the
+Replace single-rate `Case`/`When` with a correlated `Subquery` that joins
+`MonthlyExchangeRate` by truncating `usage_start` to its month. This is the
 base implementation in `ReportQueryHandler` used by AWS, Azure, and GCP:
 
 ```python
 @cached_property
 def exchange_rate_annotation_dict(self):
-    whens = []
-    for (effective_date, base_cur), rate_info in self.effective_exchange_rates.items():
-        month_start, month_end = month_bounds(effective_date)
-        whens.append(When(
-            usage_start__gte=month_start,
-            usage_start__lt=month_end,
-            **{self._mapper.cost_units_key: base_cur},
-            then=Value(rate_info.exchange_rate),
-        ))
-    return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+    rate_subquery = MonthlyExchangeRate.objects.filter(
+        effective_date=TruncMonth(OuterRef("usage_start")),
+        base_currency=OuterRef(self._mapper.cost_units_key),
+        target_currency=self.currency,
+    ).values("exchange_rate")[:1]
+    return {
+        "exchange_rate": Coalesce(
+            Subquery(rate_subquery), Value(Decimal("1")), output_field=DecimalField()
+        )
+    }
 ```
 
 For cloud providers (AWS, Azure, GCP), `cost_units_key` points to the bill's
 currency column (e.g., `currency_code`). All cost columns use the same
 currency (the cloud bill currency), so a single `exchange_rate` annotation is
 sufficient.
+
+**Why `Subquery` instead of `Case`/`When`?** The previous design built
+per-month `Case`/`When` clauses, which scaled as `O(months × currencies)` and
+required a separate `effective_exchange_rates` property to pre-fetch rates.
+The `Subquery` approach delegates the lookup to the database via a correlated
+subquery — no Python-side rate pre-fetching, no growing `CASE` expressions,
+and PostgreSQL can leverage the `unique_together` index on
+`(effective_date, base_currency, target_currency)` for efficient lookups.
 
 ### Changed: OCP `exchange_rate_annotation_dict` (Dual-Annotation Pattern)
 
@@ -354,50 +304,52 @@ row, so they need independent exchange rate lookups.
 **Existing code** (`koku/api/report/ocp/query_handler.py`):
 
 - `source_to_currency_map` resolves `source_uuid` → `CostModel.currency`
-  via `CostModelMap` → `CostModel`
+  via `CostModelMap` → `CostModel` (Python-side lookup)
 - `exchange_rate` `Case`/`When` matches on `source_uuid`
 - `infra_exchange_rate` `Case`/`When` matches on `cost_units_key`
   (`raw_currency`)
 
-**Updated pseudocode** — the per-month constant-currency version:
+**Updated pseudocode** — the `Subquery`-based constant-currency version:
 
 ```python
 @cached_property
 def exchange_rate_annotation_dict(self):
-    # Supplementary / cost-model costs: currency from cost model, per month
-    exchange_rate_whens = []
-    for uuid, cur in self.source_to_currency_map.items():
-        for (effective_date, base_cur), rate_info in self.effective_exchange_rates.items():
-            if base_cur != cur:
-                continue
-            month_start, month_end = month_bounds(effective_date)
-            exchange_rate_whens.append(When(
-                source_uuid=uuid,
-                usage_start__gte=month_start,
-                usage_start__lt=month_end,
-                then=Value(rate_info.exchange_rate),
-            ))
+    # Step 1: Resolve source_uuid → cost model currency via DB subquery
+    # (replaces the Python-side source_to_currency_map lookup)
+    cost_model_currency = CostModel.objects.filter(
+        cost_model_map__provider_uuid=OuterRef("source_uuid"),
+    ).values("currency")[:1]
 
-    # Infrastructure costs: currency from cloud bill column, per month
-    infra_exchange_rate_whens = []
-    for (effective_date, base_cur), rate_info in self.effective_exchange_rates.items():
-        month_start, month_end = month_bounds(effective_date)
-        infra_exchange_rate_whens.append(When(
-            usage_start__gte=month_start,
-            usage_start__lt=month_end,
-            **{self._mapper.cost_units_key: base_cur},
-            then=Value(rate_info.exchange_rate),
-        ))
+    # Step 2: Supplementary / cost-model costs — rate by cost model currency
+    exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
+        effective_date=TruncMonth(OuterRef("usage_start")),
+        base_currency=Subquery(cost_model_currency),
+        target_currency=self.currency,
+    ).values("exchange_rate")[:1]
+
+    # Step 3: Infrastructure costs — rate by cloud bill currency column
+    infra_exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
+        effective_date=TruncMonth(OuterRef("usage_start")),
+        base_currency=OuterRef(self._mapper.cost_units_key),
+        target_currency=self.currency,
+    ).values("exchange_rate")[:1]
 
     return {
-        "exchange_rate": Case(
-            *exchange_rate_whens, default=1, output_field=DecimalField()
+        "exchange_rate": Coalesce(
+            Subquery(exchange_rate_subquery), Value(Decimal("1")),
+            output_field=DecimalField(),
         ),
-        "infra_exchange_rate": Case(
-            *infra_exchange_rate_whens, default=1, output_field=DecimalField()
+        "infra_exchange_rate": Coalesce(
+            Subquery(infra_exchange_rate_subquery), Value(Decimal("1")),
+            output_field=DecimalField(),
         ),
     }
 ```
+
+**Key change from current code**: `source_to_currency_map` (Python dict) is
+replaced by a nested `Subquery` that resolves `source_uuid` → `CostModel.currency`
+in the database. This eliminates the Python-side O(sources × months) loop and
+lets PostgreSQL handle the join.
 
 **Which annotation is used where** (in `koku/api/report/ocp/provider_map.py`
 — these ORM expressions are unchanged by this feature):
@@ -425,8 +377,8 @@ produces both annotations.
 
 Months before deployment have no `MonthlyExchangeRate` rows. The query handler
 does not fall back to `ExchangeRateDictionary` — if no row exists for a month,
-no currency conversion is applied for that month (the `default=1` in the
-`Case`/`When` means amounts pass through unconverted). This correctly reflects
+no currency conversion is applied for that month (the `Coalesce` default of
+`Decimal("1")` means amounts pass through unconverted). This correctly reflects
 that per-month rate tracking did not exist before the feature was deployed.
 
 The M2 migration seeds the current month at deployment time, so there is no gap
@@ -610,4 +562,5 @@ per-source-type would miss cross-provider reports (e.g., OCP-on-AWS).
 | v1.6 | 2026-03-30 | `MonthlyExchangeRate` is now the single source of truth for all months (current and past). Removed `StaticExchangeRateDictionary` and two-tier resolution. Query handler reads from one table. Writer 2 simplified to upsert only. |
 | v1.7 | 2026-03-30 | Removed `ExchangeRateDictionary` fallback from query handler. M2 migration seeds current-month data at deployment. Pre-deployment months have no conversion (rate=1). |
 | v1.8 | 2026-04-12 | Documented OCP dual-annotation pattern (`exchange_rate` + `infra_exchange_rate`). Updated `effective_exchange_rates` return type to `{(effective_date, base_currency): row}`. Added OCP override pseudocode and annotation-to-cost-type mapping table. |
-| v1.9 | 2026-04-12 | Replaced `_iter_months()` with explicit `start_datetime`/`end_datetime` range filter. Added design note justifying `Case`/`When` over `Subquery` (OCP dual-annotation incompatibility). Added cache invalidation section for both CRUD and Celery writers. |
+| v1.9 | 2026-04-12 | Replaced `_iter_months()` with explicit date range filter. Added cache invalidation section for both CRUD and Celery writers. |
+| v2.0 | 2026-04-12 | Adopted `Subquery` approach for rate resolution (replaces `Case`/`When`). Removed `effective_exchange_rates` property. OCP uses nested `Subquery` for `source_uuid` → cost model currency resolution. R5 mitigated. |
