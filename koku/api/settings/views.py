@@ -84,7 +84,9 @@ class SettingParamsHandler:
 class AccountSettings(APIView):
     """Settings views for all user settings."""
 
-    permission_classes = [SettingsAccessPermission] if not getattr(settings, "ONPREM", False) else [permissions.IsAuthenticated]
+    permission_classes = (
+        [SettingsAccessPermission] if not getattr(settings, "ONPREM", False) else [permissions.IsAuthenticated]
+    )
 
     def get(self, request, *args, **kwargs):
         """Gets a list of users current settings."""

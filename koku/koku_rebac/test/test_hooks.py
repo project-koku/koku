@@ -144,7 +144,9 @@ class TestProviderBuilderSourceHooks(SimpleTestCase):
     @patch("api.provider.provider_builder.connection")
     @patch("api.provider.provider_builder.on_resource_created")
     @patch("api.provider.provider_builder.ProviderSerializer")
-    def test_integration_has_cluster_uses_cluster_id(self, mock_serializer_cls, mock_report, mock_conn, mock_cache, mock_struct):
+    def test_integration_has_cluster_uses_cluster_id(
+        self, mock_serializer_cls, mock_report, mock_conn, mock_cache, mock_struct
+    ):
         """_report_integration links has_cluster to cluster_id, not provider UUID."""
         mock_instance = MagicMock()
         mock_instance.uuid = "provider-uuid-002"

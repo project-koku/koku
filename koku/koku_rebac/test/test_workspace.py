@@ -50,9 +50,7 @@ class TestRbacV2Resolver(SimpleTestCase):
 
         mock_get.return_value.status_code = 200
         mock_get.return_value.raise_for_status = lambda: None
-        mock_get.return_value.json.return_value = {
-            "results": [{"id": "ws-abc-def", "type": "default"}]
-        }
+        mock_get.return_value.json.return_value = {"results": [{"id": "ws-abc-def", "type": "default"}]}
 
         from koku_rebac.workspace import RbacV2Resolver
 

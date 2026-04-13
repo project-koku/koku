@@ -57,7 +57,15 @@ def _ref(namespace: str, name: str, obj_id: str) -> dict:
     return {"type": {"namespace": namespace, "name": name}, "id": obj_id}
 
 
-def _tuple(resource_ns: str, resource_name: str, resource_id: str, relation: str, subject_ns: str, subject_name: str, subject_id: str) -> dict:
+def _tuple(
+    resource_ns: str,
+    resource_name: str,
+    resource_id: str,
+    relation: str,
+    subject_ns: str,
+    subject_name: str,
+    subject_id: str,
+) -> dict:
     """Build a single Relations API tuple."""
     return {
         "resource": _ref(resource_ns, resource_name, resource_id),
@@ -161,11 +169,18 @@ class KesselFixture:
                 self._wait_for_resource_visibility(kessel_type, resource_ids[0], wait_user, wait_relation)
 
     def seed_ocp_resources(
-        self, workspace_id: str, kessel_type: str, resource_ids: list[str],
-        *, wait_user: str | None = None, wait_relation: str = "read",
+        self,
+        workspace_id: str,
+        kessel_type: str,
+        resource_ids: list[str],
+        *,
+        wait_user: str | None = None,
+        wait_relation: str = "read",
     ) -> None:
         """Backward-compatible alias for seed_inventory_resources."""
-        self.seed_inventory_resources(workspace_id, kessel_type, resource_ids, wait_user=wait_user, wait_relation=wait_relation)
+        self.seed_inventory_resources(
+            workspace_id, kessel_type, resource_ids, wait_user=wait_user, wait_relation=wait_relation
+        )
 
     def seed_all_read_wildcard(self, workspace_id: str, username: str) -> None:
         """Seed a role with ``t_cost_management_all_read`` for KSL wildcard testing.
@@ -185,11 +200,13 @@ class KesselFixture:
             _tuple("rbac", "workspace", workspace_id, "t_binding", "rbac", "role_binding", rb_id),
         ]
         self._create_tuples(tuples)
-        self._created_items.extend([
-            {"ns": "rbac", "name": "role", "id": role_id, "relation": "t_cost_management_all_read"},
-            {"ns": "rbac", "name": "role_binding", "id": rb_id, "relation": "t_granted"},
-            {"ns": "rbac", "name": "role_binding", "id": rb_id, "relation": "t_subject"},
-        ])
+        self._created_items.extend(
+            [
+                {"ns": "rbac", "name": "role", "id": role_id, "relation": "t_cost_management_all_read"},
+                {"ns": "rbac", "name": "role_binding", "id": rb_id, "relation": "t_granted"},
+                {"ns": "rbac", "name": "role_binding", "id": rb_id, "relation": "t_subject"},
+            ]
+        )
 
         self._wait_for_consistency(
             workspace_id=workspace_id,
@@ -267,7 +284,9 @@ class KesselFixture:
             label=f"{'ALLOWED' if expected else 'DENIED'} on {kessel_type}/{relation} for {subject_id}",
         )
 
-    def _wait_for_resource_visibility(self, kessel_type: str, resource_id: str, username: str, relation: str = "read") -> None:
+    def _wait_for_resource_visibility(
+        self, kessel_type: str, resource_id: str, username: str, relation: str = "read"
+    ) -> None:
         """Poll a resource-level Check until SpiceDB confirms visibility."""
         subject_id = f"redhat/{username}"
 
@@ -319,18 +338,22 @@ class KesselFixture:
 
                 relation_name = f"t_cost_management_{kessel_type}_{relation_suffix}"
 
-                tuples.extend([
-                    _tuple("rbac", "role", role_id, relation_name, "rbac", "principal", "*"),
-                    _tuple("rbac", "role_binding", rb_id, "t_granted", "rbac", "role", role_id),
-                    _tuple("rbac", "role_binding", rb_id, "t_subject", "rbac", "principal", principal_id),
-                    _tuple("rbac", "workspace", workspace_id, "t_binding", "rbac", "role_binding", rb_id),
-                ])
+                tuples.extend(
+                    [
+                        _tuple("rbac", "role", role_id, relation_name, "rbac", "principal", "*"),
+                        _tuple("rbac", "role_binding", rb_id, "t_granted", "rbac", "role", role_id),
+                        _tuple("rbac", "role_binding", rb_id, "t_subject", "rbac", "principal", principal_id),
+                        _tuple("rbac", "workspace", workspace_id, "t_binding", "rbac", "role_binding", rb_id),
+                    ]
+                )
 
-                self._created_items.extend([
-                    {"ns": "rbac", "name": "role", "id": role_id, "relation": relation_name},
-                    {"ns": "rbac", "name": "role_binding", "id": rb_id, "relation": "t_granted"},
-                    {"ns": "rbac", "name": "role_binding", "id": rb_id, "relation": "t_subject"},
-                ])
+                self._created_items.extend(
+                    [
+                        {"ns": "rbac", "name": "role", "id": role_id, "relation": relation_name},
+                        {"ns": "rbac", "name": "role_binding", "id": rb_id, "relation": "t_granted"},
+                        {"ns": "rbac", "name": "role_binding", "id": rb_id, "relation": "t_subject"},
+                    ]
+                )
 
         return tuples
 

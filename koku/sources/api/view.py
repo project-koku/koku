@@ -36,7 +36,6 @@ from api.common.filters import CharListFilter
 from api.common.pagination import ListPaginator
 from api.common.permissions import RESOURCE_TYPE_MAP
 from api.common.permissions.sources_access import SourcesAccessPermission
-from koku_rebac.resource_reporter import on_resource_deleted
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
@@ -45,6 +44,7 @@ from api.report.constants import URL_ENCODED_SAFE
 from koku.cache import CacheEnum
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import SOURCES_CACHE_PREFIX
+from koku_rebac.resource_reporter import on_resource_deleted
 from masu.util.aws.common import get_available_regions
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError

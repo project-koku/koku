@@ -11,9 +11,7 @@ import django  # noqa: E402
 
 django.setup()
 
-from django.conf import settings  # noqa: E402
 from django.test import SimpleTestCase  # noqa: E402
-from django.test import override_settings  # noqa: E402
 
 
 class TestAuthorizationBackendSetting(SimpleTestCase):

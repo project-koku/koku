@@ -232,7 +232,9 @@ class TestDeleteResourceCleanupContract(SimpleTestCase):
         cls.stub = _get_inventory_stub()
         cls.fixture = KesselFixture()
         cls.fixture.seed_access(
-            CT_CLEANUP_WORKSPACE, CT_CLEANUP_USER, {"openshift.cluster": {"read": ["*"]}},
+            CT_CLEANUP_WORKSPACE,
+            CT_CLEANUP_USER,
+            {"openshift.cluster": {"read": ["*"]}},
         )
 
     @classmethod
@@ -279,11 +281,11 @@ class TestDeleteResourceCleanupContract(SimpleTestCase):
         resource_type = "openshift_cluster"
         resource_id = CT_CLEANUP_CLUSTER_ID
 
-        self.stub.ReportResource(
-            _build_report_resource(resource_type, resource_id, CT_CLEANUP_WORKSPACE)
-        )
+        self.stub.ReportResource(_build_report_resource(resource_type, resource_id, CT_CLEANUP_WORKSPACE))
         self.fixture.seed_inventory_resources(
-            CT_CLEANUP_WORKSPACE, resource_type, [resource_id],
+            CT_CLEANUP_WORKSPACE,
+            resource_type,
+            [resource_id],
             wait_user=CT_CLEANUP_USER,
         )
 
@@ -303,9 +305,7 @@ class TestDeleteResourceCleanupContract(SimpleTestCase):
     def test_delete_nonexistent_resource_does_not_error(self):
         """DeleteResource for a resource that doesn't exist should not raise."""
         try:
-            self.stub.DeleteResource(
-                _build_delete_resource("openshift_cluster", "ct-nonexistent-cluster-999")
-            )
+            self.stub.DeleteResource(_build_delete_resource("openshift_cluster", "ct-nonexistent-cluster-999"))
         except grpc.RpcError as e:
             self.assertIn(
                 e.code(),

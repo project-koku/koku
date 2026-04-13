@@ -28,9 +28,9 @@ from api.utils import DateHelper
 from cost_models.sql_parameters import BaseCostModelParams
 from koku.database import SQLScriptAtomicExecutorMixin
 from koku.reportdb_accessor import get_report_db_accessor
+from koku.trino_database import TrinoStatementExecError
 from koku_rebac.resource_reporter import create_structural_tuple
 from koku_rebac.resource_reporter import on_resource_created
-from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase

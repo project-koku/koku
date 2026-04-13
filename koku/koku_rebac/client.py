@@ -67,9 +67,7 @@ class KesselClient:
         if call_creds:
             # Auth enabled but no TLS -- use local credentials so
             # call_credentials can ride on an otherwise-insecure channel.
-            channel_creds = grpc.composite_channel_credentials(
-                grpc.local_channel_credentials(), call_creds
-            )
+            channel_creds = grpc.composite_channel_credentials(grpc.local_channel_credentials(), call_creds)
             return grpc.secure_channel(target, channel_creds)
 
         return grpc.insecure_channel(target)

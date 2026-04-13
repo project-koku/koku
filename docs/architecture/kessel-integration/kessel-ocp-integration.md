@@ -1,7 +1,7 @@
 # Kessel/ReBAC Integration for Koku - OCP Provider
 
-**Date**: 2026-01-30 
-**Status**: High Level Design (HLD) 
+**Date**: 2026-01-30
+**Status**: High Level Design (HLD)
 **Scope**: OpenShift (OCP) Provider - On-Premise Deployments
 **Last updated**: 2026-03-02 — aligned with implementation (see [kessel-ocp-detailed-design.md](./kessel-ocp-detailed-design.md)). For the on-prem workspace management strategy (team workspaces, cross-team sharing, Keycloak automation), see [onprem-workspace-management-adr.md](./onprem-workspace-management-adr.md).
 
@@ -106,7 +106,7 @@ flowchart TB
         F_Spacer3[" "]
         F_Spacer4[" "]
     end
-    
+
     subgraph Backend["BACKEND SERVICES"]
         direction LR
         subgraph BackendLeft["Data Processing"]
@@ -121,32 +121,32 @@ flowchart TB
             AccessAPI["Access Management API<br/>Status: NEW ⭐"]
         end
     end
-    
+
     subgraph Data["DATA STORES"]
         direction LR
         Postgres[("Postgres DB<br/>Cost Data & Providers")]
         Kessel[("Kessel<br/>Authorization & Resources")]
     end
-    
+
     %% Frontend to Backend
     UI -->|Cost queries| API
     AdminUI -->|Manage access| AccessAPI
-    
+
     %% API flows
     API -->|Check permissions| AuthAdapter
     AuthAdapter -->|Check permission| Kessel
-    
+
     %% Database connections (grouped to avoid overlap)
     API -->|Query cost data| Postgres
-    
+
     %% Sources API flows
     SourcesAPI -->|1. Store provider| Postgres
     SourcesAPI -->|2. Report resource| ResourceSync
-    
+
     %% Kessel connections
     ResourceSync -->|Create resource| Kessel
     AccessAPI -->|CRUD users/roles| Kessel
-    
+
     classDef new fill:#fff3cd,stroke:#856404,stroke-width:2px
     classDef modified fill:#cfe2ff,stroke:#084298,stroke-width:2px
     classDef existing fill:#d1e7dd,stroke:#0f5132,stroke-width:2px
@@ -154,7 +154,7 @@ flowchart TB
     classDef backendLayer fill:#ffe0b2,stroke:#e65100,stroke-width:2px
     classDef dataLayer fill:#f5f5f5,stroke:#616161,stroke-width:2px
     classDef spacer fill:none,stroke:none,color:transparent
-    
+
     class AdminUI,AccessAPI,AuthAdapter,ResourceSync new
     class API,SourcesAPI modified
     class UI,Postgres existing
@@ -248,29 +248,29 @@ sequenceDiagram
     participant UI as Access Mgmt<br/>UI
     participant API as Access Mgmt<br/>REST API
     participant Kessel as Kessel<br/>Relations API
-    
+
     Admin->>UI: Assign role to alice@example.com<br/>Role: Cost OpenShift Viewer<br/>Org: acme-corp
     activate UI
-    
+
     UI->>API: POST /api/v1/access/users/alice/roles/<br/>{role: "cost-openshift-viewer",<br/>tenant: "acme-corp"}
     activate API
-    
+
     Note over API: Validate:<br/>- User exists<br/>- Role exists<br/>- Admin has permission
-    
+
     API->>Kessel: CreateRelation(<br/>subject: rbac/principal:alice<br/>relation: member<br/>object: rbac/role_binding:alice-viewer)
     Kessel-->>API: OK
-    
+
     API->>Kessel: CreateRelation(<br/>subject: rbac/role_binding:alice-viewer<br/>relation: grants<br/>object: rbac/role:cost-openshift-viewer)
     Kessel-->>API: OK
-    
+
     API->>Kessel: CreateRelation(<br/>subject: rbac/role_binding:alice-viewer<br/>relation: t_binding<br/>object: rbac/tenant:acme-corp)
     Kessel-->>API: OK
-    
+
     Note over API: Log audit event:<br/>Admin granted alice<br/>cost-openshift-viewer role
-    
+
     API-->>UI: 201 Created: Role assigned
     deactivate API
-    
+
     UI-->>Admin: ✓ Access granted successfully
     deactivate UI
 ```
@@ -289,43 +289,43 @@ sequenceDiagram
     participant Postgres as Postgres<br/>DB
     participant Reporter as Resource<br/>Reporter
     participant Kessel as Kessel<br/>Relations API
-    
+
     User->>API: POST /api/v1/sources/<br/>{type: "OCP", cluster_id: "prod-east-1"}
     activate API
-    
+
     API->>Builder: create_provider_from_source()
     activate Builder
-    
+
     Note over Builder: Validate source config
-    
+
     Builder->>Postgres: INSERT INTO providers<br/>(type, cluster_id, ...)
     Postgres-->>Builder: Provider created (id=123)
-    
+
     Note over Builder: Check if ONPREM=true
-    
+
     alt On-Premise Deployment
         Builder->>Reporter: report_ocp_resources(<br/>cluster_id="prod-east-1",<br/>org_id="acme-corp",<br/>creator="alice")
         activate Reporter
-        
+
         Note over Reporter: Dual-phase: (1) Inventory API (gRPC)<br/>(2) Relations API (REST) for t_workspace tuples
 
         Reporter->>Kessel: ReportResource(cluster) — Inventory API gRPC
         Kessel-->>Reporter: OK
-        
+
         Reporter->>Kessel: POST t_workspace tuple — Relations API REST
         Kessel-->>Reporter: OK
 
         Note over Reporter: Nodes/projects synced similarly;<br/>on-prem has no CDC, so Koku writes tuples directly
-        
+
         Reporter-->>Builder: ✓ Resources synced
         deactivate Reporter
-        
+
         Note over Builder: Non-blocking:<br/>Provider creation succeeds<br/>even if Kessel fails<br/><br/>Note: Nodes and namespaces<br/>may not be available at<br/>creation time. Any not yet<br/>discovered will be synced<br/>during data processing.
     end
-    
+
     Builder-->>API: Provider created (id=123)
     deactivate Builder
-    
+
     API-->>User: 201 Created
     deactivate API
 ```
@@ -343,18 +343,18 @@ sequenceDiagram
     participant PermClass as Permission<br/>Class
     participant AuthAdapter as Authorization<br/>Adapter
     participant Kessel as Kessel<br/>Check API
-    
+
     User->>API: GET /api/v1/reports/ocp/costs/
     activate API
-    
+
     API->>PermClass: check_permission(request, view)
     activate PermClass
-    
+
     PermClass->>AuthAdapter: has_permission(<br/>user="alice",<br/>resource_type="openshift.cluster",<br/>action="read")
     activate AuthAdapter
-    
+
     Note over AuthAdapter: Check cache (300s TTL default)
-    
+
     AuthAdapter->>Kessel: Check workspace first, SLO fallback<br/>(Inventory API v1beta2)<br/>e.g. Check(principal:alice,<br/>cost_management_openshift_cluster_view,<br/>workspace:{org_id}) for wildcard
     activate Kessel
 
@@ -362,17 +362,17 @@ sequenceDiagram
 
     Kessel-->>AuthAdapter: ALLOWED ✓ (access map populated)
     deactivate Kessel
-    
+
     Note over AuthAdapter: Cache result for 300s (default)
-    
+
     AuthAdapter-->>PermClass: True
     deactivate AuthAdapter
-    
+
     PermClass-->>API: Permission granted
     deactivate PermClass
-    
+
     Note over API: Execute query,<br/>return all clusters user<br/>can access
-    
+
     API-->>User: 200 OK {data: [...]}
     deactivate API
 ```
@@ -390,28 +390,28 @@ sequenceDiagram
     participant PermClass as Permission<br/>Class
     participant AuthAdapter as Authorization<br/>Adapter
     participant Kessel as Kessel<br/>Check API
-    
+
     User->>API: GET /api/v1/reports/ocp/costs/<br/>?cluster=prod-east-1
     activate API
-    
+
     API->>PermClass: check_object_permission(<br/>request, view, cluster_obj)
     activate PermClass
-    
+
     PermClass->>AuthAdapter: has_object_permission(<br/>user="bob",<br/>resource_id="prod-east-1",<br/>action="view")
     activate AuthAdapter
-    
+
     AuthAdapter->>Kessel: Check(workspace:{org_id},<br/>cost_management_openshift_cluster_view) first;<br/>if denied, StreamedListObjects(openshift_cluster)<br/>(Inventory API v1beta2)
     activate Kessel
 
     Note over Kessel: Implementation: workspace Check first<br/>for wildcard; StreamedListObjects fallback<br/>for per-resource IDs.
-    
+
     alt Bob has access
         Kessel-->>AuthAdapter: ALLOWED ✓
         AuthAdapter-->>PermClass: True
         PermClass-->>API: Permission granted
-        
+
         Note over API: Execute query for<br/>prod-east-1 only
-        
+
         API-->>User: 200 OK {data: [...]}
     else Bob doesn't have access
         Kessel-->>AuthAdapter: DENIED ✗
@@ -420,10 +420,10 @@ sequenceDiagram
         deactivate AuthAdapter
         PermClass-->>API: Permission denied
         deactivate PermClass
-        
+
         API-->>User: 403 Forbidden
     end
-    
+
     deactivate API
 ```
 
@@ -441,41 +441,41 @@ sequenceDiagram
     participant Postgres as Postgres<br/>DB
     participant Reporter as Resource<br/>Reporter
     participant Kessel as Kessel<br/>Relations API
-    
+
     User->>API: DELETE /api/v1/sources/123/
     activate API
-    
+
     API->>Builder: destroy_provider(provider_id=123)
     activate Builder
-    
+
     Note over Builder: Load provider details<br/>cluster_id: "prod-east-1"
-    
+
     Builder->>Postgres: DELETE FROM providers<br/>WHERE id=123 (cascade)
     Postgres-->>Builder: OK (Koku deletion confirmed)
-    
+
     alt On-Premise Deployment
         Note over Builder: Koku deletion succeeded.<br/>Now clean up Kessel.
-        
+
         Builder->>Reporter: remove_ocp_cluster(<br/>cluster_id="prod-east-1")
         activate Reporter
-        
+
         Reporter->>Kessel: DeleteResource(cluster) — Inventory API gRPC
         activate Kessel
         Kessel-->>Reporter: OK
         deactivate Kessel
-        
+
         Reporter->>Kessel: DELETE t_workspace tuple — Relations API REST
         Kessel-->>Reporter: OK
-        
+
         Reporter-->>Builder: ✓ Resource removed from Kessel
         deactivate Reporter
-        
+
         Note over Builder: Non-blocking:<br/>Koku deletion already confirmed.<br/>Kessel cleanup failure is logged<br/>but does not revert the deletion.
     end
-    
+
     Builder-->>API: Provider deleted
     deactivate Builder
-    
+
     API-->>User: 204 No Content
     deactivate API
 ```
@@ -493,41 +493,41 @@ sequenceDiagram
     participant AuthAdapter as Authorization<br/>Adapter
     participant Cache as Permission<br/>Cache
     participant Kessel as Kessel<br/>(DOWN)
-    
+
     User->>API: GET /api/v1/reports/ocp/costs/
     activate API
-    
+
     API->>AuthAdapter: has_permission(user, resource, action)
     activate AuthAdapter
-    
+
     AuthAdapter->>Cache: Check cached permission
-    
+
     alt Cache HIT (within 300s default TTL)
         Cache-->>AuthAdapter: ALLOWED ✓ (cached)
         AuthAdapter-->>API: True (from cache)
-        
+
         Note over API: Continue with request<br/>using cached permission
-        
+
         API-->>User: 200 OK {data: [...]}
     else Cache MISS
         AuthAdapter->>Kessel: StreamedListObjects / Check(...)
-        
+
         Note over Kessel: Connection timeout<br/>or Kessel unavailable
-        
+
         Kessel--xAuthAdapter: ERROR (timeout)
-        
+
         Note over AuthAdapter: Log error with context:<br/>- User ID<br/>- Resource type<br/>- Timestamp<br/>- Error details
-        
+
         AuthAdapter-->>API: False (fail closed)
         deactivate AuthAdapter
-        
+
         Note over API: Deny access for security
-        
+
         API-->>User: 424 Failed Dependency<br/>(KesselConnectionError; matches RBAC failure behavior)
     end
-    
+
     deactivate API
-    
+
     Note over User,Kessel: Monitoring alerts on:<br/>- Kessel connection failures<br/>- Cache miss rate spike<br/>- 503 error rate
 ```
 
@@ -583,30 +583,30 @@ graph TB
     Org[Organization/Tenant]
     Cluster1[Cluster: prod-east-1]
     Cluster2[Cluster: dev-west-1]
-    
+
     subgraph "Cluster 1 Resources"
         Node1A[Node: worker-01]
         Node1B[Node: worker-02]
         Proj1A[Project: backend-api]
         Proj1B[Project: frontend-app]
     end
-    
+
     subgraph "Cluster 2 Resources"
         Node2A[Node: dev-node-01]
         Proj2A[Project: test-env]
     end
-    
+
     Org --> Cluster1
     Org --> Cluster2
-    
+
     Cluster1 --> Node1A
     Cluster1 --> Node1B
     Cluster1 --> Proj1A
     Cluster1 --> Proj1B
-    
+
     Cluster2 --> Node2A
     Cluster2 --> Proj2A
-    
+
     style Org fill:#e3f2fd
     style Cluster1 fill:#fff3e0
     style Cluster2 fill:#fff3e0
@@ -674,21 +674,21 @@ definition rbac/role {
     // Cluster permissions
     permission cost_management_openshift_cluster_all = t_cost_management_openshift_cluster_all
     relation t_cost_management_openshift_cluster_all: rbac/principal:*
-    
+
     permission cost_management_openshift_cluster_read = t_cost_management_openshift_cluster_read
     relation t_cost_management_openshift_cluster_read: rbac/principal:*
-    
+
     // Node permissions
     permission cost_management_openshift_node_all = t_cost_management_openshift_node_all
     relation t_cost_management_openshift_node_all: rbac/principal:*
-    
+
     permission cost_management_openshift_node_read = t_cost_management_openshift_node_read
     relation t_cost_management_openshift_node_read: rbac/principal:*
-    
+
     // Project permissions
     permission cost_management_openshift_project_all = t_cost_management_openshift_project_all
     relation t_cost_management_openshift_project_all: rbac/principal:*
-    
+
     permission cost_management_openshift_project_read = t_cost_management_openshift_project_read
     relation t_cost_management_openshift_project_read: rbac/principal:*
 }
@@ -707,24 +707,24 @@ graph TB
     subgraph "Tier 1: Identity"
         Principal["rbac/principal:alice<br/>(User/Service Account)"]
     end
-    
+
     subgraph "Tier 2: Role Assignment"
         RoleBinding["rbac/role_binding:rb-123<br/>(Binds principal to role)"]
         Role["rbac/role:ocp-cluster-admin<br/>(Has cost_management_openshift_cluster_read)"]
-        
+
         RoleBinding -->|grants| Role
     end
-    
+
     subgraph "Tier 3: Organizational Context"
         Platform["rbac/platform:platform-1<br/>(Red Hat Platform)"]
         Tenant["rbac/tenant:org-123<br/>(Customer Organization)"]
-        
+
         Platform -->|platform| Tenant
     end
-    
+
     Principal -->|member| RoleBinding
     RoleBinding -->|t_binding| Platform
-    
+
     style Principal fill:#e3f2fd
     style RoleBinding fill:#fff3e0
     style Role fill:#fff3e0
@@ -771,14 +771,14 @@ sequenceDiagram
     participant Koku as Koku (ProviderBuilder)
     participant DB as Koku Database
     participant Cost as Cost Reporting
-    
+
     Sources->>Koku: POST /sources/{source_id}/<br/>(create OCP provider)
     Note over Koku: cluster_id extracted from source
     Koku->>DB: Create Provider record<br/>(type=OCP, cluster_id)
     Koku-->>Sources: 201 Created
-    
+
     Note over DB,Cost: Cost data ingestion (out of scope)
-    
+
     Cost->>DB: Query OCP cost data<br/>filtered by user access
     DB-->>Cost: Cost metrics
 ```
@@ -821,7 +821,7 @@ sequenceDiagram
 
 ### Phase 1: Wildcard-Only Support
 
-**Timeline**: Immediate (0-1 month) 
+**Timeline**: Immediate (0-1 month)
 **Goal**: Enable Kessel for on-premise OCP deployments with 100% RBAC compatibility for wildcard permissions
 
 #### What's Included
@@ -846,11 +846,11 @@ sequenceDiagram
 
 #### What's NOT Included
 
-❌ Specific resource IDs (`cluster-1`, `node-a`, `my-namespace`) 
-❌ Resource ownership or delegation 
-❌ Schema-based hierarchical relationships 
-❌ Resource synchronization to Kessel 
-❌ OCP-on-Cloud variants (OCP-on-AWS, OCP-on-Azure, OCP-on-GCP) 
+❌ Specific resource IDs (`cluster-1`, `node-a`, `my-namespace`)
+❌ Resource ownership or delegation
+❌ Schema-based hierarchical relationships
+❌ Resource synchronization to Kessel
+❌ OCP-on-Cloud variants (OCP-on-AWS, OCP-on-Azure, OCP-on-GCP)
 ❌ Sync/migration from existing installations — Phase 1 targets **new installations only**; support for syncing pre-existing Koku deployments with Kessel will be delivered in a future release
 
 #### Architecture
@@ -862,24 +862,24 @@ graph TB
         PermClass["Permission Class<br/>(OpenShiftAccessPermission)"]
         AuthService["Authorization Service<br/>(Backend Selector)"]
     end
-    
+
     subgraph "Current RBAC (SaaS)"
         RBACApi[OpenShift RBAC API]
         RBACCheck["Wildcard Check<br/>if '*' in access['openshift.cluster']['read']"]
         RBACApi --> RBACCheck
     end
-    
+
     subgraph "Kessel (On-Prem)"
         KesselApi[Kessel Relations API]
         KesselCheck["Org-Level Check<br/>Check(principal:alice,<br/>cost_management_openshift_cluster_read,<br/>tenant:org-123)"]
         KesselApi --> KesselCheck
     end
-    
+
     View --> PermClass
     PermClass --> AuthService
     AuthService -.->|ONPREM=False| RBACCheck
     AuthService -.->|ONPREM=True| KesselCheck
-    
+
     style AuthService fill:#fff3cd
     style RBACCheck fill:#ffebee
     style KesselCheck fill:#e8f5e9
@@ -895,22 +895,22 @@ graph TB
    ```bash
    # Download production schema
    curl -o schema.zed https://raw.githubusercontent.com/RedHatInsights/rbac-config/master/configs/prod/schemas/schema.zed
-   
+
    # Write to Kessel
    spicedb schema write --schema schema.zed
    ```
 
 3. **Seed standard Cost Management roles** into Kessel:
- 
+
  **Platform Responsibility**: Role instances from `rbac-config/roles/cost-management.json` need to be seeded into Kessel. This is a **platform-level concern** applicable to all Red Hat apps using Kessel, not Koku-specific.
- 
+
  **Expected roles to be seeded:**
  - Cost Administrator (full access)
  - Cost OpenShift Viewer (OCP read-only)
  - Cost Price List Administrator (cost model write)
  - Cost Price List Viewer (cost model read)
  - Cost Cloud Viewer (AWS/Azure/GCP read-only)
- 
+
  **Note**: In SaaS, the RBAC Service auto-seeds these roles. For on-premise Kessel-only deployments, the platform/Kessel team should provide tooling for this. See [Open Questions](#open-questions) for verification status.
 
 4. **Create tenant resource** for organization (if not already exists):
@@ -954,7 +954,7 @@ graph TB
 
 ### Phase 2: Resource-Specific Permissions
 
-**Timeline**: 2-4 months 
+**Timeline**: 2-4 months
 **Goal**: Enable resource-specific permissions and ownership model
 
 #### Prerequisites
@@ -1020,25 +1020,25 @@ sequenceDiagram
     participant DB as Koku Database
     participant Reporter as KesselResourceReporter
     participant Kessel as Kessel Relations API
-    
+
     Sources->>Builder: POST /sources/{source_id}/<br/>(create OCP provider)
-    
+
     Note over Builder: Extract cluster_id from source
-    
+
     Builder->>DB: Create Provider record<br/>(type=OCP, cluster_id)
     DB-->>Builder: Provider created
-    
+
     Builder->>Reporter: report_ocp_cluster(<br/>cluster_id, org_id, tenant_id)
-    
+
     Reporter->>Kessel: Create cluster resource<br/>subject: cost_management/openshift_cluster:{cluster_id}<br/>relation: org<br/>object: rbac/tenant:{tenant_id}
     Kessel-->>Reporter: Resource created
-    
+
     Reporter->>Kessel: Create ownership<br/>subject: rbac/principal:{creator_id}<br/>relation: owner<br/>object: cost_management/openshift_cluster:{cluster_id}
     Kessel-->>Reporter: Relationship created
-    
+
     Reporter-->>Builder: Resource reported
     Builder-->>Sources: 201 Created
-    
+
     Note over Builder,Kessel: Similar flow for node/project discovery
 ```
 
@@ -1291,7 +1291,7 @@ POST   /api/cost-management/v1/access/users/{principal_id}/roles/
          "tenant_id": "acme-corp"
        }
        Response: 201 Created
-       
+
        Behind the scenes:
        1. Validate role exists
        2. Validate user has permission to grant role
@@ -2041,7 +2041,7 @@ As Koku usage grows, monitor:
 ### Phase 2
 
 **Q4: Who becomes the cluster owner when provider is created?**
-- **Options**: 
+- **Options**:
  1. User who creates provider
  2. Organization admin
  3. No default owner (explicit assignment required)
@@ -2164,8 +2164,8 @@ As Koku usage grows, monitor:
 
 ---
 
-**Document Type**: High Level Design (HLD) 
-**Version**: 1.1 
-**Last Updated**: 2026-02-13 
-**Authors**: Koku Team 
+**Document Type**: High Level Design (HLD)
+**Version**: 1.1
+**Last Updated**: 2026-02-13
+**Authors**: Koku Team
 **Reviewers**: masayag, lcouzens

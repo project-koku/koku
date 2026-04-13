@@ -3,12 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for koku_rebac.kessel_auth — token provider and credential helpers."""
-import time
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from django.test import SimpleTestCase
 from django.test import override_settings
+from django.test import SimpleTestCase
 
 
 class TestIsKesselAuthEnabled(SimpleTestCase):
@@ -134,9 +133,12 @@ class TestTokenProvider(SimpleTestCase):
             raise_for_status=lambda: None,
         )
         mock_time.side_effect = [
-            1000.0, 1000.0, 1000.0,  # first call: check, lock-check, after-refresh
-            1400.0,                    # second call: expired (1000+300-30=1270 < 1400)
-            1400.0, 1400.0,           # second call: lock-check, after-refresh
+            1000.0,
+            1000.0,
+            1000.0,  # first call: check, lock-check, after-refresh
+            1400.0,  # second call: expired (1000+300-30=1270 < 1400)
+            1400.0,
+            1400.0,  # second call: lock-check, after-refresh
         ]
 
         from koku_rebac.kessel_auth import get_kessel_token

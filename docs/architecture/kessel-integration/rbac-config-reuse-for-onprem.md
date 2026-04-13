@@ -262,7 +262,7 @@ These permissions and roles have been:
    ```bash
    # Download production schema
    curl -o schema.zed https://raw.githubusercontent.com/RedHatInsights/rbac-config/master/configs/prod/schemas/schema.zed
-   
+
    # Deploy to Kessel
    spicedb schema write --schema schema.zed
    ```
@@ -275,13 +275,13 @@ These permissions and roles have been:
        relation="member",
        object="rbac/role_binding:rb-123"
    )
-   
+
    kessel.CreateRelation(
        subject="rbac/role_binding:rb-123",
        relation="grants",
        object="rbac/role:cost-openshift-viewer"
    )
-   
+
    kessel.CreateRelation(
        subject="rbac/role_binding:rb-123",
        relation="t_binding",
@@ -347,8 +347,8 @@ After Phase 2 schema submission, on-prem deployments can:
 
 ### 1. Zero Configuration Effort
 
-✅ **Permissions**: Already defined in schema (via schema.zed)  
-✅ **Roles**: Already defined and tested (via cost-management.json)  
+✅ **Permissions**: Already defined in schema (via schema.zed)
+✅ **Roles**: Already defined and tested (via cost-management.json)
 ✅ **Integration**: Koku code already uses these resource types
 
 **On-prem operators just need to**:
@@ -460,10 +460,10 @@ kessel.CreateRelation(
 
 ### What's Already Configured (No Work Needed)
 
-✅ **Permissions defined** in schema.zed  
-✅ **Permission mappings** to Kessel permission names  
-✅ **Roles defined** as system roles  
-✅ **3-tier model** configured  
+✅ **Permissions defined** in schema.zed
+✅ **Permission mappings** to Kessel permission names
+✅ **Roles defined** as system roles
+✅ **3-tier model** configured
 
 **Operators just assign users to existing roles** - no permission/role creation needed!
 
@@ -495,7 +495,7 @@ kessel.CreateRelation(
 
 **A: YES - But not needed for Phase 1.**
 
-**Phase 1**: Use standard roles as-is  
+**Phase 1**: Use standard roles as-is
 **Phase 2**: Can add custom roles if specific needs arise
 
 **Most common need**: Standard roles cover 95% of use cases.
@@ -534,7 +534,7 @@ Currently says:
 >    - Cost Price List Viewer
 >    - Cost Cloud Viewer
 > 3. Create tenant resources for their organization
-> 
+>
 > **Note**: Permissions and roles are already defined in the schema - operators just assign users to roles.
 
 ### Add to HLD Appendices
@@ -688,24 +688,24 @@ The Red Hat platform schema includes 5 pre-defined roles for Cost Management tha
 
 ### For Koku HLD
 
-✅ **Add explicit mention of pre-defined roles** in Current State Analysis section  
-✅ **Update deployment instructions** to clarify operators use existing roles  
-✅ **Add appendix** with all 5 role definitions for reference  
-✅ **Emphasize "zero custom configuration"** as a Phase 1 advantage  
+✅ **Add explicit mention of pre-defined roles** in Current State Analysis section
+✅ **Update deployment instructions** to clarify operators use existing roles
+✅ **Add appendix** with all 5 role definitions for reference
+✅ **Emphasize "zero custom configuration"** as a Phase 1 advantage
 
 ### For On-Premise Operators
 
-✅ **Use standard roles** from rbac-config (don't create custom)  
-✅ **Start simple** with the 5 pre-defined roles  
-✅ **Add custom roles later** only if specific needs arise  
-✅ **Follow SaaS patterns** for consistency  
+✅ **Use standard roles** from rbac-config (don't create custom)
+✅ **Start simple** with the 5 pre-defined roles
+✅ **Add custom roles later** only if specific needs arise
+✅ **Follow SaaS patterns** for consistency
 
 ### For Implementation
 
-✅ **No permission mapping needed** - schema has them all  
-✅ **No role creation needed** - roles are in schema  
-✅ **Just role bindings** - assign users to existing roles  
-✅ **Simpler than expected** - reuse beats rebuild  
+✅ **No permission mapping needed** - schema has them all
+✅ **No role creation needed** - roles are in schema
+✅ **Just role bindings** - assign users to existing roles
+✅ **Simpler than expected** - reuse beats rebuild
 
 ---
 
@@ -733,6 +733,6 @@ The Red Hat platform schema includes 5 pre-defined roles for Cost Management tha
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-02-04  
+**Document Version**: 1.0
+**Last Updated**: 2026-02-04
 **Recommendation**: Update Koku HLD to emphasize reuse of existing rbac-config assets

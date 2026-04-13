@@ -5,7 +5,8 @@
 """Tests for Settings Access Permissions."""
 from unittest.mock import Mock
 
-from django.test import TestCase, override_settings
+from django.test import override_settings
+from django.test import TestCase
 
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.iam.models import User

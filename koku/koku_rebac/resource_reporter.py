@@ -51,18 +51,20 @@ RELATION_T_WORKSPACE = "t_workspace"
 WORKSPACE_NAMESPACE = "rbac"
 WORKSPACE_TYPE = "workspace"
 
-IMMEDIATE_WRITE_TYPES = frozenset({
-    "integration",
-    "openshift_cluster",
-    "openshift_node",
-    "openshift_project",
-    "aws_account",
-    "aws_organizational_unit",
-    "gcp_account",
-    "gcp_project",
-    "azure_subscription_guid",
-    "cost_model",
-})
+IMMEDIATE_WRITE_TYPES = frozenset(
+    {
+        "integration",
+        "openshift_cluster",
+        "openshift_node",
+        "openshift_project",
+        "aws_account",
+        "aws_organizational_unit",
+        "gcp_account",
+        "gcp_project",
+        "azure_subscription_guid",
+        "cost_model",
+    }
+)
 
 
 def _build_report_request(
@@ -258,9 +260,7 @@ def create_structural_tuple(
         return False
 
 
-def _build_delete_request(
-    resource_type: str, resource_id: str
-) -> delete_resource_request_pb2.DeleteResourceRequest:
+def _build_delete_request(resource_type: str, resource_id: str) -> delete_resource_request_pb2.DeleteResourceRequest:
     """Build a DeleteResourceRequest from type and ID."""
     return delete_resource_request_pb2.DeleteResourceRequest(
         reference=resource_reference_pb2.ResourceReference(
@@ -282,7 +282,9 @@ def _delete_from_kessel(client: KesselClient, resource_type: str, resource_id: s
         return True
     except grpc.RpcError:
         LOG.warning(
-            log_json(msg="Failed to delete resource from Kessel", resource_type=resource_type, resource_id=resource_id),
+            log_json(
+                msg="Failed to delete resource from Kessel", resource_type=resource_type, resource_id=resource_id
+            ),
             exc_info=True,
         )
         return False
@@ -343,9 +345,7 @@ def on_resource_deleted(resource_type: str, resource_id: str, org_id: str) -> No
     client = get_kessel_client()
     _delete_from_kessel(client, resource_type, resource_id)
     _delete_resource_tuples(resource_type, resource_id)
-    KesselSyncedResource.objects.filter(
-        resource_type=resource_type, resource_id=resource_id, org_id=org_id
-    ).delete()
+    KesselSyncedResource.objects.filter(resource_type=resource_type, resource_id=resource_id, org_id=org_id).delete()
 
 
 def cleanup_orphaned_kessel_resources(provider_uuid: str, org_id: str) -> int:

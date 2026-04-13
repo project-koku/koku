@@ -11,7 +11,7 @@ import django  # noqa: E402
 
 django.setup()
 
-from unittest.mock import MagicMock, PropertyMock, patch  # noqa: E402
+from unittest.mock import MagicMock, patch  # noqa: E402
 
 from django.test import SimpleTestCase, override_settings  # noqa: E402
 

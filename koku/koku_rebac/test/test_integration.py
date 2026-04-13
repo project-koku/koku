@@ -22,18 +22,18 @@ Run tests requiring a live stack::
 import copy
 import os
 import unittest
-
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
+from unittest.mock import Mock
 
 from django.core.cache import caches
-from django.test import SimpleTestCase, override_settings
+from django.test import override_settings
+from django.test import SimpleTestCase
 
+from .kessel_fixture import KesselFixture
 from api.iam.test.iam_test_case import IamTestCase
 from koku.middleware import IdentityHeaderMiddleware
 from koku.rbac import RESOURCE_TYPES
 from koku.settings import CacheEnum
-
-from .kessel_fixture import KesselFixture
 
 _KESSEL_STACK_SKIP = "Requires live Kessel stack (ENABLE_KESSEL_TEST=1)"
 
@@ -125,7 +125,8 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
         super().setUpClass()
         cls.fixture = KesselFixture()
         cls.fixture.seed_access(
-            IT_WORKSPACE, IT_GRANTED_USER,
+            IT_WORKSPACE,
+            IT_GRANTED_USER,
             {"aws.account": {"read": ["*"]}, "cost_model": {"write": ["*"]}},
         )
 
@@ -136,6 +137,7 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
 
     def _get_provider(self):
         from koku_rebac.access_provider import KesselAccessProvider
+
         return KesselAccessProvider()
 
     def test_check_grants_wildcard_when_tuples_exist(self):
@@ -171,11 +173,14 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
         ocp_fixture = KesselFixture()
         try:
             ocp_fixture.seed_access(
-                IT_WORKSPACE, IT_GRANTED_USER,
+                IT_WORKSPACE,
+                IT_GRANTED_USER,
                 {"openshift.cluster": {"read": ["*"]}},
             )
             ocp_fixture.seed_ocp_resources(
-                IT_WORKSPACE, "openshift_cluster", ["it-cluster-001", "it-cluster-002"],
+                IT_WORKSPACE,
+                "openshift_cluster",
+                ["it-cluster-001", "it-cluster-002"],
                 wait_user=IT_GRANTED_USER,
             )
 
@@ -230,7 +235,8 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
         fixture = KesselFixture()
         try:
             fixture.seed_access(
-                IT_WORKSPACE, "it-mixed-rw-user",
+                IT_WORKSPACE,
+                "it-mixed-rw-user",
                 {"settings": {"write": ["*"]}, "cost_model": {"read": ["*"]}},
             )
             provider = self._get_provider()
@@ -250,9 +256,13 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
         fixture = KesselFixture()
         try:
             fixture.seed_access(IT_WORKSPACE, "it-ocp-topdown", {"openshift.cluster": {"read": ["*"]}})
-            fixture.seed_inventory_resources(IT_WORKSPACE, "openshift_cluster", ["td-cluster-1"], wait_user="it-ocp-topdown")
+            fixture.seed_inventory_resources(
+                IT_WORKSPACE, "openshift_cluster", ["td-cluster-1"], wait_user="it-ocp-topdown"
+            )
             fixture.seed_inventory_resources(IT_WORKSPACE, "openshift_node", ["td-node-1"], wait_user="it-ocp-topdown")
-            fixture.seed_inventory_resources(IT_WORKSPACE, "openshift_project", ["td-project-1"], wait_user="it-ocp-topdown")
+            fixture.seed_inventory_resources(
+                IT_WORKSPACE, "openshift_project", ["td-project-1"], wait_user="it-ocp-topdown"
+            )
 
             client = get_kessel_client()
             for rtype, rid in [
@@ -280,7 +290,9 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
             fixture.seed_access(IT_WORKSPACE, "it-ocp-bottomup", {"openshift.project": {"read": ["*"]}})
             fixture.seed_inventory_resources(IT_WORKSPACE, "openshift_cluster", ["bu-cluster-1"])
             fixture.seed_inventory_resources(IT_WORKSPACE, "openshift_node", ["bu-node-1"])
-            fixture.seed_inventory_resources(IT_WORKSPACE, "openshift_project", ["bu-project-1"], wait_user="it-ocp-bottomup")
+            fixture.seed_inventory_resources(
+                IT_WORKSPACE, "openshift_project", ["bu-project-1"], wait_user="it-ocp-bottomup"
+            )
 
             client = get_kessel_client()
             for rtype, rid in [
@@ -306,7 +318,9 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
         fixture = KesselFixture()
         try:
             fixture.seed_access(IT_WORKSPACE, "it-user-a", {"openshift.cluster": {"read": ["*"]}})
-            fixture.seed_inventory_resources(IT_WORKSPACE, "openshift_cluster", ["mu-cluster-1"], wait_user="it-user-a")
+            fixture.seed_inventory_resources(
+                IT_WORKSPACE, "openshift_cluster", ["mu-cluster-1"], wait_user="it-user-a"
+            )
 
             client = get_kessel_client()
             client.inventory_stub.ReportResource(
@@ -333,7 +347,8 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
             for res_type, operations in RESOURCE_TYPES.items():
                 if "read" in operations:
                     self.assertEqual(
-                        result[res_type]["read"], ["*"],
+                        result[res_type]["read"],
+                        ["*"],
                         f"Expected wildcard read for {res_type}, got {result[res_type]['read']}",
                     )
         finally:
@@ -347,7 +362,9 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
         fixture = KesselFixture()
         try:
             fixture.seed_access(IT_WORKSPACE, "it-aws-perres", {"aws.account": {"read": ["*"]}})
-            fixture.seed_inventory_resources(IT_WORKSPACE, "aws_account", ["acct-111", "acct-222"], wait_user="it-aws-perres")
+            fixture.seed_inventory_resources(
+                IT_WORKSPACE, "aws_account", ["acct-111", "acct-222"], wait_user="it-aws-perres"
+            )
 
             client = get_kessel_client()
             for rid in ("acct-111", "acct-222"):
@@ -370,7 +387,9 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
         fixture = KesselFixture()
         try:
             fixture.seed_access(IT_WORKSPACE, "it-cm-perres", {"cost_model": {"write": ["*"]}})
-            fixture.seed_inventory_resources(IT_WORKSPACE, "cost_model", ["cm-uuid-1", "cm-uuid-2"], wait_user="it-cm-perres", wait_relation="write")
+            fixture.seed_inventory_resources(
+                IT_WORKSPACE, "cost_model", ["cm-uuid-1", "cm-uuid-2"], wait_user="it-cm-perres", wait_relation="write"
+            )
 
             client = get_kessel_client()
             for rid in ("cm-uuid-1", "cm-uuid-2"):
@@ -395,7 +414,8 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
             provider = self._get_provider()
             result = provider.get_access_for_user(_make_user("it-fallback-user"))
             self.assertEqual(
-                result["gcp.account"]["read"], ["*"],
+                result["gcp.account"]["read"],
+                ["*"],
                 "Expected wildcard when no resources are registered",
             )
         finally:
@@ -409,11 +429,19 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
         fixture = KesselFixture()
         try:
             fixture.seed_access(
-                IT_WORKSPACE, "it-compound-user",
+                IT_WORKSPACE,
+                "it-compound-user",
                 {"aws.account": {"read": ["*"]}, "openshift.cluster": {"read": ["*"]}},
             )
-            fixture.seed_inventory_resources(IT_WORKSPACE, "aws_account", ["compound-acct-1"], wait_user="it-compound-user")
-            fixture.seed_inventory_resources(IT_WORKSPACE, "openshift_cluster", ["compound-cluster-1", "compound-cluster-2"], wait_user="it-compound-user")
+            fixture.seed_inventory_resources(
+                IT_WORKSPACE, "aws_account", ["compound-acct-1"], wait_user="it-compound-user"
+            )
+            fixture.seed_inventory_resources(
+                IT_WORKSPACE,
+                "openshift_cluster",
+                ["compound-cluster-1", "compound-cluster-2"],
+                wait_user="it-compound-user",
+            )
 
             client = get_kessel_client()
             client.inventory_stub.ReportResource(_build_report_request("aws_account", "compound-acct-1", IT_WORKSPACE))
@@ -436,7 +464,9 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
         fixture = KesselFixture()
         try:
             fixture.seed_access(IT_WORKSPACE, "it-ocp-only", {"openshift.cluster": {"read": ["*"]}})
-            fixture.seed_inventory_resources(IT_WORKSPACE, "openshift_cluster", ["ocp-only-cluster"], wait_user="it-ocp-only")
+            fixture.seed_inventory_resources(
+                IT_WORKSPACE, "openshift_cluster", ["ocp-only-cluster"], wait_user="it-ocp-only"
+            )
             client = get_kessel_client()
             client.inventory_stub.ReportResource(
                 _build_report_request("openshift_cluster", "ocp-only-cluster", IT_WORKSPACE)
@@ -459,7 +489,8 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
         fixture = KesselFixture()
         try:
             fixture.seed_access(
-                IT_WORKSPACE, "it-org-admin",
+                IT_WORKSPACE,
+                "it-org-admin",
                 {
                     "aws.account": {"read": ["*"]},
                     "azure.subscription_guid": {"read": ["*"]},
@@ -469,9 +500,15 @@ class TestAccessProviderKesselIntegration(SimpleTestCase):
                 },
             )
             fixture.seed_inventory_resources(IT_WORKSPACE, "aws_account", ["org-aws-1"], wait_user="it-org-admin")
-            fixture.seed_inventory_resources(IT_WORKSPACE, "azure_subscription_guid", ["org-sub-1"], wait_user="it-org-admin")
-            fixture.seed_inventory_resources(IT_WORKSPACE, "openshift_cluster", ["org-cluster-1"], wait_user="it-org-admin")
-            fixture.seed_inventory_resources(IT_WORKSPACE, "cost_model", ["org-cm-1"], wait_user="it-org-admin", wait_relation="write")
+            fixture.seed_inventory_resources(
+                IT_WORKSPACE, "azure_subscription_guid", ["org-sub-1"], wait_user="it-org-admin"
+            )
+            fixture.seed_inventory_resources(
+                IT_WORKSPACE, "openshift_cluster", ["org-cluster-1"], wait_user="it-org-admin"
+            )
+            fixture.seed_inventory_resources(
+                IT_WORKSPACE, "cost_model", ["org-cm-1"], wait_user="it-org-admin", wait_relation="write"
+            )
 
             client = get_kessel_client()
             for rtype, rid in [

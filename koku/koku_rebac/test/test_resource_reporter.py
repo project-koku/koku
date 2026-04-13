@@ -126,7 +126,9 @@ class TestResourceReporterActive(SimpleTestCase):
     @patch("koku_rebac.resource_reporter._create_resource_tuples", return_value=False)
     @patch("koku_rebac.resource_reporter.KesselSyncedResource")
     @patch("koku_rebac.resource_reporter.get_kessel_client")
-    def test_tracks_kessel_synced_false_when_tuple_creation_fails(self, mock_get_client, mock_model, mock_create_tuples):
+    def test_tracks_kessel_synced_false_when_tuple_creation_fails(
+        self, mock_get_client, mock_model, mock_create_tuples
+    ):
         """kessel_synced must be False when tuple creation fails even if ReportResource succeeds."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
@@ -395,7 +397,9 @@ class TestCleanupOrphanedKesselResources(SimpleTestCase):
 class TestDeleteResourceTuples(SimpleTestCase):
     """_delete_resource_tuples calls the Relations API to remove SpiceDB tuples."""
 
-    @override_settings(KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples")
+    @override_settings(
+        KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples"
+    )
     @patch("koku_rebac.resource_reporter.http_requests")
     def test_sends_delete_with_correct_filter_params(self, mock_requests):
         mock_requests.delete.return_value = MagicMock(ok=True)
@@ -412,7 +416,9 @@ class TestDeleteResourceTuples(SimpleTestCase):
         self.assertEqual(call_kwargs[1]["params"]["filter.resource_id"], "cluster-1")
         self.assertNotIn("filter.relation", call_kwargs[1]["params"])
 
-    @override_settings(KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples")
+    @override_settings(
+        KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples"
+    )
     @patch("koku_rebac.resource_reporter.http_requests")
     def test_returns_false_on_http_error(self, mock_requests):
         mock_requests.delete.return_value = MagicMock(ok=False, status_code=500)
@@ -422,7 +428,9 @@ class TestDeleteResourceTuples(SimpleTestCase):
         result = _delete_resource_tuples("openshift_cluster", "cluster-1")
         self.assertFalse(result)
 
-    @override_settings(KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples")
+    @override_settings(
+        KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples"
+    )
     @patch("koku_rebac.resource_reporter.http_requests")
     def test_returns_false_on_connection_error(self, mock_requests):
         import requests as _req
@@ -439,7 +447,9 @@ class TestDeleteResourceTuples(SimpleTestCase):
 class TestCreateResourceTuples(SimpleTestCase):
     """_create_resource_tuples calls the Relations API to create SpiceDB tuples."""
 
-    @override_settings(KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples")
+    @override_settings(
+        KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples"
+    )
     @patch("koku_rebac.resource_reporter.http_requests")
     def test_sends_post_with_correct_tuple_payload(self, mock_requests):
         mock_requests.post.return_value = MagicMock(ok=True)
@@ -465,7 +475,9 @@ class TestCreateResourceTuples(SimpleTestCase):
         self.assertEqual(t["subject"]["subject"]["type"]["name"], "workspace")
         self.assertEqual(t["subject"]["subject"]["id"], "org123")
 
-    @override_settings(KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples")
+    @override_settings(
+        KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples"
+    )
     @patch("koku_rebac.resource_reporter.http_requests")
     def test_returns_false_on_http_error(self, mock_requests):
         mock_requests.post.return_value = MagicMock(ok=False, status_code=500)
@@ -475,7 +487,9 @@ class TestCreateResourceTuples(SimpleTestCase):
         result = _create_resource_tuples("openshift_cluster", "cluster-1", "org123")
         self.assertFalse(result)
 
-    @override_settings(KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples")
+    @override_settings(
+        KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples"
+    )
     @patch("koku_rebac.resource_reporter.http_requests")
     def test_returns_false_on_connection_error(self, mock_requests):
         import requests as _req
@@ -488,7 +502,9 @@ class TestCreateResourceTuples(SimpleTestCase):
         result = _create_resource_tuples("openshift_cluster", "cluster-1", "org123")
         self.assertFalse(result)
 
-    @override_settings(KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples")
+    @override_settings(
+        KESSEL_RELATIONS_URL="http://kessel-relations:8100", KESSEL_TUPLES_PATH="/api/authz/v1beta1/tuples"
+    )
     @patch("koku_rebac.resource_reporter.http_requests")
     def test_upsert_treats_409_as_success(self, mock_requests):
         """The upsert flag means 409 (already exists) is treated as success by the API."""
@@ -549,7 +565,9 @@ class TestCreateStructuralTuple(SimpleTestCase):
 
         from koku_rebac.resource_reporter import create_structural_tuple
 
-        result = create_structural_tuple("integration", "src-uuid", "has_cluster", "openshift_cluster", "provider-uuid")
+        result = create_structural_tuple(
+            "integration", "src-uuid", "has_cluster", "openshift_cluster", "provider-uuid"
+        )
         self.assertTrue(result)
 
         t = mock_requests.post.call_args[1]["json"]["tuples"][0]

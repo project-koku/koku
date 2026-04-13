@@ -13,12 +13,10 @@ Updated for Inventory API v1beta2: all mocks target inventory_stub, not
 check_stub.
 """
 import copy
-
 from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from django.core.cache import caches
 from django.test import override_settings
 
 from api.iam.test.iam_test_case import IamTestCase

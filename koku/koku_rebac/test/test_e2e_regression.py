@@ -41,13 +41,12 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from .kessel_fixture import KesselFixture
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
 from koku.koku_test_runner import KokuTestRunner
 from koku_rebac.models import KesselSyncedResource
-
-from .kessel_fixture import KesselFixture
 
 _E2E_SKIP = "Requires live Kessel stack (ENABLE_KESSEL_TEST=1)"
 
@@ -121,8 +120,7 @@ class TestKesselE2ERegression(IamTestCase):
                     with connection.cursor() as cursor:
                         schema = self.schema_name
                         cursor.execute(
-                            f'DELETE FROM "{schema}".reporting_tenant_api_provider'
-                            " WHERE provider_id = %s",
+                            f'DELETE FROM "{schema}".reporting_tenant_api_provider' " WHERE provider_id = %s",
                             [str(provider_uuid)],
                         )
                         cursor.execute(
@@ -291,8 +289,11 @@ class TestKesselE2ERegression(IamTestCase):
         self.assertEqual(self._get("reports-openshift-costs", header).status_code, status.HTTP_200_OK)
 
         for url_name in (
-            "reports-aws-costs", "reports-gcp-costs", "reports-azure-costs",
-            "cost-models-list", "settings-tags",
+            "reports-aws-costs",
+            "reports-gcp-costs",
+            "reports-azure-costs",
+            "cost-models-list",
+            "settings-tags",
         ):
             with self.subTest(url=url_name):
                 self.assertEqual(self._get(url_name, header).status_code, status.HTTP_403_FORBIDDEN)
@@ -323,13 +324,15 @@ class TestKesselE2ERegression(IamTestCase):
         username = "e2e-s16-ocp-aws"
         header = _build_identity_header(username)
         self.fixture.seed_access(
-            E2E_WORKSPACE_ID, username,
+            E2E_WORKSPACE_ID,
+            username,
             {"openshift.cluster": {"read": ["*"]}, "aws.account": {"read": ["*"]}},
         )
         self.fixture.seed_ocp_resources(E2E_WORKSPACE_ID, "openshift_cluster", ["s16-cluster"], wait_user=username)
 
         self.assertEqual(
-            self._get("reports-openshift-aws-costs", header).status_code, status.HTTP_200_OK,
+            self._get("reports-openshift-aws-costs", header).status_code,
+            status.HTTP_200_OK,
         )
 
     def test_s17_ocp_without_aws_denies_ocp_on_aws(self):
@@ -340,7 +343,8 @@ class TestKesselE2ERegression(IamTestCase):
         self.fixture.seed_ocp_resources(E2E_WORKSPACE_ID, "openshift_cluster", ["s17-cluster"], wait_user=username)
 
         self.assertEqual(
-            self._get("reports-openshift-aws-costs", header).status_code, status.HTTP_403_FORBIDDEN,
+            self._get("reports-openshift-aws-costs", header).status_code,
+            status.HTTP_403_FORBIDDEN,
         )
 
     def test_s18_ocp_plus_azure_grants_ocp_on_azure(self):
@@ -348,13 +352,15 @@ class TestKesselE2ERegression(IamTestCase):
         username = "e2e-s18-ocp-azure"
         header = _build_identity_header(username)
         self.fixture.seed_access(
-            E2E_WORKSPACE_ID, username,
+            E2E_WORKSPACE_ID,
+            username,
             {"openshift.cluster": {"read": ["*"]}, "azure.subscription_guid": {"read": ["*"]}},
         )
         self.fixture.seed_ocp_resources(E2E_WORKSPACE_ID, "openshift_cluster", ["s18-cluster"], wait_user=username)
 
         self.assertEqual(
-            self._get("reports-openshift-azure-costs", header).status_code, status.HTTP_200_OK,
+            self._get("reports-openshift-azure-costs", header).status_code,
+            status.HTTP_200_OK,
         )
 
     def test_s19_ocp_without_azure_denies_ocp_on_azure(self):
@@ -365,7 +371,8 @@ class TestKesselE2ERegression(IamTestCase):
         self.fixture.seed_ocp_resources(E2E_WORKSPACE_ID, "openshift_cluster", ["s19-cluster"], wait_user=username)
 
         self.assertEqual(
-            self._get("reports-openshift-azure-costs", header).status_code, status.HTTP_403_FORBIDDEN,
+            self._get("reports-openshift-azure-costs", header).status_code,
+            status.HTTP_403_FORBIDDEN,
         )
 
     def test_s20_any_provider_access_grants_ocp_on_all(self):
@@ -381,7 +388,8 @@ class TestKesselE2ERegression(IamTestCase):
         self.fixture.seed_ocp_resources(E2E_WORKSPACE_ID, "openshift_cluster", ["s20-cluster"], wait_user=username)
 
         self.assertEqual(
-            self._get("reports-openshift-all-costs", header).status_code, status.HTTP_200_OK,
+            self._get("reports-openshift-all-costs", header).status_code,
+            status.HTTP_200_OK,
         )
 
     def test_s20b_aws_without_ocp_denies_ocp_on_aws(self):
@@ -395,7 +403,8 @@ class TestKesselE2ERegression(IamTestCase):
         self.fixture.seed_access(E2E_WORKSPACE_ID, username, {"aws.account": {"read": ["*"]}})
 
         self.assertEqual(
-            self._get("reports-openshift-aws-costs", header).status_code, status.HTTP_403_FORBIDDEN,
+            self._get("reports-openshift-aws-costs", header).status_code,
+            status.HTTP_403_FORBIDDEN,
         )
 
     def test_s20c_ocp_plus_gcp_grants_ocp_on_gcp(self):
@@ -403,13 +412,15 @@ class TestKesselE2ERegression(IamTestCase):
         username = "e2e-s20c-ocp-gcp"
         header = _build_identity_header(username)
         self.fixture.seed_access(
-            E2E_WORKSPACE_ID, username,
+            E2E_WORKSPACE_ID,
+            username,
             {"openshift.cluster": {"read": ["*"]}, "gcp.account": {"read": ["*"]}},
         )
         self.fixture.seed_ocp_resources(E2E_WORKSPACE_ID, "openshift_cluster", ["s20c-cluster"], wait_user=username)
 
         self.assertEqual(
-            self._get("reports-openshift-gcp-costs", header).status_code, status.HTTP_200_OK,
+            self._get("reports-openshift-gcp-costs", header).status_code,
+            status.HTTP_200_OK,
         )
 
     def test_s20d_ocp_without_gcp_denies_ocp_on_gcp(self):
@@ -420,7 +431,8 @@ class TestKesselE2ERegression(IamTestCase):
         self.fixture.seed_ocp_resources(E2E_WORKSPACE_ID, "openshift_cluster", ["s20d-cluster"], wait_user=username)
 
         self.assertEqual(
-            self._get("reports-openshift-gcp-costs", header).status_code, status.HTTP_403_FORBIDDEN,
+            self._get("reports-openshift-gcp-costs", header).status_code,
+            status.HTTP_403_FORBIDDEN,
         )
 
     # ==================================================================
@@ -442,7 +454,9 @@ class TestKesselE2ERegression(IamTestCase):
         self.fixture.seed_access(E2E_WORKSPACE_ID, E2E_USERNAME, {"openshift.cluster": {"read": ["*"]}})
         self.fixture.seed_ocp_resources(E2E_WORKSPACE_ID, "openshift_cluster", ["s22-filter-cluster"])
         response = self._get(
-            "reports-openshift-costs", self.nonadmin_header, {"filter[cluster]": "s22-filter-cluster"},
+            "reports-openshift-costs",
+            self.nonadmin_header,
+            {"filter[cluster]": "s22-filter-cluster"},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -450,7 +464,9 @@ class TestKesselE2ERegression(IamTestCase):
         """Azure reports accept filter[subscription_guid] when the user has Azure access."""
         self.fixture.seed_access(E2E_WORKSPACE_ID, E2E_USERNAME, {"azure.subscription_guid": {"read": ["*"]}})
         response = self._get(
-            "reports-azure-costs", self.nonadmin_header, {"filter[subscription_guid]": "00000000-0000-0000-0000-000000000001"},
+            "reports-azure-costs",
+            self.nonadmin_header,
+            {"filter[subscription_guid]": "00000000-0000-0000-0000-000000000001"},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -564,13 +580,15 @@ class TestKesselE2ERegression(IamTestCase):
         username = "e2e-s34-ocp-aws-fc"
         header = _build_identity_header(username)
         self.fixture.seed_access(
-            E2E_WORKSPACE_ID, username,
+            E2E_WORKSPACE_ID,
+            username,
             {"openshift.cluster": {"read": ["*"]}, "aws.account": {"read": ["*"]}},
         )
         self.fixture.seed_ocp_resources(E2E_WORKSPACE_ID, "openshift_cluster", ["s34-cluster"], wait_user=username)
 
         self.assertEqual(
-            self._get("openshift-aws-cost-forecasts", header).status_code, status.HTTP_200_OK,
+            self._get("openshift-aws-cost-forecasts", header).status_code,
+            status.HTTP_200_OK,
         )
 
     def test_s35_ocp_on_aws_forecast_denied_without_aws(self):
@@ -581,7 +599,8 @@ class TestKesselE2ERegression(IamTestCase):
         self.fixture.seed_ocp_resources(E2E_WORKSPACE_ID, "openshift_cluster", ["s35-cluster"], wait_user=username)
 
         self.assertEqual(
-            self._get("openshift-aws-cost-forecasts", header).status_code, status.HTTP_403_FORBIDDEN,
+            self._get("openshift-aws-cost-forecasts", header).status_code,
+            status.HTTP_403_FORBIDDEN,
         )
 
     def test_s35b_ocp_forecast_granted(self):
@@ -613,7 +632,8 @@ class TestKesselE2ERegression(IamTestCase):
         self.fixture.seed_access(E2E_WORKSPACE_ID, E2E_USERNAME, {"cost_model": {"write": ["*"]}})
         response = self._post("cost-models-list", self.nonadmin_header)
         self.assertNotEqual(
-            response.status_code, status.HTTP_403_FORBIDDEN,
+            response.status_code,
+            status.HTTP_403_FORBIDDEN,
             "Expected authorization to pass (non-403); got 403",
         )
 
@@ -639,7 +659,8 @@ class TestKesselE2ERegression(IamTestCase):
         self.fixture.seed_access(E2E_WORKSPACE_ID, E2E_USERNAME, {"settings": {"write": ["*"]}})
         response = self._put("tags-enable", self.nonadmin_header, data={"ids": []})
         self.assertNotEqual(
-            response.status_code, status.HTTP_403_FORBIDDEN,
+            response.status_code,
+            status.HTTP_403_FORBIDDEN,
             "Expected authorization to pass (non-403); got 403",
         )
 
@@ -667,7 +688,8 @@ class TestKesselE2ERegression(IamTestCase):
         username = "e2e-s41-realistic"
         header = _build_identity_header(username)
         self.fixture.seed_access(
-            E2E_WORKSPACE_ID, username,
+            E2E_WORKSPACE_ID,
+            username,
             {
                 "aws.account": {"read": ["*"]},
                 "openshift.cluster": {"read": ["*"]},
@@ -730,13 +752,15 @@ class TestKesselE2ERegression(IamTestCase):
         header = _build_identity_header(username)
         self.fixture.seed_access(E2E_WORKSPACE_ID, username, {"openshift.cluster": {"read": ["*"]}})
         self.fixture.seed_inventory_resources(
-            E2E_WORKSPACE_ID, "openshift_cluster",
+            E2E_WORKSPACE_ID,
+            "openshift_cluster",
             ["s42-cluster-A", "s42-cluster-B"],
             wait_user=username,
         )
 
         self.assertEqual(
-            self._get("reports-openshift-costs", header).status_code, status.HTTP_200_OK,
+            self._get("reports-openshift-costs", header).status_code,
+            status.HTTP_200_OK,
         )
 
     def test_s43_ocp_specific_clusters_resource_type_filtered(self):
@@ -749,7 +773,8 @@ class TestKesselE2ERegression(IamTestCase):
         header = _build_identity_header(username)
         self.fixture.seed_access(E2E_WORKSPACE_ID, username, {"openshift.cluster": {"read": ["*"]}})
         self.fixture.seed_inventory_resources(
-            E2E_WORKSPACE_ID, "openshift_cluster",
+            E2E_WORKSPACE_ID,
+            "openshift_cluster",
             ["s43-cluster-X"],
             wait_user=username,
         )
@@ -772,17 +797,20 @@ class TestKesselE2ERegression(IamTestCase):
         username = "e2e-s44-scoped-xprov"
         header = _build_identity_header(username)
         self.fixture.seed_access(
-            E2E_WORKSPACE_ID, username,
+            E2E_WORKSPACE_ID,
+            username,
             {"openshift.cluster": {"read": ["*"]}, "aws.account": {"read": ["*"]}},
         )
         self.fixture.seed_inventory_resources(
-            E2E_WORKSPACE_ID, "openshift_cluster",
+            E2E_WORKSPACE_ID,
+            "openshift_cluster",
             ["s44-cluster"],
             wait_user=username,
         )
 
         self.assertEqual(
-            self._get("reports-openshift-aws-costs", header).status_code, status.HTTP_200_OK,
+            self._get("reports-openshift-aws-costs", header).status_code,
+            status.HTTP_200_OK,
         )
 
     def test_s45_ocp_single_cluster_scoping(self):
@@ -795,13 +823,15 @@ class TestKesselE2ERegression(IamTestCase):
         header = _build_identity_header(username)
         self.fixture.seed_access(E2E_WORKSPACE_ID, username, {"openshift.cluster": {"read": ["*"]}})
         self.fixture.seed_inventory_resources(
-            E2E_WORKSPACE_ID, "openshift_cluster",
+            E2E_WORKSPACE_ID,
+            "openshift_cluster",
             ["s45-only-cluster"],
             wait_user=username,
         )
 
         self.assertEqual(
-            self._get("reports-openshift-costs", header).status_code, status.HTTP_200_OK,
+            self._get("reports-openshift-costs", header).status_code,
+            status.HTTP_200_OK,
         )
 
     # ==================================================================
@@ -815,13 +845,18 @@ class TestKesselE2ERegression(IamTestCase):
     def test_s46_ocp_source_creates_postgres_records(self):
         """OCP source creation persists Source and Provider rows in PostgreSQL."""
         self.fixture.seed_access(E2E_WORKSPACE_ID, E2E_USERNAME, {"settings": {"write": ["*"]}})
-        response = self._post("sources-list", self.nonadmin_header, data={
-            "name": "e2e-s46-ocp-source",
-            "source_type": "OCP",
-            "authentication": {"credentials": {"cluster_id": "s46-e2e-cluster"}},
-        })
+        response = self._post(
+            "sources-list",
+            self.nonadmin_header,
+            data={
+                "name": "e2e-s46-ocp-source",
+                "source_type": "OCP",
+                "authentication": {"credentials": {"cluster_id": "s46-e2e-cluster"}},
+            },
+        )
         self.assertIn(
-            response.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED),
+            response.status_code,
+            (status.HTTP_200_OK, status.HTTP_201_CREATED),
             f"Expected 200/201 but got {response.status_code}: {response.data}",
         )
 
@@ -838,13 +873,18 @@ class TestKesselE2ERegression(IamTestCase):
     def test_s47_ocp_source_creates_kessel_tracking_record(self):
         """OCP source creation creates a KesselSyncedResource tracking row."""
         self.fixture.seed_access(E2E_WORKSPACE_ID, E2E_USERNAME, {"settings": {"write": ["*"]}})
-        response = self._post("sources-list", self.nonadmin_header, data={
-            "name": "e2e-s47-ocp-source",
-            "source_type": "OCP",
-            "authentication": {"credentials": {"cluster_id": "s47-e2e-cluster"}},
-        })
+        response = self._post(
+            "sources-list",
+            self.nonadmin_header,
+            data={
+                "name": "e2e-s47-ocp-source",
+                "source_type": "OCP",
+                "authentication": {"credentials": {"cluster_id": "s47-e2e-cluster"}},
+            },
+        )
         self.assertIn(
-            response.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED),
+            response.status_code,
+            (status.HTTP_200_OK, status.HTTP_201_CREATED),
             f"Expected 200/201 but got {response.status_code}: {response.data}",
         )
 
@@ -869,13 +909,18 @@ class TestKesselE2ERegression(IamTestCase):
         StreamedListObjects discovers the newly created resource.
         """
         self.fixture.seed_access(E2E_WORKSPACE_ID, E2E_USERNAME, {"settings": {"write": ["*"]}})
-        response = self._post("sources-list", self.nonadmin_header, data={
-            "name": "e2e-s48-ocp-source",
-            "source_type": "OCP",
-            "authentication": {"credentials": {"cluster_id": "s48-e2e-cluster"}},
-        })
+        response = self._post(
+            "sources-list",
+            self.nonadmin_header,
+            data={
+                "name": "e2e-s48-ocp-source",
+                "source_type": "OCP",
+                "authentication": {"credentials": {"cluster_id": "s48-e2e-cluster"}},
+            },
+        )
         self.assertIn(
-            response.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED),
+            response.status_code,
+            (status.HTTP_200_OK, status.HTTP_201_CREATED),
             f"Expected 200/201 but got {response.status_code}: {response.data}",
         )
 
@@ -889,11 +934,14 @@ class TestKesselE2ERegression(IamTestCase):
         reader_header = _build_identity_header(reader)
         self.fixture.seed_access(E2E_WORKSPACE_ID, reader, {"openshift.cluster": {"read": ["*"]}})
         self.fixture._wait_for_resource_visibility(
-            "openshift_cluster", provider_uuid, reader,
+            "openshift_cluster",
+            provider_uuid,
+            reader,
         )
 
         self.assertEqual(
-            self._get("reports-openshift-costs", reader_header).status_code, status.HTTP_200_OK,
+            self._get("reports-openshift-costs", reader_header).status_code,
+            status.HTTP_200_OK,
         )
 
     @patch("providers.provider_access.ProviderAccessor.cost_usage_source_ready", return_value=True)
@@ -906,14 +954,19 @@ class TestKesselE2ERegression(IamTestCase):
         are unavailable in the test environment.
         """
         self.fixture.seed_access(E2E_WORKSPACE_ID, E2E_USERNAME, {"settings": {"write": ["*"]}})
-        response = self._post("sources-list", self.nonadmin_header, data={
-            "name": "e2e-s49-aws-source",
-            "source_type": "AWS",
-            "authentication": {"credentials": {"role_arn": "arn:aws:iam::123456789012:role/e2e-test"}},
-            "billing_source": {"data_source": {"bucket": "e2e-cost-bucket"}},
-        })
+        response = self._post(
+            "sources-list",
+            self.nonadmin_header,
+            data={
+                "name": "e2e-s49-aws-source",
+                "source_type": "AWS",
+                "authentication": {"credentials": {"role_arn": "arn:aws:iam::123456789012:role/e2e-test"}},
+                "billing_source": {"data_source": {"bucket": "e2e-cost-bucket"}},
+            },
+        )
         self.assertIn(
-            response.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED),
+            response.status_code,
+            (status.HTTP_200_OK, status.HTTP_201_CREATED),
             f"Expected 200/201 but got {response.status_code}: {response.data}",
         )
 
@@ -931,11 +984,15 @@ class TestKesselE2ERegression(IamTestCase):
 
     def test_s50_sources_post_denied_no_access(self):
         """User without settings access is denied POST to /sources/."""
-        response = self._post("sources-list", self.denied_header, data={
-            "name": "e2e-s50-denied",
-            "source_type": "OCP",
-            "authentication": {"credentials": {"cluster_id": "s50-cluster"}},
-        })
+        response = self._post(
+            "sources-list",
+            self.denied_header,
+            data={
+                "name": "e2e-s50-denied",
+                "source_type": "OCP",
+                "authentication": {"credentials": {"cluster_id": "s50-cluster"}},
+            },
+        )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_s51_sources_post_denied_read_only(self):
@@ -943,11 +1000,15 @@ class TestKesselE2ERegression(IamTestCase):
         username = "e2e-s51-settings-ro"
         header = _build_identity_header(username)
         self.fixture.seed_access(E2E_WORKSPACE_ID, username, {"settings": {"read": ["*"]}})
-        response = self._post("sources-list", header, data={
-            "name": "e2e-s51-denied",
-            "source_type": "OCP",
-            "authentication": {"credentials": {"cluster_id": "s51-cluster"}},
-        })
+        response = self._post(
+            "sources-list",
+            header,
+            data={
+                "name": "e2e-s51-denied",
+                "source_type": "OCP",
+                "authentication": {"credentials": {"cluster_id": "s51-cluster"}},
+            },
+        )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_s52_sources_list_filtered_by_provider_access(self):
@@ -958,27 +1019,36 @@ class TestKesselE2ERegression(IamTestCase):
         excluded by get_excludes().
         """
         self.fixture.seed_access(E2E_WORKSPACE_ID, E2E_USERNAME, {"settings": {"write": ["*"]}})
-        ocp_resp = self._post("sources-list", self.admin_header, data={
-            "name": "e2e-s52-ocp",
-            "source_type": "OCP",
-            "authentication": {"credentials": {"cluster_id": "s52-cluster"}},
-        })
+        ocp_resp = self._post(
+            "sources-list",
+            self.admin_header,
+            data={
+                "name": "e2e-s52-ocp",
+                "source_type": "OCP",
+                "authentication": {"credentials": {"cluster_id": "s52-cluster"}},
+            },
+        )
         if ocp_resp.status_code in (status.HTTP_200_OK, status.HTTP_201_CREATED):
             self._created_source_ids.append(int(ocp_resp.data["id"]))
 
-        aws_resp = self._post("sources-list", self.admin_header, data={
-            "name": "e2e-s52-aws",
-            "source_type": "AWS-local",
-            "authentication": {"credentials": {"role_arn": "arn:aws:iam::123456789012:role/e2e-s52"}},
-            "billing_source": {"data_source": {"bucket": "e2e-s52-bucket"}},
-        })
+        aws_resp = self._post(
+            "sources-list",
+            self.admin_header,
+            data={
+                "name": "e2e-s52-aws",
+                "source_type": "AWS-local",
+                "authentication": {"credentials": {"role_arn": "arn:aws:iam::123456789012:role/e2e-s52"}},
+                "billing_source": {"data_source": {"bucket": "e2e-s52-bucket"}},
+            },
+        )
         if aws_resp.status_code in (status.HTTP_200_OK, status.HTTP_201_CREATED):
             self._created_source_ids.append(int(aws_resp.data["id"]))
 
         lister = "e2e-s52-aws-only"
         lister_header = _build_identity_header(lister)
         self.fixture.seed_access(
-            E2E_WORKSPACE_ID, lister,
+            E2E_WORKSPACE_ID,
+            lister,
             {"settings": {"read": ["*"]}, "aws.account": {"read": ["*"]}},
         )
 
@@ -987,23 +1057,30 @@ class TestKesselE2ERegression(IamTestCase):
 
         for source in response.data.get("data", []):
             self.assertNotEqual(
-                source.get("source_type"), Provider.PROVIDER_OCP,
+                source.get("source_type"),
+                Provider.PROVIDER_OCP,
                 "OCP source must not appear for AWS-only user",
             )
 
     def test_s53_ocp_source_delete_cleans_postgres_preserves_kessel(self):
         """Deleting an OCP source removes PG rows but preserves KesselSyncedResource."""
         self.fixture.seed_access(
-            E2E_WORKSPACE_ID, E2E_USERNAME,
+            E2E_WORKSPACE_ID,
+            E2E_USERNAME,
             {"settings": {"write": ["*"]}, "openshift.cluster": {"read": ["*"]}},
         )
-        response = self._post("sources-list", self.nonadmin_header, data={
-            "name": "e2e-s53-ocp-delete",
-            "source_type": "OCP",
-            "authentication": {"credentials": {"cluster_id": "s53-cluster"}},
-        })
+        response = self._post(
+            "sources-list",
+            self.nonadmin_header,
+            data={
+                "name": "e2e-s53-ocp-delete",
+                "source_type": "OCP",
+                "authentication": {"credentials": {"cluster_id": "s53-cluster"}},
+            },
+        )
         self.assertIn(
-            response.status_code, (status.HTTP_200_OK, status.HTTP_201_CREATED),
+            response.status_code,
+            (status.HTTP_200_OK, status.HTTP_201_CREATED),
             f"Expected 200/201 but got {response.status_code}: {response.data}",
         )
 

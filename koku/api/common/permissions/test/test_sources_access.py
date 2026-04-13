@@ -5,8 +5,8 @@
 """Tests for SourcesAccessPermission."""
 from unittest.mock import Mock
 
-from django.test import TestCase
 from django.test import override_settings
+from django.test import TestCase
 
 from api.common.permissions.sources_access import SourcesAccessPermission
 from api.iam.models import User

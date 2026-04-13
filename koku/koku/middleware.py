@@ -38,7 +38,6 @@ from api.utils import DateHelper
 from koku.cache import CacheEnum
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
-from koku.rbac import RbacService
 from koku_rebac.access_provider import get_access_provider
 from koku_rebac.exceptions import KesselConnectionError
 

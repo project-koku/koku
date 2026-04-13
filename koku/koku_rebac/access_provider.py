@@ -20,23 +20,20 @@ import time
 
 import grpc
 from django.conf import settings
-from kessel.inventory.v1beta2 import (
-    allowed_pb2,
-    check_request_pb2,
-    representation_type_pb2,
-    reporter_reference_pb2,
-    resource_reference_pb2,
-    streamed_list_objects_request_pb2,
-    subject_reference_pb2,
-)
-
-from api.common import log_json
-from koku.rbac import RESOURCE_TYPES
-from koku.rbac import RbacService
+from kessel.inventory.v1beta2 import allowed_pb2
+from kessel.inventory.v1beta2 import check_request_pb2
+from kessel.inventory.v1beta2 import reporter_reference_pb2
+from kessel.inventory.v1beta2 import representation_type_pb2
+from kessel.inventory.v1beta2 import resource_reference_pb2
+from kessel.inventory.v1beta2 import streamed_list_objects_request_pb2
+from kessel.inventory.v1beta2 import subject_reference_pb2
 
 from .client import get_kessel_client
 from .exceptions import KesselConnectionError
 from .workspace import get_workspace_resolver
+from api.common import log_json
+from koku.rbac import RbacService
+from koku.rbac import RESOURCE_TYPES
 
 LOG = logging.getLogger(__name__)
 
@@ -85,7 +82,7 @@ def _retry_grpc(fn, max_retries: int = GRPC_MAX_RETRIES, backoff_base: float = G
                 raise
             last_exc = exc
             if attempt < max_retries - 1:
-                time.sleep(backoff_base * (5 ** attempt))
+                time.sleep(backoff_base * (5**attempt))
     raise last_exc  # type: ignore[misc]
 
 
@@ -97,7 +94,9 @@ def _init_empty_access() -> dict:
     return res_access
 
 
-def _build_resource_ref(resource_type: str, resource_id: str, reporter_type: str = "rbac") -> resource_reference_pb2.ResourceReference:
+def _build_resource_ref(
+    resource_type: str, resource_id: str, reporter_type: str = "rbac"
+) -> resource_reference_pb2.ResourceReference:
     """Construct a ResourceReference with the mandatory reporter field."""
     return resource_reference_pb2.ResourceReference(
         resource_type=resource_type,
@@ -113,9 +112,7 @@ def _build_subject_ref(user_id: str) -> subject_reference_pb2.SubjectReference:
     )
 
 
-def _build_check_request(
-    workspace_id: str, permission: str, user_id: str
-) -> check_request_pb2.CheckRequest:
+def _build_check_request(workspace_id: str, permission: str, user_id: str) -> check_request_pb2.CheckRequest:
     """Construct a CheckRequest against rbac/workspace for one permission."""
     return check_request_pb2.CheckRequest(
         object=_build_resource_ref("workspace", workspace_id),
@@ -172,21 +169,29 @@ class KesselAccessProvider:
 
         for koku_type, kessel_type in KOKU_TO_KESSEL_TYPE_MAP.items():
             if koku_type in CHECK_ONLY_TYPES:
-                calls, errors = self._resolve_workspace_access(client, access, koku_type, kessel_type, workspace_id, user_id)
+                calls, errors = self._resolve_workspace_access(
+                    client, access, koku_type, kessel_type, workspace_id, user_id
+                )
             else:
-                calls, errors = self._resolve_per_resource_access(client, access, koku_type, kessel_type, workspace_id, user_id)
+                calls, errors = self._resolve_per_resource_access(
+                    client, access, koku_type, kessel_type, workspace_id, user_id
+                )
             call_count += calls
             error_count += errors
 
         if call_count > 0 and error_count == call_count:
-            raise KesselConnectionError(
-                f"All {error_count} Kessel gRPC calls failed -- service may be unreachable"
-            )
+            raise KesselConnectionError(f"All {error_count} Kessel gRPC calls failed -- service may be unreachable")
 
         return access
 
     def _resolve_workspace_access(
-        self, client, access: dict, koku_type: str, kessel_type: str, workspace_id: str, user_id: str,
+        self,
+        client,
+        access: dict,
+        koku_type: str,
+        kessel_type: str,
+        workspace_id: str,
+        user_id: str,
     ) -> tuple[int, int]:
         """Use Check for workspace-level capabilities. Grants wildcard on success.
 
@@ -207,7 +212,13 @@ class KesselAccessProvider:
         return calls, errors
 
     def _resolve_per_resource_access(
-        self, client, access: dict, koku_type: str, kessel_type: str, workspace_id: str, user_id: str,
+        self,
+        client,
+        access: dict,
+        koku_type: str,
+        kessel_type: str,
+        workspace_id: str,
+        user_id: str,
     ) -> tuple[int, int]:
         """Use StreamedListObjects with workspace-level Check for per-resource types.
 
@@ -260,6 +271,7 @@ class KesselAccessProvider:
         """
         request = _build_streamed_list_request(kessel_type, operation, user_id)
         try:
+
             def _do_stream():
                 resource_ids = []
                 for response in client.inventory_stub.StreamedListObjects(request):
@@ -285,9 +297,7 @@ class KesselAccessProvider:
             resp = _retry_grpc(lambda: client.inventory_stub.Check(request))
             return resp.allowed == allowed_pb2.ALLOWED_TRUE, True
         except Exception:
-            LOG.exception(
-                log_json(msg="Kessel Check failed", permission=permission)
-            )
+            LOG.exception(log_json(msg="Kessel Check failed", permission=permission))
             return False, False
 
     def get_cache_ttl(self) -> int:

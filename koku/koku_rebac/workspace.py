@@ -15,8 +15,6 @@ from typing import Protocol
 import requests
 from django.conf import settings
 
-from api.common import log_json
-
 LOG = logging.getLogger(__name__)
 
 _REFRESH_BUFFER_SECONDS = 30
@@ -25,7 +23,8 @@ _REFRESH_BUFFER_SECONDS = 30
 class WorkspaceResolver(Protocol):
     """Protocol for resolving an org_id to a Kessel workspace_id."""
 
-    def resolve(self, org_id: str) -> str: ...
+    def resolve(self, org_id: str) -> str:
+        ...
 
 
 class ShimResolver:
