@@ -1500,6 +1500,15 @@ AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{
                     self.schema, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True
                 ):
                     continue
+                if not cluster_params.get("cluster_id"):
+                    LOG.info(
+                        log_json(
+                            msg="No cluster_id found, skipping GPU tag based cost population.",
+                            schema=self.schema,
+                            provider_uuid=str(provider_uuid),
+                        )
+                    )
+                    continue
 
             param_list = metric_to_tag_params_map.get(name)
             if not param_list:
