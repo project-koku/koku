@@ -551,6 +551,12 @@ class Sources(RunTextFieldValidators, models.Model):
     # Tracks when the source was last modified (rename, pause/resume, credential update, etc.)
     updated_timestamp = models.DateTimeField(auto_now=True, null=True)
 
+    def save(self, *args, **kwargs):
+        """Ensure updated_timestamp is refreshed even when update_fields is specified."""
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = list(set(kwargs["update_fields"]) | {"updated_timestamp"})
+        super().save(*args, **kwargs)
+
     def __str__(self):
         """Get the string representation."""
         return (

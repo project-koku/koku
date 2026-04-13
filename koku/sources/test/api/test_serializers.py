@@ -281,6 +281,23 @@ class SourcesSerializerFieldsTest(IamTestCase):
         self.assertEqual(self.ocp_obj.updated_timestamp, t2)
         self.assertGreater(self.ocp_obj.updated_timestamp, t1)
 
+    def test_updated_timestamp_included_with_update_fields(self):
+        """Test that updated_timestamp is refreshed even when save() uses update_fields."""
+        t1 = datetime(2026, 2, 1, 10, 0, 0, tzinfo=timezone.utc)
+        t2 = datetime(2026, 2, 1, 11, 0, 0, tzinfo=timezone.utc)
+
+        with patch("django.utils.timezone.now", return_value=t1):
+            self.ocp_obj.name = "Initial"
+            self.ocp_obj.save()
+        self.ocp_obj.refresh_from_db()
+        self.assertEqual(self.ocp_obj.updated_timestamp, t1)
+
+        with patch("django.utils.timezone.now", return_value=t2):
+            self.ocp_obj.paused = True
+            self.ocp_obj.save(update_fields=["paused"])
+        self.ocp_obj.refresh_from_db()
+        self.assertEqual(self.ocp_obj.updated_timestamp, t2)
+
 
 class AdminSourcesSerializerValidateTest(IamTestCase):
     """Test Cases for AdminSourcesSerializer.validate with source_type_id and source_ref."""
