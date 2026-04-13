@@ -548,6 +548,9 @@ class Sources(RunTextFieldValidators, models.Model):
     status = JSONField(null=True, default=dict)
     additional_context = JSONField(null=True, default=dict)
 
+    # Tracks when the source was last modified (rename, pause/resume, credential update, etc.)
+    updated_timestamp = models.DateTimeField(auto_now=True, null=True)
+
     def __str__(self):
         """Get the string representation."""
         return (

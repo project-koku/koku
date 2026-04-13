@@ -256,6 +256,25 @@ class SourcesSerializerFieldsTest(IamTestCase):
         serializer = SourcesSerializer(self.ocp_obj)
         self.assertIsNone(serializer.data["source_ref"])
 
+    def test_updated_timestamp_in_serializer(self):
+        """Test that updated_timestamp is included in serializer output."""
+        serializer = SourcesSerializer(self.ocp_obj)
+        self.assertIn("updated_timestamp", serializer.data)
+
+    def test_updated_timestamp_updates_on_save(self):
+        """Test that updated_timestamp is set after save and updates on subsequent saves."""
+        self.ocp_obj.name = "Renamed OCP Source"
+        self.ocp_obj.save()
+        self.ocp_obj.refresh_from_db()
+        first_timestamp = self.ocp_obj.updated_timestamp
+        self.assertIsNotNone(first_timestamp)
+
+        self.ocp_obj.name = "Renamed Again"
+        self.ocp_obj.save()
+        self.ocp_obj.refresh_from_db()
+        second_timestamp = self.ocp_obj.updated_timestamp
+        self.assertGreaterEqual(second_timestamp, first_timestamp)
+
 
 class AdminSourcesSerializerValidateTest(IamTestCase):
     """Test Cases for AdminSourcesSerializer.validate with source_type_id and source_ref."""
