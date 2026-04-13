@@ -8,8 +8,10 @@ from functools import cached_property
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
+from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Func
 from django.db.models import IntegerField
 from django.db.models import Max
 from django.db.models import Q
@@ -1008,7 +1010,7 @@ class OCPProviderMap(ProviderMap):
                             "gpu_model",
                             "gpu_name",
                             "gpu_mode",
-                            # "mig_profile",
+                            "mig_profile",
                         ],
                         "tag_column": "all_labels",
                         "aggregates": {
@@ -1057,20 +1059,9 @@ class OCPProviderMap(ProviderMap):
                                 Coalesce(F("memory_capacity_gb"), Value(0, output_field=DecimalField()))
                             ),
                             "gpu_memory_units": Value("GB", output_field=CharField()),
-                            "gpu_count": Sum("gpu_count", default=Value(0, output_field=IntegerField())),
+                            "gpu_count": Count("gpu_uuid", distinct=True),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
-                            # MIG fields - these work here because they're applied after .values()
                             "gpu_mode": F("gpu_mode"),
-                            # "mig_profile": F("mig_profile"),
-                            # "mig_slice_count": Max(
-                            #     Coalesce(F("mig_slice_count"), Value(0, output_field=IntegerField()))
-                            # ),
-                            # "gpu_max_slices": Max(
-                            #     Coalesce(F("gpu_max_slices"), Value(0, output_field=IntegerField()))
-                            # ),
-                            # "mig_memory_capacity_gb": Max(
-                            #     Coalesce(F("mig_memory_capacity_gb"), Value(0, output_field=DecimalField()))
-                            # ),
                         },
                         "aggregate_ranks_exclusions": [
                             "gpu_model",
@@ -1109,6 +1100,7 @@ class OCPProviderMap(ProviderMap):
                         "annotations": {
                             "gpu_model": F("model_name"),
                             "gpu_vendor": F("vendor_name"),
+                            "mig_uuid": F("mig_instance_id"),
                             "gpu_name": Concat(
                                 "vendor_name",
                                 Value("_"),
@@ -1117,17 +1109,27 @@ class OCPProviderMap(ProviderMap):
                                 "node",
                                 output_field=TextField(),
                             ),
-                            # MIG fields - these work here because they're applied after .values()
                             "node": F("node"),
                             "mig_profile": F("mig_profile"),
+                            "compute": Func(
+                                F("mig_profile"),
+                                Value("."),
+                                Value(1),
+                                function="split_part",
+                                output_field=CharField(),
+                            ),
+                            "memory": Func(
+                                F("mig_profile"),
+                                Value("."),
+                                Value(2),
+                                function="split_part",
+                                output_field=CharField(),
+                            ),
                             "mig_slice_count": Max(
                                 Coalesce(F("mig_slice_count"), Value(0, output_field=IntegerField()))
                             ),
                             "gpu_max_slices": Max(
                                 Coalesce(F("gpu_max_slices"), Value(0, output_field=IntegerField()))
-                            ),
-                            "mig_memory_capacity_gb": Max(
-                                Coalesce(F("mig_memory_capacity_gb"), Value(0, output_field=DecimalField()))
                             ),
                         },
                         "aggregate_ranks_exclusions": [
@@ -1135,6 +1137,7 @@ class OCPProviderMap(ProviderMap):
                             "gpu_vendor",
                             "node",
                             "mig_profile",
+                            "mig_uuid",
                         ],
                         "delta_key": {},
                         "filter": [{"field": "mig_profile", "operation": "isnull", "parameter": False}],

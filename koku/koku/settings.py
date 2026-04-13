@@ -55,6 +55,7 @@ SECRET_KEY = ENVIRONMENT.get_value(
 DEBUG = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 
 ONPREM = ENVIRONMENT.bool("ONPREM", default=False)
+ONPREM = False
 
 # Allow org admins to bypass RBAC permission checks
 ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)

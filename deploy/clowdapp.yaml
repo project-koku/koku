@@ -5496,11 +5496,11 @@ objects:
     jobs:
     - management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
 - apiVersion: v1
-  data:
-    django-secret-key: ${SECRET_KEY}
   kind: Secret
   metadata:
     name: koku-secret
+  stringData:
+    django-secret-key: ${SECRET_KEY}
 - apiVersion: v1
   data:
     nginx.conf: |-
