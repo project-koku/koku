@@ -111,7 +111,7 @@ class CostModelViewSet(viewsets.ModelViewSet):
 
     """
 
-    queryset = CostModel.objects.all()
+    queryset = CostModel.objects.prefetch_related("price_list_maps__price_list").all()
     serializer_class = CostModelSerializer
     permission_classes = (CostModelsAccessPermission,)
     lookup_field = "uuid"
@@ -136,7 +136,7 @@ class CostModelViewSet(viewsets.ModelViewSet):
 
         Restricts the returned data to source_uuid if supplied as a query parameter.
         """
-        queryset = CostModel.objects.all()
+        queryset = CostModel.objects.prefetch_related("price_list_maps__price_list").all()
         self.check_fields(self.request.query_params, CostModel, CostModelQueryException)
         if not (settings.ENHANCED_ORG_ADMIN and self.request.user.admin):
             read_access_list = self.request.user.access.get("cost_model").get("read")
