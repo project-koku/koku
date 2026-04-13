@@ -13,13 +13,13 @@ def backfill_updated_timestamp(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0070_alter_exchangerates_currency_type'),
+        ("api", "0070_alter_exchangerates_currency_type"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='sources',
-            name='updated_timestamp',
+            model_name="sources",
+            name="updated_timestamp",
             field=models.DateTimeField(auto_now=True, null=True),
         ),
         migrations.RunPython(backfill_updated_timestamp, migrations.RunPython.noop),
