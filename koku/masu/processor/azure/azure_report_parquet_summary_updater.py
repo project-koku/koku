@@ -50,7 +50,9 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
-        with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(
+            self._schema, self._provider.uuid, price_list_effective_on=None
+        ) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 

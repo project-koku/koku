@@ -63,7 +63,9 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
             partition_summary_tables = (*UI_SUMMARY_TABLES, ec2_compute_summary_table)
             self._handle_partitions(self._schema, partition_summary_tables, start_date, end_date)
 
-        with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
+        with CostModelDBAccessor(
+            self._schema, self._provider.uuid, price_list_effective_on=None
+        ) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
