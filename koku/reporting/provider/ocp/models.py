@@ -1008,7 +1008,7 @@ class OCPGpuSummaryP(models.Model):
     model_name = models.CharField(max_length=128, null=True)
     memory_capacity_gb = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     gpu_count = models.IntegerField(null=True)  # TODO: Remove this field
-    mig_instance_id = models.CharField(max_length=20, null=True)
+    mig_instance_id = models.CharField(max_length=128, null=True)
     gpu_uuid = models.CharField(max_length=128, null=True)
 
     # MIG (Multi-Instance GPU) fields

@@ -1548,6 +1548,33 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # Should not call SQL execution when flag is disabled
             mock_trino_exec.assert_not_called()
 
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_gpu_tag_based_costs_skipped_when_no_cluster_id(self, mock_trino_exec, mock_trino_exists):
+        """Test that GPU tag based costs are skipped when cluster_id is None."""
+        test_mapping = {
+            metric_constants.OCP_GPU_MONTH: [
+                {
+                    "rate_type": "Infrastructure",
+                    "tag_key": "nvidia",
+                    "value_rates": {"Tesla T4": 1000},
+                    "default_rate": 1000,
+                }
+            ]
+        }
+        for empty_cluster_id in (None, ""):
+            with self.subTest(cluster_id=empty_cluster_id):
+                mock_trino_exec.reset_mock()
+                with self.accessor as acc:
+                    acc.populate_tag_based_costs(
+                        self.start_date,
+                        self.dh.this_month_end,
+                        self.ocp_provider_uuid,
+                        test_mapping,
+                        {"cluster_id": empty_cluster_id, "cluster_alias": None},
+                    )
+                    mock_trino_exec.assert_not_called()
+
 
 class OCPReportDBAccessorGPUUITest(MasuTestCase):
     """Test Cases for GPU UI summary table population."""
