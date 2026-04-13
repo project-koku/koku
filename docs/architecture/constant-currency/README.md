@@ -54,8 +54,8 @@ relatively lightweight. Why add a dedicated table?
 
 Query handlers read from `MonthlyExchangeRate` for all months. The M2 migration
 seeds current-month data from `ExchangeRateDictionary` at deployment time, so
-data is available immediately. Pre-deployment months have no rows and no
-conversion is applied (rate defaults to 1).
+data is available immediately. Pre-deployment months fall back to the earliest
+available rate for each currency pair.
 
 ---
 
@@ -271,7 +271,7 @@ graph LR
 
 1. **Single source of truth**: `MonthlyExchangeRate` stores rates for all months (current and past); query handlers read from this one table
 2. **Two writers**: Celery task writes dynamic rates daily for the current month; CRUD serializer writes static rates for affected months
-3. **Rate resolution**: All months read from `MonthlyExchangeRate`; M2 migration seeds current-month data at deployment; pre-deployment months have no conversion (rate=1); error if no rate exists for post-deployment months
+3. **Rate resolution**: All months read from `MonthlyExchangeRate`; M2 migration seeds current-month data at deployment; pre-deployment months fall back to earliest available rate; error if no rate exists at all for a currency pair
 4. Report responses include rate provenance metadata
 5. **Currency enablement**: Dynamic currencies arrive as disabled; administrator enables them via Settings to make them visible in the dropdown (all currencies are always stored)
 6. **Dropdown visibility**: Target currency dropdown shows only the union of enabled dynamic currencies and static rate currencies (disabled currencies are stored but hidden from the dropdown)
@@ -291,7 +291,7 @@ graph LR
 | 6 | **Natural month boundaries** | Start/end dates must align to first/last day of month; no mid-month validity periods |
 | 7 | **Simple integer versioning** | Auto-increment on `StaticExchangeRate.version`; Phase 2 adds full audit history |
 | 8 | **Automatic finalized month locking** | Dynamic rows overwritten daily during current month; untouched after month ends |
-| 9 | **Forward-only with current-month seed** | M2 migration seeds current-month data from `ExchangeRateDictionary`; pre-deployment months have no rows (rate defaults to 1) |
+| 9 | **Forward-only with current-month seed** | M2 migration seeds current-month data from `ExchangeRateDictionary`; pre-deployment months fall back to earliest available rate |
 | 10 | **Per-pair rows, not JSON blob** | Enables `unique_together` constraint, simpler queries, cleaner ORM integration |
 | 11 | **Explicit currency enablement** | Dynamic currencies arrive disabled; administrator enables them in Settings to control which currencies appear in the dropdown. All currencies are always stored regardless of enabled status. |
 | 12 | **Configurable exchange rate URL** | `CURRENCY_URL` is a variable; empty value skips dynamic rate fetching. System works with whatever rates are available (static first, dynamic fallback, error if neither). Documentation references `open.er-api.com` (free tier) as the production example |
@@ -312,3 +312,4 @@ graph LR
 | v1.5 | 2026-03-30 | `MonthlyExchangeRate` replaces `MonthlyExchangeRateSnapshot` as single source of truth for all months. Removed `StaticExchangeRateDictionary`. Simplified data flow diagram and design decisions. Renumbered decisions (old 11 removed, old 12–15 → 11–14). |
 | v1.6 | 2026-03-30 | Removed `ExchangeRateDictionary` fallback from query handler. M2 seeds current-month data. Decision #9 updated. |
 | v1.7 | 2026-04-12 | Updated data flow diagram: query handler uses `Subquery` annotation instead of `Case`/`When`. |
+| v1.8 | 2026-04-13 | Synced pre-deployment month references: fall back to earliest available rate (aligns with pipeline-changes.md v2.1). |
