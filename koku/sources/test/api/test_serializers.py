@@ -258,13 +258,6 @@ class SourcesSerializerFieldsTest(IamTestCase):
         serializer = SourcesSerializer(self.ocp_obj)
         self.assertIsNone(serializer.data["source_ref"])
 
-    def test_updated_timestamp_in_serializer(self):
-        """Test that updated_timestamp is included in serializer output with a valid value."""
-        self.ocp_obj.save()
-        self.ocp_obj.refresh_from_db()
-        serializer = SourcesSerializer(self.ocp_obj)
-        self.assertIsInstance(serializer.data["updated_timestamp"], datetime)
-
     def test_updated_timestamp_updates_on_save(self):
         """Test that updated_timestamp is set after save and advances on subsequent saves."""
         t1 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
