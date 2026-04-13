@@ -12,7 +12,7 @@ Single source of truth for risks related to the Constant Currency feature
 | **R1** | Celery task failure on month-end leaves no rate row | Mitigated | 1 | Daily rolling `update_or_create`; last successful rate persists |
 | **R2** | Large number of currency pairs × tenants increases task runtime | Open | 1 | Monitor task duration; batch operations if needed |
 | **R3** | Overlapping static rates bypass serializer validation | Mitigated | 1 | DB-level `unique_together` on `MonthlyExchangeRate`; serializer checks on `StaticExchangeRate` |
-| **R4** | Pre-deployment months have no `MonthlyExchangeRate` data | Resolved | 1 | M2 migration seeds current month; pre-deployment months default to rate=1 (no conversion) |
+| **R4** | Pre-deployment months have no `MonthlyExchangeRate` data | Resolved | 1 | M2 migration seeds current month; pre-deployment months fall back to earliest available rate |
 | **R5** | Query handler subquery performance with many months/currencies | Mitigated | 1 | `Subquery` approach uses indexed lookups instead of growing `CASE` expressions |
 | **R6** | Static rate deletion leaves gap before dynamic rate fills in | Mitigated | 1 | Serializer proactively populates dynamic rows on static rate deletion; no gap |
 | **R7** | User selects a target currency with no conversion path from bill currency | Mitigated | 1 | Show actionable error; currencies remain visible in dropdown |
@@ -81,15 +81,18 @@ list), this is ~17,000 `update_or_create` calls. Each call involves a
 
 ## R4 — Pre-Deployment Month Gap
 
-**Decision**: Resolved. M2 migration seeds current month; no fallback needed.
+**Decision**: Resolved. M2 migration seeds current month; pre-deployment months
+fall back to earliest available rate.
 
 The M2 migration seeds `MonthlyExchangeRate` with current-month data from
 `ExchangeRateDictionary` at deployment time (see
 [data-model.md § M2](./data-model.md#m2-create-and-seed-monthly_exchange_rate-table)).
 This ensures the query handler has data from the moment of deployment. Months
-before deployment have no rows and no currency conversion is applied
-(effectively a rate of 1), which correctly reflects that per-month rate
-tracking did not exist before the feature was deployed.
+before deployment have no rows for the exact month; the query handler falls back
+to the **earliest available rate** for that currency pair (typically the
+deployment month's rate). This provides the best available approximation rather
+than showing unconverted costs. See
+[pipeline-changes.md § Pre-Deployment Months](./pipeline-changes.md#pre-deployment-months).
 
 **Why not seed historical months?** `ExchangeRateDictionary` only stores the
 *latest* rates, not historical ones. Backfilling would create misleading rates
@@ -229,3 +232,4 @@ R8       ✓
 | v1.4 | 2026-03-30 | Renamed `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate` throughout. Updated R3, R4, R6 references. |
 | v1.5 | 2026-03-30 | R4 resolved: M2 seeds current-month data, eliminating need for `ExchangeRateDictionary` fallback. |
 | v1.6 | 2026-04-12 | R5 mitigated: `Subquery` approach replaces `Case`/`When`, eliminating O(months × currencies) scaling concern. |
+| v1.7 | 2026-04-13 | R4: updated to reflect earliest-available-rate fallback for pre-deployment months (aligns with pipeline-changes.md v2.1). |

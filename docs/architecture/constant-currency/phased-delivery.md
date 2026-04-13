@@ -70,7 +70,7 @@ pairs. Show rate provenance in report responses.
 - [ ] `MonthlyExchangeRate` is the single source of truth: query handler reads from it for all months (no fallback)
 - [ ] M2 migration seeds current-month data from `ExchangeRateDictionary` into `MonthlyExchangeRate`
 - [ ] `Subquery` annotations produce correct per-month rates from `MonthlyExchangeRate`
-- [ ] Pre-deployment months (no rows) correctly default to rate=1 (no conversion)
+- [ ] Pre-deployment months (no exact-month rows) correctly fall back to earliest available rate
 - [ ] `exchange_rates_applied` metadata appears in report responses
 - [ ] Consecutive months with same rate/type collapsed into one period string
 - [ ] Unit tests pass for serializer, view, MonthlyExchangeRate logic, query handler
@@ -181,3 +181,4 @@ design would be needed to handle path prioritization.
 | v1.7 | 2026-03-30 | M2 now seeds current-month data. Removed fallback validation item. Added M2 seed and pre-deployment default validation items. R4 resolved. |
 | v1.8 | 2026-04-12 | Fixed R6 status from "Low" to "Mitigated" to match risk-register.md. |
 | v1.9 | 2026-04-12 | R5 mitigated (Subquery replaces Case/When). Updated validation to reflect Subquery approach. |
+| v2.0 | 2026-04-13 | Updated pre-deployment month validation item: fall back to earliest available rate (aligns with pipeline-changes.md v2.1). |
