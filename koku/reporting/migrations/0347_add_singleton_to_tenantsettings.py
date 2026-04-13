@@ -7,6 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("reporting", "0345_tenantsettings"),
+        ("reporting", "0346_alter_ocpgpusummaryp_mig_instance_id"),
     ]
 
     operations = [
