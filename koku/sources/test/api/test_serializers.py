@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the sources serializer."""
+from datetime import datetime
+from datetime import timezone
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -262,18 +264,39 @@ class SourcesSerializerFieldsTest(IamTestCase):
         self.assertIn("updated_timestamp", serializer.data)
 
     def test_updated_timestamp_updates_on_save(self):
-        """Test that updated_timestamp is set after save and updates on subsequent saves."""
-        self.ocp_obj.name = "Renamed OCP Source"
-        self.ocp_obj.save()
-        self.ocp_obj.refresh_from_db()
-        first_timestamp = self.ocp_obj.updated_timestamp
-        self.assertIsNotNone(first_timestamp)
+        """Test that updated_timestamp is set after save and advances on subsequent saves."""
+        t1 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        t2 = datetime(2026, 1, 1, 13, 0, 0, tzinfo=timezone.utc)
 
-        self.ocp_obj.name = "Renamed Again"
-        self.ocp_obj.save()
+        with patch("django.utils.timezone.now", return_value=t1):
+            self.ocp_obj.name = "Renamed OCP Source"
+            self.ocp_obj.save()
         self.ocp_obj.refresh_from_db()
-        second_timestamp = self.ocp_obj.updated_timestamp
-        self.assertGreaterEqual(second_timestamp, first_timestamp)
+        self.assertEqual(self.ocp_obj.updated_timestamp, t1)
+
+        with patch("django.utils.timezone.now", return_value=t2):
+            self.ocp_obj.name = "Renamed Again"
+            self.ocp_obj.save()
+        self.ocp_obj.refresh_from_db()
+        self.assertEqual(self.ocp_obj.updated_timestamp, t2)
+        self.assertGreater(self.ocp_obj.updated_timestamp, t1)
+
+    def test_updated_timestamp_included_with_update_fields(self):
+        """Test that updated_timestamp is refreshed even when save() uses update_fields."""
+        t1 = datetime(2026, 2, 1, 10, 0, 0, tzinfo=timezone.utc)
+        t2 = datetime(2026, 2, 1, 11, 0, 0, tzinfo=timezone.utc)
+
+        with patch("django.utils.timezone.now", return_value=t1):
+            self.ocp_obj.name = "Initial"
+            self.ocp_obj.save()
+        self.ocp_obj.refresh_from_db()
+        self.assertEqual(self.ocp_obj.updated_timestamp, t1)
+
+        with patch("django.utils.timezone.now", return_value=t2):
+            self.ocp_obj.paused = True
+            self.ocp_obj.save(update_fields=["paused"])
+        self.ocp_obj.refresh_from_db()
+        self.assertEqual(self.ocp_obj.updated_timestamp, t2)
 
 
 class AdminSourcesSerializerValidateTest(IamTestCase):
