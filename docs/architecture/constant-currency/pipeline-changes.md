@@ -17,7 +17,7 @@ task changes, query handler changes, and the two-writer/one-reader pattern.
 1. `get_daily_currency_rates` Celery beat task fires daily
 2. Fetches rates from `CURRENCY_URL` (configured in `koku/koku/settings.py`,
    defaults to `open.er-api.com`)
-3. Upserts `ExchangeRates` rows for each base currency
+3. Upserts `ExchangeRates` rows for each target currency (rates vs USD)
 4. Rebuilds `ExchangeRateDictionary` via `build_exchange_dictionary()`
    (cross-rate matrix in `api/currency/utils.py`)
 
@@ -508,8 +508,8 @@ def _validate_exchange_rates(self, queryset):
 ### New: Available Currency Resolution
 
 The query handler (or a shared utility) computes the list of currencies
-visible in the target currency dropdown. All currencies are stored and
-stored in `MonthlyExchangeRate` regardless of their enabled status — the `enabled` flag only
+visible in the target currency dropdown. All currencies are stored in
+`MonthlyExchangeRate` regardless of their enabled status — the `enabled` flag only
 controls dropdown visibility. A currency is **visible in the dropdown** if any
 of the following are true:
 
@@ -684,3 +684,4 @@ per-source-type would miss cross-provider reports (e.g., OCP-on-AWS).
 | v1.9 | 2026-04-12 | Replaced `_iter_months()` with explicit date range filter. Added cache invalidation section for both CRUD and Celery writers. |
 | v2.0 | 2026-04-12 | Adopted `Subquery` approach for rate resolution (replaces `Case`/`When`). Removed `effective_exchange_rates` property. OCP uses nested `Subquery` for `source_uuid` → cost model currency resolution. R5 mitigated. |
 | v2.1 | 2026-04-12 | Pre-deployment months now fall back to earliest available rate instead of defaulting to 1. Added post-query validation that raises `ExchangeRateNotFound` when no rate exists for a currency pair. Removed `Value(Decimal("1"))` from `Coalesce` in both base and OCP annotations. |
+| v2.2 | 2026-04-13 | Fixed current pipeline description: `ExchangeRates` upserts per target currency (not base). Fixed "stored and stored" typo in available currency resolution. |

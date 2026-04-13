@@ -172,8 +172,8 @@ other Settings operations).
 
 Currencies with `enabled: false` were discovered by the daily exchange rate API
 fetch but have not been enabled by an administrator. They will not appear in the
-target currency dropdown until enabled. All currencies are always stored and
-snapshotted regardless of their enabled status.
+target currency dropdown until enabled. All currencies are always stored
+regardless of their enabled status.
 
 ### Example: PUT Request (Enable/Disable)
 
@@ -386,7 +386,7 @@ The frontend will:
   currencies discovered from the exchange rate API
 - **Populate the target currency dropdown** from the available-currencies
   endpoint (union of enabled dynamic currencies + static rate currencies).
-  Disabled currencies are stored and snapshotted but hidden from this dropdown.
+  Disabled currencies are stored but hidden from this dropdown.
 - **Handle the no-rate error**: When the user selects a target currency that
   has no conversion path from the bill currency, display the error message
   returned by the API
@@ -417,3 +417,4 @@ The frontend will:
 | v1.4 | 2026-03-26 | Updated report response implementation to reference two-tier rate resolution. |
 | v1.5 | 2026-04-09 | Replaced stale `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate`, removed `StaticExchangeRateDictionary` references (removed in pipeline-changes v1.6). |
 | v1.6 | 2026-04-12 | Updated `exchange_rates_applied` implementation to reflect `Subquery`-based rate resolution (removed `effective_exchange_rates` reference). |
+| v1.7 | 2026-04-13 | Removed stale "snapshotted" terminology (remnant from `MonthlyExchangeRateSnapshot` rename). |

@@ -15,22 +15,25 @@ new tenant-scoped models and their migrations.
 
 | Model | App | Purpose |
 |-------|-----|---------|
-| `ExchangeRates` | `api.currency` | Raw API response rows. One row per `(base_currency, exchange_rates JSONField)`. Updated daily by `get_daily_currency_rates`. |
+| `ExchangeRates` | `api.currency` | One row per target currency. `currency_type` (CharField) stores the currency code (e.g., `"eur"`); `exchange_rate` (FloatField) stores the rate vs USD. Updated daily by `get_daily_currency_rates`. |
 | `ExchangeRateDictionary` | `api.currency` | Single row: `currency_exchange_dictionary` JSONField — nested dict `{base: {target: rate}}`. Rebuilt daily by `build_exchange_dictionary()` in `api/currency/utils.py`. |
 
 **Example `ExchangeRates` rows**:
 
-| id | base_currency | exchange_rates |
-|----|---------------|----------------|
-| 1 | `USD` | `{"EUR": 0.87, "GBP": 0.74, "CNY": 7.23, "JPY": 149.50}` |
-| 2 | `EUR` | `{"USD": 1.15, "GBP": 0.85, "CNY": 8.31, "JPY": 171.80}` |
-| 3 | `GBP` | `{"USD": 1.35, "EUR": 1.18, "CNY": 9.77, "JPY": 202.10}` |
+| id | currency_type | exchange_rate |
+|----|---------------|---------------|
+| 1 | `eur` | `0.87` |
+| 2 | `gbp` | `0.74` |
+| 3 | `cny` | `7.23` |
+| 4 | `jpy` | `149.50` |
+
+All rates are relative to USD (the base currency used in `CURRENCY_URL`).
 
 **Example `ExchangeRateDictionary` row** (single row in the table):
 
-| id | currency_exchange_dictionary | updated_timestamp |
-|----|------------------------------|-------------------|
-| 1 | *(see JSON below)* | `2026-03-24 06:00:00+00` |
+| id | currency_exchange_dictionary |
+|----|------------------------------|
+| 1 | *(see JSON below)* |
 
 **Current exchange rate storage** (simplified):
 
@@ -380,3 +383,4 @@ changes required.
 | v1.6 | 2026-03-30 | Renamed `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate` and promoted it to single source of truth for all months (current and past). Removed `StaticExchangeRateDictionary` — no longer needed since query handlers read from `MonthlyExchangeRate` for all months. Renumbered migrations (M3 is now `enabled_currency`; old M3 removed). |
 | v1.7 | 2026-03-30 | M2 now seeds current-month data from `ExchangeRateDictionary` during migration. Eliminates `ExchangeRateDictionary` fallback in query handler. |
 | v1.8 | 2026-04-12 | Updated reader description to reflect `Subquery`-based rate resolution (replaces `Case`/`When`). |
+| v1.9 | 2026-04-13 | Fixed `ExchangeRates` model description: actual fields are `currency_type` (CharField) and `exchange_rate` (FloatField), not `base_currency`/`exchange_rates` JSONField. Removed non-existent `updated_timestamp` column from `ExchangeRateDictionary` example. |
