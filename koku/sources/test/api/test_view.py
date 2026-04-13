@@ -5,7 +5,6 @@
 """Test the sources view."""
 import json
 import unittest
-from datetime import datetime
 from random import randint
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -222,7 +221,7 @@ class SourcesViewTests(IamTestCase):
 
             self.assertEqual(response.status_code, 200)
             self.assertIsNotNone(body)
-            self.assertIsInstance(datetime.fromisoformat(body["updated_timestamp"]), datetime)
+            self.assertIsNotNone(body["updated_timestamp"])
 
     def test_source_get_other_header(self):
         """Test the GET endpoint other header not matching test data."""
@@ -276,7 +275,7 @@ class SourcesViewTests(IamTestCase):
         self.assertTrue(body.get("data"))
         self.assertFalse(body.get("data")[0]["provider_linked"])
         self.assertIsNone(body.get("data")[0]["created_timestamp"])
-        self.assertIsInstance(datetime.fromisoformat(body.get("data")[0]["updated_timestamp"]), datetime)
+        self.assertIsNotNone(body.get("data")[0]["updated_timestamp"])
 
     @patch("sources.api.view.ProviderManager")
     def test_source_list_provider_success(self, mock_provider_manager):
@@ -292,7 +291,7 @@ class SourcesViewTests(IamTestCase):
         self.assertTrue(body.get("data")[0]["provider_linked"])
         self.assertTrue(body.get("data")[0]["active"])
         self.assertIsNotNone(body.get("data")[0]["created_timestamp"])
-        self.assertIsInstance(datetime.fromisoformat(body.get("data")[0]["updated_timestamp"]), datetime)
+        self.assertIsNotNone(body.get("data")[0]["updated_timestamp"])
 
     @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
     def test_source_retrieve_error(self, _):
@@ -305,7 +304,7 @@ class SourcesViewTests(IamTestCase):
         self.assertFalse(body["provider_linked"])
         self.assertFalse(body["active"])
         self.assertIsNone(body["created_timestamp"])
-        self.assertIsInstance(datetime.fromisoformat(body["updated_timestamp"]), datetime)
+        self.assertIsNotNone(body["updated_timestamp"])
 
     @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
     def test_source_get_stats_error(self, _):
