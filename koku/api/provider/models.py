@@ -554,7 +554,7 @@ class Sources(RunTextFieldValidators, models.Model):
     def save(self, *args, **kwargs):
         """Ensure updated_timestamp is refreshed even when update_fields is specified."""
         if kwargs.get("update_fields") is not None:
-            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"updated_timestamp"}
+            kwargs["update_fields"] = list(set(kwargs["update_fields"]) | {"updated_timestamp"})
         super().save(*args, **kwargs)
 
     def __str__(self):
