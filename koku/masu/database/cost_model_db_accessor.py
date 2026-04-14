@@ -32,7 +32,7 @@ class CostModelDBAccessor:
                 CostModel.rates directly.
 
         """
-        if is_feature_flag_enabled_by_schema(schema, DISABLE_PRICE_LIST_UNLEASH_FLAG, dev_fallback=True):
+        if is_feature_flag_enabled_by_schema(schema, DISABLE_PRICE_LIST_UNLEASH_FLAG):
             price_list_effective_on = None
             LOG.info(f"Price list cost model is disabled for schema {schema}")
             # gets set to cost model rates in the effective_rates property.
