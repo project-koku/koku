@@ -13,6 +13,10 @@ of aggregated totals.
 the current cost model architecture, rate types, distribution, and data
 model that this feature extends.
 
+**Related**: [price-lists/README.md](../price-lists/README.md) — how rate JSON
+is stored in `PriceList`, attached with priority, and resolved by billing date
+during OCP calculation.
+
 ---
 
 ## Decisions Needed from Tech Lead
