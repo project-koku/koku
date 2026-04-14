@@ -731,6 +731,48 @@ class OCPCostQueryParamSerializerPVCRestrictionTest(IamTestCase):
                 serializer = OCPCostQueryParamSerializer(data=query_params, context=self.ctx_w_path)
                 self.assertTrue(serializer.is_valid(), f"group_by[{field}] should be valid for costs")
 
+    def test_cost_serializer_rejects_project_and_node_group_by(self):
+        """Test that project+node on costs is rejected before costs_by_project fallback."""
+        query_params = {
+            "group_by": {"project": ["*"], "node": ["*"]},
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        with self.assertRaises(serializers.ValidationError) as exc:
+            serializer.is_valid(raise_exception=True)
+        self.assertIn("group_by", exc.exception.detail)
+
+    def test_cost_serializer_rejects_project_group_by_with_node_filter(self):
+        """Test that node filters are rejected when project grouping would select costs_by_project."""
+        query_params = {
+            "group_by": {"project": ["*"]},
+            "filter": {
+                "resolution": "daily",
+                "time_scope_value": "-10",
+                "time_scope_units": "day",
+                "node": "my-node",
+            },
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        with self.assertRaises(serializers.ValidationError) as exc:
+            serializer.is_valid(raise_exception=True)
+        self.assertIn("filter", exc.exception.detail)
+
+    def test_cost_serializer_rejects_project_group_by_with_node_exclude(self):
+        """Test that node excludes are rejected when project grouping would select costs_by_project."""
+        query_params = {
+            "group_by": {"project": ["*"]},
+            "exclude": {"node": "my-node"},
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        with self.assertRaises(serializers.ValidationError) as exc:
+            serializer.is_valid(raise_exception=True)
+        self.assertIn("exclude", exc.exception.detail)
+
     def test_inventory_serializer_still_allows_pvc_group_by(self):
         """Test that OCPInventoryQueryParamSerializer (volume) still accepts PVC."""
         query_params = {
