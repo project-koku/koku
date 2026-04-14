@@ -432,6 +432,7 @@ class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
         "gpu_count",
         "gpu_vendor",
         "gpu_model",
+        "gpu_mode",
         "node",
     )
 
