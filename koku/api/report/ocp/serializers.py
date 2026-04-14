@@ -261,10 +261,37 @@ class OCPCostGroupBySerializer(GroupSerializer):
     node = StringOrListField(child=serializers.CharField(), required=False)
 
 
+class OCPCostFilterSerializer(OCPFilterSerializer):
+    """Serializer for handling cost query parameter filter.
+
+    Removes persistentvolumeclaim and storageclass — filtering by these on
+    the costs endpoint would cause the same silent fallback to the raw table.
+    """
+
+    _opfields = ("project", "cluster", "node", "infrastructures", "category")
+
+    persistentvolumeclaim = None
+    storageclass = None
+
+
+class OCPCostExcludeSerializer(OCPExcludeSerializer):
+    """Serializer for handling cost query parameter exclude.
+
+    Removes persistentvolumeclaim — excluding by this on the costs endpoint
+    would cause the same silent fallback to the raw table.
+    """
+
+    _opfields = ("project", "cluster", "node", "infrastructures", "category")
+
+    persistentvolumeclaim = None
+
+
 class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling cost query parameters."""
 
     GROUP_BY_SERIALIZER = OCPCostGroupBySerializer
+    FILTER_SERIALIZER = OCPCostFilterSerializer
+    EXCLUDE_SERIALIZER = OCPCostExcludeSerializer
 
     DELTA_CHOICES = (
         ("cost", "cost"),

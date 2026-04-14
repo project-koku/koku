@@ -324,7 +324,7 @@ class OCPProviderMap(ProviderMap):
                     },
                     "costs_by_project": {
                         "tag_column": "all_labels",
-                        "group_by_options": ["cluster", "project", "node"],
+                        "group_by_options": ["cluster", "project"],
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
