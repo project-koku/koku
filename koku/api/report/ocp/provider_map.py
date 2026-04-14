@@ -19,6 +19,7 @@ from django.db.models import Sum
 from django.db.models import TextField
 from django.db.models import Value
 from django.db.models import When
+from django.db.models.functions import Cast
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import Greatest
@@ -43,6 +44,36 @@ from reporting.provider.ocp.models import OCPPodSummaryP
 from reporting.provider.ocp.models import OCPVirtualMachineSummaryP
 from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
 from reporting.provider.ocp.models import OCPVolumeSummaryP
+
+
+def _mig_profile_segment(part: int) -> Func:
+    """One dot-separated piece of mig_profile (e.g. '1g' or '5gb')."""
+    return Func(F("mig_profile"), Value("."), Value(part), function="split_part", output_field=CharField())
+
+
+def _mig_profile_segment_numeric(part: int):
+    """Integer from segment (e.g. 1 from '1g', 5 from '5gb'); NULL if unparseable."""
+    segment = _mig_profile_segment(part)
+    digits = Func(
+        segment,
+        Value("[^0-9]"),
+        Value(""),
+        Value("g"),
+        function="regexp_replace",
+        output_field=CharField(),
+    )
+    return Cast(NullIf(digits, Value("")), IntegerField())
+
+
+def _mig_profile_segment_units(part: int):
+    """Unit suffix from segment (e.g. 'g' from '1g', 'gb' from '5gb'); '' if missing."""
+    return Func(
+        _mig_profile_segment(part),
+        Value("^[0-9]+"),
+        Value(""),
+        function="regexp_replace",
+        output_field=CharField(),
+    )
 
 
 class OCPProviderMap(ProviderMap):
@@ -1111,20 +1142,10 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "node": F("node"),
                             "mig_profile": F("mig_profile"),
-                            "compute": Func(
-                                F("mig_profile"),
-                                Value("."),
-                                Value(1),
-                                function="split_part",
-                                output_field=CharField(),
-                            ),
-                            "memory": Func(
-                                F("mig_profile"),
-                                Value("."),
-                                Value(2),
-                                function="split_part",
-                                output_field=CharField(),
-                            ),
+                            "compute": _mig_profile_segment_numeric(1),
+                            "mig_compute_units": _mig_profile_segment_units(1),
+                            "memory": _mig_profile_segment_numeric(2),
+                            "mig_memory_units": _mig_profile_segment_units(2),
                             "mig_slice_count": Max(
                                 Coalesce(F("mig_slice_count"), Value(0, output_field=IntegerField()))
                             ),
@@ -1140,7 +1161,10 @@ class OCPProviderMap(ProviderMap):
                             "mig_uuid",
                         ],
                         "delta_key": {},
-                        "filter": [{"field": "mig_profile", "operation": "isnull", "parameter": False}],
+                        "filter": [
+                            {"field": "mig_profile", "operation": "isnull", "parameter": False},
+                            {"field": "mig_profile", "operation": "gt", "parameter": ""},
+                        ],
                         "group_by": ["mig_profile"],
                         "cost_units_key": "raw_currency",
                         "sum_columns": [],
