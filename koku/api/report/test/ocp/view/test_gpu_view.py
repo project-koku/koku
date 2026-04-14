@@ -254,3 +254,38 @@ class OCPGpuViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("data", response.data)
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_mig_profiles_endpoint_accepts_exact_project_filter(self, mock_unleash):
+        """MIG profiles accepts filter[exact:project] (UI parity with other OCP reports)."""
+        url = reverse("reports-openshift-gpu-mig-profiles")
+        query_params = {
+            "filter[gpu_vendor]": "nvidia",
+            "filter[gpu_model]": "A100",
+            "filter[node]": "gpu_node_0",
+            "filter[exact:project]": "*",
+            "limit": "106",
+        }
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        err = getattr(response, "data", response.content)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, err)
+        self.assertIn("data", response.data)
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_mig_profiles_endpoint_accepts_tag_filter_without_error(self, mock_unleash):
+        """MIG profiles API drops tag filters like GPU; UI may send them without FieldError."""
+        url = reverse("reports-openshift-gpu-mig-profiles")
+        query_params = {
+            "filter[gpu_vendor]": "nvidia",
+            "filter[gpu_model]": "A100",
+            "filter[node]": "gpu_node_0",
+            "filter[tag:application]": "Istio",
+        }
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        err_msg = (
+            f"MIG profiles must accept tag filter (UI parity). Got: {getattr(response, 'data', response.content)}"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, err_msg)
+        self.assertIn("data", response.data)
