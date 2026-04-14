@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   sanity:
@@ -38,113 +37,6 @@ jobs:
 
       - name: Check clowdapp manifest
         run: bash .github/scripts/check_clowdapp.sh
-
-  smokes-labeler:
-    name: Smoke Test Label
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
-        with:
-          egress-policy: audit
-
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-
-      - name: get Docker image files
-        id: docker-files
-        run: .github/scripts/files_require_smokes.sh >> docker-files.txt
-
-      - name: add other required files
-        id: add-files
-        run: |
-          echo .dockerignore >> docker-files.txt;
-          echo Dockerfile >> docker-files.txt;
-          echo deploy/clowdapp.yaml >> docker-files.txt;
-
-      - name: Show Dockerfiles
-        run: cat docker-files.txt
-
-      - name: Get changed files
-        id: changed-files
-        uses: step-security/changed-files@60967b822d3001fa82242f8d6b4ed46bc3600a68 # v47.0.1
-        with:
-          files_from_source_file: docker-files.txt
-
-      - name: Set whether to run tests
-        id: check-files
-        run: |
-          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
-            echo "RUN_TESTS=true" >> $GITHUB_ENV
-          fi
-
-      - name: Set smokes-required label
-        if: env.RUN_TESTS == 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        continue-on-error: true
-        with:
-          script: |
-            github.rest.issues.addLabels({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: [ 'smokes-required' ]
-            })
-
-            const response = await github.rest.issues.listLabelsOnIssue({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-              })
-
-            const labels = response.data.map(({name}) => name)
-
-            if (labels.includes('ok-to-skip-smokes')) {
-              github.rest.issues.removeLabel({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                name: 'ok-to-skip-smokes'
-              })
-            }
-
-      - name: Set ok-to-skip-smokes label
-        if: env.RUN_TESTS != 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        continue-on-error: true
-        with:
-          script: |
-            github.rest.issues.addLabels({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: [ 'ok-to-skip-smokes' ]
-            })
-
-            const response = await github.rest.issues.listLabelsOnIssue({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-              })
-
-            const labels = response.data.map(({name}) => name)
-
-            if (labels.includes('smokes-required')) {
-              github.rest.issues.removeLabel({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                name: 'smokes-required'
-              })
-            }
 
   changed-files:
     name: Detect changed files
