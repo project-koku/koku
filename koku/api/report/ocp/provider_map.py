@@ -1131,7 +1131,7 @@ class OCPProviderMap(ProviderMap):
                         "annotations": {
                             "gpu_model": F("model_name"),
                             "gpu_vendor": F("vendor_name"),
-                            "mig_uuid": F("mig_instance_id"),
+                            "mig_id": F("mig_instance_id"),
                             "gpu_name": Concat(
                                 "vendor_name",
                                 Value("_"),
@@ -1158,7 +1158,7 @@ class OCPProviderMap(ProviderMap):
                             "gpu_vendor",
                             "node",
                             "mig_profile",
-                            "mig_uuid",
+                            "mig_id",
                         ],
                         "delta_key": {},
                         "filter": [
