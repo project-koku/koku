@@ -245,8 +245,26 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
         return value
 
 
+class OCPCostGroupBySerializer(GroupSerializer):
+    """Serializer for handling cost query parameter group_by.
+
+    Excludes persistentvolumeclaim and storageclass because the pre-aggregated
+    OCPCostSummary* tables lack those columns. Grouping by PVC/storageclass
+    would silently fall back to the raw line-item table, producing totals that
+    diverge from the pre-aggregated default view.
+    """
+
+    _opfields = ("project", "cluster", "node")
+
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+
+
 class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling cost query parameters."""
+
+    GROUP_BY_SERIALIZER = OCPCostGroupBySerializer
 
     DELTA_CHOICES = (
         ("cost", "cost"),

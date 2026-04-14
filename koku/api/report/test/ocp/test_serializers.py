@@ -8,6 +8,7 @@ from unittest import TestCase
 from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.ocp.serializers import OCPCostGroupBySerializer
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
 from api.report.ocp.serializers import OCPExcludeSerializer
 from api.report.ocp.serializers import OCPFilterSerializer
@@ -650,6 +651,93 @@ class OCPCostQueryParamSerializerTest(IamTestCase):
                     serializer = OCPInventoryQueryParamSerializer(data=param, context=self.ctx_w_path)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
+
+
+class OCPCostGroupBySerializerTest(TestCase):
+    """Tests for the cost group_by serializer (PVC/storageclass restriction)."""
+
+    def test_cost_group_by_valid_fields(self):
+        """Test that cluster, project, and node are accepted."""
+        for field in ("cluster", "project", "node"):
+            with self.subTest(field=field):
+                serializer = OCPCostGroupBySerializer(data={field: ["*"]})
+                self.assertTrue(serializer.is_valid(), f"{field} should be valid for costs")
+
+    def test_cost_group_by_rejects_persistentvolumeclaim(self):
+        """Test that persistentvolumeclaim is rejected on the cost serializer."""
+        serializer = OCPCostGroupBySerializer(data={"persistentvolumeclaim": ["*"]})
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_cost_group_by_rejects_storageclass(self):
+        """Test that storageclass is rejected on the cost serializer."""
+        serializer = OCPCostGroupBySerializer(data={"storageclass": ["*"]})
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_cost_group_by_op_fields(self):
+        """Test that only cluster, project, node are in _opfields."""
+        self.assertEqual(OCPCostGroupBySerializer._opfields, ("project", "cluster", "node"))
+        self.assertNotIn("persistentvolumeclaim", OCPCostGroupBySerializer._opfields)
+        self.assertNotIn("storageclass", OCPCostGroupBySerializer._opfields)
+
+    def test_generic_group_by_still_allows_pvc(self):
+        """Test that the generic OCPGroupBySerializer still accepts PVC (for volume endpoint)."""
+        serializer = OCPGroupBySerializer(data={"persistentvolumeclaim": ["*"]})
+        self.assertTrue(serializer.is_valid())
+
+    def test_generic_group_by_still_allows_storageclass(self):
+        """Test that the generic OCPGroupBySerializer still accepts storageclass (for volume endpoint)."""
+        serializer = OCPGroupBySerializer(data={"storageclass": ["*"]})
+        self.assertTrue(serializer.is_valid())
+
+
+class OCPCostQueryParamSerializerPVCRestrictionTest(IamTestCase):
+    """Tests for the cost query param serializer rejecting PVC/storageclass group_by."""
+
+    def test_cost_serializer_rejects_pvc_group_by(self):
+        """Test that OCPCostQueryParamSerializer rejects group_by[persistentvolumeclaim]."""
+        query_params = {
+            "group_by": {"persistentvolumeclaim": ["*"]},
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_cost_serializer_rejects_storageclass_group_by(self):
+        """Test that OCPCostQueryParamSerializer rejects group_by[storageclass]."""
+        query_params = {
+            "group_by": {"storageclass": ["*"]},
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_cost_serializer_accepts_valid_group_by(self):
+        """Test that OCPCostQueryParamSerializer accepts cluster, project, node."""
+        for field in ("cluster", "project", "node"):
+            with self.subTest(field=field):
+                query_params = {
+                    "group_by": {field: ["*"]},
+                    "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+                }
+                self.request_path = "/api/cost-management/v1/reports/openshift/costs/"
+                serializer = OCPCostQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+                self.assertTrue(serializer.is_valid(), f"group_by[{field}] should be valid for costs")
+
+    def test_inventory_serializer_still_allows_pvc_group_by(self):
+        """Test that OCPInventoryQueryParamSerializer (volume) still accepts PVC."""
+        query_params = {
+            "group_by": {"persistentvolumeclaim": ["*"]},
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+        }
+        self.request_path = "/api/cost-management/v1/reports/openshift/volumes/"
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid())
 
 
 class OCPGpuGroupBySerializerTest(TestCase):
