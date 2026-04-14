@@ -411,6 +411,7 @@ class OCPUsageLineItemDailySummaryStaging(models.Model):
     data_source = models.CharField(max_length=64, null=True)
     usage_end = models.DateField(null=True)
     namespace = models.CharField(max_length=253, null=True)
+    pod = models.CharField(max_length=253, null=True)
     node = models.CharField(max_length=253, null=True)
     resource_id = models.CharField(max_length=256, null=True)
 
