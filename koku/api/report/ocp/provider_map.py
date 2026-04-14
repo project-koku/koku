@@ -1166,6 +1166,8 @@ class OCPProviderMap(ProviderMap):
                             {"field": "mig_profile", "operation": "gt", "parameter": ""},
                         ],
                         "group_by": ["mig_profile"],
+                        # Do not synthesize an "Other(s)" bucket when filter[limit] is used; return top-N only.
+                        "rank_limit_include_others": False,
                         "cost_units_key": "raw_currency",
                         "sum_columns": [],
                     },
