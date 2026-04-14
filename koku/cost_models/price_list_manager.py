@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Management layer for price lists."""
+import copy
 import logging
 import uuid as uuid_mod
 
@@ -12,6 +13,7 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
+from cost_models.rate_sync import sync_rate_table
 
 LOG = logging.getLogger(__name__)
 
@@ -39,8 +41,10 @@ class PriceListManager:
         return self._model
 
     def create(self, **data):
-        """Create a price list."""
+        """Create a price list and populate Rate rows if rates are provided."""
         self._model = PriceList.objects.create(**data)
+        if self._model.rates and isinstance(self._model.rates, list):
+            sync_rate_table(self._model, copy.deepcopy(self._model.rates))
         return self._model
 
     def update(self, **data):
@@ -81,7 +85,9 @@ class PriceListManager:
 
         self._model.save()
 
-        # Trigger recalculation if rates or dates changed (not on enable/disable)
+        if rates_changed:
+            sync_rate_table(self._model, copy.deepcopy(self._model.rates) if self._model.rates else [])
+
         if rates_changed or dates_changed:
             self._trigger_recalculation()
 
