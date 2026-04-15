@@ -16,20 +16,17 @@ import numpy as np
 import statsmodels.api as sm
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
-from django.db.models import When
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from statsmodels.tools.sm_exceptions import ValueWarning
 
-from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -44,7 +41,6 @@ from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
 from api.utils import get_cost_type
 from cost_models.models import CostModel
-from cost_models.models import CostModelMap
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
@@ -150,21 +146,32 @@ class Forecast:
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
     @cached_property
-    def exchange_rates(self):
-        try:
-            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
-        except AttributeError as err:
-            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
-            return {}
-
-    @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        whens = [
-            When(**{self.provider_map.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+        """Get per-month exchange rate annotation from MonthlyExchangeRate via Subquery."""
+        from django.db.models import OuterRef
+        from django.db.models import Subquery
+        from django.db.models.functions import TruncMonth
+
+        from cost_models.models import MonthlyExchangeRate
+
+        rate_subquery = MonthlyExchangeRate.objects.filter(
+            effective_date=TruncMonth(OuterRef("usage_start")),
+            base_currency=OuterRef(self.provider_map.cost_units_key),
+            target_currency=self.currency,
+        ).values("exchange_rate")[:1]
+
+        earliest_rate_subquery = MonthlyExchangeRate.objects.filter(
+            base_currency=OuterRef(self.provider_map.cost_units_key),
+            target_currency=self.currency,
+        ).order_by("effective_date").values("exchange_rate")[:1]
+
+        return {
+            "exchange_rate": Coalesce(
+                Subquery(rate_subquery),
+                Subquery(earliest_rate_subquery),
+                output_field=DecimalField(),
+            )
+        }
 
     def get_data(self):
         """Query the database."""
@@ -597,35 +604,51 @@ class OCPForecast(Forecast):
     provider_map_class = OCPProviderMap
 
     @cached_property
-    def source_to_currency_map(self):
-        """
-        OCP sources do not have costs associated, so we need to
-        grab the base currency from the cost model, and create
-        a mapping of source_uuid to currency.
-        returns:
-            dict: {source_uuid: currency}
-        """
-        source_map = defaultdict(lambda: "USD")
-        cost_models = CostModel.objects.all().values("uuid", "currency").distinct()
-        cm_to_currency = {row["uuid"]: row["currency"] for row in cost_models}
-        mapping = CostModelMap.objects.all().values("provider_uuid", "cost_model_id")
-        source_map |= {row["provider_uuid"]: cm_to_currency[row["cost_model_id"]] for row in mapping}
-        return source_map
-
-    @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        exchange_rate_whens = [
-            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
-            for uuid, cur in self.source_to_currency_map.items()
-        ]
-        infra_exchange_rate_whens = [
-            When(**{self.provider_map.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
+        """Get per-month exchange rate annotations from MonthlyExchangeRate via Subquery."""
+        from django.db.models import OuterRef
+        from django.db.models import Subquery
+        from django.db.models.functions import TruncMonth
+
+        from cost_models.models import MonthlyExchangeRate
+
+        cost_model_currency = CostModel.objects.filter(
+            cost_model_map__provider_uuid=OuterRef("source_uuid"),
+        ).values("currency")[:1]
+
+        exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
+            effective_date=TruncMonth(OuterRef("usage_start")),
+            base_currency=Subquery(cost_model_currency),
+            target_currency=self.currency,
+        ).values("exchange_rate")[:1]
+
+        earliest_exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
+            base_currency=Subquery(cost_model_currency),
+            target_currency=self.currency,
+        ).order_by("effective_date").values("exchange_rate")[:1]
+
+        infra_exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
+            effective_date=TruncMonth(OuterRef("usage_start")),
+            base_currency=OuterRef(self.provider_map.cost_units_key),
+            target_currency=self.currency,
+        ).values("exchange_rate")[:1]
+
+        earliest_infra_rate_subquery = MonthlyExchangeRate.objects.filter(
+            base_currency=OuterRef(self.provider_map.cost_units_key),
+            target_currency=self.currency,
+        ).order_by("effective_date").values("exchange_rate")[:1]
+
         return {
-            "exchange_rate": Case(*exchange_rate_whens, default=1, output_field=DecimalField()),
-            "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
+            "exchange_rate": Coalesce(
+                Subquery(exchange_rate_subquery),
+                Subquery(earliest_exchange_rate_subquery),
+                output_field=DecimalField(),
+            ),
+            "infra_exchange_rate": Coalesce(
+                Subquery(infra_exchange_rate_subquery),
+                Subquery(earliest_infra_rate_subquery),
+                output_field=DecimalField(),
+            ),
         }
 
 

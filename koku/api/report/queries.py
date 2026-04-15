@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query Handling for Reports."""
+import calendar
 import copy
 import logging
 import random
@@ -36,8 +37,8 @@ from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from pandas.api.types import CategoricalDtype
+from rest_framework.exceptions import ValidationError
 
-from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -45,6 +46,7 @@ from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
+from cost_models.models import MonthlyExchangeRate
 
 LOG = logging.getLogger(__name__)
 
@@ -881,21 +883,30 @@ class ReportQueryHandler(QueryHandler):
         return group_by
 
     @cached_property
-    def exchange_rates(self):
-        try:
-            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
-        except AttributeError as err:
-            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
-            return {}
-
-    @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+        """Get per-month exchange rate annotation from MonthlyExchangeRate via Subquery."""
+        from django.db.models import OuterRef
+        from django.db.models import Subquery
+        from django.db.models.functions import TruncMonth
+
+        rate_subquery = MonthlyExchangeRate.objects.filter(
+            effective_date=TruncMonth(OuterRef("usage_start")),
+            base_currency=OuterRef(self._mapper.cost_units_key),
+            target_currency=self.currency,
+        ).values("exchange_rate")[:1]
+
+        earliest_rate_subquery = MonthlyExchangeRate.objects.filter(
+            base_currency=OuterRef(self._mapper.cost_units_key),
+            target_currency=self.currency,
+        ).order_by("effective_date").values("exchange_rate")[:1]
+
+        return {
+            "exchange_rate": Coalesce(
+                Subquery(rate_subquery),
+                Subquery(earliest_rate_subquery),
+                output_field=DecimalField(),
+            )
+        }
 
     def _project_classification_annotation(self, query_data):
         """Get the correct annotation for a project or category"""
@@ -1067,10 +1078,91 @@ class ReportQueryHandler(QueryHandler):
     def _initialize_response_output(self, parameters):
         """Initialize output response object."""
         output = copy.deepcopy(parameters.parameters)
-        # remove access from the output
         output.pop("access")
 
+        if self.currency:
+            output["currency"] = self.currency
+            start = getattr(self, "start_datetime", None)
+            end = getattr(self, "end_datetime", None)
+            if start and end:
+                output["exchange_rates_applied"] = self._get_exchange_rates_applied(
+                    start.date() if hasattr(start, "date") else start,
+                    end.date() if hasattr(end, "date") else end,
+                    self.currency,
+                )
+
         return output
+
+    def _get_exchange_rates_applied(self, start_date, end_date, target_currency):
+        """Build exchange_rates_applied metadata from MonthlyExchangeRate for the query range."""
+        if not target_currency:
+            return []
+
+        from dateutil.relativedelta import relativedelta
+
+        start_month = start_date.replace(day=1) if start_date else None
+        end_month = end_date.replace(day=1) if end_date else None
+        if not start_month or not end_month:
+            return []
+
+        rates = (
+            MonthlyExchangeRate.objects.filter(
+                effective_date__gte=start_month,
+                effective_date__lte=end_month,
+                target_currency=target_currency,
+            )
+            .order_by("base_currency", "effective_date")
+            .values("base_currency", "target_currency", "exchange_rate", "rate_type", "effective_date")
+        )
+
+        result = []
+        for rate in rates:
+            last_day = calendar.monthrange(rate["effective_date"].year, rate["effective_date"].month)[1]
+            end_of_month = rate["effective_date"].replace(day=last_day)
+
+            if result and (
+                result[-1]["base_currency"] == rate["base_currency"]
+                and result[-1]["target_currency"] == rate["target_currency"]
+                and result[-1]["rate"] == str(rate["exchange_rate"])
+                and result[-1]["type"] == rate["rate_type"]
+                and result[-1]["_next_month"] == rate["effective_date"]
+            ):
+                result[-1]["end_date"] = str(end_of_month)
+                result[-1]["_next_month"] = rate["effective_date"] + relativedelta(months=1)
+            else:
+                result.append(
+                    {
+                        "base_currency": rate["base_currency"],
+                        "target_currency": rate["target_currency"],
+                        "rate": str(rate["exchange_rate"]),
+                        "type": rate["rate_type"],
+                        "start_date": str(rate["effective_date"]),
+                        "end_date": str(end_of_month),
+                        "_next_month": rate["effective_date"] + relativedelta(months=1),
+                    }
+                )
+
+        for entry in result:
+            entry.pop("_next_month", None)
+        return result
+
+    def _validate_exchange_rates(self, queryset):
+        """Raise if any rows have NULL exchange rates (no rate data for currency pair)."""
+        if not self.currency:
+            return
+
+        null_rate_filter = Q(exchange_rate__isnull=True)
+        if queryset.filter(null_rate_filter).exists():
+            raise ValidationError(
+                {
+                    "detail": (
+                        f"No exchange rate available for target currency {self.currency}. "
+                        "Ask your administrator to configure static exchange rates "
+                        "or enable dynamic exchange rates."
+                    ),
+                    "source": "currency",
+                }
+            )
 
     def _pack_data_object(self, data, **kwargs):  # noqa: C901
         """Pack data into object format."""

@@ -9,6 +9,8 @@ from django.views.decorators.cache import cache_page
 from rest_framework.routers import DefaultRouter
 
 from api.common.deprecate_view import SunsetView
+from api.settings.currency_views import AvailableCurrencyView
+from api.settings.currency_views import EnabledCurrencyView
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
@@ -130,6 +132,16 @@ urlpatterns = [
     path("cost-type/", UserCostTypeSettings.as_view(), name="cost-type"),
     path("account-settings/", AccountSettings.as_view(), name="account-settings"),
     path("account-settings/<str:setting>/", AccountSettings.as_view(), name="get-account-setting"),
+    path(
+        "settings/currency/enabled-currencies/",
+        EnabledCurrencyView.as_view(),
+        name="enabled-currencies",
+    ),
+    path(
+        "settings/currency/available-currencies/",
+        AvailableCurrencyView.as_view(),
+        name="available-currencies",
+    ),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
     path("metrics/", metrics, name="metrics"),

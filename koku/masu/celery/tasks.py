@@ -265,10 +265,20 @@ def autovacuum_tune_schemas():
 
 @celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
 def get_daily_currency_rates():
-    """Task to get latest daily conversion rates."""
+    """Task to get latest daily conversion rates and upsert MonthlyExchangeRate per tenant."""
+    from api.currency.models import ExchangeRateDictionary
+    from cost_models.models import EnabledCurrency
+    from cost_models.models import MonthlyExchangeRate
+    from cost_models.models import RateType
+    from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
+
     rate_metrics = {}
 
     url = settings.CURRENCY_URL
+    if not url:
+        LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
+        return rate_metrics
+
     retries = Retry(
         total=5,
         allowed_methods={"GET"},
@@ -278,20 +288,16 @@ def get_daily_currency_rates():
     session = requests.Session()
     session.mount("https://", HTTPAdapter(max_retries=retries))
 
-    # Retrieve conversion rates from URL
     try:
         response = session.get(url)
         response.raise_for_status()
     except (HTTPError, RetryError) as e:
         LOG.error(f"Couldn't pull latest conversion rates from {url}")
         LOG.error(e)
-
         return rate_metrics
 
     data = response.json()
-
     rates = data["rates"]
-    # Update conversion rates in database
     for curr_type in rates.keys():
         if curr_type.upper() in VALID_CURRENCIES:
             value = rates[curr_type]
@@ -305,6 +311,47 @@ def get_daily_currency_rates():
             exchange.exchange_rate = value
             exchange.save()
     exchange_dictionary(rate_metrics)
+
+    dh = DateHelper()
+    current_month = dh.this_month_start.date()
+    erd = ExchangeRateDictionary.objects.first()
+    if not erd or not erd.currency_exchange_dictionary:
+        return rate_metrics
+
+    exchange_dict = erd.currency_exchange_dictionary
+    all_api_currencies = set(exchange_dict.keys())
+
+    for tenant in Tenant.objects.exclude(schema_name="public"):
+        with schema_context(tenant.schema_name):
+            existing_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+            new_currencies = all_api_currencies - existing_codes
+            if new_currencies:
+                EnabledCurrency.objects.bulk_create(
+                    [EnabledCurrency(currency_code=code, enabled=False) for code in new_currencies],
+                    ignore_conflicts=True,
+                )
+
+            static_pairs = set(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=current_month,
+                    rate_type=RateType.STATIC,
+                ).values_list("base_currency", "target_currency")
+            )
+
+            for base_cur, targets in exchange_dict.items():
+                for target_cur, rate in targets.items():
+                    if base_cur == target_cur:
+                        continue
+                    if (base_cur, target_cur) not in static_pairs:
+                        MonthlyExchangeRate.objects.update_or_create(
+                            effective_date=current_month,
+                            base_currency=base_cur,
+                            target_currency=target_cur,
+                            defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
+                        )
+
+            invalidate_view_cache_for_tenant_and_all_source_types(tenant.schema_name)
+
     return rate_metrics
 
 
