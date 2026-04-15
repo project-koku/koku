@@ -11,6 +11,9 @@ from django.db import transaction
 
 from api.metrics import constants as metric_constants
 from cost_models.models import CostModel
+from masu.processor import DISABLE_PRICE_LIST_UNLEASH_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
+
 
 LOG = logging.getLogger(__name__)
 
@@ -18,7 +21,7 @@ LOG = logging.getLogger(__name__)
 class CostModelDBAccessor:
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, provider_uuid, *, price_list_effective_on=None):
+    def __init__(self, schema, provider_uuid, price_list_effective_on):
         """Establish the database connection.
 
         Args:
@@ -29,6 +32,10 @@ class CostModelDBAccessor:
                 CostModel.rates directly.
 
         """
+        if is_feature_flag_enabled_by_schema(schema, DISABLE_PRICE_LIST_UNLEASH_FLAG):
+            price_list_effective_on = None
+            LOG.info(f"Price list cost model is disabled for schema {schema}")
+            # gets set to cost model rates in the effective_rates property.
         self.schema = schema
         self.provider_uuid = provider_uuid
         self.price_list_effective_on = price_list_effective_on
