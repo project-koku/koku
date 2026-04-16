@@ -67,7 +67,7 @@ def build_ocp_exchange_rate_annotation_dict(cost_units_key, target_currency):
     - infra_exchange_rate: cloud bill currency (raw_currency column)
     """
     cost_model_currency = CostModel.objects.filter(
-        cost_model_map__provider_uuid=OuterRef(OuterRef("source_uuid")),
+        costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),
     ).values("currency")[:1]
 
     usage_start_ref = OuterRef("usage_start", output_field=DateField())
