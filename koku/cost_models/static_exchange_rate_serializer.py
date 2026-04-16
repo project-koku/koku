@@ -5,16 +5,13 @@
 """Serializer for StaticExchangeRate with MonthlyExchangeRate side effects."""
 import calendar
 import logging
-from datetime import date
 
 from dateutil.relativedelta import relativedelta
 from django.db import transaction
 from rest_framework import serializers
 
-from api.common import log_json
 from api.currency.currencies import VALID_CURRENCIES
 from api.currency.models import ExchangeRateDictionary
-from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
@@ -144,9 +141,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             if self.instance:
                 overlap_qs = overlap_qs.exclude(uuid=self.instance.uuid)
             if overlap_qs.exists():
-                raise serializers.ValidationError(
-                    "Overlapping validity period exists for this currency pair."
-                )
+                raise serializers.ValidationError("Overlapping validity period exists for this currency pair.")
 
         return data
 

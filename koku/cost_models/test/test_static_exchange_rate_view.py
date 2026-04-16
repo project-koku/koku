@@ -3,18 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for the StaticExchangeRate ViewSet."""
-import json
 from unittest.mock import patch
 
-from django.test.utils import override_settings
 from django.urls import reverse
 from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from cost_models.models import MonthlyExchangeRate
-from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
 
 

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for the StaticExchangeRate serializer."""
-from datetime import date
 from decimal import Decimal
 from unittest.mock import MagicMock
 from unittest.mock import patch

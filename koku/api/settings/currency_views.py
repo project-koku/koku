@@ -69,16 +69,10 @@ class AvailableCurrencyView(APIView):
 
     @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
-        enabled_codes = set(
-            EnabledCurrency.objects.filter(enabled=True).values_list("currency_code", flat=True)
-        )
+        enabled_codes = set(EnabledCurrency.objects.filter(enabled=True).values_list("currency_code", flat=True))
 
-        static_bases = set(
-            StaticExchangeRate.objects.values_list("base_currency", flat=True)
-        )
-        static_targets = set(
-            StaticExchangeRate.objects.values_list("target_currency", flat=True)
-        )
+        static_bases = set(StaticExchangeRate.objects.values_list("base_currency", flat=True))
+        static_targets = set(StaticExchangeRate.objects.values_list("target_currency", flat=True))
         static_currencies = static_bases | static_targets
 
         data = []

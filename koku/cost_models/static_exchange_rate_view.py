@@ -11,7 +11,6 @@ from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.response import Response
 
-from api.common import log_json
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from cost_models.models import StaticExchangeRate
 from cost_models.static_exchange_rate_serializer import StaticExchangeRateSerializer

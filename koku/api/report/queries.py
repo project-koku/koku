@@ -25,7 +25,6 @@ import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
-from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
@@ -1128,9 +1127,7 @@ class ReportQueryHandler(QueryHandler):
         null_rate_filter = Q(exchange_rate__isnull=True)
         if queryset.filter(null_rate_filter).exists():
             missing_currencies = list(
-                queryset.filter(null_rate_filter)
-                .values_list(self._mapper.cost_units_key, flat=True)
-                .distinct()
+                queryset.filter(null_rate_filter).values_list(self._mapper.cost_units_key, flat=True).distinct()
             )
             raise ValidationError(
                 {

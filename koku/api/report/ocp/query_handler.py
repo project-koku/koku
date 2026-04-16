@@ -11,11 +11,9 @@ from decimal import DivisionByZero
 from decimal import InvalidOperation
 from functools import cached_property
 
-from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import F
 from django.db.models import Value
-from django.db.models import When
 from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
