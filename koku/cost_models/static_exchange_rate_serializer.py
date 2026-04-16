@@ -10,6 +10,7 @@ from dateutil.relativedelta import relativedelta
 from django.db import transaction
 from rest_framework import serializers
 
+from api.common import log_json
 from api.currency.currencies import VALID_CURRENCIES
 from api.currency.models import ExchangeRateDictionary
 from cost_models.models import MonthlyExchangeRate

@@ -20,7 +20,6 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def setUp(self):
         super().setUp()
         self.client = APIClient()
-        self.client.force_authenticate(user=self.request_context["request"].user)
         self.list_url = reverse("exchange-rate-pairs-list")
         self.valid_data = {
             "base_currency": "USD",
@@ -34,7 +33,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def test_create_static_rate(self, mock_invalidate):
         """Test creating a static exchange rate via API."""
         with tenant_context(self.tenant):
-            response = self.client.post(self.list_url, data=self.valid_data, format="json")
+            response = self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             data = response.data
             self.assertEqual(data["base_currency"], "USD")
@@ -46,8 +45,8 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def test_list_static_rates(self, mock_invalidate):
         """Test listing static exchange rates."""
         with tenant_context(self.tenant):
-            self.client.post(self.list_url, data=self.valid_data, format="json")
-            response = self.client.get(self.list_url)
+            self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
+            response = self.client.get(self.list_url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertGreaterEqual(len(response.data["data"]), 1)
 
@@ -55,10 +54,10 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def test_retrieve_static_rate(self, mock_invalidate):
         """Test retrieving a single static exchange rate."""
         with tenant_context(self.tenant):
-            create_response = self.client.post(self.list_url, data=self.valid_data, format="json")
+            create_response = self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
             uuid = create_response.data["uuid"]
             detail_url = reverse("exchange-rate-pairs-detail", kwargs={"uuid": uuid})
-            response = self.client.get(detail_url)
+            response = self.client.get(detail_url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.data["uuid"], uuid)
 
@@ -66,13 +65,13 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def test_update_static_rate(self, mock_invalidate):
         """Test updating a static exchange rate via PUT."""
         with tenant_context(self.tenant):
-            create_response = self.client.post(self.list_url, data=self.valid_data, format="json")
+            create_response = self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
             uuid = create_response.data["uuid"]
             detail_url = reverse("exchange-rate-pairs-detail", kwargs={"uuid": uuid})
 
             update_data = self.valid_data.copy()
             update_data["exchange_rate"] = "0.900000000000000"
-            response = self.client.put(detail_url, data=update_data, format="json")
+            response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.data["version"], 2)
 
@@ -80,10 +79,10 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def test_delete_static_rate(self, mock_invalidate):
         """Test deleting a static exchange rate."""
         with tenant_context(self.tenant):
-            create_response = self.client.post(self.list_url, data=self.valid_data, format="json")
+            create_response = self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
             uuid = create_response.data["uuid"]
             detail_url = reverse("exchange-rate-pairs-detail", kwargs={"uuid": uuid})
-            response = self.client.delete(detail_url)
+            response = self.client.delete(detail_url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
             self.assertFalse(StaticExchangeRate.objects.filter(uuid=uuid).exists())
 
@@ -92,7 +91,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
         with tenant_context(self.tenant):
             data = self.valid_data.copy()
             data["base_currency"] = "FAKE"
-            response = self.client.post(self.list_url, data=data, format="json")
+            response = self.client.post(self.list_url, data=data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_mid_month_start_date(self):
@@ -100,11 +99,11 @@ class StaticExchangeRateViewSetTest(IamTestCase):
         with tenant_context(self.tenant):
             data = self.valid_data.copy()
             data["start_date"] = "2026-01-15"
-            response = self.client.post(self.list_url, data=data, format="json")
+            response = self.client.post(self.list_url, data=data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_filter_by_base_currency(self):
         """Test filtering by base_currency query parameter."""
         with tenant_context(self.tenant):
-            response = self.client.get(self.list_url, {"base_currency": "USD"})
+            response = self.client.get(self.list_url, {"base_currency": "USD"}, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)

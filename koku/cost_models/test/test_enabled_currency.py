@@ -19,13 +19,12 @@ class EnabledCurrencyViewTest(IamTestCase):
     def setUp(self):
         super().setUp()
         self.client = APIClient()
-        self.client.force_authenticate(user=self.request_context["request"].user)
         self.url = reverse("enabled-currencies")
 
     def test_get_enabled_currencies_empty(self):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
-            response = self.client.get(self.url)
+            response = self.client.get(self.url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_get_enabled_currencies(self):
@@ -33,7 +32,7 @@ class EnabledCurrencyViewTest(IamTestCase):
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD", enabled=True)
             EnabledCurrency.objects.create(currency_code="EUR", enabled=False)
-            response = self.client.get(self.url)
+            response = self.client.get(self.url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_put_enable_currencies(self):
@@ -41,7 +40,7 @@ class EnabledCurrencyViewTest(IamTestCase):
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="GBP", enabled=False)
             data = {"currencies": [{"currency_code": "GBP", "enabled": True}]}
-            response = self.client.put(self.url, data=data, format="json")
+            response = self.client.put(self.url, data=data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
             self.assertTrue(EnabledCurrency.objects.get(currency_code="GBP").enabled)
 
@@ -49,7 +48,7 @@ class EnabledCurrencyViewTest(IamTestCase):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
             data = {"currencies": [{"currency_code": "JPY", "enabled": True}]}
-            response = self.client.put(self.url, data=data, format="json")
+            response = self.client.put(self.url, data=data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="JPY", enabled=True).exists())
 
@@ -60,7 +59,6 @@ class AvailableCurrencyViewTest(IamTestCase):
     def setUp(self):
         super().setUp()
         self.client = APIClient()
-        self.client.force_authenticate(user=self.request_context["request"].user)
         self.url = reverse("available-currencies")
 
     def test_get_available_currencies_dynamic_only(self):
@@ -70,7 +68,7 @@ class AvailableCurrencyViewTest(IamTestCase):
             EnabledCurrency.objects.create(currency_code="USD", enabled=True)
             EnabledCurrency.objects.create(currency_code="EUR", enabled=True)
             EnabledCurrency.objects.create(currency_code="GBP", enabled=False)
-            response = self.client.get(self.url)
+            response = self.client.get(self.url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             codes = [c["currency_code"] for c in response.data["data"]]
             self.assertIn("USD", codes)
@@ -88,7 +86,7 @@ class AvailableCurrencyViewTest(IamTestCase):
                 start_date="2026-01-01",
                 end_date="2026-01-31",
             )
-            response = self.client.get(self.url)
+            response = self.client.get(self.url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             codes = [c["currency_code"] for c in response.data["data"]]
             self.assertIn("EUR", codes)
@@ -98,6 +96,6 @@ class AvailableCurrencyViewTest(IamTestCase):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
             StaticExchangeRate.objects.all().delete()
-            response = self.client.get(self.url)
+            response = self.client.get(self.url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(len(response.data["data"]), 0)
