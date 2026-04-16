@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Shared exchange rate annotation builders for query handlers and forecasts."""
+from django.db.models import DateField
 from django.db.models import DecimalField
 from django.db.models import OuterRef
 from django.db.models import Subquery
@@ -26,8 +27,9 @@ def build_monthly_rate_annotation(cost_units_key, target_currency):
     Returns:
         A Coalesce expression suitable for use in an .annotate() call.
     """
+    usage_start_ref = OuterRef("usage_start", output_field=DateField())
     rate_subquery = MonthlyExchangeRate.objects.filter(
-        effective_date=TruncMonth(OuterRef("usage_start")),
+        effective_date=TruncMonth(usage_start_ref),
         base_currency=OuterRef(cost_units_key),
         target_currency=target_currency,
     ).values("exchange_rate")[:1]
@@ -68,8 +70,9 @@ def build_ocp_exchange_rate_annotation_dict(cost_units_key, target_currency):
         cost_model_map__provider_uuid=OuterRef(OuterRef("source_uuid")),
     ).values("currency")[:1]
 
+    usage_start_ref = OuterRef("usage_start", output_field=DateField())
     exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
-        effective_date=TruncMonth(OuterRef("usage_start")),
+        effective_date=TruncMonth(usage_start_ref),
         base_currency=Subquery(cost_model_currency),
         target_currency=target_currency,
     ).values("exchange_rate")[:1]
