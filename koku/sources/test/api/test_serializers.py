@@ -317,3 +317,30 @@ class AdminSourcesSerializerValidateTest(IamTestCase):
         self.assertTrue(serializer.is_valid(raise_exception=True))
         cluster_id = serializer.validated_data["authentication"]["credentials"]["cluster_id"]
         self.assertEqual(cluster_id, "my-cluster-uuid")
+
+    def test_validate_source_ref_on_update_uses_instance_source_type(self):
+        """source_ref in PATCH without source_type still maps when instance is OCP."""
+        customer = self._create_customer_data()
+        ocp = Sources(
+            source_id=9301,
+            auth_header={},
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=9301,
+            source_type=Provider.PROVIDER_OCP,
+            name="ocp-patch-ref",
+            authentication={"credentials": {"cluster_id": "old-id"}},
+        )
+        ocp.save()
+        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
+        serializer = AdminSourcesSerializer(
+            instance=ocp,
+            data={"source_ref": "new-cluster-id"},
+            partial=True,
+            context={"request": mock_request},
+        )
+        self.assertTrue(serializer.is_valid(raise_exception=True))
+        self.assertEqual(
+            serializer.validated_data["authentication"]["credentials"]["cluster_id"],
+            "new-cluster-id",
+        )

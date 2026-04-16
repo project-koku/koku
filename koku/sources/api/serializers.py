@@ -60,6 +60,7 @@ class SourcesSerializer(serializers.ModelSerializer):
     uuid = serializers.SerializerMethodField("get_source_uuid", read_only=True)
     source_type_id = serializers.SerializerMethodField("get_source_type_id", read_only=True)
     source_ref = serializers.SerializerMethodField("get_source_ref", read_only=True)
+    paused = serializers.BooleanField(read_only=True)
 
     class Meta:
         """Metadata for the serializer."""
@@ -74,6 +75,7 @@ class SourcesSerializer(serializers.ModelSerializer):
             "source_ref",
             "authentication",
             "billing_source",
+            "paused",
         )
 
     def get_source_id(self, obj):
@@ -102,6 +104,7 @@ class AdminSourcesSerializer(SourcesSerializer):
     source_type = serializers.CharField(max_length=50, required=False, allow_null=False, allow_blank=False)
     source_type_id = serializers.CharField(max_length=10, required=False, write_only=True)
     source_ref = serializers.CharField(max_length=256, required=False, write_only=True)
+    paused = serializers.BooleanField(required=False)
 
     class Meta(SourcesSerializer.Meta):
         """Metadata for the serializer."""
@@ -149,26 +152,36 @@ class AdminSourcesSerializer(SourcesSerializer):
             else:
                 raise serializers.ValidationError({"source_type_id": f"Invalid source_type_id: {source_type_id}"})
 
-        # Require either source_type or source_type_id
-        if "source_type" not in data:
-            raise serializers.ValidationError({"source_type": "Either source_type or source_type_id is required"})
+        if not self.instance:
+            if "source_type" not in data:
+                raise serializers.ValidationError({"source_type": "Either source_type or source_type_id is required"})
+            data["source_id"] = self._validate_source_id(data.get("id"))
+            data["offset"] = self._validate_offset(data.get("offset"))
+            data["source_uuid"] = uuid4()
+            data["account_id"] = self._validate_account_id(data.get("account_id"))
+            data["org_id"] = self._validate_org_id(data.get("org_id"))
 
         # Handle source_ref -> authentication.credentials.cluster_id for OCP sources
         if "source_ref" in data:
             source_ref = data.pop("source_ref")
-            if data.get("source_type") == Provider.PROVIDER_OCP:
+            source_type = data.get("source_type") or (self.instance.source_type if self.instance else None)
+            if source_type == Provider.PROVIDER_OCP:
                 if "authentication" not in data:
                     data["authentication"] = {}
                 if "credentials" not in data["authentication"]:
                     data["authentication"]["credentials"] = {}
                 data["authentication"]["credentials"]["cluster_id"] = source_ref
-
-        data["source_id"] = self._validate_source_id(data.get("id"))
-        data["offset"] = self._validate_offset(data.get("offset"))
-        data["account_id"] = self._validate_account_id(data.get("account_id"))
-        data["org_id"] = self._validate_org_id(data.get("org_id"))
-        data["source_uuid"] = uuid4()
         return data
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        """Update source and sync all changes to the linked Provider."""
+        instance = super().update(instance, validated_data)
+        if instance.koku_uuid and instance.provider_id:
+            auth_header = get_auth_header(self.context.get("request"))
+            manager = ProviderBuilder(auth_header, instance.account_id, instance.org_id)
+            manager.update_provider_from_source(instance)
+        return instance
 
     @transaction.atomic
     def create(self, validated_data):
