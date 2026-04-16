@@ -115,7 +115,7 @@ class OCPGpuViewTest(IamTestCase):
     def test_gpu_endpoint_order_by_without_group_by(self):
         """Test that ordering by new fields works without group_by (allowlist)."""
         # These fields are in order_by_allowlist, so should work without group_by
-        for field in ["gpu_memory", "gpu_count"]:
+        for field in ["gpu_memory", "gpu_count", "gpu_mode"]:
             url = reverse("reports-openshift-gpu")
             query_params = {f"order_by[{field}]": "desc"}
             url = url + "?" + urlencode(query_params, doseq=True)

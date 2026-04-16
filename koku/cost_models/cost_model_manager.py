@@ -18,6 +18,10 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
+from cost_models.rate_sync import derive_metric_type  # noqa: F401 — re-exported for back-compat
+from cost_models.rate_sync import extract_default_rate  # noqa: F401
+from cost_models.rate_sync import generate_custom_name  # noqa: F401
+from cost_models.rate_sync import sync_rate_table
 from masu.processor.tasks import update_cost_model_costs
 
 LOG = logging.getLogger(__name__)
@@ -56,7 +60,14 @@ class CostModelManager:
         self.update_provider_uuids(provider_uuids)
 
         if self._model.rates:
-            self._get_or_create_price_list()
+            pl = self._get_or_create_price_list()
+            rates_data = copy.deepcopy(data.get("rates", []))
+            try:
+                enriched = sync_rate_table(pl, rates_data)
+            except ValueError as exc:
+                raise CostModelException(str(exc))
+            self._model.rates = enriched
+            self._model.save(update_fields=["rates"])
 
         return self._model
 
@@ -127,8 +138,13 @@ class CostModelManager:
         if "rates" in data:
             pl = self._get_or_create_price_list()
             if pl:
-                pl.rates = self._model.rates
-                pl.save(update_fields=["rates", "updated_timestamp"])
+                rates_data = copy.deepcopy(data.get("rates", []))
+                try:
+                    enriched = sync_rate_table(pl, rates_data)
+                except ValueError as exc:
+                    raise CostModelException(str(exc))
+                self._model.rates = enriched
+                self._model.save(update_fields=["rates"])
 
     def _get_or_create_price_list(self):
         """Get or create a PriceList linked to this CostModel. Returns the PriceList."""
@@ -164,7 +180,11 @@ class CostModelManager:
         provider_uuids = [provider.provider_uuid for provider in providers_query]
         providers_qs_list = Provider.objects.filter(uuid__in=provider_uuids)
         provider_names_uuids = [
-            {"uuid": str(provider.uuid), "name": provider.name, "last_processed": provider.data_updated_timestamp}
+            {
+                "uuid": str(provider.uuid),
+                "name": provider.name,
+                "last_processed": provider.data_updated_timestamp,
+            }
             for provider in providers_qs_list
         ]
         return provider_names_uuids

@@ -65,7 +65,11 @@ class CostModelViewTests(IamTestCase):
             "source_type": self.ocp_source_type,
             "source_uuids": [self.provider.uuid],
             "rates": [
-                {"metric": {"name": self.ocp_metric}, "cost_type": "Infrastructure", "tiered_rates": tiered_rates}
+                {
+                    "metric": {"name": self.ocp_metric},
+                    "cost_type": "Infrastructure",
+                    "tiered_rates": tiered_rates,
+                }
             ],
             "currency": "USD",
         }
@@ -110,7 +114,10 @@ class CostModelViewTests(IamTestCase):
         self.assertIsNotNone(response.data.get("uuid"))
         self.assertIsNotNone(response.data.get("sources"))
         for rate in response.data.get("rates", []):
-            self.assertEqual(self.fake_data["rates"][0]["metric"]["name"], rate.get("metric", {}).get("name"))
+            self.assertEqual(
+                self.fake_data["rates"][0]["metric"]["name"],
+                rate.get("metric", {}).get("name"),
+            )
             self.assertIsNotNone(rate.get("tiered_rates"))
 
     def test_create_new_cost_model_map_association_for_provider(self):
@@ -352,7 +359,8 @@ class CostModelViewTests(IamTestCase):
 
         self.assertIsNotNone(cost_model)
         self.assertEqual(
-            self.fake_data["rates"][0]["metric"]["name"], cost_model.get("rates", [])[0].get("metric", {}).get("name")
+            self.fake_data["rates"][0]["metric"]["name"],
+            cost_model.get("rates", [])[0].get("metric", {}).get("name"),
         )
         self.assertEqual(
             self.fake_data["rates"][0]["tiered_rates"][0].get("value"),
@@ -375,7 +383,8 @@ class CostModelViewTests(IamTestCase):
         self.assertIsNotNone(cost_model.get("uuid"))
         self.assertIsNotNone(cost_model.get("sources"))
         self.assertEqual(
-            self.fake_data["rates"][0]["metric"]["name"], cost_model.get("rates", [])[0].get("metric", {}).get("name")
+            self.fake_data["rates"][0]["metric"]["name"],
+            cost_model.get("rates", [])[0].get("metric", {}).get("name"),
         )
         self.assertEqual(
             self.fake_data["rates"][0]["tiered_rates"][0].get("value"),
@@ -410,8 +419,14 @@ class CostModelViewTests(IamTestCase):
         self.initialize_request(context={"request_context": request_context, "user_data": user_data})
 
         test_matrix = [
-            {"access": {"cost_model": {"read": [], "write": []}}, "expected_response": status.HTTP_403_FORBIDDEN},
-            {"access": {"cost_model": {"read": ["*"], "write": []}}, "expected_response": status.HTTP_200_OK},
+            {
+                "access": {"cost_model": {"read": [], "write": []}},
+                "expected_response": status.HTTP_403_FORBIDDEN,
+            },
+            {
+                "access": {"cost_model": {"read": ["*"], "write": []}},
+                "expected_response": status.HTTP_200_OK,
+            },
             {
                 "access": {"cost_model": {"read": ["not-a-uuid"], "write": []}},
                 "expected_response": status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -451,8 +466,14 @@ class CostModelViewTests(IamTestCase):
         self.initialize_request(context={"request_context": request_context, "user_data": user_data})
 
         test_matrix = [
-            {"access": {"cost_model": {"read": [], "write": []}}, "expected_response": status.HTTP_403_FORBIDDEN},
-            {"access": {"cost_model": {"read": ["*"], "write": []}}, "expected_response": status.HTTP_200_OK},
+            {
+                "access": {"cost_model": {"read": [], "write": []}},
+                "expected_response": status.HTTP_403_FORBIDDEN,
+            },
+            {
+                "access": {"cost_model": {"read": ["*"], "write": []}},
+                "expected_response": status.HTTP_200_OK,
+            },
             {
                 "access": {"cost_model": {"read": [str(cost_model_uuid)], "write": []}},
                 "expected_response": status.HTTP_200_OK,
@@ -531,7 +552,10 @@ class CostModelViewTests(IamTestCase):
 
         # PUT tests
         test_matrix = [
-            {"access": {"cost_model": {"read": [], "write": []}}, "expected_response": status.HTTP_403_FORBIDDEN},
+            {
+                "access": {"cost_model": {"read": [], "write": []}},
+                "expected_response": status.HTTP_403_FORBIDDEN,
+            },
             {
                 "access": {"cost_model": {"read": ["*"], "write": [str(other_cost_models[0])]}},
                 "expected_response": status.HTTP_403_FORBIDDEN,
@@ -588,7 +612,10 @@ class CostModelViewTests(IamTestCase):
         client = APIClient()
         for test_case in test_matrix:
             with patch.object(RbacService, "get_access_for_user", return_value=test_case.get("access")):
-                url = reverse("cost-models-detail", kwargs={"uuid": test_case.get("cost_model_uuid")})
+                url = reverse(
+                    "cost-models-detail",
+                    kwargs={"uuid": test_case.get("cost_model_uuid")},
+                )
                 caches[CacheEnum.rbac].clear()
                 with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                     response = client.delete(url, **request_context["request"].META)
@@ -619,8 +646,9 @@ class CostModelViewTests(IamTestCase):
         cost_model_uuid = response.data.get("uuid")
 
         with tenant_context(self.tenant):
-            audit = CostModelAudit.objects.last()
-            self.assertEqual(audit.operation, "INSERT")
+            insert_audit = CostModelAudit.objects.filter(operation="INSERT").last()
+            self.assertIsNotNone(insert_audit)
+            insert_count = CostModelAudit.objects.filter(operation="INSERT").count()
 
         fake_data["source_uuids"] = [self.provider.uuid]
         url = reverse("cost-models-detail", kwargs={"uuid": cost_model_uuid})
@@ -628,8 +656,7 @@ class CostModelViewTests(IamTestCase):
             response = client.put(url, data=fake_data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         with tenant_context(self.tenant):
-            audit = CostModelAudit.objects.last()
-            self.assertEqual(audit.operation, "INSERT")
+            self.assertEqual(CostModelAudit.objects.filter(operation="INSERT").count(), insert_count)
 
         with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.delete(url, format="json", **self.headers)
@@ -660,6 +687,9 @@ class CostModelViewTests(IamTestCase):
         url = reverse("cost-models-list")
         client = APIClient()
         MOCK_COST_MODEL_METRIC_MAP = {"Invalid": {"Invalid": "Invalid"}}
-        with patch("api.metrics.constants.get_cost_model_metrics_map", return_value=MOCK_COST_MODEL_METRIC_MAP):
+        with patch(
+            "api.metrics.constants.get_cost_model_metrics_map",
+            return_value=MOCK_COST_MODEL_METRIC_MAP,
+        ):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
