@@ -1097,6 +1097,7 @@ class OCPProviderMap(ProviderMap):
                         "aggregate_ranks_exclusions": [
                             "gpu_model",
                             "gpu_vendor",
+                            "gpu_mode",
                             "node",
                         ],  # _aggregate_ranks_over_limit
                         "delta_key": {},
