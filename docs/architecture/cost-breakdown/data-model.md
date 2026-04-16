@@ -101,15 +101,17 @@ class Rate(models.Model):
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
-    price_list = models.ForeignKey("PriceList", on_delete=models.CASCADE, related_name="rates")
+    price_list = models.ForeignKey("PriceList", on_delete=models.CASCADE, related_name="rate_rows")
     custom_name = models.CharField(max_length=50)          # NOT NULL, user-visible label
     description = models.TextField(blank=True, default="")
     metric = models.CharField(max_length=100)              # e.g. "cpu_core_usage_per_hour"
     metric_type = models.CharField(max_length=20)          # cpu, memory, storage, gpu
     cost_type = models.CharField(max_length=20)            # Infrastructure, Supplementary
-    default_rate = models.DecimalField(max_digits=33, decimal_places=15)
+    default_rate = models.DecimalField(max_digits=33, decimal_places=15, null=True)  # null for tag-only rates
     tag_key = models.CharField(max_length=253, blank=True, default="")
-    tag_values = JSONField(default=dict)                   # [{tag_value, value, unit, ...}]
+    tag_values = JSONField(default=list)                   # [{tag_value, value, unit, ...}]
+    created_timestamp = models.DateTimeField(auto_now_add=True)
+    updated_timestamp = models.DateTimeField(auto_now=True)
 ```
 
 **Constraints**:
@@ -448,9 +450,11 @@ CREATE TABLE cost_model_rate (
     metric        VARCHAR(100) NOT NULL,
     metric_type   VARCHAR(20) NOT NULL,
     cost_type     VARCHAR(20) NOT NULL,
-    default_rate  NUMERIC(33, 15) NOT NULL,
+    default_rate  NUMERIC(33, 15),              -- nullable for tag-only rates
     tag_key       VARCHAR(253) NOT NULL DEFAULT '',
-    tag_values    JSONB NOT NULL DEFAULT '{}'::jsonb,
+    tag_values    JSONB NOT NULL DEFAULT '[]'::jsonb,  -- list, not dict
+    created_timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     UNIQUE (price_list_id, custom_name)
 );
@@ -833,3 +837,4 @@ This is handled by M3 above.
 | v2.4 | 2026-03-17 | R13 mitigation: add `label_hash` column to RatesToUsage model and M4 DDL. Add `ratestousage_label_hash_idx` index. Add full decision rationale with 5 options evaluated, collision risk analysis, and computation details. |
 | v3.0 | 2026-03-19 | **IQ-9 Option 1 adopted.** Add `distributed_cost` column to `RatesToUsage` model and M4 DDL. Drop `cost_type` from `OCPCostUIBreakDownP` and M5 DDL. Rename `CostModelRatesToUsage` → `RatesToUsage` / `cost_model_rates_to_usage` → `rates_to_usage`. Update tree structure for per-rate distribution. |
 | v3.1 | 2026-03-19 | **Risk extraction.** Move R13 decision rationale table to [risk-register.md](./risk-register.md). Retain problem statement and computation details inline. |
+| v3.2 | 2026-04-06 | **Spec-vs-impl alignment.** Fix Rate model pseudocode: `tag_values` default `list` (not `dict`), `default_rate` nullable, add `created_timestamp`/`updated_timestamp`, `related_name="rate_rows"`. Fix M2 DDL to match. |

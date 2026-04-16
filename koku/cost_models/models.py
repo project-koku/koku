@@ -17,6 +17,10 @@ VALID_RATE_TYPES = ("static", "dynamic")
 
 DISTRIBUTION_CHOICES = (("memory", "memory"), ("cpu", "cpu"))
 DEFAULT_DISTRIBUTION = "cpu"
+COST_TYPE_CHOICES = (
+    ("Infrastructure", "Infrastructure"),
+    ("Supplementary", "Supplementary"),
+)
 
 
 class CostModel(models.Model):
@@ -116,7 +120,10 @@ class PriceList(models.Model):
         ordering = ["name"]
         indexes = [
             models.Index(fields=["name"], name="price_list_name_idx"),
-            models.Index(fields=["effective_start_date", "effective_end_date"], name="price_list_validity_idx"),
+            models.Index(
+                fields=["effective_start_date", "effective_end_date"],
+                name="price_list_validity_idx",
+            ),
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
@@ -136,6 +143,43 @@ class PriceList(models.Model):
     version = models.PositiveIntegerField(default=1)
 
     rates = JSONField()
+
+    created_timestamp = models.DateTimeField(auto_now_add=True)
+
+    updated_timestamp = models.DateTimeField(auto_now=True)
+
+
+class Rate(models.Model):
+    """A normalized rate row linked to a PriceList."""
+
+    class Meta:
+        db_table = "cost_model_rate"
+        unique_together = ("price_list", "custom_name")
+        indexes = [
+            models.Index(fields=["price_list"], name="rate_price_list_idx"),
+            models.Index(fields=["custom_name"], name="rate_custom_name_idx"),
+            models.Index(fields=["metric"], name="rate_metric_idx"),
+        ]
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
+    price_list = models.ForeignKey("PriceList", on_delete=models.CASCADE, related_name="rate_rows")
+
+    custom_name = models.CharField(max_length=50)
+
+    description = models.TextField(blank=True, default="")
+
+    metric = models.CharField(max_length=100)
+
+    metric_type = models.CharField(max_length=20)
+
+    cost_type = models.CharField(max_length=20, choices=COST_TYPE_CHOICES)
+
+    default_rate = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    tag_key = models.CharField(max_length=253, blank=True, default="")
+
+    tag_values = JSONField(default=list)
 
     created_timestamp = models.DateTimeField(auto_now_add=True)
 

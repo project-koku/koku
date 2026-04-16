@@ -79,25 +79,30 @@ class CostModelManager:
         # New: sync to relational tables
         self._sync_rate_table(self.instance, kwargs.get("rates", []))
 
-    def _sync_rate_table(self, cost_model, rates_data):
-        """Sync Rate table rows from validated rates data."""
-        price_list, _ = PriceList.objects.get_or_create(
-            cost_model=cost_model, defaults={"primary": True}
-        )
-        price_list.rates.all().delete()
+    def _sync_rate_table(self, price_list, rates_data):
+        """Sync Rate table rows using diff-based sync.
+
+        Matching: rate_id (UUID) first, then custom_name fallback.
+        Operations: delete stale -> update matched -> create new.
+        Raises CostModelException for invalid/unowned rate_id.
+        Note: tag_values defaults to list (not dict) to match JSON shape.
+        """
+        existing_by_uuid = {r.uuid: r for r in Rate.objects.filter(price_list=price_list)}
+        existing_by_name = {r.custom_name: r for r in existing_by_uuid.values()}
+        # ... classify incoming rates into to_update / to_create ...
+
+        # Phase 1: DELETE stale rows
+        Rate.objects.filter(price_list=price_list, uuid__in=to_delete_uuids).delete()
+
+        # Phase 2: UPDATE matched rows (via _apply_rate_fields)
+        for rate_obj, rate_data in to_update:
+            self._apply_rate_fields(rate_obj, rate_data)
+            rate_obj.save()
+
+        # Phase 3: CREATE new rows
         Rate.objects.bulk_create([
-            Rate(
-                price_list=price_list,
-                custom_name=rate_data["custom_name"],
-                description=rate_data.get("description", ""),
-                metric=rate_data["metric"]["name"],
-                metric_type=derive_metric_type(rate_data["metric"]["name"]),  # see data-model.md for mapping
-                cost_type=rate_data["cost_type"],
-                default_rate=extract_default_rate(rate_data),
-                tag_key=rate_data.get("tag_rates", {}).get("tag_key", ""),
-                tag_values=rate_data.get("tag_rates", {}).get("tag_values", {}),
-            )
-            for rate_data in rates_data
+            Rate(price_list=price_list, **self._rate_fields_from_data(rd))
+            for rd in to_create_data
         ])
 ```
 
@@ -416,3 +421,4 @@ CSV columns per PRD: `Project, Level 1 (Category), Level 2 (Sub-Category), Metri
 | v2.2 | 2026-03-17 | IQ-3 resolved: split single serializer into CostBreakdownFlatItemSerializer + CostBreakdownTreeNodeSerializer. Add ?view=tree query param. Update flat and tree JSON response examples. |
 | v2.3 | 2026-03-17 | Blast-radius triage: fix RateSerializer `custom_name` from `required=True` to `required=False` (align with IQ-7 resolution). Update validation rules. |
 | v3.0 | 2026-03-19 | **IQ-8 RESOLVED.** Drop `cost_type` from provider map, serializers, and JSON examples (PM + tech lead confirmed not needed). |
+| v3.1 | 2026-04-06 | **Spec-vs-impl alignment.** Update `_sync_rate_table` pseudocode: rate_id matching first (then custom_name fallback), delete→update→create ordering, `tag_values` defaults to list. |

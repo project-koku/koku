@@ -43,7 +43,12 @@ class PriceListManagerCreateTest(MasuTestCase):
             self.assertEqual(pl.name, "Test PL")
             self.assertEqual(pl.version, 1)
             self.assertEqual(manager.instance, pl)
-            self.assertEqual(pl.rates, rates)
+            self.assertEqual(len(pl.rates), 1)
+            self.assertEqual(pl.rates[0]["metric"], rates[0]["metric"])
+            self.assertEqual(pl.rates[0]["tiered_rates"], rates[0]["tiered_rates"])
+            self.assertEqual(pl.rates[0]["cost_type"], rates[0]["cost_type"])
+            self.assertIn("rate_id", pl.rates[0])
+            self.assertIn("custom_name", pl.rates[0])
 
     def test_create_price_list_missing_required_fields(self):
         """Test that creating a price list without required fields raises."""
@@ -114,7 +119,11 @@ class PriceListManagerUpdateTest(MasuTestCase):
             ]
             manager.update(rates=rates_v2)
             self.assertEqual(manager.instance.version, 2)
-            self.assertEqual(manager.instance.rates, rates_v2)
+            self.assertEqual(len(manager.instance.rates), 1)
+            self.assertEqual(manager.instance.rates[0]["metric"], rates_v2[0]["metric"])
+            self.assertEqual(manager.instance.rates[0]["tiered_rates"], rates_v2[0]["tiered_rates"])
+            self.assertIn("rate_id", manager.instance.rates[0])
+            self.assertIn("custom_name", manager.instance.rates[0])
 
     def test_update_same_rates_does_not_increment_version(self):
         """Test that updating with identical rates does not increment version."""
