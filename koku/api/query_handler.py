@@ -11,20 +11,16 @@ from dateutil import parser
 from dateutil import relativedelta
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import Case
-from django.db.models import DecimalField
-from django.db.models import Value
-from django.db.models import When
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
 
-from api.currency.models import ExchangeRateDictionary
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.report.constants import RESOLUTION_DAILY
 from api.report.constants import TIME_SCOPE_UNITS_DAILY
 from api.report.constants import TIME_SCOPE_VALUES_DAILY
 from api.utils import DateHelper
+from cost_models.exchange_rate_annotations import build_exchange_rate_annotation_dict
 
 LOG = logging.getLogger(__name__)
 WILDCARD = "*"
@@ -121,21 +117,9 @@ class QueryHandler:
         return any(WILDCARD == item for item in in_list)
 
     @cached_property
-    def exchange_rates(self):
-        try:
-            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
-        except AttributeError as err:
-            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
-            return {}
-
-    @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+        """Get per-month exchange rate annotation from MonthlyExchangeRate via Subquery."""
+        return build_exchange_rate_annotation_dict(self._mapper.cost_units_key, self.currency)
 
     @property
     def order(self):

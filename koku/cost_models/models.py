@@ -13,6 +13,8 @@ from django.db.models import JSONField
 from api.provider.models import Provider
 from koku.settings import KOKU_DEFAULT_CURRENCY
 
+VALID_RATE_TYPES = ("static", "dynamic")
+
 DISTRIBUTION_CHOICES = (("memory", "memory"), ("cpu", "cpu"))
 DEFAULT_DISTRIBUTION = "cpu"
 COST_TYPE_CHOICES = (
@@ -197,3 +199,63 @@ class PriceListCostModelMap(models.Model):
     cost_model = models.ForeignKey("CostModel", on_delete=models.CASCADE, related_name="price_list_maps")
 
     priority = models.PositiveIntegerField()
+
+
+class RateType(models.TextChoices):
+    STATIC = "static", "Static"
+    DYNAMIC = "dynamic", "Dynamic"
+
+
+class StaticExchangeRate(models.Model):
+    """User-defined exchange rates with validity periods."""
+
+    class Meta:
+        db_table = "static_exchange_rate"
+        ordering = ["-updated_timestamp"]
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    base_currency = models.CharField(max_length=5)
+    target_currency = models.CharField(max_length=5)
+    exchange_rate = models.DecimalField(max_digits=33, decimal_places=15)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    version = models.IntegerField(default=1)
+    created_timestamp = models.DateTimeField(auto_now_add=True)
+    updated_timestamp = models.DateTimeField(auto_now=True)
+
+    @property
+    def name(self):
+        return f"{self.base_currency}-{self.target_currency}"
+
+
+class EnabledCurrency(models.Model):
+    """Tracks which currencies are visible in the target currency dropdown."""
+
+    class Meta:
+        db_table = "enabled_currency"
+        ordering = ["currency_code"]
+
+    currency_code = models.CharField(max_length=5, unique=True)
+    enabled = models.BooleanField(default=False)
+    created_timestamp = models.DateTimeField(auto_now_add=True)
+    updated_timestamp = models.DateTimeField(auto_now=True)
+
+
+class MonthlyExchangeRate(models.Model):
+    """Single source of truth for exchange rates used in reports.
+
+    Stores both static and dynamic rates as per-pair rows, one row per month.
+    The query handler reads from this table for all months.
+    """
+
+    class Meta:
+        db_table = "monthly_exchange_rate"
+        unique_together = ("effective_date", "base_currency", "target_currency")
+
+    effective_date = models.DateField()
+    base_currency = models.CharField(max_length=5)
+    target_currency = models.CharField(max_length=5)
+    exchange_rate = models.DecimalField(max_digits=33, decimal_places=15)
+    rate_type = models.CharField(max_length=10, choices=RateType.choices)
+    created_timestamp = models.DateTimeField(auto_now_add=True)
+    updated_timestamp = models.DateTimeField(auto_now=True)
