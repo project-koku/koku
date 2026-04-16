@@ -7,23 +7,10 @@ from django.db.models import DecimalField
 from django.db.models import OuterRef
 from django.db.models import Subquery
 from django.db.models.functions import Coalesce
-from django.db.models.functions import ExtractMonth
-from django.db.models.functions import ExtractYear
+from django.db.models.functions import TruncMonth
 
 from cost_models.models import CostModel
 from cost_models.models import MonthlyExchangeRate
-
-
-def _month_filter(outer_date_field="usage_start"):
-    """Return filter kwargs matching effective_date to the outer query's month.
-
-    Uses ExtractYear/ExtractMonth instead of TruncMonth because Django's
-    TruncMonth cannot resolve output_field from an OuterRef.
-    """
-    return {
-        "effective_date__year": ExtractYear(OuterRef(outer_date_field)),
-        "effective_date__month": ExtractMonth(OuterRef(outer_date_field)),
-    }
 
 
 def build_monthly_rate_annotation(cost_units_key, target_currency):
@@ -31,9 +18,16 @@ def build_monthly_rate_annotation(cost_units_key, target_currency):
 
     Tries the rate matching the row's usage_start month first, then falls back
     to the earliest available rate for the currency pair.
+
+    Args:
+        cost_units_key: The field name on the outer query holding the base currency code.
+        target_currency: The target currency code string.
+
+    Returns:
+        A Coalesce expression suitable for use in an .annotate() call.
     """
     rate_subquery = MonthlyExchangeRate.objects.filter(
-        **_month_filter(),
+        effective_date=TruncMonth(OuterRef("usage_start")),
         base_currency=OuterRef(cost_units_key),
         target_currency=target_currency,
     ).values("exchange_rate")[:1]
@@ -70,12 +64,12 @@ def build_ocp_exchange_rate_annotation_dict(cost_units_key, target_currency):
     - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency)
     - infra_exchange_rate: cloud bill currency (raw_currency column)
     """
-    cost_model_currency = CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef("source_uuid"),).values(
-        "currency"
-    )[:1]
+    cost_model_currency = CostModel.objects.filter(
+        cost_model_map__provider_uuid=OuterRef(OuterRef("source_uuid")),
+    ).values("currency")[:1]
 
     exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
-        **_month_filter(),
+        effective_date=TruncMonth(OuterRef("usage_start")),
         base_currency=Subquery(cost_model_currency),
         target_currency=target_currency,
     ).values("exchange_rate")[:1]
