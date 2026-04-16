@@ -7,6 +7,7 @@ import logging
 
 from rest_framework import serializers
 
+from api.common import error_obj
 from api.report.serializers import BaseSerializer
 from api.utils import get_currency
 from cost_models.models import PriceList
@@ -14,6 +15,7 @@ from cost_models.price_list_manager import PriceListException
 from cost_models.price_list_manager import PriceListManager
 from cost_models.serializers import CostModelSerializer
 from cost_models.serializers import RateSerializer
+from masu.processor import is_cost_model_writes_disabled
 
 LOG = logging.getLogger(__name__)
 
@@ -63,8 +65,21 @@ class PriceListSerializer(BaseSerializer):
 
         return data
 
+    def _check_write_freeze(self):
+        """Raise ValidationError if rate data writes are frozen for migration."""
+        customer = self.customer if hasattr(self, "customer") else None
+        schema = customer.schema_name if customer else None
+        if schema and is_cost_model_writes_disabled(schema):
+            raise serializers.ValidationError(
+                error_obj(
+                    "price-lists",
+                    "Price list writes are temporarily disabled during migration.",
+                )
+            )
+
     def create(self, validated_data):
         """Create a price list via the manager."""
+        self._check_write_freeze()
         try:
             manager = PriceListManager()
             return manager.create(**validated_data)
@@ -73,6 +88,7 @@ class PriceListSerializer(BaseSerializer):
 
     def update(self, instance, validated_data):
         """Update a price list via the manager."""
+        self._check_write_freeze()
         try:
             manager = PriceListManager(instance.uuid)
             return manager.update(**validated_data)
