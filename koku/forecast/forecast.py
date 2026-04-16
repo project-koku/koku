@@ -17,7 +17,6 @@ import statsmodels.api as sm
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import CharField
-from django.db.models import DecimalField
 from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Q
@@ -40,7 +39,8 @@ from api.report.gcp.provider_map import GCPProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
 from api.utils import get_cost_type
-from cost_models.models import CostModel
+from cost_models.exchange_rate_annotations import build_exchange_rate_annotation_dict
+from cost_models.exchange_rate_annotations import build_ocp_exchange_rate_annotation_dict
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
@@ -148,30 +148,7 @@ class Forecast:
     @cached_property
     def exchange_rate_annotation_dict(self):
         """Get per-month exchange rate annotation from MonthlyExchangeRate via Subquery."""
-        from django.db.models import OuterRef
-        from django.db.models import Subquery
-        from django.db.models.functions import TruncMonth
-
-        from cost_models.models import MonthlyExchangeRate
-
-        rate_subquery = MonthlyExchangeRate.objects.filter(
-            effective_date=TruncMonth(OuterRef("usage_start")),
-            base_currency=OuterRef(self.provider_map.cost_units_key),
-            target_currency=self.currency,
-        ).values("exchange_rate")[:1]
-
-        earliest_rate_subquery = MonthlyExchangeRate.objects.filter(
-            base_currency=OuterRef(self.provider_map.cost_units_key),
-            target_currency=self.currency,
-        ).order_by("effective_date").values("exchange_rate")[:1]
-
-        return {
-            "exchange_rate": Coalesce(
-                Subquery(rate_subquery),
-                Subquery(earliest_rate_subquery),
-                output_field=DecimalField(),
-            )
-        }
+        return build_exchange_rate_annotation_dict(self.provider_map.cost_units_key, self.currency)
 
     def get_data(self):
         """Query the database."""
@@ -606,50 +583,7 @@ class OCPForecast(Forecast):
     @cached_property
     def exchange_rate_annotation_dict(self):
         """Get per-month exchange rate annotations from MonthlyExchangeRate via Subquery."""
-        from django.db.models import OuterRef
-        from django.db.models import Subquery
-        from django.db.models.functions import TruncMonth
-
-        from cost_models.models import MonthlyExchangeRate
-
-        cost_model_currency = CostModel.objects.filter(
-            cost_model_map__provider_uuid=OuterRef("source_uuid"),
-        ).values("currency")[:1]
-
-        exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
-            effective_date=TruncMonth(OuterRef("usage_start")),
-            base_currency=Subquery(cost_model_currency),
-            target_currency=self.currency,
-        ).values("exchange_rate")[:1]
-
-        earliest_exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
-            base_currency=Subquery(cost_model_currency),
-            target_currency=self.currency,
-        ).order_by("effective_date").values("exchange_rate")[:1]
-
-        infra_exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
-            effective_date=TruncMonth(OuterRef("usage_start")),
-            base_currency=OuterRef(self.provider_map.cost_units_key),
-            target_currency=self.currency,
-        ).values("exchange_rate")[:1]
-
-        earliest_infra_rate_subquery = MonthlyExchangeRate.objects.filter(
-            base_currency=OuterRef(self.provider_map.cost_units_key),
-            target_currency=self.currency,
-        ).order_by("effective_date").values("exchange_rate")[:1]
-
-        return {
-            "exchange_rate": Coalesce(
-                Subquery(exchange_rate_subquery),
-                Subquery(earliest_exchange_rate_subquery),
-                output_field=DecimalField(),
-            ),
-            "infra_exchange_rate": Coalesce(
-                Subquery(infra_exchange_rate_subquery),
-                Subquery(earliest_infra_rate_subquery),
-                output_field=DecimalField(),
-            ),
-        }
+        return build_ocp_exchange_rate_annotation_dict(self.provider_map.cost_units_key, self.currency)
 
 
 class OCPAWSForecast(Forecast):

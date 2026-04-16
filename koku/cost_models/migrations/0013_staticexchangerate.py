@@ -11,7 +11,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("cost_models", "0011_migrate_cost_model_rates_to_price_lists"),
+        ("cost_models", "0012_add_rate_model"),
     ]
 
     operations = [

@@ -13,15 +13,11 @@ from functools import cached_property
 
 from django.db.models import Case
 from django.db.models import CharField
-from django.db.models import DecimalField
 from django.db.models import F
-from django.db.models import OuterRef
-from django.db.models import Subquery
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
-from django.db.models.functions import TruncMonth
 from django_tenants.utils import tenant_context
 
 from api.models import Provider
@@ -32,8 +28,7 @@ from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import is_grouped_by_node
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
-from cost_models.models import CostModel
-from cost_models.models import MonthlyExchangeRate
+from cost_models.exchange_rate_annotations import build_ocp_exchange_rate_annotation_dict
 
 LOG = logging.getLogger(__name__)
 
@@ -171,44 +166,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency)
         - infra_exchange_rate: cloud bill currency (raw_currency column)
         """
-        cost_model_currency = CostModel.objects.filter(
-            cost_model_map__provider_uuid=OuterRef("source_uuid"),
-        ).values("currency")[:1]
-
-        exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
-            effective_date=TruncMonth(OuterRef("usage_start")),
-            base_currency=Subquery(cost_model_currency),
-            target_currency=self.currency,
-        ).values("exchange_rate")[:1]
-
-        earliest_exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
-            base_currency=Subquery(cost_model_currency),
-            target_currency=self.currency,
-        ).order_by("effective_date").values("exchange_rate")[:1]
-
-        infra_exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
-            effective_date=TruncMonth(OuterRef("usage_start")),
-            base_currency=OuterRef(self._mapper.cost_units_key),
-            target_currency=self.currency,
-        ).values("exchange_rate")[:1]
-
-        earliest_infra_rate_subquery = MonthlyExchangeRate.objects.filter(
-            base_currency=OuterRef(self._mapper.cost_units_key),
-            target_currency=self.currency,
-        ).order_by("effective_date").values("exchange_rate")[:1]
-
-        return {
-            "exchange_rate": Coalesce(
-                Subquery(exchange_rate_subquery),
-                Subquery(earliest_exchange_rate_subquery),
-                output_field=DecimalField(),
-            ),
-            "infra_exchange_rate": Coalesce(
-                Subquery(infra_exchange_rate_subquery),
-                Subquery(earliest_infra_rate_subquery),
-                output_field=DecimalField(),
-            ),
-        }
+        return build_ocp_exchange_rate_annotation_dict(self._mapper.cost_units_key, self.currency)
 
     def format_tags(self, tags_iterable):
         """

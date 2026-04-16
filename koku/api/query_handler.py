@@ -11,9 +11,6 @@ from dateutil import parser
 from dateutil import relativedelta
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import DecimalField
-from django.db.models import Subquery
-from django.db.models.functions import Coalesce
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
 
@@ -23,7 +20,7 @@ from api.report.constants import RESOLUTION_DAILY
 from api.report.constants import TIME_SCOPE_UNITS_DAILY
 from api.report.constants import TIME_SCOPE_VALUES_DAILY
 from api.utils import DateHelper
-from cost_models.models import MonthlyExchangeRate
+from cost_models.exchange_rate_annotations import build_exchange_rate_annotation_dict
 
 LOG = logging.getLogger(__name__)
 WILDCARD = "*"
@@ -122,26 +119,7 @@ class QueryHandler:
     @cached_property
     def exchange_rate_annotation_dict(self):
         """Get per-month exchange rate annotation from MonthlyExchangeRate via Subquery."""
-        from django.db.models import OuterRef
-
-        rate_subquery = MonthlyExchangeRate.objects.filter(
-            effective_date=TruncMonth(OuterRef("usage_start")),
-            base_currency=OuterRef(self._mapper.cost_units_key),
-            target_currency=self.currency,
-        ).values("exchange_rate")[:1]
-
-        earliest_rate_subquery = MonthlyExchangeRate.objects.filter(
-            base_currency=OuterRef(self._mapper.cost_units_key),
-            target_currency=self.currency,
-        ).order_by("effective_date").values("exchange_rate")[:1]
-
-        return {
-            "exchange_rate": Coalesce(
-                Subquery(rate_subquery),
-                Subquery(earliest_rate_subquery),
-                output_field=DecimalField(),
-            )
-        }
+        return build_exchange_rate_annotation_dict(self._mapper.cost_units_key, self.currency)
 
     @property
     def order(self):

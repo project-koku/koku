@@ -882,32 +882,6 @@ class ReportQueryHandler(QueryHandler):
                 group_by.append((db_name, group_pos, original_aws_category))
         return group_by
 
-    @cached_property
-    def exchange_rate_annotation_dict(self):
-        """Get per-month exchange rate annotation from MonthlyExchangeRate via Subquery."""
-        from django.db.models import OuterRef
-        from django.db.models import Subquery
-        from django.db.models.functions import TruncMonth
-
-        rate_subquery = MonthlyExchangeRate.objects.filter(
-            effective_date=TruncMonth(OuterRef("usage_start")),
-            base_currency=OuterRef(self._mapper.cost_units_key),
-            target_currency=self.currency,
-        ).values("exchange_rate")[:1]
-
-        earliest_rate_subquery = MonthlyExchangeRate.objects.filter(
-            base_currency=OuterRef(self._mapper.cost_units_key),
-            target_currency=self.currency,
-        ).order_by("effective_date").values("exchange_rate")[:1]
-
-        return {
-            "exchange_rate": Coalesce(
-                Subquery(rate_subquery),
-                Subquery(earliest_rate_subquery),
-                output_field=DecimalField(),
-            )
-        }
-
     def _project_classification_annotation(self, query_data):
         """Get the correct annotation for a project or category"""
         whens = [
@@ -1153,10 +1127,16 @@ class ReportQueryHandler(QueryHandler):
 
         null_rate_filter = Q(exchange_rate__isnull=True)
         if queryset.filter(null_rate_filter).exists():
+            missing_currencies = list(
+                queryset.filter(null_rate_filter)
+                .values_list(self._mapper.cost_units_key, flat=True)
+                .distinct()
+            )
             raise ValidationError(
                 {
                     "detail": (
-                        f"No exchange rate available for target currency {self.currency}. "
+                        f"No exchange rate available for currency pair(s) "
+                        f"{missing_currencies} -> {self.currency}. "
                         "Ask your administrator to configure static exchange rates "
                         "or enable dynamic exchange rates."
                     ),

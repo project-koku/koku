@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from django_tenants.utils import tenant_context
-from rest_framework.exceptions import ValidationError
 
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType

@@ -39,7 +39,7 @@ def seed_current_month(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("cost_models", "0012_staticexchangerate"),
+        ("cost_models", "0013_staticexchangerate"),
         ("api", "0001_initial"),
     ]
 

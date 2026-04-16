@@ -9,7 +9,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("cost_models", "0013_monthlyexchangerate"),
+        ("cost_models", "0014_monthlyexchangerate"),
     ]
 
     operations = [
