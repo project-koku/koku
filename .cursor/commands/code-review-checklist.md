@@ -23,7 +23,7 @@ Comprehensive checklist for conducting thorough code reviews to ensure quality, 
 - [ ] Python 3.11+ features used appropriately
 - [ ] Type hints present for function parameters and return types
 - [ ] F-strings used for string formatting
-- [ ] Tuple unpacking used for multiple context managers
+- [ ] Parenthesized context managers used for multiple managers
 
 ### Import Organization
 - [ ] Standard library imports first
@@ -47,7 +47,7 @@ Comprehensive checklist for conducting thorough code reviews to ensure quality, 
 - [ ] Descriptive test method names
 - [ ] Django TestCase used for database-related tests
 - [ ] unittest.mock.patch used for mocking
-- [ ] Tuple unpacking used for multiple patches
+- [ ] Parenthesized context managers used for multiple patches
 - [ ] model_bakery (baker.make()) used for test data
 - [ ] Both positive and negative cases tested
 - [ ] Edge cases and error conditions tested

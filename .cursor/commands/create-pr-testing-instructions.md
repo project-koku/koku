@@ -10,7 +10,7 @@ Use this command when preparing a PR description or a `pr-testing.md` file. If a
 
 Use this exact structure and headings:
 
-```
+````
 ## Jira Ticket
 
 [COST-####](https://issues.redhat.com/browse/COST-####)
@@ -33,7 +33,7 @@ This change will ...
 ```markdown
 * [COST-####](https://issues.redhat.com/browse/COST-####) Fix some things
 ```
-```
+````
 
 ## Jira Optional Handling
 
