@@ -124,18 +124,35 @@ if config.requires_full_month:
 (line 675), because that method deletes the very rows we're checking for. Current code flow:
 delete first → then insert. We need: check first → if exists, skip both delete and insert.
 
+**Schema context note**: No explicit `schema_context` is needed for this ORM query.
+`OCPReportDBAccessor` inherits from `ReportDBAccessorBase`, which sets the tenant schema via
+`connection.set_schema(self.schema)` in its `__enter__` method. All ORM queries within the
+accessor automatically operate in the correct tenant schema.
+
 **Pros**:
 - Zero migrations — no model changes
 - Zero reset logic — no state to manage
-- Self-healing: if a cost model update triggers reprocessing, it goes through the normal
-  `update_cost_model_costs` flow which calls `_delete_monthly_cost_model_rate_type_data()`
-  BEFORE reaching this check (effectively clearing the "finalized" state)
 - Source of truth: checks the actual data, not a proxy flag
 - `EXISTS` query is fast with existing indexes on `source_uuid` + `usage_start`
+- Mostly self-correcting for natural finalization: late-arriving data triggers the "natural"
+  path which calls `_delete_monthly_cost_model_rate_type_data()` + re-inserts, so subsequent
+  artificial triggers correctly see the updated data
 
 **Cons**:
 - Queries `OCPUsageLineItemDailySummary` which is a large partitioned table (but `EXISTS` with
   indexed columns short-circuits on first match — should be negligible)
+
+**Known limitation — cost model updates on finalization day**: If a cost model is updated on the
+same day that GPU distribution already ran (e.g., day 2), the `exists()` check will see the
+old distributed rows and skip re-distribution with the new rates. In practice, this is a narrow
+edge case because:
+1. Cost model updates triggered via API use `start_date = this_month_start`, so the GPU
+   `requires_full_month` path is only entered on the finalization day anyway.
+2. The current code (without this change) already skips GPU distribution on all days except
+   day 2 — so a cost model update on day 3+ would NOT re-distribute the previous month either.
+3. If this edge case needs to be addressed, the cost model update flow could explicitly delete
+   `gpu_distributed` rows for the previous month's report period before triggering
+   `update_cost_model_costs`, ensuring the `exists()` check returns `False`.
 
 **Window expansion**: With this check in place, the day-of-month restriction (`day == 2`) can
 safely be expanded (e.g., `day <= 5`, or even removed entirely). The first payload of the month
@@ -213,11 +230,13 @@ if summary_range.is_current_month:
 **Option A** is recommended because:
 
 1. It requires **zero migrations** and **zero state management**
-2. It's **self-healing** — the check reflects the actual state of the data, not a proxy flag
-3. There's **no risk of stale state** — if the data is deleted (by cost model update or
-   reprocessing), the check naturally returns `False` and distribution runs again
+2. It checks the **actual data** rather than a proxy flag — no risk of flag/data desync
+3. It's **mostly self-correcting**: natural finalization (late data) clears and re-inserts
+   distributed rows, so subsequent artificial triggers correctly see up-to-date data
 4. The performance cost of `EXISTS` on an indexed partitioned table is negligible
 5. It's simpler to implement, test, and reason about
+6. The one known limitation (cost model update on finalization day) is a narrow edge case
+   that can be addressed separately if needed (see Option A cons)
 
 Option B is a valid alternative if the team prefers explicit state tracking and wants the
 check to be a simple field lookup rather than a table scan — but the added complexity of
