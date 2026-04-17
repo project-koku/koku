@@ -98,6 +98,16 @@ Per `.cursorrules`: **link to code instead of pasting large blocks** that will d
 
 Use this section as **system or user context** when asking an agent to draft or revise architecture docs from a PRD.
 
+### Cursor slash command: Architecture Architect
+
+For a **dedicated architect workflow** (analyze PRD, map codebase, draft API/system design, **no implementation**—output is documentation for a builder agent), use the repo command:
+
+- **Invoke:** In Cursor chat, type `/` and choose **`architect`**, then paste or attach the PRD and supply the feature slug, epic key, and hub depth (lean / standard / full).
+- **Definition:** [`.cursor/commands/architect.md`](../../.cursor/commands/architect.md) — boundaries, prime context, workflow, and required **Builder handoff** output.
+- **Also documented:** [`.cursor/commands/README.md`](../../.cursor/commands/README.md) (command index).
+
+The command follows the same principles as the subsections below; it is a single entry point for teams that want a repeatable **PRD → `docs/architecture/<feature-slug>/`** pass.
+
 ### Prime context (attach or `@` mention)
 
 - `AGENTS.md` — repo layout, multi-tenancy, dual SQL paths, testing commands.
