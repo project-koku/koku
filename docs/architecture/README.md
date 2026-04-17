@@ -71,7 +71,7 @@ Mirror the proven pattern in [`data-retention/README.md`](data-retention/README.
 | **Phased delivery + rollback** | Omit if one PR | Short bullets or `phased-delivery.md` | Dedicated doc + validation per phase |
 | **Key design decisions** | Short table | Same | Same + “resolution” column when decided |
 
-Example lean hub: [`efficiency-scores/README.md`](efficiency-scores/README.md) (inventory, formulas, IQ table, gaps — no PoC, no multi-doc catalog yet).
+Example lean hub: [`efficiency-scores/README.md`](efficiency-scores/README.md) (as-built code map, formulas, resolved + backlog IQ — no PoC, no multi-doc catalog).
 Example full hub: [`cost-breakdown/README.md`](cost-breakdown/README.md).
 
 ### 5. Split detail by concern
@@ -186,7 +186,7 @@ Output: proposed new/changed markdown files only (no application code unless ask
 |-----------|---------|
 | [`data-retention/`](data-retention/README.md) | Configurable retention (tenant settings, API, purge pipeline, phased delivery) |
 | [`cost-breakdown/`](cost-breakdown/README.md) | OCP cost breakdown / price list technical design and PoC artifacts |
-| [`efficiency-scores/`](efficiency-scores/README.md) | OCP CPU/memory usage efficiency, wasted cost, Optimizations Summary tab alignment |
+| [`efficiency-scores/`](efficiency-scores/README.md) | OCP compute/memory reports: `total_score` / `score` (usage efficiency %, wasted cost), ORM-only |
 
 ### Standalone feature architecture
 

@@ -1,140 +1,143 @@
 # Efficiency scores — formulas and API data contract
 
-Companion to [README.md](./README.md). Optimized for **implementers and AI agents**: precise math, edge cases, and response shape **without** duplicating large sections of code.
+Companion to [README.md](./README.md). Describes the **implemented** backend behavior for CPU and memory **usage efficiency** and **wasted cost** on OpenShift compute/memory reports.
 
 ---
 
 ## Canonical data fields (CPU / memory)
 
-Aggregates today are defined on **`OCPUsageLineItemDailySummary`** in [`OCPProviderMap`](../../../koku/api/report/ocp/provider_map.py):
+Aggregates are defined on **`OCPUsageLineItemDailySummary`** in [`OCPProviderMap`](../../../koku/api/report/ocp/provider_map.py) for `report_type` **`cpu`** and **`memory`**.
 
-| Metric | ORM / model fields (hours) |
-|--------|----------------------------|
+| Metric | Model fields (hours) |
+|--------|----------------------|
 | CPU usage | `pod_usage_cpu_core_hours` |
 | CPU request | `pod_request_cpu_core_hours` |
 | Memory usage | `pod_usage_memory_gigabyte_hours` |
 | Memory request | `pod_request_memory_gigabyte_hours` |
 
-**Units in API responses** for existing compute/memory reports follow provider map / pack definitions (Core-Hours, GB-Hours, etc.). New fields should **reuse the same units** for `usage` and `request` objects.
+Sums use `Coalesce(..., 0)` via helpers such as [`_cpu_usage_sum`](../../../koku/api/report/ocp/provider_map.py) / [`_memory_request_sum`](../../../koku/api/report/ocp/provider_map.py).
 
 ---
 
-## Must-have: usage efficiency (CPU and memory separately)
+## Usage efficiency (`usage_efficiency_percent`)
 
-### Definition
+### Definition (implemented)
 
-For each resource dimension **R** in {`cpu`, `memory`}:
+Let **`usage_sum`** and **`request_sum`** be the **Sum** expressions for the appropriate resource for the current aggregate (total or group).
 
-**`usage_efficiency_ratio`**
+| Expression | Meaning |
+|------------|---------|
+| Ratio | `usage_sum / NULLIF(request_sum, 0)` — avoids division by zero. |
+| **Percent** | `Round(ratio * 100)` as **integer** (Django `Round` + `IntegerField` in [`_efficiency_annotations`](../../../koku/api/report/ocp/provider_map.py)). |
+| **Null / zero request** | `Coalesce(..., 0)` → API exposes **`0`** when the ratio is null (including **`request_sum == 0`**). |
 
-| Condition | Value |
-|-----------|--------|
-| `request > 0` | `usage / request` |
-| `request == 0` | `null` or sentinel (**TBD** in OpenAPI) |
+So **`usage_efficiency_percent` can exceed 100** when usage exceeds request over the aggregated rows (not clamped).
 
-**API value (product):** round to **nearest whole percent**:
+### API field name
 
-`usage_efficiency = round(100 * usage_efficiency_ratio)`
-
-(Implement as `round()` in Python or `ROUND()` in SQL; confirm half-up vs banker's rounding for tests.)
-
-**Examples** (same as product table): usage 5 / request 100 → **5**; 80 / 100 → **80**; 110 / 100 → **110** (over-requested or bursty usage — **do not clamp** to 100 unless PM explicitly changes UX).
-
-### Implementation note for agents
-
-- Prefer **database-side** rounding only if it matches PostgreSQL `ROUND` semantics for halves; otherwise compute in Python from aggregated decimals to match API tests.
-- **`request = 0`:** document behavior explicitly in OpenAPI (e.g. omit score, or return `null`, or `0` with a flag). **Do not** divide by zero. Align with UX for “no request configured.”
+Response shaping is done in [`OCPReportQueryHandler._pack_score`](../../../koku/api/report/ocp/query_handler.py): the internal annotation `usage_efficiency` is exposed as **`usage_efficiency_percent`**.
 
 ---
 
-## Transitional: “waste score” vs wasted cost
+## Wasted cost (`wasted_cost`)
 
-Product evolution:
+### Definition (implemented)
 
-1. **Waste score (percentage headroom):**
-   `waste_score = max(100 - usage_efficiency, 0)`
-   This **caps** at 100 and does not represent over-100% usage efficiency.
+Uses the same **`usage_sum`**, **`request_sum`**, and a **`cost_total_expr`** passed into [`_efficiency_annotations`](../../../koku/api/report/ocp/provider_map.py):
 
-2. **Wasted cost (currency):**
-   “We just use the percentage to calculate the wasted cost” — **not fully specified**. Reasonable **options** to resolve with PM/finance:
+`wasted_cost = Coalesce(Greatest(cost_total * (1 - usage_sum / NullIf(request_sum, 0)), 0), 0)` (ORM/SQL expression; `NullIf` avoids divide-by-zero).
 
-   | Option | Sketch | Pros / cons |
-   |--------|--------|----------------|
-   A | `wasted_cost = cost_total * (max(100 - usage_efficiency, 0) / 100)` | Simple; ignores usage > 100% for waste |
-   B | `wasted_cost = (request - usage)_positive * blended_rate` | Needs rate; ties to cost model |
-   C | Allocate **supplementary** CPU/memory cost by unused request share | Closer to economics; more complex |
+- **`cost_total`** for **`cpu`**: `cloud_infrastructure_cost + markup_cost + cost_model_cpu_cost` (same components as the `cost_total` aggregate for CPU inventory).
+- **`cost_total`** for **`memory`**: `cloud_infrastructure_cost + markup_cost + cost_model_memory_cost`.
 
-**Agent rule:** implement **A** only if PM + engineering sign off on cost basis (`cost_total` vs infra vs supp — see `cpu` / `memory` keys `cost_total`, `cost_usage`, etc. in [`OCPProviderMap`](../../../koku/api/report/ocp/provider_map.py)). Otherwise return **`wasted_cost: null`** and ship usage efficiency only.
+So this is **not** “waste percent × arbitrary headline cost” from a different column — it tracks the **`cost_total` expression for that dimension** in the provider map.
 
----
+When **`request_sum`** is zero, the ratio is null; the expression yields null and **`Coalesce`** forces **`wasted_cost`** to **decimal 0**.
 
-## Complementary metrics (product backlog)
+### API shape
 
-These are **not** locked for v1; keep names out of public API until IQ cleared.
+```json
+"wasted_cost": {
+  "value": "<Decimal>",
+  "units": "<user currency from report context>"
+}
+```
 
-| Metric | Direction “better” | Formula sketch | Notes |
-|--------|---------------------|----------------|-------|
-| Idle / request efficiency | Lower (product: may go negative) | Idle = **request − usage** (signed); score TBD | Conflicts with [`calculate_unused`](../../../koku/api/report/ocp/capacity/cluster_capacity.py) which uses `max(request - usage, 0)` for `request_unused` |
-| Cost efficiency | Higher | e.g. usage_value / cost — **TBD** | |
-| Overhead vs capacity | TBD | **TBD** | UX: confirm higher-vs-lower framing |
+`units` comes from the handler’s currency (`self.currency` in [`_pack_score`](../../../koku/api/report/ocp/query_handler.py)).
 
 ---
 
-## Fleet aggregation
+## Fleet vs grouped rows
 
-When `group_by` does not include `cluster` (or explicit “all clusters” / dashboard total):
-
-- **Option 1 — ratio of sums:**
-  `round(100 * sum(usage) / sum(request))`
-  Standard for capacity-style metrics.
-
-- **Option 2 — sum of cluster scores:**
-  `sum(usage_efficiency_c)` for each cluster _c_
-  Matches literal product wording but **is not** a percentage and is biased by cluster sizing.
-
-**Agent rule:** blocked until **IQ-1** in README is resolved; document chosen rule in OpenAPI.
+- **Total row:** `query.aggregate(**aggregates)` applies the same **`usage_efficiency`** and **`wasted_cost`** definitions over the **entire filtered queryset** — i.e. one combined ratio and one wasted-cost expression for the fleet (not an average of per-cluster percentages).
+- **Grouped rows:** Each group gets its own **`usage_sum`**, **`request_sum`**, and **`cost_total`** slice from `values(...).annotate(...)`.
 
 ---
 
-## Example response fragment (illustrative — not implemented)
+## When scores are absent or empty
 
-Product example shape for **one** dimension (CPU) on a grouped row:
+| Situation | `total.total_score` | Row `score` |
+|-----------|---------------------|-------------|
+| `report_type` not `cpu` / `memory` | Key **omitted** | N/A |
+| `cpu` / `memory`, multiple `group_by` keys | `{}` | `{}` |
+| `cpu` / `memory`, tag group_by or tag filter/exclude | `{}` | `{}` |
+| Otherwise | Populated | Populated |
+
+Source: [`OCPReportQueryHandler.execute_query`](../../../koku/api/report/ocp/query_handler.py) (`should_compute`).
+
+---
+
+## Ordering
+
+`order_by[usage_efficiency]` and `order_by[wasted_cost]` are valid on inventory serializers ([`InventoryOrderBySerializer`](../../../koku/api/report/ocp/serializers.py)). Sorting uses the annotated fields in [`ReportQueryHandler._order_by`](../../../koku/api/report/queries.py) (`numeric_ordering` includes `usage_efficiency` and `wasted_cost`).
+
+---
+
+## Example response fragments (implemented shape)
+
+**`total` (after `_format_query_response`):**
 
 ```json
 {
-  "usage": {
-    "value": 60,
-    "units": "Core-Hours"
-  },
-  "request": {
-    "value": 100,
-    "units": "Core-Hours",
-    "unused": 40
-  },
-  "score": {
-    "usage_efficiency": 60,
-    "wasted_cost": 402.81
+  "total": {
+    "total_score": {
+      "usage_efficiency_percent": 60,
+      "wasted_cost": {
+        "value": "402.81",
+        "units": "USD"
+      }
+    }
   }
 }
 ```
 
-**Corrections agents should apply:**
+When scores are disabled, `"total_score": {}`.
 
-- If `unused` means **idle capacity** in the sense **request − usage**, then for usage 60 and request 100, **`unused` should be 40**, not 100 (likely a typo in the brief).
-- **`usage_efficiency`:** product shows `60.00`; spec also says round to whole number — **use integer in JSON** or document fixed decimals; pick one and test.
+**Data row (leaf object after grouping/transform):** same inner structure under **`score`** (not `total_score`):
 
-**Parallel structure for memory:** duplicate the block with memory units and `pod_usage_memory_gigabyte_hours` / `pod_request_memory_gigabyte_hours`.
+```json
+{
+  "score": {
+    "usage_efficiency_percent": 60,
+    "wasted_cost": {
+      "value": "402.81",
+      "units": "USD"
+    }
+  }
+}
+```
+
+**Naming note:** The early PRD example used `usage_efficiency` for the integer percent field; the shipped API uses **`usage_efficiency_percent`**.
 
 ---
 
-## Filters and group_by (product)
+## Complementary metrics (not implemented)
 
-| Capability | Keys (align with existing OCP API) |
-|------------|-------------------------------------|
-| group_by | `cluster`, `node`, `project` (→ `namespace` in DB) |
-| filter | `cluster`, `node`, `project` |
-
-See [`OCPProviderMap`](../../../koku/api/report/ocp/provider_map.py) `filters` and `group_by_options` for exact field names and `icontains` vs `exact` behavior.
+| Metric | Status |
+|--------|--------|
+| Waste score `max(100 - efficiency, 0)` | Not exposed as its own field; wasted cost follows the formula above. |
+| Idle / signed unused | Backlog; see README IQ-3. |
+| Cost efficiency / overhead scores | Backlog. |
 
 ---
 
@@ -142,4 +145,5 @@ See [`OCPProviderMap`](../../../koku/api/report/ocp/provider_map.py) `filters` a
 
 | Date | Summary |
 |------|---------|
-| 2026-04-16 | Initial formulas; example JSON; fleet and wasted-cost options; plain Markdown formulas (no LaTeX) for broad preview support. |
+| 2026-04-16 | Initial formulas; illustrative JSON; fleet and wasted-cost options. |
+| 2026-04-17 | Aligned with implementation: `_efficiency_annotations`, `_pack_score`, `total_score` vs `score`, `request=0` → 0, wasted cost formula and cost basis. |

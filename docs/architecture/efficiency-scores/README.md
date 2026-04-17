@@ -1,12 +1,12 @@
 # Efficiency scores (Optimizations Summary)
 
-Help FinOps and Dev/Ops improve CPU and memory utilization without pushing workloads into saturation; surface metrics on a new **Summary** tab next to **Optimizations** (ROS) in the Optimizations area of Cost Management.
+Help FinOps and Dev/Ops reason about CPU and memory utilization using **usage efficiency** and **wasted cost** on OpenShift workload reports. The UI (koku-ui) consumes the same **`/reports/openshift/compute/`** and **`/reports/openshift/memory/`** endpoints as existing inventory reports; this hub describes what the Koku backend **implements today** and what remains product backlog.
 
 ---
 
 ## One-paragraph scope
 
-Deliver **usage-based efficiency** (and later **cost-based** and **overhead** scores) for OpenShift workloads at **namespace (project), node, cluster, and fleet** scope. The backend must expose stable **CPU** and **memory** metrics with agreed **group_by** and **filter** parity (cluster, node, project). UI is primarily **koku-ui** (not in this repo); this hub focuses on **Koku API**, **tenant data**, and how scores relate to existing **usage / request** reporting.
+**Implemented:** For `cpu` and `memory` report types, the API adds **`total_score`** on the **`total`** object and **`score`** on each **data** row (when scores are computed), exposing **`usage_efficiency_percent`** and **`wasted_cost`** derived from aggregated usage/request hours and CPU- or memory-scoped **`cost_total`** on [`OCPUsageLineItemDailySummary`](../../../koku/reporting/models.py). **Not implemented:** a separate `efficiency`-only route; cost/volume reports do not expose these fields. **Backlog** (out of code): idle/cost-efficiency/overhead scores and dedicated Optimizations Summary routing in the UI.
 
 ---
 
@@ -16,8 +16,8 @@ Deliver **usage-based efficiency** (and later **cost-based** and **overhead** sc
 |-------|--------|
 | Multi-tenancy (tenant vs public, `tenant_context` / `schema_context`) | [`.cursor/rules/multi-tenancy.mdc`](../../../.cursor/rules/multi-tenancy.mdc), [`AGENTS.md`](../../../AGENTS.md) |
 | Report API pattern (serializer → query handler → provider map → ORM) | [`api-serializers-provider-maps.md`](../api-serializers-provider-maps.md) |
-| OCP daily line item columns (usage vs request hours) | [`csv-processing-ocp.md`](../csv-processing-ocp.md) (context on requests vs usage) |
-| Formulas, API shape, edge cases | [formulas-and-data-contract.md](./formulas-and-data-contract.md) (this feature) |
+| OCP daily line item columns (usage vs request hours) | [`csv-processing-ocp.md`](../csv-processing-ocp.md) |
+| Formulas, edge cases, response shape | [formulas-and-data-contract.md](./formulas-and-data-contract.md) |
 
 ---
 
@@ -25,98 +25,62 @@ Deliver **usage-based efficiency** (and later **cost-based** and **overhead** sc
 
 | Order | Document | Role |
 |-------|----------|------|
-| 1 | This README | Scope, code map, agent workflow, open questions |
-| 2 | [formulas-and-data-contract.md](./formulas-and-data-contract.md) | Exact math, rounding, `request=0`, fleet aggregation, example JSON |
+| 1 | This README | As-built behavior, code map, builder handoff |
+| 2 | [formulas-and-data-contract.md](./formulas-and-data-contract.md) | Exact math, cost basis, rounding, when scores are empty |
 
 ---
 
-## Current implementation map (ground truth for agents)
+## As-built behavior (summary)
 
-These are the **canonical places** to reuse or mirror when adding efficiency data. Do not invent paths; extend the same patterns.
-
-### HTTP surface (OCP today)
-
-| User-facing path | View | `report` key | Serializer (params) |
-|------------------|------|--------------|----------------------|
-| `GET …/reports/openshift/compute/` | [`OCPCpuView`](../../../koku/api/report/ocp/view.py) | `"cpu"` | [`OCPInventoryQueryParamSerializer`](../../../koku/api/report/ocp/serializers.py) |
-| `GET …/reports/openshift/memory/` | [`OCPMemoryView`](../../../koku/api/report/ocp/view.py) | `"memory"` | same |
-
-Router: [`koku/api/urls.py`](../../../koku/api/urls.py) (`reports/openshift/compute/`, `reports/openshift/memory/`).
-
-### Query execution
-
-- **Handler:** [`OCPReportQueryHandler`](../../../koku/api/report/ocp/query_handler.py) — sets `OCPProviderMap`, adjusts `report_type` for grouped cost views, merges OCP-specific **pack** definitions (`PACK_DEFINITIONS`), runs `execute_query()` from [`ReportQueryHandler`](../../../koku/api/report/queries.py).
-- **Aggregations and filters:** [`OCPProviderMap`](../../../koku/api/report/ocp/provider_map.py) — for `cpu` / `memory` report types, `report_annotations` already define **`usage`**, **`request`**, **`limit`**, and cost breakdowns against [`OCPUsageLineItemDailySummary`](../../../koku/reporting/models.py) (imported in provider map from `reporting.models`).
-- **Unused / capacity helpers:** [`calculate_unused`](../../../koku/api/report/ocp/capacity/cluster_capacity.py) in `cluster_capacity.py` — today **`request_unused = max(request - usage, 0)`** (clamped). Product copy speaks of **idle = request − usage** possibly **negative**; that is a **behavior change** if reused for the new scores (see IQ table).
-
-### Tenant boundary
-
-All queries against `OCPUsageLineItemDailySummary` and related reporting models run inside **`tenant_context(self.tenant)`** in the query handler — see [`OCPReportQueryHandler.execute_query`](../../../koku/api/report/ocp/query_handler.py). Agents must preserve this for any new endpoint or annotation.
-
-### Dual-path note
-
-Efficiency scores for OCP in this design are expected to be **PostgreSQL ORM** aggregates on tenant summary/line tables (same path as current OCP reports). If a future design pre-aggregates in **Trino** / **self_hosted_sql**, mirror per [`AGENTS.md`](../../../AGENTS.md) dual-path rules; the **first** iteration should stay aligned with existing OCP report query patterns unless performance requires otherwise.
+| Area | Behavior |
+|------|-----------|
+| **Endpoints** | [`OCPCpuView`](../../../koku/api/report/ocp/view.py) → `GET /api/cost-management/v1/reports/openshift/compute/`; [`OCPMemoryView`](../../../koku/api/report/ocp/view.py) → `…/memory/`. Router: [`koku/api/urls.py`](../../../koku/api/urls.py). |
+| **Serializer** | [`OCPInventoryQueryParamSerializer`](../../../koku/api/report/ocp/serializers.py) — [`InventoryOrderBySerializer`](../../../koku/api/report/ocp/serializers.py) adds `order_by[usage_efficiency]` and `order_by[wasted_cost]`. |
+| **Scores in response** | [`OCPReportQueryHandler._pack_score`](../../../koku/api/report/ocp/query_handler.py) builds `usage_efficiency_percent` (int) and `wasted_cost` `{ value, units }`. The **`total`** block exposes this as **`total_score`** (rename from internal `score` after packing). **Data rows** keep the key **`score`** (same inner shape). |
+| **When scores are omitted** | For `cpu` / `memory` only: if **more than one** `group_by` dimension is present **or** there is **tag** `group_by` / **tag** `filter` / `exclude`, `should_compute` is false → `total_score` and per-row `score` are **empty objects** `{}`. See [`execute_query`](../../../koku/api/report/ocp/query_handler.py). Multi `group_by` is covered by [`test_efficiency_score_multi_group_by_returns_empty`](../../../koku/api/report/test/ocp/test_ocp_query_handler.py). |
+| **Reports without scores** | `costs`, `costs_by_project`, `volume`, and other non-inventory types do not add `total_score`. Tests: [`test_efficiency_score_cost_report_excluded`](../../../koku/api/report/test/ocp/test_ocp_query_handler.py), [`test_efficiency_score_volume_report_excluded`](../../../koku/api/report/test/ocp/test_ocp_query_handler.py). |
+| **Aggregations** | [`OCPProviderMap._efficiency_annotations`](../../../koku/api/report/ocp/provider_map.py) defines ORM expressions for `usage_efficiency` and `wasted_cost` on `cpu` and `memory` **aggregates** and **report_annotations**. |
+| **Ordering** | In-memory sort includes `usage_efficiency` and `wasted_cost` in [`ReportQueryHandler._order_by`](../../../koku/api/report/queries.py). |
+| **Tenant boundary** | All queries run under **`tenant_context(self.tenant)`** in [`OCPReportQueryHandler.execute_query`](../../../koku/api/report/ocp/query_handler.py). |
+| **Pipeline / SQL** | No Celery tasks and no new SQL templates — scores are ORM aggregates on existing tenant line items. **Dual-path** (`trino_sql` / `self_hosted_sql`) is unchanged for this feature. |
 
 ---
 
-## Target architecture (proposed)
+## Architecture (implemented)
 
 ```mermaid
 flowchart LR
-  subgraph ui [koku-ui]
-    OptPage[Optimizations page]
-    SumTab[Summary tab - efficiency]
-    RosTab[Optimizations tab - ROS]
+  subgraph api [Koku API]
+    Views[OCPCpuView / OCPMemoryView]
+    Ser[OCPInventoryQueryParamSerializer]
+    QH[OCPReportQueryHandler]
+    PM[OCPProviderMap - cpu / memory]
+    ORM[(OCPUsageLineItemDailySummary - tenant schema)]
   end
-  subgraph koku [Koku API]
-    NewEP[New or extended OCP endpoint]
-    Ser[Serializer - filters / group_by]
-    QH[Query handler + provider map]
-    ORM[(Tenant schema - OCP line items / summaries)]
-  end
-  OptPage --> SumTab
-  OptPage --> RosTab
-  SumTab --> NewEP
-  NewEP --> Ser --> QH --> ORM
+  Views --> Ser --> QH --> PM --> ORM
 ```
 
-**Default implementation hypothesis:** add a **dedicated** report route (e.g. `reports/openshift/efficiency/` or `…/optimizations/summary/`) with its own `report_type` key in `OCPProviderMap` so serializers stay small and the contract is explicit for the UI. **Alternative:** extend `cpu` / `memory` responses with optional `score` objects — higher risk of breaking existing consumers and cache keys; document in IQ.
+---
+
+## Resolved decisions (formerly IQ)
+
+| ID | Resolution | Evidence |
+|----|------------|----------|
+| IQ-5 (endpoint shape) | **Extend** existing compute/memory inventory endpoints; **no** separate `efficiency` route. | Views unchanged path; handler gates on `report_type in ("cpu", "memory")`. |
+| IQ-1 (fleet / total row) | **Single ratio over the filtered row set** — totals use the same aggregate expressions as grouped rows (ratio-of-sums style at the SQL aggregate level). | `query.aggregate(**aggregates)` in [`execute_query`](../../../koku/api/report/ocp/query_handler.py) includes `usage_efficiency` / `wasted_cost` from [`OCPProviderMap`](../../../koku/api/report/ocp/provider_map.py). |
+| IQ-2 (wasted cost basis) | **`wasted_cost = max(cost_total * (1 - usage/request), 0)`** with CPU- or memory-specific **`cost_total`** and matching usage/request **sums**. | [`_efficiency_annotations`](../../../koku/api/report/ocp/provider_map.py). Details in [formulas-and-data-contract.md](./formulas-and-data-contract.md). |
+| IQ-6 (RBAC) | Same access pattern as other OCP report views (no separate optimizations-only permission in backend). | Reuses existing views. |
 
 ---
 
-## Open questions / decisions (IQ)
+## Open questions / backlog (product or future engineering)
 
-| ID | Question | Blocking | Notes / default for agents |
-|----|----------|----------|----------------------------|
-| IQ-1 | **Fleet efficiency:** sum of per-cluster percentages vs **single ratio** `(Σ usage) / (Σ request)`? | Yes | FinOps math usually prefers **ratio of sums** for fleet; product text says “sum of all cluster efficiencies” — **confirm with PM** before implementing fleet rows. |
-| IQ-2 | **Wasted cost** exact formula and cost basis (raw vs cost model total vs CPU-only cost)? | Yes | PRD snippet shows `wasted_cost` currency; link to cost column(s) in [`OCPProviderMap`](../../../koku/api/report/ocp/provider_map.py) `cpu`/`memory` `cost_total` / `cost_usage` etc. Document options in [formulas-and-data-contract.md](./formulas-and-data-contract.md). |
-| IQ-3 | **Idle score** (request − usage, “lower is better”, may be negative): expose raw signed idle or clamp like today’s `request_unused`? | Medium | Code today clamps unused request at 0 in `calculate_unused`. |
-| IQ-4 | **Cost efficiency** and **overhead** scores: “TBD” / UX direction (higher vs lower is better for overhead)? | No (phase 2) | Stub API fields or omit until decided. |
-| IQ-5 | New **endpoint** vs extend **`/compute/`** and **`/memory/`**? | Medium | Dedicated endpoint recommended for agent clarity and OpenAPI. |
-| IQ-6 | **RBAC:** reuse [`OpenShiftAccessPermission`](../../../koku/api/common/permissions/openshift_access.py) only, or tighter scope for optimizations? | Medium | Default: same as other OCP reports unless IAM specifies otherwise. |
-
----
-
-## Agent workflow (implementing from this doc)
-
-1. **Re-read** IQ table; if IQ-1 or IQ-2 unresolved, implement only **non-fleet** or **percentage-only** slices behind a flag or leave `wasted_cost` unset with explicit TODO — do not guess currency rules.
-2. **Trace** `OCPProviderMap` for `cpu` and `memory` → copy `report_annotations` pattern for a new `report_type` (or extension) with **separate CPU and memory** score blocks in the response contract.
-3. **Add** URL + view + serializer validations for `group_by` / `filter` (**cluster**, **node**, **project** / namespace) matching product notes; align naming with existing OCP keys (`project` maps to `namespace` in DB — see provider map `filters`).
-4. **Compute** usage efficiency in the handler or via ORM `ExpressionWrapper` / `Case(When(request=0), …)` — see [formulas-and-data-contract.md](./formulas-and-data-contract.md) for division-by-zero.
-5. **Round** usage efficiency to **nearest integer** (product: “closest whole number”) for API output; keep higher precision internally if needed for wasted cost.
-6. **Tests:** follow [`IamTestCase`](../../../koku/api/iam/test/iam_test_case.py) / [`MasuTestCase`](../../../koku/masu/test/__init__.py) patterns; mock `get_currency` where serializers touch currency; use `schema_context` for tenant fixtures per rules.
-7. **Docs:** after merge, add a one-line entry to [`celery-tasks.md`](../celery-tasks.md) **only** if new Celery work is introduced (not expected for read-only aggregates).
-
----
-
-## Implementation checklist (mechanical)
-
-- [ ] `OCPProviderMap`: new `report_type` (or agreed extension) with aggregates over `pod_usage_*` / `pod_request_*` fields (see existing `cpu` / `memory` entries).
-- [ ] Serializer: `group_by` + `filter` for cluster, node, project; time filters consistent with other OCP reports.
-- [ ] `urls.py` + `view.py`: register GET route; `permission_classes` and throttling consistent with [`OCPView`](../../../koku/api/report/ocp/view.py).
-- [ ] Response builder: either extend `_format_query_response` / packing in [`OCPReportQueryHandler`](../../../koku/api/report/ocp/query_handler.py) or a small dedicated formatter to avoid breaking `PACK_DEFINITIONS` consumers.
-- [ ] OpenAPI: regenerate if this repo ships OpenAPI from code.
-- [ ] Unit tests: division by zero, usage > request, rounding boundary (e.g. 59.5 → 60), multi-cluster group_by.
+| ID | Topic | Notes |
+|----|--------|------|
+| IQ-3 | Idle / signed request−usage vs clamped unused | [`calculate_unused`](../../../koku/api/report/ocp/capacity/cluster_capacity.py) still clamps; not used for efficiency scores. |
+| IQ-4 | Cost efficiency / overhead scores | Not in API. |
+| — | **`request_sum == 0`** semantics | Implementation coalesces **`usage_efficiency_percent`** to **0** and **`wasted_cost`** to **0** (not `null`). Confirm UX/OpenAPI wording. |
+| — | Tag / multi-dimension group_by | Scores intentionally empty; document for UI. |
 
 ---
 
@@ -125,3 +89,20 @@ flowchart LR
 | Date | Summary |
 |------|---------|
 | 2026-04-16 | Initial agent-focused hub and formulas doc from product brief. |
+| 2026-04-17 | Rewrote hub for **as-built** implementation (compute/memory, `total_score` / `score`, formulas, no new pipeline). |
+
+---
+
+## Builder handoff
+
+| Block | Content |
+|-------|---------|
+| **Doc map** | This README (overview + links) → [formulas-and-data-contract.md](./formulas-and-data-contract.md) (math + JSON). Reading order: README → formulas. |
+| **Assumptions** | None beyond what is cited from code; UI “Optimizations Summary” tab wiring lives in koku-ui. |
+| **IQ / decisions** | Resolved items in **Resolved decisions** table; backlog in **Open questions**. |
+| **API contract summary** | `GET …/reports/openshift/compute/` and `GET …/reports/openshift/memory/` with `filter` / `group_by` / `order_by` as other OCP inventory reports. Response: **`total.total_score`**: `{ usage_efficiency_percent: int, wasted_cost: { value, units } }` or `{}`. Data leaves: **`score`** same shape or `{}`. **`order_by[usage_efficiency]`**, **`order_by[wasted_cost]`** supported (with valid `group_by` per existing serializer rules). |
+| **Data & tenancy** | Tenant model [`OCPUsageLineItemDailySummary`](../../../koku/reporting/models.py); queries via **`tenant_context`**. No new columns. |
+| **Pipeline / tasks** | None; **do not** add entries to [`celery-tasks.md`](../celery-tasks.md) for this feature unless future work adds async precomputation. |
+| **SQL / dual-path** | No `masu/database/*` changes for current implementation. |
+| **Phased delivery** | **Shipped:** ORM efficiency on cpu/memory. **Future:** optional dedicated endpoint, tag-aware scores, extra metrics — each needs its own design. |
+| **Out of scope for this doc** | Frontend layout, OpenAPI regeneration policy, PM validation of `request=0` UX. |
