@@ -115,7 +115,7 @@ class OCPGpuViewTest(IamTestCase):
     def test_gpu_endpoint_order_by_without_group_by(self):
         """Test that ordering by new fields works without group_by (allowlist)."""
         # These fields are in order_by_allowlist, so should work without group_by
-        for field in ["gpu_memory", "gpu_count"]:
+        for field in ["gpu_memory", "gpu_count", "gpu_mode"]:
             url = reverse("reports-openshift-gpu")
             query_params = {f"order_by[{field}]": "desc"}
             url = url + "?" + urlencode(query_params, doseq=True)
@@ -254,6 +254,40 @@ class OCPGpuViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("data", response.data)
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_mig_profiles_endpoint_accepts_filter_limit_without_group_by(self, mock_unleash):
+        """filter[limit] ranks by implicit group_by[mig_profile]; must not require explicit group_by."""
+        url = reverse("reports-openshift-gpu-mig-profiles")
+        query_params = {
+            "filter[gpu_vendor]": "nvidia",
+            "filter[gpu_model]": "A100",
+            "filter[node]": "gpu_node_0",
+            "filter[limit]": "2",
+        }
+        url = url + "?" + urlencode(query_params, doseq=True)
+        response = self.client.get(url, **self.headers)
+        err = getattr(response, "data", response.content)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, err)
+        self.assertIn("data", response.data)
+        self._assert_mig_profiles_response_has_no_other_bucket(response.data)
+
+    def _assert_mig_profiles_response_has_no_other_bucket(self, payload):
+        """MIG profiles with filter[limit] must not add a synthetic Other(s) mig_profile row."""
+
+        def walk(obj):
+            if isinstance(obj, dict):
+                mp = obj.get("mig_profile")
+                if isinstance(mp, str) and mp in ("Other", "Others"):
+                    yield mp
+                for v in obj.values():
+                    yield from walk(v)
+            elif isinstance(obj, list):
+                for item in obj:
+                    yield from walk(item)
+
+        bad = list(walk(payload))
+        self.assertEqual(bad, [], f"Unexpected Other bucket in mig_profiles response: {bad}")
 
     @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
     def test_mig_profiles_endpoint_accepts_exact_project_filter(self, mock_unleash):
