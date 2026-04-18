@@ -47,6 +47,15 @@ def order_by_field_requires_group_by(data, order_name, group_by_keys):
             raise serializers.ValidationError(error)
 
 
+def _has_prefixed_field(data, field_name):
+    """Return True when a field appears with or without boolean/exact prefixes."""
+    if not data or not isinstance(data, dict):
+        return False
+
+    prefixes = ("", "and:", "or:", "exact:")
+    return any(f"{prefix}{field_name}" in data for prefix in prefixes)
+
+
 class OCPGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
@@ -245,8 +254,53 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
         return value
 
 
+class OCPCostGroupBySerializer(GroupSerializer):
+    """Serializer for handling cost query parameter group_by.
+
+    Excludes persistentvolumeclaim and storageclass because the pre-aggregated
+    OCPCostSummary* tables lack those columns. Grouping by PVC/storageclass
+    would silently fall back to the raw line-item table, producing totals that
+    diverge from the pre-aggregated default view.
+    """
+
+    _opfields = ("project", "cluster", "node")
+
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+
+
+class OCPCostFilterSerializer(OCPFilterSerializer):
+    """Serializer for handling cost query parameter filter.
+
+    Removes persistentvolumeclaim and storageclass — filtering by these on
+    the costs endpoint would cause the same silent fallback to the raw table.
+    """
+
+    _opfields = ("project", "cluster", "node", "infrastructures", "category")
+
+    persistentvolumeclaim = None
+    storageclass = None
+
+
+class OCPCostExcludeSerializer(OCPExcludeSerializer):
+    """Serializer for handling cost query parameter exclude.
+
+    Removes persistentvolumeclaim — excluding by this on the costs endpoint
+    would cause the same silent fallback to the raw table.
+    """
+
+    _opfields = ("project", "cluster", "node", "infrastructures", "category")
+
+    persistentvolumeclaim = None
+
+
 class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling cost query parameters."""
+
+    GROUP_BY_SERIALIZER = OCPCostGroupBySerializer
+    FILTER_SERIALIZER = OCPCostFilterSerializer
+    EXCLUDE_SERIALIZER = OCPCostExcludeSerializer
 
     DELTA_CHOICES = (
         ("cost", "cost"),
@@ -255,6 +309,34 @@ class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     )
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
+
+    def validate(self, data):
+        """Validate cost-specific combinations that would still bypass summary views."""
+        data = super().validate(data)
+        error = {}
+
+        group_by_data = data.get("group_by", {})
+        if _has_prefixed_field(group_by_data, "project"):
+            if _has_prefixed_field(group_by_data, "node"):
+                error["group_by"] = gettext(
+                    "Cannot combine project and node on the costs endpoint because no costs_by_project "
+                    "summary view supports node."
+                )
+            if _has_prefixed_field(data.get("filter", {}), "node"):
+                error["filter"] = gettext(
+                    "Cannot filter by node when grouping by project on the costs endpoint because no "
+                    "costs_by_project summary view supports node."
+                )
+            if _has_prefixed_field(data.get("exclude", {}), "node"):
+                error["exclude"] = gettext(
+                    "Cannot exclude node when grouping by project on the costs endpoint because no "
+                    "costs_by_project summary view supports node."
+                )
+
+        if error:
+            raise serializers.ValidationError(error)
+
+        return data
 
 
 class OCPVirtualMachinesFilterSerializer(BaseFilterSerializer):

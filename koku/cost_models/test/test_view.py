@@ -39,7 +39,7 @@ class CostModelViewTests(IamTestCase):
         provider_data = {
             "name": "test_provider",
             "type": Provider.PROVIDER_OCP.lower(),
-            "authentication": {"credentials": {"cluster_id": self.fake.word()}},
+            "authentication": {"credentials": {"cluster_id": str(uuid4())}},
             "billing_source": {},
         }
         serializer = ProviderSerializer(data=provider_data, context=request_context)
