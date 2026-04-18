@@ -71,6 +71,22 @@ class MaterializsedViewStartTest(unittest.TestCase):
         expected = retain_months_ago.replace(day=1)
         self.assertEqual(materialized_view_month_start(), expected)
 
+    @patch("api.settings.utils.get_data_retention_months", return_value=12)
+    def test_materialized_view_month_start_with_schema(self, mock_retention):
+        """With schema_name, uses per-tenant retention instead of global setting."""
+        today = timezone.now().replace(microsecond=0, second=0, minute=0, hour=0)
+        expected = (today - relativedelta(months=11)).replace(day=1)
+        result = materialized_view_month_start(schema_name="org1234567")
+        self.assertEqual(result, expected)
+        mock_retention.assert_called_once_with("org1234567")
+
+    def test_materialized_view_month_start_without_schema_uses_global(self):
+        """Without schema_name, falls back to settings.RETAIN_NUM_MONTHS."""
+        today = timezone.now().replace(microsecond=0, second=0, minute=0, hour=0)
+        expected = (today - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)).replace(day=1)
+        result = materialized_view_month_start()
+        self.assertEqual(result, expected)
+
 
 class DateHelperTest(TestCase):
     """Test the DateHelper."""

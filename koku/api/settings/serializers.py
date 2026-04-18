@@ -7,6 +7,7 @@ from rest_framework import serializers
 
 from api.currency.currencies import CURRENCY_CHOICES
 from api.settings.settings import COST_TYPE_CHOICES
+from reporting.tenant_settings.models import TenantSettings
 from reporting.user_settings.models import UserSettings
 
 
@@ -29,3 +30,12 @@ class UserSettingUpdateCurrencySerializer(serializers.Serializer):
     """Serializer for setting cost type."""
 
     currency = serializers.ChoiceField(choices=CURRENCY_CHOICES)
+
+
+class TenantSettingsSerializer(serializers.Serializer):
+    """Serializer for tenant-level data retention settings."""
+
+    data_retention_months = serializers.IntegerField(
+        min_value=TenantSettings.MIN_RETENTION_MONTHS,
+        max_value=TenantSettings.MAX_RETENTION_MONTHS,
+    )
