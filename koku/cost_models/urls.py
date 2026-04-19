@@ -8,12 +8,10 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from cost_models.price_list_view import PriceListViewSet
-from cost_models.static_exchange_rate_view import StaticExchangeRateViewSet
 from cost_models.views import CostModelViewSet
 
 ROUTER = DefaultRouter()
 ROUTER.register(r"cost-models", CostModelViewSet, basename="cost-models")
 ROUTER.register(r"price-lists", PriceListViewSet, basename="price-lists")
-ROUTER.register(r"static-exchange-rates", StaticExchangeRateViewSet, basename="static-exchange-rates")
 
 urlpatterns = [path("", include(ROUTER.urls))]

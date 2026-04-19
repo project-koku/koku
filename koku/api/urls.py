@@ -10,6 +10,7 @@ from rest_framework.routers import DefaultRouter
 
 from api.common.deprecate_view import SunsetView
 from api.settings.currency_views import EnabledCurrencyView
+from cost_models.static_exchange_rate_view import StaticExchangeRateViewSet
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
@@ -427,6 +428,16 @@ urlpatterns = [
         "settings/currency/enabled-currencies/",
         EnabledCurrencyView.as_view(),
         name="enabled-currencies",
+    ),
+    path(
+        "settings/currency/static-exchange-rates/",
+        StaticExchangeRateViewSet.as_view({"get": "list", "post": "create"}),
+        name="static-exchange-rates-list",
+    ),
+    path(
+        "settings/currency/static-exchange-rates/<uuid:uuid>/",
+        StaticExchangeRateViewSet.as_view({"get": "retrieve", "put": "update", "delete": "destroy"}),
+        name="static-exchange-rates-detail",
     ),
     path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
