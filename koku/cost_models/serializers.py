@@ -13,7 +13,7 @@ from rest_framework import serializers
 
 from api.common import error_obj
 from api.common import log_json
-from api.currency.currencies import CURRENCY_CHOICES
+from api.currency.currencies import get_all_currency_codes
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
@@ -95,7 +95,13 @@ class TieredRateSerializer(serializers.Serializer):
 
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     usage = serializers.DictField(required=False)
-    unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
+    unit = serializers.CharField(max_length=5)
+
+    def validate_unit(self, value):
+        value = value.upper()
+        if value not in get_all_currency_codes():
+            raise serializers.ValidationError(f'"{value}" is not a known currency.')
+        return value
 
     def validate_value(self, value):
         """Check that value is a positive value."""
@@ -133,11 +139,17 @@ class TagRateValueSerializer(serializers.Serializer):
     DECIMALS = ("value", "usage_start", "usage_end")
 
     tag_value = serializers.CharField(max_length=100)
-    unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
+    unit = serializers.CharField(max_length=5)
     usage = serializers.DictField(required=False)
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     description = serializers.CharField(allow_blank=True, max_length=500)
     default = serializers.BooleanField()
+
+    def validate_unit(self, value):
+        value = value.upper()
+        if value not in get_all_currency_codes():
+            raise serializers.ValidationError(f'"{value}" is not a known currency.')
+        return value
 
     def validate_value(self, value):
         """Check that value is a positive value."""
@@ -459,9 +471,15 @@ class CostModelSerializer(BaseSerializer):
 
     distribution_info = DistributionSerializer(required=False)
 
-    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
+    currency = serializers.CharField(max_length=5, required=False)
 
     price_list_uuids = serializers.ListField(child=serializers.UUIDField(), required=False)
+
+    def validate_currency(self, value):
+        value = value.upper()
+        if value not in get_all_currency_codes():
+            raise serializers.ValidationError(f'"{value}" is not a known currency.')
+        return value
 
     @property
     def customer(self):

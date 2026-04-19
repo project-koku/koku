@@ -16,7 +16,6 @@ from requests.exceptions import RetryError
 from urllib3.util.retry import Retry
 
 from api.common import log_json
-from api.currency.currencies import VALID_CURRENCIES
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
 from api.iam.models import Tenant
@@ -284,22 +283,22 @@ def _fetch_exchange_rates(url):
 
     rate_metrics = {}
     for curr_type, value in response.json()["rates"].items():
-        if curr_type.upper() in VALID_CURRENCIES:
-            try:
-                exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
-                LOG.info(f"Updating currency {curr_type} to {value}")
-            except ExchangeRates.DoesNotExist:
-                LOG.info(f"Creating the exchange rate {curr_type} to {value}")
-                exchange = ExchangeRates(currency_type=curr_type.lower())
-            rate_metrics[curr_type] = value
-            exchange.exchange_rate = value
-            exchange.save()
+        try:
+            exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
+            LOG.info(f"Updating currency {curr_type} to {value}")
+        except ExchangeRates.DoesNotExist:
+            LOG.info(f"Creating the exchange rate {curr_type} to {value}")
+            exchange = ExchangeRates(currency_type=curr_type.lower())
+        rate_metrics[curr_type] = value
+        exchange.exchange_rate = value
+        exchange.save()
     exchange_dictionary(rate_metrics)
     return rate_metrics
 
 
 def _upsert_tenant_exchange_rates(schema_name, exchange_dict, current_month):
     """Sync EnabledCurrency and upsert dynamic MonthlyExchangeRate rows for one tenant."""
+    from api.currency.currencies import lookup_currency_name
     from cost_models.models import EnabledCurrency
     from cost_models.models import MonthlyExchangeRate
     from cost_models.models import RateType
@@ -310,7 +309,14 @@ def _upsert_tenant_exchange_rates(schema_name, exchange_dict, current_month):
         new_currencies = set(exchange_dict.keys()) - existing_codes
         if new_currencies:
             EnabledCurrency.objects.bulk_create(
-                [EnabledCurrency(currency_code=code, enabled=False) for code in new_currencies],
+                [
+                    EnabledCurrency(
+                        currency_code=code,
+                        currency_name=lookup_currency_name(code),
+                        enabled=False,
+                    )
+                    for code in new_currencies
+                ],
                 ignore_conflicts=True,
             )
 

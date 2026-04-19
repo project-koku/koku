@@ -6,15 +6,22 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.currency.currencies import CURRENCIES
 from api.iam.test.iam_test_case import IamTestCase
+from cost_models.models import EnabledCurrency
 
 
 class CurrencyViewTest(IamTestCase):
     """Tests for the currency view."""
 
+    def setUp(self):
+        super().setUp()
+        EnabledCurrency.objects.all().delete()
+        EnabledCurrency.objects.create(currency_code="USD", currency_name="US Dollar", enabled=True)
+        EnabledCurrency.objects.create(currency_code="EUR", currency_name="Euro", enabled=True)
+        EnabledCurrency.objects.create(currency_code="GBP", currency_name="Pound Sterling", enabled=False)
+
     def test_supported_currencies(self):
-        """Test that a list GET call returns the supported currencies."""
+        """Test that GET returns only enabled currencies from EnabledCurrency."""
         qs = "?limit=25"
         url = reverse("currency") + qs
         client = APIClient()
@@ -23,4 +30,17 @@ class CurrencyViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.data
-        self.assertEqual(data.get("data"), CURRENCIES)
+        expected = [
+            {"code": "EUR", "name": "Euro"},
+            {"code": "USD", "name": "US Dollar"},
+        ]
+        self.assertEqual(data.get("data"), expected)
+
+    def test_disabled_currencies_excluded(self):
+        """Test that disabled currencies do not appear in the response."""
+        url = reverse("currency") + "?limit=25"
+        client = APIClient()
+
+        response = client.get(url, **self.headers)
+        codes = [c["code"] for c in response.data["data"]]
+        self.assertNotIn("GBP", codes)

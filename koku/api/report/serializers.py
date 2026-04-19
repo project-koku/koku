@@ -10,7 +10,7 @@ from django.utils.translation import gettext
 from rest_framework import serializers
 from rest_framework.fields import DateField
 
-from api.currency.currencies import CURRENCY_CHOICES
+from api.currency.currencies import get_enabled_currency_codes
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.queries import ReportQueryHandler
@@ -349,7 +349,7 @@ class ParamSerializer(BaseSerializer):
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
 
-    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
+    currency = serializers.CharField(max_length=5, required=False)
     category = StringOrListField(child=serializers.CharField(), required=False)
 
     order_by_allowlist = (
@@ -366,6 +366,12 @@ class ParamSerializer(BaseSerializer):
         "usage_efficiency",
         "wasted_cost",
     )
+
+    def validate_currency(self, value):
+        value = value.upper()
+        if value not in get_enabled_currency_codes():
+            raise serializers.ValidationError(f'"{value}" is not an enabled currency.')
+        return value
 
     def validate(self, data):
         """Validate incoming data.

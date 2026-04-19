@@ -11,7 +11,8 @@ from django.db import transaction
 from rest_framework import serializers
 
 from api.common import log_json
-from api.currency.currencies import VALID_CURRENCIES
+from api.currency.currencies import get_all_currency_codes
+from api.currency.currencies import lookup_currency_name
 from api.currency.models import ExchangeRateDictionary
 from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
@@ -36,7 +37,7 @@ def _ensure_currencies_enabled(*currency_codes):
     for code in currency_codes:
         EnabledCurrency.objects.update_or_create(
             currency_code=code,
-            defaults={"enabled": True},
+            defaults={"enabled": True, "currency_name": lookup_currency_name(code)},
         )
 
 
@@ -109,13 +110,13 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
 
     def validate_base_currency(self, value):
         value = value.upper()
-        if value not in VALID_CURRENCIES:
+        if value not in get_all_currency_codes():
             raise serializers.ValidationError(f"Invalid currency code: {value}")
         return value
 
     def validate_target_currency(self, value):
         value = value.upper()
-        if value not in VALID_CURRENCIES:
+        if value not in get_all_currency_codes():
             raise serializers.ValidationError(f"Invalid currency code: {value}")
         return value
 

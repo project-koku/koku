@@ -2,143 +2,42 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""List of currencies."""
-# turn off black formatting
-# fmt: off
-CURRENCIES = [
-    {
-        "code": "AED",
-        "name": "United Arab Emirates Dirham",
-        "symbol": "AED",
-        "description": "AED (AED) - United Arab Emirates Dirham",
-    },
-    {
-        "code": "AUD",
-        "name": "Australian Dollar",
-        "symbol": "A$",
-        "description": "AUD (A$) - Australian Dollar",
-    },
-    {
-        "code": "BRL",
-        "name": "Brazilian Real",
-        "symbol": "R$",
-        "description": "BRL (R$) - Brazilian Real",
-    },
-    {
-        "code": "CAD",
-        "name": "Canadian Dollar",
-        "symbol": "CA$",
-        "description": "CAD (CA$) - Canadian Dollar",
-    },
-    {
-        "code": "CHF",
-        "name": "Swiss Franc",
-        "symbol": "CHF",
-        "description": "CHF (CHF) - Swiss Franc",
-    },
-    {
-        "code": "CNY",
-        "name": "Chinese Yuan",
-        "symbol": "CN\u00a5",
-        "description": "CNY (CN\u00a5) - Chinese Yuan",
-    },
-    {
-        "code": "CZK",
-        "name": "Czech Koruna",
-        "symbol": "CZK",
-        "description": "CZK (CZK) - Czech Koruna",
-    },
-    {
-        "code": "DKK",
-        "name": "Danish Krone",
-        "symbol": "DKK",
-        "description": "DKK (DKK) - Danish Krone",
-    },
-    {
-        "code": "EUR",
-        "name": "Euro",
-        "symbol": "\u20ac",
-        "description": "EUR (\u20ac) - Euro",
-    },
-    {
-        "code": "GBP",
-        "name": "British Pound",
-        "symbol": "\u00a3",
-        "description": "GBP (\u00a3) - British Pound",
-    },
-    {
-        "code": "HKD",
-        "name": "Hong Kong Dollar",
-        "symbol": "HK$",
-        "description": "HKD (HK$) - Hong Kong Dollar",
-    },
-    {
-        "code": "INR",
-        "name": "Indian Rupee",
-        "symbol": "\u20b9",
-        "description": "INR (\u20b9) - Indian Rupee",
-    },
-    {
-        "code": "JPY",
-        "name": "Japanese Yen",
-        "symbol": "\u00a5",
-        "description": "JPY (\u00a5) - Japanese Yen",
-    },
-    {
-        "code": "NGN",
-        "name": "Nigerian Naira",
-        "symbol": "\u20a6",
-        "description": "NGN (\u20a6) - Nigerian Naira",
-    },
-    {
-        "code": "NOK",
-        "name": "Norwegian Krone",
-        "symbol": "NOK",
-        "description": "NOK (NOK) - Norwegian Krone",
-    },
-    {
-        "code": "NZD",
-        "name": "New Zealand Dollar",
-        "symbol": "NZ$",
-        "description": "NZD (NZ$) - New Zealand Dollar",
-    },
-    {
-        "code": "SAR",
-        "name": "Saudi Riyal",
-        "symbol": "SAR",
-        "description": "SAR (SAR) - Saudi Riyal",
-    },
-    {
-        "code": "SEK",
-        "name": "Swedish Krona",
-        "symbol": "SEK",
-        "description": "SEK (SEK) - Swedish Krona",
-    },
-    {
-        "code": "SGD",
-        "name": "Singapore Dollar",
-        "symbol": "S$",
-        "description": "SGD (S$) - Singapore Dollar",
-    },
-    {
-        "code": "TWD",
-        "name": "New Taiwan Dollar",
-        "symbol": "NT$",
-        "description": "TWD (NT$) - New Taiwan Dollar",
-    },
-    {
-        "code": "USD",
-        "name": "United States Dollar",
-        "symbol": "$",
-        "description": "USD ($) - United States Dollar",
-    },
-    {
-        "code": "ZAR",
-        "name": "South African Rand",
-        "symbol": "R",
-        "description": "ZAR (R) - South African Rand",
-    },
-]
-# fmt: on
-VALID_CURRENCIES = [currency["code"] for currency in CURRENCIES]
-CURRENCY_CHOICES = tuple((currency, currency) for currency in VALID_CURRENCIES)
+"""Currency helpers backed by the EnabledCurrency table.
+
+No hardcoded currency list.  Currencies are discovered dynamically by the
+daily Celery task and managed via the EnabledCurrency table (tenant schema).
+Administrators enable currencies through the Settings UI.
+
+Display metadata (currency_name) is resolved via pycountry at discovery
+time and stored on the EnabledCurrency row.
+"""
+import pycountry
+
+from cost_models.models import EnabledCurrency
+
+
+def get_enabled_currency_codes():
+    """Return the set of currency codes that are currently enabled.
+
+    Requires tenant schema context (set by django-tenants middleware for
+    requests or by ``schema_context()`` in tasks).
+    """
+    return set(EnabledCurrency.objects.filter(enabled=True).values_list("currency_code", flat=True))
+
+
+def get_all_currency_codes():
+    """Return the set of all known currency codes (enabled or not).
+
+    Requires tenant schema context.
+    """
+    return set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+
+
+def lookup_currency_name(code):
+    """Resolve a currency code to its display name via pycountry.
+
+    Returns the code itself when pycountry has no entry (e.g. crypto or
+    non-standard codes returned by some exchange rate APIs).
+    """
+    currency = pycountry.currencies.get(alpha_3=code.upper())
+    return currency.name if currency else code.upper()

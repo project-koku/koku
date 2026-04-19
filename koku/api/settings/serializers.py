@@ -5,7 +5,7 @@
 """Serializers for Masu API `manifest`."""
 from rest_framework import serializers
 
-from api.currency.currencies import CURRENCY_CHOICES
+from api.currency.currencies import get_enabled_currency_codes
 from api.settings.settings import COST_TYPE_CHOICES
 from reporting.user_settings.models import UserSettings
 
@@ -26,6 +26,12 @@ class UserSettingUpdateCostTypeSerializer(serializers.Serializer):
 
 
 class UserSettingUpdateCurrencySerializer(serializers.Serializer):
-    """Serializer for setting cost type."""
+    """Serializer for setting currency."""
 
-    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES)
+    currency = serializers.CharField(max_length=5)
+
+    def validate_currency(self, value):
+        value = value.upper()
+        if value not in get_enabled_currency_codes():
+            raise serializers.ValidationError(f'"{value}" is not an enabled currency.')
+        return value
