@@ -132,16 +132,6 @@ urlpatterns = [
     path("cost-type/", UserCostTypeSettings.as_view(), name="cost-type"),
     path("account-settings/", AccountSettings.as_view(), name="account-settings"),
     path("account-settings/<str:setting>/", AccountSettings.as_view(), name="get-account-setting"),
-    path(
-        "settings/currency/enabled-currencies/",
-        EnabledCurrencyView.as_view(),
-        name="enabled-currencies",
-    ),
-    path(
-        "settings/currency/available-currencies/",
-        AvailableCurrencyView.as_view(),
-        name="available-currencies",
-    ),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
     path("metrics/", metrics, name="metrics"),
@@ -433,6 +423,16 @@ urlpatterns = [
         "settings/aws_category_keys/disable/",
         SettingsDisableAWSCategoryKeyView.as_view(),
         name="settings-aws-category-keys-disable",
+    ),
+    path(
+        "settings/currency/enabled-currencies/",
+        EnabledCurrencyView.as_view(),
+        name="enabled-currencies",
+    ),
+    path(
+        "settings/currency/available-currencies/",
+        AvailableCurrencyView.as_view(),
+        name="available-currencies",
     ),
     path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
