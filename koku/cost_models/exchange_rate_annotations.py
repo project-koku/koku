@@ -14,7 +14,7 @@ from cost_models.models import CostModel
 from cost_models.models import MonthlyExchangeRate
 
 
-def _build_monthly_rate_annotation(base_currency_expr, target_currency):
+def _build_monthly_rate_annotation(base_currency, target_currency):
     """Build a Coalesce annotation that resolves exchange rates per month.
 
     Tries the rate matching the row's usage_start month first, then falls back
@@ -25,8 +25,7 @@ def _build_monthly_rate_annotation(base_currency_expr, target_currency):
     requires for date truncation.
 
     Args:
-        base_currency_expr: A Django expression resolving to the base currency code
-            (e.g. OuterRef("currency_code") or Subquery(...)).
+        base_currency: A Django expression resolving to the base currency code.
         target_currency: The target currency code string.
 
     Returns:
@@ -35,13 +34,13 @@ def _build_monthly_rate_annotation(base_currency_expr, target_currency):
     rate_subquery = MonthlyExchangeRate.objects.filter(
         effective_date__year=ExtractYear(OuterRef("usage_start")),
         effective_date__month=ExtractMonth(OuterRef("usage_start")),
-        base_currency=base_currency_expr,
+        base_currency=base_currency,
         target_currency=target_currency,
     ).values("exchange_rate")[:1]
 
     earliest_rate_subquery = (
         MonthlyExchangeRate.objects.filter(
-            base_currency=base_currency_expr,
+            base_currency=base_currency,
             target_currency=target_currency,
         )
         .order_by("effective_date")
