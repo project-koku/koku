@@ -16,12 +16,18 @@ class CurrencyViewTest(IamTestCase):
     def setUp(self):
         super().setUp()
         EnabledCurrency.objects.all().delete()
-        EnabledCurrency.objects.create(currency_code="USD", currency_name="US Dollar", enabled=True)
-        EnabledCurrency.objects.create(currency_code="EUR", currency_name="Euro", enabled=True)
-        EnabledCurrency.objects.create(currency_code="GBP", currency_name="Pound Sterling", enabled=False)
+        EnabledCurrency.objects.create(
+            currency_code="USD", currency_name="US Dollar", currency_symbol="$", enabled=True
+        )
+        EnabledCurrency.objects.create(
+            currency_code="EUR", currency_name="Euro", currency_symbol="€", enabled=True
+        )
+        EnabledCurrency.objects.create(
+            currency_code="GBP", currency_name="Pound Sterling", currency_symbol="£", enabled=False
+        )
 
     def test_supported_currencies(self):
-        """Test that GET returns only enabled currencies from EnabledCurrency."""
+        """Test that GET returns only enabled currencies with name, symbol, description."""
         qs = "?limit=25"
         url = reverse("currency") + qs
         client = APIClient()
@@ -31,8 +37,8 @@ class CurrencyViewTest(IamTestCase):
 
         data = response.data
         expected = [
-            {"code": "EUR", "name": "Euro"},
-            {"code": "USD", "name": "US Dollar"},
+            {"code": "EUR", "name": "Euro", "symbol": "€", "description": "EUR (€) - Euro"},
+            {"code": "USD", "name": "US Dollar", "symbol": "$", "description": "USD ($) - US Dollar"},
         ]
         self.assertEqual(data.get("data"), expected)
 

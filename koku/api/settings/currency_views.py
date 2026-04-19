@@ -36,7 +36,7 @@ class EnabledCurrencyView(APIView):
 
     @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
-        currencies = EnabledCurrency.objects.all().values("currency_code", "currency_name", "enabled")
+        currencies = EnabledCurrency.objects.all().values("currency_code", "currency_name", "currency_symbol", "enabled")
         data = list(currencies)
         paginator = ListPaginator(data, request)
         return paginator.get_paginated_response(data)

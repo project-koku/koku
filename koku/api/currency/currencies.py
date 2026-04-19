@@ -8,10 +8,12 @@ No hardcoded currency list.  Currencies are discovered dynamically by the
 daily Celery task and managed via the EnabledCurrency table (tenant schema).
 Administrators enable currencies through the Settings UI.
 
-Display metadata (currency_name) is resolved via pycountry at discovery
-time and stored on the EnabledCurrency row.
+Display metadata (name, symbol) is resolved via babel at discovery time
+and stored on the EnabledCurrency row.
 """
-import pycountry
+from babel.numbers import get_currency_name
+from babel.numbers import get_currency_symbol
+from babel.numbers import UnknownCurrencyError
 
 from cost_models.models import EnabledCurrency
 
@@ -33,11 +35,18 @@ def get_all_currency_codes():
     return set(EnabledCurrency.objects.values_list("currency_code", flat=True))
 
 
-def lookup_currency_name(code):
-    """Resolve a currency code to its display name via pycountry.
+def lookup_currency_metadata(code):
+    """Resolve a currency code to its display name and symbol via babel.
 
-    Returns the code itself when pycountry has no entry (e.g. crypto or
-    non-standard codes returned by some exchange rate APIs).
+    Returns (name, symbol) tuple.  Falls back to the code itself for
+    currencies babel does not recognise (e.g. crypto or non-standard
+    codes returned by some exchange rate APIs).
     """
-    currency = pycountry.currencies.get(alpha_3=code.upper())
-    return currency.name if currency else code.upper()
+    code = code.upper()
+    try:
+        name = get_currency_name(code, locale="en_US")
+        symbol = get_currency_symbol(code, locale="en_US")
+    except UnknownCurrencyError:
+        name = code
+        symbol = code
+    return name, symbol

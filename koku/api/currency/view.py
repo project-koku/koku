@@ -23,14 +23,23 @@ def get_currency(request):
     """Get available currencies.
 
     Returns currencies that have been enabled by an administrator via
-    the EnabledCurrency table.  Display name is resolved via pycountry
-    at discovery time and stored on the row.
+    the EnabledCurrency table.  Display metadata (name, symbol) is
+    resolved via babel at discovery time and stored on the row.
     """
-    currencies = EnabledCurrency.objects.filter(enabled=True).values("currency_code", "currency_name")
-    available = [
-        {"code": c["currency_code"], "name": c["currency_name"] or c["currency_code"]}
-        for c in currencies.order_by("currency_code")
-    ]
+    currencies = EnabledCurrency.objects.filter(enabled=True).values(
+        "currency_code", "currency_name", "currency_symbol"
+    )
+    available = []
+    for c in currencies.order_by("currency_code"):
+        code = c["currency_code"]
+        name = c["currency_name"] or code
+        symbol = c["currency_symbol"] or code
+        available.append({
+            "code": code,
+            "name": name,
+            "symbol": symbol,
+            "description": f"{code} ({symbol}) - {name}",
+        })
     return ListPaginator(available, request).paginated_response
 
 
