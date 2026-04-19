@@ -14,7 +14,7 @@ from cost_models.models import CostModel
 from cost_models.models import MonthlyExchangeRate
 
 
-def _build_monthly_rate_annotation(cost_units_key, target_currency):
+def _build_monthly_rate_annotation(base_currency_expr, target_currency):
     """Build a Coalesce annotation that resolves exchange rates per month.
 
     Tries the rate matching the row's usage_start month first, then falls back
@@ -25,7 +25,8 @@ def _build_monthly_rate_annotation(cost_units_key, target_currency):
     requires for date truncation.
 
     Args:
-        cost_units_key: The field name on the outer query holding the base currency code.
+        base_currency_expr: A Django expression resolving to the base currency code
+            (e.g. OuterRef("currency_code") or Subquery(...)).
         target_currency: The target currency code string.
 
     Returns:
@@ -34,13 +35,13 @@ def _build_monthly_rate_annotation(cost_units_key, target_currency):
     rate_subquery = MonthlyExchangeRate.objects.filter(
         effective_date__year=ExtractYear(OuterRef("usage_start")),
         effective_date__month=ExtractMonth(OuterRef("usage_start")),
-        base_currency=OuterRef(cost_units_key),
+        base_currency=base_currency_expr,
         target_currency=target_currency,
     ).values("exchange_rate")[:1]
 
     earliest_rate_subquery = (
         MonthlyExchangeRate.objects.filter(
-            base_currency=OuterRef(cost_units_key),
+            base_currency=base_currency_expr,
             target_currency=target_currency,
         )
         .order_by("effective_date")
@@ -60,7 +61,7 @@ def build_exchange_rate_annotation_dict(cost_units_key, target_currency):
     Used by non-OCP query handlers and forecasts where there is only one
     currency dimension (the bill/report currency).
     """
-    return {"exchange_rate": _build_monthly_rate_annotation(cost_units_key, target_currency)}
+    return {"exchange_rate": _build_monthly_rate_annotation(OuterRef(cost_units_key), target_currency)}
 
 
 def build_ocp_exchange_rate_annotation_dict(cost_units_key, target_currency):
@@ -70,31 +71,13 @@ def build_ocp_exchange_rate_annotation_dict(cost_units_key, target_currency):
     - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency)
     - infra_exchange_rate: cloud bill currency (raw_currency column)
     """
-    cost_model_currency = CostModel.objects.filter(
-        costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),
-    ).values("currency")[:1]
-
-    exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
-        effective_date__year=ExtractYear(OuterRef("usage_start")),
-        effective_date__month=ExtractMonth(OuterRef("usage_start")),
-        base_currency=Subquery(cost_model_currency),
-        target_currency=target_currency,
-    ).values("exchange_rate")[:1]
-
-    earliest_exchange_rate_subquery = (
-        MonthlyExchangeRate.objects.filter(
-            base_currency=Subquery(cost_model_currency),
-            target_currency=target_currency,
-        )
-        .order_by("effective_date")
-        .values("exchange_rate")[:1]
+    cost_model_currency = Subquery(
+        CostModel.objects.filter(
+            costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),
+        ).values("currency")[:1]
     )
 
     return {
-        "exchange_rate": Coalesce(
-            Subquery(exchange_rate_subquery),
-            Subquery(earliest_exchange_rate_subquery),
-            output_field=DecimalField(),
-        ),
-        "infra_exchange_rate": _build_monthly_rate_annotation(cost_units_key, target_currency),
+        "exchange_rate": _build_monthly_rate_annotation(cost_model_currency, target_currency),
+        "infra_exchange_rate": _build_monthly_rate_annotation(OuterRef(cost_units_key), target_currency),
     }
