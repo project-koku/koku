@@ -2,7 +2,7 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Views for currency enablement and available currencies."""
+"""Views for currency enablement."""
 import logging
 
 from django.utils.decorators import method_decorator
@@ -59,20 +59,3 @@ class EnabledCurrencyView(APIView):
             )
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class AvailableCurrencyView(APIView):
-    """Returns currencies visible in the target currency dropdown.
-
-    EnabledCurrency is the single source of truth for dropdown visibility.
-    Static rate CRUD and the daily Celery task both maintain EnabledCurrency rows.
-    """
-
-    permission_classes = [SettingsAccessPermission]
-
-    @method_decorator(never_cache)
-    def get(self, request, *args, **kwargs):
-        currencies = EnabledCurrency.objects.filter(enabled=True).order_by("currency_code")
-        data = [{"currency_code": c.currency_code} for c in currencies]
-        paginator = ListPaginator(data, request)
-        return paginator.get_paginated_response(data)
