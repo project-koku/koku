@@ -18,12 +18,18 @@ class CurrencyViewTest(IamTestCase):
     def setUp(self):
         super().setUp()
         EnabledCurrency.objects.all().delete()
-        EnabledCurrency.objects.create(currency_code="USD", currency_name="US Dollar", enabled=True)
-        EnabledCurrency.objects.create(currency_code="EUR", currency_name="Euro", enabled=True)
-        EnabledCurrency.objects.create(currency_code="GBP", currency_name="Pound Sterling", enabled=False)
+        EnabledCurrency.objects.create(currency_code="USD", enabled=True)
+        EnabledCurrency.objects.create(currency_code="EUR", enabled=True)
+        EnabledCurrency.objects.create(currency_code="GBP", enabled=False)
 
-    @patch("api.currency.view.resolve_currency_symbol", side_effect=lambda c: {"USD": "$", "EUR": "€"}.get(c, c))
-    def test_supported_currencies(self, _mock_symbol):
+    @patch(
+        "api.currency.view.get_currency_info",
+        side_effect=lambda c: {
+            "USD": {"code": "USD", "name": "US Dollar", "symbol": "$", "description": "USD ($) - US Dollar"},
+            "EUR": {"code": "EUR", "name": "Euro", "symbol": "€", "description": "EUR (€) - Euro"},
+        }[c],
+    )
+    def test_supported_currencies(self, _mock_display):
         """Test that GET returns only enabled currencies with name, symbol, description."""
         qs = "?limit=25"
         url = reverse("currency") + qs

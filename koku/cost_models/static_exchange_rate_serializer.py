@@ -12,7 +12,6 @@ from rest_framework import serializers
 
 from api.common import log_json
 from api.currency.currencies import get_all_currency_codes
-from api.currency.currencies import lookup_currency_name
 from api.currency.models import ExchangeRateDictionary
 from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
@@ -37,7 +36,7 @@ def _ensure_currencies_enabled(*currency_codes):
     for code in currency_codes:
         EnabledCurrency.objects.update_or_create(
             currency_code=code,
-            defaults={"enabled": True, "currency_name": lookup_currency_name(code)},
+            defaults={"enabled": True},
         )
 
 
