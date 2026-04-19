@@ -298,7 +298,7 @@ def _fetch_exchange_rates(url):
 
 def _upsert_tenant_exchange_rates(schema_name, exchange_dict, current_month):
     """Sync EnabledCurrency and upsert dynamic MonthlyExchangeRate rows for one tenant."""
-    from api.currency.currencies import lookup_currency_metadata
+    from api.currency.currencies import lookup_currency_name
     from cost_models.models import EnabledCurrency
     from cost_models.models import MonthlyExchangeRate
     from cost_models.models import RateType
@@ -308,18 +308,17 @@ def _upsert_tenant_exchange_rates(schema_name, exchange_dict, current_month):
         existing_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
         new_currencies = set(exchange_dict.keys()) - existing_codes
         if new_currencies:
-            rows = []
-            for code in new_currencies:
-                name, symbol = lookup_currency_metadata(code)
-                rows.append(
+            EnabledCurrency.objects.bulk_create(
+                [
                     EnabledCurrency(
                         currency_code=code,
-                        currency_name=name,
-                        currency_symbol=symbol,
+                        currency_name=lookup_currency_name(code),
                         enabled=False,
                     )
-                )
-            EnabledCurrency.objects.bulk_create(rows, ignore_conflicts=True)
+                    for code in new_currencies
+                ],
+                ignore_conflicts=True,
+            )
 
         static_pairs = set(
             MonthlyExchangeRate.objects.filter(

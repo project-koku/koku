@@ -2,6 +2,8 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+from unittest.mock import patch
+
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -16,17 +18,12 @@ class CurrencyViewTest(IamTestCase):
     def setUp(self):
         super().setUp()
         EnabledCurrency.objects.all().delete()
-        EnabledCurrency.objects.create(
-            currency_code="USD", currency_name="US Dollar", currency_symbol="$", enabled=True
-        )
-        EnabledCurrency.objects.create(
-            currency_code="EUR", currency_name="Euro", currency_symbol="€", enabled=True
-        )
-        EnabledCurrency.objects.create(
-            currency_code="GBP", currency_name="Pound Sterling", currency_symbol="£", enabled=False
-        )
+        EnabledCurrency.objects.create(currency_code="USD", currency_name="US Dollar", enabled=True)
+        EnabledCurrency.objects.create(currency_code="EUR", currency_name="Euro", enabled=True)
+        EnabledCurrency.objects.create(currency_code="GBP", currency_name="Pound Sterling", enabled=False)
 
-    def test_supported_currencies(self):
+    @patch("api.currency.view.resolve_currency_symbol", side_effect=lambda c: {"USD": "$", "EUR": "€"}.get(c, c))
+    def test_supported_currencies(self, _mock_symbol):
         """Test that GET returns only enabled currencies with name, symbol, description."""
         qs = "?limit=25"
         url = reverse("currency") + qs

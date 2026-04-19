@@ -18,9 +18,4 @@ class Migration(migrations.Migration):
             name="currency_name",
             field=models.CharField(blank=True, default="", max_length=100),
         ),
-        migrations.AddField(
-            model_name="enabledcurrency",
-            name="currency_symbol",
-            field=models.CharField(blank=True, default="", max_length=10),
-        ),
     ]

@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from api.common.pagination import ListPaginator
+from api.currency.currencies import resolve_currency_symbol
 from api.currency.models import ExchangeRateDictionary
 from cost_models.models import EnabledCurrency
 
@@ -23,17 +24,15 @@ def get_currency(request):
     """Get available currencies.
 
     Returns currencies that have been enabled by an administrator via
-    the EnabledCurrency table.  Display metadata (name, symbol) is
-    resolved via babel at discovery time and stored on the row.
+    the EnabledCurrency table.  Name is stored on the row; symbol and
+    description are computed at response time via babel.
     """
-    currencies = EnabledCurrency.objects.filter(enabled=True).values(
-        "currency_code", "currency_name", "currency_symbol"
-    )
+    currencies = EnabledCurrency.objects.filter(enabled=True).values("currency_code", "currency_name")
     available = []
     for c in currencies.order_by("currency_code"):
         code = c["currency_code"]
         name = c["currency_name"] or code
-        symbol = c["currency_symbol"] or code
+        symbol = resolve_currency_symbol(code)
         available.append({
             "code": code,
             "name": name,

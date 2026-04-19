@@ -236,7 +236,6 @@ class EnabledCurrency(models.Model):
 
     currency_code = models.CharField(max_length=5, unique=True)
     currency_name = models.CharField(max_length=100, blank=True, default="")
-    currency_symbol = models.CharField(max_length=10, blank=True, default="")
     enabled = models.BooleanField(default=False)
     created_timestamp = models.DateTimeField(auto_now_add=True)
     updated_timestamp = models.DateTimeField(auto_now=True)
