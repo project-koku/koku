@@ -14,6 +14,6 @@ from cost_models.views import CostModelViewSet
 ROUTER = DefaultRouter()
 ROUTER.register(r"cost-models", CostModelViewSet, basename="cost-models")
 ROUTER.register(r"price-lists", PriceListViewSet, basename="price-lists")
-ROUTER.register(r"exchange-rate-pairs", StaticExchangeRateViewSet, basename="exchange-rate-pairs")
+ROUTER.register(r"static-exchange-rates", StaticExchangeRateViewSet, basename="static-exchange-rates")
 
 urlpatterns = [path("", include(ROUTER.urls))]
