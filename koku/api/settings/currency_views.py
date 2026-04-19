@@ -16,7 +16,6 @@ from api.common import log_json
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from cost_models.models import EnabledCurrency
-from cost_models.models import StaticExchangeRate
 
 LOG = logging.getLogger(__name__)
 
@@ -63,29 +62,17 @@ class EnabledCurrencyView(APIView):
 
 
 class AvailableCurrencyView(APIView):
-    """Returns currencies visible in the target currency dropdown."""
+    """Returns currencies visible in the target currency dropdown.
+
+    EnabledCurrency is the single source of truth for dropdown visibility.
+    Static rate CRUD and the daily Celery task both maintain EnabledCurrency rows.
+    """
 
     permission_classes = [SettingsAccessPermission]
 
     @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
-        enabled_codes = set(EnabledCurrency.objects.filter(enabled=True).values_list("currency_code", flat=True))
-
-        static_bases = set(StaticExchangeRate.objects.values_list("base_currency", flat=True))
-        static_targets = set(StaticExchangeRate.objects.values_list("target_currency", flat=True))
-        static_currencies = static_bases | static_targets
-
-        data = []
-        for code in sorted(enabled_codes | static_currencies):
-            in_dynamic = code in enabled_codes
-            in_static = code in static_currencies
-            if in_dynamic and in_static:
-                source = "both"
-            elif in_static:
-                source = "static"
-            else:
-                source = "dynamic"
-            data.append({"currency_code": code, "source": source})
-
+        currencies = EnabledCurrency.objects.filter(enabled=True).order_by("currency_code")
+        data = [{"currency_code": c.currency_code} for c in currencies]
         paginator = ListPaginator(data, request)
         return paginator.get_paginated_response(data)

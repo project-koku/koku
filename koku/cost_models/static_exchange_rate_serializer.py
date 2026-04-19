@@ -13,6 +13,7 @@ from rest_framework import serializers
 from api.common import log_json
 from api.currency.currencies import VALID_CURRENCIES
 from api.currency.models import ExchangeRateDictionary
+from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
@@ -28,6 +29,15 @@ def _iter_months(start_date, end_date):
     while current <= end:
         yield current
         current += relativedelta(months=1)
+
+
+def _ensure_currencies_enabled(*currency_codes):
+    """Ensure EnabledCurrency rows exist and are enabled for the given currency codes."""
+    for code in currency_codes:
+        EnabledCurrency.objects.update_or_create(
+            currency_code=code,
+            defaults={"enabled": True},
+        )
 
 
 def _upsert_monthly_rates(static_rate):
@@ -155,6 +165,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         instance = StaticExchangeRate.objects.create(**validated_data)
+        _ensure_currencies_enabled(instance.base_currency, instance.target_currency)
         _upsert_monthly_rates(instance)
         schema_name = self._get_schema_name()
         if schema_name:
@@ -185,6 +196,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         if old_base != instance.base_currency or old_target != instance.target_currency:
             _remove_static_and_backfill_dynamic(old_base, old_target, old_start, old_end)
 
+        _ensure_currencies_enabled(instance.base_currency, instance.target_currency)
         _upsert_monthly_rates(instance)
 
         schema_name = self._get_schema_name()

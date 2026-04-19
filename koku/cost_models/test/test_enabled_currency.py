@@ -10,7 +10,6 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import EnabledCurrency
-from cost_models.models import StaticExchangeRate
 
 
 class EnabledCurrencyViewTest(IamTestCase):
@@ -61,10 +60,9 @@ class AvailableCurrencyViewTest(IamTestCase):
         self.client = APIClient()
         self.url = reverse("available-currencies")
 
-    def test_get_available_currencies_dynamic_only(self):
+    def test_get_available_currencies_only_enabled(self):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
-            StaticExchangeRate.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD", enabled=True)
             EnabledCurrency.objects.create(currency_code="EUR", enabled=True)
             EnabledCurrency.objects.create(currency_code="GBP", enabled=False)
@@ -75,27 +73,9 @@ class AvailableCurrencyViewTest(IamTestCase):
             self.assertIn("EUR", codes)
             self.assertNotIn("GBP", codes)
 
-    def test_get_available_currencies_static_included(self):
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-            StaticExchangeRate.objects.all().delete()
-            StaticExchangeRate.objects.create(
-                base_currency="EUR",
-                target_currency="CHF",
-                exchange_rate="1.080000000000000",
-                start_date="2026-01-01",
-                end_date="2026-01-31",
-            )
-            response = self.client.get(self.url, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            codes = [c["currency_code"] for c in response.data["data"]]
-            self.assertIn("EUR", codes)
-            self.assertIn("CHF", codes)
-
     def test_get_available_currencies_empty(self):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
-            StaticExchangeRate.objects.all().delete()
             response = self.client.get(self.url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(len(response.data["data"]), 0)
