@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializer for Price List API."""
-import logging
-
 from rest_framework import serializers
 
 from api.common import error_obj
@@ -16,8 +14,6 @@ from cost_models.price_list_manager import PriceListManager
 from cost_models.serializers import CostModelSerializer
 from cost_models.serializers import RateSerializer
 from masu.processor import is_cost_model_writes_disabled
-
-LOG = logging.getLogger(__name__)
 
 
 class PriceListSerializer(BaseSerializer):

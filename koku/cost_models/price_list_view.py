@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Price Lists."""
-import logging
-
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django_filters import BooleanFilter
@@ -24,8 +22,6 @@ from cost_models.models import PriceListCostModelMap
 from cost_models.price_list_manager import PriceListException
 from cost_models.price_list_manager import PriceListManager
 from cost_models.price_list_serializer import PriceListSerializer
-
-LOG = logging.getLogger(__name__)
 
 
 class PriceListFilter(FilterSet):

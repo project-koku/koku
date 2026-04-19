@@ -36,7 +36,6 @@ from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from pandas.api.types import CategoricalDtype
-from rest_framework.exceptions import ValidationError
 
 from api.models import Provider
 from api.query_filter import QueryFilter
@@ -1121,28 +1120,6 @@ class ReportQueryHandler(QueryHandler):
         for entry in result:
             entry.pop("_next_month", None)
         return result
-
-    def _validate_exchange_rates(self, queryset):
-        """Raise if any rows have NULL exchange rates (no rate data for currency pair)."""
-        if not self.currency:
-            return
-
-        null_rate_filter = Q(exchange_rate__isnull=True)
-        if queryset.filter(null_rate_filter).exists():
-            missing_currencies = list(
-                queryset.filter(null_rate_filter).values_list(self._mapper.cost_units_key, flat=True).distinct()
-            )
-            raise ValidationError(
-                {
-                    "detail": (
-                        f"No exchange rate available for currency pair(s) "
-                        f"{missing_currencies} -> {self.currency}. "
-                        "Ask your administrator to configure static exchange rates "
-                        "or enable dynamic exchange rates."
-                    ),
-                    "source": "currency",
-                }
-            )
 
     def _pack_data_object(self, data, **kwargs):  # noqa: C901
         """Pack data into object format."""
