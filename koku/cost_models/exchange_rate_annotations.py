@@ -14,7 +14,7 @@ from cost_models.models import CostModel
 from cost_models.models import MonthlyExchangeRate
 
 
-def build_monthly_rate_annotation(cost_units_key, target_currency):
+def _build_monthly_rate_annotation(cost_units_key, target_currency):
     """Build a Coalesce annotation that resolves exchange rates per month.
 
     Tries the rate matching the row's usage_start month first, then falls back
@@ -60,7 +60,7 @@ def build_exchange_rate_annotation_dict(cost_units_key, target_currency):
     Used by non-OCP query handlers and forecasts where there is only one
     currency dimension (the bill/report currency).
     """
-    return {"exchange_rate": build_monthly_rate_annotation(cost_units_key, target_currency)}
+    return {"exchange_rate": _build_monthly_rate_annotation(cost_units_key, target_currency)}
 
 
 def build_ocp_exchange_rate_annotation_dict(cost_units_key, target_currency):
@@ -96,5 +96,5 @@ def build_ocp_exchange_rate_annotation_dict(cost_units_key, target_currency):
             Subquery(earliest_exchange_rate_subquery),
             output_field=DecimalField(),
         ),
-        "infra_exchange_rate": build_monthly_rate_annotation(cost_units_key, target_currency),
+        "infra_exchange_rate": _build_monthly_rate_annotation(cost_units_key, target_currency),
     }
