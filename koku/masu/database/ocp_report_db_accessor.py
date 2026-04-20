@@ -190,6 +190,15 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             # SaaS: execute via Trino
             self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
 
+    def _gpu_distribution_exists_for_month(self, provider_uuid, start_date, end_date) -> bool:
+        """Check if GPU distributed costs already exist in daily summary for the period."""
+        return OCPUsageLineItemDailySummary.objects.filter(
+            source_uuid=provider_uuid,
+            usage_start__gte=start_date,
+            usage_start__lte=end_date,
+            cost_model_rate_type="gpu_distributed",
+        ).exists()
+
     def _reporting_period_has_gpu_data(self, source_uuid: uuid.UUID, start_date) -> bool:
         """
         Return True if the cluster/source has GPU data for the given reporting period.
@@ -651,6 +660,17 @@ AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{
                     if dh.now_utc.day == 2:
                         sql_params["start_date"] = summary_range.start_of_previous_month
                         sql_params["end_date"] = summary_range.end_of_previous_month
+                        if self._gpu_distribution_exists_for_month(
+                            provider_uuid, sql_params["start_date"], sql_params["end_date"]
+                        ):
+                            msg = "Skipping GPU distribution - previous month already finalized"
+                            LOG.info(
+                                log_json(
+                                    msg=msg,
+                                    context={"schema": self.schema, "provider_uuid": str(provider_uuid)},
+                                )
+                            )
+                            continue
                         summary_range.summarize_previous_month = True
                     else:
                         msg = f"Skipping {cost_model_key} distribution requires full month"
