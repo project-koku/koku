@@ -583,7 +583,7 @@ distributed_cost = (slice_time / total_slice_time) × unallocated_cost
                             "mig_profile": "1g.5gb",
                             "gpu_model": "A100",
                             "gpu_vendor": "nvidia",
-                            "mig_uuid": "MIG-e46b9f71-dd65-56ef-8333-5033e349f961",
+                            "mig_id": "MIG-e46b9f71-dd65-56ef-8333-5033e349f961",
                             "gpu_name": "nvidia_A100_compute_2",
                             "node": "compute_2",
                             "compute": {
@@ -607,7 +607,7 @@ distributed_cost = (slice_time / total_slice_time) × unallocated_cost
                             "mig_profile": "2g.10gb",
                             "gpu_model": "A100",
                             "gpu_vendor": "nvidia",
-                            "mig_uuid": "MIG-2bb570d8-41ce-5304-a0c3-447c658e7bff",
+                            "mig_id": "MIG-2bb570d8-41ce-5304-a0c3-447c658e7bff",
                             "gpu_name": "nvidia_A100_compute_2",
                             "node": "compute_2",
                             "compute": {
