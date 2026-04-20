@@ -1207,7 +1207,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_trino_execute.assert_called()
 
     @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._gpu_distribution_exists_for_month",
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._distribution_exists_for_month",
         side_effect=[False, True],
     )
     @patch(
@@ -1279,7 +1279,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_trino_execute.assert_not_called()
 
     @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._gpu_distribution_exists_for_month",
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._distribution_exists_for_month",
         return_value=True,
     )
     @patch(
@@ -1334,7 +1334,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_sql_execute.assert_called()
 
     @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._gpu_distribution_exists_for_month",
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._distribution_exists_for_month",
         return_value=False,
     )
     @patch(
@@ -1385,15 +1385,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.assertIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_called()
 
-    def test_gpu_distribution_exists_for_month(self):
-        """Test the _gpu_distribution_exists_for_month method with real data."""
+    def test_distribution_exists_for_month(self):
+        """Test the _distribution_exists_for_month method with real data."""
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
         mid_month = start_date.replace(day=15)
         provider_uuid = self.ocp_provider_uuid
 
         with self.accessor as acc:
-            result = acc._gpu_distribution_exists_for_month(provider_uuid, start_date, end_date)
+            result = acc._distribution_exists_for_month(provider_uuid, start_date, end_date, "gpu_distributed")
             self.assertFalse(result)
 
             # Use existing report period from test fixtures
@@ -1410,13 +1410,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     uuid=uuid.uuid4(),
                 )
 
-            result = acc._gpu_distribution_exists_for_month(provider_uuid, start_date, end_date)
+            result = acc._distribution_exists_for_month(provider_uuid, start_date, end_date, "gpu_distributed")
             self.assertTrue(result)
 
             with schema_context(self.schema):
                 row.delete()
 
-            result = acc._gpu_distribution_exists_for_month(provider_uuid, start_date, end_date)
+            result = acc._distribution_exists_for_month(provider_uuid, start_date, end_date, "gpu_distributed")
             self.assertFalse(result)
 
     @patch(
