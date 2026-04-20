@@ -196,7 +196,7 @@ endpoint, which is the PRD's minimum floor.
 
 | Step | Migration | Description |
 |------|-----------|-------------|
-| M1 | `0344_tenantsettings` | `CREATE TABLE tenant_settings` with `CHECK` constraint |
+| M1 | `0345_tenantsettings` | `CREATE TABLE tenant_settings` with `CHECK` constraint |
 
 The table is created empty. No data migration runs. Existing tenants
 continue to use the env var (or code default) until an admin explicitly
@@ -210,7 +210,7 @@ empty (get-or-create handles first access) or seeded with the default.
 
 | Step | Migration | Description |
 |------|-----------|-------------|
-| M1 | `0344_tenantsettings` | `CREATE TABLE tenant_settings` with `CHECK` constraint |
+| M1 | `0345_tenantsettings` | `CREATE TABLE tenant_settings` with `CHECK` constraint |
 | M2 | `0345_seed_tenantsettings` | Data migration: insert one row per tenant schema |
 
 M2 iterates all tenant schemas and inserts a row with
@@ -260,7 +260,7 @@ for the full discussion. **Tech lead input requested.**
 |------|--------|
 | `reporting/tenant_settings/__init__.py` | New module |
 | `reporting/tenant_settings/models.py` | New `TenantSettings` model |
-| `reporting/migrations/0344_tenantsettings.py` | New migration |
+| `reporting/migrations/0345_tenantsettings.py` | New migration |
 | `api/settings/utils.py` | New `get_data_retention_months()` helper |
 
 ---
