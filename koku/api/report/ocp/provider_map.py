@@ -1097,6 +1097,7 @@ class OCPProviderMap(ProviderMap):
                         "aggregate_ranks_exclusions": [
                             "gpu_model",
                             "gpu_vendor",
+                            "gpu_mode",
                             "node",
                         ],  # _aggregate_ranks_over_limit
                         "delta_key": {},
@@ -1166,6 +1167,8 @@ class OCPProviderMap(ProviderMap):
                             {"field": "mig_profile", "operation": "gt", "parameter": ""},
                         ],
                         "group_by": ["mig_profile"],
+                        # Do not synthesize an "Other(s)" bucket when filter[limit] is used; return top-N only.
+                        "rank_limit_include_others": False,
                         "cost_units_key": "raw_currency",
                         "sum_columns": [],
                     },
