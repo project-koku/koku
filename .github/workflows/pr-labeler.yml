@@ -25,6 +25,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Fetch PR head
+        run: git fetch origin pull/${{ github.event.pull_request.number }}/head
+
       - name: get Docker image files
         id: docker-files
         run: .github/scripts/files_require_smokes.sh >> docker-files.txt
