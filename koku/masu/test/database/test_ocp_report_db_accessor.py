@@ -1633,9 +1633,13 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
         test_date = self.dh.last_month_start
         with self.accessor as acc:
             acc._reporting_period_has_gpu_data(self.ocp_provider.uuid, test_date)
-        executed_sql = mock_trino_raw_sql.call_args[0][0]
-        self.assertIn(f"year = '{test_date.year}'", executed_sql)
-        self.assertIn(f"'{str(test_date.month).zfill(2)}'", executed_sql)
+        bound = mock_trino_raw_sql.call_args.kwargs["sql_params"]
+        self.assertEqual(bound["year"], str(test_date.year))
+        self.assertEqual(bound["month"], str(test_date.month).zfill(2))
+        self.assertEqual(
+            bound["month_no_zero"],
+            str(test_date.month).zfill(2).lstrip("0") or "0",
+        )
 
     @override_settings(ONPREM=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
