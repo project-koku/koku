@@ -14,7 +14,7 @@ from rest_framework.settings import api_settings
 from api.common.pagination import ListPaginator
 from api.currency.currencies import get_currency_info
 from api.currency.models import ExchangeRateDictionary
-from cost_models.models import EnabledCurrency
+from cost_models.models import CurrencyConfig
 
 
 @api_view(("GET",))
@@ -24,10 +24,10 @@ def get_currency(request):
     """Get available currencies.
 
     Returns currencies that have been enabled by an administrator via
-    the EnabledCurrency table.  Name, symbol, and description are
+    the CurrencyConfig table.  Name, symbol, and description are
     computed at response time via babel.
     """
-    enabled_codes = EnabledCurrency.objects.filter(enabled=True).values_list("currency_code", flat=True)
+    enabled_codes = CurrencyConfig.objects.filter(enabled=True).values_list("currency_code", flat=True)
     available = [get_currency_info(code) for code in sorted(enabled_codes)]
     return ListPaginator(available, request).paginated_response
 

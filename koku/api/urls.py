@@ -9,8 +9,7 @@ from django.views.decorators.cache import cache_page
 from rest_framework.routers import DefaultRouter
 
 from api.common.deprecate_view import SunsetView
-from api.settings.currency_views import EnabledCurrencyView
-from cost_models.static_exchange_rate_view import StaticExchangeRateViewSet
+from api.settings.currency_views import CurrencyConfigView
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
@@ -106,6 +105,7 @@ from api.views import SettingsTagView
 from api.views import StatusView
 from api.views import UserAccessView
 from api.views import UserCostTypeSettings
+from cost_models.static_exchange_rate_view import StaticExchangeRateViewSet
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import CacheEnum
@@ -426,7 +426,7 @@ urlpatterns = [
     ),
     path(
         "settings/currency/enabled-currencies/",
-        EnabledCurrencyView.as_view(),
+        CurrencyConfigView.as_view(),
         name="enabled-currencies",
     ),
     path(

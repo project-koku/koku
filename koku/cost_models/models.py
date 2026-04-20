@@ -227,11 +227,11 @@ class StaticExchangeRate(models.Model):
         return f"{self.base_currency}-{self.target_currency}"
 
 
-class EnabledCurrency(models.Model):
-    """Tracks which currencies are visible in the target currency dropdown."""
+class CurrencyConfig(models.Model):
+    """Per-tenant currency configuration: tracks which currencies are visible in the target currency dropdown."""
 
     class Meta:
-        db_table = "enabled_currency"
+        db_table = "currency_config"
         ordering = ["currency_code"]
 
     currency_code = models.CharField(max_length=5, unique=True)

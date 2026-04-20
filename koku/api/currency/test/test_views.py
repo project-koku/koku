@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from cost_models.models import EnabledCurrency
+from cost_models.models import CurrencyConfig
 
 
 class CurrencyViewTest(IamTestCase):
@@ -17,10 +17,10 @@ class CurrencyViewTest(IamTestCase):
 
     def setUp(self):
         super().setUp()
-        EnabledCurrency.objects.all().delete()
-        EnabledCurrency.objects.create(currency_code="USD", enabled=True)
-        EnabledCurrency.objects.create(currency_code="EUR", enabled=True)
-        EnabledCurrency.objects.create(currency_code="GBP", enabled=False)
+        CurrencyConfig.objects.all().delete()
+        CurrencyConfig.objects.create(currency_code="USD", enabled=True)
+        CurrencyConfig.objects.create(currency_code="EUR", enabled=True)
+        CurrencyConfig.objects.create(currency_code="GBP", enabled=False)
 
     @patch(
         "api.currency.view.get_currency_info",

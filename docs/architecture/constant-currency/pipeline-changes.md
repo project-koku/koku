@@ -83,7 +83,7 @@ configuring their own on-premise deployment.
 3. Fetches rates from `CURRENCY_URL` *(unchanged when URL is set)*
 4. Upserts `ExchangeRates` rows *(unchanged)*
 5. Rebuilds `ExchangeRateDictionary` *(unchanged)*
-6. **NEW**: Per-tenant currency discovery — creates `EnabledCurrency` rows
+6. **NEW**: Per-tenant currency discovery — creates `CurrencyConfig` rows
    with `enabled=False` for newly discovered currencies
 7. **NEW**: Per-tenant upsert into `MonthlyExchangeRate` for all currencies
    returned by the API
@@ -164,11 +164,11 @@ all_api_currencies = set(exchange_dict.keys())
 
 for tenant in Tenant.objects.exclude(schema_name="public"):
     with schema_context(tenant.schema_name):
-        # Currency discovery: create EnabledCurrency rows for newly seen currencies
-        existing_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+        # Currency discovery: create CurrencyConfig rows for newly seen currencies
+        existing_codes = set(CurrencyConfig.objects.values_list("currency_code", flat=True))
         new_currencies = all_api_currencies - existing_codes
-        EnabledCurrency.objects.bulk_create(
-            [EnabledCurrency(currency_code=code, enabled=False) for code in new_currencies],
+        CurrencyConfig.objects.bulk_create(
+            [CurrencyConfig(currency_code=code, enabled=False) for code in new_currencies],
             ignore_conflicts=True,
         )
 
@@ -199,11 +199,11 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
 - **URL check**: If `CURRENCY_URL` is not configured, the task skips the API
   fetch. Dynamic rates are simply not fetched; the system uses whatever rates
   are available (static first, dynamic fallback, error if neither exists).
-- **Currency discovery**: Creates `EnabledCurrency` rows with `enabled=False`
+- **Currency discovery**: Creates `CurrencyConfig` rows with `enabled=False`
   for any new currencies returned by the API. These appear in Settings as
   disabled currencies that the administrator can enable.
 - **All currencies stored**: Upserts dynamic rates for all currency pairs
-  returned by the API. The `enabled` flag on `EnabledCurrency` only controls
+  returned by the API. The `enabled` flag on `CurrencyConfig` only controls
   dropdown visibility, not rate storage.
 - Runs daily; overwrites current month's dynamic rows with latest rate
 - Skips pairs with `rate_type=RateType.STATIC` (static takes precedence)
@@ -513,10 +513,10 @@ visible in the target currency dropdown. All currencies are stored in
 controls dropdown visibility. A currency is **visible in the dropdown** if any
 of the following are true:
 
-1. It has `enabled=True` in `EnabledCurrency`
+1. It has `enabled=True` in `CurrencyConfig`
 2. It appears as either `base_currency` or `target_currency` in any
    `StaticExchangeRate` row (static rates make their currencies visible
-   regardless of `EnabledCurrency` status)
+   regardless of `CurrencyConfig` status)
 
 ```python
 @cached_property
@@ -524,7 +524,7 @@ def available_currencies(self):
     """Currencies visible in the target currency dropdown."""
     # Dynamic: enabled currencies (all are stored; enabled controls visibility only)
     enabled_codes = set(
-        EnabledCurrency.objects.filter(enabled=True).values_list("currency_code", flat=True)
+        CurrencyConfig.objects.filter(enabled=True).values_list("currency_code", flat=True)
     )
 
     # Static: all currencies appearing in any static exchange rate pair

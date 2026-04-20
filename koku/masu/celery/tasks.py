@@ -297,19 +297,19 @@ def _fetch_exchange_rates(url):
 
 
 def _upsert_tenant_exchange_rates(schema_name, exchange_dict, current_month):
-    """Sync EnabledCurrency and upsert dynamic MonthlyExchangeRate rows for one tenant."""
-    from cost_models.models import EnabledCurrency
+    """Sync CurrencyConfig and upsert dynamic MonthlyExchangeRate rows for one tenant."""
+    from cost_models.models import CurrencyConfig
     from cost_models.models import MonthlyExchangeRate
     from cost_models.models import RateType
     from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 
     with schema_context(schema_name):
-        existing_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+        existing_codes = set(CurrencyConfig.objects.values_list("currency_code", flat=True))
         new_currencies = set(exchange_dict.keys()) - existing_codes
         if new_currencies:
-            EnabledCurrency.objects.bulk_create(
+            CurrencyConfig.objects.bulk_create(
                 [
-                    EnabledCurrency(
+                    CurrencyConfig(
                         currency_code=code,
                         enabled=False,
                     )

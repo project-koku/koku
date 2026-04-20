@@ -201,7 +201,7 @@ currency dropdown is either hidden or shows *"No exchange rates available"*.
 3. Enable discovered currencies in Settings to make them visible in the dropdown
 
 **Linked from**: [pipeline-changes.md § Writer 1](./pipeline-changes.md#modified-get_daily_currency_rates--writer-1),
-[data-model.md § EnabledCurrency](./data-model.md#enabledcurrency)
+[data-model.md § CurrencyConfig](./data-model.md#currencyconfig)
 
 ---
 

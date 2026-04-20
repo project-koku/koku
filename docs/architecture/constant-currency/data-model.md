@@ -113,7 +113,7 @@ defined, each uses its own rate.
 (see [api-and-frontend.md](./api-and-frontend.md)) and has side effects on
 `MonthlyExchangeRate` via the serializer.
 
-### `EnabledCurrency`
+### `CurrencyConfig`
 
 Tracks which currencies are visible in the target currency dropdown. Currencies
 must be explicitly enabled by an administrator before they appear in the
@@ -121,18 +121,18 @@ dropdown. All currencies are always stored in `MonthlyExchangeRate` regardless
 of their enabled status — the `enabled` flag only controls dropdown visibility.
 
 ```python
-class EnabledCurrency(models.Model):
+class CurrencyConfig(models.Model):
     currency_code = models.CharField(max_length=5, unique=True)
     enabled = models.BooleanField(default=False)
     created_timestamp = models.DateTimeField(auto_now_add=True)
     updated_timestamp = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "enabled_currency"
+        db_table = "currency_config"
         ordering = ["currency_code"]
 ```
 
-**Example `enabled_currency` rows**:
+**Example `currency_config` rows**:
 
 | id | currency_code | enabled | created_timestamp | updated_timestamp |
 |----|---------------|---------|-------------------|-------------------|
@@ -152,7 +152,7 @@ dropdown.
 
 | Event | Action |
 |-------|--------|
-| Daily Celery task fetches from exchange rate API | Creates `EnabledCurrency` rows with `enabled=False` for any newly discovered currencies not already in the table |
+| Daily Celery task fetches from exchange rate API | Creates `CurrencyConfig` rows with `enabled=False` for any newly discovered currencies not already in the table |
 | Administrator enables a currency in Settings | Sets `enabled=True` |
 | Administrator disables a currency in Settings | Sets `enabled=False` |
 
@@ -161,9 +161,9 @@ dropdown.
 A currency is visible in the target currency dropdown if **any** of the
 following are true:
 
-1. It has `enabled=True` in `EnabledCurrency`
+1. It has `enabled=True` in `CurrencyConfig`
 2. It appears in any `StaticExchangeRate` pair (static rates make their currencies
-   visible regardless of the `EnabledCurrency` status)
+   visible regardless of the `CurrencyConfig` status)
 
 **Corner case — no usable rate**: A currency may be available in the dropdown but
 have no exchange rate path from the bill's source currency. In this case, the API
@@ -337,7 +337,7 @@ If `ExchangeRateDictionary` is empty (e.g., fresh deployment with no
 rates to seed, and the table starts empty. The daily Celery task and static
 rate CRUD will populate it going forward.
 
-### M3: Create `enabled_currency` Table
+### M3: Create `currency_config` Table
 
 | Field | Value |
 |-------|-------|
@@ -375,12 +375,12 @@ changes required.
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial data model design |
-| v1.1 | 2026-03-24 | Added `EnabledCurrency` model, M4 migration |
+| v1.1 | 2026-03-24 | Added `CurrencyConfig` model, M4 migration |
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility, not snapshotting |
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
 | v1.4 | 2026-03-26 | Clarified `StaticExchangeRateDictionary` as source of truth for static rates; `MonthlyExchangeRateSnapshot` as historical rate storage for reports. |
 | v1.5 | 2026-03-29 | Replaced `year_month` CharField with `effective_date` DateField on `MonthlyExchangeRateSnapshot` for consistency with existing date field patterns (`usage_start`, `billing_period_start`). |
-| v1.6 | 2026-03-30 | Renamed `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate` and promoted it to single source of truth for all months (current and past). Removed `StaticExchangeRateDictionary` — no longer needed since query handlers read from `MonthlyExchangeRate` for all months. Renumbered migrations (M3 is now `enabled_currency`; old M3 removed). |
+| v1.6 | 2026-03-30 | Renamed `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate` and promoted it to single source of truth for all months (current and past). Removed `StaticExchangeRateDictionary` — no longer needed since query handlers read from `MonthlyExchangeRate` for all months. Renumbered migrations (M3 is now `currency_config`; old M3 removed). |
 | v1.7 | 2026-03-30 | M2 now seeds current-month data from `ExchangeRateDictionary` during migration. Eliminates `ExchangeRateDictionary` fallback in query handler. |
 | v1.8 | 2026-04-12 | Updated reader description to reflect `Subquery`-based rate resolution (replaces `Case`/`When`). |
 | v1.9 | 2026-04-13 | Fixed `ExchangeRates` model description: actual fields are `currency_type` (CharField) and `exchange_rate` (FloatField), not `base_currency`/`exchange_rates` JSONField. Removed non-existent `updated_timestamp` column from `ExchangeRateDictionary` example. |

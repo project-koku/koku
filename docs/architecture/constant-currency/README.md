@@ -128,7 +128,7 @@ immediately available for use, or should an administrator explicitly enable them
 
 **Resolution**: Explicit enablement. Currencies fetched from the dynamic exchange
 rate API arrive in Cost Management as **disabled** by default (stored in the
-`EnabledCurrency` table with `enabled=False`). An administrator must explicitly
+`CurrencyConfig` table with `enabled=False`). An administrator must explicitly
 enable currencies through the Settings UI before they appear in the target
 currency dropdown.
 
@@ -143,7 +143,7 @@ need a small subset of the ~170 currencies available from the API. Showing all
 currencies by default would clutter the dropdown.
 
 **Exception**: Static exchange rate pairs always make their currencies available
-in the dropdown, regardless of `EnabledCurrency` status. If an administrator
+in the dropdown, regardless of `CurrencyConfig` status. If an administrator
 defines a `USD→EUR` static rate, both `USD` and `EUR` are immediately available.
 
 ### IQ-6: Rate resolution without `CURRENCY_URL` — RESOLVED
@@ -254,7 +254,7 @@ graph LR
     API["open.er-api.com<br/>(or custom URL)"] -->|"daily fetch<br/>(skipped if no URL)"| CT["Celery Task:<br/>get_daily_currency_rates"]
     CT -->|upsert| ER["ExchangeRates<br/>(public schema)"]
     CT -->|rebuild| ERD["ExchangeRateDictionary<br/>(public schema)"]
-    CT -->|"discover currencies<br/>create as disabled"| EC["EnabledCurrency<br/>(tenant schema)<br/>enabled/disabled per currency"]
+    CT -->|"discover currencies<br/>create as disabled"| EC["CurrencyConfig<br/>(tenant schema)<br/>enabled/disabled per currency"]
     CT -->|"Writer 1: per-tenant<br/>skip static pairs<br/>all currencies"| MER["MonthlyExchangeRate<br/>(tenant schema)<br/>single source of truth"]
     MER -->|"all months:<br/>per-month rates"| QH["QueryHandler<br/>Subquery annotation"]
     QH -->|"per-month rates +<br/>rate metadata"| REPORT["Report Response<br/>+ exchange_rates_applied"]
@@ -296,7 +296,7 @@ graph LR
 | 11 | **Explicit currency enablement** | Dynamic currencies arrive disabled; administrator enables them in Settings to control which currencies appear in the dropdown. All currencies are always stored regardless of enabled status. |
 | 12 | **Configurable exchange rate URL** | `CURRENCY_URL` is a variable; empty value skips dynamic rate fetching. System works with whatever rates are available (static first, dynamic fallback, error if neither). Documentation references `open.er-api.com` (free tier) as the production example |
 | 13 | **Show-then-error for no-rate currencies** | Available currencies appear in dropdown even without a conversion path from the bill currency; actionable error returned on selection |
-| 14 | **Static rates bypass enablement** | Currencies in static exchange rate pairs are always available in dropdowns regardless of `EnabledCurrency` status |
+| 14 | **Static rates bypass enablement** | Currencies in static exchange rate pairs are always available in dropdowns regardless of `CurrencyConfig` status |
 
 ---
 

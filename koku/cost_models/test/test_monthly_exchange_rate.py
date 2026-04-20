@@ -2,14 +2,14 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Tests for the MonthlyExchangeRate and EnabledCurrency models."""
+"""Tests for the MonthlyExchangeRate and CurrencyConfig models."""
 from datetime import date
 from decimal import Decimal
 
 from django.db import IntegrityError
 from django_tenants.utils import tenant_context
 
-from cost_models.models import EnabledCurrency
+from cost_models.models import CurrencyConfig
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from masu.test import MasuTestCase
@@ -91,22 +91,22 @@ class MonthlyExchangeRateTest(MasuTestCase):
             self.assertEqual(rate.exchange_rate, Decimal("0.920000000000000"))
 
 
-class EnabledCurrencyTest(MasuTestCase):
-    """Tests for EnabledCurrency model."""
+class CurrencyConfigTest(MasuTestCase):
+    """Tests for CurrencyConfig model."""
 
     def test_create_disabled_currency(self):
         """Test creating a disabled currency entry."""
         with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-            ec = EnabledCurrency.objects.create(currency_code="JPY", enabled=False)
+            CurrencyConfig.objects.all().delete()
+            ec = CurrencyConfig.objects.create(currency_code="JPY", enabled=False)
             self.assertEqual(ec.currency_code, "JPY")
             self.assertFalse(ec.enabled)
 
     def test_enable_currency(self):
         """Test enabling a currency."""
         with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-            ec = EnabledCurrency.objects.create(currency_code="GBP", enabled=False)
+            CurrencyConfig.objects.all().delete()
+            ec = CurrencyConfig.objects.create(currency_code="GBP", enabled=False)
             ec.enabled = True
             ec.save()
             ec.refresh_from_db()
@@ -115,7 +115,7 @@ class EnabledCurrencyTest(MasuTestCase):
     def test_unique_currency_code(self):
         """Test that duplicate currency codes raise IntegrityError."""
         with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-            EnabledCurrency.objects.create(currency_code="CNY", enabled=False)
+            CurrencyConfig.objects.all().delete()
+            CurrencyConfig.objects.create(currency_code="CNY", enabled=False)
             with self.assertRaises(IntegrityError):
-                EnabledCurrency.objects.create(currency_code="CNY", enabled=True)
+                CurrencyConfig.objects.create(currency_code="CNY", enabled=True)

@@ -2,10 +2,10 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Currency helpers backed by the EnabledCurrency table.
+"""Currency helpers backed by the CurrencyConfig table.
 
 No hardcoded currency list.  Currencies are discovered dynamically by the
-daily Celery task and managed via the EnabledCurrency table (tenant schema).
+daily Celery task and managed via the CurrencyConfig table (tenant schema).
 Administrators enable currencies through the Settings UI.
 
 Name, symbol, and description are computed at response time via babel.
@@ -14,7 +14,7 @@ from babel.numbers import get_currency_name
 from babel.numbers import get_currency_symbol
 from babel.numbers import UnknownCurrencyError
 
-from cost_models.models import EnabledCurrency
+from cost_models.models import CurrencyConfig
 
 
 def get_enabled_currency_codes():
@@ -23,7 +23,7 @@ def get_enabled_currency_codes():
     Requires tenant schema context (set by django-tenants middleware for
     requests or by ``schema_context()`` in tasks).
     """
-    return set(EnabledCurrency.objects.filter(enabled=True).values_list("currency_code", flat=True))
+    return set(CurrencyConfig.objects.filter(enabled=True).values_list("currency_code", flat=True))
 
 
 def get_all_currency_codes():
@@ -31,7 +31,7 @@ def get_all_currency_codes():
 
     Requires tenant schema context.
     """
-    return set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+    return set(CurrencyConfig.objects.values_list("currency_code", flat=True))
 
 
 def get_currency_info(code):

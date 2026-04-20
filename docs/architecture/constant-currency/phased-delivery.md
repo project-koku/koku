@@ -35,10 +35,10 @@ pairs. Show rate provenance in report responses.
 |----------|------|-------------|
 | `StaticExchangeRate` model | `koku/cost_models/models.py` | User-defined rate pairs with validity periods |
 | `MonthlyExchangeRate` model | `koku/cost_models/models.py` | Single source of truth: per-month, per-pair rate storage for all months |
-| `EnabledCurrency` model | `koku/cost_models/models.py` | Tracks enabled/disabled currencies per tenant |
+| `CurrencyConfig` model | `koku/cost_models/models.py` | Tracks enabled/disabled currencies per tenant |
 | Migration M1 | `koku/cost_models/migrations/XXXX_*.py` | Create `static_exchange_rate` table |
 | Migration M2 | `koku/cost_models/migrations/XXXX_*.py` | Create `monthly_exchange_rate` table + seed current-month data from `ExchangeRateDictionary` |
-| Migration M3 | `koku/cost_models/migrations/XXXX_*.py` | Create `enabled_currency` table |
+| Migration M3 | `koku/cost_models/migrations/XXXX_*.py` | Create `currency_config` table |
 | Serializer | `koku/cost_models/static_exchange_rate_serializer.py` | Validation + `MonthlyExchangeRate` upsert side-effects |
 | ViewSet | `koku/cost_models/static_exchange_rate_view.py` | CRUD API for static rates |
 | Currency enablement view | `koku/api/settings/` or new file | Settings API for enable/disable currencies |
@@ -54,7 +54,7 @@ pairs. Show rate provenance in report responses.
 | Serializer tests | `koku/cost_models/test/test_static_exchange_rate_serializer.py` | Validation tests |
 | View tests | `koku/cost_models/test/test_static_exchange_rate_view.py` | CRUD tests |
 | MonthlyExchangeRate tests | `koku/cost_models/test/test_monthly_exchange_rate.py` | Rate creation, query, locking tests |
-| Currency enablement tests | `koku/cost_models/test/test_enabled_currency.py` or `koku/api/settings/test/` | Enable/disable, discovery, available-currencies tests |
+| Currency enablement tests | `koku/cost_models/test/test_enabled_currency.py` or `koku/api/settings/test/` | Enable/disable, discovery, currency-config tests |
 | No-rate error tests | `koku/api/report/test/` | Corner case: error when no conversion path exists |
 
 ### Validation
@@ -75,16 +75,16 @@ pairs. Show rate provenance in report responses.
 - [ ] Consecutive months with same rate/type collapsed into one period string
 - [ ] Unit tests pass for serializer, view, MonthlyExchangeRate logic, query handler
 - [ ] On-prem mode: full functionality without Trino
-- [ ] **Currency enablement**: Dynamic currencies arrive as disabled in `EnabledCurrency`
+- [ ] **Currency enablement**: Dynamic currencies arrive as disabled in `CurrencyConfig`
 - [ ] **Currency enablement**: Administrator can enable/disable currencies via Settings API
 - [ ] **Currency enablement**: All currencies are stored in `MonthlyExchangeRate` regardless of enabled status; `enabled` flag only controls dropdown visibility
 - [ ] **Rate resolution**: Static rates take precedence over dynamic rates; error returned if neither exists for a given pair
 - [ ] **No `CURRENCY_URL`**: Celery task skips API fetch; system works with whatever rates are available
 - [ ] **Available currencies**: Dropdown shows only enabled dynamic currencies and static rate currencies (disabled currencies are stored but hidden)
-- [ ] **Available currencies**: Static rate currencies appear regardless of `EnabledCurrency` status
+- [ ] **Available currencies**: Static rate currencies appear regardless of `CurrencyConfig` status
 - [ ] **No-rate corner case**: Selecting a target currency with no conversion path returns HTTP 400 with actionable error
 - [ ] **No currencies available**: Dropdown hidden or shows "No exchange rates available" when no currencies are available
-- [ ] **Currency discovery**: New currencies from API are created as disabled `EnabledCurrency` rows
+- [ ] **Currency discovery**: New currencies from API are created as disabled `CurrencyConfig` rows
 
 ### Rollback
 
@@ -100,7 +100,7 @@ pairs. Show rate provenance in report responses.
    available-currencies endpoints)
 7. Drop tables via reverse migration (`migrate_schemas` runs `DeleteModel` for
    all three new tables: `static_exchange_rate`, `monthly_exchange_rate`,
-   `enabled_currency`)
+   `currency_config`)
 8. Remove new files: serializer, view, currency enablement views, test files
 9. Revert OpenAPI changes
 
@@ -172,7 +172,7 @@ design would be needed to handle path prioritization.
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial phased delivery plan |
-| v1.1 | 2026-03-24 | Added EnabledCurrency artifacts (M4, views, tests), currency enablement and airgapped validation items, R7/R8 risks, updated rollback steps |
+| v1.1 | 2026-03-24 | Added CurrencyConfig artifacts (M4, views, tests), currency enablement and airgapped validation items, R7/R8 risks, updated rollback steps |
 | v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility. All currencies always stored and snapshotted. |
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
 | v1.4 | 2026-03-26 | Updated artifacts and validation to reflect two-tier rate resolution (dictionaries + snapshots). |

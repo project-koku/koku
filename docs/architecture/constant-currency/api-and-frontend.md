@@ -150,7 +150,7 @@ allows an administrator to enable or disable currencies.
 ### View
 
 **File**: Extend existing settings views in `koku/api/settings/` or add a new
-`EnabledCurrencyViewSet`.
+`CurrencyConfigViewSet`.
 
 **Permission**: Cost Management Administrator role (same permission level as
 other Settings operations).
@@ -194,7 +194,7 @@ tables — all currencies are always stored regardless of their enabled status.
 ### No `CURRENCY_URL` Configured
 
 When no `CURRENCY_URL` is configured, no dynamic currencies are discovered by the
-Celery task, so the `EnabledCurrency` table will have no dynamically-discovered
+Celery task, so the `CurrencyConfig` table will have no dynamically-discovered
 rows. The GET response will return either an empty list or only currencies that
 were manually added. Previously fetched dynamic currencies (if the URL was
 removed later) remain in the table.
@@ -210,8 +210,8 @@ currencies from two sources:
 
 | Source | Rule | Example |
 |--------|------|---------|
-| **Dynamic** | Currency has `enabled=True` in `EnabledCurrency` | USD, EUR enabled → appear in dropdown |
-| **Static** | Currency appears in any `StaticExchangeRate` pair (as base or target) | Static rate EUR→CHF defined → both EUR and CHF appear in dropdown regardless of `EnabledCurrency` status |
+| **Dynamic** | Currency has `enabled=True` in `CurrencyConfig` | USD, EUR enabled → appear in dropdown |
+| **Static** | Currency appears in any `StaticExchangeRate` pair (as base or target) | Static rate EUR→CHF defined → both EUR and CHF appear in dropdown regardless of `CurrencyConfig` status |
 
 ### Dropdown Endpoint
 
@@ -242,7 +242,7 @@ static rates, or both. This is informational for the frontend.
 
 When **no currencies are available at all** — meaning:
 
-- All dynamic currencies are disabled in `EnabledCurrency` (or none exist), **and**
+- All dynamic currencies are disabled in `CurrencyConfig` (or none exist), **and**
 - No `StaticExchangeRate` rows exist (no static rates)
 
 Then the currency dropdown should either be **hidden** or show a message:

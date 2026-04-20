@@ -13,7 +13,7 @@ from rest_framework import serializers
 from api.common import log_json
 from api.currency.currencies import get_all_currency_codes
 from api.currency.models import ExchangeRateDictionary
-from cost_models.models import EnabledCurrency
+from cost_models.models import CurrencyConfig
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
@@ -32,9 +32,9 @@ def _iter_months(start_date, end_date):
 
 
 def _ensure_currencies_enabled(*currency_codes):
-    """Ensure EnabledCurrency rows exist and are enabled for the given currency codes."""
+    """Ensure CurrencyConfig rows exist and are enabled for the given currency codes."""
     for code in currency_codes:
-        EnabledCurrency.objects.update_or_create(
+        CurrencyConfig.objects.update_or_create(
             currency_code=code,
             defaults={"enabled": True},
         )
