@@ -1342,6 +1342,11 @@ class ReportQueryHandler(QueryHandler):
         if self.order_field == "subscription_name":
             group_by_value.append("subscription_name")
 
+        # Do not re-annotate names that are already GROUP BY columns (often the rank key).
+        # Otherwise Django raises ValueError
+        for grouped_col in group_by_value:
+            rank_annotations.pop(grouped_col, None)
+
         ranks = (
             query.annotate(**self.annotations)
             .values(*group_by_value)
@@ -1446,13 +1451,14 @@ class ReportQueryHandler(QueryHandler):
                 (data_frame["rank"] > self._offset) & (data_frame["rank"] <= (self._offset + self._limit))
             ]
         else:
-            # Get others category
-            others_data_frame = self._aggregate_ranks_over_limit(data_frame, group_by)
-            # Reduce data to limit
-            data_frame = data_frame[data_frame["rank"] <= self._limit]
-
-            # Add the others category to the data set
-            data_frame = pd.concat([data_frame, others_data_frame])
+            include_others = self._mapper.report_type_map.get("rank_limit_include_others", True)
+            if include_others:
+                # Aggregate rank > limit before trimming; _aggregate_ranks_over_limit needs those rows.
+                others_data_frame = self._aggregate_ranks_over_limit(data_frame, group_by)
+                data_frame = data_frame[data_frame["rank"] <= self._limit]
+                data_frame = pd.concat([data_frame, others_data_frame])
+            else:
+                data_frame = data_frame[data_frame["rank"] <= self._limit]
 
         # Replace NaN with 0
         numeric_columns = [col for col in self.report_annotations if "unit" not in col]
