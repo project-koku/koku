@@ -202,20 +202,34 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             start_date: A date/datetime in the target month. Year and month are extracted from it.
         """
         gpu_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP["gpu_usage"]
-        if not trino_table_exists(self.schema, gpu_table):
-            return False
         year = str(start_date.year)
         month = str(start_date.month).zfill(2)
-        source_sql = f"""
+        trino_select_statement = f"""
 SELECT count(*) FROM hive.{self.schema}."{gpu_table}$partitions"
+"""
+        postgres_select_statement = f"""
+SELECT count(*) FROM "{self.schema}"."{gpu_table}"
+"""
+        where_statement = f"""
 WHERE source = '{source_uuid}'
 AND year = '{year}'
 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
 """
-        source_available = self._execute_trino_raw_sql_query(
-            source_sql,
-            log_ref=f"Checking if source has GPU data in {gpu_table} for {year}-{month}",
-        )[0][0]
+
+        if self.get_sql_folder_name() == "trino_sql":
+            if not trino_table_exists(self.schema, gpu_table):
+                return False
+            source_available = self._execute_trino_raw_sql_query(
+                trino_select_statement + where_statement,
+                log_ref=f"Checking if source has GPU data in {gpu_table} for {year}-{month}",
+            )[0][0]
+            return bool(source_available)
+        rows = self._execute_raw_sql_query(
+            gpu_table,
+            postgres_select_statement + where_statement,
+            operation="VALIDATION_QUERY",
+        )
+        source_available = rows[0][0] if rows else 0
         return bool(source_available)
 
     def _populate_virtualization_ui_summary_table(self, params):
