@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the sources serializer."""
+from datetime import datetime
+from datetime import timezone
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -255,6 +257,24 @@ class SourcesSerializerFieldsTest(IamTestCase):
         self.ocp_obj.save()
         serializer = SourcesSerializer(self.ocp_obj)
         self.assertIsNone(serializer.data["source_ref"])
+
+    def test_updated_timestamp_updates_on_save(self):
+        """Test that updated_timestamp is set after save and advances on subsequent saves."""
+        t1 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        t2 = datetime(2026, 1, 1, 13, 0, 0, tzinfo=timezone.utc)
+
+        with patch("django.utils.timezone.now", return_value=t1):
+            self.ocp_obj.name = "Renamed OCP Source"
+            self.ocp_obj.save()
+        self.ocp_obj.refresh_from_db()
+        self.assertEqual(self.ocp_obj.updated_timestamp, t1)
+
+        with patch("django.utils.timezone.now", return_value=t2):
+            self.ocp_obj.name = "Renamed Again"
+            self.ocp_obj.save()
+        self.ocp_obj.refresh_from_db()
+        self.assertEqual(self.ocp_obj.updated_timestamp, t2)
+        self.assertGreater(self.ocp_obj.updated_timestamp, t1)
 
 
 class AdminSourcesSerializerValidateTest(IamTestCase):
