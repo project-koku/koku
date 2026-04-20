@@ -510,9 +510,21 @@ class DateHelper:
         return [{"year": date.strftime("%Y"), "month": date.strftime("%m")} for date in dates]
 
 
-def materialized_view_month_start(dh=DateHelper()):
-    """Datetime of midnight on the first of the month where materialized summary starts."""
-    return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
+def materialized_view_month_start(dh=DateHelper(), schema_name=None):
+    """Datetime of midnight on the first of the month where materialized summary starts.
+
+    When schema_name is provided, reads per-tenant retention via
+    get_data_retention_months; otherwise falls back to settings.RETAIN_NUM_MONTHS.
+    """
+    if schema_name is not None:
+        from api.settings.utils import get_data_retention_months
+
+        retain = get_data_retention_months(schema_name)
+        if retain is None:
+            retain = settings.RETAIN_NUM_MONTHS
+    else:
+        retain = settings.RETAIN_NUM_MONTHS
+    return dh.this_month_start - relativedelta(months=retain - 1)
 
 
 def to_date(date_input: str | datetime.datetime | datetime.date | None) -> datetime.date | None:
