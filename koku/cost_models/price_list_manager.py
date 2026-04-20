@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Management layer for price lists."""
+import copy
 import logging
 import uuid as uuid_mod
 
@@ -12,8 +13,18 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
+from cost_models.rate_sync import sync_rate_table
 
 LOG = logging.getLogger(__name__)
+
+_ENRICHMENT_KEYS = frozenset(("rate_id", "custom_name"))
+
+
+def _strip_enrichment(rates):
+    """Strip backend-added enrichment fields so semantic rate comparison is stable."""
+    if not rates:
+        return rates
+    return [{k: v for k, v in r.items() if k not in _ENRICHMENT_KEYS} for r in rates]
 
 
 class PriceListException(Exception):
@@ -39,8 +50,10 @@ class PriceListManager:
         return self._model
 
     def create(self, **data):
-        """Create a price list."""
+        """Create a price list and populate Rate rows if rates are provided."""
         self._model = PriceList.objects.create(**data)
+        if self._model.rates and isinstance(self._model.rates, list):
+            sync_rate_table(self._model, copy.deepcopy(self._model.rates))
         return self._model
 
     def update(self, **data):
@@ -62,7 +75,7 @@ class PriceListManager:
                     "Only name, description, and status can be updated."
                 )
 
-        rates_changed = "rates" in data and data["rates"] != self._model.rates
+        rates_changed = "rates" in data and _strip_enrichment(data["rates"]) != _strip_enrichment(self._model.rates)
         dates_changed = (
             "effective_start_date" in data and data["effective_start_date"] != self._model.effective_start_date
         ) or ("effective_end_date" in data and data["effective_end_date"] != self._model.effective_end_date)
@@ -81,7 +94,9 @@ class PriceListManager:
 
         self._model.save()
 
-        # Trigger recalculation if rates or dates changed (not on enable/disable)
+        if rates_changed:
+            sync_rate_table(self._model, copy.deepcopy(self._model.rates) if self._model.rates else [])
+
         if rates_changed or dates_changed:
             self._trigger_recalculation()
 
