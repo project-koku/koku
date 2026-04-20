@@ -276,3 +276,9 @@ For Option B, additionally:
 | `reporting/migrations/NNNN_*.py` | New migration for the field |
 | `masu/processor/ocp/ocp_cost_model_cost_updater.py` | Reset flag on reprocessing |
 | `api/provider/` or `cost_models/` | Reset flag on cost model update |
+
+## Implementation
+
+Option A was implemented and validated (unit tests + manual end-to-end testing with data ingestion).
+
+**Pull Request**: [#6012 — COST-7284: Add guard to prevent redundant GPU finalization](https://github.com/project-koku/koku/pull/6012)
