@@ -5,6 +5,7 @@
 """List of currencies."""
 # turn off black formatting
 # fmt: off
+# totally fake change
 CURRENCIES = [
     {
         "code": "AED",
