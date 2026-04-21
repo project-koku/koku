@@ -13,6 +13,7 @@ Name, symbol, and description are computed at response time via babel.
 from babel.numbers import get_currency_name
 from babel.numbers import get_currency_symbol
 from babel.numbers import UnknownCurrencyError
+from rest_framework import serializers
 
 from cost_models.models import CurrencyConfig
 
@@ -32,6 +33,20 @@ def get_all_currency_codes():
     Requires tenant schema context.
     """
     return set(CurrencyConfig.objects.values_list("currency_code", flat=True))
+
+
+class CurrencyField(serializers.CharField):
+    """CharField that normalizes to uppercase and validates against enabled currencies."""
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("max_length", 5)
+        super().__init__(**kwargs)
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data).upper()
+        if value not in get_enabled_currency_codes():
+            raise serializers.ValidationError(f'"{value}" is not an enabled currency.')
+        return value
 
 
 def get_currency_info(code):
