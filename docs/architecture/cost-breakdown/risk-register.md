@@ -18,7 +18,7 @@ design documents link here for details.
 | R4 | Monthly cost rates produce more rows than expected | **MITIGATED** | 3 | GROUP BY quantified (OQ-2). |
 | R5 | Cost category reclassification invalidates breakdown tree | **MITIGATED** | 4 | Existing `update_summary_tables` chain handles it (OQ-4). |
 | R6 | 25 SQL file modifications introduce regressions | Active | 3 | Per-file-per-PR + 8-point checklist. |
-| R7 | Dual-write divergence (JSON ↔ PriceList.rates ↔ Rate table) | Active | 1-4 | COST-575 already dual-writes JSON ↔ PriceList.rates. Phase 1 extends with delete-all + recreate Rate rows on every write. Three-way sync wrapped in `@transaction.atomic`. |
+| R7 | Dual-write divergence (JSON ↔ PriceList.rates ↔ Rate table) | Active | 1-4 | COST-575 already dual-writes JSON ↔ PriceList.rates. Phase 1 extends with diff-based `_sync_rate_table()` (match by `rate_id`/`custom_name`; delete → update → create) preserving stable Rate UUIDs. Three-way sync wrapped in `@transaction.atomic`. |
 | R8 | `custom_name` migration produces ugly names | Active | 1 | Acceptable per PRD; users can rename. |
 | R9 | Frontend tab restructure breaks workflows | Active | 4 | Usage cards move to adjacent tab, not removed. |
 | R10 | Trino SQL dialect issues | Active | 3 | Test with Trino locally. |

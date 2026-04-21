@@ -59,7 +59,7 @@ normalized `Rate` table underneath the existing `PriceList`.
 | Migration M2 | `cost_models/migrations/0013_migrate_json_to_rate.py` | Data migration: PriceList.rates JSON → Rate rows |
 | `RateSerializer` update | `cost_models/serializers.py` | Add `custom_name` field (`required=False`) |
 | `CostModelSerializer` update | `cost_models/serializers.py` | Extend dual-write: JSON + PriceList.rates + Rate table |
-| `CostModelManager` update | `cost_models/cost_model_manager.py` | Add `_sync_rate_table()` — delete + recreate Rate rows on every write |
+| `CostModelManager` update | `cost_models/cost_model_manager.py` | Add `_sync_rate_table()` — diff-based sync (match by `rate_id` or `custom_name`; delete → update → create) preserving stable Rate UUIDs |
 | Write-freeze flag helper | `masu/processor/__init__.py` | `is_cost_model_writes_disabled()` — Unleash flag to block cost model writes during migration |
 | Write-freeze gating | `cost_models/serializers.py` | Check flag in `CostModelSerializer.create()` and `update()` via `self.customer.schema_name` → HTTP 503 |
 | `CostModelDBAccessor` update | `masu/database/cost_model_db_accessor.py` | Read from Rate table via PriceListCostModelMap (dual-write preserves JSON as fallback) |
