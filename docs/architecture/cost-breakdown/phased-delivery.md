@@ -39,6 +39,27 @@ graph LR
 | 4 | Expose breakdown data to UI | Yes | M4 | Unregister URL; leave table empty |
 | 5 | Remove legacy JSON path | No | M5 | Restore from backup |
 
+### `rate_id` Enforcement by Phase
+
+The target architecture uses `rate_id` as a durable FK link from
+`RatesToUsage` to `Rate`. This capability is built incrementally —
+**the database does not enforce it until the SQL INSERT paths are
+updated in Phase 2+**. The table below clarifies what is actually
+enforced vs. aspirational in each phase.
+
+| Phase | `Rate` table | `rate_id` in API | `rate_id` in SQL INSERT | FK mode | CASCADE safe? |
+|-------|-------------|-----------------|------------------------|---------|---------------|
+| 1 | Created and populated | GET emits it; PUT accepts it | **Not populated** (`NULL`) | `SET_NULL` | No — NULL FKs don't cascade |
+| 2 | Stable UUIDs (diff-based sync) | Round-tripped by clients | **Populated** (usage costs SQL) | `SET_NULL` → benchmarks | Pending benchmarks |
+| 3 | Same as Phase 2 | Same | Populated (all 25 SQL files) | Same | Same |
+| 4 | Same | Same | Populated (distribution SQL) | Switch to `CASCADE` if benchmarks pass | Yes |
+| 5 | Same | Same | Same | `CASCADE` | Yes |
+
+> **Important**: Until Phase 2 ships, `RatesToUsage.rate_id = NULL` for
+> all rows. JOINs from `RatesToUsage` to `Rate` and CASCADE deletes
+> have **no effect**. Do not assume FK continuity is active before
+> Phase 2 is deployed and validated.
+
 ---
 
 ## Phase 1: Schema Normalization

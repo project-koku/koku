@@ -310,6 +310,22 @@ API write during column drop could fail with a database error.
 See [api-and-frontend.md § Migration Write-Freeze Flag](./api-and-frontend.md#migration-write-freeze-flag-unleash)
 for full implementation details.
 
+### On-Prem Migration Checklist
+
+On-prem deployments lack the Unleash write-freeze flag. Operators
+running M2 or M5 migrations should follow this checklist:
+
+| # | Step | When | How to verify |
+|---|------|------|---------------|
+| 1 | **Announce maintenance window** | Before migration | Notify all cost model editors that writes are suspended |
+| 2 | **Scale down API replicas** (optional but recommended) | Before migration | `kubectl scale deployment/<koku-api> --replicas=0` — prevents any concurrent writes |
+| 3 | **Run migrations** | During window | `./manage.py migrate cost_models` — executes M1 + M2 (or M5) |
+| 4 | **Validate M2**: Rate rows match PriceList JSON | After M2 | `SELECT COUNT(*) FROM cost_model_rate` matches total rates across all PriceLists |
+| 5 | **Validate M2**: `custom_name` populated | After M2 | `SELECT COUNT(*) FROM cost_model_rate WHERE custom_name IS NULL` = 0 |
+| 6 | **Validate M5**: JSON columns dropped | After M5 | `\d cost_model` — confirm `rates` column absent |
+| 7 | **Scale up API replicas** | After validation | `kubectl scale deployment/<koku-api> --replicas=<N>` |
+| 8 | **Resume normal operations** | After scale-up | Confirm API responds to cost model GET/PUT |
+
 ---
 
 ## Risk × Phase Matrix

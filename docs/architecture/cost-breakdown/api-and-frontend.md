@@ -204,6 +204,15 @@ class CostModelManager:
 
 **Diff-based sync design decisions**:
 
+- **Client recommendation: always round-trip `rate_id`**. Once a GET
+  response includes `rate_id`, clients (UI and API consumers) should
+  persist and send it back on every subsequent PUT. This enables
+  stable UUID matching, safe renames (the backend identifies the rate
+  by UUID, not name), and unlocks CASCADE + scoped recalculation in
+  later phases. Omitting `rate_id` should be treated as **legacy-only
+  behavior** — it triggers `custom_name` fallback matching, which
+  makes renames ambiguous (effectively delete + create) and prevents
+  the backend from distinguishing "rename" from "replace".
 - **Backward compatibility**: When `rate_id` is absent from the payload,
   the backend matches by `custom_name` (using the existing
   `unique_together` constraint). This preserves `Rate.uuid` for
