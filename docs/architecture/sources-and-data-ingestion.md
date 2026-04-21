@@ -581,6 +581,7 @@ billing_source = None
 | `paused`         | `paused`                                    | Pause status                          |
 | `pending_update` | -                                           | Update flag (Sources only)            |
 | `pending_delete` | -                                           | Delete flag (Sources only)            |
+| `updated_timestamp` | -                                        | Auto-updated on every save (Sources only) |
 
 ### Provider Creation from Source
 
