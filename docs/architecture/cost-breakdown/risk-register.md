@@ -18,19 +18,20 @@ design documents link here for details.
 | R4 | Monthly cost rates produce more rows than expected | **MITIGATED** | 3 | GROUP BY quantified (OQ-2). |
 | R5 | Cost category reclassification invalidates breakdown tree | **MITIGATED** | 4 | Existing `update_summary_tables` chain handles it (OQ-4). |
 | R6 | 25 SQL file modifications introduce regressions | Active | 3 | Per-file-per-PR + 8-point checklist. |
-| R7 | Dual-write divergence (JSON ↔ Rate table) | Active | 1-4 | Delete-all + recreate on every write. |
+| R7 | Dual-write divergence (JSON ↔ PriceList.rates ↔ Rate table) | Active | 1-4 | COST-575 already dual-writes JSON ↔ PriceList.rates. Phase 1 extends with diff-based `_sync_rate_table()` (match by `rate_id`/`custom_name`; delete → update → create) preserving stable Rate UUIDs. Three-way sync wrapped in `@transaction.atomic`. |
 | R8 | `custom_name` migration produces ugly names | Active | 1 | Acceptable per PRD; users can rename. |
 | R9 | Frontend tab restructure breaks workflows | Active | 4 | Usage cards move to adjacent tab, not removed. |
 | R10 | Trino SQL dialect issues | Active | 3 | Test with Trino locally. |
 | R11 | Concurrent cost model updates create duplicate rows | Active | 2-3 | Redis lock + DELETE-before-INSERT. |
-| R12 | `CostModelManager.update()` missing `@transaction.atomic` | Active | 1 | Add `@transaction.atomic`. |
+| R12 | `CostModelManager.update()` missing `@transaction.atomic` | **MITIGATED** | 1 | COST-575 PR [#5963](https://github.com/project-koku/koku/pull/5963) already added `@transaction.atomic` to `update()`. |
 | R13 | JSONB JOIN performance in aggregation | **MITIGATED** | 2 | `label_hash` column replaces JSONB GROUP BY. |
 | R14 | Back-allocation rounding | **N/A** | — | Eliminated by IQ-9 Option 1. |
 | R15 | Back-allocation JOIN complexity | **REPLACED** | 4 | Replaced by simpler RTU × daily summary JOIN. |
 | R16 | Aggregation GROUP BY granularity mismatch | Active | 2 | `resource_id` confirmed absent from GROUP BY. |
 | R17 | Markup ORM overhead | **MITIGATED** | 2 | ORM-first + SQL fallback if >30s. |
-| R18 | Distribution SQL rewrite regression | Active | 4 | Old files preserved for rollback; existing integration tests sufficient per tech lead. |
+| R18 | Distribution SQL rewrite regression | Active | 4 | Old files preserved for rollback; new integration tests execute actual SQL and assert per-rate correctness (Phase 4 artifact). |
 | R19 | Aggregation handling of `distributed_cost` | **RESOLVED** | 4 | Aggregation sums both `calculated_cost` and `distributed_cost` (Option A). |
+| R20 | Concurrent API writes during migration corrupt data | **MITIGATED** | 1, 5 | Unleash write-freeze flag blocks cost model API writes during M2 and M5. |
 
 ---
 
@@ -196,7 +197,12 @@ files. Old files preserved for rollback (code revert, no Unleash flag).
 
 Per tech lead: existing integration tests that check distribution
 amounts on the daily summary table are sufficient to confirm no
-regressions. No separate CI gate or staging dataset comparison needed.
+regressions at the aggregate level. However, those tests mock
+`_execute_raw_sql_query` and verify orchestration (method was called),
+not mathematical correctness. Phase 4 adds **new integration tests**
+that execute the actual distribution SQL against the test database and
+assert per-rate proportional correctness, sum consistency, and edge
+cases. See [phased-delivery.md § Concern 1 Resolution](./phased-delivery.md#concern-1-resolution--distribution-integration-tests).
 
 | # | Criterion | Threshold |
 |---|-----------|-----------|
@@ -207,6 +213,14 @@ regressions. No separate CI gate or staging dataset comparison needed.
 | 5 | Single-node clusters | Distribution degenerates correctly (100% to the single node) |
 | 6 | GPU distribution | GPU rates distribute by GPU-specific metrics, not CPU/memory |
 | 7 | Execution time | New per-rate distribution ≤ 2× old distribution time per (source, date range) |
+| 8 | **Independent cross-check** | Per-rate distributed amounts match Option 2's formula: `(rate_cost / total_cost) × aggregate_distributed_cost` within NUMERIC precision |
+| 9 | Cost conservation | Net SUM(distributed_cost) across source + recipient rows = 0 per (day, distribution_type) |
+| 10 | Idempotency | Distribution run twice produces identical RatesToUsage state |
+
+Criteria 8-10 were added to compensate for removing IQ-9 Option 2 as a
+runtime fallback. Criterion 8 is the most critical — it encodes Option
+2's back-allocation math as a test assertion, providing the mathematical
+cross-check that Option 2 would have provided in production.
 
 ### Orchestration phasing note
 
@@ -250,6 +264,70 @@ needed.
 
 ---
 
+## R20 — Migration Write-Corruption
+
+**Status**: **MITIGATED** — Unleash write-freeze flag
+
+### Problem
+
+M2 (data migration) iterates `PriceListCostModelMap` rows, creates
+`Rate` rows from `PriceList.rates` JSON, and injects `custom_name` back
+into both `CostModel.rates` and `PriceList.rates` JSON blobs. Unlike
+COST-575's migration `0011` (which uses `SELECT ... FOR UPDATE` per
+row), M2 processes multiple price lists sequentially without row-level
+locking across the full migration window.
+
+If a user concurrently updates a cost model via the API during M2:
+
+1. The API write could overwrite `custom_name` that M2 just injected
+2. A new rate added via API would not have a corresponding `Rate` row
+3. A rate deleted via API would leave orphaned `Rate` rows
+
+The same concern applies to M5 (dropping JSON columns) — any in-flight
+API write during column drop could fail with a database error.
+
+### Decision: Unleash write-freeze flag
+
+| # | Approach | Pros | Cons | Verdict |
+|---|----------|------|------|---------|
+| A | Row-level `SELECT FOR UPDATE` in M2 | No external dependency | Does not prevent new cost models created during migration; complex locking across multiple tables | **Rejected** |
+| B | **Unleash write-freeze flag** | Simple, operator-controlled, follows existing koku patterns | Requires Unleash access; brief API downtime for cost model writes | **Selected** |
+| C | Maintenance window (manual) | No code changes | Error-prone; no enforcement mechanism | **Rejected** |
+
+### Implementation
+
+- **Flag**: `cost-management.backend.disable-cost-model-writes`
+- **Helper**: `is_cost_model_writes_disabled(schema)` in
+  `masu/processor/__init__.py` (follows existing pattern)
+- **Gating**: `CostModelSerializer.create()` and `update()` check the
+  flag via `self.customer.schema_name`; raise `ValidationError` → HTTP 503
+  with `Retry-After`
+- **On-prem**: `MockUnleashClient` returns `False` by default; on-prem
+  manages migration windows through operator coordination
+- **Windows**: Enable before M2 / M5; disable after completion +
+  validation
+
+See [api-and-frontend.md § Migration Write-Freeze Flag](./api-and-frontend.md#migration-write-freeze-flag-unleash)
+for full implementation details.
+
+### On-Prem Migration Checklist
+
+On-prem deployments lack the Unleash write-freeze flag. Operators
+running M2 or M5 migrations should follow this checklist:
+
+| # | Step | When | How to verify |
+|---|------|------|---------------|
+| 1 | **Announce maintenance window** | Before migration | Notify all cost model editors that writes are suspended |
+| 2 | **Scale down API replicas** (optional but recommended) | Before migration | `kubectl scale deployment/<koku-api> --replicas=0` — prevents any concurrent writes |
+| 3 | **Run migrations** | During window | `./manage.py migrate cost_models` — executes M1 + M2 (or M5) |
+| 4 | **Validate M2**: Rate rows match PriceList JSON | After M2 | `SELECT COUNT(*) FROM cost_model_rate` matches total rates across all PriceLists |
+| 5 | **Validate M2**: `custom_name` populated | After M2 | `SELECT COUNT(*) FROM cost_model_rate WHERE custom_name IS NULL` = 0 |
+| 6 | **Validate M5**: JSON columns dropped | After M5 | `\d cost_model` — confirm `rates` column absent |
+| 7 | **Scale up API replicas** | After validation | `kubectl scale deployment/<koku-api> --replicas=<N>` |
+| 8 | **Resume normal operations** | After scale-up | Confirm API responds to cost model GET/PUT |
+
+---
+
 ## Risk × Phase Matrix
 
 ```
@@ -265,7 +343,7 @@ R8          ██
 R9                                           ██
 R10                               ██
 R11                    ██         ██
-R12         ██
+R12         ✓ (mitigated — COST-575 added @transaction.atomic)
 R13                    ✓ (mitigated — label_hash)
 R14                                         — (eliminated — Option 1)
 R15                                         ██ (Option 1 distribution JOINs)
@@ -273,6 +351,7 @@ R16                    ██ (GROUP BY granularity)
 R17                    ██         ██ (markup ORM)
 R18                                         ██ (distribution regression)
 R19                                         ✓ (resolved — aggregation sums both columns)
+R20         ✓ (mitigated — Unleash write-freeze)                       ✓ (mitigated)
 ```
 
 ---
@@ -283,3 +362,8 @@ R19                                         ✓ (resolved — aggregation sums b
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial: extracted from phased-delivery.md, data-model.md, sql-pipeline.md. Full risk register (R1-R19), decision rationales (R2/R3, R6, R11, R13, R17), Phase 2 benchmarks, R18 regression test approach, R19 aggregation question. |
 | v1.1 | 2026-03-23 | **R19 RESOLVED (Option A)**: aggregation sums both `calculated_cost` and `distributed_cost`. R18: acceptance criteria confirmed — existing integration tests sufficient per tech lead. |
+| v1.2 | 2026-04-02 | **Align with COST-575.** R7: updated to reflect three-way sync (JSON + PriceList.rates + Rate table). R12: **MITIGATED** — `@transaction.atomic` already added to `update()` by COST-575 PR #5963. |
+| v1.3 | 2026-04-02 | **R20: Migration write-corruption.** Add risk for concurrent API writes during M2/M5 migration windows. Mitigation: Unleash write-freeze flag (`cost-management.backend.disable-cost-model-writes`). Decision rationale (3 options evaluated). Update Risk × Phase Matrix. |
+| v1.4 | 2026-04-02 | **Critical review.** Fix R20 gating location: `CostModelSerializer` (not `CostModelManager`) — serializer has `self.customer.schema_name`, manager does not. |
+| v1.5 | 2026-04-02 | **Self-resolve Concern 1.** Strengthen R18 mitigation: add integration tests that execute actual distribution SQL (not mocked) as Phase 4 artifact. |
+| v1.6 | 2026-04-03 | **R18 criteria expanded.** Add criteria 8 (independent cross-check via Option 2's formula), 9 (cost conservation), 10 (idempotency) to compensate for removing IQ-9 Option 2 as runtime fallback. |
