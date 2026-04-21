@@ -50,7 +50,7 @@ pairs. Show rate provenance in report responses.
 | OCP handler update | `koku/api/report/ocp/query_handler.py` | OCP-specific rate resolution from `MonthlyExchangeRate` |
 | Forecast handler update | `koku/forecast/forecast.py` | Rate resolution from `MonthlyExchangeRate` |
 | Report meta update | `koku/api/report/queries.py` | `exchange_rates_applied` metadata, no-rate error handling |
-| OpenAPI update | `koku/docs/specs/openapi.json` | New endpoint definitions (exchange-rate-pairs, enabled-currencies, available-currencies) |
+| OpenAPI update | `koku/docs/specs/openapi.json` | New endpoint definitions (exchange-rate-pairs, currency-config, available-currencies) |
 | Serializer tests | `koku/cost_models/test/test_static_exchange_rate_serializer.py` | Validation tests |
 | View tests | `koku/cost_models/test/test_static_exchange_rate_view.py` | CRUD tests |
 | MonthlyExchangeRate tests | `koku/cost_models/test/test_monthly_exchange_rate.py` | Rate creation, query, locking tests |

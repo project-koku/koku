@@ -141,7 +141,7 @@ This endpoint is always available. No Unleash feature flag gating.
 ### URL
 
 ```
-GET/PUT   /api/cost-management/v1/settings/currency/enabled-currencies/
+GET/PUT   /api/cost-management/v1/settings/currency/config/
 ```
 
 This endpoint lists all known currencies and their enabled/disabled status, and
@@ -360,8 +360,8 @@ Add endpoint definitions for:
 - `GET /api/cost-management/v1/exchange-rate-pairs/{uuid}/` — retrieve
 - `PUT /api/cost-management/v1/exchange-rate-pairs/{uuid}/` — update
 - `DELETE /api/cost-management/v1/exchange-rate-pairs/{uuid}/` — delete
-- `GET /api/cost-management/v1/settings/currency/enabled-currencies/` — list enabled/disabled currencies
-- `PUT /api/cost-management/v1/settings/currency/enabled-currencies/` — enable/disable currencies
+- `GET /api/cost-management/v1/settings/currency/config/` — list enabled/disabled currencies
+- `PUT /api/cost-management/v1/settings/currency/config/` — enable/disable currencies
 - `GET /api/cost-management/v1/settings/currency/available-currencies/` — list available target currencies
 
 Add `exchange_rates_applied` to report response schemas.

@@ -18,7 +18,7 @@ class CurrencyConfigViewTest(IamTestCase):
     def setUp(self):
         super().setUp()
         self.client = APIClient()
-        self.url = reverse("enabled-currencies")
+        self.url = reverse("currency-config")
 
     def test_get_enabled_currencies_empty(self):
         with tenant_context(self.tenant):
