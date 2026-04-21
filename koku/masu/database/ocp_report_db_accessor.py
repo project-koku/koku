@@ -190,15 +190,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             # SaaS: execute via Trino
             self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
 
-    def _distribution_exists_for_month(self, provider_uuid, start_date, end_date, rate_type) -> bool:
-        """Check if distributed costs already exist in daily summary for the period."""
-        return OCPUsageLineItemDailySummary.objects.filter(
-            source_uuid=provider_uuid,
-            usage_start__gte=start_date,
-            usage_start__lte=end_date,
-            cost_model_rate_type=rate_type,
-        ).exists()
-
     def _reporting_period_has_gpu_data(self, source_uuid: uuid.UUID, start_date) -> bool:
         """
         Return True if the cluster/source has GPU data for the given reporting period.
@@ -658,14 +649,12 @@ AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{
                 if summary_range.is_current_month:
                     # Trigger distribution for previous month on the second of the current month
                     if dh.now_utc.day == 2:
-                        sql_params["start_date"] = summary_range.start_of_previous_month
-                        sql_params["end_date"] = summary_range.end_of_previous_month
-                        if self._distribution_exists_for_month(
-                            provider_uuid,
-                            sql_params["start_date"],
-                            sql_params["end_date"],
-                            config.cost_model_rate_type,
-                        ):
+                        if OCPUsageLineItemDailySummary.objects.filter(
+                            source_uuid=provider_uuid,
+                            usage_start__gte=summary_range.start_of_previous_month,
+                            usage_start__lte=summary_range.end_of_previous_month,
+                            cost_model_rate_type=config.cost_model_rate_type,
+                        ).exists():
                             msg = f"Skipping {cost_model_key} distribution - previous month already finalized"
                             LOG.info(
                                 log_json(
@@ -674,6 +663,8 @@ AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{
                                 )
                             )
                             continue
+                        sql_params["start_date"] = summary_range.start_of_previous_month
+                        sql_params["end_date"] = summary_range.end_of_previous_month
                         summary_range.summarize_previous_month = True
                     else:
                         msg = f"Skipping {cost_model_key} distribution requires full month"
