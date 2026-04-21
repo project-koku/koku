@@ -60,6 +60,7 @@ class SourcesSerializer(serializers.ModelSerializer):
     uuid = serializers.SerializerMethodField("get_source_uuid", read_only=True)
     source_type_id = serializers.SerializerMethodField("get_source_type_id", read_only=True)
     source_ref = serializers.SerializerMethodField("get_source_ref", read_only=True)
+    updated_timestamp = serializers.DateTimeField(read_only=True)
 
     class Meta:
         """Metadata for the serializer."""
@@ -74,6 +75,7 @@ class SourcesSerializer(serializers.ModelSerializer):
             "source_ref",
             "authentication",
             "billing_source",
+            "updated_timestamp",
         )
 
     def get_source_id(self, obj):
