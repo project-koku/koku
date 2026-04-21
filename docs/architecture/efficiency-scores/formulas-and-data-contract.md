@@ -80,7 +80,8 @@ When **`request_sum`** is zero, the ratio is null; the expression yields null an
 |-----------|---------------------|-------------|
 | `report_type` not `cpu` / `memory` | Key **omitted** | N/A |
 | `cpu` / `memory`, multiple `group_by` keys | `{}` | `{}` |
-| `cpu` / `memory`, tag group_by or tag filter/exclude | `{}` | `{}` |
+| `cpu` / `memory`, tag `group_by` or tag keys under **`filter`** | `{}` | `{}` |
+| `cpu` / `memory`, tag keys under **`exclude` only** (no tag `group_by`, no tag `filter`) | Populated | Populated |
 | Otherwise | Populated | Populated |
 
 Source: [`OCPReportQueryHandler.execute_query`](../../../koku/api/report/ocp/query_handler.py) (`should_compute`).
