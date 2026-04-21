@@ -93,6 +93,28 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             mock_execute.assert_called()
 
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False)
+    @patch.object(OCPReportDBAccessor, "get_sql_folder_name", return_value="self_hosted_sql")
+    @patch.object(OCPReportDBAccessor, "delete_ocp_hive_partition_by_day")
+    @patch.object(OCPReportDBAccessor, "_execute_trino_multipart_sql_query")
+    def test_populate_line_item_daily_summary_storage_exists_true_when_self_hosted(
+        self, mock_trino_exists, mock_get_sql_folder, mock_delete, mock_execute
+    ):
+        """On-prem must set storage_exists without Trino; otherwise Storage rows and volume_labels are omitted."""
+        start_date = self.dh.this_month_start
+        end_date = self.dh.next_month_start
+        cluster_id = "ocp-cluster"
+        cluster_alias = "OCP FTW"
+        report_period_id = 1
+        source = self.provider_uuid
+        with self.accessor as acc:
+            acc.populate_line_item_daily_summary_table_trino(
+                start_date, end_date, report_period_id, cluster_id, cluster_alias, source
+            )
+        mock_execute.assert_called_once()
+        bind_params = mock_execute.call_args.kwargs["bind_params"]
+        self.assertTrue(bind_params["storage_exists"])
+
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     def test_populate_line_item_daily_summary_table_trino_exception_warn(self, mock_table_exists):
         """
