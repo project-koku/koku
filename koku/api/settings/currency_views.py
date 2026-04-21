@@ -54,7 +54,7 @@ class CurrencyConfigView(APIView):
 
         LOG.info(
             log_json(
-                msg="Enabled currencies updated",
+                msg="Currency configuration updated",
                 count=len(serializer.validated_data["currencies"]),
             )
         )
