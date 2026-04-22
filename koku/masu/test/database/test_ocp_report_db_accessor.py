@@ -17,6 +17,7 @@ from django.conf import settings
 from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models import Sum
+from django.test import override_settings
 from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoUserError
@@ -1708,6 +1709,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     mock_trino_exec.assert_not_called()
 
 
+@override_settings(ONPREM=False)
 class OCPReportDBAccessorGPUUITest(MasuTestCase):
     """Test Cases for GPU UI summary table population."""
 
@@ -1763,9 +1765,41 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
         test_date = self.dh.last_month_start
         with self.accessor as acc:
             acc._reporting_period_has_gpu_data(self.ocp_provider.uuid, test_date)
-        executed_sql = mock_trino_raw_sql.call_args[0][0]
-        self.assertIn(f"year = '{test_date.year}'", executed_sql)
-        self.assertIn(f"'{str(test_date.month).zfill(2)}'", executed_sql)
+        bound = mock_trino_raw_sql.call_args.kwargs["sql_params"]
+        self.assertEqual(bound["year"], str(test_date.year))
+        self.assertEqual(bound["month"], str(test_date.month).zfill(2))
+        self.assertEqual(
+            bound["month_no_zero"],
+            str(test_date.month).zfill(2).lstrip("0") or "0",
+        )
+
+    @override_settings(ONPREM=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    def test_reporting_period_has_gpu_data_onprem_queries_postgres_not_hive(
+        self, mock_trino_table_exists, mock_execute_raw_sql
+    ):
+        """On-prem must not run Hive $partitions SQL against PostgreSQL."""
+        mock_trino_table_exists.return_value = True
+        mock_execute_raw_sql.return_value = [(2,)]
+        with self.accessor as acc:
+            self.assertTrue(acc._reporting_period_has_gpu_data(self.ocp_provider.uuid, self.dh.last_month_start))
+        mock_execute_raw_sql.assert_called_once()
+        executed_sql = mock_execute_raw_sql.call_args[0][1]
+        self.assertIn(f'"{self.schema}"."openshift_gpu_usage_line_items_daily"', executed_sql)
+        self.assertNotIn("hive.", executed_sql)
+        self.assertNotIn("$partitions", executed_sql)
+
+    @override_settings(ONPREM=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
+    def test_reporting_period_has_gpu_data_onprem_returns_false_when_zero_rows(
+        self, mock_trino_table_exists, mock_execute_raw_sql
+    ):
+        mock_trino_table_exists.return_value = True
+        mock_execute_raw_sql.return_value = [(0,)]
+        with self.accessor as acc:
+            self.assertFalse(acc._reporting_period_has_gpu_data(self.ocp_provider.uuid, self.dh.last_month_start))
 
     @patch("masu.database.ocp_report_db_accessor.get_cluster_id_from_provider")
     @patch("masu.database.ocp_report_db_accessor.CostModelDBAccessor")
