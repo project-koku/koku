@@ -16,14 +16,15 @@
 6. [Cost Calculation](#cost-calculation)
 7. [Unallocated GPU Cost](#unallocated-gpu-cost)
 8. [Cost Distribution](#cost-distribution)
-9. [API Changes](#api-changes)
-10. [Code Architecture](#code-architecture)
-11. [Examples and Scenarios](#examples-and-scenarios)
-12. [Backward Compatibility](#backward-compatibility)
-13. [CMMO Contract](#cmmo-contract)
-14. [Testing Requirements](#testing-requirements)
-15. [Troubleshooting](#troubleshooting)
-16. [Key Takeaways](#key-takeaways)
+9. [GPU Finalization](#gpu-finalization)
+10. [API Changes](#api-changes)
+11. [Code Architecture](#code-architecture)
+12. [Examples and Scenarios](#examples-and-scenarios)
+13. [Backward Compatibility](#backward-compatibility)
+14. [CMMO Contract](#cmmo-contract)
+15. [Testing Requirements](#testing-requirements)
+16. [Troubleshooting](#troubleshooting)
+17. [Key Takeaways](#key-takeaways)
 
 ---
 
@@ -512,6 +513,19 @@ distributed_cost = (slice_time / total_slice_time) × unallocated_cost
 | ml-train  | 4 | 2 | 8 | 44% | $444 |
 | inference | 1 | 6 | 6 | 33% | $333 |
 | serving   | 2 | 2 | 4 | 22% | $222 |
+
+---
+
+## GPU Finalization
+
+GPU distribution requires **full-month data**, so it cannot run incrementally like platform/worker distributions. Instead, it uses two trigger paths inside [`populate_distributed_cost_sql()`](../../koku/masu/database/ocp_report_db_accessor.py):
+
+- **Artificial** (day 2 of current month): Safety net that processes the previous month when a current-month payload arrives.
+- **Natural** (late data): Runs when data from the previous month is processed directly — no day restriction.
+
+**Redundancy guard:** Before running artificial finalization, an `EXISTS` check on `OCPUsageLineItemDailySummary` verifies whether `gpu_distributed` rows already exist for the target month. If they do, the distribution is skipped. This prevents ~24 redundant executions on day 2 for customers sending hourly payloads. The guard is generic via `config.cost_model_rate_type`, supporting any future `requires_full_month` distribution.
+
+**Implementation:** [PR #6012](https://github.com/project-koku/koku/pull/6012)
 
 ---
 
