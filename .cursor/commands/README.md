@@ -11,6 +11,11 @@ These shared slash commands help with common Koku review and PR workflows.
 
 ## Available Commands
 
+### `architect`
+- **Use when:** You have a PRD (or epic/RFC) and want **architecture docs** under `docs/architecture/`—codebase map, API/system design draft, and a **builder handoff**—without implementing feature code.
+- **Output:** A structured doc package (hub `README.md` ± sibling `.md` files) following [`docs/architecture/README.md`](../../docs/architecture/README.md), plus explicit IQ/decisions and links into `koku/`.
+- **How:** Type `/architect` in chat, attach or paste the PRD, and provide `feature slug`, epic key, and desired hub depth (lean / standard / full). See the command file for boundaries and workflow.
+
 ### `address-github-pr-comments`
 - **Use when:** You want to work through reviewer comments on a PR end-to-end.
 - **Output:** A structured workflow for triaging comments, applying fixes, testing, and replying.
