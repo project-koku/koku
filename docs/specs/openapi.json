@@ -7296,7 +7296,9 @@
             },
             "PriceList": {
                 "required": [
-                    "name"
+                    "name",
+                    "effective_start_date",
+                    "effective_end_date"
                 ],
                 "properties": {
                     "name": {
@@ -7402,6 +7404,11 @@
             },
             "PriceListAffectedCostModel": {
                 "type": "object",
+                "required": [
+                    "uuid",
+                    "name",
+                    "priority"
+                ],
                 "properties": {
                     "uuid": {
                         "type": "string",
