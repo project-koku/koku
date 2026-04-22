@@ -32,7 +32,7 @@ class MockUnleashClient:
     ONPREM_FLAG_DEFAULTS = {
         "cost-management.backend.ocp_gpu_cost_model": True,
         "cost-management.backend.disable-ingress-rate-limit": True,
-        "cost-management.backend.override_customer_group_by_limit": True,
+        "cost-management.backend.override_customer_group_by_limit": False,
     }
 
     def __init__(self, app_name, environment, instance_id, **kwargs):
