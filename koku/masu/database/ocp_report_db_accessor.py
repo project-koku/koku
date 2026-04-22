@@ -202,20 +202,43 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             start_date: A date/datetime in the target month. Year and month are extracted from it.
         """
         gpu_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP["gpu_usage"]
-        if not trino_table_exists(self.schema, gpu_table):
-            return False
         year = str(start_date.year)
         month = str(start_date.month).zfill(2)
-        source_sql = f"""
+        month_no_zero = month.lstrip("0") or "0"
+        trino_select_statement = f"""
 SELECT count(*) FROM hive.{self.schema}."{gpu_table}$partitions"
-WHERE source = '{source_uuid}'
-AND year = '{year}'
-AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
 """
-        source_available = self._execute_trino_raw_sql_query(
-            source_sql,
-            log_ref=f"Checking if source has GPU data in {gpu_table} for {year}-{month}",
-        )[0][0]
+        postgres_select_statement = f"""
+SELECT count(*) FROM "{self.schema}"."{gpu_table}"
+"""
+        where_statement = """
+WHERE source = {{source_uuid}}
+AND year = {{year}}
+AND (month = {{month_no_zero}} OR month = {{month}})
+"""
+        sql_params = {
+            "source_uuid": str(source_uuid),
+            "year": year,
+            "month": month,
+            "month_no_zero": month_no_zero,
+        }
+        if not trino_table_exists(self.schema, gpu_table):
+            return False
+
+        if self.get_sql_folder_name() == "trino_sql":
+            source_available = self._execute_trino_raw_sql_query(
+                trino_select_statement + where_statement,
+                sql_params=sql_params,
+                log_ref=f"Checking if source has GPU data in {gpu_table} for {year}-{month}",
+            )[0][0]
+            return bool(source_available)
+        rows = self._prepare_and_execute_raw_sql_query(
+            gpu_table,
+            postgres_select_statement + where_statement,
+            sql_params,
+            operation="VALIDATION_QUERY",
+        )
+        source_available = rows[0][0] if rows else 0
         return bool(source_available)
 
     def _populate_virtualization_ui_summary_table(self, params):
