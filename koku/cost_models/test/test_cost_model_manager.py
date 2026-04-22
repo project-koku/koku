@@ -46,7 +46,13 @@ class CostModelManagerTest(IamTestCase):
         data = {
             "name": "Test Cost Model",
             "description": "Test",
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
         }
 
         with tenant_context(self.tenant):
@@ -78,7 +84,13 @@ class CostModelManagerTest(IamTestCase):
             "name": "Test Cost Model",
             "description": "Test",
             "provider_uuids": [provider_uuid],
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
         }
 
         with tenant_context(self.tenant):
@@ -97,7 +109,13 @@ class CostModelManagerTest(IamTestCase):
             self.assertEqual(cost_model_map.first().provider_uuid, provider_uuid)
             self.assertEqual(
                 CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(),
-                [{"uuid": str(provider_uuid), "name": "sample_provider", "last_processed": None}],
+                [
+                    {
+                        "uuid": str(provider_uuid),
+                        "name": "sample_provider",
+                        "last_processed": None,
+                    }
+                ],
             )
 
     def test_create_second_cost_model_same_provider(self):
@@ -109,7 +127,11 @@ class CostModelManagerTest(IamTestCase):
         # Get Provider UUID
         provider_uuid = provider.uuid
         provider_names_uuids = [
-            {"uuid": str(provider.uuid), "name": provider.name, "last_processed": provider.data_updated_timestamp}
+            {
+                "uuid": str(provider.uuid),
+                "name": provider.name,
+                "last_processed": provider.data_updated_timestamp,
+            }
         ]
         metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
@@ -118,7 +140,13 @@ class CostModelManagerTest(IamTestCase):
             "name": "Test Cost Model",
             "description": "Test",
             "provider_uuids": [provider_uuid],
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
         }
 
         with tenant_context(self.tenant):
@@ -130,7 +158,10 @@ class CostModelManagerTest(IamTestCase):
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
             self.assertEqual(cost_model_map.first().cost_model, cost_model_obj)
-            self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(), provider_names_uuids)
+            self.assertEqual(
+                CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(),
+                provider_names_uuids,
+            )
 
             second_cost_model_obj = None
             with patch("cost_models.cost_model_manager.update_cost_model_costs"):
@@ -165,7 +196,13 @@ class CostModelManagerTest(IamTestCase):
             "name": "Test Cost Model",
             "description": "Test",
             "provider_uuids": [provider_uuid, provider_uuid_2],
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
         }
 
         with tenant_context(self.tenant):
@@ -181,8 +218,14 @@ class CostModelManagerTest(IamTestCase):
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 2)
-            self.assertEqual(CostModelMap.objects.get(provider_uuid=provider_uuid).cost_model, cost_model_obj)
-            self.assertEqual(CostModelMap.objects.get(provider_uuid=provider_uuid_2).cost_model, cost_model_obj)
+            self.assertEqual(
+                CostModelMap.objects.get(provider_uuid=provider_uuid).cost_model,
+                cost_model_obj,
+            )
+            self.assertEqual(
+                CostModelMap.objects.get(provider_uuid=provider_uuid_2).cost_model,
+                cost_model_obj,
+            )
 
         # Remove Rate object and verify that the CostModelMap is updated to no longer contain the providers.
         with tenant_context(self.tenant):
@@ -198,7 +241,13 @@ class CostModelManagerTest(IamTestCase):
         data = {
             "name": "Test Cost Model",
             "description": "Test",
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
         }
         cost_model_obj = None
         with tenant_context(self.tenant):
@@ -221,7 +270,10 @@ class CostModelManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
             with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                with patch("cost_models.cost_model_manager.get_customer_queue", return_value=PriorityQueue.XL):
+                with patch(
+                    "cost_models.cost_model_manager.get_customer_queue",
+                    return_value=PriorityQueue.XL,
+                ):
                     manager.update_provider_uuids(provider_uuids=[provider_uuid])
                     mock_update.s.return_value.set.assert_called_with(queue=PriorityQueue.XL)
 
@@ -233,7 +285,13 @@ class CostModelManagerTest(IamTestCase):
         data = {
             "name": "Test Cost Model",
             "description": "Test",
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
         }
         cost_model_obj = None
         with tenant_context(self.tenant):
@@ -357,7 +415,13 @@ class CostModelManagerTest(IamTestCase):
         data = {
             "name": "Test Cost Model",
             "description": "Test",
-            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
+            "rates": [
+                {
+                    "metric": {"name": metric},
+                    "source_type": source_type,
+                    "tiered_rates": tiered_rates,
+                }
+            ],
             "distribution": distribution,
         }
 
@@ -381,7 +445,13 @@ class CostModelManagerTest(IamTestCase):
         metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
-        rates = [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}]
+        rates = [
+            {
+                "metric": {"name": metric},
+                "source_type": source_type,
+                "tiered_rates": tiered_rates,
+            }
+        ]
         data = {
             "name": "Test CM with PL",
             "description": "Test",
@@ -396,7 +466,12 @@ class CostModelManagerTest(IamTestCase):
             mapping = PriceListCostModelMap.objects.filter(cost_model=cost_model_obj).first()
             self.assertIsNotNone(mapping)
             self.assertEqual(mapping.priority, 1)
-            self.assertEqual(mapping.price_list.rates, rates)
+            pl_rates = mapping.price_list.rates
+            self.assertEqual(len(pl_rates), len(rates))
+            self.assertEqual(pl_rates[0]["metric"], rates[0]["metric"])
+            self.assertEqual(pl_rates[0]["tiered_rates"], rates[0]["tiered_rates"])
+            self.assertIn("rate_id", pl_rates[0])
+            self.assertIn("custom_name", pl_rates[0])
             self.assertEqual(mapping.price_list.currency, cost_model_obj.currency)
             self.assertEqual(mapping.price_list.name, "Test CM with PL prices")
 
@@ -421,7 +496,11 @@ class CostModelManagerTest(IamTestCase):
         metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         original_rates = [
-            {"metric": {"name": metric}, "source_type": source_type, "tiered_rates": [{"unit": "USD", "value": 0.22}]}
+            {
+                "metric": {"name": metric},
+                "source_type": source_type,
+                "tiered_rates": [{"unit": "USD", "value": 0.22}],
+            }
         ]
         data = {
             "name": "Test CM sync",
@@ -434,11 +513,11 @@ class CostModelManagerTest(IamTestCase):
             with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                 cost_model_obj = manager.create(**data)
 
-            # Verify PriceList was created with original rates
             mapping = PriceListCostModelMap.objects.get(cost_model=cost_model_obj)
-            self.assertEqual(mapping.price_list.rates, original_rates)
+            pl_rates = mapping.price_list.rates
+            self.assertEqual(pl_rates[0]["metric"], original_rates[0]["metric"])
+            self.assertEqual(pl_rates[0]["tiered_rates"], original_rates[0]["tiered_rates"])
 
-            # Update rates
             updated_rates = [
                 {
                     "metric": {"name": metric},
@@ -449,16 +528,21 @@ class CostModelManagerTest(IamTestCase):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
             manager.update(rates=updated_rates)
 
-            # Verify PriceList was synced
             mapping.price_list.refresh_from_db()
-            self.assertEqual(mapping.price_list.rates, updated_rates)
+            pl_rates = mapping.price_list.rates
+            self.assertEqual(pl_rates[0]["metric"], updated_rates[0]["metric"])
+            self.assertEqual(pl_rates[0]["tiered_rates"], updated_rates[0]["tiered_rates"])
 
     def test_update_with_rates_creates_price_list_if_missing(self):
         """Test that updating rates creates a PriceList if no mapping exists."""
         metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         rates = [
-            {"metric": {"name": metric}, "source_type": source_type, "tiered_rates": [{"unit": "USD", "value": 0.22}]}
+            {
+                "metric": {"name": metric},
+                "source_type": source_type,
+                "tiered_rates": [{"unit": "USD", "value": 0.22}],
+            }
         ]
 
         with tenant_context(self.tenant):
@@ -478,18 +562,26 @@ class CostModelManagerTest(IamTestCase):
                 }
             ]
             manager.update(rates=updated_rates)
-            self.assertEqual(manager.instance.rates, updated_rates)
+            instance_rates = manager.instance.rates
+            self.assertEqual(instance_rates[0]["metric"], updated_rates[0]["metric"])
+            self.assertEqual(instance_rates[0]["tiered_rates"], updated_rates[0]["tiered_rates"])
 
             mapping = PriceListCostModelMap.objects.filter(cost_model=cost_model_obj).first()
             self.assertIsNotNone(mapping)
-            self.assertEqual(mapping.price_list.rates, updated_rates)
+            pl_rates = mapping.price_list.rates
+            self.assertEqual(pl_rates[0]["metric"], updated_rates[0]["metric"])
+            self.assertIn("rate_id", pl_rates[0])
 
     def test_update_without_rates_no_sync(self):
         """Test that updating without rates in data does not sync to PriceList."""
         metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         original_rates = [
-            {"metric": {"name": metric}, "source_type": source_type, "tiered_rates": [{"unit": "USD", "value": 0.22}]}
+            {
+                "metric": {"name": metric},
+                "source_type": source_type,
+                "tiered_rates": [{"unit": "USD", "value": 0.22}],
+            }
         ]
         data = {
             "name": "Test CM no sync",
@@ -508,6 +600,7 @@ class CostModelManagerTest(IamTestCase):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
             manager.update(name="Renamed CM")
 
-            # PriceList rates should be unchanged
             mapping.price_list.refresh_from_db()
-            self.assertEqual(mapping.price_list.rates, original_rates)
+            pl_rates = mapping.price_list.rates
+            self.assertEqual(pl_rates[0]["metric"], original_rates[0]["metric"])
+            self.assertEqual(pl_rates[0]["tiered_rates"], original_rates[0]["tiered_rates"])

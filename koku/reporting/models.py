@@ -112,6 +112,7 @@ from reporting.provider.ocp.models import OCPUsagePodLabelSummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
 from reporting.provider.ocp.models import OCPVolumeSummaryP
+from reporting.tenant_settings.models import TenantSettings
 from reporting.user_settings.models import UserSettings
 
 # These are partitioned tables

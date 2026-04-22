@@ -33,6 +33,7 @@ from kombu.exceptions import OperationalError as KombuOperationalError
 import masu.util.ocp.ocp_data_validator  # noqa: F401
 from api.common import log_json
 from api.provider.models import Provider
+from api.settings.utils import get_data_retention_months
 from api.utils import DateHelper
 from common.queues import get_customer_queue
 from common.queues import OCPQueue
@@ -391,29 +392,24 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
         shutil.rmtree(payload_path.parent)
         return None, manifest.uuid
 
-    # Get provider and schema to check feature flag
     provider: Provider = source.provider
     schema_name: str = provider.account.get("schema_name")
 
-    # Check if cross-org cluster lookup is enabled for this schema
     cross_org_enabled = bool(schema_name and is_cross_org_cluster_lookup_enabled(schema_name))
-
-    # If feature flag is disabled, enforce org_id matching
     if not cross_org_enabled and source.org_id != context["org_id"]:
         msg = f"Received unexpected OCP report from {manifest.cluster_id} (org_id mismatch)"
         LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
         shutil.rmtree(payload_path.parent)
         return None, manifest.uuid
 
-    # Set context with provider information
     context["provider_type"] = provider.type
     context["schema"] = schema_name
-    # for anemic accounts, use `no_account`
     context["account"] = context["account"] or provider.account.get("account_id") or "no_account"
 
+    retention = get_data_retention_months(schema_name) or Config.MASU_RETAIN_NUM_MONTHS
     dh = DateHelper()
     manifest_end = manifest.end or dh.month_end(manifest.date)
-    if manifest_end < dh.relative_month_end(-Config.MASU_RETAIN_NUM_MONTHS):
+    if manifest_end < dh.relative_month_end(-retention):
         msg = f"Received OCP data outside our retention period for {manifest.cluster_id}, skipping processing"
         LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
         shutil.rmtree(payload_path.parent)

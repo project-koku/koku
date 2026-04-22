@@ -2,7 +2,7 @@
 
 **Purpose:** This document provides a comprehensive overview of NVIDIA Multi-Instance GPU (MIG) cost tracking and allocation in Koku, enabling accurate chargeback for partitioned GPU resources in OpenShift environments.
 
-**Last Updated:** March 4, 2026
+**Last Updated:** April 10, 2026
 
 ---
 
@@ -19,6 +19,11 @@
 9. [API Changes](#api-changes)
 10. [Code Architecture](#code-architecture)
 11. [Examples and Scenarios](#examples-and-scenarios)
+12. [Backward Compatibility](#backward-compatibility)
+13. [CMMO Contract](#cmmo-contract)
+14. [Testing Requirements](#testing-requirements)
+15. [Troubleshooting](#troubleshooting)
+16. [Key Takeaways](#key-takeaways)
 
 ---
 
@@ -79,6 +84,44 @@ Different GPU models support different maximum slice counts:
 | RTX PRO 5000 | 2 | Blackwell |
 
 **Reference:** [NVIDIA MIG Supported GPUs](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-gpus.html)
+
+**Python Lookup:**
+
+**File:** [`koku/masu/util/ocp/common.py`](../../koku/masu/util/ocp/common.py)
+
+```python
+GPU_MAX_SLICES_BY_MODEL = {
+    "A30": 4,
+    "A100": 7,
+    "H100": 7,
+    "H200": 7,
+    "B200": 7,
+    "RTX PRO 6000": 4,
+    "RTX PRO 5000": 2,
+}
+```
+
+The lookup uses **substring matching** - e.g., "A100" matches "NVIDIA A100 80GB HBM3". See [`koku/masu/util/ocp/ocp_post_processor.py`](../../koku/masu/util/ocp/ocp_post_processor.py) `get_gpu_max_slices()`.
+
+### GPU Model Name Normalization
+
+GPU model names are normalized at ingestion to ensure consistent matching:
+
+**File:** [`koku/masu/util/ocp/ocp_post_processor.py`](../../koku/masu/util/ocp/ocp_post_processor.py)
+
+```python
+# In process_dataframe():
+if "gpu_model_name" in data_frame.columns:
+    data_frame["gpu_model_name"] = (
+        data_frame["gpu_model_name"]
+        .str.replace(r"[^a-zA-Z0-9]+", " ", regex=True)
+        .str.strip()
+    )
+```
+
+**Effect:** `"NVIDIA A30-24GB"` → `"NVIDIA A30 24GB"`
+
+This ensures cost model tag values (from dropdowns) match actual data regardless of punctuation differences.
 
 ### MIG Strategy
 
@@ -197,12 +240,24 @@ ALTER TABLE openshift_gpu_usage_line_items_daily ADD COLUMNS (
 
 ```python
 class OCPGpuSummaryP(models.Model):
-    # Existing fields...
+    # GPU identification fields
+    vendor_name = models.CharField(max_length=128, null=True)
+    model_name = models.CharField(max_length=128, null=True)
+    mig_instance_id = models.CharField(max_length=128, null=True)  # MIG instance UUID
+    gpu_uuid = models.CharField(max_length=128, null=True)  # Physical GPU UUID
 
-    # NEW MIG fields
-    mig_profile = models.CharField(max_length=32, null=True)
-    mig_instance_count = models.IntegerField(null=True)
+    # MIG fields
+    gpu_mode = models.CharField(max_length=32, null=True)  # 'dedicated' or 'MIG'
+    mig_profile = models.CharField(max_length=64, null=True)  # e.g., '1g.5gb'
+    mig_slice_count = models.IntegerField(null=True)
+    gpu_max_slices = models.IntegerField(null=True)
+    mig_strategy = models.CharField(max_length=10, null=True)
 ```
+
+**Key Design Decisions:**
+- `gpu_uuid` stores the physical GPU identifier for accurate GPU counting
+- `mig_instance_id` stores the MIG instance identifier (NULL for dedicated GPUs)
+- GPU count is computed via `Count("gpu_uuid", distinct=True)` in queries
 
 ### Column Definitions Update
 
@@ -359,6 +414,31 @@ unutilized_slice_hours = total_slice_hours - utilized_slice_hours
 unallocated_cost = (rate / days / 24 / max_slices) × unutilized_slice_hours
 ```
 
+### Accessing Node Labels in SQL (Self-Hosted)
+
+When GPU usage data is missing but nodes have GPU labels, the unallocated cost SQL falls back to node labels. The `node_labels` column is stored as TEXT, requiring a cast to JSONB:
+
+**File:** [`koku/masu/database/self_hosted_sql/openshift/cost_model/monthly_cost_gpu.sql`](../../koku/masu/database/self_hosted_sql/openshift/cost_model/monthly_cost_gpu.sql)
+
+```sql
+-- Cast to JSONB and extract with normalization
+LOWER(TRIM((node_ut.node_labels::jsonb)->>'nvidia_com_mig_strategy')) = 'mixed'
+
+-- Extract numeric values
+CAST(TRIM((node_ut.node_labels::jsonb)->>'nvidia_com_gpu_count') AS DECIMAL(33, 15))
+
+-- Fallback model name from node labels (normalized)
+regexp_replace(
+    COALESCE(gpu.gpu_model_name, (node_ut.node_labels::jsonb)->>'nvidia_com_gpu_product'),
+    '[^a-zA-Z0-9]+', ' ', 'g'
+) as model
+```
+
+**Key patterns:**
+- `::jsonb` cast required because `node_labels` is TEXT
+- `LOWER(TRIM(...))` for case-insensitive, whitespace-tolerant comparisons
+- `regexp_replace` normalizes model names to match cost model entries
+
 ### Example Calculation
 
 **Setup:**
@@ -496,20 +576,52 @@ distributed_cost = (slice_time / total_slice_time) × unallocated_cost
             "date": "2026-01",
             "mig-profiles": [
                 {
-                    "mig-profile": "1g.10gb",
-                    "physical_gpu_uuid": "uuid-123",
-                    "compute": "1g",
-                    "memory": "10gb",
-                    "gpu_name": "nvidia_H100_node",
-                    "node": "node_a"
+                    "mig_profile": "1g.5gb",
+                    "values": [
+                        {
+                            "date": "2026-04-01",
+                            "mig_profile": "1g.5gb",
+                            "gpu_model": "A100",
+                            "gpu_vendor": "nvidia",
+                            "mig_id": "MIG-e46b9f71-dd65-56ef-8333-5033e349f961",
+                            "gpu_name": "nvidia_A100_compute_2",
+                            "node": "compute_2",
+                            "compute": {
+                                "value": 1,
+                                "units": "g"
+                            },
+                            "memory": {
+                                "value": 5,
+                                "units": "gb"
+                            },
+                            "mig_slice_count": 1,
+                            "gpu_max_slices": 7
+                        }
+                    ]
                 },
                 {
-                    "mig-profile": "2g.20gb",
-                    "physical_gpu_uuid": "uuid-456",
-                    "compute": "2g",
-                    "memory": "20gb",
-                    "gpu_name": "nvidia_H100_node",
-                    "node": "node_b"
+                    "mig_profile": "2g.10gb",
+                    "values": [
+                        {
+                            "date": "2026-04-01",
+                            "mig_profile": "2g.10gb",
+                            "gpu_model": "A100",
+                            "gpu_vendor": "nvidia",
+                            "mig_id": "MIG-2bb570d8-41ce-5304-a0c3-447c658e7bff",
+                            "gpu_name": "nvidia_A100_compute_2",
+                            "node": "compute_2",
+                            "compute": {
+                                "value": 2,
+                                "units": "g"
+                            },
+                            "memory": {
+                                "value": 10,
+                                "units": "gb"
+                            },
+                            "mig_slice_count": 2,
+                            "gpu_max_slices": 7
+                        }
+                    ]
                 }
             ]
         }
@@ -524,6 +636,23 @@ distributed_cost = (slice_time / total_slice_time) × unallocated_cost
 | Group by | `mig_profile` |
 | Filter by | `mig_profile`, `gpu_instance_uuid` |
 
+### GPU Count Calculation
+
+GPU count in API responses uses `Count("gpu_uuid", distinct=True)` to accurately count unique physical GPUs across aggregated rows.
+
+**File:** [`koku/api/report/ocp/provider_map.py`](../../koku/api/report/ocp/provider_map.py)
+
+```python
+"gpu_count": Count("gpu_uuid", distinct=True),
+```
+
+**Why this matters:**
+- Summary table groups data by (namespace, node, model, mig_profile, date)
+- A node with 4 GPUs creates 4 rows with different `gpu_uuid` values
+- `Count(DISTINCT)` correctly aggregates to `gpu_count: 4` across daily/monthly views
+
+**Previous approach (deprecated):** Used complex RawSQL subqueries in `query_handler.py`. This was replaced with the simpler `Count(DISTINCT)` annotation in `provider_map.py`.
+
 ---
 
 ## Code Architecture
@@ -534,29 +663,47 @@ distributed_cost = (slice_time / total_slice_time) × unallocated_cost
 koku/
 ├── masu/
 │   ├── util/ocp/
-│   │   └── common.py                    # GPU_USAGE_COLUMNS, GPU_AGG
+│   │   ├── common.py                    # GPU_USAGE_COLUMNS, GPU_AGG, GPU_MAX_SLICES_BY_MODEL
+│   │   └── ocp_post_processor.py        # gpu_model_name normalization, get_gpu_max_slices()
 │   │
 │   ├── processor/ocp/
 │   │   └── ocp_report_parquet_processor.py  # numeric_columns
 │   │
 │   └── database/
 │       ├── trino_sql/openshift/
-│       │   └── cost_model/
-│       │       ├── monthly_cost_gpu.sql     # Allocated + Unallocated cost
-│       │       └── distribute_cost/
-│       │           └── distribute_unallocated_gpu_cost.sql
+│       │   ├── cost_model/
+│       │   │   ├── monthly_cost_gpu.sql     # Allocated + Unallocated cost (SaaS)
+│       │   │   └── distribute_cost/
+│       │   │       └── distribute_unallocated_gpu_cost.sql
+│       │   └── ui_summary/
+│       │       └── reporting_ocp_gpu_summary_p_usage_only.sql
+│       │
+│       ├── self_hosted_sql/openshift/
+│       │   ├── cost_model/
+│       │   │   └── monthly_cost_gpu.sql     # Allocated + Unallocated cost (On-Prem)
+│       │   └── ui_summary/
+│       │       └── reporting_ocp_gpu_summary_p_usage_only.sql
 │       │
 │       └── sql/openshift/ui_summary/
-│           └── reporting_ocp_gpu_summary_p.sql
+│           └── reporting_ocp_gpu_summary_p.sql  # Summary from daily_summary
 │
 ├── reporting/provider/ocp/
 │   └── models.py                        # OCPGpuSummaryP
 │
 └── api/report/ocp/
-    ├── query_handler.py                 # GPU_GROUP_BY_OPTIONS
-    ├── provider_map.py                  # GPU annotations
+    ├── provider_map.py                  # GPU annotations, Count(DISTINCT gpu_uuid)
     └── serializers.py                   # OCPGpuSerializer
 ```
+
+### Key Files Summary
+
+| File | Purpose |
+|------|---------|
+| `ocp_post_processor.py` | Normalizes `gpu_model_name`, looks up `gpu_max_slices` |
+| `monthly_cost_gpu.sql` | Calculates allocated cost (slice-weighted) and unallocated cost |
+| `reporting_ocp_gpu_summary_p*.sql` | Populates summary table with `mig_instance_id`, `gpu_uuid` |
+| `provider_map.py` | Defines API annotations including `Count("gpu_uuid", distinct=True)` |
+| `models.py` | `OCPGpuSummaryP` model with MIG fields |
 
 ### Data Flow Diagram
 
@@ -613,15 +760,48 @@ koku/
                         ▼
    ┌──────────────────────────────────────────────────────────────────────────┐
    │  PostgreSQL: reporting_ocpusagelineitem_daily_summary                     │
-   │  all_labels JSON includes: 'mig-profile', 'mig-slices'                   │
+   │  all_labels JSON includes:                                                │
+   │    'gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'mig-profile',           │
+   │    'mig-slice-count', 'gpu-max-slices', 'mig-strategy',                  │
+   │    'mig-memory-mib', 'gpu-mode', 'mig-instance-id'                       │
    │  cost_model_gpu_cost (now slice-weighted)                                │
    └──────────────────────────────────────────────────────────────────────────┘
                         │
                         ▼
    ┌──────────────────────────────────────────────────────────────────────────┐
    │  PostgreSQL: reporting_ocp_gpu_summary_p                                  │
-   │  + mig_profile, mig_instance_count                                       │
+   │  + mig_profile, mig_instance_id, gpu_uuid                       │
    └──────────────────────────────────────────────────────────────────────────┘
+```
+
+### all_labels JSON Structure
+
+The `all_labels` column in `reporting_ocpusagelineitem_daily_summary` contains GPU metadata as JSON:
+
+```json
+{
+  "gpu-model": "A100",
+  "gpu-vendor": "nvidia",
+  "gpu-memory-mib": "40960",
+  "mig-profile": "1g.5gb",
+  "mig-slice-count": "1",
+  "gpu-max-slices": "7",
+  "mig-strategy": "mixed",
+  "mig-memory-mib": "5120",
+  "gpu-mode": "MIG",
+  "mig-instance-id": "MIG-abc123"
+}
+```
+
+**PostgreSQL extraction:**
+```sql
+all_labels->>'mig-profile' as mig_profile,
+all_labels->>'mig-instance-id' as mig_instance_id
+```
+
+**Trino extraction:**
+```sql
+json_extract_scalar(CAST(all_labels AS json), '$.mig-profile') as mig_profile
 ```
 
 ---
@@ -768,6 +948,48 @@ For non-MIG GPUs, all MIG columns should be empty/null in the CSV.
 
 ---
 
+## Troubleshooting
+
+### Common Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `operator does not exist: text ->> unknown` | `node_labels` accessed without JSONB cast | Cast: `(node_labels::jsonb)->>'key'` |
+| `column must appear in GROUP BY clause` | Accessing raw column in aggregated query | Add to `GROUP BY` or wrap in aggregate |
+| `GPU model 'X' not found in MIG max slices mapping` | Model name doesn't match lookup | Use substring matching in `GPU_MAX_SLICES_BY_MODEL` |
+
+### GPU Model Name Mismatch
+
+If cost model entries don't match data:
+
+1. Check raw data: `SELECT DISTINCT gpu_model_name FROM openshift_gpu_usage_line_items_daily`
+2. Verify normalization: Both data and cost model values should go through `regexp_replace(..., '[^a-zA-Z0-9]+', ' ', 'g')`
+3. Update `ocp_post_processor.py` if ingestion-time normalization is needed
+
+### Node Labels Debugging
+
+When GPU usage data is missing, the system falls back to node labels. Debug with:
+
+```sql
+SELECT node, node_labels::jsonb->>'nvidia_com_gpu_count',
+       node_labels::jsonb->>'nvidia_com_gpu_product',
+       LOWER(TRIM(node_labels::jsonb->>'nvidia_com_mig_strategy'))
+FROM reporting_ocpnodeuptimelineitem
+WHERE node_labels::jsonb->>'nvidia_com_gpu_count' IS NOT NULL;
+```
+
+### Trino vs PostgreSQL SQL Differences
+
+| Feature | PostgreSQL | Trino |
+|---------|------------|-------|
+| JSONB access | `(col::jsonb)->>'key'` | `json_extract_scalar(col, '$.key')` |
+| Map construction | `jsonb_build_object(...)` | `map(ARRAY[], ARRAY[])` |
+| UUID generation | `gen_random_uuid()` | `uuid()` |
+
+**Important:** The `all_labels` column is JSON in PostgreSQL but a MAP in Trino. Summary SQL must use appropriate syntax for each.
+
+---
+
 ## Key Takeaways
 
 1. **MIG Divides GPU Cost:** Physical GPU cost is split proportionally by compute slices
@@ -776,6 +998,8 @@ For non-MIG GPUs, all MIG columns should be empty/null in the CSV.
 4. **Distribution:** Unallocated costs distributed by slice-time ratio
 5. **Backward Compatible:** Non-MIG GPUs continue to work unchanged
 6. **Dynamic Max Slices:** Different GPU models have different maximums
+7. **Model Name Normalization:** GPU model names are normalized at ingestion to ensure cost model matching
+8. **GPU Count via DISTINCT:** Use `Count("gpu_uuid", distinct=True)` for accurate GPU counts
 
 ---
 
@@ -788,5 +1012,5 @@ For non-MIG GPUs, all MIG columns should be empty/null in the CSV.
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** March 4, 2026
+**Document Version:** 1.1
+**Last Updated:** April 10, 2026
