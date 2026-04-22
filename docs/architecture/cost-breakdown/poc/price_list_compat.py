@@ -156,7 +156,7 @@ def supplementary_rates_from_price_list(price_list: dict) -> dict:
 def json_rates_to_rate_rows(rates_json: list[dict]) -> list[RateRow]:
     """
     Convert a CostModel.rates JSON blob into simulated RateRow objects.
-    This mirrors what migration M3 would do.
+    This mirrors what migration M2 would do.
     """
     rows = []
     used_names: set[str] = set()
