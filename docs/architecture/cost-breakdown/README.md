@@ -13,6 +13,14 @@ of aggregated totals.
 the current cost model architecture, rate types, distribution, and data
 model that this feature extends.
 
+**Prerequisite work**: [COST-575](https://redhat.atlassian.net/browse/COST-575) —
+PriceList infrastructure (model, dual-write, data migration) landed on
+`main` via PRs [#5963](https://github.com/project-koku/koku/pull/5963)
+and [#5957](https://github.com/project-koku/koku/pull/5957). Phase 1 of
+this design builds on top of that infrastructure. See the tech lead's
+[migration coordination gist](https://gist.github.com/myersCody/91195a531ada9c09d39a5c5234993654)
+for the shared dual-write strategy.
+
 ---
 
 ## Decisions Needed from Tech Lead
@@ -24,10 +32,10 @@ where noted.
 |---|----------|--------|---------------|----------|--------------|
 | **IQ-1** | Single source of truth: RatesToUsage with aggregation to daily summary. | **RESOLVED** | ~Phase 2~ | [Details](#iq-1-aggregation-granularity-mismatch-phase-2-3) | [`poc/insert_usage_rates_to_usage.sql`](./poc/insert_usage_rates_to_usage.sql) demonstrates fine-grained GROUP BY |
 | **IQ-3** | Flat-row DB storage with both flat and nested API response formats. | **RESOLVED** | ~Phase 4~ | [Details](#iq-3-breakdown-api-response-format-phase-4) | [`poc/reporting_ocp_cost_breakdown_p.sql`](./poc/reporting_ocp_cost_breakdown_p.sql) produces flat rows with path columns |
-| **IQ-6** | Remove speculative `PriceList.usage_start` / `usage_end` fields (not in PRD). | **RESOLVED** | ~Phase 1~ | [Details](#iq-6-pricelistusage_startusage_end-phase-1) | — |
+| **IQ-6** | `PriceList` date fields. COST-575 shipped `effective_start_date`/`effective_end_date` — kept as-is. | **SUPERSEDED** | ~Phase 1~ | [Details](#iq-6-pricelistusage_startusage_end-phase-1) | — |
 | **IQ-7** | `custom_name` optional with auto-generation from `description` or `metric.name`. Backward compatible. | **RESOLVED** | ~Phase 1~ | [Details](#iq-7-backward-compatibility-for-custom_name-phase-1) | [`poc/price_list_compat.py`](./poc/price_list_compat.py) validates backward-compatible format |
 | **IQ-8** | `cost_type` on `OCPCostUIBreakDownP`. | **RESOLVED** | ~Phase 4~ | [Details](#iq-8-cost_type-on-ocpcostuibreakdownp-phase-4) | — |
-| **IQ-9** | Distribution per-rate identity: preserve per-rate breakdown for distributed costs. | **RESOLVED** | ~Phase 4~ | Distribution rewritten to operate on per-rate `RatesToUsage` rows (Option 1). Old distribution SQL deprecated; new files read from `RatesToUsage` + daily summary usage metrics. [Details](#iq-9-distribution-per-rate-identity-gap) | [sql-pipeline.md](./sql-pipeline.md) (pipeline sketches; Option 2 back-allocation retained as fallback) |
+| **IQ-9** | Distribution per-rate identity: preserve per-rate breakdown for distributed costs. | **RESOLVED** | ~Phase 4~ | Distribution rewritten to operate on per-rate `RatesToUsage` rows (Option 1). Old distribution SQL deprecated; new files read from `RatesToUsage` + daily summary usage metrics. [Details](#iq-9-distribution-per-rate-identity-gap) | [sql-pipeline.md](./sql-pipeline.md) (pipeline sketches for the selected Option 1 path) |
 
 ### What the spikes resolved
 
@@ -303,8 +311,8 @@ see [`poc/reporting_ocp_cost_breakdown_p.sql`](./poc/reporting_ocp_cost_breakdow
 Source 2. With **IQ-9 Option 1** (selected), per-rate distribution is
 reflected in `RatesToUsage` (`distributed_cost` rows); breakdown
 population reads those rows (see [IQ-9](#iq-9-distribution-per-rate-identity-gap)).
-Option 2 (back-allocation in breakdown SQL only) remains documented as a
-viable fallback — see [README § IQ-9 Options](#iq-9-distribution-per-rate-identity-gap).
+Option 2 (back-allocation in breakdown SQL only) remains documented in
+historical notes for context, but is not an active fallback path.
 
 ### IQ-5: SQL approach for RatesToUsage INSERTs (Phase 2)
 
@@ -355,16 +363,16 @@ The `label_hash` column (R13 mitigation) is computed in the CTE and
 used by the aggregation step for GROUP BY / JOIN instead of JSONB
 equality. See [sql-pipeline.md § The Aggregation Step](./sql-pipeline.md#the-aggregation-step).
 
-### IQ-6: `PriceList.usage_start/usage_end` (Phase 1)
+### IQ-6: `PriceList.usage_start/usage_end` (Phase 1) — SUPERSEDED
 
 **Problem**: Speculative fields not in the PRD.
 
-**Proposal: Remove them.**
+**Original proposal**: Remove them (YAGNI principle).
 
-Koku's existing models are minimal. `CostModel` has no date-bounding
-on rates. Adding speculative fields contradicts the YAGNI principle.
-If time-bounded pricing is needed later, the columns can be added in a
-future migration with no impact on existing data.
+**Superseded**: COST-575 shipped the `PriceList` model with
+`effective_start_date` and `effective_end_date` fields already on
+`main`. These fields are kept as-is. The original proposal to remove
+date-bounding fields is moot — no action required.
 
 ### IQ-7: Backward compatibility for `custom_name` (Phase 1) — RESOLVED
 
@@ -383,7 +391,7 @@ custom_name = serializers.CharField(max_length=50, required=False, allow_blank=T
 ```
 
 If not provided, auto-generate from `description` or `metric.name`
-using the same `generate_custom_name()` logic from migration M3. This
+using the same `generate_custom_name()` logic from migration M2. This
 is backward compatible — existing API consumers work without changes,
 and new consumers can set meaningful names.
 
@@ -478,7 +486,7 @@ orchestration (`ocp_cost_model_cost_updater.py`,
 | # | Approach | Invasiveness | Per-rate identity | Infrastructure handling | Risk |
 |---|----------|-------------|-------------------|------------------------|------|
 | 1 | **Rewrite distribution SQL** to read from `RatesToUsage` + daily summary usage (**selected**) | HIGH (new distribution files; deprecate old; GPU sequencing unchanged in importance) | Full | Raw cost as dedicated `RatesToUsage` row (`monthly_cost_type = 'raw_cost'`) | Regression risk mitigated by new files + rollback via old file set |
-| 2 | Back-allocate proportionally (breakdown population only) | MEDIUM (no distribution rewrite) | Cost model rates: full. Infrastructure: one aggregate entry. | "Infrastructure" entry under each distribution node | Proportional approximation; join complexity — **viable fallback** |
+| 2 | Back-allocate proportionally (breakdown population only) | MEDIUM (no distribution rewrite) | Cost model rates: full. Infrastructure: one aggregate entry. | "Infrastructure" entry under each distribution node | Proportional approximation; join complexity — **historical alternative (not selected)** |
 | 3 | Show aggregate only | NONE | None | N/A | Feature value reduced for overhead drill-down |
 
 #### Recommendation: Option 1 — distribute at per-rate level
@@ -518,9 +526,8 @@ orchestration (`ocp_cost_model_cost_updater.py`,
    `RatesToUsage` per namespace/day (`monthly_cost_type = 'raw_cost'`),
    included in the same distribution and aggregation path.
 
-Option 2 (back-allocation) remains a documented fallback if the team
-needs to avoid touching distribution SQL — see
-[sql-pipeline.md § Back-Allocation SQL](./sql-pipeline.md#back-allocation-sql-sketch).
+Option 2 (back-allocation) is retained only as historical context in
+design notes. It is not a runtime fallback path for implementation.
 
 #### Resolved
 
@@ -563,21 +570,24 @@ open questions on this decision set.
 
 | Document | Type | Summary |
 |----------|------|---------|
-| [data-model.md](./data-model.md) | DD | New Django models (`PriceList`, `Rate`, `RatesToUsage` / `rates_to_usage`, `OCPCostUIBreakDownP`), `custom_name` migration strategy, tree structure definition |
+| [data-model.md](./data-model.md) | DD | Django models (`Rate` (new), `RatesToUsage` / `rates_to_usage` (new), `OCPCostUIBreakDownP` (new), `PriceList` (existing, COST-575)), `custom_name` migration strategy, tree structure definition |
 | [sql-pipeline.md](./sql-pipeline.md) | DD | Current vs proposed data flow, SQL file inventory (20+ files across 3 paths), `CostModelDBAccessor` changes, aggregation step design |
 | [api-and-frontend.md](./api-and-frontend.md) | DD | Cost model API changes (`custom_name`, dual-write), new breakdown endpoint, frontend components, export integration |
 | [phased-delivery.md](./phased-delivery.md) | DD | 5-phase plan with per-phase artifacts, validation criteria, rollback strategy, risk register |
-| [risk-register.md](./risk-register.md) | Ref | Consolidated risk register (R1-R19), decision rationales, benchmarking plan, phase matrix |
+| [risk-register.md](./risk-register.md) | Ref | Consolidated risk register (R1-R20), decision rationales, benchmarking plan, phase matrix |
+| [open-concerns.md](./open-concerns.md) | Ref | Concerns register (all resolved): 5 concerns with due diligence findings, Gaps A-F closed with conservative defaults in `api-and-frontend.md`. |
+| [test-plan.md](./test-plan.md) | QA | IEEE 829 test plan for Phase 1: 7 TDD phases, 68 test cases, 7 checkpoints, 12 due diligence findings. |
 
 ---
 
 ## Architecture at a Glance
 
-### Current Data Flow
+### Current Data Flow (Post–COST-575)
 
 ```mermaid
 graph TD
-    CM["CostModel.rates<br/>(JSON blob)"] --> Accessor["CostModelDBAccessor<br/>price_list property"]
+    CM["CostModel.rates<br/>(JSON blob)"] -->|"dual-write<br/>(COST-575)"| PL["PriceList.rates<br/>(JSON mirror)"]
+    CM --> Accessor["CostModelDBAccessor<br/>price_list property"]
     Accessor --> UsageSQL["usage_costs.sql<br/>+ monthly_cost_*.sql<br/>+ *_tag_rates.sql"]
     UsageSQL -->|"cost_model_cpu_cost<br/>cost_model_memory_cost<br/>cost_model_volume_cost<br/>(aggregated scalars)"| DailySummary["reporting_ocpusagelineitem<br/>_daily_summary"]
     DailySummary --> DistSQL["distribute_platform_cost.sql<br/>distribute_worker_cost.sql<br/>+ 3 more"]
@@ -591,7 +601,7 @@ graph TD
 
 ```mermaid
 graph TD
-    CM["CostModel.rates (JSON)<br/>+ Rate table (new)"] --> Accessor["CostModelDBAccessor<br/>reads from Rate table"]
+    CM["CostModel.rates (JSON)<br/>+ PriceList (COST-575)<br/>+ Rate table (new)"] --> Accessor["CostModelDBAccessor<br/>reads from Rate table"]
 
     Accessor --> RTU_SQL["insert_usage_rates_to_usage.sql<br/>+ monthly_cost_*.sql<br/>+ *_tag_rates.sql<br/>+ raw cost row per ns/day"]
     RTU_SQL -->|"per-rate rows at fine grain<br/>(pod_labels, volume_labels,<br/>persistentvolumeclaim, all_labels)"| RatesToUsage["RatesToUsage<br/>(new, partitioned)<br/>table: rates_to_usage"]
@@ -638,8 +648,9 @@ validation query verifies aggregation correctness in integration tests.
 | Aggregation step | Kept (single source of truth) | Tech lead confirmed: eliminates dual-path maintenance and data integrity risk |
 | Breakdown API format | Flat DB rows, both flat and nested API responses | Tech lead confirmed: UI mocks require both views; flat DB storage with server-side tree construction for nested view |
 | `custom_name` backward compatibility | `required=False` with auto-generation | Tech lead confirmed: existing API consumers work unchanged; new consumers can set meaningful names |
-| Feature flags | None | Dual-write (JSON + Rate table) is the rollback mechanism; no Unleash flags |
-| Distribution SQL changes | **RESOLVED** — IQ-9 Option 1 (distribute at per-rate level) | Distribution rewritten: reads per-rate costs from `RatesToUsage` and usage metrics from daily summary; **DELETE + INSERT** of `distributed_cost` rows back to `RatesToUsage`; aggregation then rolls up to daily summary. Old SQL files deprecated, new files for rollback. Option 2 (back-allocate) remains a documented fallback. |
+| PriceList table | Reuse COST-575's existing `price_list` table | Single PriceList concept shared between COST-575 (lifecycle management) and cost breakdown (per-rate normalization). Avoids parallel tables. See [migration coordination gist](https://gist.github.com/myersCody/91195a531ada9c09d39a5c5234993654). |
+| Feature flags | Unleash write-freeze for migration windows | `cost-management.backend.disable-cost-model-writes` blocks API writes during M2 and M5; dual-write remains the rollback mechanism for schema changes |
+| Distribution SQL changes | **RESOLVED** — IQ-9 Option 1 (distribute at per-rate level) | Distribution rewritten: reads per-rate costs from `RatesToUsage` and usage metrics from daily summary; **DELETE + INSERT** of `distributed_cost` rows back to `RatesToUsage`; aggregation then rolls up to daily summary. Old SQL files deprecated, new files for rollback. Option 2 is retained only as historical design context, not as an implementation fallback. |
 | Sankey chart changes | None | Sankey reads from existing report API which is unchanged |
 | Rate table read path | Switched in Phase 1, permanent in Phase 5 | Dual-write preserves JSON for rollback |
 | Future scalability | Single source of truth scales for upcoming features | Price List Lifecycles (multiple price lists) and Consumer & Provider (multiple cost models) compound dual-write overhead; single calculation point avoids this |
@@ -665,3 +676,7 @@ are versioned together. Each version corresponds to a commit on the
 | v3.0 | 2026-03-19 | — | **IQ-9 RESOLVED (Option 1)**, **IQ-6 RESOLVED**, **IQ-8 RESOLVED**. Adopt per-rate distribution (Option 1): distribution reads from `RatesToUsage` + daily summary usage, writes per-rate distributed rows back to `RatesToUsage`. Drop `cost_type` from `OCPCostUIBreakDownP`. Rename `CostModelRatesToUsage` → `RatesToUsage` / `cost_model_rates_to_usage` → `rates_to_usage`. Add `distributed_cost` column and infrastructure raw cost row. Update mermaid: distribution before aggregation. R14 eliminated, R15 replaced, R18 added. |
 | v3.1 | 2026-03-19 | — | **Risk extraction.** Create [risk-register.md](./risk-register.md) as consolidated risk reference (R1-R19). Slim down decision rationale tables in data-model.md, sql-pipeline.md, phased-delivery.md to one-line links. Add R19 (aggregation + `distributed_cost` — open). Update document catalog. |
 | v3.2 | 2026-03-23 | — | **R19 RESOLVED (Option A).** Aggregation sums both `calculated_cost` and `distributed_cost`. R18 mitigation confirmed: existing integration tests sufficient. Update residual risks. |
+| v4.0 | 2026-04-02 | — | **Align with COST-575.** Phase 1 now builds on existing `price_list` table from COST-575 ([#5963](https://github.com/project-koku/koku/pull/5963), [#5957](https://github.com/project-koku/koku/pull/5957)). IQ-6 superseded. Migration numbers renumbered (M1-M5). Current Data Flow updated to show COST-575 dual-write. Reference tech lead's [migration coordination gist](https://gist.github.com/myersCody/91195a531ada9c09d39a5c5234993654). All documents updated. |
+| v4.1 | 2026-04-02 | — | **R20: Migration write-freeze flag.** Add Unleash flag `cost-management.backend.disable-cost-model-writes` to block API writes during M2/M5 migration windows. Update Key Design Decisions (feature flags). R20 added to risk-register.md with decision rationale. All documents updated. |
+| v4.2 | 2026-04-02 | — | **Critical review fixes.** Move write-freeze gating from `CostModelManager` to `CostModelSerializer` (manager lacks schema context; serializer has `self.customer.schema_name`). Add `@transaction.atomic` to `create()` pseudocode. Fix Document Catalog risk range (R1-R20). Add `Decimal()` conversion note to M2 pseudocode. Clarify PriceList.rates lifecycle comment. |
+| v4.3 | 2026-04-03 | — | **Tech lead follow-up consistency pass.** Remove stale Option 2 fallback language from active IQ-9 guidance and document catalog. Align distribution decision text with tech lead direction (Option 1 is the implementation path). |
