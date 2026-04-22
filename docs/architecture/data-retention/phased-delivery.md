@@ -34,7 +34,7 @@ and Approach B (seed migration, all tenants get a row).
 |----------|------|-------------|
 | `TenantSettings` model | `reporting/tenant_settings/models.py` | New Django model |
 | Module init | `reporting/tenant_settings/__init__.py` | New module |
-| Migration M1 | `reporting/migrations/0344_tenantsettings.py` | DDL + `CHECK` constraint |
+| Migration M1 | `reporting/migrations/0345_tenantsettings.py` | DDL + `CHECK` constraint |
 
 ### Additional Artifacts (Approach B — seed migration)
 

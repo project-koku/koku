@@ -3,13 +3,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Settings."""
+import os
 import typing as t
 from dataclasses import dataclass
 from dataclasses import field
 
+from django.db import transaction
 from django.utils.decorators import method_decorator
 from django.utils.encoding import force_str
 from django.views.decorators.cache import never_cache
+from django_tenants.utils import schema_context
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework.exceptions import APIException
@@ -20,10 +23,12 @@ from rest_framework.views import APIView
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.provider.models import Provider
+from api.settings.serializers import TenantSettingsSerializer
 from api.settings.serializers import UserSettingSerializer
 from api.settings.serializers import UserSettingUpdateCostTypeSerializer
 from api.settings.serializers import UserSettingUpdateCurrencySerializer
 from api.settings.settings import COST_TYPES
+from api.settings.utils import get_data_retention_months
 from api.settings.utils import set_cost_type
 from api.settings.utils import set_currency
 from api.utils import get_account_settings
@@ -31,6 +36,7 @@ from api.utils import get_cost_type
 from api.utils import get_currency
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from reporting.tenant_settings.models import TenantSettings
 
 
 class SettingsInvalidFilterException(APIException):
@@ -102,6 +108,50 @@ class AccountSettings(APIView):
             return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
         param_handler = SettingParamsHandler(kwargs["setting"], request)
         return param_handler.update_param(self.request.user.customer.schema_name)
+
+
+class GlobalSettingsView(APIView):
+    """Tenant-scoped data-retention settings (ONPREM only)."""
+
+    permission_classes = [SettingsAccessPermission]
+
+    def get(self, request):
+        schema = request.user.customer.schema_name
+        env_override = os.environ.get("RETAIN_NUM_MONTHS") is not None
+        effective = get_data_retention_months(schema)
+        if effective is None:
+            return Response(
+                {"error": "Unable to read retention settings."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response({"data_retention_months": effective, "env_override": env_override})
+
+    def put(self, request):
+        if os.environ.get("RETAIN_NUM_MONTHS") is not None:
+            return Response(
+                {
+                    "error": (
+                        "Data retention is controlled by the RETAIN_NUM_MONTHS "
+                        "environment variable and cannot be modified via the API."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = TenantSettingsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        new_value = serializer.validated_data["data_retention_months"]
+        schema = request.user.customer.schema_name
+        with schema_context(schema), transaction.atomic():
+            settings_row, created = TenantSettings.objects.select_for_update().get_or_create(
+                defaults={"data_retention_months": new_value},
+            )
+            if not created:
+                settings_row.data_retention_months = new_value
+            settings_row.full_clean()
+            if not created:
+                settings_row.save()
+        invalidate_view_cache_for_tenant_and_all_source_types(schema)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class UserCostTypeSettings(APIView):

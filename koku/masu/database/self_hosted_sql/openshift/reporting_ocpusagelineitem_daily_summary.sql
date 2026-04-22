@@ -6,12 +6,24 @@
  * is created by Django migrations. See self_hosted_models.py.
  */
 
--- Helper function to filter JSON by allowed keys (replaces Trino's map_filter)
+-- Helper function to filter JSON by allowed keys (replaces Trino's map_filter).
+-- Returns '{}' when input is null/blank, JSON is empty, or no keys match — never NULL — so
+-- jsonb || chains below are not poisoned (in PostgreSQL, jsonb || NULL yields NULL).
 CREATE OR REPLACE FUNCTION {{schema | sqlsafe}}.filter_json_by_keys(input_json text, allowed_keys text[])
 RETURNS text AS $$
-    SELECT json_object_agg(key, value)::text
-    FROM jsonb_each_text(input_json::jsonb)
-    WHERE key = ANY(allowed_keys)
+    SELECT COALESCE(
+        (
+            SELECT json_object_agg(key, value)::text
+            FROM jsonb_each_text(
+                CASE
+                    WHEN input_json IS NULL OR btrim(input_json) = '' THEN '{}'::jsonb
+                    ELSE input_json::jsonb
+                END
+            )
+            WHERE key = ANY(allowed_keys)
+        ),
+        '{}'
+    )
 $$ LANGUAGE sql IMMUTABLE;
 
 -- Delete existing staging data for this source/date range to prevent duplicates
@@ -231,7 +243,7 @@ FROM (
         COALESCE(
             COALESCE(nli.node_labels, '{}'::jsonb) ||
             COALESCE(nsli.namespace_labels, '{}'::jsonb) ||
-            {{schema | sqlsafe}}.filter_json_by_keys(li.pod_labels, pek.keys)::jsonb,
+            COALESCE({{schema | sqlsafe}}.filter_json_by_keys(li.pod_labels, pek.keys)::jsonb, '{}'::jsonb),
             '{}'::jsonb
         ) as pod_labels,
         max(li.resource_id) as resource_id,
@@ -355,8 +367,8 @@ FROM (
         COALESCE(
             COALESCE(nli.node_labels, '{}'::jsonb) ||
             COALESCE(nsli.namespace_labels, '{}'::jsonb) ||
-            {{schema | sqlsafe}}.filter_json_by_keys(sli.persistentvolume_labels, pek.keys)::jsonb ||
-            {{schema | sqlsafe}}.filter_json_by_keys(sli.persistentvolumeclaim_labels, pek.keys)::jsonb,
+            COALESCE({{schema | sqlsafe}}.filter_json_by_keys(sli.persistentvolume_labels, pek.keys)::jsonb, '{}'::jsonb) ||
+            COALESCE({{schema | sqlsafe}}.filter_json_by_keys(sli.persistentvolumeclaim_labels, pek.keys)::jsonb, '{}'::jsonb),
             '{}'::jsonb
         ) as volume_labels,
         sli.source as source_uuid,
