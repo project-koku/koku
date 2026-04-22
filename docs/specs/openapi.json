@@ -35,6 +35,10 @@
             "description": "Operations about cost model interactions"
         },
         {
+            "name": "Price Lists",
+            "description": "Operations about price list interactions"
+        },
+        {
             "name": "Cost Type",
             "description": "Operations about cost types"
         },
@@ -491,6 +495,425 @@
                         "basic_auth": []
                     }
                 ]
+            }
+        },
+        "/price-lists/": {
+            "get": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "List the price lists",
+                "operationId": "listPriceLists",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "name": "name",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter by price list name (case-insensitive substring match).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "uuid",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter by exact price list UUID.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "enabled",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter by enabled status. Use true to show only active price lists or false to show only disabled ones.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "ordering",
+                        "required": false,
+                        "in": "query",
+                        "description": "Order response by allowed fields. Prefix with '-' for descending order. Default is 'name'.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "name",
+                                "-name",
+                                "effective_start_date",
+                                "-effective_start_date",
+                                "updated_timestamp",
+                                "-updated_timestamp"
+                            ]
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of price list objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "Create a new price list.",
+                "operationId": "createPriceList",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PriceList"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "An object describing the created price list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListOut"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/price-lists/{price_list_uuid}/": {
+            "get": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "Get a Price List.",
+                "operationId": "getPriceList",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List to retrieve.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A Price List object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "Update a Price List.",
+                "description": "Full replacement update. PATCH is not supported \u2014 send all fields in the body. The version field auto-increments when rates, effective dates, or currency change. A disabled price list may only have name, description, and enabled updated.",
+                "operationId": "updatePriceList",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List to update.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PriceList"
+                            }
+                        }
+                    },
+                    "description": "Updated Price List payload",
+                    "required": true
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated Price List object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListOut"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "Delete a Price List.",
+                "description": "Deletes a price list. Cannot be deleted if it is currently assigned to one or more cost models \u2014 remove the assignment first.",
+                "operationId": "deletePriceList",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List to delete.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Price List deleted"
+                    },
+                    "400": {
+                        "description": "Bad Request \u2014 price list is assigned to one or more cost models.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/price-lists/{price_list_uuid}/affected-cost-models/": {
+            "get": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "List cost models that use this price list.",
+                "description": "Returns the cost models currently assigned to this price list along with their priority order (1 = highest). Returns an empty array if the price list is not assigned to any cost model.",
+                "operationId": "getPriceListAffectedCostModels",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A list of cost models assigned to this price list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PriceListAffectedCostModel"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/forecasts/aws/costs/": {
@@ -6870,6 +7293,130 @@
                         }
                     }
                 ]
+            },
+            "PriceList": {
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "description": "Display name for the price list.",
+                        "example": "Production OCP Rates"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Optional description."
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "ISO 4217 currency code. Defaults to the account currency if omitted.",
+                        "example": "USD"
+                    },
+                    "effective_start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start of the validity period (inclusive).",
+                        "example": "2026-01-01"
+                    },
+                    "effective_end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End of the validity period (inclusive). Must be on or after effective_start_date.",
+                        "example": "2026-12-31"
+                    },
+                    "enabled": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Controls whether this price list can be attached to cost models. Disabled price lists still participate in cost calculation if already assigned."
+                    },
+                    "rates": {
+                        "type": "array",
+                        "description": "List of OCP metric rates. Each entry uses either tiered_rates or tag_rates (mutually exclusive per entry).",
+                        "items": {
+                            "oneOf": [
+                                {
+                                    "$ref": "#/components/schemas/TieredRate"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/TagRate"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "PriceListOut": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/PriceList"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "format": "uuid",
+                                "readOnly": true
+                            },
+                            "version": {
+                                "type": "integer",
+                                "readOnly": true,
+                                "description": "Auto-incremented when rates, effective dates, or currency change."
+                            },
+                            "created_timestamp": {
+                                "type": "string",
+                                "format": "date-time",
+                                "readOnly": true
+                            },
+                            "updated_timestamp": {
+                                "type": "string",
+                                "format": "date-time",
+                                "readOnly": true
+                            }
+                        }
+                    }
+                ]
+            },
+            "PriceListPagination": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/PriceListOut"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "PriceListAffectedCostModel": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "UUID of the cost model."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the cost model."
+                    },
+                    "priority": {
+                        "type": "integer",
+                        "description": "Priority of this price list within the cost model (1 = highest priority)."
+                    }
+                }
             },
             "CostTypePagination": {
                 "allOf": [
