@@ -22,6 +22,7 @@ from urllib.parse import quote
 import ciso8601
 import numpy as np
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
@@ -35,6 +36,7 @@ from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
+from django_tenants.utils import tenant_context
 from pandas.api.types import CategoricalDtype
 
 from api.models import Provider
@@ -1066,13 +1068,6 @@ class ReportQueryHandler(QueryHandler):
 
     def _get_exchange_rates_applied(self, start_date, end_date, target_currency):
         """Build exchange_rates_applied metadata from MonthlyExchangeRate for the query range."""
-        if not target_currency:
-            return []
-
-        from dateutil.relativedelta import relativedelta
-
-        from django_tenants.utils import tenant_context
-
         start_month = start_date.replace(day=1) if start_date else None
         end_month = end_date.replace(day=1) if end_date else None
         if not start_month or not end_month:
