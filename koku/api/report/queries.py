@@ -1054,14 +1054,13 @@ class ReportQueryHandler(QueryHandler):
 
         if self.currency:
             output["currency"] = self.currency
-            start = getattr(self, "start_datetime", None)
-            end = getattr(self, "end_datetime", None)
-            if start and end:
-                output["exchange_rates_applied"] = self._get_exchange_rates_applied(
-                    start.date() if hasattr(start, "date") else start,
-                    end.date() if hasattr(end, "date") else end,
-                    self.currency,
-                )
+            start = self.start_datetime
+            end = self.end_datetime
+            output["exchange_rates_applied"] = self._get_exchange_rates_applied(
+                start.date(),
+                end.date(),
+                self.currency,
+            )
 
         return output
 
