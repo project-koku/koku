@@ -404,6 +404,7 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
 
     context["provider_type"] = provider.type
     context["schema"] = schema_name
+    # for anemic accounts, use `no_account`
     context["account"] = context["account"] or provider.account.get("account_id") or "no_account"
 
     retention = get_data_retention_months(schema_name) or Config.MASU_RETAIN_NUM_MONTHS
