@@ -156,14 +156,14 @@ class PriceListManagerUpdateTest(MasuTestCase):
             )
             self.assertEqual(manager.instance.version, 1)
 
-    def test_update_enabled_does_not_increment_version(self):
-        """Test that toggling enabled/disabled does not increment version."""
+    def test_update_enabled_increments_version(self):
+        """Test that toggling enabled/disabled increments version."""
         with tenant_context(self.tenant):
             manager = PriceListManager(self.price_list.uuid)
             manager.update(enabled=False)
-            self.assertEqual(manager.instance.version, 1)
+            self.assertEqual(manager.instance.version, 2)
             manager.update(enabled=True)
-            self.assertEqual(manager.instance.version, 1)
+            self.assertEqual(manager.instance.version, 3)
 
     def test_update_disabled_price_list_name_ok(self):
         """Test that name can be updated on a disabled price list."""
@@ -494,12 +494,12 @@ class PriceListManagerRecalcTest(MasuTestCase):
             mock_task.s.assert_called()
 
     @patch("masu.processor.tasks.update_cost_model_costs")
-    def test_disable_does_not_trigger_recalculation(self, mock_task):
-        """Test that disabling a price list does not trigger recalculation."""
+    def test_disable_triggers_recalculation(self, mock_task):
+        """Test that disabling a price list triggers recalculation."""
         with tenant_context(self.tenant):
             manager = PriceListManager(self.price_list.uuid)
             manager.update(enabled=False)
-            mock_task.s.assert_not_called()
+            mock_task.s.assert_called()
 
     @patch("masu.processor.tasks.update_cost_model_costs")
     def test_name_change_does_not_trigger_recalculation(self, mock_task):
