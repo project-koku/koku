@@ -429,15 +429,23 @@ class PriceListManagerQueryTest(MasuTestCase):
             result = PriceListManager.get_effective_price_list(self.cost_model.uuid, date(2027, 1, 15))
             self.assertIsNone(result)
 
-    def test_get_effective_price_list_disabled_still_used(self):
-        """Test that disabled price lists still participate in calculation."""
+    def test_get_effective_price_list_disabled_excluded(self):
+        """Test that disabled price lists are excluded from calculation."""
         with tenant_context(self.tenant):
-            # Disable Q1 price list
             manager = PriceListManager(self.pl_q1.uuid)
             manager.update(enabled=False)
-            # Feb 15 should still resolve to Q1 (priority 1) even though it's disabled
+            # Feb 15 is within both Q1 (disabled, priority 1) and Year (enabled, priority 2)
+            # Q1 should be skipped; Year should be returned
             result = PriceListManager.get_effective_price_list(self.cost_model.uuid, date(2026, 2, 15))
-            self.assertEqual(result, self.pl_q1)
+            self.assertEqual(result, self.pl_year)
+
+    def test_get_effective_price_list_all_disabled_returns_none(self):
+        """Test that None is returned when all covering price lists are disabled."""
+        with tenant_context(self.tenant):
+            PriceListManager(self.pl_q1.uuid).update(enabled=False)
+            PriceListManager(self.pl_year.uuid).update(enabled=False)
+            result = PriceListManager.get_effective_price_list(self.cost_model.uuid, date(2026, 2, 15))
+            self.assertIsNone(result)
 
 
 class PriceListManagerRecalcTest(MasuTestCase):

@@ -218,17 +218,20 @@ class PriceListManager:
     def get_effective_price_list(cost_model_uuid, effective_date):
         """Resolve which price list is effective for a cost model on a given date.
 
-        Finds all price lists (including disabled) assigned to the cost model where
-        the effective_date falls within the validity period, then returns the one with
-        the lowest priority number. Disabled price lists still participate in
-        calculation — enabled/disabled only controls whether a list can be newly
-        attached to a cost model.
+        Finds all enabled price lists assigned to the cost model where the
+        effective_date falls within the validity period, then returns the one
+        with the lowest priority number.
+
+        Disabled price lists are excluded from calculation. Disabling a list
+        that is the only one covering a billing date will cause effective_rates
+        to resolve to {} (zero tiered/tag rates) for that period.
 
         Returns None if no matching price list exists.
         """
         maps = (
             PriceListCostModelMap.objects.filter(
                 cost_model__uuid=cost_model_uuid,
+                price_list__enabled=True,
                 price_list__effective_start_date__lte=effective_date,
                 price_list__effective_end_date__gte=effective_date,
             )
