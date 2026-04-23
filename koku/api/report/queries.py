@@ -1068,10 +1068,8 @@ class ReportQueryHandler(QueryHandler):
 
     def _get_exchange_rates_applied(self, start_date, end_date, target_currency):
         """Build exchange_rates_applied metadata from MonthlyExchangeRate for the query range."""
-        start_month = start_date.replace(day=1) if start_date else None
-        end_month = end_date.replace(day=1) if end_date else None
-        if not start_month or not end_month:
-            return []
+        start_month = start_date.replace(day=1)
+        end_month = end_date.replace(day=1)
 
         with tenant_context(self.tenant):
             rates = list(
