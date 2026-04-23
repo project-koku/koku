@@ -648,9 +648,9 @@ SET search_path TO org1234567;
 ### PR and Commit Conventions
 
 **PR titles:**
-- Use `[ISSUE_KEY] Short description` — the issue key (Jira, etc.) in square brackets, a single space, then a concise description (imperative mood, sentence case is fine).
+- Use `[ISSUE_KEY] Short description` — the issue key (Jira, etc.) in square brackets, a single space, then a concise description (imperative mood, sentence case, under 72 characters).
 - Example: `[COST-1234] Fix something`
-- If there is no tracking issue or the key is unknown, use **only** the short description — no brackets, no invented placeholder keys (ask the author for the key when it should exist).
+- If there is no tracking issue or the key is unknown, use **only** the short description — no brackets, no invented placeholder keys (ask the user for the key when it should exist).
 
 **Commit messages:**
 - Use imperative mood: "Add GPU cost distribution" not "Added GPU cost distribution"
