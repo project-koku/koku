@@ -27,6 +27,7 @@ Help FinOps and Dev/Ops reason about CPU and memory utilization using **usage ef
 |-------|----------|------|
 | 1 | This README | As-built behavior, code map, builder handoff |
 | 2 | [formulas-and-data-contract.md](./formulas-and-data-contract.md) | Exact math, cost basis, rounding, when scores are empty |
+| 3 | [cost-basis-and-additivity.md](./cost-basis-and-additivity.md) | **Shared** `cloud_infrastructure` + `markup` in both `cpu` / `memory` `cost_total`; do **not** add cross-report `wasted_cost` without a defined allocation (IQ-7) |
 
 ---
 
@@ -39,7 +40,7 @@ Help FinOps and Dev/Ops reason about CPU and memory utilization using **usage ef
 | **Scores in response** | [`OCPReportQueryHandler._pack_score`](../../../koku/api/report/ocp/query_handler.py) builds `usage_efficiency_percent` (int) and `wasted_cost` `{ value, units }`. The **`total`** block exposes this as **`total_score`** (rename from internal `score` after packing). **Data rows** keep the key **`score`** (same inner shape). |
 | **When scores are omitted** | For `cpu` / `memory` only: if **more than one** `group_by` dimension is present **or** there is **tag** `group_by` **or** tag keys under **`filter`**, `should_compute` is false → `total_score` and per-row `score` are **empty objects** `{}`. **Tag `exclude` is not part of this check** ([`execute_query`](../../../koku/api/report/ocp/query_handler.py) uses `get_tag_filter_keys()` with the default **`filter`** parameter in [`ReportQueryHandler.get_tag_filter_keys`](../../../koku/api/report/queries.py)). Multi `group_by` is covered by [`test_efficiency_score_multi_group_by_returns_empty`](../../../koku/api/report/test/ocp/test_ocp_query_handler.py). |
 | **Reports without scores** | `costs`, `costs_by_project`, `volume`, and other non-inventory types do not add `total_score`. Tests: [`test_efficiency_score_cost_report_excluded`](../../../koku/api/report/test/ocp/test_ocp_query_handler.py), [`test_efficiency_score_volume_report_excluded`](../../../koku/api/report/test/ocp/test_ocp_query_handler.py). |
-| **Aggregations** | [`OCPProviderMap._efficiency_annotations`](../../../koku/api/report/ocp/provider_map.py) defines ORM expressions for `usage_efficiency` and `wasted_cost` on `cpu` and `memory` **aggregates** and **report_annotations**. |
+| **Aggregations** | [`OCPProviderMap._efficiency_annotations`](../../../koku/api/report/ocp/provider_map.py) defines ORM expressions for `usage_efficiency` and `wasted_cost` on `cpu` and `memory` **aggregates** and **report_annotations**. The **`wasted_cost`** cost multiplier is **`cloud_infrastructure_cost + markup_cost + cost_model_cpu_cost` or `+ cost_model_memory_cost`**, so **infrastructure and markup** are in **both** dimensions’ bases—[cost-basis-and-additivity.md](./cost-basis-and-additivity.md). |
 | **Ordering** | In-memory sort includes `usage_efficiency` and `wasted_cost` in [`ReportQueryHandler._order_by`](../../../koku/api/report/queries.py). |
 | **Tenant boundary** | All queries run under **`tenant_context(self.tenant)`** in [`OCPReportQueryHandler.execute_query`](../../../koku/api/report/ocp/query_handler.py). |
 | **Pipeline / SQL** | No Celery tasks and no new SQL templates — scores are ORM aggregates on existing tenant line items. **Dual-path** (`trino_sql` / `self_hosted_sql`) is unchanged for this feature. |
@@ -82,6 +83,7 @@ flowchart LR
 | — | **`request_sum == 0`** semantics | Implementation coalesces **`usage_efficiency_percent`** to **0** and **`wasted_cost`** to **0** (not `null`). Confirm UX/OpenAPI wording. |
 | — | Tag / multi-dimension `group_by` | Scores intentionally empty; document for UI. |
 | — | Tag **`exclude`** vs `should_compute` | Code does not pass `"exclude"` into [`get_tag_filter_keys`](../../../koku/api/report/queries.py); align product/UI expectations or extend `has_tag_interaction` if excludes should suppress scores. |
+| IQ-7 (open) | **Cross-dimension additivity of `wasted_cost`** | CPU and memory each multiply waste by a **per-report** `cost_total` that **includes the full** `cloud_infrastructure_cost + markup_cost` (plus a dimension-specific `cost_model_*_cost`). Summing **`wasted_cost` from `…/compute/` + `…/memory/`** can **double-count** the shared cost base. Product/engineering: allocation rules, a combined metric, or “do not add” in UI copy. [cost-basis-and-additivity.md](./cost-basis-and-additivity.md) |
 
 ---
 
@@ -92,6 +94,7 @@ flowchart LR
 | 2026-04-16 | Initial agent-focused hub and formulas doc from product brief. |
 | 2026-04-17 | Rewrote hub for **as-built** implementation (compute/memory, `total_score` / `score`, formulas, no new pipeline). |
 | 2026-04-21 | Corrected **when scores are omitted**: tag **`exclude`** does not affect `should_compute` today (only tag `group_by` and tag **`filter`** keys). |
+| 2026-04-23 | [cost-basis-and-additivity.md](./cost-basis-and-additivity.md) + **IQ-7** — `wasted_cost` basis overlaps across CPU and memory; sum-of-endpoints is not a defined total waste. |
 
 ---
 
@@ -102,7 +105,7 @@ flowchart LR
 | **Doc map** | This README (overview + links) → [formulas-and-data-contract.md](./formulas-and-data-contract.md) (math + JSON). Reading order: README → formulas. |
 | **Assumptions** | None beyond what is cited from code; UI “Optimizations Summary” tab wiring lives in koku-ui. |
 | **IQ / decisions** | Resolved items in **Resolved decisions** table; backlog in **Open questions**. |
-| **API contract summary** | `GET …/reports/openshift/compute/` and `GET …/reports/openshift/memory/` with `filter` / `group_by` / `order_by` as other OCP inventory reports. Response: **`total.total_score`**: `{ usage_efficiency_percent: int, wasted_cost: { value, units } }` or `{}`. Data leaves: **`score`** same shape or `{}`. **`order_by[usage_efficiency]`**, **`order_by[wasted_cost]`** supported (with valid `group_by` per existing serializer rules). |
+| **API contract summary** | `GET …/reports/openshift/compute/` and `GET …/reports/openshift/memory/` with `filter` / `group_by` / `order_by` as other OCP inventory reports. Response: **`total.total_score`**: `{ usage_efficiency_percent: int, wasted_cost: { value, units } }` or `{}`. Data leaves: **`score`** same shape or `{}`. **`order_by[usage_efficiency]`**, **`order_by[wasted_cost]`** supported (with valid `group_by` per existing serializer rules). **Do not** present **`wasted_cost(cpu) + wasted_cost(memory)`** as an authoritative total without **IQ-7** resolution. |
 | **Data & tenancy** | Tenant model [`OCPUsageLineItemDailySummary`](../../../koku/reporting/models.py); queries via **`tenant_context`**. No new columns. |
 | **Pipeline / tasks** | None; **do not** add entries to [`celery-tasks.md`](../celery-tasks.md) for this feature unless future work adds async precomputation. |
 | **SQL / dual-path** | No `masu/database/*` changes for current implementation. |
