@@ -52,7 +52,7 @@ Uses the same **`usage_sum`**, **`request_sum`**, and a **`cost_total_expr`** pa
 
 So this is **not** “waste percent × arbitrary headline cost” from a different column — it tracks the **`cost_total` expression for that dimension** in the provider map.
 
-Because **`cloud_infrastructure_cost`** and **`markup_cost`** are included in **both** the CPU and memory **`cost_total`** expressions, the **dollar** basis is **overlapping** between reports. **Do not** add **`wasted_cost`** from `compute` and `memory` and treat the sum as a single “total” waste for the same workload without an allocation model—see [cost-basis-and-additivity.md](./cost-basis-and-additivity.md) and [README](./README.md) **IQ-7**.
+Because **`cloud_infrastructure_cost`** and **`markup_cost`** are included in **both** the CPU and memory **`cost_total`** expressions, the **dollar** basis is **overlapping** between reports. **Do not** add **`wasted_cost`** from `compute` and `memory` and treat the sum as a single “total” waste for the same workload without an allocation model—see [cost-basis-and-additivity.md](./cost-basis-and-additivity.md), [README](./README.md) **IQ-7**, and [iq-7-solution-options.md](./iq-7-solution-options.md) for options until product decides.
 
 When **`request_sum`** is zero, the ratio is null; the expression yields null and **`Coalesce`** forces **`wasted_cost`** to **decimal 0**.
 
@@ -151,3 +151,4 @@ When scores are disabled, `"total_score": {}`.
 | 2026-04-16 | Initial formulas; illustrative JSON; fleet and wasted-cost options. |
 | 2026-04-17 | Aligned with implementation: `_efficiency_annotations`, `_pack_score`, `total_score` vs `score`, `request=0` → 0, wasted cost formula and cost basis. |
 | 2026-04-23 | Cross-dimension: pointer to [cost-basis-and-additivity.md](./cost-basis-and-additivity.md) — shared infra+markup in each report’s `cost_total`; non-additive sum of `wasted_cost` across reports. |
+| 2026-04-23 | Link to [iq-7-solution-options.md](./iq-7-solution-options.md) for solution options. |

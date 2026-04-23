@@ -28,6 +28,7 @@ Help FinOps and Dev/Ops reason about CPU and memory utilization using **usage ef
 | 1 | This README | As-built behavior, code map, builder handoff |
 | 2 | [formulas-and-data-contract.md](./formulas-and-data-contract.md) | Exact math, cost basis, rounding, when scores are empty |
 | 3 | [cost-basis-and-additivity.md](./cost-basis-and-additivity.md) | **Shared** `cloud_infrastructure` + `markup` in both `cpu` / `memory` `cost_total`; do **not** add cross-report `wasted_cost` without a defined allocation (IQ-7) |
+| 4 (IQ-7) | [iq-7-solution-options.md](./iq-7-solution-options.md) | Options A–F (disclosure, allocation, combined metric, upstream split, etc.) until product resolves additivity |
 
 ---
 
@@ -83,7 +84,7 @@ flowchart LR
 | — | **`request_sum == 0`** semantics | Implementation coalesces **`usage_efficiency_percent`** to **0** and **`wasted_cost`** to **0** (not `null`). Confirm UX/OpenAPI wording. |
 | — | Tag / multi-dimension `group_by` | Scores intentionally empty; document for UI. |
 | — | Tag **`exclude`** vs `should_compute` | Code does not pass `"exclude"` into [`get_tag_filter_keys`](../../../koku/api/report/queries.py); align product/UI expectations or extend `has_tag_interaction` if excludes should suppress scores. |
-| IQ-7 (open) | **Cross-dimension additivity of `wasted_cost`** | CPU and memory each multiply waste by a **per-report** `cost_total` that **includes the full** `cloud_infrastructure_cost + markup_cost` (plus a dimension-specific `cost_model_*_cost`). Summing **`wasted_cost` from `…/compute/` + `…/memory/`** can **double-count** the shared cost base. Product/engineering: allocation rules, a combined metric, or “do not add” in UI copy. [cost-basis-and-additivity.md](./cost-basis-and-additivity.md) |
+| IQ-7 (open) | **Cross-dimension additivity of `wasted_cost`** | CPU and memory each multiply waste by a **per-report** `cost_total` that **includes the full** `cloud_infrastructure_cost + markup_cost` (plus a dimension-specific `cost_model_*_cost`). Summing **`wasted_cost` from `…/compute/` + `…/memory/`** can **double-count** the shared cost base. Product/engineering: allocation rules, a combined metric, or “do not add” in UI copy. [cost-basis-and-additivity.md](./cost-basis-and-additivity.md) · [iq-7-solution-options.md](./iq-7-solution-options.md) |
 
 ---
 
@@ -95,6 +96,7 @@ flowchart LR
 | 2026-04-17 | Rewrote hub for **as-built** implementation (compute/memory, `total_score` / `score`, formulas, no new pipeline). |
 | 2026-04-21 | Corrected **when scores are omitted**: tag **`exclude`** does not affect `should_compute` today (only tag `group_by` and tag **`filter`** keys). |
 | 2026-04-23 | [cost-basis-and-additivity.md](./cost-basis-and-additivity.md) + **IQ-7** — `wasted_cost` basis overlaps across CPU and memory; sum-of-endpoints is not a defined total waste. |
+| 2026-04-23 | [iq-7-solution-options.md](./iq-7-solution-options.md) — documented options A–F for resolving cross-report additivity. |
 
 ---
 
@@ -102,7 +104,7 @@ flowchart LR
 
 | Block | Content |
 |-------|---------|
-| **Doc map** | This README (overview + links) → [formulas-and-data-contract.md](./formulas-and-data-contract.md) (math + JSON). Reading order: README → formulas. |
+| **Doc map** | This README (overview + links) → [formulas-and-data-contract.md](./formulas-and-data-contract.md) (math + JSON) → [cost-basis-and-additivity.md](./cost-basis-and-additivity.md) → [iq-7-solution-options.md](./iq-7-solution-options.md) (IQ-7). |
 | **Assumptions** | None beyond what is cited from code; UI “Optimizations Summary” tab wiring lives in koku-ui. |
 | **IQ / decisions** | Resolved items in **Resolved decisions** table; backlog in **Open questions**. |
 | **API contract summary** | `GET …/reports/openshift/compute/` and `GET …/reports/openshift/memory/` with `filter` / `group_by` / `order_by` as other OCP inventory reports. Response: **`total.total_score`**: `{ usage_efficiency_percent: int, wasted_cost: { value, units } }` or `{}`. Data leaves: **`score`** same shape or `{}`. **`order_by[usage_efficiency]`**, **`order_by[wasted_cost]`** supported (with valid `group_by` per existing serializer rules). **Do not** present **`wasted_cost(cpu) + wasted_cost(memory)`** as an authoritative total without **IQ-7** resolution. |

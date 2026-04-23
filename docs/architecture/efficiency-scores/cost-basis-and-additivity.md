@@ -60,7 +60,7 @@ To reason about the user’s scenarios, treat **headline** `cost_total` as **\$1
 
 ## Tracked in the hub: IQ-7 (see [README.md](./README.md))
 
-Cross-report **additivity and allocation of shared cost** is an open **product/engineering** decision, not a bug in the `max(cost × (1 - u/r),0)` line.
+Cross-report **additivity and allocation of shared cost** is an open **product/engineering** decision, not a bug in the `max(cost × (1 - u/r),0)` line. For candidate resolutions (disclosure, allocation, dimension-scoped waste, combined metric, bounds, upstream split), see [iq-7-solution-options.md](./iq-7-solution-options.md).
 
 ---
 
