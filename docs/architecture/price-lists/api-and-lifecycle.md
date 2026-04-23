@@ -50,6 +50,12 @@ Exact prefix depends on deployment (`API_PATH_PREFIX`).
   **each active provider** mapped to any cost model linked to this price list,
   for the **current month to today** window — only if the list’s validity
   intersects the current month.
+- **Rate enrichment**: `sync_rate_table` enriches the `rates` JSON in-place
+  with `rate_id` (UUID of the `Rate` row) and `custom_name` (stable slug)
+  after every create/update. These are saved back to `PriceList.rates`, so
+  GET responses include them. API clients should treat them as **read-only**;
+  if sent back on a PUT, they are used to identify existing rows but must not
+  be invented. See [`rate_sync.py`](../../../koku/cost_models/rate_sync.py).
 
 ---
 
@@ -90,6 +96,13 @@ So every cost-model–driven change to `rates` is **also** written to the
 primary attached `PriceList`, keeping the cost model UI and date-based
 pipeline aligned until the price list UI exists and **`CostModel.rates`**
 can be retired.
+
+**Auto-created price list date window**: when `_get_or_create_price_list`
+creates a new list, it uses a hardcoded
+`effective_start_date=date(2026, 3, 1)` and
+`effective_end_date=date(2099, 12, 31)`. This open-ended window ensures the
+auto-created list always covers the current month. It is tech debt to be
+revisited when the price list UI lets users manage validity windows directly.
 
 ---
 

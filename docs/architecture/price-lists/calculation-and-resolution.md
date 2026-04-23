@@ -32,6 +32,14 @@ calculation (see docstring on the same method).
 [`CostModelDBAccessor.__init__`](../../../koku/masu/database/cost_model_db_accessor.py)
 accepts `price_list_effective_on: date | None`.
 
+**Unleash kill-switch**: on construction, the accessor checks the
+`cost-management.backend.disable_price_list` Unleash flag
+([`DISABLE_PRICE_LIST_UNLEASH_FLAG`](../../../koku/masu/processor/__init__.py)).
+If the flag is **enabled for the schema**, `price_list_effective_on` is
+forced to `None` regardless of what the caller passed, reverting the entire
+schema to legacy `CostModel.rates` behavior. This is an operational escape
+hatch for per-tenant rollback without a code deploy.
+
 [`effective_rates`](../../../koku/masu/database/cost_model_db_accessor.py):
 
 | `price_list_effective_on` | Source of `effective_rates` |

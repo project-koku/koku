@@ -63,6 +63,36 @@ Implementation: [`PriceList`](../../../koku/cost_models/models.py),
 
 ---
 
+## Rate table (`cost_model_rate`)
+
+Alongside the JSON blob, each `PriceList` has **normalized rows** in the
+`cost_model_rate` table via the [`Rate`](../../../koku/cost_models/models.py)
+model. This secondary representation stores per-rate fields (`metric`,
+`metric_type`, `cost_type`, `default_rate`, `tag_key`, `tag_values`) for
+future query and reporting use.
+
+**Synchronization** is performed by
+[`rate_sync.sync_rate_table(price_list, rates_data)`](../../../koku/cost_models/rate_sync.py),
+called from both `PriceListManager` (on `create`/`update`) and
+`CostModelManager` (on cost model `create`/`update` when `rates` changes).
+The sync is diff-based: it deletes stale rows, updates changed ones, and
+creates new ones in a single pass (delete → update → create to avoid
+`UniqueConstraint` violations on `(price_list, custom_name)`).
+
+**Enrichment**: `sync_rate_table` writes two backend fields back into each
+rate dict in the JSON blob:
+
+- **`rate_id`** — UUID of the corresponding `Rate` row.
+- **`custom_name`** — stable slug used as the row's unique name within the
+  price list.
+
+These fields are stripped before semantic comparison in `_strip_enrichment`
+(inside `PriceListManager.update`) so that round-tripping a GET response
+back in a PUT does not trigger a spurious version bump. API consumers
+should treat `rate_id` and `custom_name` as read-only server-managed fields.
+
+---
+
 ## Document map
 
 | Topic | Doc |
@@ -83,6 +113,7 @@ flowchart LR
   end
   subgraph data["Tenant DB"]
     TPL[(price_list)]
+    RATE[(cost_model_rate)]
     MAPT[(price_list_cost_model_map)]
     CMROW[(cost_model)]
   end
@@ -92,7 +123,9 @@ flowchart LR
     ACC[CostModelDBAccessor]
   end
   PL --> TPL
+  TPL -- sync_rate_table --> RATE
   CM --> CMROW
+  CM -- sync_rate_table --> RATE
   MAP --> MAPT
   TPL --> MAPT
   MAPT --> ACC
@@ -102,13 +135,15 @@ flowchart LR
 ```
 
 1. **Define lists** — `POST/PUT /price-lists/` creates or updates rows;
-   material changes can enqueue **current-month** recalculation for linked
-   providers ([`PriceListManager._trigger_recalculation`](../../../koku/cost_models/price_list_manager.py)).
+   `sync_rate_table` keeps the `cost_model_rate` rows in sync; material
+   changes can enqueue **current-month** recalculation for linked providers
+   ([`PriceListManager._trigger_recalculation`](../../../koku/cost_models/price_list_manager.py)).
 2. **Attach to cost model** — optional `price_list_uuids` on cost model
    create/update replaces mappings via
    [`PriceListManager.attach_price_lists_to_cost_model`](../../../koku/cost_models/price_list_manager.py).
 3. **Dual-write sync** — cost model `rates` updates copy into the first linked
-   price list (or auto-create list + map) ([`CostModelManager`](../../../koku/cost_models/cost_model_manager.py)); see [Dual-write transition](#dual-write-transition-product-plan).
+   price list (or auto-create list + map), including `cost_model_rate` rows
+   ([`CostModelManager`](../../../koku/cost_models/cost_model_manager.py)); see [Dual-write transition](#dual-write-transition-product-plan).
 4. **Calculate** — for each month in range, OCP cost application loads rates
    with that month’s start date as `price_list_effective_on` ([`_load_rates`](../../../koku/masu/processor/ocp/ocp_cost_model_cost_updater.py)).
 
