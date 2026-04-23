@@ -59,8 +59,8 @@ class PriceListManager:
     def update(self, **data):
         """Update a price list.
 
-        Version increments on: rates, validity period, currency, or enabled changes.
-        Version does NOT increment on: name or description changes.
+        Version increments on: rates, validity period, or currency changes.
+        Version does NOT increment on: name, description, or status changes.
         If the price list is disabled, only name, description, and status can be updated.
         """
         if not self._model:
@@ -80,7 +80,6 @@ class PriceListManager:
             "effective_start_date" in data and data["effective_start_date"] != self._model.effective_start_date
         ) or ("effective_end_date" in data and data["effective_end_date"] != self._model.effective_end_date)
         currency_changed = "currency" in data and data["currency"] != self._model.currency
-        enabled_changed = "enabled" in data and data["enabled"] != self._model.enabled
 
         self._model.name = data.get("name", self._model.name)
         self._model.description = data.get("description", self._model.description)
@@ -90,7 +89,7 @@ class PriceListManager:
         self._model.rates = data.get("rates", self._model.rates)
         self._model.enabled = data.get("enabled", self._model.enabled)
 
-        if rates_changed or dates_changed or currency_changed or enabled_changed:
+        if rates_changed or dates_changed or currency_changed:
             self._model.version += 1
 
         self._model.save()
@@ -98,7 +97,7 @@ class PriceListManager:
         if rates_changed:
             sync_rate_table(self._model, copy.deepcopy(self._model.rates) if self._model.rates else [])
 
-        if rates_changed or dates_changed or enabled_changed:
+        if rates_changed or dates_changed:
             self._trigger_recalculation()
 
         return self._model
@@ -219,20 +218,17 @@ class PriceListManager:
     def get_effective_price_list(cost_model_uuid, effective_date):
         """Resolve which price list is effective for a cost model on a given date.
 
-        Finds all enabled price lists assigned to the cost model where the
-        effective_date falls within the validity period, then returns the one
-        with the lowest priority number.
-
-        Disabled price lists are excluded from calculation. Disabling a list
-        that is the only one covering a billing date will cause effective_rates
-        to resolve to {} (zero tiered/tag rates) for that period.
+        Finds all price lists (including disabled) assigned to the cost model where
+        the effective_date falls within the validity period, then returns the one with
+        the lowest priority number. Disabled price lists still participate in
+        calculation — enabled/disabled only controls whether a list can be newly
+        attached to a cost model.
 
         Returns None if no matching price list exists.
         """
         maps = (
             PriceListCostModelMap.objects.filter(
                 cost_model__uuid=cost_model_uuid,
-                price_list__enabled=True,
                 price_list__effective_start_date__lte=effective_date,
                 price_list__effective_end_date__gte=effective_date,
             )
