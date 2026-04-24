@@ -173,6 +173,22 @@ class PriceListManagerUpdateTest(MasuTestCase):
             manager.update(name="Disabled Renamed")
             self.assertEqual(manager.instance.name, "Disabled Renamed")
 
+    def test_reenable_disabled_price_list_with_full_payload(self):
+        """Test that re-enabling a disabled price list accepts a full payload (currency, rates, dates)."""
+        with tenant_context(self.tenant):
+            manager = PriceListManager(self.price_list.uuid)
+            manager.update(enabled=False)
+            # Simulates the natural GET → PUT flow where currency is auto-injected
+            manager.update(
+                name=self.price_list.name,
+                description=self.price_list.description,
+                currency="USD",
+                effective_start_date=self.price_list.effective_start_date,
+                effective_end_date=self.price_list.effective_end_date,
+                enabled=True,
+            )
+            self.assertTrue(manager.instance.enabled)
+
     def test_update_disabled_price_list_rates_rejected(self):
         """Test that rates cannot be updated on a disabled price list."""
         with tenant_context(self.tenant):

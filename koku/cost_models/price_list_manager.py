@@ -66,7 +66,8 @@ class PriceListManager:
         if not self._model:
             raise PriceListException("No price list to update.")
 
-        if not self._model.enabled:
+        re_enabling = data.get("enabled") is True
+        if not self._model.enabled and not re_enabling:
             allowed_fields = {"name", "description", "enabled"}
             disallowed = set(data.keys()) - allowed_fields
             if disallowed:

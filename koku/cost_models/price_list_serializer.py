@@ -27,7 +27,7 @@ class PriceListSerializer(BaseSerializer):
         model = PriceList
 
     uuid = serializers.UUIDField(read_only=True)
-    name = serializers.CharField(max_length=255)
+    name = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(allow_blank=True, required=False)
     currency = serializers.CharField(required=False)
     effective_start_date = serializers.DateField(required=False)
