@@ -669,6 +669,12 @@ See [`koku/cost_models/models.py`](../../koku/cost_models/models.py) for model d
 - `distribution` - Text field: "cpu" or "memory"
 - `distribution_info` - JSONField with additional distribution configuration
 
+**Price lists:** `PriceList` and `PriceListCostModelMap` store the same rate
+JSON shape with effective date ranges and per–cost-model priority. Until the
+dedicated price list UI ships, **`CostModel.rates` is dual-written** with the
+primary linked list; the plan is to drop JSON rates after that UI. See
+[price-lists/README.md](./price-lists/README.md).
+
 ### Rates JSON Structure
 
 **Infrastructure Rates:**
