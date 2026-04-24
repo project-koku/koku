@@ -47,6 +47,9 @@ class PriceListSerializer(BaseSerializer):
 
     def validate(self, data):
         """Validate that effective_end_date is after effective_start_date."""
+        if not self.instance and not data.get("name"):
+            raise serializers.ValidationError({"name": "This field is required."})
+
         start = data.get("effective_start_date")
         end = data.get("effective_end_date")
 
