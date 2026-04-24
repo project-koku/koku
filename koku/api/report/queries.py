@@ -1385,7 +1385,7 @@ class ReportQueryHandler(QueryHandler):
         rankings = []
         distinct_ranks = []
         for rank in ranks:
-            rank_value = (rank.get(group) for group in rank_group_by)
+            rank_value = tuple(rank.get(group) for group in rank_group_by)
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
