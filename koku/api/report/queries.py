@@ -1342,17 +1342,13 @@ class ReportQueryHandler(QueryHandler):
         if self.order_field == "subscription_name":
             group_by_value.append("subscription_name")
 
-        # Some reports rank at a finer granularity than their response group_by.
-        # e.g. mig_profiles ranks by (mig_profile, mig_id) so filter[limit] limits
-        # individual MIG instances, not just profile groups.
+        # rank_group_by allows ranking at a finer granularity than the response group_by
+        # (e.g. mig_profiles ranks by (mig_profile, mig_id) so filter[limit] limits instances).
         rank_group_by = self._mapper.report_type_map.get("rank_group_by", group_by_value)
 
-        # Fields in rank_group_by that are defined in report_type_map annotations as
-        # *aliases* (e.g. mig_id = F("mig_instance_id")) are not applied by self.annotations
-        # and must be added explicitly so that .values() can resolve them.
-        # Skip fields where the annotation is just F(same_name): those are direct model
-        # fields that Django can resolve without an explicit annotation, and trying to
-        # annotate them raises "conflicts with a field on the model".
+        # Annotate alias fields in rank_group_by (e.g. mig_id = F("mig_instance_id")) that
+        # are not in self.annotations. Skip F(same_name) aliases — those are direct model
+        # fields and re-annotating them raises "conflicts with a field on the model".
         extra_rank_group_annotations = {
             field: expr
             for field in rank_group_by
@@ -1399,8 +1395,7 @@ class ReportQueryHandler(QueryHandler):
             ranks (List): list of ranks to use; overrides ranking that may present in data_list.
             rank_fields (Set): the fields on which ranking is performed.
             rank_group_by (List): fields used for ranking; defaults to self._get_group_by().
-                Some reports (e.g. mig_profiles) rank at a finer granularity than their
-                response group_by so that filter[limit] limits individual items, not groups.
+                When set, filter[limit] limits individual items rather than response groups.
         Returns:
             List(Dict): List of data points meeting the rank criteria
 
