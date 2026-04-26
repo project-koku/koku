@@ -13,6 +13,7 @@ from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
 from cost_models.static_exchange_rate_serializer import StaticExchangeRateSerializer
+from cost_models.static_exchange_rate_utils import remove_static_and_backfill_dynamic
 from masu.test import MasuTestCase
 
 
@@ -141,8 +142,7 @@ class StaticExchangeRateSerializerTest(MasuTestCase):
             updated = serializer2.save()
             self.assertEqual(updated.version, 2)
 
-    @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
-    def test_delete_removes_static_monthly_rates(self, mock_invalidate):
+    def test_delete_removes_static_monthly_rates(self):
         """Test that deleting a static rate removes static MonthlyExchangeRate rows."""
         with tenant_context(self.tenant):
             serializer = StaticExchangeRateSerializer(data=self.valid_data, context=self._make_request_context())
@@ -155,7 +155,13 @@ class StaticExchangeRateSerializerTest(MasuTestCase):
                 ).exists()
             )
 
-            serializer.delete(instance)
+            remove_static_and_backfill_dynamic(
+                instance.base_currency,
+                instance.target_currency,
+                instance.start_date,
+                instance.end_date,
+            )
+            instance.delete()
 
             self.assertFalse(
                 MonthlyExchangeRate.objects.filter(

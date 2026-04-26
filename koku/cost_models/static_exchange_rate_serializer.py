@@ -6,83 +6,18 @@
 import calendar
 import logging
 
-from dateutil.relativedelta import relativedelta
 from django.db import transaction
 from rest_framework import serializers
 
 from api.common import log_json
 from api.currency.currencies import get_all_currency_codes
-from api.currency.models import ExchangeRateDictionary
-from cost_models.models import CurrencyConfig
-from cost_models.models import MonthlyExchangeRate
-from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
+from cost_models.static_exchange_rate_utils import ensure_currencies_enabled
+from cost_models.static_exchange_rate_utils import remove_static_and_backfill_dynamic
+from cost_models.static_exchange_rate_utils import upsert_monthly_rates
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 
 LOG = logging.getLogger(__name__)
-
-
-def _iter_months(start_date, end_date):
-    """Yield the first day of each month between start_date and end_date inclusive."""
-    current = start_date.replace(day=1)
-    end = end_date.replace(day=1)
-    while current <= end:
-        yield current
-        current += relativedelta(months=1)
-
-
-def _ensure_currencies_enabled(*currency_codes):
-    """Ensure CurrencyConfig rows exist and are enabled for the given currency codes."""
-    for code in currency_codes:
-        CurrencyConfig.objects.update_or_create(
-            currency_code=code,
-            defaults={"enabled": True},
-        )
-
-
-def _upsert_monthly_rates(static_rate):
-    """Upsert MonthlyExchangeRate rows with rate_type=static for each month in the validity period."""
-    for month_start in _iter_months(static_rate.start_date, static_rate.end_date):
-        MonthlyExchangeRate.objects.update_or_create(
-            effective_date=month_start,
-            base_currency=static_rate.base_currency,
-            target_currency=static_rate.target_currency,
-            defaults={
-                "exchange_rate": static_rate.exchange_rate,
-                "rate_type": RateType.STATIC,
-            },
-        )
-
-
-def _remove_static_and_backfill_dynamic(base_currency, target_currency, start_date, end_date):
-    """Remove static rows for affected months and backfill with dynamic rates from ExchangeRateDictionary."""
-    MonthlyExchangeRate.objects.filter(
-        effective_date__gte=start_date.replace(day=1),
-        effective_date__lte=end_date.replace(day=1),
-        base_currency=base_currency,
-        target_currency=target_currency,
-        rate_type=RateType.STATIC,
-    ).delete()
-
-    erd = ExchangeRateDictionary.objects.first()
-    if not erd or not erd.currency_exchange_dictionary:
-        return
-
-    exchange_dict = erd.currency_exchange_dictionary
-    rate = exchange_dict.get(base_currency, {}).get(target_currency)
-    if rate is None:
-        return
-
-    for month_start in _iter_months(start_date, end_date):
-        MonthlyExchangeRate.objects.update_or_create(
-            effective_date=month_start,
-            base_currency=base_currency,
-            target_currency=target_currency,
-            defaults={
-                "exchange_rate": rate,
-                "rate_type": RateType.DYNAMIC,
-            },
-        )
 
 
 class StaticExchangeRateSerializer(serializers.ModelSerializer):
@@ -165,8 +100,8 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         instance = StaticExchangeRate.objects.create(**validated_data)
-        _ensure_currencies_enabled(instance.base_currency, instance.target_currency)
-        _upsert_monthly_rates(instance)
+        ensure_currencies_enabled(instance.base_currency, instance.target_currency)
+        upsert_monthly_rates(instance)
         schema_name = self._get_schema_name()
         if schema_name:
             invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
@@ -194,10 +129,10 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         instance.save()
 
         if old_base != instance.base_currency or old_target != instance.target_currency:
-            _remove_static_and_backfill_dynamic(old_base, old_target, old_start, old_end)
+            remove_static_and_backfill_dynamic(old_base, old_target, old_start, old_end)
 
-        _ensure_currencies_enabled(instance.base_currency, instance.target_currency)
-        _upsert_monthly_rates(instance)
+        ensure_currencies_enabled(instance.base_currency, instance.target_currency)
+        upsert_monthly_rates(instance)
 
         schema_name = self._get_schema_name()
         if schema_name:
@@ -211,17 +146,3 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         )
         return instance
 
-    @transaction.atomic
-    def delete(self, instance):
-        _remove_static_and_backfill_dynamic(
-            instance.base_currency,
-            instance.target_currency,
-            instance.start_date,
-            instance.end_date,
-        )
-        pair_name = instance.name
-        instance.delete()
-        schema_name = self._get_schema_name()
-        if schema_name:
-            invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
-        LOG.info(log_json(msg="Static exchange rate deleted", pair=pair_name))
