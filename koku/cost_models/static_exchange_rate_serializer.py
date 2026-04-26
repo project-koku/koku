@@ -90,19 +90,12 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
 
         return data
 
-    def _get_schema_name(self):
-        request = self.context.get("request")
-        if request and hasattr(request, "user") and hasattr(request.user, "customer"):
-            return request.user.customer.schema_name
-        return None
-
     @transaction.atomic
     def create(self, validated_data):
         instance = StaticExchangeRate.objects.create(**validated_data)
         upsert_monthly_rates(instance)
-        schema_name = self._get_schema_name()
-        if schema_name:
-            invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+        schema_name = self.context["request"].user.customer.schema_name
+        invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(
             log_json(
                 msg="Static exchange rate created",
@@ -131,9 +124,8 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
 
         upsert_monthly_rates(instance)
 
-        schema_name = self._get_schema_name()
-        if schema_name:
-            invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+        schema_name = self.context["request"].user.customer.schema_name
+        invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(
             log_json(
                 msg="Static exchange rate updated",
