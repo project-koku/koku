@@ -20,6 +20,10 @@ from api.utils import materialized_view_month_start
 from masu.processor import check_group_by_limit
 from reporting.provider.ocp.models import OpenshiftCostCategory
 
+# URL path fragments for reports that rank with filter[limit]/offset using implicit group_by
+# from the provider map (no group_by query params required). See report_type "group_by".
+_FILTER_LIMIT_IMPLICIT_GROUP_BY_PATH_MARKERS = frozenset(("instance-types", "mig_profiles"))
+
 
 def handle_invalid_fields(this, data):
     """Validate incoming data.
@@ -421,11 +425,9 @@ class ParamSerializer(BaseSerializer):
         filter_limit = data.get("filter", {}).get("limit")
         filter_offset = data.get("filter", {}).get("offset")
 
-        if (
-            "instance-types" not in self.context["request"].path
-            and (filter_limit or filter_offset)
-            and not data.get("group_by")
-        ):
+        path = self.context["request"].path
+        implicit_group_by_for_limit = any(m in path for m in _FILTER_LIMIT_IMPLICIT_GROUP_BY_PATH_MARKERS)
+        if not implicit_group_by_for_limit and (filter_limit or filter_offset) and not data.get("group_by"):
             error = {"error": "filter[limit] and filter[offset] requires a valid group_by param."}
             raise serializers.ValidationError(error)
 
