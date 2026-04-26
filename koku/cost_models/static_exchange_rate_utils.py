@@ -29,7 +29,7 @@ def ensure_currencies_enabled(*currency_codes):
         )
 
 
-def upsert_monthly_rates(static_rate):
+def upsert_static_monthly_rates(static_rate):
     """Upsert MonthlyExchangeRate rows with rate_type=static for each month in the validity period."""
     for month_start in iter_months(static_rate.start_date, static_rate.end_date):
         MonthlyExchangeRate.objects.update_or_create(
