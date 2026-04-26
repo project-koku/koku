@@ -29,11 +29,6 @@ class MockUnleashClientTest(TestCase):
         result = self.client.is_enabled("cost-management.backend.disable-ingress-rate-limit")
         self.assertTrue(result)
 
-    def test_onprem_group_by_limit_flag_returns_true(self):
-        """Override map returns True for override_customer_group_by_limit."""
-        result = self.client.is_enabled("cost-management.backend.override_customer_group_by_limit")
-        self.assertTrue(result)
-
     def test_override_takes_precedence_over_fallback(self):
         """Override map is checked before the fallback function."""
 

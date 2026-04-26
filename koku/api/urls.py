@@ -49,6 +49,7 @@ from api.views import GCPStorageView
 from api.views import GCPTagView
 from api.views import get_currency
 from api.views import get_exchange_rates
+from api.views import GlobalSettingsView
 from api.views import IngressReportsDetailView
 from api.views import IngressReportsView
 from api.views import metrics
@@ -579,6 +580,17 @@ urlpatterns = [
     path("settings/", SunsetView, name="settings"),
 ]
 if settings.ONPREM:
+    # data-retention must precede the <str:setting> catch-all to avoid shadowing
+    for _i, _p in enumerate(urlpatterns):
+        if getattr(_p, "name", None) == "get-account-setting":
+            urlpatterns.insert(
+                _i, path("account-settings/data-retention/", GlobalSettingsView.as_view(), name="data-retention")
+            )
+            break
+    else:
+        import logging as _logging
+
+        _logging.getLogger(__name__).warning("get-account-setting URL not found; data-retention route not registered")
     urlpatterns += [
         path("source_types", SourceTypesView.as_view(), name="source-types"),
         path("application_types", ApplicationTypesView.as_view(), name="application-types"),

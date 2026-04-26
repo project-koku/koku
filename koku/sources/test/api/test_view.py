@@ -16,7 +16,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.test.utils import override_settings
 from django.urls import reverse
-from rest_framework import viewsets
+from django_tenants.utils import schema_context
+from rest_framework import mixins
 from rest_framework.response import Response
 
 from api.common.permissions import RESOURCE_TYPE_MAP
@@ -24,10 +25,13 @@ from api.common.permissions.aws_access import AwsAccessPermission
 from api.iam.models import Customer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
+from reporting.models import TenantAPIProvider
 from sources.api.source_type_mapping import PROVIDER_TYPE_TO_CMMO_ID
 from sources.api.view import DestroySourceMixin
 from sources.api.view import SourceFilter
@@ -221,6 +225,7 @@ class SourcesViewTests(IamTestCase):
 
             self.assertEqual(response.status_code, 200)
             self.assertIsNotNone(body)
+            self.assertIsNotNone(body["updated_timestamp"])
 
     def test_source_get_other_header(self):
         """Test the GET endpoint other header not matching test data."""
@@ -274,6 +279,7 @@ class SourcesViewTests(IamTestCase):
         self.assertTrue(body.get("data"))
         self.assertFalse(body.get("data")[0]["provider_linked"])
         self.assertIsNone(body.get("data")[0]["created_timestamp"])
+        self.assertIsNotNone(body.get("data")[0]["updated_timestamp"])
 
     @patch("sources.api.view.ProviderManager")
     def test_source_list_provider_success(self, mock_provider_manager):
@@ -289,6 +295,7 @@ class SourcesViewTests(IamTestCase):
         self.assertTrue(body.get("data")[0]["provider_linked"])
         self.assertTrue(body.get("data")[0]["active"])
         self.assertIsNotNone(body.get("data")[0]["created_timestamp"])
+        self.assertIsNotNone(body.get("data")[0]["updated_timestamp"])
 
     @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
     def test_source_retrieve_error(self, _):
@@ -301,6 +308,7 @@ class SourcesViewTests(IamTestCase):
         self.assertFalse(body["provider_linked"])
         self.assertFalse(body["active"])
         self.assertIsNone(body["created_timestamp"])
+        self.assertIsNotNone(body["updated_timestamp"])
 
     @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
     def test_source_get_stats_error(self, _):
@@ -385,6 +393,117 @@ class SourcesViewTests(IamTestCase):
             Provider.PROVIDER_GCP_LOCAL,
         ]
         self.assertEqual(sorted(list(set(excluded))), sorted(list(set(expected))))
+
+
+@unittest.skipUnless(settings.ONPREM, "ONPREM-only: write endpoints require ONPREM=True")
+@override_settings(ROOT_URLCONF="sources.urls")
+class SourcesViewPatchTests(IamTestCase):
+    """PATCH syncs Source changes to linked Provider (enabled when ONPREM or DEVELOPMENT)."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        self.test_account = "10001"
+        self.test_org_id = "1234567"
+        user_data = self._create_user_data()
+        customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+        self.test_source_id = 8801
+        self.source_name = "Patch Azure Source"
+        customer_obj = Customer.objects.get(org_id=customer.get("org_id"))
+
+        self.azure_creds = {
+            "client_id": "test_client",
+            "tenant_id": "test_tenant",
+            "client_secret": "x",
+            "subscription_id": "test_sub",
+        }
+        self.azure_billing = {"resource_group": "test-rg", "storage_account": "test-sa"}
+        auth = ProviderAuthentication.objects.create(credentials=self.azure_creds)
+        billing = ProviderBillingSource.objects.create(data_source=self.azure_billing)
+        self.azure_provider = Provider(
+            name=self.source_name,
+            type=Provider.PROVIDER_AZURE,
+            customer=customer_obj,
+            authentication=auth,
+            billing_source=billing,
+        )
+        self.azure_provider.save()
+        with schema_context(self.tenant.schema_name):
+            TenantAPIProvider.objects.create(
+                uuid=self.azure_provider.uuid,
+                name=self.azure_provider.name,
+                type=self.azure_provider.type,
+                provider=self.azure_provider,
+            )
+
+        self.azure_obj = Sources(
+            source_id=self.test_source_id,
+            auth_header=self.request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=8801,
+            source_type=Provider.PROVIDER_AZURE,
+            name=self.source_name,
+            authentication={"credentials": self.azure_creds},
+            billing_source={"data_source": self.azure_billing},
+            source_uuid=self.azure_provider.uuid,
+            koku_uuid=self.azure_provider.uuid,
+        )
+        self.azure_obj.provider = self.azure_provider
+        self.azure_obj.save()
+
+        mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
+        SourcesViewSet.url = mock_url
+
+        self.url = reverse("sources-detail", kwargs={"pk": str(self.azure_provider.uuid)})
+        self.meta = self.request_context["request"].META
+
+    @patch("providers.provider_access.ProviderAccessor.cost_usage_source_ready", return_value=True)
+    @patch("sources.api.view.invalidate_cache_for_tenant_and_cache_key")
+    def test_patch_syncs_all_fields_to_provider(self, _mock_invalidate, _mock_ready):
+        """PATCH syncs paused, authentication, and billing_source to Source and linked Provider."""
+        cache.clear()
+        new_creds = {
+            "client_id": "new_client",
+            "tenant_id": "new_tenant",
+            "client_secret": "new_secret",
+            "subscription_id": "new_sub",
+        }
+        new_billing = {"resource_group": "new-rg", "storage_account": "new-sa"}
+
+        response = self.client.patch(
+            self.url,
+            json.dumps(
+                {
+                    "paused": True,
+                    "authentication": {"credentials": new_creds},
+                    "billing_source": {"data_source": new_billing},
+                }
+            ),
+            content_type="application/json",
+            **self.meta,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.azure_obj.refresh_from_db()
+        self.azure_provider.refresh_from_db()
+
+        self.assertTrue(self.azure_obj.paused)
+        self.assertTrue(self.azure_provider.paused)
+        self.assertEqual(self.azure_obj.authentication["credentials"], new_creds)
+        self.assertEqual(self.azure_provider.authentication.credentials, new_creds)
+        self.assertEqual(self.azure_obj.billing_source["data_source"], new_billing)
+        self.assertEqual(self.azure_provider.billing_source.data_source, new_billing)
+
+        response = self.client.patch(
+            self.url,
+            json.dumps({"paused": False}),
+            content_type="application/json",
+            **self.meta,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.azure_provider.refresh_from_db()
+        self.assertFalse(self.azure_provider.paused)
 
 
 @override_settings(ROOT_URLCONF="sources.urls")
@@ -530,6 +649,7 @@ class SourceFilterTests(IamTestCase):
             )
 
 
+@unittest.skipUnless(settings.ONPREM, "ONPREM-only: write endpoints require ONPREM=True")
 @override_settings(ROOT_URLCONF="sources.urls")
 class SourcesViewCreateTests(IamTestCase):
     """Test Cases for the SourcesViewSet.create method."""
@@ -550,9 +670,7 @@ class SourcesViewCreateTests(IamTestCase):
         mock_request = Mock()
         mock_request.user.customer.schema_name = "test_schema"
 
-        # Mock create on GenericViewSet (which IS in the MRO) since CreateModelMixin
-        # is only added when DEVELOPMENT or ONPREM is True (not the case in tox).
-        with patch.object(viewsets.GenericViewSet, "create", create=True, return_value=Response(status=201)):
+        with patch.object(mixins.CreateModelMixin, "create", return_value=Response(status=201)):
             result = viewset.create(request=mock_request)
             self.assertEqual(result.status_code, 201)
             mock_invalidate.assert_called_once()
@@ -567,9 +685,7 @@ class SourcesViewCreateTests(IamTestCase):
         mock_request = Mock()
         mock_request.user.customer.schema_name = "test_schema"
 
-        with patch.object(
-            viewsets.GenericViewSet, "create", create=True, side_effect=SourcesStorageError("test error")
-        ):
+        with patch.object(mixins.CreateModelMixin, "create", side_effect=SourcesStorageError("test error")):
             with self.assertRaises(SourcesException):
                 viewset.create(request=mock_request)
 
@@ -583,9 +699,7 @@ class SourcesViewCreateTests(IamTestCase):
         mock_request = Mock()
         mock_request.user.customer.schema_name = "test_schema"
 
-        with patch.object(
-            viewsets.GenericViewSet, "create", create=True, side_effect=SourcesDependencyError("dep error")
-        ):
+        with patch.object(mixins.CreateModelMixin, "create", side_effect=SourcesDependencyError("dep error")):
             with self.assertRaises(SourcesDependencyException):
                 viewset.create(request=mock_request)
 
