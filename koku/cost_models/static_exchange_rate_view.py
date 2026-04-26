@@ -5,6 +5,10 @@
 """View for StaticExchangeRate CRUD operations."""
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+from django_filters import CharFilter
+from django_filters import DateFilter
+from django_filters import FilterSet
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.response import Response
@@ -12,6 +16,19 @@ from rest_framework.response import Response
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from cost_models.models import StaticExchangeRate
 from cost_models.static_exchange_rate_serializer import StaticExchangeRateSerializer
+
+
+class StaticExchangeRateFilter(FilterSet):
+    """Filters for static exchange rate lookups."""
+
+    base_currency = CharFilter(field_name="base_currency", lookup_expr="iexact")
+    target_currency = CharFilter(field_name="target_currency", lookup_expr="iexact")
+    start_date = DateFilter(field_name="end_date", lookup_expr="gte")
+    end_date = DateFilter(field_name="start_date", lookup_expr="lte")
+
+    class Meta:
+        model = StaticExchangeRate
+        fields = ["base_currency", "target_currency", "start_date", "end_date"]
 
 
 class StaticExchangeRateViewSet(viewsets.ModelViewSet):
@@ -22,19 +39,8 @@ class StaticExchangeRateViewSet(viewsets.ModelViewSet):
     lookup_field = "uuid"
     permission_classes = (CostModelsAccessPermission,)
     http_method_names = ["get", "post", "put", "delete", "head"]
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        params = self.request.query_params
-        if base := params.get("base_currency"):
-            qs = qs.filter(base_currency=base.upper())
-        if target := params.get("target_currency"):
-            qs = qs.filter(target_currency=target.upper())
-        if start_date := params.get("start_date"):
-            qs = qs.filter(end_date__gte=start_date)
-        if end_date := params.get("end_date"):
-            qs = qs.filter(start_date__lte=end_date)
-        return qs
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = StaticExchangeRateFilter
 
     @method_decorator(never_cache)
     def list(self, request, *args, **kwargs):
