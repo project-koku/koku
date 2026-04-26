@@ -12,7 +12,6 @@ from rest_framework import serializers
 from api.common import log_json
 from api.currency.currencies import is_valid_iso_currency
 from cost_models.models import StaticExchangeRate
-from cost_models.static_exchange_rate_utils import ensure_currencies_enabled
 from cost_models.static_exchange_rate_utils import remove_static_and_backfill_dynamic
 from cost_models.static_exchange_rate_utils import upsert_monthly_rates
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
@@ -100,7 +99,6 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         instance = StaticExchangeRate.objects.create(**validated_data)
-        ensure_currencies_enabled(instance.base_currency, instance.target_currency)
         upsert_monthly_rates(instance)
         schema_name = self._get_schema_name()
         if schema_name:
@@ -131,7 +129,6 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         if old_base != instance.base_currency or old_target != instance.target_currency:
             remove_static_and_backfill_dynamic(old_base, old_target, old_start, old_end)
 
-        ensure_currencies_enabled(instance.base_currency, instance.target_currency)
         upsert_monthly_rates(instance)
 
         schema_name = self._get_schema_name()
