@@ -49,6 +49,20 @@ class CurrencyField(serializers.CharField):
         return value
 
 
+def is_valid_iso_currency(code):
+    """Check whether *code* is a valid ISO 4217 currency using babel's registry.
+
+    Unlike ``get_all_currency_codes`` this does NOT require the currency to
+    already exist in ``CurrencyConfig``, so it can be used to validate codes
+    *before* they are inserted (e.g. when creating static exchange rates).
+    """
+    try:
+        get_currency_name(code.upper(), locale="en_US")
+        return True
+    except UnknownCurrencyError:
+        return False
+
+
 def get_currency_info(code):
     """Return a dict with code, name, symbol, and description for a currency.
 

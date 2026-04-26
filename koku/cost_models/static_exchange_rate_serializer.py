@@ -10,7 +10,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from api.common import log_json
-from api.currency.currencies import get_all_currency_codes
+from api.currency.currencies import is_valid_iso_currency
 from cost_models.models import StaticExchangeRate
 from cost_models.static_exchange_rate_utils import ensure_currencies_enabled
 from cost_models.static_exchange_rate_utils import remove_static_and_backfill_dynamic
@@ -42,17 +42,17 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
     def get_name(self, obj):
         return f"{obj.base_currency}-{obj.target_currency}"
 
-    def validate_base_currency(self, value):
+    def _validate_currency_code(self, value):
         value = value.upper()
-        if value not in get_all_currency_codes():
+        if not is_valid_iso_currency(value):
             raise serializers.ValidationError(f"Invalid currency code: {value}")
         return value
 
+    def validate_base_currency(self, value):
+        return self._validate_currency_code(value)
+
     def validate_target_currency(self, value):
-        value = value.upper()
-        if value not in get_all_currency_codes():
-            raise serializers.ValidationError(f"Invalid currency code: {value}")
-        return value
+        return self._validate_currency_code(value)
 
     def validate_start_date(self, value):
         if value.day != 1:
@@ -145,4 +145,3 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             )
         )
         return instance
-
