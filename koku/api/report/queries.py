@@ -1068,6 +1068,8 @@ class ReportQueryHandler(QueryHandler):
 
     def _get_exchange_rates_applied(self, start_date, end_date, target_currency):
         """Build exchange_rates_applied metadata from MonthlyExchangeRate for the query range."""
+        # MonthlyExchangeRate stores one rate per month with effective_date on the 1st,
+        # so snap query bounds to month starts to avoid excluding overlapping months.
         start_month = start_date.replace(day=1)
         end_month = end_date.replace(day=1)
 
@@ -1082,36 +1084,19 @@ class ReportQueryHandler(QueryHandler):
                 .values("base_currency", "target_currency", "exchange_rate", "rate_type", "effective_date")
             )
 
-        result = []
-        for rate in rates:
-            last_day = calendar.monthrange(rate["effective_date"].year, rate["effective_date"].month)[1]
-            end_of_month = rate["effective_date"].replace(day=last_day)
-
-            if result and (
-                result[-1]["base_currency"] == rate["base_currency"]
-                and result[-1]["target_currency"] == rate["target_currency"]
-                and result[-1]["rate"] == str(rate["exchange_rate"])
-                and result[-1]["type"] == rate["rate_type"]
-                and result[-1]["_next_month"] == rate["effective_date"]
-            ):
-                result[-1]["end_date"] = str(end_of_month)
-                result[-1]["_next_month"] = rate["effective_date"] + relativedelta(months=1)
-            else:
-                result.append(
-                    {
-                        "base_currency": rate["base_currency"],
-                        "target_currency": rate["target_currency"],
-                        "rate": str(rate["exchange_rate"]),
-                        "type": rate["rate_type"],
-                        "start_date": str(rate["effective_date"]),
-                        "end_date": str(end_of_month),
-                        "_next_month": rate["effective_date"] + relativedelta(months=1),
-                    }
-                )
-
-        for entry in result:
-            entry.pop("_next_month", None)
-        return result
+        return [
+            {
+                "base_currency": rate["base_currency"],
+                "target_currency": rate["target_currency"],
+                "rate": str(rate["exchange_rate"]),
+                "type": rate["rate_type"],
+                "start_date": str(rate["effective_date"]),
+                "end_date": str(rate["effective_date"].replace(
+                    day=calendar.monthrange(rate["effective_date"].year, rate["effective_date"].month)[1]
+                )),
+            }
+            for rate in rates
+        ]
 
     def _pack_data_object(self, data, **kwargs):  # noqa: C901
         """Pack data into object format."""
