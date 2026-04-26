@@ -26,7 +26,11 @@ from api.utils import DateHelper
 from common.queues import DownloadQueue
 from common.queues import PriorityQueue
 from common.queues import SummaryQueue
+from cost_models.models import CurrencyConfig
+from cost_models.models import MonthlyExchangeRate
+from cost_models.models import RateType
 from koku import celery_app
+from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.notifications import NotificationService
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -263,7 +267,7 @@ def autovacuum_tune_schemas():
         autovacuum_tune_schema.delay(schema_name)
 
 
-def _fetch_exchange_rates(url):
+def _fetch_and_store_exchange_rates(url):
     """Fetch exchange rates from the configured URL. Returns rate_metrics dict or None on failure."""
     retries = Retry(
         total=5,
@@ -283,7 +287,9 @@ def _fetch_exchange_rates(url):
         return None
 
     rate_metrics = {}
-    for curr_type, value in response.json()["rates"].items():
+    data = response.json()
+    rates = data["rates"]
+    for curr_type, value in rates.items():
         try:
             exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
             LOG.info(f"Updating currency {curr_type} to {value}")
@@ -297,13 +303,8 @@ def _fetch_exchange_rates(url):
     return rate_metrics
 
 
-def _upsert_tenant_exchange_rates(schema_name, exchange_dict, current_month):
+def _upsert_tenant_dynamic_exchange_rates(schema_name, exchange_dict, current_month):
     """Sync CurrencyConfig and upsert dynamic MonthlyExchangeRate rows for one tenant."""
-    from cost_models.models import CurrencyConfig
-    from cost_models.models import MonthlyExchangeRate
-    from cost_models.models import RateType
-    from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
-
     with schema_context(schema_name):
         existing_codes = set(CurrencyConfig.objects.values_list("currency_code", flat=True))
         new_currencies = set(exchange_dict.keys()) - existing_codes
@@ -347,7 +348,7 @@ def get_daily_currency_rates():
         LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
         return {}
 
-    rate_metrics = _fetch_exchange_rates(url)
+    rate_metrics = _fetch_and_store_exchange_rates(url)
     if rate_metrics is None:
         return {}
 
@@ -357,7 +358,7 @@ def get_daily_currency_rates():
 
     current_month = DateHelper().this_month_start.date()
     for tenant in Tenant.objects.exclude(schema_name="public"):
-        _upsert_tenant_exchange_rates(tenant.schema_name, erd.currency_exchange_dictionary, current_month)
+        _upsert_tenant_dynamic_exchange_rates(tenant.schema_name, erd.currency_exchange_dictionary, current_month)
 
     return rate_metrics
 
