@@ -7,9 +7,7 @@ from django_filters import CharFilter
 from django_filters import DateFilter
 from django_filters import FilterSet
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import status
 from rest_framework import viewsets
-from rest_framework.response import Response
 
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from cost_models.models import StaticExchangeRate
@@ -40,8 +38,6 @@ class StaticExchangeRateViewSet(viewsets.ModelViewSet):
     filter_backends = (DjangoFilterBackend,)
     filterset_class = StaticExchangeRateFilter
 
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
+    def perform_destroy(self, instance):
         serializer = self.get_serializer(instance)
         serializer.delete(instance)
-        return Response(status=status.HTTP_204_NO_CONTENT)
