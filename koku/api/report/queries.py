@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query Handling for Reports."""
-import calendar
 import copy
 import logging
 import random
@@ -1091,9 +1090,7 @@ class ReportQueryHandler(QueryHandler):
                 "rate": str(rate["exchange_rate"]),
                 "type": rate["rate_type"],
                 "start_date": str(rate["effective_date"]),
-                "end_date": str(rate["effective_date"].replace(
-                    day=calendar.monthrange(rate["effective_date"].year, rate["effective_date"].month)[1]
-                )),
+                "end_date": str(self.dh.month_end(rate["effective_date"])),
             }
             for rate in rates
         ]
