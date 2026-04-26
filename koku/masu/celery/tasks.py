@@ -16,6 +16,7 @@ from requests.exceptions import RetryError
 from urllib3.util.retry import Retry
 
 from api.common import log_json
+from api.currency.models import ExchangeRateDictionary
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
 from api.iam.models import Tenant
@@ -341,8 +342,6 @@ def _upsert_tenant_exchange_rates(schema_name, exchange_dict, current_month):
 @celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
 def get_daily_currency_rates():
     """Task to get latest daily conversion rates and upsert MonthlyExchangeRate per tenant."""
-    from api.currency.models import ExchangeRateDictionary
-
     url = settings.CURRENCY_URL
     if not url:
         LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
