@@ -6,12 +6,11 @@
 from dateutil.relativedelta import relativedelta
 
 from api.currency.models import ExchangeRateDictionary
-from cost_models.models import CurrencyConfig
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 
 
-def iter_months(start_date, end_date):
+def _iter_months(start_date, end_date):
     """Yield the first day of each month between start_date and end_date inclusive."""
     current = start_date.replace(day=1)
     end = end_date.replace(day=1)
@@ -20,18 +19,9 @@ def iter_months(start_date, end_date):
         current += relativedelta(months=1)
 
 
-def ensure_currencies_enabled(*currency_codes):
-    """Ensure CurrencyConfig rows exist and are enabled for the given currency codes."""
-    for code in currency_codes:
-        CurrencyConfig.objects.update_or_create(
-            currency_code=code,
-            defaults={"enabled": True},
-        )
-
-
 def upsert_static_monthly_rates(static_rate):
     """Upsert MonthlyExchangeRate rows with rate_type=static for each month in the validity period."""
-    for month_start in iter_months(static_rate.start_date, static_rate.end_date):
+    for month_start in _iter_months(static_rate.start_date, static_rate.end_date):
         MonthlyExchangeRate.objects.update_or_create(
             effective_date=month_start,
             base_currency=static_rate.base_currency,
@@ -62,7 +52,7 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
     if rate is None:
         return
 
-    for month_start in iter_months(start_date, end_date):
+    for month_start in _iter_months(start_date, end_date):
         MonthlyExchangeRate.objects.update_or_create(
             effective_date=month_start,
             base_currency=base_currency,
