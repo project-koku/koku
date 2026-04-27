@@ -427,7 +427,7 @@ urlpatterns = [
         name="settings-aws-category-keys-disable",
     ),
     path(
-        "settings/currency/config/",
+        "settings/currency/enabled/",
         EnabledCurrencyConfigView.as_view(),
         name="currency-config",
     ),
