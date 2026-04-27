@@ -88,6 +88,26 @@ class PriceListViewTests(IamTestCase):
         response = self.client.post(url, data=data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_create_price_list_start_date_not_first_of_month(self):
+        """Test that start date not on first of month fails validation."""
+        url = reverse("price-lists-list")
+        data = self.price_list_data.copy()
+        data["effective_start_date"] = "2026-01-15"
+        data["effective_end_date"] = "2026-12-31"
+        response = self.client.post(url, data=data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("effective_start_date must be on the first day of the month", str(response.data))
+
+    def test_create_price_list_end_date_not_last_of_month(self):
+        """Test that end date not on last of month fails validation."""
+        url = reverse("price-lists-list")
+        data = self.price_list_data.copy()
+        data["effective_start_date"] = "2026-01-01"
+        data["effective_end_date"] = "2026-12-15"
+        response = self.client.post(url, data=data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("effective_end_date must be on the last day of the month", str(response.data))
+
     # --- List ---
 
     def test_list_price_lists(self):
@@ -152,6 +172,26 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["version"], 2)
 
+    def test_update_currency_fails(self):
+        """Test that updating currency fails - currency is immutable."""
+        create_response = self._create_price_list(currency="USD")
+        pl_uuid = create_response.data["uuid"]
+        self.assertEqual(create_response.data["currency"], "USD")
+
+        detail_url = reverse("price-lists-detail", kwargs={"uuid": pl_uuid})
+        update_data = self.price_list_data.copy()
+        update_data["currency"] = "EUR"
+        update_data["rates"] = [
+            {
+                "metric": {"name": "cpu_core_usage_per_hour"},
+                "tiered_rates": [{"value": "1.50", "unit": "EUR", "usage": {"usage_start": None, "usage_end": None}}],
+                "cost_type": "Infrastructure",
+            }
+        ]
+        response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Currency cannot be changed", str(response.data))
+
     # --- Delete ---
 
     def test_delete_price_list(self):
@@ -207,7 +247,7 @@ class PriceListViewTests(IamTestCase):
         self._create_price_list(name="Production AWS Rates")
 
         url = reverse("price-lists-list")
-        response = self.client.get(f"{url}?filter[name]=Production,OCP", **self.headers)
+        response = self.client.get(f"{url}?filter[name]=Production,OCP", **self.headers)  # noqa: E231
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         results = response.data.get("data", response.data.get("results", []))
         self.assertEqual(len(results), 1)
