@@ -10,7 +10,7 @@ from rest_framework.routers import DefaultRouter
 
 from api.common.deprecate_view import SunsetView
 from api.settings.currency_views import AllCurrencyView
-from api.settings.currency_views import EnabledCurrencyConfigView
+from api.settings.currency_views import EnabledCurrencyView
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
@@ -428,7 +428,7 @@ urlpatterns = [
     ),
     path(
         "settings/currency/enabled/",
-        EnabledCurrencyConfigView.as_view(),
+        EnabledCurrencyView.as_view(),
         name="currency-config",
     ),
     path(

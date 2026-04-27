@@ -36,7 +36,7 @@ class EnabledCurrencySerializer(serializers.Serializer):
         return [code.upper() for code in value]
 
 
-class EnabledCurrencyConfigView(APIView):
+class EnabledCurrencyView(APIView):
     """Bulk-set enabled currencies for a tenant."""
 
     permission_classes = [SettingsAccessPermission]
