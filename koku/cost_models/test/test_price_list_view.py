@@ -192,6 +192,18 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("Currency cannot be changed", str(response.data))
 
+    def test_update_without_currency_successful(self):
+        """Test that updating without specifying currency preserves the existing currency."""
+        create_response = self._create_price_list(currency="USD")
+        pl_uuid = create_response.data["uuid"]
+        self.assertEqual(create_response.data["currency"], "USD")
+
+        detail_url = reverse("price-lists-detail", kwargs={"uuid": pl_uuid})
+        update_data = {"name": "Updated Name"}
+        response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["currency"], "USD")
+
     # --- Delete ---
 
     def test_delete_price_list(self):
