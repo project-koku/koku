@@ -8,7 +8,6 @@ import logging
 from django.db import transaction
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
-from rest_framework import serializers
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,22 +17,10 @@ from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.currency.currencies import _ISO_4217_CURRENCIES
 from api.currency.currencies import get_currency_info
-from api.currency.currencies import is_valid_iso_currency
+from api.settings.serializers import EnabledCurrencySerializer
 from cost_models.models import EnabledCurrency
 
 LOG = logging.getLogger(__name__)
-
-
-class EnabledCurrencySerializer(serializers.Serializer):
-    """Accepts a list of ISO 4217 currency codes to enable."""
-
-    currencies = serializers.ListField(child=serializers.CharField(max_length=5), allow_empty=True)
-
-    def validate_currencies(self, value):
-        invalid = [code for code in value if not is_valid_iso_currency(code)]
-        if invalid:
-            raise serializers.ValidationError(f"Invalid ISO 4217 currency codes: {', '.join(invalid)}")
-        return [code.upper() for code in value]
 
 
 class EnabledCurrencyView(APIView):
