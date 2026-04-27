@@ -4,6 +4,7 @@
 #
 """Serializer for Price List API."""
 import logging
+from datetime import timedelta
 
 from rest_framework import serializers
 
@@ -53,6 +54,17 @@ class PriceListSerializer(BaseSerializer):
         if self.instance:
             start = start or self.instance.effective_start_date
             end = end or self.instance.effective_end_date
+
+        # Validate that start date is on the first of the month
+        if start and start.day != 1:
+            raise serializers.ValidationError("effective_start_date must be on the first day of the month.")
+
+        # Validate that end date is on the last day of the month
+        if end:
+            # Check if the next day is the first of the next month
+            next_day = end + timedelta(days=1)
+            if next_day.day != 1:
+                raise serializers.ValidationError("effective_end_date must be on the last day of the month.")
 
         if start and end and end < start:
             raise serializers.ValidationError("effective_end_date must be on or after effective_start_date.")

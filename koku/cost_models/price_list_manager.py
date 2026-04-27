@@ -66,6 +66,9 @@ class PriceListManager:
         if not self._model:
             raise PriceListException("No price list to update.")
 
+        if "currency" in data and data["currency"] != self._model.currency:
+            raise PriceListException("Currency cannot be changed after price list creation.")
+
         if not self._model.enabled:
             allowed_fields = {"name", "description", "enabled"}
             disallowed = set(data.keys()) - allowed_fields
