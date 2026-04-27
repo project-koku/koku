@@ -54,6 +54,8 @@ class PriceListSerializer(BaseSerializer):
         if self.instance:
             start = start or self.instance.effective_start_date
             end = end or self.instance.effective_end_date
+            if "currency" not in data:
+                data["currency"] = self.instance.currency
 
         # Validate that start date is on the first of the month
         if start and start.day != 1:
