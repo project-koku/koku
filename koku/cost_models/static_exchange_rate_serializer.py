@@ -41,17 +41,15 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
     def get_name(self, obj):
         return f"{obj.base_currency}-{obj.target_currency}"
 
-    def _validate_currency_code(self, value):
-        value = value.upper()
+    def validate_base_currency(self, value):
         if not is_valid_iso_currency(value):
             raise serializers.ValidationError(f"Invalid currency code: {value}")
-        return value
-
-    def validate_base_currency(self, value):
-        return self._validate_currency_code(value)
+        return value.upper()
 
     def validate_target_currency(self, value):
-        return self._validate_currency_code(value)
+        if not is_valid_iso_currency(value):
+            raise serializers.ValidationError(f"Invalid currency code: {value}")
+        return value.upper()
 
     def validate_start_date(self, value):
         if value.day != 1:

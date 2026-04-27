@@ -10,12 +10,15 @@ Administrators enable currencies through the Settings UI.
 
 Name, symbol, and description are computed at response time via babel.
 """
+from babel.core import get_global
 from babel.numbers import get_currency_name
 from babel.numbers import get_currency_symbol
 from babel.numbers import UnknownCurrencyError
 from rest_framework import serializers
 
 from cost_models.models import CurrencyConfig
+
+_ISO_4217_CURRENCIES = get_global("all_currencies")
 
 
 def get_enabled_currency_codes():
@@ -56,11 +59,7 @@ def is_valid_iso_currency(code):
     already exist in ``CurrencyConfig``, so it can be used to validate codes
     *before* they are inserted (e.g. when creating static exchange rates).
     """
-    try:
-        get_currency_name(code.upper(), locale="en_US")
-        return True
-    except UnknownCurrencyError:
-        return False
+    return code.upper() in _ISO_4217_CURRENCIES
 
 
 def get_currency_info(code):
