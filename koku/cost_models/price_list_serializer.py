@@ -30,8 +30,8 @@ class PriceListSerializer(BaseSerializer):
     name = serializers.CharField(max_length=255)
     description = serializers.CharField(allow_blank=True, required=False)
     currency = serializers.CharField(required=False)
-    effective_start_date = serializers.DateField(required=False)
-    effective_end_date = serializers.DateField(required=False)
+    effective_start_date = serializers.DateField()
+    effective_end_date = serializers.DateField()
     enabled = serializers.BooleanField(required=False)
     version = serializers.IntegerField(read_only=True)
     rates = RateSerializer(many=True, required=False)
@@ -94,3 +94,26 @@ class PriceListSerializer(BaseSerializer):
             return manager.update(**validated_data)
         except PriceListException as error:
             raise serializers.ValidationError(str(error))
+
+    def duplicate(self, instance):
+        """Duplicate a price list via the manager."""
+        self._check_write_freeze()
+        try:
+            manager = PriceListManager(instance.uuid)
+            return manager.duplicate()
+        except PriceListException as error:
+            raise serializers.ValidationError(str(error))
+
+    def to_representation(self, instance):
+        """Add assigned cost model data to the response."""
+        rep = super().to_representation(instance)
+        rep["assigned_cost_model_count"] = (
+            instance.assigned_cost_model_count
+            if hasattr(instance, "assigned_cost_model_count")
+            else instance.cost_model_maps.count()
+        )
+        rep["assigned_cost_models"] = [
+            {"uuid": str(m.cost_model.uuid), "name": m.cost_model.name, "priority": m.priority}
+            for m in instance.cost_model_maps.all()
+        ]
+        return rep

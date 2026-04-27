@@ -45,11 +45,28 @@ class PriceListViewTests(IamTestCase):
             ],
         }
 
+    def _create_price_list(self, **overrides):
+        """Helper to create a price list via the API."""
+        url = reverse("price-lists-list")
+        data = {**self.price_list_data, **overrides}
+        # Keep rate unit in sync with the price list currency
+        if "currency" in overrides and "rates" not in overrides:
+            data["rates"] = [
+                {
+                    **rate,
+                    "tiered_rates": [{**tr, "unit": overrides["currency"]} for tr in rate.get("tiered_rates", [])],
+                }
+                for rate in data["rates"]
+            ]
+        response = self.client.post(url, data=data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        return response
+
+    # --- Create ---
+
     def test_create_price_list(self):
         """Test creating a price list via the API."""
-        url = reverse("price-lists-list")
-        response = self.client.post(url, data=self.price_list_data, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        response = self._create_price_list()
         self.assertEqual(response.data["name"], "Test Price List")
         self.assertEqual(response.data["version"], 1)
         self.assertIsNotNone(response.data["uuid"])
@@ -71,25 +88,24 @@ class PriceListViewTests(IamTestCase):
         response = self.client.post(url, data=data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    # --- List ---
+
     def test_list_price_lists(self):
         """Test listing price lists."""
-        url = reverse("price-lists-list")
-        # Create two price lists
-        self.client.post(url, data=self.price_list_data, format="json", **self.headers)
-        data2 = self.price_list_data.copy()
-        data2["name"] = "Second Price List"
-        self.client.post(url, data=data2, format="json", **self.headers)
+        self._create_price_list(name="First Price List")
+        self._create_price_list(name="Second Price List")
 
+        url = reverse("price-lists-list")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         results = response.data.get("data", response.data.get("results", []))
-        # At least the 2 we created (migration may add others)
         self.assertGreaterEqual(len(results), 2)
+
+    # --- Retrieve ---
 
     def test_retrieve_price_list(self):
         """Test retrieving a single price list."""
-        url = reverse("price-lists-list")
-        create_response = self.client.post(url, data=self.price_list_data, format="json", **self.headers)
+        create_response = self._create_price_list()
         pl_uuid = create_response.data["uuid"]
 
         detail_url = reverse("price-lists-detail", kwargs={"uuid": pl_uuid})
@@ -97,10 +113,17 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["name"], "Test Price List")
 
+    def test_retrieve_nonexistent_returns_404(self):
+        """Test that retrieving a nonexistent price list returns 404."""
+        detail_url = reverse("price-lists-detail", kwargs={"uuid": "00000000-0000-0000-0000-000000000099"})
+        response = self.client.get(detail_url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    # --- Update ---
+
     def test_update_price_list(self):
         """Test updating a price list via PUT."""
-        url = reverse("price-lists-list")
-        create_response = self.client.post(url, data=self.price_list_data, format="json", **self.headers)
+        create_response = self._create_price_list()
         pl_uuid = create_response.data["uuid"]
 
         detail_url = reverse("price-lists-detail", kwargs={"uuid": pl_uuid})
@@ -112,8 +135,7 @@ class PriceListViewTests(IamTestCase):
 
     def test_update_rates_increments_version(self):
         """Test that updating rates via API increments version."""
-        url = reverse("price-lists-list")
-        create_response = self.client.post(url, data=self.price_list_data, format="json", **self.headers)
+        create_response = self._create_price_list()
         pl_uuid = create_response.data["uuid"]
         self.assertEqual(create_response.data["version"], 1)
 
@@ -130,27 +152,25 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["version"], 2)
 
+    # --- Delete ---
+
     def test_delete_price_list(self):
         """Test deleting a price list."""
-        url = reverse("price-lists-list")
-        create_response = self.client.post(url, data=self.price_list_data, format="json", **self.headers)
+        create_response = self._create_price_list()
         pl_uuid = create_response.data["uuid"]
 
         detail_url = reverse("price-lists-detail", kwargs={"uuid": pl_uuid})
         response = self.client.delete(detail_url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
-        # Verify it's gone
         with tenant_context(self.tenant):
             self.assertFalse(PriceList.objects.filter(uuid=pl_uuid).exists())
 
     def test_delete_assigned_price_list_fails(self):
         """Test that deleting a price list assigned to a cost model fails."""
-        url = reverse("price-lists-list")
-        create_response = self.client.post(url, data=self.price_list_data, format="json", **self.headers)
+        create_response = self._create_price_list()
         pl_uuid = create_response.data["uuid"]
 
-        # Assign to a cost model
         with tenant_context(self.tenant):
             cost_model = CostModel.objects.first()
             PriceListCostModelMap.objects.create(
@@ -163,34 +183,174 @@ class PriceListViewTests(IamTestCase):
         response = self.client.delete(detail_url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-        # Verify it still exists
         with tenant_context(self.tenant):
             self.assertTrue(PriceList.objects.filter(uuid=pl_uuid).exists())
 
-    def test_filter_by_name(self):
-        """Test filtering price lists by name."""
-        url = reverse("price-lists-list")
-        self.client.post(url, data=self.price_list_data, format="json", **self.headers)
-        data2 = self.price_list_data.copy()
-        data2["name"] = "Production Rates"
-        self.client.post(url, data=data2, format="json", **self.headers)
+    # --- Filtering (bracket notation) ---
 
-        response = self.client.get(f"{url}?name=Production", **self.headers)
+    def test_filter_by_name(self):
+        """Test filtering price lists by name using bracket notation."""
+        self._create_price_list(name="Production Rates")
+        self._create_price_list(name="Staging Rates")
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?filter[name]=Production", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         results = response.data.get("data", response.data.get("results", []))
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["name"], "Production Rates")
 
-    def test_retrieve_nonexistent_returns_404(self):
-        """Test that retrieving a nonexistent price list returns 404."""
-        detail_url = reverse("price-lists-detail", kwargs={"uuid": "00000000-0000-0000-0000-000000000099"})
-        response = self.client.get(detail_url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    def test_filter_by_name_comma_separated(self):
+        """Test AND filtering with comma-separated name values."""
+        self._create_price_list(name="Production OCP Rates")
+        self._create_price_list(name="Staging OCP Rates")
+        self._create_price_list(name="Production AWS Rates")
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?filter[name]=Production,OCP", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["name"], "Production OCP Rates")
+
+    def test_filter_by_enabled_true(self):
+        """Test filtering for enabled price lists."""
+        self._create_price_list(name="Enabled PL")
+        self._create_price_list(name="Disabled PL", enabled=False)
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?filter[enabled]=true", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        for result in results:
+            self.assertTrue(result["enabled"])
+
+    def test_filter_by_enabled_false(self):
+        """Test filtering for disabled price lists."""
+        self._create_price_list(name="Enabled PL")
+        self._create_price_list(name="Disabled PL", enabled=False)
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?filter[enabled]=false", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        for result in results:
+            self.assertFalse(result["enabled"])
+
+    def test_filter_enabled_omitted_returns_all(self):
+        """Test that omitting enabled filter returns both enabled and disabled."""
+        self._create_price_list(name="Enabled PL")
+        self._create_price_list(name="Disabled PL", enabled=False)
+
+        url = reverse("price-lists-list")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        enabled_values = {r["enabled"] for r in results}
+        self.assertEqual(enabled_values, {True, False})
+
+    def test_filter_by_currency(self):
+        """Test filtering by currency."""
+        self._create_price_list(name="USD PL", currency="USD")
+        self._create_price_list(name="EUR PL", currency="EUR")
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?filter[currency]=EUR", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        for result in results:
+            self.assertEqual(result["currency"], "EUR")
+
+    # --- Ordering (bracket notation) ---
+
+    def test_order_by_name_asc(self):
+        """Test ordering by name ascending."""
+        self._create_price_list(name="Zebra Rates")
+        self._create_price_list(name="Alpha Rates")
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?order_by[name]=asc", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        names = [r["name"] for r in results]
+        self.assertEqual(names, sorted(names))
+
+    def test_order_by_name_desc(self):
+        """Test ordering by name descending."""
+        self._create_price_list(name="Alpha Rates")
+        self._create_price_list(name="Zebra Rates")
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?order_by[name]=desc", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        names = [r["name"] for r in results]
+        self.assertEqual(names, sorted(names, reverse=True))
+
+    def test_order_by_effective_end_date(self):
+        """Test ordering by effective_end_date."""
+        self._create_price_list(name="Short PL", effective_end_date="2026-03-31")
+        self._create_price_list(name="Long PL", effective_end_date="2026-12-31")
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?order_by[effective_end_date]=asc", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        dates = [r["effective_end_date"] for r in results]
+        self.assertEqual(dates, sorted(dates))
+
+    def test_order_by_currency(self):
+        """Test ordering by currency."""
+        self._create_price_list(name="USD PL", currency="USD")
+        self._create_price_list(name="EUR PL", currency="EUR")
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?order_by[currency]=asc", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_order_by_assigned_cost_model_count(self):
+        """Test ordering by assigned cost model count."""
+        create_response = self._create_price_list(name="Assigned PL")
+        pl_uuid = create_response.data["uuid"]
+        self._create_price_list(name="Unassigned PL")
+
+        with tenant_context(self.tenant):
+            cost_model = CostModel.objects.first()
+            PriceListCostModelMap.objects.create(
+                price_list_id=pl_uuid,
+                cost_model=cost_model,
+                priority=1,
+            )
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?order_by[assigned_cost_model_count]=desc", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    # --- Query param validation ---
+
+    def test_unknown_query_param_returns_400(self):
+        """Test that unknown query params return 400."""
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?foo=bar", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_unknown_filter_param_returns_400(self):
+        """Test that unknown filter params return 400."""
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?filter[invalid_field]=value", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_invalid_ordering_field_returns_400(self):
+        """Test that ordering by invalid field returns 400."""
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?order_by[nonexistent]=asc", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # --- Affected cost models ---
 
     def test_affected_cost_models_none(self):
         """Test affected-cost-models returns empty list when not assigned."""
-        url = reverse("price-lists-list")
-        create_response = self.client.post(url, data=self.price_list_data, format="json", **self.headers)
+        create_response = self._create_price_list()
         pl_uuid = create_response.data["uuid"]
 
         affected_url = reverse("price-lists-affected-cost-models", kwargs={"uuid": pl_uuid})
@@ -200,8 +360,7 @@ class PriceListViewTests(IamTestCase):
 
     def test_affected_cost_models_returns_linked(self):
         """Test affected-cost-models returns cost models linked to this price list."""
-        url = reverse("price-lists-list")
-        create_response = self.client.post(url, data=self.price_list_data, format="json", **self.headers)
+        create_response = self._create_price_list()
         pl_uuid = create_response.data["uuid"]
 
         with tenant_context(self.tenant):
@@ -219,3 +378,89 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(response.data[0]["uuid"], str(cost_model.uuid))
         self.assertEqual(response.data[0]["name"], cost_model.name)
         self.assertEqual(response.data[0]["priority"], 1)
+
+    # --- Inline assigned cost models ---
+
+    def test_inline_assigned_cost_models_in_response(self):
+        """Test that list response includes assigned cost model data inline."""
+        create_response = self._create_price_list()
+        pl_uuid = create_response.data["uuid"]
+
+        with tenant_context(self.tenant):
+            cost_model = CostModel.objects.first()
+            PriceListCostModelMap.objects.create(
+                price_list_id=pl_uuid,
+                cost_model=cost_model,
+                priority=1,
+            )
+
+        url = reverse("price-lists-list")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        pl_result = next(r for r in results if r["uuid"] == pl_uuid)
+        self.assertEqual(pl_result["assigned_cost_model_count"], 1)
+        self.assertEqual(len(pl_result["assigned_cost_models"]), 1)
+        self.assertEqual(pl_result["assigned_cost_models"][0]["uuid"], str(cost_model.uuid))
+
+    def test_inline_assigned_cost_model_count_zero(self):
+        """Test that unassigned price list has count 0."""
+        create_response = self._create_price_list()
+
+        self.assertEqual(create_response.data["assigned_cost_model_count"], 0)
+        self.assertEqual(create_response.data["assigned_cost_models"], [])
+
+    # --- Duplicate ---
+
+    def test_duplicate_price_list(self):
+        """Test duplicating a price list."""
+        create_response = self._create_price_list(name="Original PL")
+        pl_uuid = create_response.data["uuid"]
+
+        dup_url = reverse("price-lists-duplicate", kwargs={"uuid": pl_uuid})
+        response = self.client.post(dup_url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["name"], "Copy of Original PL")
+        self.assertEqual(response.data["version"], 1)
+        self.assertEqual(response.data["enabled"], True)
+        self.assertNotEqual(response.data["uuid"], pl_uuid)
+        self.assertEqual(response.data["currency"], create_response.data["currency"])
+        self.assertEqual(response.data["effective_start_date"], create_response.data["effective_start_date"])
+        self.assertEqual(response.data["effective_end_date"], create_response.data["effective_end_date"])
+
+    def test_duplicate_not_assigned_to_cost_models(self):
+        """Test that duplicated price list is not assigned to any cost models."""
+        create_response = self._create_price_list()
+        pl_uuid = create_response.data["uuid"]
+
+        with tenant_context(self.tenant):
+            cost_model = CostModel.objects.first()
+            PriceListCostModelMap.objects.create(
+                price_list_id=pl_uuid,
+                cost_model=cost_model,
+                priority=1,
+            )
+
+        dup_url = reverse("price-lists-duplicate", kwargs={"uuid": pl_uuid})
+        response = self.client.post(dup_url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["assigned_cost_model_count"], 0)
+        self.assertEqual(response.data["assigned_cost_models"], [])
+
+    def test_duplicate_long_name_truncated(self):
+        """Test that duplicate truncates name if too long."""
+        long_name = "A" * 255
+        create_response = self._create_price_list(name=long_name)
+        pl_uuid = create_response.data["uuid"]
+
+        dup_url = reverse("price-lists-duplicate", kwargs={"uuid": pl_uuid})
+        response = self.client.post(dup_url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.data["name"].startswith("Copy of "))
+        self.assertLessEqual(len(response.data["name"]), 255)
+
+    def test_duplicate_nonexistent_returns_404(self):
+        """Test that duplicating a nonexistent price list returns 404."""
+        dup_url = reverse("price-lists-duplicate", kwargs={"uuid": "00000000-0000-0000-0000-000000000099"})
+        response = self.client.post(dup_url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
