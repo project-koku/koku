@@ -155,6 +155,32 @@ class PriceListManager:
             except Exception as exc:
                 LOG.warning(f"Failed to dispatch recalculation for provider {provider.uuid}: {exc}")
 
+    def duplicate(self):
+        """Duplicate the current price list.
+
+        Creates a copy with name "Copy of <original>", same rates/currency/dates,
+        version=1, enabled=True, not assigned to any cost models.
+        """
+        if not self._model:
+            raise PriceListException("No price list to duplicate.")
+
+        max_length = 255
+        new_name = f"Copy of {self._model.name}"
+        if len(new_name) > max_length:
+            available = max_length - len("Copy of ")
+            new_name = f"Copy of {self._model.name[:available]}"
+
+        return self.create(
+            name=new_name,
+            description=self._model.description,
+            currency=self._model.currency,
+            effective_start_date=self._model.effective_start_date,
+            effective_end_date=self._model.effective_end_date,
+            enabled=True,
+            version=1,
+            rates=_strip_enrichment(self._model.rates),
+        )
+
     def delete(self):
         """Delete a price list. Only allowed if not assigned to any cost model."""
         if not self._model:
