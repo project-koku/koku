@@ -25,15 +25,34 @@ Exact prefix depends on deployment (`API_PATH_PREFIX`).
 
 | Action | HTTP | Notes |
 |--------|------|--------|
-| List / retrieve | `GET` | Filter: `name`, `uuid`, `enabled` (`PriceListFilter`). |
+| List | `GET` | Query contract below; uses [`PriceListFilter`](../../../koku/cost_models/price_list_view.py) + [`SettingsFilter`](../../../koku/api/settings/utils.py) (same bracket style as Settings APIs). |
+| Retrieve | `GET` | Single object by `{uuid}`. |
 | Create | `POST` | Body validated by [`PriceListSerializer`](../../../koku/cost_models/price_list_serializer.py). |
 | Full update | `PUT` | Delegates to serializer `update` → [`PriceListManager.update`](../../../koku/cost_models/price_list_manager.py). |
 | Delete | `DELETE` | [`perform_destroy`](../../../koku/cost_models/price_list_view.py) uses manager: **blocked** if any `PriceListCostModelMap` exists. |
-| Affected cost models | `GET .../price-lists/{uuid}/affected-cost-models/` | Convenience read for impact analysis. |
+| Duplicate | `POST .../price-lists/{uuid}/duplicate/` | Copies rates, dates, currency, description; new name `Copy of …` (max 255 chars); `version=1`, `enabled=true`; **no** cost-model attachments. See [`duplicate`](../../../koku/cost_models/price_list_view.py). |
+| Affected cost models | `GET .../price-lists/{uuid}/affected-cost-models/` | Same assignment info as `assigned_cost_models` on the main resource, as a dedicated array endpoint. |
+
+**List query parameters** (enforced in [`PriceListFilter.filter_queryset`](../../../koku/cost_models/price_list_view.py)): only **`offset`**, **`limit`**, **`filter`**, and **`order_by`** are accepted at the top level. Anything else → **400** (`Unsupported parameter or invalid value`).
+
+**`filter[field]=value`** — allowed keys:
+
+| Key | Behavior |
+|-----|----------|
+| `name` | Case-insensitive **substring**; comma-separated values are **AND**ed (each substring must match). |
+| `uuid` | Exact UUID. |
+| `enabled` | Boolean. |
+| `currency` | Exact match, case-insensitive. |
+
+Unknown `filter[...]` keys → **400**.
+
+**`order_by[field]=asc|desc`** — `field` must resolve to a column or annotation on the list queryset (e.g. `name`, `effective_start_date`, `effective_end_date`, `updated_timestamp`, `currency`, **`assigned_cost_model_count`**). Invalid field or direction → **400**. Default ordering is **`name`** ascending (see `PriceListFilter.Meta.default_ordering`).
+
+**Response shape** ([`PriceListSerializer.to_representation`](../../../koku/cost_models/price_list_serializer.py)): besides persisted fields, each price list includes read-only **`assigned_cost_model_count`** and **`assigned_cost_models`** (`{uuid, name, priority}` per map), so clients do not need a second request to see assignments (the `affected-cost-models` route remains for callers that only need that slice).
 
 **Permissions**: [`CostModelsAccessPermission`](../../../koku/api/common/permissions/cost_models_access.py) on the viewset.
 
-**Caching**: list/create/retrieve/update/destroy are wrapped with `@never_cache`.
+**Caching**: list/create/retrieve/update/destroy, `affected-cost-models`, and `duplicate` are wrapped with `@never_cache`.
 
 ---
 
