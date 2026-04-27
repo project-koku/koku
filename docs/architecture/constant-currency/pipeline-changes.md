@@ -83,9 +83,7 @@ configuring their own on-premise deployment.
 3. Fetches rates from `CURRENCY_URL` *(unchanged when URL is set)*
 4. Upserts `ExchangeRates` rows *(unchanged)*
 5. Rebuilds `ExchangeRateDictionary` *(unchanged)*
-6. **NEW**: Per-tenant currency discovery — creates `CurrencyConfig` rows
-   with `enabled=False` for newly discovered currencies
-7. **NEW**: Per-tenant upsert into `MonthlyExchangeRate` for all currencies
+6. **NEW**: Per-tenant upsert into `MonthlyExchangeRate` for all currencies
    returned by the API
 
 At query time:
@@ -152,26 +150,17 @@ if not settings.CURRENCY_URL:
 Fetch rates from `CURRENCY_URL`, upsert `ExchangeRates`, rebuild
 `ExchangeRateDictionary`. This logic is unchanged from today.
 
-### Step 3: Currency discovery + `MonthlyExchangeRate` upsert (new)
+### Step 3: `MonthlyExchangeRate` upsert (new)
 
-After rebuilding `ExchangeRateDictionary`, add per-tenant currency discovery
-and `MonthlyExchangeRate` upsert:
+After rebuilding `ExchangeRateDictionary`, upsert per-tenant
+`MonthlyExchangeRate` rows:
 
 ```python
 current_month = dh.this_month_start  # date(2026, 3, 1)
 exchange_dict = ExchangeRateDictionary.objects.first().currency_exchange_dictionary
-all_api_currencies = set(exchange_dict.keys())
 
 for tenant in Tenant.objects.exclude(schema_name="public"):
     with schema_context(tenant.schema_name):
-        # Currency discovery: create CurrencyConfig rows for newly seen currencies
-        existing_codes = set(CurrencyConfig.objects.values_list("currency_code", flat=True))
-        new_currencies = all_api_currencies - existing_codes
-        CurrencyConfig.objects.bulk_create(
-            [CurrencyConfig(currency_code=code, enabled=False) for code in new_currencies],
-            ignore_conflicts=True,
-        )
-
         # Pre-fetch all static pairs for this month in a single query
         static_pairs = set(
             MonthlyExchangeRate.objects.filter(
@@ -180,7 +169,7 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
             ).values_list("base_currency", "target_currency")
         )
 
-        # Upsert ALL currencies — enabled flag only controls dropdown visibility
+        # Upsert all currencies — EnabledCurrency controls dropdown visibility
         for base_cur, targets in exchange_dict.items():
             for target_cur, rate in targets.items():
                 if base_cur == target_cur:
@@ -199,12 +188,9 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
 - **URL check**: If `CURRENCY_URL` is not configured, the task skips the API
   fetch. Dynamic rates are simply not fetched; the system uses whatever rates
   are available (static first, dynamic fallback, error if neither exists).
-- **Currency discovery**: Creates `CurrencyConfig` rows with `enabled=False`
-  for any new currencies returned by the API. These appear in Settings as
-  disabled currencies that the administrator can enable.
 - **All currencies stored**: Upserts dynamic rates for all currency pairs
-  returned by the API. The `enabled` flag on `CurrencyConfig` only controls
-  dropdown visibility, not rate storage.
+  returned by the API. The `EnabledCurrency` table controls dropdown visibility,
+  not rate storage. Administrators enable currencies via the Settings API.
 - Runs daily; overwrites current month's dynamic rows with latest rate
 - Skips pairs with `rate_type=RateType.STATIC` (static takes precedence)
 - Past months' rows are never updated (automatic finalization)
@@ -508,23 +494,21 @@ def _validate_exchange_rates(self, queryset):
 ### New: Available Currency Resolution
 
 The query handler (or a shared utility) computes the list of currencies
-visible in the target currency dropdown. All currencies are stored in
-`MonthlyExchangeRate` regardless of their enabled status — the `enabled` flag only
-controls dropdown visibility. A currency is **visible in the dropdown** if any
-of the following are true:
+visible in the target currency dropdown. A currency is **visible in the
+dropdown** if any of the following are true:
 
-1. It has `enabled=True` in `CurrencyConfig`
+1. It exists in the `EnabledCurrency` table
 2. It appears as either `base_currency` or `target_currency` in any
    `StaticExchangeRate` row (static rates make their currencies visible
-   regardless of `CurrencyConfig` status)
+   regardless of `EnabledCurrency` status)
 
 ```python
 @cached_property
 def available_currencies(self):
     """Currencies visible in the target currency dropdown."""
-    # Dynamic: enabled currencies (all are stored; enabled controls visibility only)
+    # Enabled currencies (presence in EnabledCurrency table = enabled)
     enabled_codes = set(
-        CurrencyConfig.objects.filter(enabled=True).values_list("currency_code", flat=True)
+        EnabledCurrency.objects.values_list("currency_code", flat=True)
     )
 
     # Static: all currencies appearing in any static exchange rate pair

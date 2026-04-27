@@ -227,17 +227,15 @@ class StaticExchangeRate(models.Model):
         return f"{self.base_currency}-{self.target_currency}"
 
 
-class CurrencyConfig(models.Model):
-    """Per-tenant currency configuration: tracks which currencies are visible in the target currency dropdown."""
+class EnabledCurrency(models.Model):
+    """Per-tenant enabled currencies: presence in this table means the currency is enabled."""
 
     class Meta:
-        db_table = "currency_config"
+        db_table = "enabled_currency"
         ordering = ["currency_code"]
 
     currency_code = models.CharField(max_length=5, unique=True)
-    enabled = models.BooleanField(default=False)
     created_timestamp = models.DateTimeField(auto_now_add=True)
-    updated_timestamp = models.DateTimeField(auto_now=True)
 
 
 class MonthlyExchangeRate(models.Model):

@@ -26,7 +26,6 @@ from api.utils import DateHelper
 from common.queues import DownloadQueue
 from common.queues import PriorityQueue
 from common.queues import SummaryQueue
-from cost_models.models import CurrencyConfig
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from koku import celery_app
@@ -304,22 +303,8 @@ def _fetch_and_store_exchange_rates(url):
 
 
 def _upsert_tenant_dynamic_exchange_rates(schema_name, exchange_dict, current_month):
-    """Sync CurrencyConfig and upsert dynamic MonthlyExchangeRate rows for one tenant."""
+    """Upsert dynamic MonthlyExchangeRate rows for one tenant."""
     with schema_context(schema_name):
-        existing_codes = set(CurrencyConfig.objects.values_list("currency_code", flat=True))
-        new_currencies = set(exchange_dict.keys()) - existing_codes
-        if new_currencies:
-            CurrencyConfig.objects.bulk_create(
-                [
-                    CurrencyConfig(
-                        currency_code=code,
-                        enabled=False,
-                    )
-                    for code in new_currencies
-                ],
-                ignore_conflicts=True,
-            )
-
         static_pairs = set(
             MonthlyExchangeRate.objects.filter(
                 effective_date=current_month,

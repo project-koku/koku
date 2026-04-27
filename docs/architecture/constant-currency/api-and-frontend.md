@@ -149,55 +149,50 @@ allows an administrator to enable or disable currencies.
 
 ### View
 
-**File**: Extend existing settings views in `koku/api/settings/` or add a new
-`CurrencyConfigViewSet`.
+**File**: `koku/api/settings/currency_views.py` — `AllCurrencyView` (GET) and
+`EnabledCurrencyConfigView` (POST).
 
 **Permission**: Cost Management Administrator role (same permission level as
 other Settings operations).
 
-### Example: GET Response
+### Example: GET `settings/currency/` Response
+
+Returns all ISO 4217 currencies (from Babel) with an `enabled` flag based on
+`EnabledCurrency` table membership.
 
 ```json
 {
-  "meta": { "count": 5 },
+  "meta": { "count": 300 },
   "data": [
-    { "currency_code": "USD", "enabled": true },
-    { "currency_code": "EUR", "enabled": true },
-    { "currency_code": "GBP", "enabled": false },
-    { "currency_code": "CNY", "enabled": false },
-    { "currency_code": "JPY", "enabled": false }
+    { "code": "AED", "name": "UAE Dirham", "symbol": "AED", "description": "...", "enabled": false },
+    { "code": "EUR", "name": "Euro", "symbol": "€", "description": "...", "enabled": true },
+    { "code": "USD", "name": "US Dollar", "symbol": "$", "description": "...", "enabled": true }
   ]
 }
 ```
 
-Currencies with `enabled: false` were discovered by the daily exchange rate API
-fetch but have not been enabled by an administrator. They will not appear in the
-target currency dropdown until enabled. All currencies are always stored
-regardless of their enabled status.
+### Example: POST `settings/currency/config/` Request (Bulk Set)
 
-### Example: PUT Request (Enable/Disable)
+Replaces all enabled currencies atomically with the submitted list.
 
 ```json
 {
-  "currencies": [
-    { "currency_code": "GBP", "enabled": true },
-    { "currency_code": "CNY", "enabled": true }
-  ]
+  "currencies": ["USD", "EUR", "GBP"]
 }
 ```
+
+Response: `204 No Content`
 
 **Side effects**: Enabling or disabling a currency only affects its visibility
 in the target currency dropdown. It does not affect the `MonthlyExchangeRate`,
-`ExchangeRateDictionary`, `ExchangeRates`, or `StaticExchangeRate`
-tables — all currencies are always stored regardless of their enabled status.
+`ExchangeRateDictionary`, `ExchangeRates`, or `StaticExchangeRate` tables.
 
 ### No `CURRENCY_URL` Configured
 
-When no `CURRENCY_URL` is configured, no dynamic currencies are discovered by the
-Celery task, so the `CurrencyConfig` table will have no dynamically-discovered
-rows. The GET response will return either an empty list or only currencies that
-were manually added. Previously fetched dynamic currencies (if the URL was
-removed later) remain in the table.
+When no `CURRENCY_URL` is configured, no dynamic exchange rates are fetched by
+the Celery task. The `EnabledCurrency` table only contains currencies that an
+administrator has explicitly enabled via the Settings API. The full list of
+ISO 4217 currencies is always available from Babel.
 
 ---
 
@@ -210,8 +205,8 @@ currencies from two sources:
 
 | Source | Rule | Example |
 |--------|------|---------|
-| **Dynamic** | Currency has `enabled=True` in `CurrencyConfig` | USD, EUR enabled → appear in dropdown |
-| **Static** | Currency appears in any `StaticExchangeRate` pair (as base or target) | Static rate EUR→CHF defined → both EUR and CHF appear in dropdown regardless of `CurrencyConfig` status |
+| **Dynamic** | Currency exists in `EnabledCurrency` table | USD, EUR enabled → appear in dropdown |
+| **Static** | Currency appears in any `StaticExchangeRate` pair (as base or target) | Static rate EUR→CHF defined → both EUR and CHF appear in dropdown regardless of `EnabledCurrency` status |
 
 ### Dropdown Endpoint
 
@@ -242,7 +237,7 @@ static rates, or both. This is informational for the frontend.
 
 When **no currencies are available at all** — meaning:
 
-- All dynamic currencies are disabled in `CurrencyConfig` (or none exist), **and**
+- No currencies exist in `EnabledCurrency` (none enabled), **and**
 - No `StaticExchangeRate` rows exist (no static rates)
 
 Then the currency dropdown should either be **hidden** or show a message:

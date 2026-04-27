@@ -9,7 +9,8 @@ from django.views.decorators.cache import cache_page
 from rest_framework.routers import DefaultRouter
 
 from api.common.deprecate_view import SunsetView
-from api.settings.currency_views import CurrencyConfigView
+from api.settings.currency_views import AllCurrencyView
+from api.settings.currency_views import EnabledCurrencyConfigView
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
@@ -427,8 +428,13 @@ urlpatterns = [
     ),
     path(
         "settings/currency/config/",
-        CurrencyConfigView.as_view(),
+        EnabledCurrencyConfigView.as_view(),
         name="currency-config",
+    ),
+    path(
+        "settings/currency/",
+        AllCurrencyView.as_view(),
+        name="all-currencies",
     ),
     path(
         "settings/currency/static-exchange-rates/",

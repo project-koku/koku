@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from cost_models.models import CurrencyConfig
+from cost_models.models import EnabledCurrency
 
 
 class CurrencyViewTest(IamTestCase):
@@ -17,10 +17,9 @@ class CurrencyViewTest(IamTestCase):
 
     def setUp(self):
         super().setUp()
-        CurrencyConfig.objects.all().delete()
-        CurrencyConfig.objects.create(currency_code="USD", enabled=True)
-        CurrencyConfig.objects.create(currency_code="EUR", enabled=True)
-        CurrencyConfig.objects.create(currency_code="GBP", enabled=False)
+        EnabledCurrency.objects.all().delete()
+        EnabledCurrency.objects.create(currency_code="USD")
+        EnabledCurrency.objects.create(currency_code="EUR")
 
     @patch(
         "api.currency.view.get_currency_info",
@@ -45,11 +44,13 @@ class CurrencyViewTest(IamTestCase):
         ]
         self.assertEqual(data.get("data"), expected)
 
-    def test_disabled_currencies_excluded(self):
-        """Test that disabled currencies do not appear in the response."""
+    def test_non_enabled_currencies_excluded(self):
+        """Test that currencies not in the EnabledCurrency table do not appear in the response."""
         url = reverse("currency") + "?limit=25"
         client = APIClient()
 
         response = client.get(url, **self.headers)
         codes = [c["code"] for c in response.data["data"]]
+        self.assertIn("USD", codes)
+        self.assertIn("EUR", codes)
         self.assertNotIn("GBP", codes)

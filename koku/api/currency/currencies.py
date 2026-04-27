@@ -2,11 +2,11 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Currency helpers backed by the CurrencyConfig table.
+"""Currency helpers backed by the EnabledCurrency table.
 
-No hardcoded currency list.  Currencies are discovered dynamically by the
-daily Celery task and managed via the CurrencyConfig table (tenant schema).
-Administrators enable currencies through the Settings UI.
+All known currencies come from babel's ISO 4217 registry.  Only the
+currencies that an administrator has explicitly enabled are stored in
+the ``EnabledCurrency`` table (tenant schema).
 
 Name, symbol, and description are computed at response time via babel.
 """
@@ -16,7 +16,7 @@ from babel.numbers import get_currency_symbol
 from babel.numbers import UnknownCurrencyError
 from rest_framework import serializers
 
-from cost_models.models import CurrencyConfig
+from cost_models.models import EnabledCurrency
 
 _ISO_4217_CURRENCIES = get_global("all_currencies")
 
@@ -27,15 +27,7 @@ def get_enabled_currency_codes():
     Requires tenant schema context (set by django-tenants middleware for
     requests or by ``schema_context()`` in tasks).
     """
-    return set(CurrencyConfig.objects.filter(enabled=True).values_list("currency_code", flat=True))
-
-
-def get_all_currency_codes():
-    """Return the set of all known currency codes (enabled or not).
-
-    Requires tenant schema context.
-    """
-    return set(CurrencyConfig.objects.values_list("currency_code", flat=True))
+    return set(EnabledCurrency.objects.values_list("currency_code", flat=True))
 
 
 class CurrencyField(serializers.CharField):
@@ -53,12 +45,7 @@ class CurrencyField(serializers.CharField):
 
 
 def is_valid_iso_currency(code):
-    """Check whether *code* is a valid ISO 4217 currency using babel's registry.
-
-    Unlike ``get_all_currency_codes`` this does NOT require the currency to
-    already exist in ``CurrencyConfig``, so it can be used to validate codes
-    *before* they are inserted (e.g. when creating static exchange rates).
-    """
+    """Check whether *code* is a valid ISO 4217 currency using babel's registry."""
     return code.upper() in _ISO_4217_CURRENCIES
 
 
