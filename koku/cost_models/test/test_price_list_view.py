@@ -199,7 +199,10 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(create_response.data["currency"], "USD")
 
         detail_url = reverse("price-lists-detail", kwargs={"uuid": pl_uuid})
-        update_data = {"name": "Updated Name"}
+        update_data = self.price_list_data.copy()
+        update_data["name"] = "Updated Name"
+        # omit currency from update_data
+        del update_data["currency"]
         response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["currency"], "USD")
