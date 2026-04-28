@@ -243,8 +243,8 @@ class PriceListViewTests(IamTestCase):
 
     # --- Filtering (bracket notation) ---
 
-    def test_filter_by_name(self):
-        """Test filtering price lists by name using bracket notation."""
+    def test_filter_by_name_single_value(self):
+        """Test filtering price lists by name with a single value."""
         self._create_price_list(name="Production Rates")
         self._create_price_list(name="Staging Rates")
 
@@ -255,18 +255,40 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["name"], "Production Rates")
 
-    def test_filter_by_name_comma_separated(self):
-        """Test AND filtering with comma-separated name values."""
-        self._create_price_list(name="Production OCP Rates")
-        self._create_price_list(name="Staging OCP Rates")
-        self._create_price_list(name="Production AWS Rates")
+    def test_filter_by_name_csv_one_match(self):
+        """Test OR filtering with comma-separated values where only one matches."""
+        self._create_price_list(name="Production Rates")
 
         url = reverse("price-lists-list")
-        response = self.client.get(f"{url}?filter[name]=Production,OCP", **self.headers)  # noqa: E231
+        response = self.client.get(f"{url}?filter[name]=Production,Nonexistent", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         results = response.data.get("data", response.data.get("results", []))
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["name"], "Production OCP Rates")
+        matching = [r for r in results if r["name"] == "Production Rates"]
+        self.assertEqual(len(matching), 1)
+
+    def test_filter_by_name_repeated_params_both_match(self):
+        """Test OR filtering with repeated bracket params where both values match."""
+        self._create_price_list(name="Production Rates")
+        self._create_price_list(name="Staging Rates")
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?filter[name]=Production&filter[name]=Staging", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        names = [r["name"] for r in results]
+        self.assertIn("Production Rates", names)
+        self.assertIn("Staging Rates", names)
+
+    def test_filter_by_name_repeated_params_one_match(self):
+        """Test OR filtering with repeated bracket params where only one value matches."""
+        self._create_price_list(name="Production Rates")
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?filter[name]=Production&filter[name]=Nonexistent", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        matching = [r for r in results if r["name"] == "Production Rates"]
+        self.assertEqual(len(matching), 1)
 
     def test_filter_by_enabled_true(self):
         """Test filtering for enabled price lists."""
