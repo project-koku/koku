@@ -353,7 +353,7 @@ class ParamSerializer(BaseSerializer):
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
 
-    currency = CurrencyField(required=False)
+    currency = CurrencyField(required=False, enabled_only=True)
     category = StringOrListField(child=serializers.CharField(), required=False)
 
     order_by_allowlist = (

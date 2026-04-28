@@ -29,7 +29,7 @@ class UserSettingUpdateCostTypeSerializer(serializers.Serializer):
 class UserSettingUpdateCurrencySerializer(serializers.Serializer):
     """Serializer for setting currency."""
 
-    currency = CurrencyField()
+    currency = CurrencyField(enabled_only=True)
 
 
 class TenantSettingsSerializer(serializers.Serializer):

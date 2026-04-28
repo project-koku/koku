@@ -33,13 +33,14 @@ def get_enabled_currency_codes():
 class CurrencyField(serializers.CharField):
     """CharField that normalizes to uppercase and validates against enabled currencies."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, *, enabled_only, **kwargs):
         kwargs.setdefault("max_length", 5)
+        self.enabled_only = enabled_only
         super().__init__(**kwargs)
 
     def to_internal_value(self, data):
         value = super().to_internal_value(data).upper()
-        if value not in get_enabled_currency_codes():
+        if self.enabled_only and value not in get_enabled_currency_codes():
             raise serializers.ValidationError(f'"{value}" is not an enabled currency.')
         return value
 

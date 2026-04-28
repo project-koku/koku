@@ -17,7 +17,7 @@ class ForecastParamSerializer(serializers.Serializer):
 
     limit = serializers.IntegerField(required=False, min_value=1)
     offset = serializers.IntegerField(required=False, min_value=0)
-    currency = CurrencyField(required=False)
+    currency = CurrencyField(required=False, enabled_only=True)
 
     def __init__(self, *args, **kwargs):
         """Initialize the BaseSerializer."""

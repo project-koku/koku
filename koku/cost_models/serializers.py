@@ -95,7 +95,7 @@ class TieredRateSerializer(serializers.Serializer):
 
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     usage = serializers.DictField(required=False)
-    unit = CurrencyField()
+    unit = CurrencyField(enabled_only=True)
 
     def validate_value(self, value):
         """Check that value is a positive value."""
@@ -133,7 +133,7 @@ class TagRateValueSerializer(serializers.Serializer):
     DECIMALS = ("value", "usage_start", "usage_end")
 
     tag_value = serializers.CharField(max_length=100)
-    unit = CurrencyField()
+    unit = CurrencyField(enabled_only=True)
     usage = serializers.DictField(required=False)
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     description = serializers.CharField(allow_blank=True, max_length=500)
@@ -459,7 +459,7 @@ class CostModelSerializer(BaseSerializer):
 
     distribution_info = DistributionSerializer(required=False)
 
-    currency = CurrencyField(required=False)
+    currency = CurrencyField(required=False, enabled_only=True)
 
     price_list_uuids = serializers.ListField(child=serializers.UUIDField(), required=False)
 
