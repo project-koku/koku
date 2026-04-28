@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='exchangerates',
             name='currency_type',
-            field=models.CharField(blank=True, max_length=5),
+            field=models.CharField(max_length=5),
         ),
     ]

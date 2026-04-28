@@ -11,7 +11,7 @@ from koku.type_json_transcode import TypedJSONEncoder
 
 
 class ExchangeRates(models.Model):
-    currency_type = models.CharField(max_length=5, unique=False, blank=True)
+    currency_type = models.CharField(max_length=5, unique=False)
     exchange_rate = models.FloatField(default=0)
 
 
