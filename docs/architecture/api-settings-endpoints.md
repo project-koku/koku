@@ -523,12 +523,12 @@ Control which ISO 4217 currencies are available for selection across the tenant.
 
 ### **Endpoints**
 
-#### List All Currencies
+#### List Enabled Currencies
 ```
-GET /settings/currency/
+GET /currency/
 ```
 
-Returns every ISO 4217 currency with an `enabled` flag indicating whether the tenant has enabled it.
+Returns only the currencies that an administrator has enabled via the `EnabledCurrency` table. Metadata (name, symbol, description) is computed at response time via babel.
 
 **Query Parameters:**
 - `limit` (integer) - Results per page
@@ -538,43 +538,39 @@ Returns every ISO 4217 currency with an `enabled` flag indicating whether the te
 ```json
 {
   "meta": {
-    "count": 160
+    "count": 2
   },
   "data": [
-    {
-      "code": "USD",
-      "name": "US Dollar",
-      "symbol": "$",
-      "description": "USD ($) - US Dollar",
-      "enabled": true
-    },
     {
       "code": "EUR",
       "name": "Euro",
       "symbol": "€",
-      "description": "EUR (€) - Euro",
-      "enabled": false
+      "description": "EUR (€) - Euro"
+    },
+    {
+      "code": "USD",
+      "name": "US Dollar",
+      "symbol": "$",
+      "description": "USD ($) - US Dollar"
     }
   ]
 }
 ```
 
-#### Toggle a Currency
+#### Enable a Currency
 ```
-PUT /settings/currency/<code>/
+POST /settings/currency/exchange_rate/<code>/enable/
+```
+
+#### Disable a Currency
+```
+DELETE /settings/currency/exchange_rate/<code>/enable/
 ```
 
 Enable or disable a single currency by its ISO 4217 code in the URL path.
 
 **Path Parameters:**
 - `code` (string) - ISO 4217 currency code (case-insensitive, normalized to uppercase)
-
-**Request Body:**
-```json
-{
-  "enabled": true
-}
-```
 
 **Response:** `204 No Content`
 
@@ -583,14 +579,14 @@ Enable or disable a single currency by its ISO 4217 code in the URL path.
 **Invalid Currency Code (400 Bad Request):**
 ```json
 {
-  "error": "Invalid ISO 4217 currency code: INVALID"
+  "code": ["Invalid ISO 4217 currency code: INVALID"]
 }
 ```
 
 **Behavior:**
-- `enabled: true` — idempotently creates an `EnabledCurrency` row for the code
-- `enabled: false` — idempotently deletes the `EnabledCurrency` row if it exists
-- Currency code in the URL is case-insensitive (`/settings/currency/usd/` enables `USD`)
+- `POST` — idempotently creates an `EnabledCurrency` row for the code
+- `DELETE` — idempotently deletes the `EnabledCurrency` row if it exists
+- Currency code in the URL is case-insensitive (`/settings/currency/exchange_rate/usd/enable/` enables `USD`)
 
 ---
 
