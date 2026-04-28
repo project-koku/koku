@@ -6,7 +6,6 @@
 from rest_framework import serializers
 
 from api.currency.currencies import CurrencyField
-from api.currency.currencies import is_valid_iso_currency
 from api.settings.settings import COST_TYPE_CHOICES
 from reporting.tenant_settings.models import TenantSettings
 from reporting.user_settings.models import UserSettings
@@ -43,12 +42,6 @@ class TenantSettingsSerializer(serializers.Serializer):
 
 
 class EnabledCurrencySerializer(serializers.Serializer):
-    """Accepts a list of ISO 4217 currency codes to enable."""
+    """Accepts an enabled flag for a single currency (code comes from the URL path)."""
 
-    currencies = serializers.ListField(child=serializers.CharField(max_length=5), allow_empty=True)
-
-    def validate_currencies(self, value):
-        invalid = [code for code in value if not is_valid_iso_currency(code)]
-        if invalid:
-            raise serializers.ValidationError(f"Invalid ISO 4217 currency codes: {', '.join(invalid)}")
-        return [code.upper() for code in value]
+    enabled = serializers.BooleanField()

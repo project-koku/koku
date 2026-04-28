@@ -13,57 +13,66 @@ from cost_models.models import EnabledCurrency
 
 
 class EnabledCurrencyConfigViewTest(IamTestCase):
-    """Tests for EnabledCurrencyConfigView (POST settings/currency/config/)."""
+    """Tests for EnabledCurrencyView (PUT settings/currency/<code>/)."""
 
     def setUp(self):
         super().setUp()
         self.client = APIClient()
-        self.url = reverse("currency-config")
 
-    def test_post_sets_enabled_currencies(self):
+    def _url(self, code):
+        return reverse("currency-config", kwargs={"code": code})
+
+    def test_put_enables_currency(self):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
-            data = {"currencies": ["USD", "EUR", "GBP"]}
-            response = self.client.post(self.url, data=data, format="json", **self.headers)
+            response = self.client.put(self._url("USD"), data={"enabled": True}, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-            self.assertEqual(EnabledCurrency.objects.count(), 3)
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="USD").exists())
-            self.assertTrue(EnabledCurrency.objects.filter(currency_code="EUR").exists())
-            self.assertTrue(EnabledCurrency.objects.filter(currency_code="GBP").exists())
 
-    def test_post_replaces_existing(self):
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-            EnabledCurrency.objects.create(currency_code="JPY")
-            data = {"currencies": ["USD"]}
-            response = self.client.post(self.url, data=data, format="json", **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-            self.assertEqual(EnabledCurrency.objects.count(), 1)
-            self.assertTrue(EnabledCurrency.objects.filter(currency_code="USD").exists())
-            self.assertFalse(EnabledCurrency.objects.filter(currency_code="JPY").exists())
-
-    def test_post_empty_list_clears_all(self):
+    def test_put_disables_currency(self):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
-            data = {"currencies": []}
-            response = self.client.post(self.url, data=data, format="json", **self.headers)
+            response = self.client.put(self._url("USD"), data={"enabled": False}, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-            self.assertEqual(EnabledCurrency.objects.count(), 0)
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="USD").exists())
 
-    def test_post_invalid_currency_code(self):
-        data = {"currencies": ["INVALID"]}
-        response = self.client.post(self.url, data=data, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_post_normalizes_to_uppercase(self):
+    def test_put_enable_is_idempotent(self):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
-            data = {"currencies": ["usd", "eur"]}
-            response = self.client.post(self.url, data=data, format="json", **self.headers)
+            EnabledCurrency.objects.create(currency_code="USD")
+            response = self.client.put(self._url("USD"), data={"enabled": True}, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+            self.assertEqual(EnabledCurrency.objects.filter(currency_code="USD").count(), 1)
+
+    def test_put_disable_is_idempotent(self):
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.all().delete()
+            response = self.client.put(self._url("USD"), data={"enabled": False}, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="USD").exists())
+
+    def test_put_does_not_affect_other_currencies(self):
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="EUR")
+            EnabledCurrency.objects.create(currency_code="GBP")
+            response = self.client.put(self._url("USD"), data={"enabled": True}, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+            self.assertTrue(EnabledCurrency.objects.filter(currency_code="EUR").exists())
+            self.assertTrue(EnabledCurrency.objects.filter(currency_code="GBP").exists())
+            self.assertTrue(EnabledCurrency.objects.filter(currency_code="USD").exists())
+
+    def test_put_invalid_currency_code(self):
+        response = self.client.put(self._url("INVALID"), data={"enabled": True}, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_normalizes_to_uppercase(self):
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.all().delete()
+            response = self.client.put(self._url("usd"), data={"enabled": True}, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="USD").exists())
-            self.assertTrue(EnabledCurrency.objects.filter(currency_code="EUR").exists())
 
 
 class AllCurrencyViewTest(IamTestCase):

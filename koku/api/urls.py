@@ -427,11 +427,6 @@ urlpatterns = [
         name="settings-aws-category-keys-disable",
     ),
     path(
-        "settings/currency/enabled/",
-        EnabledCurrencyView.as_view(),
-        name="currency-config",
-    ),
-    path(
         "settings/currency/",
         AllCurrencyView.as_view(),
         name="all-currencies",
@@ -445,6 +440,11 @@ urlpatterns = [
         "settings/currency/static-exchange-rates/<uuid:uuid>/",
         StaticExchangeRateViewSet.as_view({"get": "retrieve", "put": "update", "delete": "destroy"}),
         name="static-exchange-rates-detail",
+    ),
+    path(
+        "settings/currency/<str:code>/",
+        EnabledCurrencyView.as_view(),
+        name="currency-config",
     ),
     path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),

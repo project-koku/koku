@@ -516,6 +516,84 @@ PUT /settings/aws_category_keys/disable/
 
 ---
 
+## Currency Enablement
+
+### **Purpose**
+Control which ISO 4217 currencies are available for selection across the tenant. Only enabled currencies can be used in account settings, cost models, and report filters.
+
+### **Endpoints**
+
+#### List All Currencies
+```
+GET /settings/currency/
+```
+
+Returns every ISO 4217 currency with an `enabled` flag indicating whether the tenant has enabled it.
+
+**Query Parameters:**
+- `limit` (integer) - Results per page
+- `offset` (integer) - Pagination offset
+
+**Response:**
+```json
+{
+  "meta": {
+    "count": 160
+  },
+  "data": [
+    {
+      "code": "USD",
+      "name": "US Dollar",
+      "symbol": "$",
+      "description": "USD ($) - US Dollar",
+      "enabled": true
+    },
+    {
+      "code": "EUR",
+      "name": "Euro",
+      "symbol": "€",
+      "description": "EUR (€) - Euro",
+      "enabled": false
+    }
+  ]
+}
+```
+
+#### Toggle a Currency
+```
+PUT /settings/currency/<code>/
+```
+
+Enable or disable a single currency by its ISO 4217 code in the URL path.
+
+**Path Parameters:**
+- `code` (string) - ISO 4217 currency code (case-insensitive, normalized to uppercase)
+
+**Request Body:**
+```json
+{
+  "enabled": true
+}
+```
+
+**Response:** `204 No Content`
+
+**Error Responses:**
+
+**Invalid Currency Code (400 Bad Request):**
+```json
+{
+  "error": "Invalid ISO 4217 currency code: INVALID"
+}
+```
+
+**Behavior:**
+- `enabled: true` — idempotently creates an `EnabledCurrency` row for the code
+- `enabled: false` — idempotently deletes the `EnabledCurrency` row if it exists
+- Currency code in the URL is case-insensitive (`/settings/currency/usd/` enables `USD`)
+
+---
+
 ## Cost Groups (OpenShift)
 
 ### **Purpose**
