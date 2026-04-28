@@ -21,7 +21,6 @@ from urllib.parse import quote
 import ciso8601
 import numpy as np
 import pandas as pd
-from dateutil.relativedelta import relativedelta
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
