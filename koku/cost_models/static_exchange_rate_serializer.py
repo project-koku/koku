@@ -34,11 +34,10 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             "exchange_rate",
             "start_date",
             "end_date",
-            "version",
             "created_timestamp",
             "updated_timestamp",
         ]
-        read_only_fields = ["uuid", "name", "version", "created_timestamp", "updated_timestamp"]
+        read_only_fields = ["uuid", "name", "created_timestamp", "updated_timestamp"]
 
     def get_name(self, obj):
         return f"{obj.base_currency}-{obj.target_currency}"
@@ -113,8 +112,6 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         old_base = instance.base_currency
         old_target = instance.target_currency
 
-        validated_data["version"] = instance.version + 1
-
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
@@ -130,7 +127,6 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             log_json(
                 msg="Static exchange rate updated",
                 pair=instance.name,
-                version=instance.version,
             )
         )
         return instance

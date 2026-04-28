@@ -94,7 +94,6 @@ class StaticExchangeRateSerializerTest(MasuTestCase):
             instance = serializer.save()
 
             self.assertIsNotNone(instance.uuid)
-            self.assertEqual(instance.version, 1)
             self.assertEqual(instance.name, "USD-EUR")
 
             monthly_rates = MonthlyExchangeRate.objects.filter(
@@ -124,23 +123,6 @@ class StaticExchangeRateSerializerTest(MasuTestCase):
             }
             serializer2 = StaticExchangeRateSerializer(data=overlap_data, context=self._make_request_context())
             self.assertFalse(serializer2.is_valid())
-
-    @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
-    def test_update_increments_version(self, mock_invalidate):
-        """Test that updating a static rate increments the version."""
-        with tenant_context(self.tenant):
-            serializer = StaticExchangeRateSerializer(data=self.valid_data, context=self._make_request_context())
-            serializer.is_valid(raise_exception=True)
-            instance = serializer.save()
-            self.assertEqual(instance.version, 1)
-
-            update_data = {"exchange_rate": "0.900000000000000"}
-            serializer2 = StaticExchangeRateSerializer(
-                instance=instance, data=update_data, partial=True, context=self._make_request_context()
-            )
-            serializer2.is_valid(raise_exception=True)
-            updated = serializer2.save()
-            self.assertEqual(updated.version, 2)
 
     def test_delete_removes_static_monthly_rates(self):
         """Test that deleting a static rate removes static MonthlyExchangeRate rows."""

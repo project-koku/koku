@@ -210,7 +210,7 @@ class StaticExchangeRate(models.Model):
     class Meta:
         db_table = "static_exchange_rate"
         ordering = ["-updated_timestamp"]
-        unique_together = [("base_currency", "target_currency", "start_date", "end_date", "version")]
+        unique_together = [("base_currency", "target_currency", "start_date", "end_date")]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
     base_currency = models.CharField(max_length=5)
@@ -218,7 +218,6 @@ class StaticExchangeRate(models.Model):
     exchange_rate = models.DecimalField(max_digits=33, decimal_places=15)
     start_date = models.DateField()
     end_date = models.DateField()
-    version = models.IntegerField(default=1)
     created_timestamp = models.DateTimeField(auto_now_add=True)
     updated_timestamp = models.DateTimeField(auto_now=True)
 

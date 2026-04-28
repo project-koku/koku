@@ -69,7 +69,6 @@ class StaticExchangeRate(models.Model):
     exchange_rate = models.DecimalField(max_digits=33, decimal_places=15)
     start_date = models.DateField()   # first day of a natural month
     end_date = models.DateField()     # last day of a natural month (or later)
-    version = models.IntegerField(default=1)
     created_timestamp = models.DateTimeField(auto_now_add=True)
     updated_timestamp = models.DateTimeField(auto_now=True)
 
@@ -80,15 +79,15 @@ class StaticExchangeRate(models.Model):
 
 **Example `static_exchange_rate` rows**:
 
-| uuid | base_currency | target_currency | exchange_rate | start_date | end_date | version | created_timestamp | updated_timestamp |
-|------|---------------|-----------------|---------------|------------|----------|---------|-------------------|-------------------|
-| `a1b2c3d4-...` | `USD` | `EUR` | `0.920000000000000` | `2026-01-01` | `2026-03-31` | 1 | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
-| `e5f6a7b8-...` | `USD` | `GBP` | `0.780000000000000` | `2026-01-01` | `2026-01-31` | 2 | `2026-01-10 08:00:00+00` | `2026-01-20 14:22:00+00` |
-| `c9d0e1f2-...` | `EUR` | `GBP` | `0.848000000000000` | `2026-02-01` | `2026-06-30` | 1 | `2026-02-01 09:00:00+00` | `2026-02-01 09:00:00+00` |
+| uuid | base_currency | target_currency | exchange_rate | start_date | end_date | created_timestamp | updated_timestamp |
+|------|---------------|-----------------|---------------|------------|----------|-------------------|-------------------|
+| `a1b2c3d4-...` | `USD` | `EUR` | `0.920000000000000` | `2026-01-01` | `2026-03-31` | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
+| `e5f6a7b8-...` | `USD` | `GBP` | `0.780000000000000` | `2026-01-01` | `2026-01-31` | `2026-01-10 08:00:00+00` | `2026-01-20 14:22:00+00` |
+| `c9d0e1f2-...` | `EUR` | `GBP` | `0.848000000000000` | `2026-02-01` | `2026-06-30` | `2026-02-01 09:00:00+00` | `2026-02-01 09:00:00+00` |
 
 In this example:
 - The `USD→EUR` rate of `0.92` applies for Jan–Mar 2026 (overrides dynamic rates for those months)
-- The `USD→GBP` rate was updated once (`version=2`) and only covers January
+- The `USD→GBP` rate only covers January
 - The `EUR→GBP` rate covers Feb–Jun 2026
 
 **Constraints** (enforced in serializer validation):
@@ -99,7 +98,6 @@ In this example:
   that same month or a later month
 - No overlapping validity periods for the same `(base_currency, target_currency)`
   directional pair
-- `version` auto-increments on update (managed by serializer, not DB trigger)
 
 **Computed properties**:
 

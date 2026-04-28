@@ -40,7 +40,6 @@ class StaticExchangeRateViewSetTest(IamTestCase):
             self.assertEqual(data["base_currency"], "USD")
             self.assertEqual(data["target_currency"], "EUR")
             self.assertEqual(data["name"], "USD-EUR")
-            self.assertEqual(data["version"], 1)
 
     @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
     def test_list_returns_grouped_by_currency(self, mock_invalidate):
@@ -94,7 +93,6 @@ class StaticExchangeRateViewSetTest(IamTestCase):
             update_data["exchange_rate"] = "0.900000000000000"
             response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(response.data["version"], 2)
 
     @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
     def test_delete_static_rate(self, mock_invalidate):

@@ -65,7 +65,6 @@ Administrator** role.
 | Different currencies | `base_currency != target_currency` |
 | Month boundaries | `start_date` must be 1st of month; `end_date` must be last day of a month |
 | No overlap | No overlapping validity periods for same directional `(base, target)` pair |
-| Version | Auto-increment `version` on update |
 | Name | Read-only computed field: `"{base_currency}-{target_currency}"` |
 
 **Side effects** (see [pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--monthlyexchangerate-upsert--writer-2)):
@@ -107,7 +106,6 @@ Only currencies with at least one `StaticExchangeRate` record appear.
           "exchange_rate": "0.870000000000000",
           "start_date": "2026-01-01",
           "end_date": "2026-03-31",
-          "version": 1,
           "created_timestamp": "2026-01-15T10:30:00Z",
           "updated_timestamp": "2026-01-15T10:30:00Z"
         }
@@ -127,7 +125,6 @@ Only currencies with at least one `StaticExchangeRate` record appear.
           "exchange_rate": "0.740000000000000",
           "start_date": "2026-01-01",
           "end_date": "2026-06-30",
-          "version": 2,
           "created_timestamp": "2026-01-15T10:30:00Z",
           "updated_timestamp": "2026-02-01T14:00:00Z"
         }
