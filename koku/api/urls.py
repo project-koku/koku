@@ -9,7 +9,6 @@ from django.views.decorators.cache import cache_page
 from rest_framework.routers import DefaultRouter
 
 from api.common.deprecate_view import SunsetView
-from api.settings.currency_views import AllCurrencyView
 from api.settings.currency_views import EnabledCurrencyView
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
@@ -427,22 +426,17 @@ urlpatterns = [
         name="settings-aws-category-keys-disable",
     ),
     path(
-        "settings/currency/",
-        AllCurrencyView.as_view(),
-        name="all-currencies",
-    ),
-    path(
-        "settings/currency/static-exchange-rates/",
+        "settings/currency/exchange_rate/",
         StaticExchangeRateViewSet.as_view({"get": "list", "post": "create"}),
-        name="static-exchange-rates-list",
+        name="exchange-rate-list",
     ),
     path(
-        "settings/currency/static-exchange-rates/<uuid:uuid>/",
-        StaticExchangeRateViewSet.as_view({"get": "retrieve", "put": "update", "delete": "destroy"}),
-        name="static-exchange-rates-detail",
+        "settings/currency/exchange_rate/<uuid:uuid>/",
+        StaticExchangeRateViewSet.as_view({"put": "update", "delete": "destroy"}),
+        name="exchange-rate-detail",
     ),
     path(
-        "settings/currency/<str:code>/",
+        "settings/currency/exchange_rate/<str:code>/enable/",
         EnabledCurrencyView.as_view(),
         name="currency-config",
     ),

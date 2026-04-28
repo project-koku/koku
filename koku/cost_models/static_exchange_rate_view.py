@@ -11,10 +11,13 @@ from django_filters import DateFilter
 from django_filters import FilterSet
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
+from rest_framework.response import Response
 
 from api.common import log_json
+from api.common.pagination import ListPaginator
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from cost_models.models import StaticExchangeRate
+from cost_models.static_exchange_rate_serializer import CurrencyExchangeRateSerializer
 from cost_models.static_exchange_rate_serializer import StaticExchangeRateSerializer
 from cost_models.static_exchange_rate_utils import remove_static_and_backfill_dynamic
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
@@ -45,6 +48,13 @@ class StaticExchangeRateViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "put", "delete", "head"]
     filter_backends = (DjangoFilterBackend,)
     filterset_class = StaticExchangeRateFilter
+
+    def list(self, request, *args, **kwargs):
+        """Return exchange rates grouped by target currency with enabled status."""
+        queryset = self.filter_queryset(self.get_queryset())
+        result = CurrencyExchangeRateSerializer.build_grouped_response(queryset)
+        paginator = ListPaginator(result, request)
+        return paginator.get_paginated_response(result)
 
     @transaction.atomic
     def perform_destroy(self, instance):

@@ -39,9 +39,3 @@ class TenantSettingsSerializer(serializers.Serializer):
         min_value=TenantSettings.MIN_RETENTION_MONTHS,
         max_value=TenantSettings.MAX_RETENTION_MONTHS,
     )
-
-
-class EnabledCurrencySerializer(serializers.Serializer):
-    """Accepts an enabled flag for a single currency (code comes from the URL path)."""
-
-    enabled = serializers.BooleanField()

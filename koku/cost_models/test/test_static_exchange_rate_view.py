@@ -11,6 +11,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from cost_models.models import EnabledCurrency
 from cost_models.models import StaticExchangeRate
 
 
@@ -20,7 +21,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def setUp(self):
         super().setUp()
         self.client = APIClient()
-        self.list_url = reverse("static-exchange-rates-list")
+        self.list_url = reverse("exchange-rate-list")
         self.valid_data = {
             "base_currency": "USD",
             "target_currency": "EUR",
@@ -42,24 +43,44 @@ class StaticExchangeRateViewSetTest(IamTestCase):
             self.assertEqual(data["version"], 1)
 
     @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
-    def test_list_static_rates(self, mock_invalidate):
-        """Test listing static exchange rates."""
+    def test_list_returns_grouped_by_currency(self, mock_invalidate):
+        """Test that GET list returns exchange rates grouped by target currency with enabled flag."""
         with tenant_context(self.tenant):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="EUR")
             self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
+
             response = self.client.get(self.list_url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertGreaterEqual(len(response.data["data"]), 1)
+
+            data = response.data["data"]
+            self.assertEqual(len(data), 1)
+
+            eur_entry = data[0]
+            self.assertEqual(eur_entry["code"], "EUR")
+            self.assertEqual(eur_entry["enabled"], True)
+            self.assertIn("name", eur_entry)
+            self.assertIn("symbol", eur_entry)
+            self.assertEqual(len(eur_entry["exchange_rates"]), 1)
+
+            rate = eur_entry["exchange_rates"][0]
+            self.assertEqual(rate["base_currency"], "USD")
+            self.assertEqual(rate["target_currency"], "EUR")
+            self.assertIn("uuid", rate)
 
     @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
-    def test_retrieve_static_rate(self, mock_invalidate):
-        """Test retrieving a single static exchange rate."""
+    def test_list_disabled_currency_shows_enabled_false(self, mock_invalidate):
+        """Test that a currency without EnabledCurrency row shows enabled=False."""
         with tenant_context(self.tenant):
-            create_response = self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
-            uuid = create_response.data["uuid"]
-            detail_url = reverse("static-exchange-rates-detail", kwargs={"uuid": uuid})
-            response = self.client.get(detail_url, **self.headers)
+            EnabledCurrency.objects.filter(currency_code="EUR").delete()
+            self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
+
+            response = self.client.get(self.list_url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(response.data["uuid"], uuid)
+
+            eur_entry = response.data["data"][0]
+            self.assertEqual(eur_entry["code"], "EUR")
+            self.assertEqual(eur_entry["enabled"], False)
 
     @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
     def test_update_static_rate(self, mock_invalidate):
@@ -67,7 +88,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
         with tenant_context(self.tenant):
             create_response = self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
             uuid = create_response.data["uuid"]
-            detail_url = reverse("static-exchange-rates-detail", kwargs={"uuid": uuid})
+            detail_url = reverse("exchange-rate-detail", kwargs={"uuid": uuid})
 
             update_data = self.valid_data.copy()
             update_data["exchange_rate"] = "0.900000000000000"
@@ -81,7 +102,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
         with tenant_context(self.tenant):
             create_response = self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
             uuid = create_response.data["uuid"]
-            detail_url = reverse("static-exchange-rates-detail", kwargs={"uuid": uuid})
+            detail_url = reverse("exchange-rate-detail", kwargs={"uuid": uuid})
             response = self.client.delete(detail_url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
             self.assertFalse(StaticExchangeRate.objects.filter(uuid=uuid).exists())

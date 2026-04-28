@@ -149,8 +149,8 @@ allows an administrator to enable or disable currencies.
 
 ### View
 
-**File**: `koku/api/settings/currency_views.py` — `AllCurrencyView` (GET) and
-`EnabledCurrencyConfigView` (POST).
+**File**: `koku/api/settings/currency_views.py` — `EnabledCurrencyView` (PUT to toggle enabled/disabled).
+**File**: `koku/cost_models/static_exchange_rate_view.py` — `StaticExchangeRateViewSet` (GET list returns currencies grouped with exchange rates and enabled status).
 
 **Permission**: Cost Management Administrator role (same permission level as
 other Settings operations).

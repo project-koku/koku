@@ -10,7 +10,9 @@ from django.db import transaction
 from rest_framework import serializers
 
 from api.common import log_json
+from api.currency.currencies import get_currency_info
 from api.currency.currencies import is_valid_iso_currency
+from cost_models.models import EnabledCurrency
 from cost_models.models import StaticExchangeRate
 from cost_models.static_exchange_rate_utils import remove_static_and_backfill_dynamic
 from cost_models.static_exchange_rate_utils import upsert_static_monthly_rates
@@ -132,3 +134,39 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             )
         )
         return instance
+
+
+class CurrencyExchangeRateSerializer(serializers.Serializer):
+    """Read-only serializer for a currency grouped with its static exchange rates."""
+
+    code = serializers.CharField()
+    name = serializers.CharField()
+    symbol = serializers.CharField()
+    enabled = serializers.BooleanField()
+    exchange_rates = StaticExchangeRateSerializer(many=True)
+
+    @classmethod
+    def build_grouped_response(cls, queryset):
+        """Group exchange rates by target_currency and attach currency metadata + enabled flag."""
+        enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+
+        grouped = {}
+        for rate in queryset:
+            code = rate.target_currency
+            if code not in grouped:
+                info = get_currency_info(code)
+                grouped[code] = {
+                    "code": info["code"],
+                    "name": info["name"],
+                    "symbol": info["symbol"],
+                    "enabled": code in enabled_codes,
+                    "exchange_rates": [],
+                }
+            grouped[code]["exchange_rates"].append(rate)
+
+        result = []
+        for code in sorted(grouped):
+            entry = grouped[code]
+            entry["exchange_rates"] = StaticExchangeRateSerializer(entry["exchange_rates"], many=True).data
+            result.append(entry)
+        return result
