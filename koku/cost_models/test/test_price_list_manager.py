@@ -132,12 +132,13 @@ class PriceListManagerUpdateTest(MasuTestCase):
             manager.update(rates=self.rates_v1)
             self.assertEqual(manager.instance.version, 1)
 
-    def test_update_currency_increments_version(self):
-        """Test that updating currency increments version."""
+    def test_update_currency_raises_exception(self):
+        """Test that updating currency raises an exception - currency is immutable."""
         with tenant_context(self.tenant):
             manager = PriceListManager(self.price_list.uuid)
-            manager.update(currency="EUR")
-            self.assertEqual(manager.instance.version, 2)
+            with self.assertRaises(PriceListException) as ctx:
+                manager.update(currency="EUR")
+            self.assertIn("Currency cannot be changed", str(ctx.exception))
 
     def test_update_validity_period_increments_version(self):
         """Test that updating validity period increments version."""
@@ -527,3 +528,75 @@ class PriceListManagerRecalcTest(MasuTestCase):
             ]
             manager2.update(rates=new_rates)
             mock_task.s.assert_not_called()
+
+
+class PriceListManagerDuplicateTest(MasuTestCase):
+    """Test cases for PriceListManager.duplicate."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        logging.disable(0)
+
+    def setUp(self):
+        super().setUp()
+        with tenant_context(self.tenant):
+            manager = PriceListManager()
+            self.price_list = manager.create(
+                name="Original PL",
+                description="Test",
+                currency="USD",
+                effective_start_date=date(2026, 1, 1),
+                effective_end_date=date(2026, 12, 31),
+                rates=[
+                    {
+                        "metric": {"name": "cpu_core_usage_per_hour"},
+                        "tiered_rates": [{"value": "1.00", "unit": "USD"}],
+                        "cost_type": "Infrastructure",
+                    }
+                ],
+            )
+
+    def test_duplicate_price_list(self):
+        """Test duplicating a price list."""
+        with tenant_context(self.tenant):
+            manager = PriceListManager(self.price_list.uuid)
+            dup = manager.duplicate()
+            self.assertEqual(dup.name, "Copy of Original PL")
+            self.assertEqual(dup.currency, self.price_list.currency)
+            self.assertEqual(dup.effective_start_date, self.price_list.effective_start_date)
+            self.assertEqual(dup.effective_end_date, self.price_list.effective_end_date)
+            self.assertTrue(dup.enabled)
+            self.assertEqual(dup.version, 1)
+            self.assertNotEqual(dup.uuid, self.price_list.uuid)
+
+    def test_duplicate_long_name_truncated(self):
+        """Test that duplicate truncates name if too long."""
+        with tenant_context(self.tenant):
+            self.price_list.name = "A" * 255
+            self.price_list.save()
+            manager = PriceListManager(self.price_list.uuid)
+            dup = manager.duplicate()
+            self.assertTrue(dup.name.startswith("Copy of "))
+            self.assertLessEqual(len(dup.name), 255)
+
+    def test_duplicate_no_cost_model_assignment(self):
+        """Test that duplicated price list is not assigned to any cost models."""
+        with tenant_context(self.tenant):
+            cost_model = CostModel.objects.first()
+            PriceListCostModelMap.objects.create(
+                price_list=self.price_list,
+                cost_model=cost_model,
+                priority=1,
+            )
+            manager = PriceListManager(self.price_list.uuid)
+            dup = manager.duplicate()
+            count = PriceListCostModelMap.objects.filter(price_list=dup).count()
+            self.assertEqual(count, 0)
+
+    def test_duplicate_nonexistent_raises(self):
+        """Test that duplicating without a model raises."""
+        with tenant_context(self.tenant):
+            manager = PriceListManager()
+            with self.assertRaises(PriceListException):
+                manager.duplicate()
