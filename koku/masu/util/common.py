@@ -127,7 +127,7 @@ def safe_float(val):
     """
     Convert the given value to a float or 0f.
     """
-    result = float(99)
+    result = float(0)
     try:
         result = float(val)
     except (ValueError, TypeError):
