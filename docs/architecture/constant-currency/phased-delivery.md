@@ -74,10 +74,11 @@ pairs. Show rate provenance in report responses.
 - [ ] On-prem mode: full functionality without Trino
 - [ ] **Currency enablement**: Administrator can enable currencies via `POST settings/currency/exchange_rate/{code}/enable/`
 - [ ] **Currency enablement**: All currencies are stored in `MonthlyExchangeRate` regardless of enabled status; `enabled` flag only controls dropdown visibility
-- [ ] **Rate resolution**: Static rates take precedence over dynamic rates; error returned if neither exists for a given pair
+- [ ] **Rate resolution**: Static rates take precedence over dynamic rates; when `MonthlyExchangeRate` is empty (feature not configured), costs returned as-is; when rows exist but not for target, error returned
 - [ ] **No `CURRENCY_URL`**: Celery task skips API fetch; system works with whatever rates are available
 - [ ] **Available currencies**: Report dropdown shows only enabled currencies (static rates do not bypass enablement)
-- [ ] **No-rate corner case**: Selecting a target currency with no conversion path returns HTTP 400 with actionable error
+- [ ] **Costs as-is**: When no exchange rates are configured at all (`MonthlyExchangeRate` empty), validation skipped, costs returned in original bill currency
+- [ ] **No-rate corner case**: Selecting a target currency with no conversion path (when rates exist for other currencies) returns HTTP 400 with actionable error
 - [ ] **No currencies available**: Dropdown hidden or shows "No exchange rates available" when no currencies are available
 - [ ] **Currency list**: `GET settings/currency/exchange_rate/` returns currencies grouped by target currency with enabled flag and nested exchange rates
 
@@ -177,3 +178,4 @@ design would be needed to handle path prioritization.
 | v2.0 | 2026-04-13 | Updated pre-deployment month validation item: fall back to earliest available rate (aligns with pipeline-changes.md v2.1). |
 | v2.1 | 2026-04-28 | Updated URL references to `settings/currency/exchange_rate/`. Consolidated URL registration to `koku/api/urls.py`. Removed separate available-currencies endpoint. |
 | v2.2 | 2026-04-28 | Removed static-rate enablement bypass from validation checklist. Report dropdown governed solely by `EnabledCurrency`. |
+| v2.3 | 2026-04-28 | Added "costs as-is" validation item: when `MonthlyExchangeRate` is empty, feature inactive, costs returned as-is. Updated rate resolution and no-rate validation items. |

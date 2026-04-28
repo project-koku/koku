@@ -158,18 +158,24 @@ currencies with static rates regardless of enabled status, so the administrator
 can see and manage them.
 
 **Corner case — no usable rate**: A currency may be enabled but have no exchange
-rate path from the bill's source currency. In this case, the API returns an
-error: *"No exchange rate available. Ask your administrator to configure static
-exchange rates or enable dynamic exchange rates."* See
+rate path from the bill's source currency. If `MonthlyExchangeRate` has rows
+(the feature is active) but none for the requested target currency, the API
+returns an error: *"No exchange rate available. Ask your administrator to
+configure static exchange rates or enable dynamic exchange rates."* See
 [api-and-frontend.md § Corner Case: No Exchange Rate](./api-and-frontend.md#corner-case-no-exchange-rate).
+
+**No rates configured at all**: When `MonthlyExchangeRate` is completely empty
+(no `CURRENCY_URL` configured, no static rates defined, no Celery task run),
+the constant currency feature is inactive. Validation is skipped and costs are
+returned as-is in their original bill currency. The `Coalesce(..., Value(1))`
+fallback in provider maps ensures exchange rate annotations resolve to `1` (no
+conversion). This is the default state for fresh deployments.
 
 **No `CURRENCY_URL` configured**: When the URL is not set, no dynamic currencies
 are discovered by the Celery task, so no rows are created automatically. The
 table may still contain previously fetched currencies or manually-created rows.
-The system does not treat this as a special mode — it uses whatever rates are
-available (static first, dynamic fallback, error if neither exists). If no
-currencies are visible (all disabled and no static rates), the currency dropdown
-is hidden or shows *"No exchange rates available."*
+If no currencies are visible (all disabled and no static rates), the currency
+dropdown is hidden or shows *"No exchange rates available."*
 
 **Registration points**: None. Accessed via the Settings API (see
 [api-and-frontend.md § Currency Enablement](./api-and-frontend.md#currency-enablement-settings-api)).
@@ -378,3 +384,4 @@ changes required.
 | v1.9 | 2026-04-13 | Fixed `ExchangeRates` model description: actual fields are `currency_type` (CharField) and `exchange_rate` (FloatField), not `base_currency`/`exchange_rates` JSONField. Removed non-existent `updated_timestamp` column from `ExchangeRateDictionary` example. |
 | v2.0 | 2026-04-28 | Updated `EnabledCurrency` lifecycle to reflect POST/DELETE per-currency enablement at `settings/currency/exchange_rate/{code}/enable/`. |
 | v2.1 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. |
+| v2.2 | 2026-04-28 | Added "costs as-is" behavior: when `MonthlyExchangeRate` is empty, feature is inactive, costs returned in original currency. |

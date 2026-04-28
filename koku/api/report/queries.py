@@ -44,6 +44,7 @@ from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
+from cost_models.exchange_rate_annotations import ExchangeRateNotFound
 from cost_models.models import MonthlyExchangeRate
 
 LOG = logging.getLogger(__name__)
@@ -1047,6 +1048,18 @@ class ReportQueryHandler(QueryHandler):
             bucket_by_date[date] = grouped
         return bucket_by_date
 
+    def _validate_exchange_rates(self, target_currency):
+        """Raise ExchangeRateNotFound if no MonthlyExchangeRate rows exist for the target currency.
+
+        Skips validation when MonthlyExchangeRate is completely empty (feature not configured).
+        The Coalesce(..., Value(1)) fallback in provider maps ensures costs are returned as-is.
+        """
+        with tenant_context(self.tenant):
+            if not MonthlyExchangeRate.objects.exists():
+                return
+            if not MonthlyExchangeRate.objects.filter(target_currency=target_currency).exists():
+                raise ExchangeRateNotFound(target_currency)
+
     def _initialize_response_output(self, parameters):
         """Initialize output response object."""
         output = copy.deepcopy(parameters.parameters)
@@ -1054,6 +1067,7 @@ class ReportQueryHandler(QueryHandler):
         output.pop("access")
 
         if self.currency:
+            self._validate_exchange_rates(self.currency)
             output["currency"] = self.currency
             start = self.start_datetime
             end = self.end_datetime

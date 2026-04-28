@@ -18,6 +18,7 @@ from api.common.pagination import OrgUnitPagination
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
 from api.query_params import QueryParameters
+from cost_models.exchange_rate_annotations import ExchangeRateNotFound
 
 
 LOG = logging.getLogger(__name__)
@@ -71,7 +72,10 @@ class ReportView(APIView):
             return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
         handler = self.query_handler(params)
 
-        output = handler.execute_query()
+        try:
+            output = handler.execute_query()
+        except ExchangeRateNotFound as exc:
+            return Response(data={"currency": [str(exc)]}, status=status.HTTP_400_BAD_REQUEST)
 
         # reset the meta when order_by[date] is used
         if output.get("cost_explorer_order_by"):

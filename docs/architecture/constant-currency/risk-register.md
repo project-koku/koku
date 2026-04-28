@@ -16,7 +16,7 @@ Single source of truth for risks related to the Constant Currency feature
 | **R5** | Query handler subquery performance with many months/currencies | Mitigated | 1 | `Subquery` approach uses indexed lookups instead of growing `CASE` expressions |
 | **R6** | Static rate deletion leaves gap before dynamic rate fills in | Mitigated | 1 | Serializer proactively populates dynamic rows on static rate deletion; no gap |
 | **R7** | User selects a target currency with no conversion path from bill currency | Mitigated | 1 | Show actionable error; currencies remain visible in dropdown |
-| **R8** | No rates configured (static or dynamic) for a currency pair | Accepted | 1 | Static first, dynamic fallback, error if neither; hide dropdown when no currencies visible |
+| **R8** | No rates configured (static or dynamic) for a currency pair | Accepted | 1 | If `MonthlyExchangeRate` is empty: feature inactive, costs as-is. If rows exist but not for target: error. |
 
 ---
 
@@ -180,16 +180,23 @@ with unconverted or zero amounts.
 - No dynamic exchange rate exists for the pair (either `CURRENCY_URL` was never
   configured, the API never returned that pair, or no rates have been fetched yet)
 
-The system does not treat this as a special mode — it simply has no data for
-that conversion.
+**Behavior**: Two distinct cases:
 
-**Behavior**: Rate resolution follows a simple priority:
+1. **`MonthlyExchangeRate` is completely empty** (feature not configured): The
+   constant currency feature is inactive. Validation is skipped entirely. The
+   `Coalesce("exchange_rate", Value(1))` fallback in provider maps ensures all
+   exchange rate annotations resolve to `1`, so costs are returned as-is in
+   their original bill currency. This is the default state for fresh deployments
+   without `CURRENCY_URL` or static rates.
 
-1. **Static rates** — used if defined for the pair
-2. **Dynamic rates** — used as fallback if no static rate exists
-3. **Error** — if neither exists, the API returns an actionable error:
-   *"No exchange rate available. Ask your administrator to configure static
-   exchange rates or enable dynamic exchange rates."*
+2. **`MonthlyExchangeRate` has rows but none for the target currency**: The
+   feature is active but the specific currency pair is missing. Rate resolution
+   follows the priority:
+   1. **Static rates** — used if defined for the pair
+   2. **Dynamic rates** — used as fallback if no static rate exists
+   3. **Error** — if neither exists, the API returns an actionable error:
+      *"No exchange rate available. Ask your administrator to configure static
+      exchange rates or enable dynamic exchange rates."*
 
 If no currencies are visible at all (all disabled and no static rates), the
 currency dropdown is either hidden or shows *"No exchange rates available"*.
@@ -234,3 +241,4 @@ R8       ✓
 | v1.6 | 2026-04-12 | R5 mitigated: `Subquery` approach replaces `Case`/`When`, eliminating O(months × currencies) scaling concern. |
 | v1.7 | 2026-04-13 | R4: updated to reflect earliest-available-rate fallback for pre-deployment months (aligns with pipeline-changes.md v2.1). |
 | v1.8 | 2026-04-28 | R8: updated CRUD API URL to `settings/currency/exchange_rate/`. |
+| v1.9 | 2026-04-28 | R8: added "costs as-is" behavior — when `MonthlyExchangeRate` is empty, feature is inactive, validation skipped, costs returned in original currency. |

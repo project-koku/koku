@@ -4,9 +4,38 @@
 #
 """Add StaticExchangeRate, EnabledCurrency, and MonthlyExchangeRate models for constant currency."""
 import uuid
+from datetime import date
 
 from django.db import migrations
 from django.db import models
+
+
+def seed_current_month(apps, schema_editor):
+    """Seed MonthlyExchangeRate with current-month dynamic rates from ExchangeRateDictionary."""
+    ExchangeRateDictionary = apps.get_model("api", "ExchangeRateDictionary")
+    MonthlyExchangeRate = apps.get_model("cost_models", "MonthlyExchangeRate")
+
+    erd = ExchangeRateDictionary.objects.first()
+    if not erd or not erd.currency_exchange_dictionary:
+        return
+
+    current_month = date.today().replace(day=1)
+
+    rows = []
+    for base_cur, targets in erd.currency_exchange_dictionary.items():
+        for target_cur, rate in targets.items():
+            if base_cur == target_cur:
+                continue
+            rows.append(
+                MonthlyExchangeRate(
+                    effective_date=current_month,
+                    base_currency=base_cur,
+                    target_currency=target_cur,
+                    exchange_rate=rate,
+                    rate_type="dynamic",
+                )
+            )
+    MonthlyExchangeRate.objects.bulk_create(rows, ignore_conflicts=True)
 
 
 class Migration(migrations.Migration):
@@ -72,4 +101,5 @@ class Migration(migrations.Migration):
                 "unique_together": {("effective_date", "base_currency", "target_currency")},
             },
         ),
+        migrations.RunPython(code=seed_current_month, reverse_code=migrations.RunPython.noop),
     ]

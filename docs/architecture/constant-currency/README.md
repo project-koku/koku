@@ -150,15 +150,16 @@ configured (e.g., airgapped or disconnected deployments)?
 
 **Resolution**: The system does not require `CURRENCY_URL` to function. Rate
 resolution follows a simple priority: **static rates first, dynamic rates as
-fallback, error if neither exists** for a given currency pair. When
-`CURRENCY_URL` is empty or unset:
+fallback**. When `CURRENCY_URL` is empty or unset:
 
 - The daily Celery task skips the API fetch step (no dynamic rates are fetched)
 - Static exchange rates defined via the CRUD API work normally
 - If dynamic rates were previously fetched (before the URL was removed), they
   remain available as fallback
-- If no rate exists for a given pair (static or dynamic), the API returns an
-  actionable error
+- If `MonthlyExchangeRate` is completely empty (no rates configured at all),
+  the feature is inactive — validation is skipped and costs are returned as-is
+  in their original bill currency
+- If rates exist but not for a given pair, the API returns an actionable error
 
 The `CURRENCY_URL` setting is documented with the production API URL
 (`open.er-api.com`) as a reference example. Only the free tier of the Open
@@ -167,7 +168,9 @@ Exchange Rates API is supported in this design.
 **Rationale**: The system should work with whatever data is available rather
 than treating the absence of `CURRENCY_URL` as a special mode. Customers can
 define their own exchange rates via the CRUD API regardless of whether dynamic
-rates are being fetched.
+rates are being fetched. Deployments that never configure exchange rates
+continue to work exactly as before — costs are returned in their original
+currency with no conversion.
 
 ### IQ-7: No-rate corner case — RESOLVED
 
@@ -255,7 +258,7 @@ graph LR
     CT -->|"Writer 1: per-tenant<br/>skip static pairs<br/>all currencies"| MER["MonthlyExchangeRate<br/>(tenant schema)<br/>single source of truth"]
     MER -->|"all months:<br/>per-month rates"| QH["QueryHandler<br/>Subquery annotation"]
     QH -->|"per-month rates +<br/>rate metadata"| REPORT["Report Response<br/>+ exchange_rates_applied"]
-    QH -->|"no rate? →<br/>actionable error"| ERR["Error: no exchange rate<br/>available"]
+    QH -->|"no rate +<br/>feature active? →<br/>actionable error"| ERR["Error: no exchange rate<br/>available"]
     ADMIN["CM Admin"] -->|"enable/disable<br/>currencies"| EC
     USER["Price List Admin"] -->|CRUD| SER["Serializer"]
     SER -->|"write canonical<br/>rate record"| STATIC["StaticExchangeRate<br/>(tenant schema)"]
@@ -267,11 +270,11 @@ graph LR
 
 1. **Single source of truth**: `MonthlyExchangeRate` stores rates for all months (current and past); query handlers read from this one table
 2. **Two writers**: Celery task writes dynamic rates daily for the current month; CRUD serializer writes static rates for affected months
-3. **Rate resolution**: All months read from `MonthlyExchangeRate`; M2 migration seeds current-month data at deployment; pre-deployment months fall back to earliest available rate; error if no rate exists at all for a currency pair
+3. **Rate resolution**: All months read from `MonthlyExchangeRate`; M2 migration seeds current-month data at deployment; pre-deployment months fall back to earliest available rate. When `MonthlyExchangeRate` is empty (feature not configured), costs are returned as-is; when rows exist but not for the target currency, an actionable error is returned
 4. Report responses include rate provenance metadata
 5. **Currency enablement**: Dynamic currencies arrive as disabled; administrator enables them via Settings to make them visible in the dropdown (all currencies are always stored)
 6. **Dropdown visibility**: Target currency dropdown shows only currencies that an administrator has explicitly enabled (static rate currencies still require enablement)
-7. **No-rate error**: If user selects a currency with no conversion path from the bill currency, an actionable error is returned
+7. **No-rate handling**: If `MonthlyExchangeRate` is empty, the feature is inactive and costs are returned as-is. If rows exist but not for the selected currency, an actionable error is returned
 
 ---
 
@@ -289,8 +292,8 @@ graph LR
 | 8 | **Forward-only with current-month seed** | M2 migration seeds current-month data from `ExchangeRateDictionary`; pre-deployment months fall back to earliest available rate |
 | 9 | **Per-pair rows, not JSON blob** | Enables `unique_together` constraint, simpler queries, cleaner ORM integration |
 | 10 | **Explicit currency enablement** | Dynamic currencies arrive disabled; administrator enables them in Settings to control which currencies appear in the dropdown. All currencies are always stored regardless of enabled status. |
-| 11 | **Configurable exchange rate URL** | `CURRENCY_URL` is a variable; empty value skips dynamic rate fetching. System works with whatever rates are available (static first, dynamic fallback, error if neither). Documentation references `open.er-api.com` (free tier) as the production example |
-| 12 | **Show-then-error for no-rate currencies** | Available currencies appear in dropdown even without a conversion path from the bill currency; actionable error returned on selection |
+| 11 | **Configurable exchange rate URL** | `CURRENCY_URL` is a variable; empty value skips dynamic rate fetching. System works with whatever rates are available (static first, dynamic fallback). Documentation references `open.er-api.com` (free tier) as the production example |
+| 12 | **Show-then-error for no-rate currencies** | Available currencies appear in dropdown even without a conversion path from the bill currency; actionable error returned on selection. When `MonthlyExchangeRate` is empty (no rates configured at all), the feature is inactive and costs are returned as-is |
 | 13 | **Enablement is always required for reports** | Static exchange rate currencies must still be explicitly enabled to appear in the report dropdown. The settings admin page shows them regardless for management purposes. |
 
 ---
@@ -310,3 +313,4 @@ graph LR
 | v1.8 | 2026-04-13 | Synced pre-deployment month references: fall back to earliest available rate (aligns with pipeline-changes.md v2.1). |
 | v1.9 | 2026-04-28 | Updated currency enablement URL reference to `settings/currency/exchange_rate/{code}/enable/`. |
 | v2.0 | 2026-04-28 | Removed static-rate enablement bypass (decision #13). Report dropdown governed solely by `EnabledCurrency`; settings admin page shows static rates regardless. |
+| v2.1 | 2026-04-28 | Added "costs as-is" behavior: when `MonthlyExchangeRate` is empty, feature is inactive, validation skipped, costs returned in original currency. Updated IQ-6, decision #12, data flow key changes. |

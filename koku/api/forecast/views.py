@@ -28,6 +28,7 @@ from api.forecast.serializers import OCPCostForecastParamSerializer
 from api.forecast.serializers import OCPGCPCostForecastParamSerializer
 from api.provider.models import Provider
 from api.query_params import QueryParameters
+from cost_models.exchange_rate_annotations import ExchangeRateNotFound
 from forecast import AWSForecast
 from forecast import AzureForecast
 from forecast import GCPForecast
@@ -56,7 +57,10 @@ class ForecastView(APIView):
             return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
 
         handler = self.query_handler(params)
-        output = handler.predict()
+        try:
+            output = handler.predict()
+        except ExchangeRateNotFound as exc:
+            return Response(data={"currency": [str(exc)]}, status=status.HTTP_400_BAD_REQUEST)
         LOG.debug(f"DATA: {output}")
         cost_type = params.parameters.get("cost_type")
         paginator = ForecastListPaginator(output, request, cost_type)

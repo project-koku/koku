@@ -41,6 +41,8 @@ from api.utils import DateHelper
 from api.utils import get_cost_type
 from cost_models.exchange_rate_annotations import build_exchange_rate_annotation_dict
 from cost_models.exchange_rate_annotations import build_ocp_exchange_rate_annotation_dict
+from cost_models.exchange_rate_annotations import ExchangeRateNotFound
+from cost_models.models import MonthlyExchangeRate
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
@@ -168,6 +170,12 @@ class Forecast:
         """Define ORM query to run forecast and return prediction."""
         cost_predictions = {}
         with tenant_context(self.params.tenant):
+            if (
+                self.currency
+                and MonthlyExchangeRate.objects.exists()
+                and not MonthlyExchangeRate.objects.filter(target_currency=self.currency).exists()
+            ):
+                raise ExchangeRateNotFound(self.currency)
             data = self.get_data()
 
             for fieldname in COST_FIELD_NAMES:

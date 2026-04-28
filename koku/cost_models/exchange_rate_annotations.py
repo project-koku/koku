@@ -14,6 +14,18 @@ from cost_models.models import CostModel
 from cost_models.models import MonthlyExchangeRate
 
 
+class ExchangeRateNotFound(Exception):
+    """Raised when no exchange rate exists for a required currency pair."""
+
+    def __init__(self, target_currency):
+        self.target_currency = target_currency
+        super().__init__(
+            f"No exchange rate available for {target_currency}. "
+            "Ask your administrator to configure static exchange rates "
+            "or enable dynamic exchange rates."
+        )
+
+
 def _build_monthly_rate_annotation(base_currency, target_currency):
     """Build a Coalesce annotation that resolves exchange rates per month.
 

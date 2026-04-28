@@ -186,7 +186,9 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
 
 - **URL check**: If `CURRENCY_URL` is not configured, the task skips the API
   fetch. Dynamic rates are simply not fetched; the system uses whatever rates
-  are available (static first, dynamic fallback, error if neither exists).
+  are available (static first, dynamic fallback). If `MonthlyExchangeRate` is
+  completely empty (no rates configured), the feature is inactive and costs are
+  returned as-is in their original bill currency.
 - **All currencies stored**: Upserts dynamic rates for all currency pairs
   returned by the API. The `EnabledCurrency` table controls dropdown visibility,
   not rate storage. Administrators enable currencies via the Settings API.
@@ -440,55 +442,41 @@ an exception.
 
 **Risk linkage**: See [risk-register.md § R5](./risk-register.md#r5--query-handler-performance)
 
-### Post-Query Exchange Rate Validation
+### Pre-Query Exchange Rate Validation
 
-After the queryset is evaluated but before the response is serialized, the query
-handler checks for `NULL` exchange rate annotations. A `NULL` value means both
-the exact-month and earliest-available subqueries returned no result — indicating
-that `MonthlyExchangeRate` has no data at all for that currency pair. This is a
-system configuration error, not normal operation.
+Before executing the report query, the query handler validates that exchange
+rate data exists for the requested target currency. This validation has two
+levels:
 
 ```python
-def _validate_exchange_rates(self, queryset):
-    """Raise if any rows have NULL exchange rates (no rate data for currency pair)."""
-    if not self.currency:
-        return
+def _validate_exchange_rates(self, target_currency):
+    """Raise ExchangeRateNotFound if no MonthlyExchangeRate rows exist for the target currency.
 
-    null_rate_filter = Q(exchange_rate__isnull=True)
-    # OCP has a second annotation to check
-    if hasattr(self, "_mapper") and hasattr(self._mapper, "cost_units_key"):
-        null_rate_filter |= Q(infra_exchange_rate__isnull=True)
-
-    if queryset.filter(null_rate_filter).exists():
-        missing_currencies = (
-            queryset.filter(null_rate_filter)
-            .values_list(self._mapper.cost_units_key, flat=True)
-            .distinct()
-        )
-        raise ExchangeRateNotFound(
-            f"No exchange rates found for base currencies "
-            f"{list(missing_currencies)} → {self.currency}. "
-            f"MonthlyExchangeRate table may not be seeded."
-        )
+    Skips validation when MonthlyExchangeRate is completely empty (feature not configured).
+    The Coalesce(..., Value(1)) fallback in provider maps ensures costs are returned as-is.
+    """
+    with tenant_context(self.tenant):
+        if not MonthlyExchangeRate.objects.exists():
+            return  # feature not configured, costs returned as-is
+        if not MonthlyExchangeRate.objects.filter(target_currency=target_currency).exists():
+            raise ExchangeRateNotFound(target_currency)
 ```
 
 **Key design choices**:
 
-- **Post-query, not pre-query**: The validation runs after the query because
-  the base currency varies per row (it comes from the data, not the request).
-  A pre-query check could only verify that *some* rates exist for the target
-  currency, but would miss cases where rates exist for one base currency but
-  not another.
-- **Performance**: The `.filter(...).exists()` check is a lightweight query
-  that only adds overhead when the annotation produced `NULL` values. The
-  `.values_list().distinct()` for the error message only runs on the error
-  path.
+- **Feature activation**: When `MonthlyExchangeRate` is completely empty (no
+  rates configured at all), the feature is inactive. Validation is skipped and
+  costs are returned as-is in their original bill currency. The
+  `Coalesce("exchange_rate", Value(1))` fallback in provider maps ensures NULL
+  annotations resolve to `1` (no conversion).
+- **Pre-query check**: The validation runs before the query executes. It
+  verifies that *any* `MonthlyExchangeRate` row exists for the target currency.
+  Per-row mismatches (e.g., a specific base currency with no rate) are handled
+  gracefully by the `Coalesce` fallback to `1`.
 - **Exception type**: `ExchangeRateNotFound` is a custom exception caught by
-  the view layer and returned as an appropriate HTTP error response. This is a
-  system configuration issue (missing rate data), not a user input error.
-- **OCP dual annotations**: The OCP query handler must validate both
-  `exchange_rate` and `infra_exchange_rate` since they resolve against
-  different base currencies (cost model currency vs cloud bill currency).
+  the view layer and returned as HTTP 400 with an actionable error message.
+  This only fires when rates are configured but not for the requested currency
+  — indicating an administrator configuration gap, not a system error.
 
 ### New: Available Currency Resolution
 
@@ -647,3 +635,4 @@ per-source-type would miss cross-provider reports (e.g., OCP-on-AWS).
 | v2.1 | 2026-04-12 | Pre-deployment months now fall back to earliest available rate instead of defaulting to 1. Added post-query validation that raises `ExchangeRateNotFound` when no rate exists for a currency pair. Removed `Value(Decimal("1"))` from `Coalesce` in both base and OCP annotations. |
 | v2.2 | 2026-04-13 | Fixed current pipeline description: `ExchangeRates` upserts per target currency (not base). Fixed "stored and stored" typo in available currency resolution. |
 | v2.3 | 2026-04-28 | Removed static-rate enablement bypass from available currency resolution. Report dropdown governed solely by `EnabledCurrency`. |
+| v2.4 | 2026-04-28 | Replaced post-query validation pseudocode with actual pre-query implementation. Added "costs as-is" behavior: when `MonthlyExchangeRate` is empty, feature inactive, validation skipped. |

@@ -228,17 +228,26 @@ currency.
 - User wants to see costs in `EUR`
 - There is no `USD→EUR` rate (static or dynamic)
 
-### Behavior (Preferred Approach)
+### Behavior
 
-**Make all available currencies visible** in the dropdown (`EUR`, `CHF`, `CNY`,
-`SAR`), but when the user selects a target currency for which no conversion rate
-exists from the bill currency, the API returns an error:
+There are two distinct cases:
+
+**1. Feature not configured** (`MonthlyExchangeRate` is empty): When no exchange
+rates have been configured at all (no `CURRENCY_URL`, no static rates, no Celery
+task run), the constant currency feature is inactive. Validation is skipped and
+costs are returned as-is in their original bill currency. The
+`Coalesce("exchange_rate", Value(1))` fallback in provider maps ensures NULL
+annotations resolve to `1` (no conversion). This is the default state for fresh
+deployments.
+
+**2. Feature active but target currency has no rates** (`MonthlyExchangeRate`
+has rows but none for the target): The API returns an error:
 
 ```json
 {
   "errors": [
     {
-      "detail": "No exchange rate available between USD and EUR. Ask your administrator to configure static exchange rates or enable dynamic exchange rates.",
+      "detail": "No exchange rate available for EUR. Ask your administrator to configure static exchange rates or enable dynamic exchange rates.",
       "status": 400,
       "source": "currency"
     }
@@ -249,6 +258,9 @@ exists from the bill currency, the API returns an error:
 The frontend should display this error message to the user. The report data is
 **not** returned with unconverted amounts — the request fails with a clear,
 actionable error.
+
+**Make all available currencies visible** in the dropdown (`EUR`, `CHF`, `CNY`,
+`SAR`).
 
 **Rationale**: This approach was preferred over filtering the dropdown to only
 show currencies with available conversion paths because:
@@ -384,3 +396,4 @@ The frontend will:
 | v1.7 | 2026-04-13 | Removed stale "snapshotted" terminology (remnant from `MonthlyExchangeRateSnapshot` rename). |
 | v1.8 | 2026-04-28 | Consolidated endpoints under `settings/currency/exchange_rate/`. List returns grouped response with enabled status. Currency enablement via POST/DELETE (no body). Removed separate `AllCurrencyView` and `available-currencies` endpoints. |
 | v1.9 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. Settings admin page shows static rates regardless for management. |
+| v2.0 | 2026-04-28 | Added "costs as-is" behavior to Corner Case section: when `MonthlyExchangeRate` is empty, feature is inactive, costs returned in original currency. |
