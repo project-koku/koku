@@ -129,7 +129,7 @@ immediately available for use, or should an administrator explicitly enable them
 **Resolution**: Explicit enablement. The full list of known currencies comes from
 Babel's ISO 4217 registry. Only currencies that an administrator has explicitly
 enabled are stored in the `EnabledCurrency` table. An administrator must enable
-currencies through the Settings API (`POST settings/currency/config/`) before
+currencies through the Settings API (`POST settings/currency/exchange_rate/{code}/enable/`) before
 they appear in the target currency dropdown.
 
 All currencies are always stored in `MonthlyExchangeRate` regardless of their
@@ -313,3 +313,4 @@ graph LR
 | v1.6 | 2026-03-30 | Removed `ExchangeRateDictionary` fallback from query handler. M2 seeds current-month data. Decision #9 updated. |
 | v1.7 | 2026-04-12 | Updated data flow diagram: query handler uses `Subquery` annotation instead of `Case`/`When`. |
 | v1.8 | 2026-04-13 | Synced pre-deployment month references: fall back to earliest available rate (aligns with pipeline-changes.md v2.1). |
+| v1.9 | 2026-04-28 | Updated currency enablement URL reference to `settings/currency/exchange_rate/{code}/enable/`. |

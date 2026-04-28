@@ -145,8 +145,9 @@ enabled.
 
 | Event | Action |
 |-------|--------|
-| Administrator enables currencies via `POST settings/currency/config/` | Replaces all `EnabledCurrency` rows with the submitted list |
-| `GET settings/currency/` | Returns all ISO 4217 currencies (from Babel) with `enabled` flag based on `EnabledCurrency` table membership |
+| Administrator enables a currency via `POST settings/currency/exchange_rate/{code}/enable/` | Creates an `EnabledCurrency` row for that currency |
+| Administrator disables a currency via `DELETE settings/currency/exchange_rate/{code}/enable/` | Removes the `EnabledCurrency` row for that currency |
+| `GET settings/currency/exchange_rate/` | Returns currencies that have exchange rates, grouped by target currency, with `enabled` flag based on `EnabledCurrency` table membership |
 
 **How currencies become "available" in dropdowns**:
 
@@ -376,3 +377,4 @@ changes required.
 | v1.7 | 2026-03-30 | M2 now seeds current-month data from `ExchangeRateDictionary` during migration. Eliminates `ExchangeRateDictionary` fallback in query handler. |
 | v1.8 | 2026-04-12 | Updated reader description to reflect `Subquery`-based rate resolution (replaces `Case`/`When`). |
 | v1.9 | 2026-04-13 | Fixed `ExchangeRates` model description: actual fields are `currency_type` (CharField) and `exchange_rate` (FloatField), not `base_currency`/`exchange_rates` JSONField. Removed non-existent `updated_timestamp` column from `ExchangeRateDictionary` example. |
+| v2.0 | 2026-04-28 | Updated `EnabledCurrency` lifecycle to reflect POST/DELETE per-currency enablement at `settings/currency/exchange_rate/{code}/enable/`. |
