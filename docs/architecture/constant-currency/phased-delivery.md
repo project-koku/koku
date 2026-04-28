@@ -76,8 +76,7 @@ pairs. Show rate provenance in report responses.
 - [ ] **Currency enablement**: All currencies are stored in `MonthlyExchangeRate` regardless of enabled status; `enabled` flag only controls dropdown visibility
 - [ ] **Rate resolution**: Static rates take precedence over dynamic rates; error returned if neither exists for a given pair
 - [ ] **No `CURRENCY_URL`**: Celery task skips API fetch; system works with whatever rates are available
-- [ ] **Available currencies**: Dropdown shows only enabled currencies and static rate currencies
-- [ ] **Available currencies**: Static rate currencies appear regardless of `EnabledCurrency` status
+- [ ] **Available currencies**: Report dropdown shows only enabled currencies (static rates do not bypass enablement)
 - [ ] **No-rate corner case**: Selecting a target currency with no conversion path returns HTTP 400 with actionable error
 - [ ] **No currencies available**: Dropdown hidden or shows "No exchange rates available" when no currencies are available
 - [ ] **Currency list**: `GET settings/currency/exchange_rate/` returns currencies grouped by target currency with enabled flag and nested exchange rates
@@ -177,3 +176,4 @@ design would be needed to handle path prioritization.
 | v1.9 | 2026-04-12 | R5 mitigated (Subquery replaces Case/When). Updated validation to reflect Subquery approach. |
 | v2.0 | 2026-04-13 | Updated pre-deployment month validation item: fall back to earliest available rate (aligns with pipeline-changes.md v2.1). |
 | v2.1 | 2026-04-28 | Updated URL references to `settings/currency/exchange_rate/`. Consolidated URL registration to `koku/api/urls.py`. Removed separate available-currencies endpoint. |
+| v2.2 | 2026-04-28 | Removed static-rate enablement bypass from validation checklist. Report dropdown governed solely by `EnabledCurrency`. |

@@ -147,19 +147,20 @@ enabled.
 | Administrator disables a currency via `DELETE settings/currency/exchange_rate/{code}/enable/` | Removes the `EnabledCurrency` row for that currency |
 | `GET settings/currency/exchange_rate/` | Returns currencies that have exchange rates, grouped by target currency, with `enabled` flag based on `EnabledCurrency` table membership |
 
-**How currencies become "available" in dropdowns**:
+**How currencies become "available" in the report dropdown**:
 
-A currency is visible in the target currency dropdown if **any** of the
-following are true:
+A currency is visible in the target currency dropdown only if it exists in the
+`EnabledCurrency` table. Defining a static exchange rate does **not** automatically
+make its currencies available — the administrator must explicitly enable them.
 
-1. It exists in the `EnabledCurrency` table
-2. It appears in any `StaticExchangeRate` pair (static rates make their currencies
-   visible regardless of `EnabledCurrency` status)
+The settings admin page (`GET settings/currency/exchange_rate/`) shows all
+currencies with static rates regardless of enabled status, so the administrator
+can see and manage them.
 
-**Corner case — no usable rate**: A currency may be available in the dropdown but
-have no exchange rate path from the bill's source currency. In this case, the API
-returns an error: *"No exchange rate available. Ask your administrator to configure
-static exchange rates or enable dynamic exchange rates."* See
+**Corner case — no usable rate**: A currency may be enabled but have no exchange
+rate path from the bill's source currency. In this case, the API returns an
+error: *"No exchange rate available. Ask your administrator to configure static
+exchange rates or enable dynamic exchange rates."* See
 [api-and-frontend.md § Corner Case: No Exchange Rate](./api-and-frontend.md#corner-case-no-exchange-rate).
 
 **No `CURRENCY_URL` configured**: When the URL is not set, no dynamic currencies
@@ -376,3 +377,4 @@ changes required.
 | v1.8 | 2026-04-12 | Updated reader description to reflect `Subquery`-based rate resolution (replaces `Case`/`When`). |
 | v1.9 | 2026-04-13 | Fixed `ExchangeRates` model description: actual fields are `currency_type` (CharField) and `exchange_rate` (FloatField), not `base_currency`/`exchange_rates` JSONField. Removed non-existent `updated_timestamp` column from `ExchangeRateDictionary` example. |
 | v2.0 | 2026-04-28 | Updated `EnabledCurrency` lifecycle to reflect POST/DELETE per-currency enablement at `settings/currency/exchange_rate/{code}/enable/`. |
+| v2.1 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. |

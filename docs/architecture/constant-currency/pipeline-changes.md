@@ -93,9 +93,8 @@ At query time:
 9. **CHANGED**: Per-month rate resolution via `Subquery` annotation (replaces
    single-rate `Case`/`When`)
 10. **NEW**: Report response includes `exchange_rates_applied` metadata
-11. **NEW**: Available currencies for dropdown computed from enabled dynamic
-    currencies + static rate currencies (`enabled` flag controls dropdown
-    visibility only, not storage)
+11. **NEW**: Available currencies for dropdown computed from `EnabledCurrency`
+    table only (static rates do not bypass enablement)
 
 ### Single Source of Truth: `MonthlyExchangeRate`
 
@@ -493,46 +492,24 @@ def _validate_exchange_rates(self, queryset):
 
 ### New: Available Currency Resolution
 
-The query handler (or a shared utility) computes the list of currencies
-visible in the target currency dropdown. A currency is **visible in the
-dropdown** if any of the following are true:
+The report dropdown shows only currencies that an administrator has explicitly
+enabled via the `EnabledCurrency` table. Defining a static exchange rate does
+**not** automatically make its currencies available in the report dropdown — the
+administrator must still enable them.
 
-1. It exists in the `EnabledCurrency` table
-2. It appears as either `base_currency` or `target_currency` in any
-   `StaticExchangeRate` row (static rates make their currencies visible
-   regardless of `EnabledCurrency` status)
+The settings admin page (`GET settings/currency/exchange_rate/`) shows all
+currencies with static rates regardless of enabled status, so the administrator
+can manage them without needing to enable them first.
 
-```python
-@cached_property
-def available_currencies(self):
-    """Currencies visible in the target currency dropdown."""
-    # Enabled currencies (presence in EnabledCurrency table = enabled)
-    enabled_codes = set(
-        EnabledCurrency.objects.values_list("currency_code", flat=True)
-    )
-
-    # Static: all currencies appearing in any static exchange rate pair
-    static_currencies = set(
-        StaticExchangeRate.objects.values_list("base_currency", flat=True)
-    ) | set(
-        StaticExchangeRate.objects.values_list("target_currency", flat=True)
-    )
-
-    return enabled_codes | static_currencies
-```
-
-When the user selects a target currency that is "available" but has **no
-exchange rate path** from the bill's source currency (e.g., bill is in USD, user
-selects EUR, but no USD→EUR rate exists — only EUR↔CHF and CNY↔SAR are defined),
-the API returns an error rather than silently showing zero or unconverted costs:
+When the user selects a currency that is enabled but has **no exchange rate
+path** from the bill's source currency, the API returns an error rather than
+silently showing zero or unconverted costs:
 
 > *"No exchange rate available. Ask your administrator to configure static
 > exchange rates or enable dynamic exchange rates."*
 
-When **no currencies are visible** (no dynamic currencies enabled and no
-static rates defined), the frontend either hides the currency dropdown
-entirely or shows *"No exchange rates available."* — whichever is simpler to
-implement.
+When **no currencies are enabled**, the frontend either hides the currency
+dropdown entirely or shows *"No exchange rates available."*
 
 See [api-and-frontend.md § Corner Case: No Exchange Rate](./api-and-frontend.md#corner-case-no-exchange-rate)
 for the full UX specification.
@@ -669,3 +646,4 @@ per-source-type would miss cross-provider reports (e.g., OCP-on-AWS).
 | v2.0 | 2026-04-12 | Adopted `Subquery` approach for rate resolution (replaces `Case`/`When`). Removed `effective_exchange_rates` property. OCP uses nested `Subquery` for `source_uuid` → cost model currency resolution. R5 mitigated. |
 | v2.1 | 2026-04-12 | Pre-deployment months now fall back to earliest available rate instead of defaulting to 1. Added post-query validation that raises `ExchangeRateNotFound` when no rate exists for a currency pair. Removed `Value(Decimal("1"))` from `Coalesce` in both base and OCP annotations. |
 | v2.2 | 2026-04-13 | Fixed current pipeline description: `ExchangeRates` upserts per target currency (not base). Fixed "stored and stored" typo in available currency resolution. |
+| v2.3 | 2026-04-28 | Removed static-rate enablement bypass from available currency resolution. Report dropdown governed solely by `EnabledCurrency`. |

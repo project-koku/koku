@@ -192,39 +192,35 @@ always available from Babel.
 
 ## Available Currencies for Dropdown
 
-The target currency dropdown in the UI computes its list of available
-currencies from two sources:
+The target currency dropdown in the UI shows only currencies that an
+administrator has explicitly enabled.
 
-### Availability Rules
+### Availability Rule
 
 | Source | Rule | Example |
 |--------|------|---------|
-| **Dynamic** | Currency exists in `EnabledCurrency` table | USD, EUR enabled → appear in dropdown |
-| **Static** | Currency appears in any `StaticExchangeRate` pair (as base or target) | Static rate EUR→CHF defined → both EUR and CHF appear in dropdown regardless of `EnabledCurrency` status |
+| **EnabledCurrency** | Currency exists in `EnabledCurrency` table | USD, EUR enabled → appear in dropdown |
 
-### Data Source
+Defining a static exchange rate does **not** automatically make its currencies
+available in the report dropdown. The administrator must explicitly enable them.
 
-The `GET settings/currency/exchange_rate/` endpoint returns all currencies that
-have exchange rates, along with their `enabled` status. The frontend uses this
-to populate the dropdown — no separate available-currencies endpoint is needed.
+The settings admin page (`GET settings/currency/exchange_rate/`) shows all
+currencies with static rates regardless of enabled status, so the administrator
+can see and manage exchange rates without needing to enable currencies first.
 
 ### No Currencies Available
 
-When **no currencies are available at all** — meaning:
-
-- No currencies exist in `EnabledCurrency` (none enabled), **and**
-- No `StaticExchangeRate` rows exist (no static rates)
-
-Then the currency dropdown should either be **hidden** or show a message:
+When no currencies exist in `EnabledCurrency` (none enabled), the currency
+dropdown should either be **hidden** or show a message:
 *"No exchange rates available."* Whichever approach is simpler to implement.
 
 ---
 
 ## Corner Case: No Exchange Rate
 
-A currency may appear in the dropdown (because it has static or enabled dynamic
-rates) but have **no exchange rate path** from the bill's source currency to
-the selected target currency.
+A currency may appear in the dropdown (because it is enabled) but have **no
+exchange rate path** from the bill's source currency to the selected target
+currency.
 
 **Example**:
 - Cloud bill arrives in `USD`
@@ -353,9 +349,8 @@ The frontend will:
 - Show a note explaining dynamic rates are used when no static rate is defined
 - **Add a currency enablement toggle** using
   `POST/DELETE settings/currency/exchange_rate/{code}/enable/`
-- **Populate the target currency dropdown** from the exchange rate list response
-  (union of enabled dynamic currencies + static rate currencies).
-  Disabled currencies are stored but hidden from this dropdown.
+- **Populate the target currency dropdown** from enabled currencies only.
+  Disabled currencies are stored but hidden from the report dropdown.
 - **Handle the no-rate error**: When the user selects a target currency that
   has no conversion path from the bill currency, display the error message
   returned by the API
@@ -388,3 +383,4 @@ The frontend will:
 | v1.6 | 2026-04-12 | Updated `exchange_rates_applied` implementation to reflect `Subquery`-based rate resolution (removed `effective_exchange_rates` reference). |
 | v1.7 | 2026-04-13 | Removed stale "snapshotted" terminology (remnant from `MonthlyExchangeRateSnapshot` rename). |
 | v1.8 | 2026-04-28 | Consolidated endpoints under `settings/currency/exchange_rate/`. List returns grouped response with enabled status. Currency enablement via POST/DELETE (no body). Removed separate `AllCurrencyView` and `available-currencies` endpoints. |
+| v1.9 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. Settings admin page shows static rates regardless for management. |

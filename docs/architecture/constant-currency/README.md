@@ -142,9 +142,6 @@ currencies appear in their UI. In on-premise environments, customers may only
 need a small subset of the ~300 ISO 4217 currencies. Showing all currencies by
 default would clutter the dropdown.
 
-**Exception**: Static exchange rate pairs always make their currencies available
-in the dropdown, regardless of `EnabledCurrency` status. If an administrator
-defines a `USD→EUR` static rate, both `USD` and `EUR` are immediately available.
 
 ### IQ-6: Rate resolution without `CURRENCY_URL` — RESOLVED
 
@@ -263,8 +260,7 @@ graph LR
     USER["Price List Admin"] -->|CRUD| SER["Serializer"]
     SER -->|"write canonical<br/>rate record"| STATIC["StaticExchangeRate<br/>(tenant schema)"]
     SER -->|"Writer 2: upsert<br/>rate_type=static"| MER
-    EC -->|"dropdown filter:<br/>enabled dynamic ∪<br/>static rate currencies"| DD["Target Currency<br/>Dropdown"]
-    STATIC -->|"static currencies<br/>always available"| DD
+    EC -->|"dropdown filter:<br/>enabled currencies only"| DD["Target Currency<br/>Dropdown"]
 ```
 
 **Key changes**:
@@ -274,7 +270,7 @@ graph LR
 3. **Rate resolution**: All months read from `MonthlyExchangeRate`; M2 migration seeds current-month data at deployment; pre-deployment months fall back to earliest available rate; error if no rate exists at all for a currency pair
 4. Report responses include rate provenance metadata
 5. **Currency enablement**: Dynamic currencies arrive as disabled; administrator enables them via Settings to make them visible in the dropdown (all currencies are always stored)
-6. **Dropdown visibility**: Target currency dropdown shows only the union of enabled dynamic currencies and static rate currencies (disabled currencies are stored but hidden from the dropdown)
+6. **Dropdown visibility**: Target currency dropdown shows only currencies that an administrator has explicitly enabled (static rate currencies still require enablement)
 7. **No-rate error**: If user selects a currency with no conversion path from the bill currency, an actionable error is returned
 
 ---
@@ -295,7 +291,7 @@ graph LR
 | 10 | **Explicit currency enablement** | Dynamic currencies arrive disabled; administrator enables them in Settings to control which currencies appear in the dropdown. All currencies are always stored regardless of enabled status. |
 | 11 | **Configurable exchange rate URL** | `CURRENCY_URL` is a variable; empty value skips dynamic rate fetching. System works with whatever rates are available (static first, dynamic fallback, error if neither). Documentation references `open.er-api.com` (free tier) as the production example |
 | 12 | **Show-then-error for no-rate currencies** | Available currencies appear in dropdown even without a conversion path from the bill currency; actionable error returned on selection |
-| 13 | **Static rates bypass enablement** | Currencies in static exchange rate pairs are always available in dropdowns regardless of `EnabledCurrency` status |
+| 13 | **Enablement is always required for reports** | Static exchange rate currencies must still be explicitly enabled to appear in the report dropdown. The settings admin page shows them regardless for management purposes. |
 
 ---
 
@@ -313,3 +309,4 @@ graph LR
 | v1.7 | 2026-04-12 | Updated data flow diagram: query handler uses `Subquery` annotation instead of `Case`/`When`. |
 | v1.8 | 2026-04-13 | Synced pre-deployment month references: fall back to earliest available rate (aligns with pipeline-changes.md v2.1). |
 | v1.9 | 2026-04-28 | Updated currency enablement URL reference to `settings/currency/exchange_rate/{code}/enable/`. |
+| v2.0 | 2026-04-28 | Removed static-rate enablement bypass (decision #13). Report dropdown governed solely by `EnabledCurrency`; settings admin page shows static rates regardless. |
