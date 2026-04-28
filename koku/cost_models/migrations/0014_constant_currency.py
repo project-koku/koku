@@ -28,14 +28,13 @@ class Migration(migrations.Migration):
                 ("exchange_rate", models.DecimalField(decimal_places=15, max_digits=33)),
                 ("start_date", models.DateField()),
                 ("end_date", models.DateField()),
-                ("version", models.IntegerField(default=1)),
                 ("created_timestamp", models.DateTimeField(auto_now_add=True)),
                 ("updated_timestamp", models.DateTimeField(auto_now=True)),
             ],
             options={
                 "db_table": "static_exchange_rate",
                 "ordering": ["-updated_timestamp"],
-                "unique_together": {("base_currency", "target_currency", "start_date", "end_date", "version")},
+                "unique_together": {("base_currency", "target_currency", "start_date", "end_date")},
             },
         ),
         migrations.CreateModel(
