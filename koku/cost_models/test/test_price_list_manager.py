@@ -132,12 +132,13 @@ class PriceListManagerUpdateTest(MasuTestCase):
             manager.update(rates=self.rates_v1)
             self.assertEqual(manager.instance.version, 1)
 
-    def test_update_currency_increments_version(self):
-        """Test that updating currency increments version."""
+    def test_update_currency_raises_exception(self):
+        """Test that updating currency raises an exception - currency is immutable."""
         with tenant_context(self.tenant):
             manager = PriceListManager(self.price_list.uuid)
-            manager.update(currency="EUR")
-            self.assertEqual(manager.instance.version, 2)
+            with self.assertRaises(PriceListException) as ctx:
+                manager.update(currency="EUR")
+            self.assertIn("Currency cannot be changed", str(ctx.exception))
 
     def test_update_validity_period_increments_version(self):
         """Test that updating validity period increments version."""
