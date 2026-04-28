@@ -6,13 +6,13 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0071_sources_updated_timestamp'),
+        ("api", "0071_sources_updated_timestamp"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='exchangerates',
-            name='currency_type',
+            model_name="exchangerates",
+            name="currency_type",
             field=models.CharField(max_length=5),
         ),
     ]

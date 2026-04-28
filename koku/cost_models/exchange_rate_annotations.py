@@ -73,7 +73,7 @@ def build_ocp_exchange_rate_annotation_dict(cost_units_key, target_currency):
     cost_model_currency = Subquery(
         CostModel.objects.filter(
             costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),
-        ).values("currency")[:1]
+        ).values("currency")[:1],
     )
 
     return {
