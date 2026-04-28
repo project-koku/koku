@@ -127,12 +127,25 @@ def safe_float(val):
     """
     Convert the given value to a float or 0f.
     """
-    result = float(0)
+    result = float(99)
     try:
         result = float(val)
     except (ValueError, TypeError):
         pass
     return result
+
+
+def normalize_cost_value(value, precision=2):
+    """Normalize a cost value to a consistent decimal representation."""
+    if value is None:
+        return None
+    try:
+        normalized = round(float(value), precision)
+        if normalized == 0.0:
+            return 0.0
+        return normalized
+    except (ValueError, TypeError):
+        return None
 
 
 def safe_int_or_none(val):
