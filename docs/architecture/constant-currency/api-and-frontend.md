@@ -295,6 +295,22 @@ transparency on which rates (static vs dynamic) were used and for which periods.
         "rate": "0.870000000000000",
         "type": "static",
         "start_date": "2026-01-01",
+        "end_date": "2026-01-31"
+      },
+      {
+        "base_currency": "USD",
+        "target_currency": "EUR",
+        "rate": "0.870000000000000",
+        "type": "static",
+        "start_date": "2026-02-01",
+        "end_date": "2026-02-28"
+      },
+      {
+        "base_currency": "USD",
+        "target_currency": "EUR",
+        "rate": "0.870000000000000",
+        "type": "static",
+        "start_date": "2026-03-01",
         "end_date": "2026-03-31"
       },
       {
@@ -320,10 +336,15 @@ transparency on which rates (static vs dynamic) were used and for which periods.
 
 **Implementation**: The response formatter queries `MonthlyExchangeRate` for
 the report's date range and target currency
-(see [pipeline-changes.md § Rate Resolution](./pipeline-changes.md#rate-resolution-strategy)),
-then groups consecutive months with the same rate and type into a single entry
-with `start_date` / `end_date` boundaries (first-of-month and last-day-of-month
-respectively).
+(see [pipeline-changes.md § Rate Resolution](./pipeline-changes.md#rate-resolution-strategy)).
+Each `MonthlyExchangeRate` row produces one entry in the array with `start_date`
+set to the first of the month and `end_date` to the last day of that month.
+Consecutive months with the same rate and type are **not** grouped — each month
+is returned as a separate entry.
+
+Only base currencies that actually appear in the report's cost data are included.
+For OCP reports, this means currencies from both `raw_currency` (infrastructure
+costs) and cost model currencies are considered.
 
 ---
 

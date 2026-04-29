@@ -1079,10 +1079,38 @@ class ReportQueryHandler(QueryHandler):
 
         return output
 
+    def _get_base_currencies_in_data(self):
+        """Return the set of base currencies present in the report data for the query range.
+
+        Uses the mapper's base query table (e.g. OCPUsageLineItemDailySummary)
+        rather than the resolved view/summary table, because the base table is
+        always populated and is the source of truth for which currencies exist.
+
+        Subclasses (e.g. OCP) can override to include additional currency
+        sources such as cost model currencies.
+        """
+        cost_units_key = self._mapper.cost_units_key
+        base_table = self._mapper.query_table
+        with tenant_context(self.tenant):
+            return set(
+                base_table.objects.filter(
+                    usage_start__gte=self.start_datetime.date(),
+                    usage_start__lte=self.end_datetime.date(),
+                )
+                .values_list(cost_units_key, flat=True)
+                .distinct()
+            )
+
     def _get_exchange_rates_applied(self, start_date, end_date, target_currency):
-        """Build exchange_rates_applied metadata from MonthlyExchangeRate for the query range."""
-        # MonthlyExchangeRate stores one rate per month with effective_date on the 1st,
-        # so snap query bounds to month starts to avoid excluding overlapping months.
+        """Build exchange_rates_applied metadata from MonthlyExchangeRate for the query range.
+
+        Only includes rates whose base_currency actually appears in the
+        report data, so the response stays small and relevant.
+        """
+        base_currencies = self._get_base_currencies_in_data()
+        if not base_currencies:
+            return []
+
         start_month = start_date.replace(day=1)
         end_month = end_date.replace(day=1)
 
@@ -1092,6 +1120,7 @@ class ReportQueryHandler(QueryHandler):
                     effective_date__gte=start_month,
                     effective_date__lte=end_month,
                     target_currency=target_currency,
+                    base_currency__in=base_currencies,
                 )
                 .order_by("base_currency", "effective_date")
                 .values("base_currency", "target_currency", "exchange_rate", "rate_type", "effective_date")

@@ -27,6 +27,7 @@ from api.report.queries import is_grouped_by_node
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from cost_models.exchange_rate_annotations import build_ocp_exchange_rate_annotation_dict
+from cost_models.models import CostModel
 
 LOG = logging.getLogger(__name__)
 
@@ -165,6 +166,26 @@ class OCPReportQueryHandler(ReportQueryHandler):
         - infra_exchange_rate: cloud bill currency (raw_currency column)
         """
         return build_ocp_exchange_rate_annotation_dict(self._mapper.cost_units_key, self.currency)
+
+    def _get_base_currencies_in_data(self):
+        """Return base currencies from both raw_currency (infra) and cost model currencies."""
+        base_currencies = super()._get_base_currencies_in_data()
+        base_table = self._mapper.query_table
+        with tenant_context(self.tenant):
+            source_uuids = (
+                base_table.objects.filter(
+                    usage_start__gte=self.start_datetime.date(),
+                    usage_start__lte=self.end_datetime.date(),
+                )
+                .values_list("source_uuid", flat=True)
+                .distinct()
+            )
+            cm_currencies = set(
+                CostModel.objects.filter(
+                    costmodelmap__provider_uuid__in=source_uuids,
+                ).values_list("currency", flat=True)
+            )
+        return base_currencies | cm_currencies
 
     def format_tags(self, tags_iterable):
         """
