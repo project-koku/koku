@@ -33,12 +33,13 @@ These match **Problem 1 (aggregation bias)** and **Problem 2 (negative waste off
 
 ```mermaid
 flowchart TB
-  subgraph today [Current: one ratio per bucket]
-    A1[Sum usage, Sum request, Sum cost in bucket] --> A2["waste = max(cost × (1 - U/R), 0)"]
-  end
-  subgraph proposed [Typical fix: row-level then sum]
-    B1[Per row: waste_i = max(cost_i × (1 - u_i/r_i), 0)] --> B2[Sum waste_i in bucket]
-  end
+  cHead([Current — one ratio per bucket])
+  cHead --> A1["Sum usage, Sum request, Sum cost in bucket"]
+  A1 --> A2["waste = max(cost * (1 - U/R), 0)"]
+
+  pHead([Proposed — row-level then sum])
+  pHead --> B1["Per row — waste_i = max(cost_i * (1 - u_i/r_i), 0)"]
+  B1 --> B2["Sum waste_i in bucket"]
 ```
 
 ---
