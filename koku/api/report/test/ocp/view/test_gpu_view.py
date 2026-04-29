@@ -370,6 +370,32 @@ class OCPGpuViewTest(IamTestCase):
                 )
 
     @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_gpu_endpoint_exclude_validation(self, mock_unleash):
+        """Test that exclude accepts supported fields and rejects unsupported ones."""
+        # (exclude_field, exclude_value, group_by_field, expected_status)
+        exclude_test_matrix = [
+            ("gpu_mode", "MIG", "gpu_mode", status.HTTP_200_OK),
+            ("gpu_vendor", "nvidia", "gpu_vendor", status.HTTP_200_OK),
+            ("gpu_model", "A100", "gpu_model", status.HTTP_200_OK),
+            ("cluster", "test-cluster", "cluster", status.HTTP_200_OK),
+            ("project", "test-project", "project", status.HTTP_200_OK),
+            ("node", "gpu-node-0", "cluster", status.HTTP_200_OK),
+            ("mig_profile", "1g.5gb", "mig_profile", status.HTTP_200_OK),
+            ("unsupported_field", "value", "cluster", status.HTTP_400_BAD_REQUEST),
+        ]
+        for exclude_field, exclude_value, group_by_field, expected_status in exclude_test_matrix:
+            with self.subTest(exclude=exclude_field, expected=expected_status):
+                url = reverse("reports-openshift-gpu")
+                query_params = {f"exclude[{exclude_field}]": exclude_value, f"group_by[{group_by_field}]": "*"}
+                url = url + "?" + urlencode(query_params, doseq=True)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(
+                    response.status_code,
+                    expected_status,
+                    f"exclude[{exclude_field}]={exclude_value} expected {expected_status}, got: {response.data}",
+                )
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
     def test_mig_profiles_endpoint_accepts_tag_filter_without_error(self, mock_unleash):
         """MIG profiles API drops tag filters like GPU; UI may send them without FieldError."""
         url = reverse("reports-openshift-gpu-mig-profiles")

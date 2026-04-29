@@ -421,6 +421,20 @@ class OCPGpuOrderBySerializer(OrderSerializer):
     sup_total = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
+class OCPGpuExcludeSerializer(BaseExcludeSerializer):
+    """Serializer for handling GPU query parameter exclude."""
+
+    _opfields = ("cluster", "node", "project", "gpu_vendor", "gpu_model", "gpu_mode", "mig_profile")
+
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    gpu_vendor = StringOrListField(child=serializers.CharField(), required=False)
+    gpu_model = StringOrListField(child=serializers.CharField(), required=False)
+    gpu_mode = StringOrListField(child=serializers.CharField(), required=False)
+    mig_profile = StringOrListField(child=serializers.CharField(), required=False)
+
+
 class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling GPU query parameters."""
 
@@ -439,6 +453,7 @@ class OCPGpuQueryParamSerializer(OCPQueryParamSerializer):
     GROUP_BY_SERIALIZER = OCPGpuGroupBySerializer
     FILTER_SERIALIZER = OCPGpuFilterSerializer
     ORDER_BY_SERIALIZER = OCPGpuOrderBySerializer
+    EXCLUDE_SERIALIZER = OCPGpuExcludeSerializer
 
     def __init__(self, *args, **kwargs):
         """Strip tag keys from filter/exclude/group_by so nested serializers are created with cleaned data."""
