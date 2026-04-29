@@ -16,6 +16,7 @@ from requests.exceptions import RetryError
 from urllib3.util.retry import Retry
 
 from api.common import log_json
+from api.currency.currencies import is_valid_iso_currency
 from api.currency.models import ExchangeRateDictionary
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
@@ -289,6 +290,9 @@ def _fetch_and_store_exchange_rates(url):
     data = response.json()
     rates = data["rates"]
     for curr_type, value in rates.items():
+        if not is_valid_iso_currency(curr_type):
+            LOG.warning(f"Skipping unsupported currency {curr_type}")
+            continue
         try:
             exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
             LOG.info(f"Updating currency {curr_type} to {value}")

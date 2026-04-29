@@ -13,11 +13,13 @@ from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
+from django_tenants.utils import schema_context
 
 from api.models import Customer
 from api.models import Provider
 from api.models import Tenant
 from api.report.test.util.model_bakery_loader import ModelBakeryDataLoader
+from cost_models.models import EnabledCurrency
 from koku.env import ENVIRONMENT
 
 
@@ -94,6 +96,9 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         day_list = tree_yaml["account_structure"]["days"]
                         bakery_data_loader = ModelBakeryDataLoader(KokuTestRunner.schema, customer)
 
+                        with schema_context(KokuTestRunner.schema):
+                            EnabledCurrency.objects.get_or_create(currency_code="USD")
+
                         ocp_on_aws_ocp_provider, ocp_on_aws_report_periods = bakery_data_loader.load_openshift_data(
                             OCP_ON_AWS_CLUSTER_ID, on_cloud=True
                         )
@@ -138,6 +143,8 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                             Customer.objects.get_or_create(
                                 account_id=account[0], org_id=account[2], schema_name=account[1]
                             )
+                            with schema_context(account[1]):
+                                EnabledCurrency.objects.get_or_create(currency_code="USD")
                 except Exception as err:
                     LOG.error(err)
                     raise err
