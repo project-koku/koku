@@ -436,9 +436,14 @@ urlpatterns = [
         name="exchange-rate-detail",
     ),
     path(
-        "settings/currency/exchange_rate/<str:code>/enable/",
+        "settings/currency/enabled-currencies/",
         EnabledCurrencyView.as_view(),
-        name="currency-config",
+        name="enabled-currencies-list",
+    ),
+    path(
+        "settings/currency/enabled-currencies/<str:code>/",
+        EnabledCurrencyView.as_view(),
+        name="enabled-currencies-detail",
     ),
     path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),

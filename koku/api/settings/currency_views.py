@@ -12,7 +12,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.common import log_json
+from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
+from api.currency.currencies import get_currency_info
 from api.currency.currencies import is_valid_iso_currency
 from cost_models.models import EnabledCurrency
 
@@ -35,6 +37,14 @@ class EnabledCurrencyView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return code, None
+
+    @method_decorator(never_cache)
+    def get(self, request, *args, **kwargs):
+        if "code" in kwargs:
+            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        enabled_codes = EnabledCurrency.objects.values_list("currency_code", flat=True)
+        available = [get_currency_info(code) for code in sorted(enabled_codes)]
+        return ListPaginator(available, request).paginated_response
 
     @method_decorator(never_cache)
     def post(self, request, *args, **kwargs):
