@@ -11,6 +11,7 @@ from cost_models.price_list_view import PriceListViewSet
 from cost_models.views import CostModelViewSet
 
 ROUTER = DefaultRouter()
+ROUTER.trailing_slash = "/?"
 ROUTER.register(r"cost-models", CostModelViewSet, basename="cost-models")
 ROUTER.register(r"price-lists", PriceListViewSet, basename="price-lists")
 
