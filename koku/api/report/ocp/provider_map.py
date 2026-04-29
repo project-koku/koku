@@ -1167,6 +1167,9 @@ class OCPProviderMap(ProviderMap):
                             {"field": "mig_profile", "operation": "gt", "parameter": ""},
                         ],
                         "group_by": ["mig_profile"],
+                        # filter[limit] ranks individual MIG instances (mig_id level), not profiles.
+                        # A node can have many instances per profile, so limiting by profile is not useful.
+                        "rank_group_by": ["mig_profile", "mig_id"],
                         # Do not synthesize an "Other(s)" bucket when filter[limit] is used; return top-N only.
                         "rank_limit_include_others": False,
                         "cost_units_key": "raw_currency",

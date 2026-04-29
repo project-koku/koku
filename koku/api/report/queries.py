@@ -1342,14 +1342,29 @@ class ReportQueryHandler(QueryHandler):
         if self.order_field == "subscription_name":
             group_by_value.append("subscription_name")
 
-        # Do not re-annotate names that are already GROUP BY columns (often the rank key).
+        # rank_group_by allows ranking at a finer granularity than the response group_by
+        # (e.g. mig_profiles ranks by (mig_profile, mig_id) so filter[limit] limits instances).
+        rank_group_by = self._mapper.report_type_map.get("rank_group_by", group_by_value)
+
+        # Annotate alias fields in rank_group_by (e.g. mig_id = F("mig_instance_id")) that
+        # are not in self.annotations. Skip F(same_name) aliases — those are direct model
+        # fields and re-annotating them raises "conflicts with a field on the model".
+        extra_rank_group_annotations = {
+            field: expr
+            for field in rank_group_by
+            if (expr := self.report_annotations.get(field)) is not None
+            and not (isinstance(expr, F) and expr.name == field)
+        }
+
+        # Do not re-annotate names that are already in the rank GROUP BY columns.
         # Otherwise Django raises ValueError
-        for grouped_col in group_by_value:
+        for grouped_col in rank_group_by:
             rank_annotations.pop(grouped_col, None)
 
         ranks = (
             query.annotate(**self.annotations)
-            .values(*group_by_value)
+            .annotate(**extra_rank_group_annotations)
+            .values(*rank_group_by)
             .annotate(**rank_annotations)
             .annotate(source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True))
         )
@@ -1366,19 +1381,21 @@ class ReportQueryHandler(QueryHandler):
         rankings = []
         distinct_ranks = []
         for rank in ranks:
-            rank_value = (rank.get(group) for group in group_by_value)
+            rank_value = tuple(rank.get(group) for group in rank_group_by)
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
-        return self._ranked_list(data, distinct_ranks, set(rank_annotations))
+        return self._ranked_list(data, distinct_ranks, set(rank_annotations), rank_group_by=rank_group_by)
 
-    def _ranked_list(self, data_list, ranks, rank_fields=None):  # noqa C901
+    def _ranked_list(self, data_list, ranks, rank_fields=None, rank_group_by=None):  # noqa C901
         """Get list of ranked items less than top.
 
         Args:
             data_list (List(Dict)): List of ranked data points from the same bucket
             ranks (List): list of ranks to use; overrides ranking that may present in data_list.
             rank_fields (Set): the fields on which ranking is performed.
+            rank_group_by (List): fields used for ranking; defaults to self._get_group_by().
+                When set, filter[limit] limits individual items rather than response groups.
         Returns:
             List(Dict): List of data points meeting the rank criteria
 
@@ -1387,6 +1404,8 @@ class ReportQueryHandler(QueryHandler):
             rank_fields = set()
         is_offset = "offset" in self.parameters.get("filter", {})
         group_by = self._get_group_by()
+        if rank_group_by is None:
+            rank_group_by = group_by
         self.max_rank = len(ranks)
         # Columns we drop in favor of the same named column merged in from rank data frame
         drop_columns = {"source_uuid"}
@@ -1413,12 +1432,12 @@ class ReportQueryHandler(QueryHandler):
             drop_columns.add(col)
             agg_fields[col] = ["max"]
 
-        aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
+        aggs = data_frame.groupby(rank_group_by, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
         aggs.columns = columns
         aggs = aggs.reset_index()
         aggs = aggs.replace({np.nan: None})
-        rank_data_frame = rank_data_frame.merge(aggs, on=group_by)
+        rank_data_frame = rank_data_frame.merge(aggs, on=rank_group_by)
 
         # Create a dataframe of days in the query
         days = data_frame["date"].unique()
@@ -1435,7 +1454,7 @@ class ReportQueryHandler(QueryHandler):
         # Merge our data frame to "zero-fill" missing data for each rank field
         # per day in the query, using a RIGHT JOIN
         account_aliases = None
-        merge_on = group_by + ["date"]
+        merge_on = rank_group_by + ["date"]
         if self.is_aws and "account" in group_by:
             account_aliases = data_frame[["account", "account_alias"]]
             account_aliases = account_aliases.drop_duplicates(subset="account")

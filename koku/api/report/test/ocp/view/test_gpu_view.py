@@ -3,15 +3,20 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GPU Report views."""
+from datetime import date
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import urlencode
 
 from django.urls import reverse
+from django_tenants.utils import schema_context
+from model_bakery import baker
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from reporting.provider.ocp.models import OCPGpuSummaryP
 
 
 class OCPGpuViewTest(IamTestCase):
@@ -305,6 +310,64 @@ class OCPGpuViewTest(IamTestCase):
         err = getattr(response, "data", response.content)
         self.assertEqual(response.status_code, status.HTTP_200_OK, err)
         self.assertIn("data", response.data)
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_mig_profiles_filter_limit_restricts_to_n_instances(self, mock_unleash):
+        """filter[limit]=N must limit individual MIG instances, not distinct profiles.
+
+        Regression test for COST-7405: previously the limit applied to mig_profile
+        groups, so with 2 profiles and limit=3 all 4 instances were returned.
+        Dataset: profile "1g.5gb" (3 instances) + profile "4g.20gb" (1 instance) = 4 total.
+        With limit=N (N<4), exactly N instances should be returned.
+        """
+        yesterday = date.today() - timedelta(days=1)
+        vendor = "nvidia_mig_limit_test"
+        model = "A100_mig_limit_test"
+        node = "node_mig_limit_test"
+
+        # "1g.5gb" sorts before "4g.20gb", so its 3 instances occupy ranks 1-3.
+        mig_rows = [
+            {"mig_profile": "1g.5gb", "mig_instance_id": "MIG-LIMIT-TEST-0001"},
+            {"mig_profile": "1g.5gb", "mig_instance_id": "MIG-LIMIT-TEST-0002"},
+            {"mig_profile": "1g.5gb", "mig_instance_id": "MIG-LIMIT-TEST-0003"},
+            {"mig_profile": "4g.20gb", "mig_instance_id": "MIG-LIMIT-TEST-0004"},
+        ]
+        with schema_context(self.schema_name):
+            for row in mig_rows:
+                baker.make(
+                    OCPGpuSummaryP,
+                    usage_start=yesterday,
+                    usage_end=yesterday,
+                    vendor_name=vendor,
+                    model_name=model,
+                    node=node,
+                    gpu_mode="MIG",
+                    raw_currency="USD",
+                    **row,
+                )
+
+        url = reverse("reports-openshift-gpu-mig-profiles")
+        base_params = {
+            "filter[gpu_vendor]": vendor,
+            "filter[gpu_model]": model,
+            "filter[node]": node,
+        }
+        for limit in (1, 2, 3):
+            with self.subTest(limit=limit):
+                params = {**base_params, "filter[limit]": str(limit)}
+                response = self.client.get(url + "?" + urlencode(params, doseq=True), **self.headers)
+                err = getattr(response, "data", response.content)
+                self.assertEqual(response.status_code, status.HTTP_200_OK, err)
+                total_instances = sum(
+                    len(p.get("values", []))
+                    for entry in response.data.get("data", [])
+                    for p in entry.get("mig_profiles", [])
+                )
+                self.assertEqual(
+                    total_instances,
+                    limit,
+                    f"filter[limit]={limit} returned {total_instances} instances; expected exactly {limit}",
+                )
 
     @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
     def test_mig_profiles_endpoint_accepts_tag_filter_without_error(self, mock_unleash):
