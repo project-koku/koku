@@ -38,7 +38,7 @@ and `EnabledCurrencyView`.
 **File**: `koku/cost_models/static_exchange_rate_view.py`
 
 The `StaticExchangeRateViewSet` handles CRUD for exchange rates. The `list`
-action returns exchange rates grouped by target currency with enabled status
+action returns exchange rates grouped by base currency with enabled status
 (via `CurrencyExchangeRateSerializer`). All other actions use the flat
 `StaticExchangeRateSerializer`.
 
@@ -84,18 +84,18 @@ together with the `StaticExchangeRate` write. If any side effect fails, the
 
 ### Example: GET List Response
 
-The list endpoint returns exchange rates grouped by target currency. Each
+The list endpoint returns exchange rates grouped by base currency. Each
 currency entry includes its enabled status and a nested list of exchange rates.
 Only currencies with at least one `StaticExchangeRate` record appear.
 
 ```json
 {
-  "meta": { "count": 2 },
+  "meta": { "count": 1 },
   "data": [
     {
-      "code": "EUR",
-      "name": "Euro",
-      "symbol": "€",
+      "code": "USD",
+      "name": "US Dollar",
+      "symbol": "$",
       "enabled": true,
       "exchange_rates": [
         {
@@ -108,15 +108,7 @@ Only currencies with at least one `StaticExchangeRate` record appear.
           "end_date": "2026-03-31",
           "created_timestamp": "2026-01-15T10:30:00Z",
           "updated_timestamp": "2026-01-15T10:30:00Z"
-        }
-      ]
-    },
-    {
-      "code": "GBP",
-      "name": "British Pound",
-      "symbol": "£",
-      "enabled": false,
-      "exchange_rates": [
+        },
         {
           "uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
           "name": "USD-GBP",

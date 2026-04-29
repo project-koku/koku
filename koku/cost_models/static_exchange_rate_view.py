@@ -49,7 +49,7 @@ class StaticExchangeRateViewSet(viewsets.ModelViewSet):
     filterset_class = StaticExchangeRateFilter
 
     def list(self, request, *args, **kwargs):
-        """Return exchange rates grouped by target currency with enabled status."""
+        """Return exchange rates grouped by base currency with enabled status."""
         queryset = self.filter_queryset(self.get_queryset())
         result = CurrencyExchangeRateSerializer.build_grouped_response(queryset)
         paginator = ListPaginator(result, request)

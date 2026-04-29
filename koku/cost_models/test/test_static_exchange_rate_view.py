@@ -43,10 +43,10 @@ class StaticExchangeRateViewSetTest(IamTestCase):
 
     @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
     def test_list_returns_grouped_by_currency(self, mock_invalidate):
-        """Test that GET list returns exchange rates grouped by target currency with enabled flag."""
+        """Test that GET list returns exchange rates grouped by base currency with enabled flag."""
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
-            EnabledCurrency.objects.create(currency_code="EUR")
+            EnabledCurrency.objects.create(currency_code="USD")
             self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
 
             response = self.client.get(self.list_url, **self.headers)
@@ -55,14 +55,14 @@ class StaticExchangeRateViewSetTest(IamTestCase):
             data = response.data["data"]
             self.assertEqual(len(data), 1)
 
-            eur_entry = data[0]
-            self.assertEqual(eur_entry["code"], "EUR")
-            self.assertEqual(eur_entry["enabled"], True)
-            self.assertIn("name", eur_entry)
-            self.assertIn("symbol", eur_entry)
-            self.assertEqual(len(eur_entry["exchange_rates"]), 1)
+            usd_entry = data[0]
+            self.assertEqual(usd_entry["code"], "USD")
+            self.assertEqual(usd_entry["enabled"], True)
+            self.assertIn("name", usd_entry)
+            self.assertIn("symbol", usd_entry)
+            self.assertEqual(len(usd_entry["exchange_rates"]), 1)
 
-            rate = eur_entry["exchange_rates"][0]
+            rate = usd_entry["exchange_rates"][0]
             self.assertEqual(rate["base_currency"], "USD")
             self.assertEqual(rate["target_currency"], "EUR")
             self.assertIn("uuid", rate)
@@ -71,15 +71,15 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def test_list_disabled_currency_shows_enabled_false(self, mock_invalidate):
         """Test that a currency without EnabledCurrency row shows enabled=False."""
         with tenant_context(self.tenant):
-            EnabledCurrency.objects.filter(currency_code="EUR").delete()
+            EnabledCurrency.objects.filter(currency_code="USD").delete()
             self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
 
             response = self.client.get(self.list_url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-            eur_entry = response.data["data"][0]
-            self.assertEqual(eur_entry["code"], "EUR")
-            self.assertEqual(eur_entry["enabled"], False)
+            usd_entry = response.data["data"][0]
+            self.assertEqual(usd_entry["code"], "USD")
+            self.assertEqual(usd_entry["enabled"], False)
 
     @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
     def test_update_static_rate(self, mock_invalidate):

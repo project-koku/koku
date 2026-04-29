@@ -143,12 +143,12 @@ class CurrencyExchangeRateSerializer(serializers.Serializer):
 
     @classmethod
     def build_grouped_response(cls, queryset):
-        """Group exchange rates by target_currency and attach currency metadata + enabled flag."""
+        """Group exchange rates by base_currency and attach currency metadata + enabled flag."""
         enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
 
         grouped = {}
         for rate in queryset:
-            code = rate.target_currency
+            code = rate.base_currency
             if code not in grouped:
                 info = get_currency_info(code)
                 grouped[code] = {
