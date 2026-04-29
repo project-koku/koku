@@ -59,12 +59,16 @@ class PriceListManager:
     def update(self, **data):
         """Update a price list.
 
-        Version increments on: rates, validity period, or currency changes.
+        Version increments on: rates or validity period changes.
         Version does NOT increment on: name, description, or status changes.
+        Currency is immutable and cannot be changed after creation.
         If the price list is disabled, only name, description, and status can be updated.
         """
         if not self._model:
             raise PriceListException("No price list to update.")
+
+        if "currency" in data and data["currency"] != self._model.currency:
+            raise PriceListException("Currency cannot be changed after price list creation.")
 
         if not self._model.enabled:
             allowed_fields = {"name", "description", "enabled"}
@@ -79,17 +83,15 @@ class PriceListManager:
         dates_changed = (
             "effective_start_date" in data and data["effective_start_date"] != self._model.effective_start_date
         ) or ("effective_end_date" in data and data["effective_end_date"] != self._model.effective_end_date)
-        currency_changed = "currency" in data and data["currency"] != self._model.currency
 
         self._model.name = data.get("name", self._model.name)
         self._model.description = data.get("description", self._model.description)
-        self._model.currency = data.get("currency", self._model.currency)
         self._model.effective_start_date = data.get("effective_start_date", self._model.effective_start_date)
         self._model.effective_end_date = data.get("effective_end_date", self._model.effective_end_date)
         self._model.rates = data.get("rates", self._model.rates)
         self._model.enabled = data.get("enabled", self._model.enabled)
 
-        if rates_changed or dates_changed or currency_changed:
+        if rates_changed or dates_changed:
             self._model.version += 1
 
         self._model.save()
@@ -150,6 +152,32 @@ class PriceListManager:
                 ).set(queue=fallback_queue).apply_async()
             except Exception as exc:
                 LOG.warning(f"Failed to dispatch recalculation for provider {provider.uuid}: {exc}")
+
+    def duplicate(self):
+        """Duplicate the current price list.
+
+        Creates a copy with name "Copy of <original>", same rates/currency/dates,
+        version=1, enabled=True, not assigned to any cost models.
+        """
+        if not self._model:
+            raise PriceListException("No price list to duplicate.")
+
+        max_length = 255
+        new_name = f"Copy of {self._model.name}"
+        if len(new_name) > max_length:
+            available = max_length - len("Copy of ")
+            new_name = f"Copy of {self._model.name[:available]}"
+
+        return self.create(
+            name=new_name,
+            description=self._model.description,
+            currency=self._model.currency,
+            effective_start_date=self._model.effective_start_date,
+            effective_end_date=self._model.effective_end_date,
+            enabled=True,
+            version=1,
+            rates=_strip_enrichment(self._model.rates),
+        )
 
     def delete(self):
         """Delete a price list. Only allowed if not assigned to any cost model."""
