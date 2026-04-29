@@ -559,18 +559,27 @@ def get_cluster_alias_from_cluster_id(cluster_id):
     return cluster_alias
 
 
-def get_source_and_provider_from_cluster_id(cluster_id, org_id):
-    """Return the provider given the cluster ID."""
-    source = None
+def get_source_and_provider_from_cluster_id(cluster_id, org_id, skip_org_id_filter=False):
+    """Return the source given the cluster ID."""
     credentials = {"cluster_id": cluster_id}
-    if (
-        source := Sources.objects.select_related("provider")
-        .filter(provider__authentication__credentials=credentials)
-        .filter(org_id=org_id)
-        .first()
-    ):
-        context = {"provider_uuid": source.koku_uuid, "cluster_id": cluster_id}
-        LOG.info(log_json("", msg="found provider for cluster-id", context=context))
+
+    query = Sources.objects.select_related("provider").filter(provider__authentication__credentials=credentials)
+    if not skip_org_id_filter:
+        query = query.filter(org_id=org_id)
+
+    if source := query.first():
+        LOG.info(
+            log_json(
+                "",
+                msg="found provider for cluster-id",
+                context={
+                    "provider_uuid": source.koku_uuid,
+                    "cluster_id": cluster_id,
+                    "org_id": org_id,
+                    "skip_org_id_filter": skip_org_id_filter,
+                },
+            )
+        )
     return source
 
 

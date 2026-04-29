@@ -47,6 +47,7 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.ros_report_shipper import ROSReportShipper
+from masu.processor import is_cross_org_cluster_lookup_enabled
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.processor.report_processor import ReportProcessorDBError
@@ -380,7 +381,11 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
             context=context,
         )
     )
-    source = utils.get_source_and_provider_from_cluster_id(manifest.cluster_id, org_id=context["org_id"])
+    # Single DB query: fetch source+provider by cluster_id without org_id filter
+    # We'll validate org_id in Python after checking the feature flag
+    source = utils.get_source_and_provider_from_cluster_id(
+        manifest.cluster_id, org_id=context["org_id"], skip_org_id_filter=True
+    )
     if not source:
         msg = f"Received unexpected OCP report from {manifest.cluster_id}"
         LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
@@ -389,8 +394,17 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
 
     provider: Provider = source.provider
     schema_name: str = provider.account.get("schema_name")
+
+    cross_org_enabled = bool(schema_name and is_cross_org_cluster_lookup_enabled(schema_name))
+    if not cross_org_enabled and source.org_id != context["org_id"]:
+        msg = f"Received unexpected OCP report from {manifest.cluster_id} (org_id mismatch)"
+        LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
+        shutil.rmtree(payload_path.parent)
+        return None, manifest.uuid
+
     context["provider_type"] = provider.type
     context["schema"] = schema_name
+    # for anemic accounts, use `no_account`
     context["account"] = context["account"] or provider.account.get("account_id") or "no_account"
 
     retention = get_data_retention_months(schema_name) or Config.MASU_RETAIN_NUM_MONTHS

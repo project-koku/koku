@@ -165,3 +165,9 @@ def is_ingress_rbac_grace_period_enabled(schema):  # pragma: no cover
     context = {"schema": schema}
     enabled = UNLEASH_CLIENT.is_enabled("cost-management.backend.ingress-rbac-grace-period-enabled", context)
     return enabled
+
+
+def is_cross_org_cluster_lookup_enabled(schema):  # pragma: no cover
+    """Flag to enable cross-org cluster lookup."""
+    context = {"schema": schema}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.cross-org-cluster-lookup-enabled", context)
