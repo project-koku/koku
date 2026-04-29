@@ -17,7 +17,7 @@ class CostModelsAccessPermission(permissions.BasePermission):
         url_parts = request.META.get("PATH_INFO").split("/")
         try:
             given_uuid = str(UUID(url_parts[url_parts.index("cost-models") + 1]))
-        except ValueError:
+        except (IndexError, ValueError):
             given_uuid = None
         return given_uuid
 
