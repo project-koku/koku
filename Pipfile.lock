@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "ef9280eefcd630256299ba0a9b3d01bbb7ef2e6563664d55459ff6b3d6f699f8"
+            "sha256": "076741f1d4c52a3ea84a9a18600a5de48c6106574cacae7db51b8e50808f33a1"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -3106,12 +3106,12 @@
         },
         "crc-bonfire": {
             "hashes": [
-                "sha256:51df052702fb2e24a2ccbbe7fe9089f8f984140ba1ede206ca91d56bfca469aa",
-                "sha256:6fa9fda6582e8eb69d1654e4b440991133ef1b2109483e73888d5474bf9ee695"
+                "sha256:54c60db35846eeffc515013b7966d6313e1b12d4b1df433271fd29cfd581207a",
+                "sha256:cceb257faf44b7116976d822518d12ab3ec329951078199aa577dff189a61e77"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.10'",
-            "version": "==6.11.0"
+            "version": "==6.12.0"
         },
         "cryptography": {
             "hashes": [
