@@ -86,7 +86,7 @@ For each response bucket, `usage_sum` and `request_sum` are **aggregates over al
 | **S1-b** | **Keep formula; rename / document** | Treat current `wasted_cost` as **“pooled structural waste”** (or similar); add separate optional field for bottom-up sum if product wants both. | No query rewrite; clears customer confusion. | Two metrics to explain; UI and API surface decisions. |
 | **S1-c** | **Weighted / Shapley-style allocation** | Allocate pooled waste to dimensions by a principled rule. | Single headline number with axioms. | Hard to explain; implementation complexity; may still disagree with pod-sum intuition. |
 
-**Recommendation for design discussion:** Default engineering path for “fix the number” is **S1-a** at the **finest grain stored in** [`OCPUsageLineItemDailySummary`](../../../koku/reporting/provider/ocp/models.py) **that still carries the same cost and usage fields** as the report—**after** product confirms that grain matches “workload” in their examples (IQ-7).
+**Recommendation for design discussion:** Default engineering path for “fix the number” is **S1-a** at the **finest grain stored in the summary tables** (such as OCPPodSummaryP) that still carries the same cost and usage fields as the report—**after** product confirms that grain matches “workload” in their examples (IQ-7).
 
 ---
 
@@ -164,7 +164,7 @@ The brief records **team agreement** to **ship as-is** for now and revisit if cu
 
 | ID | Approach | Notes |
 |----|-----------|------|
-| **S3-a** | **Allocate `cloud_infrastructure_cost` by driver** (e.g. request-hours shares, or cost model weights) into `cpu_infra` / `memory_infra` in pipeline or reporting | Touches summarization and possibly Trino/self-hosted SQL paths per [`.cursor/rules/onprem-vs-saas.mdc`](../../../.cursor/rules/onprem-vs-saas.mdc); **tenant** tables only under `tenant_context`. |
+| **S3-a** | **Allocate cloud_infrastructure_cost by driver** (e.g. request-hours shares, or cost model weights) into cpu_infra / memory_infra in pipeline or reporting | Touches summarization and possibly Trino/self-hosted SQL paths; **tenant** tables only under tenant_context. |
 | **S3-b** | **New combined “workload” endpoint or metric** that computes waste once on a unified cost | API/product change; avoids double-count in **one** contract if UI sums dimensions today. |
 | **S3-c** | **UI / docs: never sum CPU + memory wasted** | Operational mitigation; backend unchanged. |
 
