@@ -74,7 +74,7 @@ requests-mock = ">=1.7"
 responses = ">=0.10"
 snakeviz = "*"
 tblib = ">=1.6"
-tox = "==4.26.0"  # requires a higher cachetools version than google-auth at the moment
+tox = "==4.11.4"  # fcache (via unleashclient) pins platformdirs~=3.0; tox>=4.12 needs platformdirs>=4.1
 watchdog = ">=2.1.1"
 polyfactory = "*"
 koku-nise = "*"
