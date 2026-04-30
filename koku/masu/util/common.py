@@ -135,6 +135,19 @@ def safe_float(val):
     return result
 
 
+def normalize_cost_value(value, precision=2):
+    """Normalize a cost value to a consistent decimal representation."""
+    if value is None:
+        return None
+    try:
+        normalized = round(float(value), precision)
+        if normalized == 0.0:
+            return 0.0
+        return normalized
+    except (ValueError, TypeError):
+        return None
+
+
 def safe_int_or_none(val):
     """
     Convert the given value to an int or None.

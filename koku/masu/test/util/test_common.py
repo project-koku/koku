@@ -191,6 +191,17 @@ class CommonUtilTests(MasuTestCase):
         out = common_utils.safe_float("1.1")
         self.assertEqual(out, float("1.1"))
 
+    def test_normalize_cost_value(self):
+        """Test normalize_cost_value handles various inputs correctly."""
+        self.assertIsNone(common_utils.normalize_cost_value(None))
+        self.assertEqual(common_utils.normalize_cost_value("1.2345"), 1.23)
+        self.assertEqual(common_utils.normalize_cost_value(1.2345), 1.23)
+        self.assertEqual(common_utils.normalize_cost_value(0), 0.0)
+        self.assertEqual(common_utils.normalize_cost_value("0.0"), 0.0)
+        self.assertEqual(common_utils.normalize_cost_value(1.2345, precision=4), 1.2345)
+        self.assertIsNone(common_utils.normalize_cost_value("not-a-number"))
+        self.assertIsNone(common_utils.normalize_cost_value([1, 2]))
+
     def test_safe_dict(self):
         """Test the safe_dict method handles good and bad inputs."""
         out = common_utils.safe_dict(1)
