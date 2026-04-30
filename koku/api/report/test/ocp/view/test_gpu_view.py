@@ -16,6 +16,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.ocp.serializers import OCPGpuExcludeSerializer
+from api.report.ocp.serializers import OCPGpuGroupBySerializer
 from reporting.provider.ocp.models import OCPGpuSummaryP
 
 
@@ -367,6 +369,30 @@ class OCPGpuViewTest(IamTestCase):
                     total_instances,
                     limit,
                     f"filter[limit]={limit} returned {total_instances} instances; expected exactly {limit}",
+                )
+
+    @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_gpu_endpoint_exclude_validation(self, mock_unleash):
+        """Test that exclude accepts all fields from OCPGpuExcludeSerializer and rejects unknown ones."""
+        group_by_fields = set(OCPGpuGroupBySerializer().fields.keys()) - {"tag", "and", "or", "exact"}
+        default_group_by = "cluster"
+
+        exclude_test_matrix = []
+        for field in OCPGpuExcludeSerializer._opfields:
+            group_by = field if field in group_by_fields else default_group_by
+            exclude_test_matrix.append((field, "test-value", group_by, status.HTTP_200_OK))
+        exclude_test_matrix.append(("unsupported_field", "value", default_group_by, status.HTTP_400_BAD_REQUEST))
+
+        for exclude_field, exclude_value, group_by_field, expected_status in exclude_test_matrix:
+            with self.subTest(exclude=exclude_field, expected=expected_status):
+                url = reverse("reports-openshift-gpu")
+                query_params = {f"exclude[{exclude_field}]": exclude_value, f"group_by[{group_by_field}]": "*"}
+                url = url + "?" + urlencode(query_params, doseq=True)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(
+                    response.status_code,
+                    expected_status,
+                    f"exclude[{exclude_field}]={exclude_value} expected {expected_status}, got: {response.data}",
                 )
 
     @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
