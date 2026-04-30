@@ -18,7 +18,7 @@ from django_tenants.utils import schema_context
 from querystring_parser import parser
 from rest_framework.exceptions import ValidationError
 
-from api.currency.currencies import VALID_CURRENCIES
+from api.currency.currencies import get_enabled_currency_codes
 from api.report.constants import URL_ENCODED_SAFE
 from api.settings.settings import COST_TYPES
 from api.settings.settings import DEFAULT_USER_SETTINGS
@@ -207,7 +207,7 @@ def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
     with schema_context(schema):
         account_currency_setting = UserSettings.objects.all().first()
 
-        if currency_code not in VALID_CURRENCIES:
+        if currency_code not in get_enabled_currency_codes():
             raise ValueError(f"{currency_code} is not a supported currency")
 
         if not account_currency_setting:

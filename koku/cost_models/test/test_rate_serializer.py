@@ -4,6 +4,7 @@
 #
 """Tests for RateSerializer rate_id and custom_name output."""
 from unittest import TestCase
+from unittest.mock import patch
 from uuid import uuid4
 
 from cost_models.serializers import RateSerializer
@@ -151,7 +152,8 @@ class RateSerializerToRepresentationTest(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("rate_id", serializer.errors)
 
-    def test_is_valid_accepts_valid_rate_id(self):
+    @patch("api.currency.currencies.get_enabled_currency_codes", return_value={"USD"})
+    def test_is_valid_accepts_valid_rate_id(self, _mock):
         """Test that a valid UUID string passes field validation."""
         data = {
             "metric": {"name": "cpu_core_usage_per_hour"},

@@ -11,12 +11,9 @@ from decimal import DivisionByZero
 from decimal import InvalidOperation
 from functools import cached_property
 
-from django.db.models import Case
 from django.db.models import CharField
-from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
-from django.db.models import When
 from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
@@ -29,8 +26,8 @@ from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import is_grouped_by_node
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
+from cost_models.exchange_rate_annotations import build_ocp_exchange_rate_annotation_dict
 from cost_models.models import CostModel
-from cost_models.models import CostModelMap
 
 LOG = logging.getLogger(__name__)
 
@@ -161,36 +158,34 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return annotations
 
     @cached_property
-    def source_to_currency_map(self):
-        """
-        OCP sources do not have costs associated, so we need to
-        grab the base currency from the cost model, and create
-        a mapping of source_uuid to currency.
-        returns:
-            dict: {source_uuid: currency}
-        """
-        source_map = defaultdict(lambda: self._mapper.cost_units_fallback)
-        cost_models = CostModel.objects.all().values("uuid", "currency").distinct()
-        cm_to_currency = {row["uuid"]: row["currency"] for row in cost_models}
-        mapping = CostModelMap.objects.all().values("provider_uuid", "cost_model_id")
-        source_map |= {row["provider_uuid"]: cm_to_currency[row["cost_model_id"]] for row in mapping}
-        return source_map
-
-    @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        exchange_rate_whens = [
-            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
-            for uuid, cur in self.source_to_currency_map.items()
-        ]
-        infra_exchange_rate_whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {
-            "exchange_rate": Case(*exchange_rate_whens, default=1, output_field=DecimalField()),
-            "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
-        }
+        """Get per-month exchange rate annotations from MonthlyExchangeRate via Subquery.
+
+        OCP needs two annotations:
+        - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency)
+        - infra_exchange_rate: cloud bill currency (raw_currency column)
+        """
+        return build_ocp_exchange_rate_annotation_dict(self._mapper.cost_units_key, self.currency)
+
+    def _get_base_currencies_in_data(self):
+        """Return base currencies from both raw_currency (infra) and cost model currencies."""
+        base_currencies = super()._get_base_currencies_in_data()
+        base_table = self._mapper.query_table
+        with tenant_context(self.tenant):
+            source_uuids = (
+                base_table.objects.filter(
+                    usage_start__gte=self.start_datetime.date(),
+                    usage_start__lte=self.end_datetime.date(),
+                )
+                .values_list("source_uuid", flat=True)
+                .distinct()
+            )
+            cm_currencies = set(
+                CostModel.objects.filter(
+                    costmodelmap__provider_uuid__in=source_uuids,
+                ).values_list("currency", flat=True)
+            )
+        return base_currencies | cm_currencies
 
     def format_tags(self, tags_iterable):
         """

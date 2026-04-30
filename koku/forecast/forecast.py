@@ -16,20 +16,16 @@ import numpy as np
 import statsmodels.api as sm
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import Case
 from django.db.models import CharField
-from django.db.models import DecimalField
 from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
-from django.db.models import When
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from statsmodels.tools.sm_exceptions import ValueWarning
 
-from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -43,8 +39,10 @@ from api.report.gcp.provider_map import GCPProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
 from api.utils import get_cost_type
-from cost_models.models import CostModel
-from cost_models.models import CostModelMap
+from cost_models.exchange_rate_annotations import build_exchange_rate_annotation_dict
+from cost_models.exchange_rate_annotations import build_ocp_exchange_rate_annotation_dict
+from cost_models.exchange_rate_annotations import ExchangeRateNotFound
+from cost_models.models import MonthlyExchangeRate
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
@@ -150,21 +148,9 @@ class Forecast:
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
     @cached_property
-    def exchange_rates(self):
-        try:
-            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
-        except AttributeError as err:
-            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
-            return {}
-
-    @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        whens = [
-            When(**{self.provider_map.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+        """Get per-month exchange rate annotation from MonthlyExchangeRate via Subquery."""
+        return build_exchange_rate_annotation_dict(self.provider_map.cost_units_key, self.currency)
 
     def get_data(self):
         """Query the database."""
@@ -184,6 +170,12 @@ class Forecast:
         """Define ORM query to run forecast and return prediction."""
         cost_predictions = {}
         with tenant_context(self.params.tenant):
+            if (
+                self.currency
+                and MonthlyExchangeRate.objects.exists()
+                and not MonthlyExchangeRate.objects.filter(target_currency=self.currency).exists()
+            ):
+                raise ExchangeRateNotFound(self.currency)
             data = self.get_data()
 
             for fieldname in COST_FIELD_NAMES:
@@ -597,36 +589,9 @@ class OCPForecast(Forecast):
     provider_map_class = OCPProviderMap
 
     @cached_property
-    def source_to_currency_map(self):
-        """
-        OCP sources do not have costs associated, so we need to
-        grab the base currency from the cost model, and create
-        a mapping of source_uuid to currency.
-        returns:
-            dict: {source_uuid: currency}
-        """
-        source_map = defaultdict(lambda: "USD")
-        cost_models = CostModel.objects.all().values("uuid", "currency").distinct()
-        cm_to_currency = {row["uuid"]: row["currency"] for row in cost_models}
-        mapping = CostModelMap.objects.all().values("provider_uuid", "cost_model_id")
-        source_map |= {row["provider_uuid"]: cm_to_currency[row["cost_model_id"]] for row in mapping}
-        return source_map
-
-    @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        exchange_rate_whens = [
-            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
-            for uuid, cur in self.source_to_currency_map.items()
-        ]
-        infra_exchange_rate_whens = [
-            When(**{self.provider_map.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {
-            "exchange_rate": Case(*exchange_rate_whens, default=1, output_field=DecimalField()),
-            "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
-        }
+        """Get per-month exchange rate annotations from MonthlyExchangeRate via Subquery."""
+        return build_ocp_exchange_rate_annotation_dict(self.provider_map.cost_units_key, self.currency)
 
 
 class OCPAWSForecast(Forecast):

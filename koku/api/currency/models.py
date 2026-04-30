@@ -6,15 +6,12 @@
 # from env import currency endpoimy
 from django.db import models
 
-from api.currency.currencies import CURRENCIES
 from koku.type_json_transcode import TypedJSONDecoder
 from koku.type_json_transcode import TypedJSONEncoder
 
 
 class ExchangeRates(models.Model):
-    SUPPORTED_CURRENCIES = tuple((curr.get("code", "").lower(), curr.get("code")) for curr in CURRENCIES)
-
-    currency_type = models.CharField(max_length=5, choices=SUPPORTED_CURRENCIES, unique=False, blank=True)
+    currency_type = models.CharField(max_length=5, unique=False, blank=True)
     exchange_rate = models.FloatField(default=0)
 
 

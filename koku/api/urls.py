@@ -9,6 +9,7 @@ from django.views.decorators.cache import cache_page
 from rest_framework.routers import DefaultRouter
 
 from api.common.deprecate_view import SunsetView
+from api.settings.currency_views import EnabledCurrencyView
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
@@ -105,6 +106,7 @@ from api.views import SettingsTagView
 from api.views import StatusView
 from api.views import UserAccessView
 from api.views import UserCostTypeSettings
+from cost_models.static_exchange_rate_view import StaticExchangeRateViewSet
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import CacheEnum
@@ -422,6 +424,26 @@ urlpatterns = [
         "settings/aws_category_keys/disable/",
         SettingsDisableAWSCategoryKeyView.as_view(),
         name="settings-aws-category-keys-disable",
+    ),
+    path(
+        "settings/currency/exchange_rate/",
+        StaticExchangeRateViewSet.as_view({"get": "list", "post": "create"}),
+        name="exchange-rate-list",
+    ),
+    path(
+        "settings/currency/exchange_rate/<uuid:uuid>/",
+        StaticExchangeRateViewSet.as_view({"put": "update", "delete": "destroy"}),
+        name="exchange-rate-detail",
+    ),
+    path(
+        "settings/currency/enabled-currencies/",
+        EnabledCurrencyView.as_view(),
+        name="enabled-currencies-list",
+    ),
+    path(
+        "settings/currency/enabled-currencies/<str:code>/",
+        EnabledCurrencyView.as_view(),
+        name="enabled-currencies-detail",
     ),
     path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),

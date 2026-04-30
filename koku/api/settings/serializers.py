@@ -5,7 +5,7 @@
 """Serializers for Masu API `manifest`."""
 from rest_framework import serializers
 
-from api.currency.currencies import CURRENCY_CHOICES
+from api.currency.currencies import CurrencyField
 from api.settings.settings import COST_TYPE_CHOICES
 from reporting.tenant_settings.models import TenantSettings
 from reporting.user_settings.models import UserSettings
@@ -27,9 +27,9 @@ class UserSettingUpdateCostTypeSerializer(serializers.Serializer):
 
 
 class UserSettingUpdateCurrencySerializer(serializers.Serializer):
-    """Serializer for setting cost type."""
+    """Serializer for setting currency."""
 
-    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES)
+    currency = CurrencyField(enabled_only=True)
 
 
 class TenantSettingsSerializer(serializers.Serializer):

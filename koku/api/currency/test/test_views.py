@@ -2,19 +2,36 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+from unittest.mock import patch
+
 from django.urls import reverse
+from django_tenants.utils import schema_context
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.currency.currencies import CURRENCIES
 from api.iam.test.iam_test_case import IamTestCase
+from cost_models.models import EnabledCurrency
 
 
 class CurrencyViewTest(IamTestCase):
     """Tests for the currency view."""
 
-    def test_supported_currencies(self):
-        """Test that a list GET call returns the supported currencies."""
+    def setUp(self):
+        super().setUp()
+        with schema_context(self.schema_name):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+
+    @patch(
+        "api.currency.view.get_currency_info",
+        side_effect=lambda c: {
+            "USD": {"code": "USD", "name": "US Dollar", "symbol": "$", "description": "USD ($) - US Dollar"},
+            "EUR": {"code": "EUR", "name": "Euro", "symbol": "€", "description": "EUR (€) - Euro"},
+        }[c],
+    )
+    def test_supported_currencies(self, _mock_display):
+        """Test that GET returns only enabled currencies with name, symbol, description."""
         qs = "?limit=25"
         url = reverse("currency") + qs
         client = APIClient()
@@ -23,4 +40,19 @@ class CurrencyViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.data
-        self.assertEqual(data.get("data"), CURRENCIES)
+        expected = [
+            {"code": "EUR", "name": "Euro", "symbol": "€", "description": "EUR (€) - Euro"},
+            {"code": "USD", "name": "US Dollar", "symbol": "$", "description": "USD ($) - US Dollar"},
+        ]
+        self.assertEqual(data.get("data"), expected)
+
+    def test_non_enabled_currencies_excluded(self):
+        """Test that currencies not in the EnabledCurrency table do not appear in the response."""
+        url = reverse("currency") + "?limit=25"
+        client = APIClient()
+
+        response = client.get(url, **self.headers)
+        codes = [c["code"] for c in response.data["data"]]
+        self.assertIn("USD", codes)
+        self.assertIn("EUR", codes)
+        self.assertNotIn("GBP", codes)

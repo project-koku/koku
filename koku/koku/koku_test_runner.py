@@ -13,11 +13,13 @@ from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
+from django_tenants.utils import schema_context
 
 from api.models import Customer
 from api.models import Provider
 from api.models import Tenant
 from api.report.test.util.model_bakery_loader import ModelBakeryDataLoader
+from cost_models.models import EnabledCurrency
 from koku.env import ENVIRONMENT
 
 
@@ -138,6 +140,13 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                             Customer.objects.get_or_create(
                                 account_id=account[0], org_id=account[2], schema_name=account[1]
                             )
+
+                    _TEST_CURRENCIES = ("USD", "EUR", "JPY", "AUD", "GBP", "CAD")
+                    for _schema in (KokuTestRunner.schema, "org2222222", "org3333333"):
+                        with schema_context(_schema):
+                            for code in _TEST_CURRENCIES:
+                                EnabledCurrency.objects.get_or_create(currency_code=code)
+
                 except Exception as err:
                     LOG.error(err)
                     raise err

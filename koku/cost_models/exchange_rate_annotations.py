@@ -1,0 +1,94 @@
+#
+# Copyright 2026 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+"""Shared exchange rate annotation builders for query handlers and forecasts."""
+from django.db.models import DecimalField
+from django.db.models import OuterRef
+from django.db.models import Subquery
+from django.db.models.functions import Coalesce
+from django.db.models.functions import ExtractMonth
+from django.db.models.functions import ExtractYear
+
+from cost_models.models import CostModel
+from cost_models.models import MonthlyExchangeRate
+
+
+class ExchangeRateNotFound(Exception):
+    """Raised when no exchange rate exists for a required currency pair."""
+
+    def __init__(self, target_currency):
+        self.target_currency = target_currency
+        super().__init__(
+            f"No exchange rate available for {target_currency}. "
+            "Ask your administrator to configure static exchange rates "
+            "or enable dynamic exchange rates."
+        )
+
+
+def _build_monthly_rate_annotation(base_currency, target_currency):
+    """Build a Coalesce annotation that resolves exchange rates per month.
+
+    Tries the rate matching the row's usage_start month first, then falls back
+    to the earliest available rate for the currency pair.
+
+    Uses ExtractYear/ExtractMonth instead of TruncMonth on OuterRef because
+    Django's ResolvedOuterRef lacks the output_field attribute that TruncMonth
+    requires for date truncation.
+
+    Args:
+        base_currency: A Django expression resolving to the base currency code.
+        target_currency: The target currency code string.
+
+    Returns:
+        A Coalesce expression suitable for use in an .annotate() call.
+    """
+    rate_subquery = MonthlyExchangeRate.objects.filter(
+        effective_date__year=ExtractYear(OuterRef("usage_start")),
+        effective_date__month=ExtractMonth(OuterRef("usage_start")),
+        base_currency=base_currency,
+        target_currency=target_currency,
+    ).values("exchange_rate")[:1]
+
+    earliest_rate_subquery = (
+        MonthlyExchangeRate.objects.filter(
+            base_currency=base_currency,
+            target_currency=target_currency,
+        )
+        .order_by("effective_date")
+        .values("exchange_rate")[:1]
+    )
+
+    return Coalesce(
+        Subquery(rate_subquery),
+        Subquery(earliest_rate_subquery),
+        output_field=DecimalField(),
+    )
+
+
+def build_exchange_rate_annotation_dict(cost_units_key, target_currency):
+    """Build annotation dict with a single 'exchange_rate' key.
+
+    Used by non-OCP query handlers and forecasts where there is only one
+    currency dimension (the bill/report currency).
+    """
+    return {"exchange_rate": _build_monthly_rate_annotation(OuterRef(cost_units_key), target_currency)}
+
+
+def build_ocp_exchange_rate_annotation_dict(cost_units_key, target_currency):
+    """Build annotation dict with dual exchange rates for OCP.
+
+    OCP needs two annotations:
+    - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency)
+    - infra_exchange_rate: cloud bill currency (raw_currency column)
+    """
+    cost_model_currency = Subquery(
+        CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
+            "currency"
+        )[:1],
+    )
+
+    return {
+        "exchange_rate": _build_monthly_rate_annotation(cost_model_currency, target_currency),
+        "infra_exchange_rate": _build_monthly_rate_annotation(OuterRef(cost_units_key), target_currency),
+    }

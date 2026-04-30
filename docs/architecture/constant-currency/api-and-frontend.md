@@ -7,25 +7,22 @@ OpenAPI updates.
 
 ---
 
-## New CRUD Endpoint: Exchange Rate Pairs
+## Exchange Rate Endpoint
 
 ### URL
 
 ```
-GET/POST        /api/cost-management/v1/exchange-rate-pairs/
-GET/PUT/DELETE   /api/cost-management/v1/exchange-rate-pairs/{uuid}/
+GET/POST        /api/cost-management/v1/settings/currency/exchange_rate/
+PUT/DELETE      /api/cost-management/v1/settings/currency/exchange_rate/{uuid}/
+POST/DELETE     /api/cost-management/v1/settings/currency/enabled-currencies/{code}/
 ```
 
 ### Registration
 
-**File**: `koku/cost_models/urls.py`
+**File**: `koku/api/urls.py`
 
-Register `StaticExchangeRateViewSet` on the existing `DefaultRouter` as
-`"exchange-rate-pairs"`.
-
-```python
-router.register(r"exchange-rate-pairs", StaticExchangeRateViewSet, basename="exchange-rate-pairs")
-```
+Registered as explicit `path()` entries mapping to `StaticExchangeRateViewSet`
+and `EnabledCurrencyView`.
 
 ### Query Parameters
 
@@ -38,21 +35,23 @@ router.register(r"exchange-rate-pairs", StaticExchangeRateViewSet, basename="exc
 
 ### View
 
-**File**: New `koku/cost_models/static_exchange_rate_view.py`
+**File**: `koku/cost_models/static_exchange_rate_view.py`
 
-```python
-class StaticExchangeRateViewSet(viewsets.ModelViewSet):
-    queryset = StaticExchangeRate.objects.all()
-    serializer_class = StaticExchangeRateSerializer
-    lookup_field = "uuid"
-    permission_classes = (CostModelsAccessPermission,)
-```
-
-Follows the pattern from `CostModelViewSet` in `koku/cost_models/view.py`.
-All operations run under tenant context (handled by `django-tenants` middleware).
+The `StaticExchangeRateViewSet` handles CRUD for exchange rates. The `list`
+action returns exchange rates grouped by base currency with enabled status
+(via `CurrencyExchangeRateSerializer`). All other actions use the flat
+`StaticExchangeRateSerializer`.
 
 **Permission**: `CostModelsAccessPermission` — requires the **Price List
 Administrator** role. Same permission used for cost model CRUD.
+
+**File**: `koku/api/settings/currency_views.py`
+
+The `EnabledCurrencyView` handles currency enablement via POST (enable) and
+DELETE (disable). No request body required.
+
+**Permission**: `SettingsAccessPermission` — requires the **Cost Management
+Administrator** role.
 
 ### Serializer
 
@@ -66,7 +65,6 @@ Administrator** role. Same permission used for cost model CRUD.
 | Different currencies | `base_currency != target_currency` |
 | Month boundaries | `start_date` must be 1st of month; `end_date` must be last day of a month |
 | No overlap | No overlapping validity periods for same directional `(base, target)` pair |
-| Version | Auto-increment `version` on update |
 | Name | Read-only computed field: `"{base_currency}-{target_currency}"` |
 
 **Side effects** (see [pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--monthlyexchangerate-upsert--writer-2)):
@@ -84,35 +82,45 @@ together with the `StaticExchangeRate` write. If any side effect fails, the
      proactively populates `rate_type=RateType.DYNAMIC` rows from the current
      `ExchangeRateDictionary` to avoid a data gap until the next daily Celery run
 
-### Example: List Response
+### Example: GET List Response
+
+The list endpoint returns exchange rates grouped by base currency. Each
+currency entry includes its enabled status and a nested list of exchange rates.
+Only currencies with at least one `StaticExchangeRate` record appear.
 
 ```json
 {
-  "meta": { "count": 2 },
+  "meta": { "count": 1 },
   "data": [
     {
-      "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "name": "USD-EUR",
-      "base_currency": "USD",
-      "target_currency": "EUR",
-      "exchange_rate": "0.870000000000000",
-      "start_date": "2026-01-01",
-      "end_date": "2026-03-31",
-      "version": 1,
-      "created_timestamp": "2026-01-15T10:30:00Z",
-      "updated_timestamp": "2026-01-15T10:30:00Z"
-    },
-    {
-      "uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-      "name": "USD-GBP",
-      "base_currency": "USD",
-      "target_currency": "GBP",
-      "exchange_rate": "0.740000000000000",
-      "start_date": "2026-01-01",
-      "end_date": "2026-06-30",
-      "version": 2,
-      "created_timestamp": "2026-01-15T10:30:00Z",
-      "updated_timestamp": "2026-02-01T14:00:00Z"
+      "code": "USD",
+      "name": "US Dollar",
+      "symbol": "$",
+      "enabled": true,
+      "exchange_rates": [
+        {
+          "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "name": "USD-EUR",
+          "base_currency": "USD",
+          "target_currency": "EUR",
+          "exchange_rate": "0.870000000000000",
+          "start_date": "2026-01-01",
+          "end_date": "2026-03-31",
+          "created_timestamp": "2026-01-15T10:30:00Z",
+          "updated_timestamp": "2026-01-15T10:30:00Z"
+        },
+        {
+          "uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+          "name": "USD-GBP",
+          "base_currency": "USD",
+          "target_currency": "GBP",
+          "exchange_rate": "0.740000000000000",
+          "start_date": "2026-01-01",
+          "end_date": "2026-06-30",
+          "created_timestamp": "2026-01-15T10:30:00Z",
+          "updated_timestamp": "2026-02-01T14:00:00Z"
+        }
+      ]
     }
   ]
 }
@@ -136,125 +144,76 @@ This endpoint is always available. No Unleash feature flag gating.
 
 ---
 
-## Currency Enablement Settings API
+## Currency Enablement
+
+Currency enablement is managed via a dedicated endpoint under
+`settings/currency/enabled-currencies/`. The enabled status for each currency
+is also visible in the `GET settings/currency/exchange_rate/` list response and
+can be toggled individually.
 
 ### URL
 
 ```
-GET/PUT   /api/cost-management/v1/settings/currency/enabled-currencies/
+POST    /api/cost-management/v1/settings/currency/enabled-currencies/{code}/
+DELETE  /api/cost-management/v1/settings/currency/enabled-currencies/{code}/
 ```
 
-This endpoint lists all known currencies and their enabled/disabled status, and
-allows an administrator to enable or disable currencies.
+- **POST**: Enables the currency (creates an `EnabledCurrency` row). No request body.
+- **DELETE**: Disables the currency (removes the `EnabledCurrency` row). No request body.
+
+Both return `204 No Content`.
 
 ### View
 
-**File**: Extend existing settings views in `koku/api/settings/` or add a new
-`EnabledCurrencyViewSet`.
+**File**: `koku/api/settings/currency_views.py` — `EnabledCurrencyView`
 
-**Permission**: Cost Management Administrator role (same permission level as
-other Settings operations).
-
-### Example: GET Response
-
-```json
-{
-  "meta": { "count": 5 },
-  "data": [
-    { "currency_code": "USD", "enabled": true },
-    { "currency_code": "EUR", "enabled": true },
-    { "currency_code": "GBP", "enabled": false },
-    { "currency_code": "CNY", "enabled": false },
-    { "currency_code": "JPY", "enabled": false }
-  ]
-}
-```
-
-Currencies with `enabled: false` were discovered by the daily exchange rate API
-fetch but have not been enabled by an administrator. They will not appear in the
-target currency dropdown until enabled. All currencies are always stored
-regardless of their enabled status.
-
-### Example: PUT Request (Enable/Disable)
-
-```json
-{
-  "currencies": [
-    { "currency_code": "GBP", "enabled": true },
-    { "currency_code": "CNY", "enabled": true }
-  ]
-}
-```
+**Permission**: `SettingsAccessPermission` — requires the **Cost Management
+Administrator** role.
 
 **Side effects**: Enabling or disabling a currency only affects its visibility
 in the target currency dropdown. It does not affect the `MonthlyExchangeRate`,
-`ExchangeRateDictionary`, `ExchangeRates`, or `StaticExchangeRate`
-tables — all currencies are always stored regardless of their enabled status.
+`ExchangeRateDictionary`, `ExchangeRates`, or `StaticExchangeRate` tables.
 
 ### No `CURRENCY_URL` Configured
 
-When no `CURRENCY_URL` is configured, no dynamic currencies are discovered by the
-Celery task, so the `EnabledCurrency` table will have no dynamically-discovered
-rows. The GET response will return either an empty list or only currencies that
-were manually added. Previously fetched dynamic currencies (if the URL was
-removed later) remain in the table.
+When no `CURRENCY_URL` is configured, no dynamic exchange rates are fetched by
+the Celery task. The `EnabledCurrency` table only contains currencies that an
+administrator has explicitly enabled. The full list of ISO 4217 currencies is
+always available from Babel.
 
 ---
 
 ## Available Currencies for Dropdown
 
-The target currency dropdown in the UI must compute its list of available
-currencies from two sources:
+The target currency dropdown in the UI shows only currencies that an
+administrator has explicitly enabled.
 
-### Availability Rules
+### Availability Rule
 
 | Source | Rule | Example |
 |--------|------|---------|
-| **Dynamic** | Currency has `enabled=True` in `EnabledCurrency` | USD, EUR enabled → appear in dropdown |
-| **Static** | Currency appears in any `StaticExchangeRate` pair (as base or target) | Static rate EUR→CHF defined → both EUR and CHF appear in dropdown regardless of `EnabledCurrency` status |
+| **EnabledCurrency** | Currency exists in `EnabledCurrency` table | USD, EUR enabled → appear in dropdown |
 
-### Dropdown Endpoint
+Defining a static exchange rate does **not** automatically make its currencies
+available in the report dropdown. The administrator must explicitly enable them.
 
-**File**: New endpoint or extend existing currency-related views.
-
-```
-GET /api/cost-management/v1/settings/currency/available-currencies/
-```
-
-Returns the currencies visible to the user — the union of enabled dynamic
-currencies and static rate currencies:
-
-```json
-{
-  "data": [
-    { "currency_code": "USD", "source": "dynamic" },
-    { "currency_code": "EUR", "source": "both" },
-    { "currency_code": "CHF", "source": "static" },
-    { "currency_code": "GBP", "source": "dynamic" }
-  ]
-}
-```
-
-The `source` field indicates whether the currency is available via dynamic rates,
-static rates, or both. This is informational for the frontend.
+The settings admin page (`GET settings/currency/exchange_rate/`) shows all
+currencies with static rates regardless of enabled status, so the administrator
+can see and manage exchange rates without needing to enable currencies first.
 
 ### No Currencies Available
 
-When **no currencies are available at all** — meaning:
-
-- All dynamic currencies are disabled in `EnabledCurrency` (or none exist), **and**
-- No `StaticExchangeRate` rows exist (no static rates)
-
-Then the currency dropdown should either be **hidden** or show a message:
+When no currencies exist in `EnabledCurrency` (none enabled), the currency
+dropdown should either be **hidden** or show a message:
 *"No exchange rates available."* Whichever approach is simpler to implement.
 
 ---
 
 ## Corner Case: No Exchange Rate
 
-A currency may appear in the dropdown (because it has static or enabled dynamic
-rates) but have **no exchange rate path** from the bill's source currency to
-the selected target currency.
+A currency may appear in the dropdown (because it is enabled) but have **no
+exchange rate path** from the bill's source currency to the selected target
+currency.
 
 **Example**:
 - Cloud bill arrives in `USD`
@@ -262,17 +221,27 @@ the selected target currency.
 - User wants to see costs in `EUR`
 - There is no `USD→EUR` rate (static or dynamic)
 
-### Behavior (Preferred Approach)
+### Behavior
 
-**Make all available currencies visible** in the dropdown (`EUR`, `CHF`, `CNY`,
-`SAR`), but when the user selects a target currency for which no conversion rate
-exists from the bill currency, the API returns an error:
+There are two distinct cases:
+
+**1. Feature not configured** (`MonthlyExchangeRate` is empty): When no exchange
+rates have been configured at all (no `CURRENCY_URL`, no static rates, no Celery
+task run), the constant currency feature is inactive. No currencies are enabled,
+so the serializer rejects any explicit `currency` parameter — the user cannot
+select a target currency. Without a `currency` parameter, costs are returned
+as-is in their original bill currency. The `Coalesce("exchange_rate", Value(1))`
+fallback in provider maps ensures NULL annotations resolve to `1` (no
+conversion). This is the default state for fresh deployments.
+
+**2. Feature active but target currency has no rates** (`MonthlyExchangeRate`
+has rows but none for the target): The API returns an error:
 
 ```json
 {
   "errors": [
     {
-      "detail": "No exchange rate available between USD and EUR. Ask your administrator to configure static exchange rates or enable dynamic exchange rates.",
+      "detail": "No exchange rate available for EUR. Ask your administrator to configure static exchange rates or enable dynamic exchange rates.",
       "status": 400,
       "source": "currency"
     }
@@ -283,6 +252,9 @@ exists from the bill currency, the API returns an error:
 The frontend should display this error message to the user. The report data is
 **not** returned with unconverted amounts — the request fails with a clear,
 actionable error.
+
+**Make all available currencies visible** in the dropdown (`EUR`, `CHF`, `CNY`,
+`SAR`).
 
 **Rationale**: This approach was preferred over filtering the dropdown to only
 show currencies with available conversion paths because:
@@ -317,6 +289,22 @@ transparency on which rates (static vs dynamic) were used and for which periods.
         "rate": "0.870000000000000",
         "type": "static",
         "start_date": "2026-01-01",
+        "end_date": "2026-01-31"
+      },
+      {
+        "base_currency": "USD",
+        "target_currency": "EUR",
+        "rate": "0.870000000000000",
+        "type": "static",
+        "start_date": "2026-02-01",
+        "end_date": "2026-02-28"
+      },
+      {
+        "base_currency": "USD",
+        "target_currency": "EUR",
+        "rate": "0.870000000000000",
+        "type": "static",
+        "start_date": "2026-03-01",
         "end_date": "2026-03-31"
       },
       {
@@ -342,10 +330,15 @@ transparency on which rates (static vs dynamic) were used and for which periods.
 
 **Implementation**: The response formatter queries `MonthlyExchangeRate` for
 the report's date range and target currency
-(see [pipeline-changes.md § Rate Resolution](./pipeline-changes.md#rate-resolution-strategy)),
-then groups consecutive months with the same rate and type into a single entry
-with `start_date` / `end_date` boundaries (first-of-month and last-day-of-month
-respectively).
+(see [pipeline-changes.md § Rate Resolution](./pipeline-changes.md#rate-resolution-strategy)).
+Each `MonthlyExchangeRate` row produces one entry in the array with `start_date`
+set to the first of the month and `end_date` to the last day of that month.
+Consecutive months with the same rate and type are **not** grouped — each month
+is returned as a separate entry.
+
+Only base currencies that actually appear in the report's cost data are included.
+For OCP reports, this means currencies from both `raw_currency` (infrastructure
+costs) and cost model currencies are considered.
 
 ---
 
@@ -355,14 +348,12 @@ respectively).
 
 Add endpoint definitions for:
 
-- `GET /api/cost-management/v1/exchange-rate-pairs/` — list with filters
-- `POST /api/cost-management/v1/exchange-rate-pairs/` — create
-- `GET /api/cost-management/v1/exchange-rate-pairs/{uuid}/` — retrieve
-- `PUT /api/cost-management/v1/exchange-rate-pairs/{uuid}/` — update
-- `DELETE /api/cost-management/v1/exchange-rate-pairs/{uuid}/` — delete
-- `GET /api/cost-management/v1/settings/currency/enabled-currencies/` — list enabled/disabled currencies
-- `PUT /api/cost-management/v1/settings/currency/enabled-currencies/` — enable/disable currencies
-- `GET /api/cost-management/v1/settings/currency/available-currencies/` — list available target currencies
+- `GET /api/cost-management/v1/settings/currency/exchange_rate/` — list exchange rates grouped by currency (with enabled status)
+- `POST /api/cost-management/v1/settings/currency/exchange_rate/` — create exchange rate
+- `PUT /api/cost-management/v1/settings/currency/exchange_rate/{uuid}/` — update exchange rate
+- `DELETE /api/cost-management/v1/settings/currency/exchange_rate/{uuid}/` — delete exchange rate
+- `POST /api/cost-management/v1/settings/currency/enabled-currencies/{code}/` — enable currency
+- `DELETE /api/cost-management/v1/settings/currency/enabled-currencies/{code}/` — disable currency
 
 Add `exchange_rates_applied` to report response schemas.
 
@@ -378,15 +369,15 @@ and will consume the APIs defined above.
 
 The frontend will:
 
-- Add a currency exchange rate table in the Settings "Currency" tab
+- Add a currency exchange rate table in the Settings "Currency" tab, using
+  `GET settings/currency/exchange_rate/` (grouped response with enabled status)
 - Allow Price List Administrators to add, edit, and remove rate pairs
 - Display validity periods (start/end month)
 - Show a note explaining dynamic rates are used when no static rate is defined
-- **Add a currency enablement section** in Settings for enabling/disabling
-  currencies discovered from the exchange rate API
-- **Populate the target currency dropdown** from the available-currencies
-  endpoint (union of enabled dynamic currencies + static rate currencies).
-  Disabled currencies are stored but hidden from this dropdown.
+- **Add a currency enablement toggle** using
+  `POST/DELETE settings/currency/enabled-currencies/{code}/`
+- **Populate the target currency dropdown** from enabled currencies only.
+  Disabled currencies are stored but hidden from the report dropdown.
 - **Handle the no-rate error**: When the user selects a target currency that
   has no conversion path from the bill currency, display the error message
   returned by the API
@@ -418,3 +409,7 @@ The frontend will:
 | v1.5 | 2026-04-09 | Replaced stale `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate`, removed `StaticExchangeRateDictionary` references (removed in pipeline-changes v1.6). |
 | v1.6 | 2026-04-12 | Updated `exchange_rates_applied` implementation to reflect `Subquery`-based rate resolution (removed `effective_exchange_rates` reference). |
 | v1.7 | 2026-04-13 | Removed stale "snapshotted" terminology (remnant from `MonthlyExchangeRateSnapshot` rename). |
+| v1.8 | 2026-04-28 | Consolidated endpoints under `settings/currency/exchange_rate/`. List returns grouped response with enabled status. Currency enablement via POST/DELETE at `settings/currency/enabled-currencies/{code}/` (no body). Removed separate `AllCurrencyView` and `available-currencies` endpoints. |
+| v1.9 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. Settings admin page shows static rates regardless for management. |
+| v2.0 | 2026-04-28 | Added "costs as-is" behavior to Corner Case section: when `MonthlyExchangeRate` is empty, feature is inactive, costs returned in original currency. |
+| v2.1 | 2026-04-30 | Fixed currency enablement URLs to `settings/currency/enabled-currencies/{code}/`. Clarified "costs as-is" Corner Case: serializer enforces enabled currencies before query handler validation. |

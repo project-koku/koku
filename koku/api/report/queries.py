@@ -24,7 +24,6 @@ import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
-from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
@@ -35,9 +34,9 @@ from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
+from django_tenants.utils import tenant_context
 from pandas.api.types import CategoricalDtype
 
-from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -45,6 +44,8 @@ from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
+from cost_models.exchange_rate_annotations import ExchangeRateNotFound
+from cost_models.models import MonthlyExchangeRate
 
 LOG = logging.getLogger(__name__)
 
@@ -880,23 +881,6 @@ class ReportQueryHandler(QueryHandler):
                 group_by.append((db_name, group_pos, original_aws_category))
         return group_by
 
-    @cached_property
-    def exchange_rates(self):
-        try:
-            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
-        except AttributeError as err:
-            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
-            return {}
-
-    @cached_property
-    def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
-
     def _project_classification_annotation(self, query_data):
         """Get the correct annotation for a project or category"""
         whens = [
@@ -1064,13 +1048,95 @@ class ReportQueryHandler(QueryHandler):
             bucket_by_date[date] = grouped
         return bucket_by_date
 
+    def _validate_exchange_rates(self, target_currency):
+        """Raise ExchangeRateNotFound if no MonthlyExchangeRate rows exist for the target currency.
+
+        Skips validation when MonthlyExchangeRate is completely empty (feature not configured).
+        The Coalesce(..., Value(1)) fallback in provider maps ensures costs are returned as-is.
+        """
+        with tenant_context(self.tenant):
+            if not MonthlyExchangeRate.objects.exists():
+                return
+            if not MonthlyExchangeRate.objects.filter(target_currency=target_currency).exists():
+                raise ExchangeRateNotFound(target_currency)
+
     def _initialize_response_output(self, parameters):
         """Initialize output response object."""
         output = copy.deepcopy(parameters.parameters)
         # remove access from the output
         output.pop("access")
 
+        if self.currency:
+            self._validate_exchange_rates(self.currency)
+            output["currency"] = self.currency
+            start = self.start_datetime
+            end = self.end_datetime
+            output["exchange_rates_applied"] = self._get_exchange_rates_applied(
+                start.date(),
+                end.date(),
+                self.currency,
+            )
+
         return output
+
+    def _get_base_currencies_in_data(self):
+        """Return the set of base currencies present in the report data for the query range.
+
+        Uses the mapper's base query table (e.g. OCPUsageLineItemDailySummary)
+        rather than the resolved view/summary table, because the base table is
+        always populated and is the source of truth for which currencies exist.
+
+        Subclasses (e.g. OCP) can override to include additional currency
+        sources such as cost model currencies.
+        """
+        cost_units_key = self._mapper.cost_units_key
+        base_table = self._mapper.query_table
+        with tenant_context(self.tenant):
+            return set(
+                base_table.objects.filter(
+                    usage_start__gte=self.start_datetime.date(),
+                    usage_start__lte=self.end_datetime.date(),
+                )
+                .values_list(cost_units_key, flat=True)
+                .distinct()
+            )
+
+    def _get_exchange_rates_applied(self, start_date, end_date, target_currency):
+        """Build exchange_rates_applied metadata from MonthlyExchangeRate for the query range.
+
+        Only includes rates whose base_currency actually appears in the
+        report data, so the response stays small and relevant.
+        """
+        base_currencies = self._get_base_currencies_in_data()
+        if not base_currencies:
+            return []
+
+        start_month = start_date.replace(day=1)
+        end_month = end_date.replace(day=1)
+
+        with tenant_context(self.tenant):
+            rates = list(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date__gte=start_month,
+                    effective_date__lte=end_month,
+                    target_currency=target_currency,
+                    base_currency__in=base_currencies,
+                )
+                .order_by("base_currency", "effective_date")
+                .values("base_currency", "target_currency", "exchange_rate", "rate_type", "effective_date")
+            )
+
+        return [
+            {
+                "base_currency": rate["base_currency"],
+                "target_currency": rate["target_currency"],
+                "rate": str(rate["exchange_rate"]),
+                "type": rate["rate_type"],
+                "start_date": str(rate["effective_date"]),
+                "end_date": str(self.dh.month_end(rate["effective_date"])),
+            }
+            for rate in rates
+        ]
 
     def _pack_data_object(self, data, **kwargs):  # noqa: C901
         """Pack data into object format."""

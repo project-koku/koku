@@ -69,7 +69,6 @@ class StaticExchangeRate(models.Model):
     exchange_rate = models.DecimalField(max_digits=33, decimal_places=15)
     start_date = models.DateField()   # first day of a natural month
     end_date = models.DateField()     # last day of a natural month (or later)
-    version = models.IntegerField(default=1)
     created_timestamp = models.DateTimeField(auto_now_add=True)
     updated_timestamp = models.DateTimeField(auto_now=True)
 
@@ -80,15 +79,15 @@ class StaticExchangeRate(models.Model):
 
 **Example `static_exchange_rate` rows**:
 
-| uuid | base_currency | target_currency | exchange_rate | start_date | end_date | version | created_timestamp | updated_timestamp |
-|------|---------------|-----------------|---------------|------------|----------|---------|-------------------|-------------------|
-| `a1b2c3d4-...` | `USD` | `EUR` | `0.920000000000000` | `2026-01-01` | `2026-03-31` | 1 | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
-| `e5f6a7b8-...` | `USD` | `GBP` | `0.780000000000000` | `2026-01-01` | `2026-01-31` | 2 | `2026-01-10 08:00:00+00` | `2026-01-20 14:22:00+00` |
-| `c9d0e1f2-...` | `EUR` | `GBP` | `0.848000000000000` | `2026-02-01` | `2026-06-30` | 1 | `2026-02-01 09:00:00+00` | `2026-02-01 09:00:00+00` |
+| uuid | base_currency | target_currency | exchange_rate | start_date | end_date | created_timestamp | updated_timestamp |
+|------|---------------|-----------------|---------------|------------|----------|-------------------|-------------------|
+| `a1b2c3d4-...` | `USD` | `EUR` | `0.920000000000000` | `2026-01-01` | `2026-03-31` | `2026-01-15 10:30:00+00` | `2026-01-15 10:30:00+00` |
+| `e5f6a7b8-...` | `USD` | `GBP` | `0.780000000000000` | `2026-01-01` | `2026-01-31` | `2026-01-10 08:00:00+00` | `2026-01-20 14:22:00+00` |
+| `c9d0e1f2-...` | `EUR` | `GBP` | `0.848000000000000` | `2026-02-01` | `2026-06-30` | `2026-02-01 09:00:00+00` | `2026-02-01 09:00:00+00` |
 
 In this example:
 - The `USD→EUR` rate of `0.92` applies for Jan–Mar 2026 (overrides dynamic rates for those months)
-- The `USD→GBP` rate was updated once (`version=2`) and only covers January
+- The `USD→GBP` rate only covers January
 - The `EUR→GBP` rate covers Feb–Jun 2026
 
 **Constraints** (enforced in serializer validation):
@@ -99,7 +98,6 @@ In this example:
   that same month or a later month
 - No overlapping validity periods for the same `(base_currency, target_currency)`
   directional pair
-- `version` auto-increments on update (managed by serializer, not DB trigger)
 
 **Computed properties**:
 
@@ -115,17 +113,15 @@ defined, each uses its own rate.
 
 ### `EnabledCurrency`
 
-Tracks which currencies are visible in the target currency dropdown. Currencies
-must be explicitly enabled by an administrator before they appear in the
-dropdown. All currencies are always stored in `MonthlyExchangeRate` regardless
-of their enabled status — the `enabled` flag only controls dropdown visibility.
+Tracks which currencies are enabled for the target currency dropdown. Only
+enabled currencies are stored — presence in this table means the currency is
+enabled. The full list of known currencies comes from Babel's ISO 4217 registry
+at runtime.
 
 ```python
 class EnabledCurrency(models.Model):
     currency_code = models.CharField(max_length=5, unique=True)
-    enabled = models.BooleanField(default=False)
     created_timestamp = models.DateTimeField(auto_now_add=True)
-    updated_timestamp = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "enabled_currency"
@@ -134,50 +130,54 @@ class EnabledCurrency(models.Model):
 
 **Example `enabled_currency` rows**:
 
-| id | currency_code | enabled | created_timestamp | updated_timestamp |
-|----|---------------|---------|-------------------|-------------------|
-| 1 | `USD` | `true` | `2026-01-01 06:00:00+00` | `2026-01-01 06:00:00+00` |
-| 2 | `EUR` | `true` | `2026-01-01 06:00:00+00` | `2026-01-15 10:30:00+00` |
-| 3 | `GBP` | `false` | `2026-01-01 06:00:00+00` | `2026-01-01 06:00:00+00` |
-| 4 | `CNY` | `false` | `2026-01-01 06:00:00+00` | `2026-01-01 06:00:00+00` |
-| 5 | `JPY` | `false` | `2026-01-01 06:00:00+00` | `2026-01-01 06:00:00+00` |
+| id | currency_code | created_timestamp |
+|----|---------------|-------------------|
+| 1 | `USD` | `2026-01-01 06:00:00+00` |
+| 2 | `EUR` | `2026-01-15 10:30:00+00` |
 
-In this example, `USD` and `EUR` are enabled and will appear in the target
-currency dropdown. `GBP`, `CNY`, and `JPY` were discovered by the daily Celery
-task (fetched from the exchange rate API) but have not yet been enabled by an
-administrator — they are stored in `MonthlyExchangeRate` but hidden from the
-dropdown.
+In this example, only `USD` and `EUR` are enabled and will appear in the target
+currency dropdown. All other ISO 4217 currencies are known via Babel but not
+enabled.
 
 **Lifecycle**:
 
 | Event | Action |
 |-------|--------|
-| Daily Celery task fetches from exchange rate API | Creates `EnabledCurrency` rows with `enabled=False` for any newly discovered currencies not already in the table |
-| Administrator enables a currency in Settings | Sets `enabled=True` |
-| Administrator disables a currency in Settings | Sets `enabled=False` |
+| Administrator enables a currency via `POST settings/currency/enabled-currencies/{code}/` | Creates an `EnabledCurrency` row for that currency |
+| Administrator disables a currency via `DELETE settings/currency/enabled-currencies/{code}/` | Removes the `EnabledCurrency` row for that currency |
+| `GET settings/currency/exchange_rate/` | Returns currencies that have exchange rates, grouped by base currency, with `enabled` flag based on `EnabledCurrency` table membership |
 
-**How currencies become "available" in dropdowns**:
+**How currencies become "available" in the report dropdown**:
 
-A currency is visible in the target currency dropdown if **any** of the
-following are true:
+A currency is visible in the target currency dropdown only if it exists in the
+`EnabledCurrency` table. Defining a static exchange rate does **not** automatically
+make its currencies available — the administrator must explicitly enable them.
 
-1. It has `enabled=True` in `EnabledCurrency`
-2. It appears in any `StaticExchangeRate` pair (static rates make their currencies
-   visible regardless of the `EnabledCurrency` status)
+The settings admin page (`GET settings/currency/exchange_rate/`) shows all
+currencies with static rates regardless of enabled status, so the administrator
+can see and manage them.
 
-**Corner case — no usable rate**: A currency may be available in the dropdown but
-have no exchange rate path from the bill's source currency. In this case, the API
-returns an error: *"No exchange rate available. Ask your administrator to configure
-static exchange rates or enable dynamic exchange rates."* See
+**Corner case — no usable rate**: A currency may be enabled but have no exchange
+rate path from the bill's source currency. If `MonthlyExchangeRate` has rows
+(the feature is active) but none for the requested target currency, the API
+returns an error: *"No exchange rate available. Ask your administrator to
+configure static exchange rates or enable dynamic exchange rates."* See
 [api-and-frontend.md § Corner Case: No Exchange Rate](./api-and-frontend.md#corner-case-no-exchange-rate).
+
+**No rates configured at all**: When `MonthlyExchangeRate` is completely empty
+(no `CURRENCY_URL` configured, no static rates defined, no Celery task run),
+the constant currency feature is inactive. No currencies are enabled, so the
+serializer rejects any explicit `currency` parameter. Without a `currency`
+parameter, costs are returned as-is in their original bill currency. The
+`Coalesce(..., Value(1))` fallback in provider maps ensures exchange rate
+annotations resolve to `1` (no conversion). This is the default state for
+fresh deployments.
 
 **No `CURRENCY_URL` configured**: When the URL is not set, no dynamic currencies
 are discovered by the Celery task, so no rows are created automatically. The
 table may still contain previously fetched currencies or manually-created rows.
-The system does not treat this as a special mode — it uses whatever rates are
-available (static first, dynamic fallback, error if neither exists). If no
-currencies are visible (all disabled and no static rates), the currency dropdown
-is hidden or shows *"No exchange rates available."*
+If no currencies are visible (all disabled and no static rates), the currency
+dropdown is hidden or shows *"No exchange rates available."*
 
 **Registration points**: None. Accessed via the Settings API (see
 [api-and-frontend.md § Currency Enablement](./api-and-frontend.md#currency-enablement-settings-api)).
@@ -376,7 +376,7 @@ changes required.
 |---------|------|---------|
 | v1.0 | 2026-03-19 | Initial data model design |
 | v1.1 | 2026-03-24 | Added `EnabledCurrency` model, M4 migration |
-| v1.2 | 2026-03-24 | Simplified enablement: `enabled` flag only controls dropdown visibility, not snapshotting |
+| v1.2 | 2026-03-24 | Simplified enablement: `EnabledCurrency` table controls dropdown visibility, not snapshotting |
 | v1.3 | 2026-03-24 | Removed airgapped mode concept. Rate resolution: static first, dynamic fallback, error if neither. |
 | v1.4 | 2026-03-26 | Clarified `StaticExchangeRateDictionary` as source of truth for static rates; `MonthlyExchangeRateSnapshot` as historical rate storage for reports. |
 | v1.5 | 2026-03-29 | Replaced `year_month` CharField with `effective_date` DateField on `MonthlyExchangeRateSnapshot` for consistency with existing date field patterns (`usage_start`, `billing_period_start`). |
@@ -384,3 +384,7 @@ changes required.
 | v1.7 | 2026-03-30 | M2 now seeds current-month data from `ExchangeRateDictionary` during migration. Eliminates `ExchangeRateDictionary` fallback in query handler. |
 | v1.8 | 2026-04-12 | Updated reader description to reflect `Subquery`-based rate resolution (replaces `Case`/`When`). |
 | v1.9 | 2026-04-13 | Fixed `ExchangeRates` model description: actual fields are `currency_type` (CharField) and `exchange_rate` (FloatField), not `base_currency`/`exchange_rates` JSONField. Removed non-existent `updated_timestamp` column from `ExchangeRateDictionary` example. |
+| v2.0 | 2026-04-28 | Updated `EnabledCurrency` lifecycle to reflect POST/DELETE per-currency enablement at `settings/currency/enabled-currencies/{code}/`. |
+| v2.1 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. |
+| v2.2 | 2026-04-28 | Added "costs as-is" behavior: when `MonthlyExchangeRate` is empty, feature is inactive, costs returned in original currency. |
+| v2.3 | 2026-04-30 | Fixed `EnabledCurrency` lifecycle URLs to `settings/currency/enabled-currencies/{code}/`. Clarified "costs as-is" behavior: serializer blocks non-enabled currencies. |

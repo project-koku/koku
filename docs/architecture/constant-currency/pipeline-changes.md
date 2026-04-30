@@ -83,9 +83,7 @@ configuring their own on-premise deployment.
 3. Fetches rates from `CURRENCY_URL` *(unchanged when URL is set)*
 4. Upserts `ExchangeRates` rows *(unchanged)*
 5. Rebuilds `ExchangeRateDictionary` *(unchanged)*
-6. **NEW**: Per-tenant currency discovery — creates `EnabledCurrency` rows
-   with `enabled=False` for newly discovered currencies
-7. **NEW**: Per-tenant upsert into `MonthlyExchangeRate` for all currencies
+6. **NEW**: Per-tenant upsert into `MonthlyExchangeRate` for all currencies
    returned by the API
 
 At query time:
@@ -95,9 +93,8 @@ At query time:
 9. **CHANGED**: Per-month rate resolution via `Subquery` annotation (replaces
    single-rate `Case`/`When`)
 10. **NEW**: Report response includes `exchange_rates_applied` metadata
-11. **NEW**: Available currencies for dropdown computed from enabled dynamic
-    currencies + static rate currencies (`enabled` flag controls dropdown
-    visibility only, not storage)
+11. **NEW**: Available currencies for dropdown computed from `EnabledCurrency`
+    table only (static rates do not bypass enablement)
 
 ### Single Source of Truth: `MonthlyExchangeRate`
 
@@ -152,26 +149,17 @@ if not settings.CURRENCY_URL:
 Fetch rates from `CURRENCY_URL`, upsert `ExchangeRates`, rebuild
 `ExchangeRateDictionary`. This logic is unchanged from today.
 
-### Step 3: Currency discovery + `MonthlyExchangeRate` upsert (new)
+### Step 3: `MonthlyExchangeRate` upsert (new)
 
-After rebuilding `ExchangeRateDictionary`, add per-tenant currency discovery
-and `MonthlyExchangeRate` upsert:
+After rebuilding `ExchangeRateDictionary`, upsert per-tenant
+`MonthlyExchangeRate` rows:
 
 ```python
 current_month = dh.this_month_start  # date(2026, 3, 1)
 exchange_dict = ExchangeRateDictionary.objects.first().currency_exchange_dictionary
-all_api_currencies = set(exchange_dict.keys())
 
 for tenant in Tenant.objects.exclude(schema_name="public"):
     with schema_context(tenant.schema_name):
-        # Currency discovery: create EnabledCurrency rows for newly seen currencies
-        existing_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
-        new_currencies = all_api_currencies - existing_codes
-        EnabledCurrency.objects.bulk_create(
-            [EnabledCurrency(currency_code=code, enabled=False) for code in new_currencies],
-            ignore_conflicts=True,
-        )
-
         # Pre-fetch all static pairs for this month in a single query
         static_pairs = set(
             MonthlyExchangeRate.objects.filter(
@@ -180,7 +168,7 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
             ).values_list("base_currency", "target_currency")
         )
 
-        # Upsert ALL currencies — enabled flag only controls dropdown visibility
+        # Upsert all currencies — EnabledCurrency controls dropdown visibility
         for base_cur, targets in exchange_dict.items():
             for target_cur, rate in targets.items():
                 if base_cur == target_cur:
@@ -198,13 +186,13 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
 
 - **URL check**: If `CURRENCY_URL` is not configured, the task skips the API
   fetch. Dynamic rates are simply not fetched; the system uses whatever rates
-  are available (static first, dynamic fallback, error if neither exists).
-- **Currency discovery**: Creates `EnabledCurrency` rows with `enabled=False`
-  for any new currencies returned by the API. These appear in Settings as
-  disabled currencies that the administrator can enable.
+  are available (static first, dynamic fallback). If `MonthlyExchangeRate` is
+  completely empty (no rates configured), the feature is inactive — no
+  currencies are enabled and costs are returned as-is in their original bill
+  currency.
 - **All currencies stored**: Upserts dynamic rates for all currency pairs
-  returned by the API. The `enabled` flag on `EnabledCurrency` only controls
-  dropdown visibility, not rate storage.
+  returned by the API. The `EnabledCurrency` table controls dropdown visibility,
+  not rate storage. Administrators enable currencies via the Settings API.
 - Runs daily; overwrites current month's dynamic rows with latest rate
 - Skips pairs with `rate_type=RateType.STATIC` (static takes precedence)
 - Past months' rows are never updated (automatic finalization)
@@ -455,100 +443,72 @@ an exception.
 
 **Risk linkage**: See [risk-register.md § R5](./risk-register.md#r5--query-handler-performance)
 
-### Post-Query Exchange Rate Validation
+### Pre-Query Exchange Rate Validation
 
-After the queryset is evaluated but before the response is serialized, the query
-handler checks for `NULL` exchange rate annotations. A `NULL` value means both
-the exact-month and earliest-available subqueries returned no result — indicating
-that `MonthlyExchangeRate` has no data at all for that currency pair. This is a
-system configuration error, not normal operation.
+Validation happens at two levels before the report query executes:
+
+**Level 1 — Serializer** (`CurrencyField(enabled_only=True)`): The `currency`
+query parameter is validated against the `EnabledCurrency` table. Only
+currencies that an administrator has explicitly enabled are accepted. When no
+currencies are enabled (feature not configured), any `currency` parameter is
+rejected — the user cannot select a target currency and costs are returned
+as-is in their default currency.
+
+**Level 2 — Query handler** (`_validate_exchange_rates`): If the serializer
+passes, the query handler checks that `MonthlyExchangeRate` has rows for the
+target currency:
 
 ```python
-def _validate_exchange_rates(self, queryset):
-    """Raise if any rows have NULL exchange rates (no rate data for currency pair)."""
-    if not self.currency:
-        return
+def _validate_exchange_rates(self, target_currency):
+    """Raise ExchangeRateNotFound if no MonthlyExchangeRate rows exist for the target currency.
 
-    null_rate_filter = Q(exchange_rate__isnull=True)
-    # OCP has a second annotation to check
-    if hasattr(self, "_mapper") and hasattr(self._mapper, "cost_units_key"):
-        null_rate_filter |= Q(infra_exchange_rate__isnull=True)
-
-    if queryset.filter(null_rate_filter).exists():
-        missing_currencies = (
-            queryset.filter(null_rate_filter)
-            .values_list(self._mapper.cost_units_key, flat=True)
-            .distinct()
-        )
-        raise ExchangeRateNotFound(
-            f"No exchange rates found for base currencies "
-            f"{list(missing_currencies)} → {self.currency}. "
-            f"MonthlyExchangeRate table may not be seeded."
-        )
+    Skips validation when MonthlyExchangeRate is completely empty (feature not configured).
+    The Coalesce(..., Value(1)) fallback in provider maps ensures costs are returned as-is.
+    """
+    with tenant_context(self.tenant):
+        if not MonthlyExchangeRate.objects.exists():
+            return  # feature not configured, costs returned as-is
+        if not MonthlyExchangeRate.objects.filter(target_currency=target_currency).exists():
+            raise ExchangeRateNotFound(target_currency)
 ```
 
 **Key design choices**:
 
-- **Post-query, not pre-query**: The validation runs after the query because
-  the base currency varies per row (it comes from the data, not the request).
-  A pre-query check could only verify that *some* rates exist for the target
-  currency, but would miss cases where rates exist for one base currency but
-  not another.
-- **Performance**: The `.filter(...).exists()` check is a lightweight query
-  that only adds overhead when the annotation produced `NULL` values. The
-  `.values_list().distinct()` for the error message only runs on the error
-  path.
+- **Feature activation**: When `MonthlyExchangeRate` is completely empty (no
+  rates configured at all), the feature is inactive. No currencies are enabled,
+  so the serializer rejects any `currency` parameter before the query handler
+  runs. Without a `currency` parameter, the `Coalesce("exchange_rate",
+  Value(1))` fallback in provider maps ensures NULL annotations resolve to `1`
+  (no conversion).
+- **Pre-query check**: The query handler validation runs before the query
+  executes. It verifies that *any* `MonthlyExchangeRate` row exists for the
+  target currency. Per-row mismatches (e.g., a specific base currency with no
+  rate) are handled gracefully by the `Coalesce` fallback to `1`.
 - **Exception type**: `ExchangeRateNotFound` is a custom exception caught by
-  the view layer and returned as an appropriate HTTP error response. This is a
-  system configuration issue (missing rate data), not a user input error.
-- **OCP dual annotations**: The OCP query handler must validate both
-  `exchange_rate` and `infra_exchange_rate` since they resolve against
-  different base currencies (cost model currency vs cloud bill currency).
+  the view layer and returned as HTTP 400 with an actionable error message.
+  This only fires when rates are configured but not for the requested currency
+  — indicating an administrator configuration gap, not a system error.
 
 ### New: Available Currency Resolution
 
-The query handler (or a shared utility) computes the list of currencies
-visible in the target currency dropdown. All currencies are stored in
-`MonthlyExchangeRate` regardless of their enabled status — the `enabled` flag only
-controls dropdown visibility. A currency is **visible in the dropdown** if any
-of the following are true:
+The report dropdown shows only currencies that an administrator has explicitly
+enabled via the `EnabledCurrency` table. Defining a static exchange rate does
+**not** automatically make its currencies available in the report dropdown — the
+administrator must still enable them.
 
-1. It has `enabled=True` in `EnabledCurrency`
-2. It appears as either `base_currency` or `target_currency` in any
-   `StaticExchangeRate` row (static rates make their currencies visible
-   regardless of `EnabledCurrency` status)
+The settings admin page (`GET settings/currency/exchange_rate/`) shows all
+currencies with static rates regardless of enabled status, so the administrator
+can manage them without needing to enable them first.
 
-```python
-@cached_property
-def available_currencies(self):
-    """Currencies visible in the target currency dropdown."""
-    # Dynamic: enabled currencies (all are stored; enabled controls visibility only)
-    enabled_codes = set(
-        EnabledCurrency.objects.filter(enabled=True).values_list("currency_code", flat=True)
-    )
-
-    # Static: all currencies appearing in any static exchange rate pair
-    static_currencies = set(
-        StaticExchangeRate.objects.values_list("base_currency", flat=True)
-    ) | set(
-        StaticExchangeRate.objects.values_list("target_currency", flat=True)
-    )
-
-    return enabled_codes | static_currencies
-```
-
-When the user selects a target currency that is "available" but has **no
-exchange rate path** from the bill's source currency (e.g., bill is in USD, user
-selects EUR, but no USD→EUR rate exists — only EUR↔CHF and CNY↔SAR are defined),
-the API returns an error rather than silently showing zero or unconverted costs:
+When the user selects a currency that is enabled but has **no exchange rate
+path** from the bill's source currency, the API returns an error rather than
+silently showing zero or unconverted costs:
 
 > *"No exchange rate available. Ask your administrator to configure static
 > exchange rates or enable dynamic exchange rates."*
 
-When **no currencies are visible** (no dynamic currencies enabled and no
-static rates defined), the frontend either hides the currency dropdown
-entirely or shows *"No exchange rates available."* — whichever is simpler to
-implement.
+When **no currencies are enabled**, the frontend either hides the currency
+dropdown entirely or shows *"No exchange rates available."*
 
 See [api-and-frontend.md § Corner Case: No Exchange Rate](./api-and-frontend.md#corner-case-no-exchange-rate)
 for the full UX specification.
@@ -685,3 +645,6 @@ per-source-type would miss cross-provider reports (e.g., OCP-on-AWS).
 | v2.0 | 2026-04-12 | Adopted `Subquery` approach for rate resolution (replaces `Case`/`When`). Removed `effective_exchange_rates` property. OCP uses nested `Subquery` for `source_uuid` → cost model currency resolution. R5 mitigated. |
 | v2.1 | 2026-04-12 | Pre-deployment months now fall back to earliest available rate instead of defaulting to 1. Added post-query validation that raises `ExchangeRateNotFound` when no rate exists for a currency pair. Removed `Value(Decimal("1"))` from `Coalesce` in both base and OCP annotations. |
 | v2.2 | 2026-04-13 | Fixed current pipeline description: `ExchangeRates` upserts per target currency (not base). Fixed "stored and stored" typo in available currency resolution. |
+| v2.3 | 2026-04-28 | Removed static-rate enablement bypass from available currency resolution. Report dropdown governed solely by `EnabledCurrency`. |
+| v2.4 | 2026-04-28 | Replaced post-query validation pseudocode with actual pre-query implementation. Added "costs as-is" behavior: when `MonthlyExchangeRate` is empty, feature inactive, validation skipped. |
+| v2.5 | 2026-04-30 | Documented two-level validation: serializer (`CurrencyField(enabled_only=True)`) blocks non-enabled currencies before query handler checks `MonthlyExchangeRate`. |
