@@ -14,7 +14,7 @@ OpenAPI updates.
 ```
 GET/POST        /api/cost-management/v1/settings/currency/exchange_rate/
 PUT/DELETE      /api/cost-management/v1/settings/currency/exchange_rate/{uuid}/
-POST/DELETE     /api/cost-management/v1/settings/currency/exchange_rate/{code}/enable/
+POST/DELETE     /api/cost-management/v1/settings/currency/enabled-currencies/{code}/
 ```
 
 ### Registration
@@ -146,15 +146,16 @@ This endpoint is always available. No Unleash feature flag gating.
 
 ## Currency Enablement
 
-Currency enablement is managed via the exchange rate endpoint. The enabled
-status for each currency is visible in the GET list response and can be
-toggled individually.
+Currency enablement is managed via a dedicated endpoint under
+`settings/currency/enabled-currencies/`. The enabled status for each currency
+is also visible in the `GET settings/currency/exchange_rate/` list response and
+can be toggled individually.
 
 ### URL
 
 ```
-POST    /api/cost-management/v1/settings/currency/exchange_rate/{code}/enable/
-DELETE  /api/cost-management/v1/settings/currency/exchange_rate/{code}/enable/
+POST    /api/cost-management/v1/settings/currency/enabled-currencies/{code}/
+DELETE  /api/cost-management/v1/settings/currency/enabled-currencies/{code}/
 ```
 
 - **POST**: Enables the currency (creates an `EnabledCurrency` row). No request body.
@@ -226,11 +227,12 @@ There are two distinct cases:
 
 **1. Feature not configured** (`MonthlyExchangeRate` is empty): When no exchange
 rates have been configured at all (no `CURRENCY_URL`, no static rates, no Celery
-task run), the constant currency feature is inactive. Validation is skipped and
-costs are returned as-is in their original bill currency. The
-`Coalesce("exchange_rate", Value(1))` fallback in provider maps ensures NULL
-annotations resolve to `1` (no conversion). This is the default state for fresh
-deployments.
+task run), the constant currency feature is inactive. No currencies are enabled,
+so the serializer rejects any explicit `currency` parameter — the user cannot
+select a target currency. Without a `currency` parameter, costs are returned
+as-is in their original bill currency. The `Coalesce("exchange_rate", Value(1))`
+fallback in provider maps ensures NULL annotations resolve to `1` (no
+conversion). This is the default state for fresh deployments.
 
 **2. Feature active but target currency has no rates** (`MonthlyExchangeRate`
 has rows but none for the target): The API returns an error:
@@ -350,8 +352,8 @@ Add endpoint definitions for:
 - `POST /api/cost-management/v1/settings/currency/exchange_rate/` — create exchange rate
 - `PUT /api/cost-management/v1/settings/currency/exchange_rate/{uuid}/` — update exchange rate
 - `DELETE /api/cost-management/v1/settings/currency/exchange_rate/{uuid}/` — delete exchange rate
-- `POST /api/cost-management/v1/settings/currency/exchange_rate/{code}/enable/` — enable currency
-- `DELETE /api/cost-management/v1/settings/currency/exchange_rate/{code}/enable/` — disable currency
+- `POST /api/cost-management/v1/settings/currency/enabled-currencies/{code}/` — enable currency
+- `DELETE /api/cost-management/v1/settings/currency/enabled-currencies/{code}/` — disable currency
 
 Add `exchange_rates_applied` to report response schemas.
 
@@ -373,7 +375,7 @@ The frontend will:
 - Display validity periods (start/end month)
 - Show a note explaining dynamic rates are used when no static rate is defined
 - **Add a currency enablement toggle** using
-  `POST/DELETE settings/currency/exchange_rate/{code}/enable/`
+  `POST/DELETE settings/currency/enabled-currencies/{code}/`
 - **Populate the target currency dropdown** from enabled currencies only.
   Disabled currencies are stored but hidden from the report dropdown.
 - **Handle the no-rate error**: When the user selects a target currency that
@@ -407,6 +409,7 @@ The frontend will:
 | v1.5 | 2026-04-09 | Replaced stale `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate`, removed `StaticExchangeRateDictionary` references (removed in pipeline-changes v1.6). |
 | v1.6 | 2026-04-12 | Updated `exchange_rates_applied` implementation to reflect `Subquery`-based rate resolution (removed `effective_exchange_rates` reference). |
 | v1.7 | 2026-04-13 | Removed stale "snapshotted" terminology (remnant from `MonthlyExchangeRateSnapshot` rename). |
-| v1.8 | 2026-04-28 | Consolidated endpoints under `settings/currency/exchange_rate/`. List returns grouped response with enabled status. Currency enablement via POST/DELETE (no body). Removed separate `AllCurrencyView` and `available-currencies` endpoints. |
+| v1.8 | 2026-04-28 | Consolidated endpoints under `settings/currency/exchange_rate/`. List returns grouped response with enabled status. Currency enablement via POST/DELETE at `settings/currency/enabled-currencies/{code}/` (no body). Removed separate `AllCurrencyView` and `available-currencies` endpoints. |
 | v1.9 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. Settings admin page shows static rates regardless for management. |
 | v2.0 | 2026-04-28 | Added "costs as-is" behavior to Corner Case section: when `MonthlyExchangeRate` is empty, feature is inactive, costs returned in original currency. |
+| v2.1 | 2026-04-30 | Fixed currency enablement URLs to `settings/currency/enabled-currencies/{code}/`. Clarified "costs as-is" Corner Case: serializer enforces enabled currencies before query handler validation. |

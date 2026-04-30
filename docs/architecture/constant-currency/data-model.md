@@ -143,9 +143,9 @@ enabled.
 
 | Event | Action |
 |-------|--------|
-| Administrator enables a currency via `POST settings/currency/exchange_rate/{code}/enable/` | Creates an `EnabledCurrency` row for that currency |
-| Administrator disables a currency via `DELETE settings/currency/exchange_rate/{code}/enable/` | Removes the `EnabledCurrency` row for that currency |
-| `GET settings/currency/exchange_rate/` | Returns currencies that have exchange rates, grouped by target currency, with `enabled` flag based on `EnabledCurrency` table membership |
+| Administrator enables a currency via `POST settings/currency/enabled-currencies/{code}/` | Creates an `EnabledCurrency` row for that currency |
+| Administrator disables a currency via `DELETE settings/currency/enabled-currencies/{code}/` | Removes the `EnabledCurrency` row for that currency |
+| `GET settings/currency/exchange_rate/` | Returns currencies that have exchange rates, grouped by base currency, with `enabled` flag based on `EnabledCurrency` table membership |
 
 **How currencies become "available" in the report dropdown**:
 
@@ -166,10 +166,12 @@ configure static exchange rates or enable dynamic exchange rates."* See
 
 **No rates configured at all**: When `MonthlyExchangeRate` is completely empty
 (no `CURRENCY_URL` configured, no static rates defined, no Celery task run),
-the constant currency feature is inactive. Validation is skipped and costs are
-returned as-is in their original bill currency. The `Coalesce(..., Value(1))`
-fallback in provider maps ensures exchange rate annotations resolve to `1` (no
-conversion). This is the default state for fresh deployments.
+the constant currency feature is inactive. No currencies are enabled, so the
+serializer rejects any explicit `currency` parameter. Without a `currency`
+parameter, costs are returned as-is in their original bill currency. The
+`Coalesce(..., Value(1))` fallback in provider maps ensures exchange rate
+annotations resolve to `1` (no conversion). This is the default state for
+fresh deployments.
 
 **No `CURRENCY_URL` configured**: When the URL is not set, no dynamic currencies
 are discovered by the Celery task, so no rows are created automatically. The
@@ -382,6 +384,7 @@ changes required.
 | v1.7 | 2026-03-30 | M2 now seeds current-month data from `ExchangeRateDictionary` during migration. Eliminates `ExchangeRateDictionary` fallback in query handler. |
 | v1.8 | 2026-04-12 | Updated reader description to reflect `Subquery`-based rate resolution (replaces `Case`/`When`). |
 | v1.9 | 2026-04-13 | Fixed `ExchangeRates` model description: actual fields are `currency_type` (CharField) and `exchange_rate` (FloatField), not `base_currency`/`exchange_rates` JSONField. Removed non-existent `updated_timestamp` column from `ExchangeRateDictionary` example. |
-| v2.0 | 2026-04-28 | Updated `EnabledCurrency` lifecycle to reflect POST/DELETE per-currency enablement at `settings/currency/exchange_rate/{code}/enable/`. |
+| v2.0 | 2026-04-28 | Updated `EnabledCurrency` lifecycle to reflect POST/DELETE per-currency enablement at `settings/currency/enabled-currencies/{code}/`. |
 | v2.1 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. |
 | v2.2 | 2026-04-28 | Added "costs as-is" behavior: when `MonthlyExchangeRate` is empty, feature is inactive, costs returned in original currency. |
+| v2.3 | 2026-04-30 | Fixed `EnabledCurrency` lifecycle URLs to `settings/currency/enabled-currencies/{code}/`. Clarified "costs as-is" behavior: serializer blocks non-enabled currencies. |

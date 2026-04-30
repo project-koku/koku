@@ -187,8 +187,9 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
 - **URL check**: If `CURRENCY_URL` is not configured, the task skips the API
   fetch. Dynamic rates are simply not fetched; the system uses whatever rates
   are available (static first, dynamic fallback). If `MonthlyExchangeRate` is
-  completely empty (no rates configured), the feature is inactive and costs are
-  returned as-is in their original bill currency.
+  completely empty (no rates configured), the feature is inactive — no
+  currencies are enabled and costs are returned as-is in their original bill
+  currency.
 - **All currencies stored**: Upserts dynamic rates for all currency pairs
   returned by the API. The `EnabledCurrency` table controls dropdown visibility,
   not rate storage. Administrators enable currencies via the Settings API.
@@ -444,9 +445,18 @@ an exception.
 
 ### Pre-Query Exchange Rate Validation
 
-Before executing the report query, the query handler validates that exchange
-rate data exists for the requested target currency. This validation has two
-levels:
+Validation happens at two levels before the report query executes:
+
+**Level 1 — Serializer** (`CurrencyField(enabled_only=True)`): The `currency`
+query parameter is validated against the `EnabledCurrency` table. Only
+currencies that an administrator has explicitly enabled are accepted. When no
+currencies are enabled (feature not configured), any `currency` parameter is
+rejected — the user cannot select a target currency and costs are returned
+as-is in their default currency.
+
+**Level 2 — Query handler** (`_validate_exchange_rates`): If the serializer
+passes, the query handler checks that `MonthlyExchangeRate` has rows for the
+target currency:
 
 ```python
 def _validate_exchange_rates(self, target_currency):
@@ -465,14 +475,15 @@ def _validate_exchange_rates(self, target_currency):
 **Key design choices**:
 
 - **Feature activation**: When `MonthlyExchangeRate` is completely empty (no
-  rates configured at all), the feature is inactive. Validation is skipped and
-  costs are returned as-is in their original bill currency. The
-  `Coalesce("exchange_rate", Value(1))` fallback in provider maps ensures NULL
-  annotations resolve to `1` (no conversion).
-- **Pre-query check**: The validation runs before the query executes. It
-  verifies that *any* `MonthlyExchangeRate` row exists for the target currency.
-  Per-row mismatches (e.g., a specific base currency with no rate) are handled
-  gracefully by the `Coalesce` fallback to `1`.
+  rates configured at all), the feature is inactive. No currencies are enabled,
+  so the serializer rejects any `currency` parameter before the query handler
+  runs. Without a `currency` parameter, the `Coalesce("exchange_rate",
+  Value(1))` fallback in provider maps ensures NULL annotations resolve to `1`
+  (no conversion).
+- **Pre-query check**: The query handler validation runs before the query
+  executes. It verifies that *any* `MonthlyExchangeRate` row exists for the
+  target currency. Per-row mismatches (e.g., a specific base currency with no
+  rate) are handled gracefully by the `Coalesce` fallback to `1`.
 - **Exception type**: `ExchangeRateNotFound` is a custom exception caught by
   the view layer and returned as HTTP 400 with an actionable error message.
   This only fires when rates are configured but not for the requested currency
@@ -636,3 +647,4 @@ per-source-type would miss cross-provider reports (e.g., OCP-on-AWS).
 | v2.2 | 2026-04-13 | Fixed current pipeline description: `ExchangeRates` upserts per target currency (not base). Fixed "stored and stored" typo in available currency resolution. |
 | v2.3 | 2026-04-28 | Removed static-rate enablement bypass from available currency resolution. Report dropdown governed solely by `EnabledCurrency`. |
 | v2.4 | 2026-04-28 | Replaced post-query validation pseudocode with actual pre-query implementation. Added "costs as-is" behavior: when `MonthlyExchangeRate` is empty, feature inactive, validation skipped. |
+| v2.5 | 2026-04-30 | Documented two-level validation: serializer (`CurrencyField(enabled_only=True)`) blocks non-enabled currencies before query handler checks `MonthlyExchangeRate`. |

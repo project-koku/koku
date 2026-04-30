@@ -42,7 +42,7 @@ pairs. Show rate provenance in report responses.
 | Serializer | `koku/cost_models/static_exchange_rate_serializer.py` | Validation + `MonthlyExchangeRate` upsert side-effects |
 | ViewSet | `koku/cost_models/static_exchange_rate_view.py` | CRUD API for static rates |
 | Currency enablement view | `koku/api/settings/currency_views.py` | POST/DELETE enablement for individual currencies |
-| URL registration | `koku/api/urls.py` | Routes for `settings/currency/exchange_rate/` (list/create, detail, enable) |
+| URL registration | `koku/api/urls.py` | Routes for `settings/currency/exchange_rate/` (list/create, detail) and `settings/currency/enabled-currencies/` (enable/disable) |
 | Celery task update | `koku/masu/celery/tasks.py` | Currency discovery, `MonthlyExchangeRate` upsert for all currencies per tenant (skips fetch if no `CURRENCY_URL`) |
 | Query handler update | `koku/api/query_handler.py` | Read from `MonthlyExchangeRate` for all months (no fallback; M2 seeds current month) |
 | OCP handler update | `koku/api/report/ocp/query_handler.py` | OCP-specific rate resolution from `MonthlyExchangeRate` |
@@ -72,15 +72,15 @@ pairs. Show rate provenance in report responses.
 - [ ] Consecutive months with same rate/type collapsed into one period string
 - [ ] Unit tests pass for serializer, view, MonthlyExchangeRate logic, query handler
 - [ ] On-prem mode: full functionality without Trino
-- [ ] **Currency enablement**: Administrator can enable currencies via `POST settings/currency/exchange_rate/{code}/enable/`
+- [ ] **Currency enablement**: Administrator can enable currencies via `POST settings/currency/enabled-currencies/{code}/`
 - [ ] **Currency enablement**: All currencies are stored in `MonthlyExchangeRate` regardless of enabled status; `enabled` flag only controls dropdown visibility
-- [ ] **Rate resolution**: Static rates take precedence over dynamic rates; when `MonthlyExchangeRate` is empty (feature not configured), costs returned as-is; when rows exist but not for target, error returned
+- [ ] **Rate resolution**: Static rates take precedence over dynamic rates; when `MonthlyExchangeRate` is empty (feature not configured), no currencies are enabled and costs returned as-is; when rows exist but not for target, error returned
 - [ ] **No `CURRENCY_URL`**: Celery task skips API fetch; system works with whatever rates are available
 - [ ] **Available currencies**: Report dropdown shows only enabled currencies (static rates do not bypass enablement)
-- [ ] **Costs as-is**: When no exchange rates are configured at all (`MonthlyExchangeRate` empty), validation skipped, costs returned in original bill currency
+- [ ] **Costs as-is**: When no exchange rates are configured at all (`MonthlyExchangeRate` empty), no currencies are enabled — serializer rejects any `currency` parameter and costs returned in original bill currency
 - [ ] **No-rate corner case**: Selecting a target currency with no conversion path (when rates exist for other currencies) returns HTTP 400 with actionable error
 - [ ] **No currencies available**: Dropdown hidden or shows "No exchange rates available" when no currencies are available
-- [ ] **Currency list**: `GET settings/currency/exchange_rate/` returns currencies grouped by target currency with enabled flag and nested exchange rates
+- [ ] **Currency list**: `GET settings/currency/exchange_rate/` returns currencies grouped by base currency with enabled flag and nested exchange rates
 
 ### Rollback
 
@@ -91,7 +91,7 @@ pairs. Show rate provenance in report responses.
    `MonthlyExchangeRate` upsert, currency discovery)
 4. Revert report meta changes in `koku/api/report/queries.py` (remove
    `exchange_rates_applied` metadata and no-rate error handling)
-5. Revert URL registration in `koku/api/urls.py` (remove `settings/currency/exchange_rate/` routes)
+5. Revert URL registration in `koku/api/urls.py` (remove `settings/currency/exchange_rate/` and `settings/currency/enabled-currencies/` routes)
 7. Drop tables via reverse migration (`migrate_schemas` runs `DeleteModel` for
    all three new tables: `static_exchange_rate`, `monthly_exchange_rate`,
    `enabled_currency`)
@@ -179,3 +179,4 @@ design would be needed to handle path prioritization.
 | v2.1 | 2026-04-28 | Updated URL references to `settings/currency/exchange_rate/`. Consolidated URL registration to `koku/api/urls.py`. Removed separate available-currencies endpoint. |
 | v2.2 | 2026-04-28 | Removed static-rate enablement bypass from validation checklist. Report dropdown governed solely by `EnabledCurrency`. |
 | v2.3 | 2026-04-28 | Added "costs as-is" validation item: when `MonthlyExchangeRate` is empty, feature inactive, costs returned as-is. Updated rate resolution and no-rate validation items. |
+| v2.4 | 2026-04-30 | Fixed currency enablement URL to `settings/currency/enabled-currencies/{code}/`. Clarified "costs as-is": serializer blocks non-enabled currencies before query handler. |

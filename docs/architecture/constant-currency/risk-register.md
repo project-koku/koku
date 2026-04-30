@@ -183,11 +183,12 @@ with unconverted or zero amounts.
 **Behavior**: Two distinct cases:
 
 1. **`MonthlyExchangeRate` is completely empty** (feature not configured): The
-   constant currency feature is inactive. Validation is skipped entirely. The
-   `Coalesce("exchange_rate", Value(1))` fallback in provider maps ensures all
-   exchange rate annotations resolve to `1`, so costs are returned as-is in
-   their original bill currency. This is the default state for fresh deployments
-   without `CURRENCY_URL` or static rates.
+   constant currency feature is inactive. No currencies are enabled, so the
+   serializer rejects any explicit `currency` parameter. Without a `currency`
+   parameter, the `Coalesce("exchange_rate", Value(1))` fallback in provider
+   maps ensures all exchange rate annotations resolve to `1`, so costs are
+   returned as-is in their original bill currency. This is the default state
+   for fresh deployments without `CURRENCY_URL` or static rates.
 
 2. **`MonthlyExchangeRate` has rows but none for the target currency**: The
    feature is active but the specific currency pair is missing. Rate resolution
@@ -242,3 +243,4 @@ R8       ✓
 | v1.7 | 2026-04-13 | R4: updated to reflect earliest-available-rate fallback for pre-deployment months (aligns with pipeline-changes.md v2.1). |
 | v1.8 | 2026-04-28 | R8: updated CRUD API URL to `settings/currency/exchange_rate/`. |
 | v1.9 | 2026-04-28 | R8: added "costs as-is" behavior — when `MonthlyExchangeRate` is empty, feature is inactive, validation skipped, costs returned in original currency. |
+| v2.0 | 2026-04-30 | R8: clarified "costs as-is" — serializer blocks non-enabled currencies; query handler skip is secondary defense. |
