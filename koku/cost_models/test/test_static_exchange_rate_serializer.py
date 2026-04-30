@@ -158,3 +158,152 @@ class StaticExchangeRateSerializerTest(MasuTestCase):
             data = self.valid_data.copy()
             serializer = StaticExchangeRateSerializer(data=data, context=self._make_request_context())
             self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
+    def test_create_upserts_inverse_monthly_rate(self, mock_invalidate):
+        """Test that creating USD->EUR also creates the inverse EUR->USD = 1/rate."""
+        with tenant_context(self.tenant):
+            serializer = StaticExchangeRateSerializer(data=self.valid_data, context=self._make_request_context())
+            self.assertTrue(serializer.is_valid(), serializer.errors)
+            serializer.save()
+
+            inverse_rates = MonthlyExchangeRate.objects.filter(
+                base_currency="EUR",
+                target_currency="USD",
+                rate_type=RateType.STATIC,
+            )
+            self.assertEqual(inverse_rates.count(), 3)
+
+            expected_inverse = Decimal(1) / Decimal("0.870000000000000")
+            for rate in inverse_rates:
+                self.assertAlmostEqual(rate.exchange_rate, expected_inverse, places=15)
+
+    @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
+    def test_create_does_not_overwrite_explicit_reverse_rate(self, mock_invalidate):
+        """Test that auto-generated inverse does not overwrite an explicit reverse StaticExchangeRate."""
+        with tenant_context(self.tenant):
+            reverse_data = {
+                "base_currency": "EUR",
+                "target_currency": "USD",
+                "exchange_rate": "1.150000000000000",
+                "start_date": "2026-01-01",
+                "end_date": "2026-03-31",
+            }
+            reverse_serializer = StaticExchangeRateSerializer(data=reverse_data, context=self._make_request_context())
+            self.assertTrue(reverse_serializer.is_valid(), reverse_serializer.errors)
+            reverse_serializer.save()
+
+            serializer = StaticExchangeRateSerializer(data=self.valid_data, context=self._make_request_context())
+            self.assertTrue(serializer.is_valid(), serializer.errors)
+            serializer.save()
+
+            inverse_rates = MonthlyExchangeRate.objects.filter(
+                base_currency="EUR",
+                target_currency="USD",
+                rate_type=RateType.STATIC,
+            )
+            for rate in inverse_rates:
+                self.assertEqual(
+                    rate.exchange_rate,
+                    Decimal("1.150000000000000"),
+                    "Auto-generated inverse should not overwrite explicit reverse rate",
+                )
+
+    @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
+    def test_explicit_forward_overwrites_auto_generated_inverse(self, mock_invalidate):
+        """Test that creating an explicit rate overwrites a previously auto-generated inverse."""
+        with tenant_context(self.tenant):
+            serializer = StaticExchangeRateSerializer(data=self.valid_data, context=self._make_request_context())
+            self.assertTrue(serializer.is_valid(), serializer.errors)
+            serializer.save()
+
+            expected_inverse = Decimal(1) / Decimal("0.870000000000000")
+            inverse_rates = MonthlyExchangeRate.objects.filter(
+                base_currency="EUR", target_currency="USD", rate_type=RateType.STATIC
+            )
+            for rate in inverse_rates:
+                self.assertAlmostEqual(rate.exchange_rate, expected_inverse, places=15)
+
+            explicit_reverse_data = {
+                "base_currency": "EUR",
+                "target_currency": "USD",
+                "exchange_rate": "1.150000000000000",
+                "start_date": "2026-01-01",
+                "end_date": "2026-03-31",
+            }
+            reverse_serializer = StaticExchangeRateSerializer(
+                data=explicit_reverse_data, context=self._make_request_context()
+            )
+            self.assertTrue(reverse_serializer.is_valid(), reverse_serializer.errors)
+            reverse_serializer.save()
+
+            inverse_rates = MonthlyExchangeRate.objects.filter(
+                base_currency="EUR", target_currency="USD", rate_type=RateType.STATIC
+            )
+            for rate in inverse_rates:
+                self.assertEqual(
+                    rate.exchange_rate,
+                    Decimal("1.150000000000000"),
+                    "Explicit forward should overwrite auto-generated inverse",
+                )
+
+    def test_delete_removes_inverse_monthly_rate(self):
+        """Test that deleting a static rate also removes its auto-generated inverse rows."""
+        with tenant_context(self.tenant):
+            serializer = StaticExchangeRateSerializer(data=self.valid_data, context=self._make_request_context())
+            serializer.is_valid(raise_exception=True)
+            instance = serializer.save()
+
+            self.assertTrue(
+                MonthlyExchangeRate.objects.filter(
+                    base_currency="EUR", target_currency="USD", rate_type=RateType.STATIC
+                ).exists()
+            )
+
+            remove_static_and_backfill_dynamic(
+                instance.base_currency,
+                instance.target_currency,
+                instance.start_date,
+                instance.end_date,
+            )
+            instance.delete()
+
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(
+                    base_currency="EUR", target_currency="USD", rate_type=RateType.STATIC
+                ).exists()
+            )
+
+    @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")
+    def test_delete_preserves_explicit_reverse_rate(self, mock_invalidate):
+        """Test that deleting USD->EUR does not remove EUR->USD rows from an explicit StaticExchangeRate."""
+        with tenant_context(self.tenant):
+            reverse_data = {
+                "base_currency": "EUR",
+                "target_currency": "USD",
+                "exchange_rate": "1.150000000000000",
+                "start_date": "2026-01-01",
+                "end_date": "2026-03-31",
+            }
+            reverse_serializer = StaticExchangeRateSerializer(data=reverse_data, context=self._make_request_context())
+            self.assertTrue(reverse_serializer.is_valid(), reverse_serializer.errors)
+            reverse_serializer.save()
+
+            serializer = StaticExchangeRateSerializer(data=self.valid_data, context=self._make_request_context())
+            self.assertTrue(serializer.is_valid(), serializer.errors)
+            forward_instance = serializer.save()
+
+            remove_static_and_backfill_dynamic(
+                forward_instance.base_currency,
+                forward_instance.target_currency,
+                forward_instance.start_date,
+                forward_instance.end_date,
+            )
+            forward_instance.delete()
+
+            inverse_rates = MonthlyExchangeRate.objects.filter(
+                base_currency="EUR", target_currency="USD", rate_type=RateType.STATIC
+            )
+            self.assertEqual(inverse_rates.count(), 3, "Explicit reverse rates should be preserved")
+            for rate in inverse_rates:
+                self.assertEqual(rate.exchange_rate, Decimal("1.150000000000000"))

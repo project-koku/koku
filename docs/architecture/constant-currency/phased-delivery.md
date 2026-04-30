@@ -60,7 +60,7 @@ pairs. Show rate provenance in report responses.
 - [ ] Static rate CRUD: create, read, update, delete via API
 - [ ] Overlapping validity period rejection returns 400
 - [ ] Natural month boundary enforcement (mid-month dates rejected)
-- [ ] Bidirectional inverse rate resolution (1/rate when reverse undefined)
+- [x] Bidirectional inverse rate resolution (1/rate when reverse undefined)
 - [ ] Dynamic rate daily `MonthlyExchangeRate` upsert per tenant
 - [ ] Static rate precedence: task skips pairs with existing static rates
 - [ ] Finalized month immutability: past month rows never overwritten
