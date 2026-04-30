@@ -16,6 +16,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.ocp.serializers import OCPGpuExcludeSerializer
+from api.report.ocp.serializers import OCPGpuGroupBySerializer
 from reporting.provider.ocp.models import OCPGpuSummaryP
 
 
@@ -371,18 +373,16 @@ class OCPGpuViewTest(IamTestCase):
 
     @patch("api.report.ocp.view.is_feature_flag_enabled_by_schema", return_value=True)
     def test_gpu_endpoint_exclude_validation(self, mock_unleash):
-        """Test that exclude accepts supported fields and rejects unsupported ones."""
-        # (exclude_field, exclude_value, group_by_field, expected_status)
-        exclude_test_matrix = [
-            ("gpu_mode", "MIG", "gpu_mode", status.HTTP_200_OK),
-            ("gpu_vendor", "nvidia", "gpu_vendor", status.HTTP_200_OK),
-            ("gpu_model", "A100", "gpu_model", status.HTTP_200_OK),
-            ("cluster", "test-cluster", "cluster", status.HTTP_200_OK),
-            ("project", "test-project", "project", status.HTTP_200_OK),
-            ("node", "gpu-node-0", "cluster", status.HTTP_200_OK),
-            ("mig_profile", "1g.5gb", "mig_profile", status.HTTP_200_OK),
-            ("unsupported_field", "value", "cluster", status.HTTP_400_BAD_REQUEST),
-        ]
+        """Test that exclude accepts all fields from OCPGpuExcludeSerializer and rejects unknown ones."""
+        group_by_fields = set(OCPGpuGroupBySerializer().fields.keys()) - {"tag", "and", "or", "exact"}
+        default_group_by = "cluster"
+
+        exclude_test_matrix = []
+        for field in OCPGpuExcludeSerializer._opfields:
+            group_by = field if field in group_by_fields else default_group_by
+            exclude_test_matrix.append((field, "test-value", group_by, status.HTTP_200_OK))
+        exclude_test_matrix.append(("unsupported_field", "value", default_group_by, status.HTTP_400_BAD_REQUEST))
+
         for exclude_field, exclude_value, group_by_field, expected_status in exclude_test_matrix:
             with self.subTest(exclude=exclude_field, expected=expected_status):
                 url = reverse("reports-openshift-gpu")
