@@ -31,8 +31,8 @@ class PriceListSerializer(BaseSerializer):
     name = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(allow_blank=True, required=False)
     currency = serializers.CharField(required=False)
-    effective_start_date = serializers.DateField()
-    effective_end_date = serializers.DateField()
+    effective_start_date = serializers.DateField(required=False)
+    effective_end_date = serializers.DateField(required=False)
     enabled = serializers.BooleanField(required=False)
     version = serializers.IntegerField(read_only=True)
     rates = RateSerializer(many=True, required=False)
@@ -46,10 +46,26 @@ class PriceListSerializer(BaseSerializer):
             CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
         return rates
 
+    @staticmethod
+    def _validate_dates(start, end):
+        if start and start.day != 1:
+            raise serializers.ValidationError("effective_start_date must be on the first day of the month.")
+        if end:
+            next_day = end + timedelta(days=1)
+            if next_day.day != 1:
+                raise serializers.ValidationError("effective_end_date must be on the last day of the month.")
+        if start and end and end < start:
+            raise serializers.ValidationError("effective_end_date must be on or after effective_start_date.")
+
     def validate(self, data):
-        """Validate that effective_end_date is after effective_start_date."""
-        if not self.instance and not data.get("name"):
-            raise serializers.ValidationError({"name": "This field is required."})
+        """Validate price list data."""
+        if not self.instance:
+            errors = {}
+            for field in ("name", "effective_start_date", "effective_end_date"):
+                if not data.get(field):
+                    errors[field] = "This field is required."
+            if errors:
+                raise serializers.ValidationError(errors)
 
         start = data.get("effective_start_date")
         end = data.get("effective_end_date")
@@ -60,19 +76,7 @@ class PriceListSerializer(BaseSerializer):
             if "currency" not in data:
                 data["currency"] = self.instance.currency
 
-        # Validate that start date is on the first of the month
-        if start and start.day != 1:
-            raise serializers.ValidationError("effective_start_date must be on the first day of the month.")
-
-        # Validate that end date is on the last day of the month
-        if end:
-            # Check if the next day is the first of the next month
-            next_day = end + timedelta(days=1)
-            if next_day.day != 1:
-                raise serializers.ValidationError("effective_end_date must be on the last day of the month.")
-
-        if start and end and end < start:
-            raise serializers.ValidationError("effective_end_date must be on or after effective_start_date.")
+        self._validate_dates(start, end)
 
         if not data.get("currency"):
             data["currency"] = get_currency(self.context.get("request"))

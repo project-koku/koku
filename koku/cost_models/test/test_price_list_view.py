@@ -207,6 +207,18 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["currency"], "USD")
 
+    def test_reenable_disabled_price_list(self):
+        """Test that a disabled price list can be re-enabled with only enabled=True."""
+        create_response = self._create_price_list()
+        pl_uuid = create_response.data["uuid"]
+
+        detail_url = reverse("price-lists-detail", kwargs={"uuid": pl_uuid})
+        self.client.put(detail_url, data={**self.price_list_data, "enabled": False}, format="json", **self.headers)
+
+        response = self.client.put(detail_url, data={"enabled": True}, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["enabled"])
+
     # --- Delete ---
 
     def test_delete_price_list(self):
