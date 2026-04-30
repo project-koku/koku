@@ -70,8 +70,12 @@ class PriceListManager:
         if "currency" in data and data["currency"] != self._model.currency:
             raise PriceListException("Currency cannot be changed after price list creation.")
 
-        if not self._model.enabled:
+        re_enabling = data.get("enabled") is True
+        if not self._model.enabled and not re_enabling:
             allowed_fields = {"name", "description", "enabled"}
+            # Allow currency through if the value is unchanged (auto-injected by serializer)
+            if data.get("currency") == self._model.currency:
+                allowed_fields = allowed_fields | {"currency"}
             disallowed = set(data.keys()) - allowed_fields
             if disallowed:
                 raise PriceListException(
