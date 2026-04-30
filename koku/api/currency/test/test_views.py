@@ -5,6 +5,7 @@
 from unittest.mock import patch
 
 from django.urls import reverse
+from django_tenants.utils import schema_context
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -17,9 +18,10 @@ class CurrencyViewTest(IamTestCase):
 
     def setUp(self):
         super().setUp()
-        EnabledCurrency.objects.all().delete()
-        EnabledCurrency.objects.create(currency_code="USD")
-        EnabledCurrency.objects.create(currency_code="EUR")
+        with schema_context(self.schema_name):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
 
     @patch(
         "api.currency.view.get_currency_info",
