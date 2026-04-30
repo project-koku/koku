@@ -12,6 +12,7 @@ from celery.result import AsyncResult
 from django.test.utils import override_settings
 from django.urls import reverse
 
+from masu.api.purge_trino_files import OCP_REPORT_TYPES
 from masu.test import MasuTestCase
 
 
@@ -112,6 +113,28 @@ class PurgeTrinoFilesTest(MasuTestCase):
         url = reverse("purge_trino_files") + "?" + query_string
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_ocp_get_request_date_range_builds_day_specific_csv_prefixes(self, _):
+        """Test OCP date-range purge targets only day-specific CSV prefixes."""
+        params = {
+            "provider_uuid": self.ocp_provider_uuid,
+            "schema": self.schema,
+            "bill_date": self.bill_date,
+            "start_date": self.bill_date,
+            "end_date": "2022-08-02",
+        }
+        query_string = urlencode(params)
+        url = reverse("purge_trino_files") + "?" + query_string
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        csv_paths = body.get("s3_csv_path", [])
+
+        self.assertEqual(len(csv_paths), len(OCP_REPORT_TYPES) * 2)
+        for report_type in OCP_REPORT_TYPES:
+            self.assertIn(f"/{report_type}.2022-08-01", " ".join(csv_paths))
+            self.assertIn(f"/{report_type}.2022-08-02", " ".join(csv_paths))
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch(
