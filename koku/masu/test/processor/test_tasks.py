@@ -732,6 +732,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         # have something to pull from
         self.start_date = self.dh.today.replace(day=1)
 
+    @patch(
+        "masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema",
+        return_value=False,
+    )
     @patch("masu.util.common.trino_db.connect")
     @patch(
         "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportParquetSummaryUpdater._check_parquet_date_range"
@@ -742,8 +746,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._load_rates")
     def test_update_summary_tables_ocp(
         self,
+        mock_load_rates,
         mock_select_for_update,
         mock_cost_model,
         mock_charge_info,
@@ -752,6 +758,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_cache,
         mock_date_check,
         mock_conn,
+        mock_ff,
     ):
         """Test that the summary table task runs."""
         mock_queryset = mock_select_for_update.return_value

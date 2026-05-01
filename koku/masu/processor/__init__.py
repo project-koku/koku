@@ -24,6 +24,7 @@ OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
 TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
 DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
 COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"
+COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
 
 
 def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):  # pragma: no cover
