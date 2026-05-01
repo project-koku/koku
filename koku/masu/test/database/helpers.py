@@ -9,6 +9,7 @@ from django.utils import timezone
 from django_tenants.utils import schema_context
 from faker import Faker
 
+from api.report.test.util.common import sync_test_rate_rows
 from koku.database import get_model
 from masu.database import OCP_REPORT_TABLE_MAP
 
@@ -67,4 +68,6 @@ class ReportObjectCreator:
         cost_model_obj = self.create_db_object(table_name, data)
         data = {"provider_uuid": provider_uuid, "cost_model_id": cost_model_obj.uuid}
         self.create_db_object(cost_model_map, data)
+        with schema_context(self.schema):
+            sync_test_rate_rows(cost_model_obj)
         return cost_model_obj

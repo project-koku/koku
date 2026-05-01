@@ -215,7 +215,7 @@ class RatesToUsage(models.Model):
     rate = models.ForeignKey("cost_models.Rate", on_delete=models.SET_NULL, null=True)
     cost_model = models.ForeignKey("cost_models.CostModel", on_delete=models.SET_NULL, null=True)
     report_period_id = models.IntegerField(null=True)      # FK to reporting_ocpusagereportperiod; used for cleanup scoping
-    source_uuid = models.TextField()
+    source_uuid = models.UUIDField()
     usage_start = models.DateField()
     usage_end = models.DateField()
     node = models.CharField(max_length=253, null=True)
@@ -223,7 +223,6 @@ class RatesToUsage(models.Model):
     cluster_id = models.TextField()
     cluster_alias = models.TextField(null=True)
     data_source = models.CharField(max_length=63, null=True)
-    resource_id = models.CharField(max_length=253, null=True)
     persistentvolumeclaim = models.CharField(max_length=253, null=True)
     pod_labels = JSONField(null=True)
     volume_labels = JSONField(null=True)
@@ -353,10 +352,11 @@ class OCPCostUIBreakDownP(models.Model):
   `masu/processor/ocp/ocp_report_db_cleaner.py` — this is the same
   partition-based cleanup used for all partitioned OCP tables. Provider
   deletion and data expiration both work through partition cleanup, not
-  FK cascade, since `source_uuid` is a `TextField` (not a FK).
-- For on-prem, also add `"rates_to_usage"` to
-  `get_self_hosted_table_names()` in
-  `reporting/provider/ocp/self_hosted_models.py`
+  FK cascade, since `source_uuid` is a `UUIDField` (not a FK).
+  This entry covers both SaaS and ONPREM modes since it is in the base
+  `table_names` list (before the `if settings.ONPREM` branch).
+  Do NOT also add to `get_self_hosted_table_names()` — that would
+  create a duplicate entry when ONPREM=true.
 
 **Pre-existing bug**: `reporting_ocp_vm_summary_p` is not in
 `UI_SUMMARY_TABLES` and is not cleaned by the purge job. Should be
@@ -706,7 +706,7 @@ CREATE TABLE rates_to_usage (
     rate_id              UUID REFERENCES cost_model_rate(uuid) ON DELETE SET NULL,  -- FK to new Rate table (Phase 1)
     cost_model_id        UUID REFERENCES cost_model(uuid) ON DELETE SET NULL,
     report_period_id     INTEGER,
-    source_uuid          TEXT NOT NULL,
+    source_uuid          UUID NOT NULL,
     usage_start          DATE NOT NULL,
     usage_end            DATE NOT NULL,
     node                 VARCHAR(253),
@@ -714,7 +714,6 @@ CREATE TABLE rates_to_usage (
     cluster_id           TEXT NOT NULL,
     cluster_alias        TEXT,
     data_source          VARCHAR(63),
-    resource_id          VARCHAR(253),
     persistentvolumeclaim VARCHAR(253),
     pod_labels           JSONB,
     volume_labels        JSONB,
@@ -747,23 +746,26 @@ automatically based on usage data date ranges.
 **Partition creation wiring**: `rates_to_usage` is NOT a UI
 summary table, so it is not covered by the `_handle_partitions()` call
 in `ocp_report_parquet_summary_updater.py`. Instead, partition creation
-must be wired in the cost model updater, following the pattern used by
-self-hosted line item tables:
+is wired in the cost model updater via `PartitionHandlerMixin`:
 
 ```python
-# In ocp_cost_model_cost_updater.py, before writing to RatesToUsage:
-from koku.pg_partition import get_or_create_partition
+# ocp_cost_model_cost_updater.py inherits PartitionHandlerMixin
+from koku.pg_partition import PartitionHandlerMixin
 
-get_or_create_partition(
-    schema_name=self._schema,
-    table_name="rates_to_usage",
-    start_date=start_date,
-)
+class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
+    ...
+    def _ensure_rates_to_usage_partitions(self, start_date, end_date):
+        """Create monthly partitions for rates_to_usage on demand."""
+        with schema_context(self._schema):
+            self._handle_partitions(
+                self._schema, ["rates_to_usage"], start_date, end_date
+            )
 ```
 
 This creates the monthly partition on demand, before the first INSERT
-for that month. See `write_to_self_hosted_table()` in
-`ocp_report_parquet_processor.py` for the existing pattern.
+for that month. `_handle_partitions()` is the same helper used by
+`OCPReportParquetSummaryUpdater` for UI summary tables — it builds
+`part_rec` dicts internally and handles multi-month date ranges.
 
 **Rollback**: `DROP TABLE rates_to_usage CASCADE;`
 
@@ -932,3 +934,5 @@ This is handled by M2 above.
 | v4.1 | 2026-04-02 | **R20: Migration write-freeze.** Add Unleash write-freeze precondition to M2 and M5. |
 | v4.2 | 2026-04-02 | **Critical review.** Add `Decimal()` conversion to M2 pseudocode `default_rate`. Clarify `PriceList.rates` lifecycle comment (supplemented in Phase 1, dropped in Phase 5). |
 | v4.3 | 2026-04-02 | **Self-resolve Concern 4.** Add `transaction.atomic()` + `select_for_update()` to M2 pseudocode for on-prem defense-in-depth, matching COST-575 0011 pattern. |
+| v4.4 | 2026-04-06 | **Spec-vs-impl alignment.** Fix Rate model pseudocode: `tag_values` default `list` (not `dict`), `default_rate` nullable, add `created_timestamp`/`updated_timestamp`, `related_name="rate_rows"`. Fix M2 DDL to match. |
+| v4.5 | 2026-04-06 | **Phase 2 DD findings.** Remove `resource_id` from RatesToUsage model and M4 DDL (not in source table, no SQL consumer). Fix partition creation pseudocode to use `PartitionHandlerMixin._handle_partitions()` (matches actual koku API). |

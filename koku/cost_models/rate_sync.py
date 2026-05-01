@@ -142,6 +142,8 @@ def _classify_incoming_rates(rates_data, existing_by_uuid, existing_by_name, all
     to_update = []
     to_create_data = []
 
+    used_names = all_existing_names | {rd.get("custom_name", "") for rd in rates_data if rd.get("custom_name")}
+
     for rate_data in rates_data:
         rate_id = rate_data.get("rate_id")
 
@@ -156,8 +158,8 @@ def _classify_incoming_rates(rates_data, existing_by_uuid, existing_by_name, all
             incoming_ids.add(rate_uuid)
             to_update.append((rate_obj, rate_data))
         else:
-            used_names = all_existing_names | {rd.get("custom_name", "") for rd in rates_data if rd.get("custom_name")}
             custom_name = _resolve_custom_name(rate_data, used_names)
+            used_names.add(custom_name)
             if custom_name in existing_by_name:
                 rate_obj = existing_by_name[custom_name]
                 incoming_ids.add(rate_obj.uuid)

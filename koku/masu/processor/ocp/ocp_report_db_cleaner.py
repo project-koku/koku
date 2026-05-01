@@ -105,7 +105,8 @@ class OCPReportDBCleaner:
             table_names = [
                 # accessor._aws_table_map["ocp_on_aws_daily_summary"],
                 # accessor._aws_table_map["ocp_on_aws_project_daily_summary"],
-                accessor._table_map["line_item_daily_summary"]
+                accessor._table_map["line_item_daily_summary"],
+                "rates_to_usage",
             ]
             table_names.extend(UI_SUMMARY_TABLES)
 

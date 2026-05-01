@@ -599,6 +599,10 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                         self.assertNotEqual(getattr(item, column), 0)
 
     @patch(
+        "masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema",
+        return_value=False,
+    )
+    @patch(
         "masu.processor.ocp.ocp_cost_model_cost_updater."
         "OCPCostModelCostUpdater.distribute_costs_and_update_ui_summary"
     )
@@ -608,7 +612,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._load_rates")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_summary_loads_rates_per_month(
-        self, mock_cost_accessor, mock_load_rates, mock_usage, mock_monthly, mock_markup, mock_distribute
+        self, mock_cost_accessor, mock_load_rates, mock_usage, mock_monthly, mock_markup, mock_distribute, mock_ff
     ):
         """Test that _load_rates is called once per month in a multi-month range."""
         start_date = self.dh.this_month_start - relativedelta(months=2)
