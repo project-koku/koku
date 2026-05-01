@@ -61,7 +61,7 @@ LEFT JOIN (
   AND COALESCE(lids.node, '')                  = COALESCE(agg.node, '')
   AND COALESCE(lids.data_source, '')           = COALESCE(agg.data_source, '')
   AND COALESCE(lids.persistentvolumeclaim, '') = COALESCE(agg.persistentvolumeclaim, '')
-  AND md5(COALESCE(lids.pod_labels::text, '') || COALESCE(lids.volume_labels::text, '') || COALESCE(lids.all_labels::text, ''))
+  AND md5(COALESCE(lids.pod_labels::text, '') || '|' || COALESCE(lids.volume_labels::text, '') || '|' || COALESCE(lids.all_labels::text, ''))
       = agg.label_hash
   AND COALESCE(lids.cost_model_rate_type, '') = COALESCE(agg.cost_model_rate_type, '')
   AND COALESCE(lids.monthly_cost_type, '')    = COALESCE(agg.monthly_cost_type, '')
@@ -71,6 +71,7 @@ WHERE lids.usage_start >= {{start_date}}
   AND lids.report_period_id = {{report_period_id}}
   AND lids.cost_model_rate_type IN ('Infrastructure', 'Supplementary')
   AND lids.monthly_cost_type IS NULL
+  -- 1e-15 matches calculated_cost decimal_places=15; differences below this are rounding noise.
   AND (
        ABS(COALESCE(lids.cost_model_cpu_cost, 0)    - COALESCE(agg.total_cpu_cost, 0))    > 0.000000000000001
     OR ABS(COALESCE(lids.cost_model_memory_cost, 0) - COALESCE(agg.total_memory_cost, 0)) > 0.000000000000001
