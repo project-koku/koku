@@ -132,12 +132,13 @@ class PriceListManagerUpdateTest(MasuTestCase):
             manager.update(rates=self.rates_v1)
             self.assertEqual(manager.instance.version, 1)
 
-    def test_update_currency_increments_version(self):
-        """Test that updating currency increments version."""
+    def test_update_currency_raises_exception(self):
+        """Test that updating currency raises an exception - currency is immutable."""
         with tenant_context(self.tenant):
             manager = PriceListManager(self.price_list.uuid)
-            manager.update(currency="EUR")
-            self.assertEqual(manager.instance.version, 2)
+            with self.assertRaises(PriceListException) as ctx:
+                manager.update(currency="EUR")
+            self.assertIn("Currency cannot be changed", str(ctx.exception))
 
     def test_update_validity_period_increments_version(self):
         """Test that updating validity period increments version."""
@@ -172,6 +173,39 @@ class PriceListManagerUpdateTest(MasuTestCase):
             manager.update(enabled=False)
             manager.update(name="Disabled Renamed")
             self.assertEqual(manager.instance.name, "Disabled Renamed")
+
+    def test_update_disabled_price_list_name_with_auto_injected_currency_ok(self):
+        """Test that updating name on a disabled price list works even with auto-injected currency."""
+        with tenant_context(self.tenant):
+            manager = PriceListManager(self.price_list.uuid)
+            manager.update(enabled=False)
+            # Simulates the serializer auto-injecting currency alongside the user's change
+            manager.update(name="Renamed While Disabled", currency=self.price_list.currency)
+            self.assertEqual(manager.instance.name, "Renamed While Disabled")
+
+    def test_update_disabled_price_list_currency_change_rejected(self):
+        """Test that changing currency on a disabled price list is still rejected."""
+        with tenant_context(self.tenant):
+            manager = PriceListManager(self.price_list.uuid)
+            manager.update(enabled=False)
+            with self.assertRaises(PriceListException):
+                manager.update(name="New Name", currency="EUR")
+
+    def test_reenable_disabled_price_list_with_full_payload(self):
+        """Test that re-enabling a disabled price list accepts a full payload (currency, rates, dates)."""
+        with tenant_context(self.tenant):
+            manager = PriceListManager(self.price_list.uuid)
+            manager.update(enabled=False)
+            # Simulates the natural GET → PUT flow where currency is auto-injected
+            manager.update(
+                name=self.price_list.name,
+                description=self.price_list.description,
+                currency="USD",
+                effective_start_date=self.price_list.effective_start_date,
+                effective_end_date=self.price_list.effective_end_date,
+                enabled=True,
+            )
+            self.assertTrue(manager.instance.enabled)
 
     def test_update_disabled_price_list_rates_rejected(self):
         """Test that rates cannot be updated on a disabled price list."""
