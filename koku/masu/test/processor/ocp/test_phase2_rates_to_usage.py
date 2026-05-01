@@ -41,7 +41,11 @@ class TestPriceListSwitch(MasuTestCase):
     def _get_accessor(self, provider_uuid=None):
         from masu.database.cost_model_db_accessor import CostModelDBAccessor
 
-        return CostModelDBAccessor(self.schema, provider_uuid or self.ocp_provider_uuid, price_list_effective_on=None)
+        return CostModelDBAccessor(
+            self.schema,
+            provider_uuid or self.ocp_provider_uuid,
+            price_list_effective_on=None,
+        )
 
     # TC-01: price_list returns dict keyed by metric name
     def test_price_list_returns_dict_keyed_by_metric(self):
@@ -209,7 +213,11 @@ class TestSyncTestRateRows(MasuTestCase):
                 self.skipTest("No cost model for OCP provider")
             rate_count = Rate.objects.filter(price_list__cost_model_maps__cost_model=cm).count()
             json_rate_count = len(cm.rates) if isinstance(cm.rates, list) else 0
-            self.assertEqual(rate_count, json_rate_count, "Rate row count should match JSON rate count")
+            self.assertEqual(
+                rate_count,
+                json_rate_count,
+                "Rate row count should match JSON rate count",
+            )
 
     # TC-14: price_list remains correct after multiple sync_test_rate_rows calls
     def test_price_list_correct_after_multiple_syncs(self):
@@ -234,7 +242,9 @@ class TestSyncTestRateRows(MasuTestCase):
             pl_after = accessor.price_list
 
         self.assertEqual(
-            set(pl_before.keys()), set(pl_after.keys()), "price_list metrics should be the same after extra sync"
+            set(pl_before.keys()),
+            set(pl_after.keys()),
+            "price_list metrics should be the same after extra sync",
         )
 
     # TC-D8-01: custom_name uses generate_custom_name format (metric-cost_type)
@@ -398,19 +408,15 @@ class TestPopulateUsageRatesToUsage(_ReportPeriodMixin, MasuTestCase):
         self,
         accessor,
         rp,
-        distribution="cpu",
         cost_model_id="00000000-0000-0000-0000-000000000000",
-        cluster_cost_rate=0.0,
     ):
         dh = DateHelper()
         accessor.populate_usage_rates_to_usage(
-            distribution,
             dh.this_month_start.date(),
             dh.this_month_end.date(),
             self.ocp_provider_uuid,
             rp.id,
             cost_model_id,
-            cluster_cost_rate,
         )
 
     # TC-22: executes INSERT SQL
@@ -435,25 +441,25 @@ class TestPopulateUsageRatesToUsage(_ReportPeriodMixin, MasuTestCase):
         sql_params = args[2]
         self.assertEqual(sql_params["cost_model_id"], cost_model_id)
 
-    # TC-25: distribution included
+    # TC-25: distribution is now read from cost_model table in SQL, not passed as param
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
-    def test_populate_rtu_includes_distribution(self, mock_execute):
+    def test_populate_rtu_no_distribution_param(self, mock_execute):
         with OCPReportDBAccessor(self.schema) as accessor:
             rp = self._get_report_period(accessor)
-            self._call_populate(accessor, rp, distribution="memory")
+            self._call_populate(accessor, rp)
         args, kwargs = mock_execute.call_args
         sql_params = args[2]
-        self.assertEqual(sql_params["distribution"], "memory")
+        self.assertNotIn("distribution", sql_params)
 
-    # TC-25b: cluster_cost_per_hour included
+    # TC-25b: cluster_cost_per_hour NOT in sql_params (resolved via SQL JOIN)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
-    def test_populate_rtu_includes_cluster_cost_rate(self, mock_execute):
+    def test_populate_rtu_no_cluster_cost_per_hour_param(self, mock_execute):
         with OCPReportDBAccessor(self.schema) as accessor:
             rp = self._get_report_period(accessor)
-            self._call_populate(accessor, rp, cluster_cost_rate=1.23)
+            self._call_populate(accessor, rp)
         args, kwargs = mock_execute.call_args
         sql_params = args[2]
-        self.assertEqual(sql_params["cluster_cost_per_hour"], 1.23)
+        self.assertNotIn("cluster_cost_per_hour", sql_params)
 
     # TC-25c: rate_type and per-metric params NOT in sql_params (single-pass reads from DB)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
@@ -465,8 +471,11 @@ class TestPopulateUsageRatesToUsage(_ReportPeriodMixin, MasuTestCase):
         sql_params = args[2]
         self.assertNotIn("rate_type", sql_params)
         for rate_key in metric_constants.COST_MODEL_USAGE_RATES:
-            if rate_key != "cluster_cost_per_hour":
-                self.assertNotIn(rate_key, sql_params, f"Per-metric param {rate_key} should not be in sql_params")
+            self.assertNotIn(
+                rate_key,
+                sql_params,
+                f"Per-metric param {rate_key} should not be in sql_params",
+            )
 
 
 class TestAggregateRatesToDailySummary(_ReportPeriodMixin, MasuTestCase):
@@ -572,6 +581,8 @@ def _make_orchestration_patches(rtu_enabled=True):
         @patch.object(OCPCostModelCostUpdater, "_update_monthly_cost")
         @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
         @patch.object(OCPCostModelCostUpdater, "_update_usage_costs")
+        @patch.object(OCPCostModelCostUpdater, "_cleanup_stale_rtu_costs")
+        @patch.object(OCPCostModelCostUpdater, "_update_vm_usage_costs")
         @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
         @patch.object(OCPCostModelCostUpdater, "_update_usage_rates_to_usage")
         @patch.object(OCPCostModelCostUpdater, "_load_rates")
@@ -586,6 +597,8 @@ def _make_orchestration_patches(rtu_enabled=True):
             mock_load,
             mock_rtu,
             mock_agg,
+            mock_vm,
+            mock_cleanup,
             mock_usage,
             mock_markup,
             mock_monthly,
@@ -599,6 +612,8 @@ def _make_orchestration_patches(rtu_enabled=True):
                 mock_load,
                 mock_rtu,
                 mock_agg,
+                mock_vm,
+                mock_cleanup,
                 mock_usage,
                 mock_markup,
                 mock_monthly,
@@ -628,7 +643,17 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
     # TC-40: RTU insert called, legacy usage costs NOT called
     @_make_orchestration_patches()
     def test_orchestration_calls_rtu_insert(
-        self, mock_ff, mock_load, mock_rtu, mock_agg, mock_usage, mock_markup, mock_monthly, mock_dist
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
     ):
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
@@ -639,7 +664,17 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
     # TC-41: RTU aggregate called, legacy usage costs NOT called
     @_make_orchestration_patches()
     def test_orchestration_calls_rtu_aggregate(
-        self, mock_ff, mock_load, mock_rtu, mock_agg, mock_usage, mock_markup, mock_monthly, mock_dist
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
     ):
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
@@ -650,7 +685,17 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
     # TC-42: RTU insert before aggregate (both in RTU-enabled path)
     @_make_orchestration_patches()
     def test_orchestration_order_rtu_before_aggregate(
-        self, mock_ff, mock_load, mock_rtu, mock_agg, mock_usage, mock_markup, mock_monthly, mock_dist
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
     ):
         call_order = []
         mock_rtu.side_effect = lambda *a: call_order.append("rtu")
@@ -669,7 +714,17 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
     # TC-44: aggregate before distribute
     @_make_orchestration_patches()
     def test_orchestration_order_aggregate_before_distribute(
-        self, mock_ff, mock_load, mock_rtu, mock_agg, mock_usage, mock_markup, mock_monthly, mock_dist
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
     ):
         call_order = []
         mock_rtu.side_effect = lambda *a: call_order.append("rtu")
@@ -706,13 +761,23 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         self.assertEqual(len(insert_calls), 1, "Single-pass: exactly one INSERT call expected")
         sql_params = insert_calls[0][0][2]
         self.assertIn("cost_model_id", sql_params)
-        self.assertIn("cluster_cost_per_hour", sql_params)
+        self.assertNotIn("cluster_cost_per_hour", sql_params)
         self.assertNotIn("rate_type", sql_params)
 
     # TC-55: RTU skipped when feature flag disabled
     @_make_orchestration_patches(rtu_enabled=False)
     def test_orchestration_skips_rtu_when_flag_disabled(
-        self, mock_ff, mock_load, mock_rtu, mock_agg, mock_usage, mock_markup, mock_monthly, mock_dist
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
     ):
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
@@ -830,7 +895,9 @@ class TestPurgeWiring(MasuTestCase):
 
     # TC-52: rates_to_usage NOT in get_self_hosted_table_names (avoids duplicate)
     def test_rates_to_usage_not_in_self_hosted_names(self):
-        from reporting.provider.ocp.self_hosted_models import get_self_hosted_table_names
+        from reporting.provider.ocp.self_hosted_models import (
+            get_self_hosted_table_names,
+        )
 
         table_names = get_self_hosted_table_names()
         self.assertNotIn("rates_to_usage", table_names)
@@ -951,7 +1018,11 @@ class TestRTUCostBreakdownAPI(_ReportPeriodMixin, MasuTestCase):
         if not rtu_by_metric:
             self.skipTest("No RTU rows to reconcile (DB may not have cost model data)")
 
-        for metric, ds_col in [("cpu", "cpu"), ("memory", "memory"), ("storage", "volume")]:
+        for metric, ds_col in [
+            ("cpu", "cpu"),
+            ("memory", "memory"),
+            ("storage", "volume"),
+        ]:
             rtu_val = rtu_by_metric.get(metric, Decimal(0))
             ds_val = ds_agg.get(ds_col) or Decimal(0)
             self.assertAlmostEqual(
@@ -1059,13 +1130,11 @@ class TestRTURateResolution(_ReportPeriodMixin, MasuTestCase):
         with OCPReportDBAccessor(self.schema) as accessor:
             rp = self._get_report_period(accessor)
             accessor.populate_usage_rates_to_usage(
-                "cpu",
                 dh.this_month_start.date(),
                 dh.this_month_end.date(),
                 self.ocp_provider_uuid,
                 rp.id,
                 "test-cost-model-uuid",
-                0.0,
             )
         args, _ = mock_execute.call_args
         sql_params = args[2]
@@ -1090,7 +1159,11 @@ class TestRTURateResolution(_ReportPeriodMixin, MasuTestCase):
             ).count()
         if rtu_with_rate == 0:
             self.skipTest("No RTU rows with rate FK (SQL may not populate rate_id yet)")
-        self.assertGreater(rtu_with_rate, 0, "RTU rows should have non-NULL rate FK when Rate table has matching rows")
+        self.assertGreater(
+            rtu_with_rate,
+            0,
+            "RTU rows should have non-NULL rate FK when Rate table has matching rows",
+        )
 
     # TC-D5-03: RTU custom_name matches Rate table value
     def test_rtu_custom_name_matches_rate_table(self):
@@ -1169,7 +1242,8 @@ class TestRTURateResolution(_ReportPeriodMixin, MasuTestCase):
         known_metrics = set(metric_constants.COST_MODEL_USAGE_RATES)
         metric_found = any(m in rtu_row.custom_name for m in known_metrics)
         self.assertTrue(
-            metric_found, f"RTU custom_name '{rtu_row.custom_name}' should contain a known metric name as fallback"
+            metric_found,
+            f"RTU custom_name '{rtu_row.custom_name}' should contain a known metric name as fallback",
         )
 
 
@@ -1178,29 +1252,107 @@ class TestRTURateResolution(_ReportPeriodMixin, MasuTestCase):
 # ---------------------------------------------------------------------------
 
 
-class TestOrchestrationOrder(MasuTestCase):
-    """R20: Verify aggregation runs BEFORE legacy VM/tag cost paths."""
+class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
+    """R20: Verify RTU orchestration ordering via mock-based call-order assertions."""
 
-    # TC-R20-01: aggregation runs BEFORE legacy usage cost path
-    def test_aggregation_before_usage_costs(self):
-        """R20: _aggregate_rates_to_daily_summary must run BEFORE _update_usage_costs."""
-        import inspect
+    def _make_summary_range(self):
+        dh = DateHelper()
+        return SummaryRangeConfig(
+            schema=self.schema,
+            provider_uuid=self.ocp_provider_uuid,
+            start_date=dh.this_month_start,
+            end_date=dh.this_month_end,
+            cost_model_update=True,
+        )
 
-        source = inspect.getsource(OCPCostModelCostUpdater.update_summary_cost_model_costs)
-        agg_idx = source.find("_aggregate_rates_to_daily_summary")
-        usage_idx = source.find("_update_usage_costs")
-        self.assertGreater(agg_idx, 0, "aggregation call not found")
-        self.assertGreater(usage_idx, 0, "usage costs call not found")
-        self.assertLess(agg_idx, usage_idx, "R20: aggregation must run before usage costs")
+    # TC-R20-01: full RTU-enabled ordering: rtu -> agg -> vm -> markup -> monthly -> dist
+    @_make_orchestration_patches(rtu_enabled=True)
+    def test_rtu_enabled_full_ordering(
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
+    ):
+        """R20: When RTU is enabled, order must be rtu -> agg -> vm -> markup -> monthly -> dist."""
+        call_order = []
+        mock_rtu.side_effect = lambda *a: call_order.append("rtu")
+        mock_agg.side_effect = lambda *a: call_order.append("agg")
+        mock_vm.side_effect = lambda *a: call_order.append("vm")
+        mock_markup.side_effect = lambda *a: call_order.append("markup")
+        mock_monthly.side_effect = lambda *a: call_order.append("monthly")
+        mock_dist.side_effect = lambda *a: call_order.append("dist")
 
-    # TC-R20-02: aggregation runs BEFORE all tag cost methods
-    def test_aggregation_before_tag_costs(self):
-        """R20: _aggregate_rates_to_daily_summary must run BEFORE tag cost methods."""
-        import inspect
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        sr = self._make_summary_range()
+        updater.update_summary_cost_model_costs(sr)
 
-        source = inspect.getsource(OCPCostModelCostUpdater.update_summary_cost_model_costs)
-        agg_idx = source.find("_aggregate_rates_to_daily_summary")
-        tag_idx = source.find("_delete_tag_usage_costs")
-        self.assertGreater(agg_idx, 0, "aggregation call not found")
-        self.assertGreater(tag_idx, 0, "tag costs call not found")
-        self.assertLess(agg_idx, tag_idx, "R20: aggregation must run before tag costs")
+        expected = ["rtu", "agg", "vm", "markup", "monthly", "dist"]
+        self.assertEqual(call_order, expected, f"R20: expected {expected}, got {call_order}")
+        mock_usage.assert_not_called()
+        mock_cleanup.assert_not_called()
+
+    # TC-R20-02: aggregation before markup (proxy for agg-before-tags)
+    @_make_orchestration_patches(rtu_enabled=True)
+    def test_aggregation_before_markup(
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
+    ):
+        """R20: _aggregate must run before _update_markup_cost (proxy for agg-before-tags)."""
+        call_order = []
+        mock_agg.side_effect = lambda *a: call_order.append("agg")
+        mock_markup.side_effect = lambda *a: call_order.append("markup")
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        sr = self._make_summary_range()
+        updater.update_summary_cost_model_costs(sr)
+
+        self.assertIn("agg", call_order)
+        self.assertIn("markup", call_order)
+        self.assertLess(
+            call_order.index("agg"),
+            call_order.index("markup"),
+            "R20: aggregation must run before markup (and therefore before tags)",
+        )
+
+    # TC-R20-03: cleanup called when cost_model_id is None with RTU enabled
+    @_make_orchestration_patches(rtu_enabled=True)
+    def test_cleanup_called_when_no_cost_model(
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
+    ):
+        """R20: When RTU is enabled but cost_model_id is None, cleanup must run instead of RTU+agg."""
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        updater._cost_model_id = None
+        sr = self._make_summary_range()
+        updater.update_summary_cost_model_costs(sr)
+
+        mock_cleanup.assert_called()
+        mock_rtu.assert_not_called()
+        mock_agg.assert_not_called()
+        mock_vm.assert_not_called()
+        mock_usage.assert_not_called()
