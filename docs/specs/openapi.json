@@ -504,6 +504,7 @@
                 ],
                 "summary": "List the price lists",
                 "operationId": "listPriceLists",
+                "description": "List endpoint accepts only **offset**, **limit**, **filter**, and **order_by** query parameters. Any other top-level parameter returns 400.",
                 "parameters": [
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -512,49 +513,10 @@
                         "$ref": "#/components/parameters/QueryLimit"
                     },
                     {
-                        "name": "name",
-                        "required": false,
-                        "in": "query",
-                        "description": "Filter by price list name (case-insensitive substring match).",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/PriceListQueryFilter"
                     },
                     {
-                        "name": "uuid",
-                        "required": false,
-                        "in": "query",
-                        "description": "Filter by exact price list UUID.",
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    },
-                    {
-                        "name": "enabled",
-                        "required": false,
-                        "in": "query",
-                        "description": "Filter by enabled status. Use true to show only active price lists or false to show only disabled ones.",
-                        "schema": {
-                            "type": "boolean"
-                        }
-                    },
-                    {
-                        "name": "ordering",
-                        "required": false,
-                        "in": "query",
-                        "description": "Order response by allowed fields. Prefix with '-' for descending order. Default is 'name'.",
-                        "schema": {
-                            "type": "string",
-                            "enum": [
-                                "name",
-                                "-name",
-                                "effective_start_date",
-                                "-effective_start_date",
-                                "updated_timestamp",
-                                "-updated_timestamp"
-                            ]
-                        }
+                        "$ref": "#/components/parameters/PriceListQueryOrderBy"
                     }
                 ],
                 "security": [
@@ -569,6 +531,16 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/PriceListPagination"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (unsupported query parameter, invalid filter key, or invalid order_by field/direction).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
                                 }
                             }
                         }
@@ -886,6 +858,78 @@
                                     "items": {
                                         "$ref": "#/components/schemas/PriceListAffectedCostModel"
                                     }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/price-lists/{price_list_uuid}/duplicate/": {
+            "post": {
+                "tags": [
+                    "Price Lists"
+                ],
+                "summary": "Duplicate a price list.",
+                "description": "Creates a new price list by copying rates, currency, validity dates, and description from the source. The new list is named `Copy of {original name}` (truncated to 255 characters if needed), **version** resets to **1**, **enabled** is **true**, and it is **not** linked to any cost model. Request body is optional and ignored.",
+                "operationId": "duplicatePriceList",
+                "parameters": [
+                    {
+                        "name": "price_list_uuid",
+                        "in": "path",
+                        "description": "UUID of the Price List to duplicate.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "The newly created price list (same shape as create response).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceListOut"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
                                 }
                             }
                         }
@@ -6919,6 +6963,28 @@
                     "maximum": 1000
                 }
             },
+            "PriceListQueryFilter": {
+                "name": "filter",
+                "required": false,
+                "in": "query",
+                "description": "Filter price lists with `filter[field]=value`. Allowed keys: **name** (case-insensitive substring; comma-separated values are ANDed), **uuid** (exact UUID), **enabled** (boolean), **currency** (exact, case-insensitive). Unknown filter keys return 400.",
+                "style": "deepObject",
+                "explode": true,
+                "schema": {
+                    "type": "object"
+                }
+            },
+            "PriceListQueryOrderBy": {
+                "name": "order_by",
+                "required": false,
+                "in": "query",
+                "description": "Sort with `order_by[field]=asc` or `order_by[field]=desc`. Allowed fields match the `price_list` queryset (including annotation **assigned_cost_model_count**): e.g. **name**, **effective_start_date**, **effective_end_date**, **updated_timestamp**, **currency**, **assigned_cost_model_count**. Unknown fields return 400. Default is ascending **name**.",
+                "style": "deepObject",
+                "explode": true,
+                "schema": {
+                    "type": "object"
+                }
+            },
             "ReportQueryLimit": {
                 "in": "query",
                 "name": "limit",
@@ -7376,6 +7442,19 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "readOnly": true
+                            },
+                            "assigned_cost_model_count": {
+                                "type": "integer",
+                                "readOnly": true,
+                                "description": "Number of cost models that reference this price list."
+                            },
+                            "assigned_cost_models": {
+                                "type": "array",
+                                "readOnly": true,
+                                "description": "Cost models linked to this price list (uuid, name, priority). Same shape as rows from `GET .../affected-cost-models/`, inlined for convenience.",
+                                "items": {
+                                    "$ref": "#/components/schemas/PriceListAffectedCostModel"
+                                }
                             }
                         }
                     }
