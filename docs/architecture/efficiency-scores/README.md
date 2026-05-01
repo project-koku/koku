@@ -6,7 +6,7 @@ Help FinOps and Dev/Ops reason about CPU and memory utilization using **usage ef
 
 ## One-paragraph scope
 
-**Implemented:** For `cpu` and `memory` report types, the API adds **`total_score`** on the **`total`** object and **`score`** on each **data** row (when scores are computed), exposing **`usage_efficiency_percent`** and **`wasted_cost`** derived from aggregated usage/request hours and CPU- or memory-scoped **`cost_total`** on [`OCPUsageLineItemDailySummary`](../../../koku/reporting/models.py). **Not implemented:** a separate `efficiency`-only route; cost/volume reports do not expose these fields. **Backlog** (out of code): idle/cost-efficiency/overhead scores and dedicated Optimizations Summary routing in the UI.
+**Implemented:** For `cpu` and `memory` report types, the API adds **`total_score`** on the **`total`** object and **`score`** on each **data** row (when scores are computed), exposing **`usage_efficiency_percent`** and **`wasted_cost`** derived from aggregated usage/request hours and CPU- or memory-scoped **`cost_total`** on [`OCPUsageLineItemDailySummary`](../../../koku/reporting/models.py). **Not implemented:** a separate `efficiency`-only route; cost/volume reports do not expose these fields. **Backlog** (out of code): idle/cost-efficiency/overhead scores and dedicated Optimizations Summary routing in the UI. **Design note:** pooled aggregate math vs “sum of per-workload waste” and CPU+memory double-count are analyzed in [solution-options-and-limitations.md](./solution-options-and-limitations.md) (not bugs—semantic choices).
 
 ---
 
@@ -27,6 +27,7 @@ Help FinOps and Dev/Ops reason about CPU and memory utilization using **usage ef
 |-------|----------|------|
 | 1 | This README | As-built behavior, code map, builder handoff |
 | 2 | [formulas-and-data-contract.md](./formulas-and-data-contract.md) | Exact math, cost basis, rounding, when scores are empty |
+| 3 | [solution-options-and-limitations.md](./solution-options-and-limitations.md) | Known math limitations (aggregation / double-count), solution axes, IQ for future changes |
 
 ---
 
@@ -82,6 +83,7 @@ flowchart LR
 | — | **`request_sum == 0`** semantics | Implementation coalesces **`usage_efficiency_percent`** to **0** and **`wasted_cost`** to **0** (not `null`). Confirm UX/OpenAPI wording. |
 | — | Tag / multi-dimension `group_by` | Scores intentionally empty; document for UI. |
 | — | Tag **`exclude`** vs `should_compute` | Code does not pass `"exclude"` into [`get_tag_filter_keys`](../../../koku/api/report/queries.py); align product/UI expectations or extend `has_tag_interaction` if excludes should suppress scores. |
+| IQ-7–IQ-10 | Bottom-up waste grain, metric alignment, dual-metric naming, infra split | See [solution-options-and-limitations.md](./solution-options-and-limitations.md). |
 
 ---
 
@@ -89,6 +91,7 @@ flowchart LR
 
 | Date | Summary |
 |------|---------|
+| 2026-04-24 | Added [solution-options-and-limitations.md](./solution-options-and-limitations.md) (cost-efficiency problems brief → solution axes and IQ-7–10). |
 | 2026-04-16 | Initial agent-focused hub and formulas doc from product brief. |
 | 2026-04-17 | Rewrote hub for **as-built** implementation (compute/memory, `total_score` / `score`, formulas, no new pipeline). |
 | 2026-04-21 | Corrected **when scores are omitted**: tag **`exclude`** does not affect `should_compute` today (only tag `group_by` and tag **`filter`** keys). |
@@ -99,7 +102,7 @@ flowchart LR
 
 | Block | Content |
 |-------|---------|
-| **Doc map** | This README (overview + links) → [formulas-and-data-contract.md](./formulas-and-data-contract.md) (math + JSON). Reading order: README → formulas. |
+| **Doc map** | This README (overview + links) → [formulas-and-data-contract.md](./formulas-and-data-contract.md) (math + JSON) → [solution-options-and-limitations.md](./solution-options-and-limitations.md) (limitations + future fixes). Reading order: README → formulas → solution options (if changing behavior). |
 | **Assumptions** | None beyond what is cited from code; UI “Optimizations Summary” tab wiring lives in koku-ui. |
 | **IQ / decisions** | Resolved items in **Resolved decisions** table; backlog in **Open questions**. |
 | **API contract summary** | `GET …/reports/openshift/compute/` and `GET …/reports/openshift/memory/` with `filter` / `group_by` / `order_by` as other OCP inventory reports. Response: **`total.total_score`**: `{ usage_efficiency_percent: int, wasted_cost: { value, units } }` or `{}`. Data leaves: **`score`** same shape or `{}`. **`order_by[usage_efficiency]`**, **`order_by[wasted_cost]`** supported (with valid `group_by` per existing serializer rules). |
