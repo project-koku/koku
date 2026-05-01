@@ -836,9 +836,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             {**row, "subscription_guid": "2"},
         ]
         rank_group_by = ["subscription_guid", "subscription_name"]
-        ranked_list = handler._ranked_list(
-            data_list, ranks, rank_fields=set(), rank_group_by=rank_group_by
-        )
+        ranked_list = handler._ranked_list(data_list, ranks, rank_fields=set(), rank_group_by=rank_group_by)
         self.assertEqual(len(ranked_list), 2)
         self.assertEqual(ranked_list[0].get("subscription_name"), "Sub-one")
         self.assertEqual(ranked_list[1].get("subscription_name"), "Sub-two")
