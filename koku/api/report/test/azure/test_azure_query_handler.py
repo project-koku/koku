@@ -786,6 +786,89 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsInstance(month_item.get("values")[0].get("delta_value"), Decimal)
 
+    def test_execute_query_limit_orderby_subscription_name(self):
+        """Ranked query with order_by subscription_name must include subscription_name on data rows."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=5&order_by[subscription_name]=asc&group_by[subscription_guid]=*"  # noqa: E501
+        path = reverse("reports-azure-costs")
+        query_params = self.mocked_query_params(url, AzureCostView, path)
+        handler = AzureReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
+        for data_item in data:
+            self.assertEqual(data_item.get("date"), cmonth_str)
+            month_data = data_item.get("subscription_guids")
+            self.assertIsInstance(month_data, list)
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get("subscription_guid"), str)
+                self.assertIsInstance(month_item.get("values"), list)
+                self.assertIsInstance(month_item.get("values")[0].get("subscription_name"), str)
+
+    def test_ranked_list_merge_rank_keys_includes_subscription_name_on_rank_rows(self):
+        """When rank_group_by lists subscription_name but main rows only have subscription_guid, merge succeeds."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
+        ranks = [
+            {"subscription_guid": "1", "subscription_name": "Sub-one", "rank": 1, "source_uuid": ["1"]},
+            {"subscription_guid": "2", "subscription_name": "Sub-two", "rank": 2, "source_uuid": ["1"]},
+        ]
+        row = {
+            "date": "2022-05",
+            "cost_markup": 1,
+            "cost_raw": 1,
+            "cost_total": 1,
+            "cost_usage": 1,
+            "infra_markup": 1,
+            "infra_raw": 1,
+            "infra_total": 1,
+            "infra_usage": 1,
+            "sup_markup": 1,
+            "sup_raw": 1,
+            "sup_total": 1,
+            "sup_usage": 1,
+            "cost_units": "USD",
+            "source_uuid": ["1"],
+        }
+        data_list = [
+            {**row, "subscription_guid": "1"},
+            {**row, "subscription_guid": "2"},
+        ]
+        rank_group_by = ["subscription_guid", "subscription_name"]
+        ranked_list = handler._ranked_list(data_list, ranks, rank_fields=set(), rank_group_by=rank_group_by)
+        self.assertEqual(len(ranked_list), 2)
+        self.assertEqual(ranked_list[0].get("subscription_name"), "Sub-one")
+        self.assertEqual(ranked_list[1].get("subscription_name"), "Sub-two")
+
+    def test_ranked_list_merge_rank_keys_fallback_without_overlap(self):
+        """If main rows lack every rank_group_by column, fall back to full keys (expect KeyError)."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
+        data_list = [
+            {
+                "date": "2022-05",
+                "cost_total": 1,
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            }
+        ]
+        ranks = [{"subscription_guid": "1", "rank": 1, "source_uuid": ["1"]}]
+        with self.assertRaises(KeyError):
+            handler._ranked_list(data_list, ranks, rank_group_by=["subscription_guid"])
+
     def test_execute_query_orderby_subscription_name(self):
         """Test execute_query with ordering by subscription_name ascending."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[subscription_name]=asc&group_by[subscription_guid]=*"  # noqa: E501

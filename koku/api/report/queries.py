@@ -1415,6 +1415,10 @@ class ReportQueryHandler(QueryHandler):
         if not data_list:
             return data_list
         data_frame = pd.DataFrame(data_list)
+        # Rank rows may include dimensions not selected on the main queryset (e.g. subscription_name).
+        merge_rank_keys = [col for col in rank_group_by if col in data_frame.columns]
+        if not merge_rank_keys:
+            merge_rank_keys = list(rank_group_by)
 
         rank_data_frame = pd.DataFrame(ranks)
         rank_data_frame = rank_data_frame.drop(
@@ -1432,12 +1436,12 @@ class ReportQueryHandler(QueryHandler):
             drop_columns.add(col)
             agg_fields[col] = ["max"]
 
-        aggs = data_frame.groupby(rank_group_by, dropna=False).agg(agg_fields)
+        aggs = data_frame.groupby(merge_rank_keys, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
         aggs.columns = columns
         aggs = aggs.reset_index()
         aggs = aggs.replace({np.nan: None})
-        rank_data_frame = rank_data_frame.merge(aggs, on=rank_group_by)
+        rank_data_frame = rank_data_frame.merge(aggs, on=merge_rank_keys)
 
         # Create a dataframe of days in the query
         days = data_frame["date"].unique()
@@ -1454,7 +1458,7 @@ class ReportQueryHandler(QueryHandler):
         # Merge our data frame to "zero-fill" missing data for each rank field
         # per day in the query, using a RIGHT JOIN
         account_aliases = None
-        merge_on = rank_group_by + ["date"]
+        merge_on = merge_rank_keys + ["date"]
         if self.is_aws and "account" in group_by:
             account_aliases = data_frame[["account", "account_alias"]]
             account_aliases = account_aliases.drop_duplicates(subset="account")
