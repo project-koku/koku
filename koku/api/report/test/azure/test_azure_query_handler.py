@@ -786,6 +786,15 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsInstance(month_item.get("values")[0].get("delta_value"), Decimal)
 
+    def test_execute_query_limit_orderby_subscription_name(self):
+        """Ranked query with order_by subscription_name must include subscription_name on data rows."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=5&order_by[subscription_name]=asc&group_by[subscription_guid]=*"  # noqa: E501
+        path = reverse("reports-azure-costs")
+        query_params = self.mocked_query_params(url, AzureCostView, path)
+        handler = AzureReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get("data"))
+
     def test_execute_query_orderby_subscription_name(self):
         """Test execute_query with ordering by subscription_name ascending."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[subscription_name]=asc&group_by[subscription_guid]=*"  # noqa: E501
