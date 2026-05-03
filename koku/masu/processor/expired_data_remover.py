@@ -5,8 +5,8 @@
 """Remove expired report data."""
 import logging
 from datetime import datetime
-from datetime import timedelta
 
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 
 from api.common import log_json
@@ -36,7 +36,7 @@ class ExpiredDataRemover:
 
     """
 
-    def __init__(self, customer_schema, provider, num_of_months_to_keep=None, line_items_month_to_keep=None):
+    def __init__(self, customer_schema, provider, num_of_months_to_keep=None):
         """
         Initializer.
 
@@ -50,9 +50,6 @@ class ExpiredDataRemover:
         self._months_to_keep = num_of_months_to_keep
         if self._months_to_keep is None:
             self._months_to_keep = Config.MASU_RETAIN_NUM_MONTHS
-        self._line_items_months = line_items_month_to_keep
-        if self._line_items_months is None:
-            self._line_items_months = Config.MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY
         try:
             self._cleaner = self._set_cleaner()
         except Exception as err:
@@ -89,29 +86,25 @@ class ExpiredDataRemover:
         """
         Calculate the expiration date based on the retention policy.
 
-        Args:
-            None
+        Uses dateutil.relativedelta for calendar-month precision instead of
+        the approximate 30-day-per-month calculation.
 
         Returns:
-            (datetime.datetime) Expiration date
+            (datetime.datetime) Expiration date (always first of month, UTC)
 
         """
         months = self._months_to_keep
-        expiration_msg = "Report data expiration is {} for a {} month retention policy"
         today = DateHelper().today
         LOG.info("Current date time is %s", today)
 
-        middle_of_current_month = today.replace(day=15)
-        num_of_days_to_expire_date = months * timedelta(days=30)
-        middle_of_expire_date_month = middle_of_current_month - num_of_days_to_expire_date
+        first_of_current_month = today.replace(day=1)
         expiration_date = datetime(
-            year=middle_of_expire_date_month.year,
-            month=middle_of_expire_date_month.month,
+            year=first_of_current_month.year,
+            month=first_of_current_month.month,
             day=1,
             tzinfo=settings.UTC,
-        )
-        msg = expiration_msg.format(expiration_date, months)
-        LOG.info(msg)
+        ) - relativedelta(months=months)
+        LOG.info("Report data expiration is %s for a %s month retention policy", expiration_date, months)
         return expiration_date
 
     def remove(self, simulate=False, provider_uuid=None):

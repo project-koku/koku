@@ -29,6 +29,12 @@ def fallback_development_true(feature_name: str, context: dict) -> bool:
 class MockUnleashClient:
     """Mock Unleash Client for ONPREM mode."""
 
+    ONPREM_FLAG_DEFAULTS = {
+        "cost-management.backend.ocp_gpu_cost_model": True,
+        "cost-management.backend.disable-ingress-rate-limit": True,
+        "cost-management.backend.override_customer_group_by_limit": False,
+    }
+
     def __init__(self, app_name, environment, instance_id, **kwargs):
         """Initialize mock client with static context."""
         LOG.info("Using MockUnleashClient - Unleash is disabled")
@@ -39,9 +45,11 @@ class MockUnleashClient:
         """No-op initialization."""
         pass
 
-    def is_enabled(self, feature_name: str, context: dict = None, fallback_function=None):
+    def is_enabled(self, feature_name: str, context: dict = None, fallback_function=None, **kwargs):
         """Return fallback value for feature flags."""
-        # Merge static context with runtime context
+        if feature_name in self.ONPREM_FLAG_DEFAULTS:
+            return self.ONPREM_FLAG_DEFAULTS[feature_name]
+
         merged_context = self.unleash_static_context.copy()
         merged_context.update(context or {})
 
