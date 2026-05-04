@@ -790,7 +790,7 @@ class DestroySourceMixinTests(IamTestCase):
             mock_publish.assert_not_called()
 
 
-@override_settings(ROOT_URLCONF="sources.urls")
+@override_settings(ROOT_URLCONF="koku.urls")
 class SourcesViewRbacTests(IamTestCase):
     """Test RBAC permission enforcement on the sources endpoint."""
 
