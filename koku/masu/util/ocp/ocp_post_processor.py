@@ -354,6 +354,10 @@ class OCPPostProcessor:
         gpu_column = "gpu_vendor_name"
         if gpu_column in data_frame.columns:
             data_frame[gpu_column] = data_frame[gpu_column].replace("nvidia_com_gpu", "nvidia")
+        if "gpu_model_name" in data_frame.columns:
+            data_frame["gpu_model_name"] = (
+                data_frame["gpu_model_name"].str.replace(r"[^a-zA-Z0-9]+", " ", regex=True).str.strip()
+            )
         self.enabled_tag_keys.update(label_key_set)
 
         # Populate MIG fields from profile for GPU reports

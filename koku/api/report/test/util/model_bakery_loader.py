@@ -203,6 +203,24 @@ class ModelBakeryDataLoader(DataLoader):
                 _fill_optional=True,
             )
             baker.make("CostModelMap", provider_uuid=provider.uuid, cost_model=cost_model)
+            if cost_model.rates:
+                pl = baker.make(
+                    "PriceList",
+                    name=f"{cost_model.name} prices",
+                    description=f"Auto-created from cost model '{cost_model.name}'",
+                    currency=cost_model.currency,
+                    effective_start_date=datetime(2026, 3, 1).date(),
+                    effective_end_date=datetime(2099, 12, 31).date(),
+                    enabled=True,
+                    version=1,
+                    rates=cost_model.rates,
+                )
+                baker.make(
+                    "PriceListCostModelMap",
+                    price_list=pl,
+                    cost_model=cost_model,
+                    priority=1,
+                )
 
     def load_aws_data(self, linked_openshift_provider=None, day_list=None):
         """Load AWS data for tests."""

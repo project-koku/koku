@@ -155,4 +155,5 @@ dev/containers/unleash/cache/
 # Cursor
 .cursor/*
 !.cursor/rules/
+!.cursor/commands/
 .claude/

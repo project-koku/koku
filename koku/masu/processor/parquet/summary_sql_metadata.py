@@ -54,12 +54,16 @@ class SummarySqlMetadata:
     def build_cost_model_params(self):
         """Set summary parameters based off cost model"""
         cost_model_params = {}
-        with CostModelDBAccessor(self.schema, self.cloud_provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(
+            self.schema, self.cloud_provider_uuid, price_list_effective_on=None
+        ) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
             cost_model_params["markup"] = markup_value or 0
 
-        with CostModelDBAccessor(self.schema, self.ocp_provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(
+            self.schema, self.ocp_provider_uuid, price_list_effective_on=None
+        ) as cost_model_accessor:
             cost_model_params["distribution"] = cost_model_accessor.distribution_info.get(
                 "distribution_type", DEFAULT_DISTRIBUTION_TYPE
             )

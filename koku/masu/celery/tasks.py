@@ -373,7 +373,9 @@ def check_cost_model_status(provider_uuid=None):
     processed = 0
     skipped = 0
     for provider in providers:
-        with CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid) as cmdba:
+        with CostModelDBAccessor(
+            provider.account.get("schema_name"), provider.uuid, price_list_effective_on=None
+        ) as cmdba:
             if cmdba.cost_model:
                 skipped += 1
                 continue
