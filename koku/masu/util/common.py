@@ -4,7 +4,6 @@
 #
 """Common util functions."""
 import calendar
-import collections
 import datetime
 import gzip
 import json
@@ -147,6 +146,21 @@ def normalize_cost_value(value, precision=2):
         return normalized
     except (ValueError, TypeError):
         return None
+
+
+def clamp_cost(value, min_val=0.0, max_val=None):
+    """Clamp a cost value within the given bounds."""
+    if value is None:
+        return None
+    try:
+        result = float(value)
+    except (ValueError, TypeError):
+        return None
+    if result < min_val:
+        return min_val
+    if max_val is not None and result > max_val:
+        return max_val
+    return result
 
 
 def safe_int_or_none(val):
