@@ -26,7 +26,8 @@ class SourcesAccessPermission(permissions.BasePermission):
             return False
 
         if request.method in permissions.SAFE_METHODS:
-            if request.user.access.get(self.resource_type, {}).get("read", []):
+            sources_read = request.user.access.get(self.resource_type, {}).get("read", [])
+            if "*" in sources_read:
                 return True
         else:
             sources_write = request.user.access.get(self.resource_type, {}).get("write", [])

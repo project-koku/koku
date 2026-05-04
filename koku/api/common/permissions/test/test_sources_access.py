@@ -118,3 +118,12 @@ class SourcesAccessPermissionTest(TestCase):
         perm = SourcesAccessPermission()
         result = perm.has_permission(request=req, view=None)
         self.assertFalse(result)
+
+    def test_has_perm_non_wildcard_read_denied(self):
+        """Test that non-wildcard read access is denied (sources is global, not per-resource)."""
+        access = {"sources": {"read": ["some-source-id"]}}
+        user = Mock(spec=User, admin=False, access=access)
+        req = Mock(user=user, method="GET")
+        perm = SourcesAccessPermission()
+        result = perm.has_permission(request=req, view=None)
+        self.assertFalse(result)
