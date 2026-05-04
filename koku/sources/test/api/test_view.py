@@ -876,11 +876,12 @@ class SourcesViewRbacTests(IamTestCase):
         self.assertEqual(response.status_code, 403)
 
     @RbacPermissions({"sources": {"read": ["*"], "write": ["*"]}})
-    def test_stats_with_sources_access(self):
+    @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
+    def test_stats_with_sources_access(self, _):
         """Test that a user with sources access can view stats."""
         url = reverse("sources-stats", kwargs={"pk": self.ocp_source.source_id})
         response = self.client.get(url, content_type="application/json")
-        self.assertIn(response.status_code, [200, 404])
+        self.assertEqual(response.status_code, 200)
 
     @RbacPermissions({})
     def test_stats_without_sources_access_returns_403(self):

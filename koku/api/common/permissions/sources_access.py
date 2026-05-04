@@ -11,7 +11,7 @@ class SourcesAccessPermission(permissions.BasePermission):
     """Determines if a user can manage sources.
 
     Read operations (GET, HEAD, OPTIONS) require sources:*:read.
-    Write operations (POST, PUT, PATCH, DELETE) require sources:*:write.
+    Write operations (POST, PATCH, DELETE) require sources:*:write.
     Org admins bypass RBAC checks.
     """
 

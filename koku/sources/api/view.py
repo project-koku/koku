@@ -189,14 +189,16 @@ class SourcesViewSet(*MIXIN_LIST):
             for resource_type in RESOURCE_TYPE_MAP.keys():
                 excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
             return list(set(excludes))
+        sources_read = resource_access.get("sources", {}).get("read", [])
+        if "*" in sources_read:
+            return excludes
         for resource_type in RESOURCE_TYPE_MAP.keys():
             access_value = resource_access.get(resource_type)
-            if access_value is None:
-                excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
-            elif not access_value.get("read", []):
-                excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
-            else:
+            has_read = access_value is not None and access_value.get("read", [])
+            if has_read:
                 keep.extend(RESOURCE_TYPE_MAP.get(resource_type))
+            else:
+                excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
 
         excludes = list(set(excludes))
         keep = list(set(keep))
