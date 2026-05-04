@@ -1,55 +1,30 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-WHERE lids.usage_start >= {{start_date}}::date
-    AND lids.usage_start <= {{end_date}}::date
-    AND lids.report_period_id = {{report_period_id}}
-    AND lids.cost_model_rate_type = {{rate_type}}
-    AND lids.monthly_cost_type = 'PVC'
-    AND lids.volume_labels ? {{tag_key}}
+-- monthly_cost_persistentvolumeclaim_by_tag.sql (Phase 3: RTU INSERT)
+--
+-- Inserts per-rate monthly tag-based PVC costs into rates_to_usage.
+-- Cost is distributed evenly across PVCs matching a tag key.
+-- CASE statements for per-tag-value cost calculation are built in Python.
+--
+-- Parameters:
+--   schema, start_date, end_date, source_uuid, report_period_id,
+--   rate_type, cost_type, tag_key, labels,
+--   cost_model_cpu_cost, cost_model_memory_cost, cost_model_volume_cost,
+--   cost_model_id, rate_uuid, custom_name
+
+DELETE FROM {{schema | sqlsafe}}.rates_to_usage AS rtu
+WHERE rtu.usage_start >= {{start_date}}::date
+    AND rtu.usage_start <= {{end_date}}::date
+    AND rtu.report_period_id = {{report_period_id}}
+    AND rtu.cost_model_rate_type = {{rate_type}}
+    AND rtu.monthly_cost_type = 'PVC'
 ;
 
 
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
-    uuid,
-    report_period_id,
-    cluster_id,
-    cluster_alias,
-    data_source,
-    usage_start,
-    usage_end,
-    namespace,
-    node,
-    resource_id,
-    pod_labels,
-    pod_usage_cpu_core_hours,
-    pod_request_cpu_core_hours,
-    pod_effective_usage_cpu_core_hours,
-    pod_limit_cpu_core_hours,
-    pod_usage_memory_gigabyte_hours,
-    pod_request_memory_gigabyte_hours,
-    pod_effective_usage_memory_gigabyte_hours,
-    pod_limit_memory_gigabyte_hours,
-    node_capacity_cpu_cores,
-    node_capacity_cpu_core_hours,
-    node_capacity_memory_gigabytes,
-    node_capacity_memory_gigabyte_hours,
-    cluster_capacity_cpu_core_hours,
-    cluster_capacity_memory_gigabyte_hours,
-    persistentvolumeclaim,
-    persistentvolume,
-    storageclass,
-    volume_labels,
-    all_labels,
-    persistentvolumeclaim_capacity_gigabyte,
-    persistentvolumeclaim_capacity_gigabyte_months,
-    volume_request_storage_gigabyte_months,
-    persistentvolumeclaim_usage_gigabyte_months,
-    source_uuid,
-    cost_model_rate_type,
-    cost_model_cpu_cost,
-    cost_model_memory_cost,
-    cost_model_volume_cost,
-    monthly_cost_type,
-    cost_category_id
+INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
+    uuid, cost_model_id, report_period_id, source_uuid,
+    usage_start, usage_end, node, namespace, cluster_id, cluster_alias,
+    data_source, persistentvolumeclaim, pod_labels, volume_labels, all_labels,
+    label_hash, custom_name, metric_type, cost_model_rate_type,
+    monthly_cost_type, calculated_cost, cost_category_id, rate_id
 )
 WITH cte_volume_count AS (
     SELECT usage_start,
@@ -76,28 +51,10 @@ cte_filtered_data AS (
         lids.node,
         max(lids.resource_id) as resource_id,
         NULL::jsonb as pod_labels,
-        NULL::decimal as pod_usage_cpu_core_hours,
-        NULL::decimal as pod_request_cpu_core_hours,
-        NULL::decimal as pod_effective_usage_cpu_core_hours,
-        NULL::decimal as pod_limit_cpu_core_hours,
-        NULL::decimal as pod_usage_memory_gigabyte_hours,
-        NULL::decimal as pod_request_memory_gigabyte_hours,
-        NULL::decimal as pod_effective_usage_memory_gigabyte_hours,
-        NULL::decimal as pod_limit_memory_gigabyte_hours,
-        max(lids.node_capacity_cpu_cores) as node_capacity_cpu_cores,
-        max(lids.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
-        max(lids.node_capacity_memory_gigabytes) as node_capacity_memory_gigabytes,
-        max(lids.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
-        max(lids.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
-        max(lids.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
         lids.persistentvolumeclaim,
         lids.persistentvolume,
         max(lids.storageclass) as storageclass,
         {{labels | sqlsafe}},
-        NULL::decimal as persistentvolumeclaim_capacity_gigabyte,
-        NULL::decimal as persistentvolumeclaim_capacity_gigabyte_months,
-        NULL::decimal as volume_request_storage_gigabyte_months,
-        NULL::decimal as persistentvolumeclaim_usage_gigabyte_months,
         lids.source_uuid,
         {{rate_type}} as cost_model_rate_type,
         {{cost_model_cpu_cost | sqlsafe}},
@@ -127,45 +84,27 @@ cte_filtered_data AS (
     GROUP BY lids.usage_start, lids.source_uuid, lids.cluster_id, lids.node, lids.namespace, lids.persistentvolumeclaim, lids.persistentvolume, lids.volume_labels, vc.pvc_count, lids.cost_category_id
 )
 SELECT uuid,
+    {{cost_model_id}},
     report_period_id,
+    source_uuid,
+    usage_start,
+    usage_end,
+    node,
+    namespace,
     cluster_id,
     cluster_alias,
     data_source,
-    usage_start,
-    usage_end,
-    namespace,
-    node,
-    resource_id,
-    pod_labels,
-    pod_usage_cpu_core_hours,
-    pod_request_cpu_core_hours,
-    pod_effective_usage_cpu_core_hours,
-    pod_limit_cpu_core_hours,
-    pod_usage_memory_gigabyte_hours,
-    pod_request_memory_gigabyte_hours,
-    pod_effective_usage_memory_gigabyte_hours,
-    pod_limit_memory_gigabyte_hours,
-    node_capacity_cpu_cores,
-    node_capacity_cpu_core_hours,
-    node_capacity_memory_gigabytes,
-    node_capacity_memory_gigabyte_hours,
-    cluster_capacity_cpu_core_hours,
-    cluster_capacity_memory_gigabyte_hours,
     persistentvolumeclaim,
-    persistentvolume,
-    storageclass,
+    pod_labels,
     volume_labels::jsonb,
-    volume_labels::jsonb as all_labels,
-    persistentvolumeclaim_capacity_gigabyte,
-    persistentvolumeclaim_capacity_gigabyte_months,
-    volume_request_storage_gigabyte_months,
-    persistentvolumeclaim_usage_gigabyte_months,
-    source_uuid,
+    volume_labels::jsonb,
+    md5('|' || COALESCE(volume_labels::text, '') || '|' || COALESCE(volume_labels::text, '')),
+    {{custom_name}},
+    'storage',
     cost_model_rate_type,
-    cost_model_cpu_cost,
-    cost_model_memory_cost,
-    cost_model_volume_cost,
     monthly_cost_type,
-    cost_category_id
+    cost_model_volume_cost,
+    cost_category_id,
+    {{rate_uuid}}
 FROM cte_filtered_data
 ;

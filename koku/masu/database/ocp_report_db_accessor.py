@@ -766,7 +766,10 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             self._table_map["line_item_daily_summary"], delete_sql, sql_params, operation="DELETE"
         )
 
-    def populate_monthly_cost_sql(self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid):
+    def populate_monthly_cost_sql(
+        self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid,
+        cost_model_id=None, rate_uuid=None, custom_name=None,
+    ):
         """
         Populate the monthly cost of a customer.
 
@@ -841,6 +844,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "cost_type": cost_type,
             "rate_type": rate_type,
             "distribution": distribution,
+            "cost_model_id": cost_model_id,
+            "rate_uuid": rate_uuid,
+            "custom_name": custom_name or cost_type,
         }
         insert_sql = pkgutil.get_data("masu.database", cost_type_file)
         insert_sql = insert_sql.decode("utf-8")
@@ -854,7 +860,8 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             self._prepare_and_execute_raw_sql_query(table_name, insert_sql, sql_params, operation="INSERT")
 
     def populate_tag_cost_sql(
-        self, cost_type, rate_type, tag_key, case_dict, start_date, end_date, distribution, provider_uuid
+        self, cost_type, rate_type, tag_key, case_dict, start_date, end_date, distribution, provider_uuid,
+        cost_model_id=None, rate_uuid=None, custom_name=None,
     ):
         """
         Update or insert daily summary line item for node cost.
@@ -906,6 +913,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "distribution": distribution,
             "tag_key": tag_key,
             "labels": labels,
+            "cost_model_id": cost_model_id,
+            "rate_uuid": rate_uuid,
+            "custom_name": custom_name or cost_type,
         }
 
         if case_dict.get("unallocated"):
@@ -918,11 +928,13 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def populate_vm_usage_costs(
-        self, rate_type, vm_usage_rates, start_date, end_date, provider_uuid, report_period_id
+        self, rate_type, vm_usage_rates, start_date, end_date, provider_uuid, report_period_id,
+        cost_model_id=None, rate_info_map=None,
     ):
         if not vm_usage_rates:
             return
         vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
+        rate_info_map = rate_info_map or {}
         vm_usage_metadata = {
             metric_constants.OCP_VM_HOUR: {
                 "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_cost_virtual_machine.sql",
@@ -938,6 +950,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             metadata = vm_usage_metadata.get(metric_name)
             if metric_name == metric_constants.OCP_VM_CORE_HOUR and not vm_table_exists:
                 continue
+            rate_info = rate_info_map.get((metric_name, rate_type, ""), {})
             param_builder = BaseCostModelParams(
                 schema_name=self.schema,
                 start_date=start_date,
@@ -945,7 +958,13 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 source_uuid=provider_uuid,
                 report_period_id=report_period_id,
             )
-            context_params = {"rate_type": rate_type, "hourly_rate": hourly_rate}
+            context_params = {
+                "rate_type": rate_type,
+                "hourly_rate": hourly_rate,
+                "cost_model_id": cost_model_id,
+                "rate_uuid": rate_info.get("rate_uuid"),
+                "custom_name": rate_info.get("custom_name", metric_name),
+            }
             if metric_params := metadata.get("metric_params"):
                 context_params.update(metric_params)
             sql_params = param_builder.build_parameters(context_params=context_params)
@@ -1055,39 +1074,42 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         )
 
     def populate_tag_usage_costs(  # noqa: C901
-        self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
+        self,
+        infrastructure_rates,
+        supplementary_rates,
+        start_date,
+        end_date,
+        cluster_id,
+        cost_model_id=None,
+        rate_info_map=None,
+        source_uuid=None,
+        report_period_id=None,
     ):
-        """
-        Update the reporting_ocpusagelineitem_daily_summary table with
-        usage costs based on tag rates.
-        Due to the way the tag_keys are stored it loops through all of
-        the tag keys to filter and update costs.
+        """Insert per-rate tag-based usage costs into rates_to_usage.
 
-        The data structure for infrastructure and supplementary rates are
-        a dictionary that include the metric name, the tag key,
-        the tag value names, and the tag value, for example:
-            {'cpu_core_usage_per_hour': {
-                'app': {
-                    'far': '0.2000000000', 'manager': '100.0000000000', 'walk': '5.0000000000'
-                    }
-                }
-            }
+        Called once per (metric, tag_key, tag_value) combination.
         """
-        # Remove monthly rates
         infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys())
         supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys())
-        # define the rates so the loop can operate on both rate types
         rate_types = [
-            {"rates": infrastructure_rates, "sql_file": "sql/openshift/cost_model/infrastructure_tag_rates.sql"},
-            {"rates": supplementary_rates, "sql_file": "sql/openshift/cost_model/supplementary_tag_rates.sql"},
+            {
+                "rates": infrastructure_rates,
+                "sql_file": "sql/openshift/cost_model/infrastructure_tag_rates.sql",
+                "cost_type": metric_constants.INFRASTRUCTURE_COST_TYPE,
+            },
+            {
+                "rates": supplementary_rates,
+                "sql_file": "sql/openshift/cost_model/supplementary_tag_rates.sql",
+                "cost_type": metric_constants.SUPPLEMENTARY_COST_TYPE,
+            },
         ]
-        # Cast start_date and end_date to date object, if they aren't already
         start_date = DateHelper().parse_to_date(start_date)
         end_date = DateHelper().parse_to_date(end_date)
-        # updates costs from tags
+        rate_info_map = rate_info_map or {}
         for rate_type in rate_types:
             rate = rate_type.get("rates")
             sql_file = rate_type.get("sql_file")
+            cost_type_label = rate_type.get("cost_type", "")
             for metric in rate:
                 tags = rate.get(metric, {})
                 usage_type = metric_constants.USAGE_METRIC_MAP.get(metric)
@@ -1096,7 +1118,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 else:
                     labels_field = "pod_labels"
                 table_name = self._table_map["line_item_daily_summary"]
+                rate_info = rate_info_map.get((metric, cost_type_label, ""), {})
                 for tag_key in tags:
+                    tag_rate_info = rate_info_map.get((metric, cost_type_label, tag_key), rate_info)
                     tag_vals = tags.get(tag_key, {})
                     value_names = list(tag_vals.keys())
                     for val_name in value_names:
@@ -1114,50 +1138,51 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                             "metric": metric,
                             "k_v_pair": key_value_pair,
                             "labels_field": labels_field,
+                            "cost_model_id": cost_model_id,
+                            "rate_uuid": tag_rate_info.get("rate_uuid"),
+                            "custom_name": tag_rate_info.get("custom_name", metric),
+                            "source_uuid": source_uuid,
+                            "report_period_id": report_period_id,
                         }
                         ctx = self.extract_context_from_sql_params(sql_params)
                         LOG.info(log_json(msg="running populate_tag_usage_costs SQL", context=ctx))
                         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     def populate_tag_usage_default_costs(  # noqa: C901
-        self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
+        self,
+        infrastructure_rates,
+        supplementary_rates,
+        start_date,
+        end_date,
+        cluster_id,
+        cost_model_id=None,
+        rate_info_map=None,
+        source_uuid=None,
+        report_period_id=None,
     ):
-        """
-        Update the reporting_ocpusagelineitem_daily_summary table
-        with usage costs based on tag rates.
-
-        The data structure for infrastructure and supplementary rates
-        are a dictionary that includes the metric, the tag key,
-        the default value, and the values for that key that have
-        rates defined and do not need the default applied,
-        for example:
-            {
-                'cpu_core_usage_per_hour': {
-                    'app': {
-                        'default_value': '100.0000000000', 'defined_keys': ['far', 'manager', 'walk']
-                    }
-                }
-            }
-        """
-        # Remove monthly rates
+        """Insert per-rate default tag-based usage costs into rates_to_usage."""
         infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys())
         supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys())
-        # define the rates so the loop can operate on both rate types
         rate_types = [
             {
                 "rates": infrastructure_rates,
                 "sql_file": "sql/openshift/cost_model/default_infrastructure_tag_rates.sql",
+                "cost_type": metric_constants.INFRASTRUCTURE_COST_TYPE,
             },
-            {"rates": supplementary_rates, "sql_file": "sql/openshift/cost_model/default_supplementary_tag_rates.sql"},
+            {
+                "rates": supplementary_rates,
+                "sql_file": "sql/openshift/cost_model/default_supplementary_tag_rates.sql",
+                "cost_type": metric_constants.SUPPLEMENTARY_COST_TYPE,
+            },
         ]
-        # Cast start_date and end_date to date object, if they aren't already
         start_date = DateHelper().parse_to_date(start_date)
         end_date = DateHelper().parse_to_date(end_date)
+        rate_info_map = rate_info_map or {}
 
-        # updates costs from tags
         for rate_type in rate_types:
             rate = rate_type.get("rates")
             sql_file = rate_type.get("sql_file")
+            cost_type_label = rate_type.get("cost_type", "")
             for metric in rate:
                 tags = rate.get(metric, {})
                 usage_type = metric_constants.USAGE_METRIC_MAP.get(metric)
@@ -1176,6 +1201,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                     for value_to_skip in value_names:
                         key_value_pair.append(json.dumps({tag_key: value_to_skip}))
                     json.dumps(key_value_pair)
+                    tag_rate_info = rate_info_map.get((metric, cost_type_label, tag_key), {})
                     sql = pkgutil.get_data("masu.database", sql_file)
                     sql = sql.decode("utf-8")
                     sql_params = {
@@ -1189,6 +1215,11 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                         "tag_key": tag_key,
                         "k_v_pair": key_value_pair,
                         "labels_field": labels_field,
+                        "cost_model_id": cost_model_id,
+                        "rate_uuid": tag_rate_info.get("rate_uuid"),
+                        "custom_name": tag_rate_info.get("custom_name", metric),
+                        "source_uuid": source_uuid,
+                        "report_period_id": report_period_id,
                     }
                     ctx = self.extract_context_from_sql_params(sql_params)
                     LOG.info(log_json(msg="running populate_tag_usage_default_costs SQL", context=ctx))
@@ -1528,7 +1559,8 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         return minim, maxim
 
     def populate_tag_based_costs(  # noqa: C901
-        self, start_date, end_date, provider_uuid, metric_to_tag_params_map, cluster_params
+        self, start_date, end_date, provider_uuid, metric_to_tag_params_map, cluster_params,
+        cost_model_id=None, rate_info_map=None,
     ):
         """Populate the tag based costs.
 
@@ -1611,11 +1643,18 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             param_list = metric_to_tag_params_map.get(name)
             if not param_list:
                 continue
+            rate_info_map = rate_info_map or {}
             for tag_params in param_list:
                 if metric_params := metadata.get("metric_params"):
                     context_params = tag_params | metric_params
                 else:
                     context_params = tag_params.copy()
+                rate_type_val = context_params.get("rate_type", "")
+                tag_key_val = context_params.get("tag_key", "")
+                rate_info = rate_info_map.get((name, rate_type_val, tag_key_val), {})
+                context_params["cost_model_id"] = cost_model_id
+                context_params["rate_uuid"] = rate_info.get("rate_uuid")
+                context_params["custom_name"] = rate_info.get("custom_name", name)
                 final_sql_params = param_builder.build_parameters(context_params=context_params)
                 sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
                 LOG.info(log_json(msg=metadata["log_msg"], context=context_params))

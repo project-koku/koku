@@ -1,32 +1,43 @@
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage (
     uuid,
+    cost_model_id,
     report_period_id,
+    source_uuid,
+    usage_start,
+    usage_end,
+    node,
+    namespace,
     cluster_id,
     cluster_alias,
     data_source,
-    usage_start,
-    usage_end,
-    namespace,
-    node,
-    resource_id,
+    persistentvolumeclaim,
+    pod_labels,
+    volume_labels,
     all_labels,
-    source_uuid,
+    label_hash,
+    custom_name,
+    metric_type,
     cost_model_rate_type,
-    cost_model_gpu_cost,
     monthly_cost_type,
-    cost_category_id
+    calculated_cost,
+    cost_category_id,
+    rate_id
 )
 SELECT
     uuid() as uuid,
+    CAST({{cost_model_id}} AS uuid) AS cost_model_id,
     {{report_period_id}} as report_period_id,
+    CAST(gpu.source AS uuid) as source_uuid,
+    date(gpu.interval_start) as usage_start,
+    date(gpu.interval_start) as usage_end,
+    gpu.node as node,
+    gpu.namespace as namespace,
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
     'GPU' as data_source,
-    date(gpu.interval_start) as usage_start,
-    date(gpu.interval_start) as usage_end,
-    gpu.namespace as namespace,
-    gpu.node as node,
-    gpu.gpu_uuid as resource_id,
+    CAST(NULL AS varchar) AS persistentvolumeclaim,
+    CAST(NULL AS json) AS pod_labels,
+    CAST(NULL AS json) AS volume_labels,
     cast(map(
         ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'mig-profile', 'mig-slice-count', 'gpu-max-slices', 'mig-strategy', 'mig-memory-mib', 'gpu-mode', 'gpu-uuid', 'mig-instance-id'],
         ARRAY[
@@ -43,8 +54,26 @@ SELECT
             gpu.mig_instance_id
         ]
     ) as json) as all_labels,
-    CAST(gpu.source AS uuid) as source_uuid,
+    to_hex(md5(to_utf8(COALESCE(CAST(CAST(NULL AS json) AS varchar), '') || '|' || COALESCE(CAST(CAST(NULL AS json) AS varchar), '') || '|' || COALESCE(CAST(cast(map(
+        ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'mig-profile', 'mig-slice-count', 'gpu-max-slices', 'mig-strategy', 'mig-memory-mib', 'gpu-mode', 'gpu-uuid', 'mig-instance-id'],
+        ARRAY[
+            gpu.gpu_model_name,
+            gpu.gpu_vendor_name,
+            CAST(gpu.gpu_memory_capacity_mib AS varchar),
+            gpu.mig_profile,
+            CAST(CAST(gpu.mig_slice_count AS INTEGER) AS varchar),
+            CAST(CAST(gpu.gpu_max_slices AS INTEGER) AS varchar),
+            gpu.mig_strategy,
+            CAST(CAST(gpu.mig_memory_capacity_mib AS INTEGER) AS varchar),
+            CASE WHEN gpu.mig_profile IS NOT NULL AND gpu.mig_profile != '' THEN 'MIG' ELSE 'dedicated' END,
+            gpu.gpu_uuid,
+            gpu.mig_instance_id
+        ]
+    ) as json) AS varchar), '')))) AS label_hash,
+    {{custom_name}} AS custom_name,
+    'gpu' AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
+    'Tag' AS monthly_cost_type,
     -- GPU cost calculation with MIG slice support:
     -- For MIG: (rate / days_in_month) * (uptime_seconds / 86400) * (slice_count / max_slices)
     -- For dedicated: (rate / days_in_month) * (uptime_seconds / 86400)
@@ -54,7 +83,7 @@ SELECT
             WHEN gpu.mig_slice_count IS NOT NULL AND gpu.gpu_max_slices IS NOT NULL AND gpu.gpu_max_slices > 0
             THEN CAST(gpu.mig_slice_count AS decimal(24,9)) / CAST(gpu.gpu_max_slices AS decimal(24,9))
             ELSE 1.0
-        END,
+        END AS calculated_cost,
     {%- elif value_rates is defined %}
     CASE
         {%- for value, value_rate in value_rates.items() %}
@@ -74,19 +103,19 @@ SELECT
                 ELSE 1.0
             END
         {%- endif %}
-    END,
+    END AS calculated_cost,
     {%- elif default_rate is defined %}
     (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} AS decimal(24,9))) * (gpu.gpu_pod_uptime / 86400.0) *
         CASE
             WHEN gpu.mig_slice_count IS NOT NULL AND gpu.gpu_max_slices IS NOT NULL AND gpu.gpu_max_slices > 0
             THEN CAST(gpu.mig_slice_count AS decimal(24,9)) / CAST(gpu.gpu_max_slices AS decimal(24,9))
             ELSE 1.0
-        END,
+        END AS calculated_cost,
     {%- else %}
-    0,
+    0 AS calculated_cost,
     {%- endif %}
-    'Tag' AS monthly_cost_type,
-    cat_ns.cost_category_id
+    cat_ns.cost_category_id,
+    CAST({{rate_uuid}} AS uuid) AS rate_id
 FROM hive.{{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily AS gpu
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
     ON gpu.namespace LIKE cat_ns.namespace
@@ -106,21 +135,30 @@ WHERE date(gpu.interval_start) >= DATE({{start_date}})
   {%- endif %}
 ;
 
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage (
     uuid,
+    cost_model_id,
     report_period_id,
+    source_uuid,
+    usage_start,
+    usage_end,
+    node,
+    namespace,
     cluster_id,
     cluster_alias,
     data_source,
-    usage_start,
-    usage_end,
-    namespace,
-    node,
+    persistentvolumeclaim,
+    pod_labels,
+    volume_labels,
     all_labels,
-    source_uuid,
+    label_hash,
+    custom_name,
+    metric_type,
     cost_model_rate_type,
-    cost_model_gpu_cost,
-    monthly_cost_type
+    monthly_cost_type,
+    calculated_cost,
+    cost_category_id,
+    rate_id
 )
 WITH cte_unutilized_uptime_hours AS (
     -- MIG-aware unallocated GPU calculation per GPU model:
@@ -184,25 +222,36 @@ WITH cte_unutilized_uptime_hours AS (
 )
 SELECT
     uuid() as uuid,
+    CAST({{cost_model_id}} AS uuid) AS cost_model_id,
     {{report_period_id}} as report_period_id,
+    CAST({{source_uuid}} AS uuid) as source_uuid,
+    hrs.usage_start as usage_start,
+    hrs.usage_start as usage_end,
+    hrs.node as node,
+    'GPU unallocated' as namespace,
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
     'GPU' as data_source,
-    hrs.usage_start as usage_start,
-    hrs.usage_start as usage_end,
-    'GPU unallocated' as namespace,
-    hrs.node,
+    CAST(NULL AS varchar) AS persistentvolumeclaim,
+    CAST(NULL AS json) AS pod_labels,
+    CAST(NULL AS json) AS volume_labels,
     cast(map(
         ARRAY['gpu-model', 'max-slices-per-gpu'],
         ARRAY[hrs.model, CAST(hrs.max_slices_per_gpu AS varchar)]
     ) as json) as all_labels,
-    CAST({{source_uuid}} AS uuid) as source_uuid,
+    to_hex(md5(to_utf8(COALESCE(CAST(CAST(NULL AS json) AS varchar), '') || '|' || COALESCE(CAST(CAST(NULL AS json) AS varchar), '') || '|' || COALESCE(CAST(cast(map(
+        ARRAY['gpu-model', 'max-slices-per-gpu'],
+        ARRAY[hrs.model, CAST(hrs.max_slices_per_gpu AS varchar)]
+    ) as json) AS varchar), '')))) AS label_hash,
+    {{custom_name}} AS custom_name,
+    'gpu' AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
+    'Tag' AS monthly_cost_type,
     -- Unallocated cost with MIG slice support:
     -- slice_hourly_rate = rate / (days_in_month * 24 * max_slices)
     -- unallocated_cost = slice_hourly_rate * unutilized_slice_hours
     {%- if rate is defined %}
-    (CAST({{rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.unutilized_uptime,
+    (CAST({{rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.unutilized_uptime AS calculated_cost,
     {%- elif value_rates is defined %}
     CASE
         {%- for value, value_rate in value_rates.items() %}
@@ -212,13 +261,14 @@ SELECT
         {%- if default_rate is defined %}
         ELSE (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.unutilized_uptime
         {%- endif %}
-    END,
+    END AS calculated_cost,
     {%- elif default_rate is defined %}
-    (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.unutilized_uptime,
+    (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.unutilized_uptime AS calculated_cost,
     {%- else %}
-    0,
+    0 AS calculated_cost,
     {%- endif %}
-    'Tag' AS monthly_cost_type
+    CAST(NULL AS integer) AS cost_category_id,
+    CAST({{rate_uuid}} AS uuid) AS rate_id
 FROM cte_unutilized_uptime_hours as hrs
 WHERE unutilized_uptime > 0
 ;

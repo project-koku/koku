@@ -1,19 +1,27 @@
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage (
     uuid,
+    cost_model_id,
     report_period_id,
+    source_uuid,
+    usage_start,
+    usage_end,
+    node,
+    namespace,
     cluster_id,
     cluster_alias,
     data_source,
-    usage_start,
-    usage_end,
-    namespace,
-    node,
+    persistentvolumeclaim,
     pod_labels,
+    volume_labels,
     all_labels,
-    source_uuid,
-    monthly_cost_type,
+    label_hash,
+    custom_name,
+    metric_type,
     cost_model_rate_type,
-    cost_model_cpu_cost
+    monthly_cost_type,
+    calculated_cost,
+    cost_category_id,
+    rate_id
 )
 WITH filtered_data as (
     select
@@ -64,13 +72,13 @@ WITH filtered_data as (
                 {%- endfor %}
         {%- endif %}
     GROUP by
-    2,
-    3,
-    nsp.namespace,
-    ouds.cluster_id,
-    ouds.cluster_alias,
-    ouds.node,
-    DATE(nsp.interval_start)
+        2,
+        3,
+        nsp.namespace,
+        ouds.cluster_id,
+        ouds.cluster_alias,
+        ouds.node,
+        DATE(nsp.interval_start)
 ),
 node_count as (
     select
@@ -82,24 +90,32 @@ node_count as (
 )
 SELECT
     uuid(),
+    CAST({{cost_model_id}} AS uuid) AS cost_model_id,
     {{report_period_id}} AS report_period_id,
+    CAST({{source_uuid}} AS uuid) AS source_uuid,
+    fd.usage_start,
+    fd.usage_start as usage_end,
+    fd.node,
+    fd.namespace,
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
     'Pod' as data_source,
-    fd.usage_start,
-    fd.usage_start as usage_end,
-    fd.namespace,
-    fd.node,
+    CAST(NULL AS varchar) AS persistentvolumeclaim,
     fd.filtered_namespace_labels as pod_labels,
+    CAST(NULL AS json) AS volume_labels,
     fd.filtered_namespace_labels as all_labels,
-    CAST({{source_uuid}} AS uuid),
-    'Tag' AS monthly_cost_type,
+    to_hex(md5(to_utf8(COALESCE(CAST(fd.filtered_namespace_labels AS varchar), '') || '|' || COALESCE(CAST(CAST(NULL AS json) AS varchar), '') || '|' || COALESCE(CAST(fd.filtered_namespace_labels AS varchar), '')))) AS label_hash,
+    {{custom_name}} AS custom_name,
+    'cpu' AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
+    'Tag' AS monthly_cost_type,
     CASE
         WHEN nc.node_count < 1
         THEN fd.amortized_cost
         ELSE fd.amortized_cost / nc.node_count
-    END
+    END AS calculated_cost,
+    CAST(NULL AS integer) AS cost_category_id,
+    CAST({{rate_uuid}} AS uuid) AS rate_id
 FROM filtered_data as fd
 JOIN node_count as nc
     ON fd.namespace = nc.namespace

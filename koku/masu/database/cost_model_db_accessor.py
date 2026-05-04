@@ -208,6 +208,22 @@ class CostModelDBAccessor:
         }
 
     @property
+    def rate_info_map(self):
+        """Return (metric, cost_type, tag_key) -> {rate_uuid, custom_name} for all Rate rows."""
+        if not self.cost_model:
+            return {}
+        rate_rows = Rate.objects.filter(
+            price_list__cost_model_maps__cost_model=self.cost_model
+        ).only("uuid", "metric", "cost_type", "custom_name", "tag_key")
+        return {
+            (rate.metric, rate.cost_type, rate.tag_key or ""): {
+                "rate_uuid": str(rate.uuid),
+                "custom_name": rate.custom_name,
+            }
+            for rate in rate_rows
+        }
+
+    @property
     def metric_to_tag_params_map(self):
         """Returns the tag rate parameters"""
         if not self.cost_model or not self.effective_rates:
