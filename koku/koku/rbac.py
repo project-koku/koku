@@ -34,6 +34,7 @@ RESOURCE_TYPES = OrderedDict(
         ("openshift.project", ["read"]),
         ("cost_model", ["read", "write"]),
         ("settings", ["read", "write"]),
+        ("sources", ["read", "write"]),
     ]
 )
 
