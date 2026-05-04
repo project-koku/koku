@@ -4,6 +4,7 @@
 #
 """Common util functions."""
 import calendar
+import collections
 import datetime
 import gzip
 import json
