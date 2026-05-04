@@ -13,8 +13,8 @@
 #   2. Install the app on the cost-onprem-chart repo
 #   3. Generate a private key for the app
 #   4. Add two repository secrets in project-koku/koku:
-#      - COST_CHART_APP_ID: the app's numeric ID
-#      - COST_CHART_APP_PRIVATE_KEY: the .pem file contents
+#      - COST_ONPREM_BOT_APP_ID: the app's numeric ID
+#      - COST_ONPREM_BOT_PRIVATE_KEY: the .pem file contents
 #   5. Ensure the `flightpath-pr` label exists in this repo
 
 name: Bump cost-onprem-chart
@@ -47,8 +47,8 @@ jobs:
         id: app-token
         uses: tibdex/github-app-token@v2
         with:
-          app_id: ${{ secrets.COST_CHART_APP_ID }}
-          private_key: ${{ secrets.COST_CHART_APP_PRIVATE_KEY }}
+          app_id: ${{ secrets.COST_ONPREM_BOT_APP_ID }}
+          private_key: ${{ secrets.COST_ONPREM_BOT_PRIVATE_KEY }}
           repository: insights-onprem/cost-onprem-chart
 
       - name: Checkout cost-onprem-chart
