@@ -31,9 +31,9 @@ SELECT uuid_generate_v4(),
     pod_labels,
     volume_labels,
     all_labels,
-    md5(COALESCE(pod_labels::text, '')
+    encode(sha256(decode(COALESCE(pod_labels::text, '')
         || '|' || COALESCE(volume_labels::text, '')
-        || '|' || COALESCE(all_labels::text, '')),
+        || '|' || COALESCE(all_labels::text, ''), 'escape')), 'hex'),
     {{custom_name}},
     {{usage_type}},
     'Supplementary',

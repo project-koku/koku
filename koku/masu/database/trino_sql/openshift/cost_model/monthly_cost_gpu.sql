@@ -54,7 +54,7 @@ SELECT
             gpu.mig_instance_id
         ]
     ) as json) as all_labels,
-    to_hex(md5(to_utf8(COALESCE(CAST(CAST(NULL AS json) AS varchar), '') || '|' || COALESCE(CAST(CAST(NULL AS json) AS varchar), '') || '|' || COALESCE(CAST(cast(map(
+    to_hex(sha256(to_utf8('' || '|' || '' || '|' || COALESCE(CAST(cast(map(
         ARRAY['gpu-model', 'gpu-vendor', 'gpu-memory-mib', 'mig-profile', 'mig-slice-count', 'gpu-max-slices', 'mig-strategy', 'mig-memory-mib', 'gpu-mode', 'gpu-uuid', 'mig-instance-id'],
         ARRAY[
             gpu.gpu_model_name,
@@ -71,7 +71,7 @@ SELECT
         ]
     ) as json) AS varchar), '')))) AS label_hash,
     {{custom_name}} AS custom_name,
-    'gpu' AS metric_type,
+    {{metric_type}} AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
     'Tag' AS monthly_cost_type,
     -- GPU cost calculation with MIG slice support:
@@ -239,12 +239,12 @@ SELECT
         ARRAY['gpu-model', 'max-slices-per-gpu'],
         ARRAY[hrs.model, CAST(hrs.max_slices_per_gpu AS varchar)]
     ) as json) as all_labels,
-    to_hex(md5(to_utf8(COALESCE(CAST(CAST(NULL AS json) AS varchar), '') || '|' || COALESCE(CAST(CAST(NULL AS json) AS varchar), '') || '|' || COALESCE(CAST(cast(map(
+    to_hex(sha256(to_utf8('' || '|' || '' || '|' || COALESCE(CAST(cast(map(
         ARRAY['gpu-model', 'max-slices-per-gpu'],
         ARRAY[hrs.model, CAST(hrs.max_slices_per_gpu AS varchar)]
     ) as json) AS varchar), '')))) AS label_hash,
     {{custom_name}} AS custom_name,
-    'gpu' AS metric_type,
+    {{metric_type}} AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
     'Tag' AS monthly_cost_type,
     -- Unallocated cost with MIG slice support:

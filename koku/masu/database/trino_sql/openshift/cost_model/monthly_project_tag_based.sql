@@ -104,9 +104,9 @@ SELECT
     fd.filtered_namespace_labels as pod_labels,
     CAST(NULL AS json) AS volume_labels,
     fd.filtered_namespace_labels as all_labels,
-    to_hex(md5(to_utf8(COALESCE(CAST(fd.filtered_namespace_labels AS varchar), '') || '|' || COALESCE(CAST(CAST(NULL AS json) AS varchar), '') || '|' || COALESCE(CAST(fd.filtered_namespace_labels AS varchar), '')))) AS label_hash,
+    to_hex(sha256(to_utf8(COALESCE(CAST(fd.filtered_namespace_labels AS varchar), '') || '|' || '' || '|' || COALESCE(CAST(fd.filtered_namespace_labels AS varchar), '')))) AS label_hash,
     {{custom_name}} AS custom_name,
-    'cpu' AS metric_type,
+    {{metric_type}} AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
     'Tag' AS monthly_cost_type,
     CASE

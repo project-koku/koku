@@ -80,9 +80,9 @@ SELECT
     lids.pod_labels,
     CAST(NULL AS json) AS volume_labels,
     lids.all_labels,
-    max(to_hex(md5(to_utf8(COALESCE(CAST(lids.pod_labels AS varchar), '') || '|' || COALESCE(CAST(CAST(NULL AS json) AS varchar), '') || '|' || COALESCE(CAST(lids.all_labels AS varchar), ''))))) AS label_hash,
+    max(to_hex(sha256(to_utf8(COALESCE(CAST(lids.pod_labels AS varchar), '') || '|' || '' || '|' || COALESCE(CAST(lids.all_labels AS varchar), ''))))) AS label_hash,
     {{custom_name}} AS custom_name,
-    'cpu' AS metric_type,
+    {{metric_type}} AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
     'Tag' AS monthly_cost_type,
     {%- if value_rates is defined and value_rates %}

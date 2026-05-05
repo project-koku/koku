@@ -20,6 +20,7 @@ WHERE rtu.usage_start >= {{start_date}}::date
     AND rtu.report_period_id = {{report_period_id}}
     AND rtu.cost_model_rate_type = {{rate_type}}
     AND rtu.monthly_cost_type = {{cost_type}}
+    AND rtu.pod_labels ? {{tag_key}}
 ;
 
 CREATE TEMPORARY TABLE label_filtered_daily_summary AS (
@@ -105,9 +106,9 @@ SELECT uuid_generate_v4(),
     pod_labels::jsonb,
     volume_labels,
     pod_labels::jsonb,
-    md5(COALESCE(pod_labels::text, '') || '|' || COALESCE(volume_labels::text, '') || '|' || COALESCE(pod_labels::text, '')),
+    encode(sha256(decode(COALESCE(pod_labels::text, '') || '|' || COALESCE(volume_labels::text, '') || '|' || COALESCE(pod_labels::text, ''), 'escape')), 'hex'),
     {{custom_name}},
-    CASE WHEN {{distribution}} = 'cpu' THEN 'cpu' ELSE 'memory' END,
+    {{metric_type}},
     cost_model_rate_type,
     monthly_cost_type,
     CASE WHEN {{distribution}} = 'cpu' THEN cost_model_cpu_cost ELSE cost_model_memory_cost END,
@@ -167,9 +168,9 @@ SELECT uuid,
     pod_labels,
     NULL::jsonb,
     pod_labels,
-    md5(COALESCE(pod_labels::text, '') || '|' || '|' || COALESCE(pod_labels::text, '')),
+    encode(sha256(decode(COALESCE(pod_labels::text, '') || '|' || '|' || COALESCE(pod_labels::text, ''), 'escape')), 'hex'),
     {{custom_name}},
-    CASE WHEN {{distribution}} = 'cpu' THEN 'cpu' ELSE 'memory' END,
+    {{metric_type}},
     cost_model_rate_type,
     monthly_cost_type,
     CASE WHEN {{distribution}} = 'cpu' THEN cast(cost_model_cpu_cost as decimal) ELSE cast(cost_model_memory_cost as decimal) END,

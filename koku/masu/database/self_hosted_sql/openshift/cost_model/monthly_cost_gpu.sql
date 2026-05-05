@@ -52,7 +52,7 @@ SELECT
         'gpu-uuid', gpu.gpu_uuid,
         'mig-instance-id', gpu.mig_instance_id
     ) as all_labels,
-    md5(COALESCE((NULL::jsonb)::text, '') || '|' || COALESCE((NULL::jsonb)::text, '') || '|' || COALESCE(jsonb_build_object(
+    encode(sha256(decode(COALESCE((NULL::jsonb)::text, '') || '|' || COALESCE((NULL::jsonb)::text, '') || '|' || COALESCE(jsonb_build_object(
         'gpu-model', gpu.gpu_model_name,
         'gpu-vendor', gpu.gpu_vendor_name,
         'gpu-memory-mib', gpu.gpu_memory_capacity_mib::varchar,
@@ -64,9 +64,9 @@ SELECT
         'gpu-mode', CASE WHEN NULLIF(gpu.mig_profile, '') IS NOT NULL THEN 'MIG' ELSE 'dedicated' END,
         'gpu-uuid', gpu.gpu_uuid,
         'mig-instance-id', gpu.mig_instance_id
-    )::text, '')) AS label_hash,
+    )::text, ''), 'escape')), 'hex') AS label_hash,
     {{custom_name}} AS custom_name,
-    'gpu' AS metric_type,
+    {{metric_type}} AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
     'Tag' AS monthly_cost_type,
     -- GPU cost calculation with MIG slice support:
@@ -236,12 +236,12 @@ SELECT
         'gpu-model', hrs.model,
         'max-slices-per-gpu', hrs.max_slices_per_gpu::varchar
     ) as all_labels,
-    md5(COALESCE((NULL::jsonb)::text, '') || '|' || COALESCE((NULL::jsonb)::text, '') || '|' || COALESCE(jsonb_build_object(
+    encode(sha256(decode(COALESCE((NULL::jsonb)::text, '') || '|' || COALESCE((NULL::jsonb)::text, '') || '|' || COALESCE(jsonb_build_object(
         'gpu-model', hrs.model,
         'max-slices-per-gpu', hrs.max_slices_per_gpu::varchar
-    )::text, '')) AS label_hash,
+    )::text, ''), 'escape')), 'hex') AS label_hash,
     {{custom_name}} AS custom_name,
-    'gpu' AS metric_type,
+    {{metric_type}} AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
     'Tag' AS monthly_cost_type,
     -- Unallocated cost with MIG slice support:

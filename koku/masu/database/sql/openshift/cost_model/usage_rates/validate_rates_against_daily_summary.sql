@@ -61,7 +61,7 @@ LEFT JOIN (
   AND COALESCE(lids.node, '')                  = COALESCE(agg.node, '')
   AND COALESCE(lids.data_source, '')           = COALESCE(agg.data_source, '')
   AND COALESCE(lids.persistentvolumeclaim, '') = COALESCE(agg.persistentvolumeclaim, '')
-  AND md5(COALESCE(lids.pod_labels::text, '') || '|' || COALESCE(lids.volume_labels::text, '') || '|' || COALESCE(lids.all_labels::text, ''))
+  AND encode(sha256(decode(COALESCE(lids.pod_labels::text, '') || '|' || COALESCE(lids.volume_labels::text, '') || '|' || COALESCE(lids.all_labels::text, ''), 'escape')), 'hex')
       = agg.label_hash
   AND COALESCE(lids.cost_model_rate_type, '') = COALESCE(agg.cost_model_rate_type, '')
   AND COALESCE(lids.monthly_cost_type, '')    = COALESCE(agg.monthly_cost_type, '')

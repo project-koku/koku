@@ -16,6 +16,7 @@ WHERE rtu.usage_start >= {{start_date}}::date
     AND rtu.report_period_id = {{report_period_id}}
     AND rtu.cost_model_rate_type = {{rate_type}}
     AND rtu.monthly_cost_type = 'PVC'
+    AND rtu.volume_labels ? {{tag_key}}
 ;
 
 
@@ -98,9 +99,9 @@ SELECT uuid,
     pod_labels,
     volume_labels::jsonb,
     volume_labels::jsonb,
-    md5('|' || COALESCE(volume_labels::text, '') || '|' || COALESCE(volume_labels::text, '')),
+    encode(sha256(decode('|' || COALESCE(volume_labels::text, '') || '|' || COALESCE(volume_labels::text, ''), 'escape')), 'hex'),
     {{custom_name}},
-    'storage',
+    {{metric_type}},
     cost_model_rate_type,
     monthly_cost_type,
     cost_model_volume_cost,

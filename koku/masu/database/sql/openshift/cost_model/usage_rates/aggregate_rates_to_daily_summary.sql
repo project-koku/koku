@@ -30,9 +30,9 @@ WITH base AS (
         lids.namespace,
         lids.data_source,
         lids.persistentvolumeclaim,
-        md5(COALESCE(lids.pod_labels::text, '')
+        encode(sha256(decode(COALESCE(lids.pod_labels::text, '')
             || '|' || COALESCE(lids.volume_labels::text, '')
-            || '|' || COALESCE(lids.all_labels::text, '')) AS label_hash,
+            || '|' || COALESCE(lids.all_labels::text, ''), 'escape')), 'hex') AS label_hash,
         lids.cost_category_id,
         max(lids.resource_id) AS resource_id,
         max(lids.persistentvolume) AS persistentvolume,

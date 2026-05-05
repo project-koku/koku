@@ -766,6 +766,30 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             self._table_map["line_item_daily_summary"], delete_sql, sql_params, operation="DELETE"
         )
 
+    @staticmethod
+    def _get_routing_metric_type(cost_type=None, distribution=None, usage_type=None, metric_name=None):
+        """Map cost parameters to the aggregation routing bucket.
+
+        The aggregation SQL routes ``calculated_cost`` into daily-summary
+        columns using ``metric_type``:
+          cpu     -> cost_model_cpu_cost
+          memory  -> cost_model_memory_cost
+          storage -> cost_model_volume_cost
+          gpu     -> cost_model_gpu_cost
+
+        ``usage_type`` (from tag-rate loops) already carries the right
+        value and is returned as-is.
+        """
+        if usage_type:
+            return usage_type
+        if cost_type == "PVC":
+            return "storage"
+        if metric_name and "gpu" in metric_name:
+            return "gpu"
+        if cost_type in ("Node", "Node_Core_Month", "Cluster", "OCP_VM", "OCP_VM_CORE", "Node_Core_Hour"):
+            return "cpu" if distribution == "cpu" else "memory"
+        return "cpu"
+
     def populate_monthly_cost_sql(
         self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid,
         cost_model_id=None, rate_uuid=None, custom_name=None,
@@ -847,6 +871,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "cost_model_id": cost_model_id,
             "rate_uuid": rate_uuid,
             "custom_name": custom_name or cost_type,
+            "metric_type": self._get_routing_metric_type(cost_type=cost_type, distribution=distribution),
         }
         insert_sql = pkgutil.get_data("masu.database", cost_type_file)
         insert_sql = insert_sql.decode("utf-8")
@@ -916,6 +941,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "cost_model_id": cost_model_id,
             "rate_uuid": rate_uuid,
             "custom_name": custom_name or cost_type,
+            "metric_type": self._get_routing_metric_type(cost_type=cost_type, distribution=distribution),
         }
 
         if case_dict.get("unallocated"):
@@ -964,6 +990,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 "cost_model_id": cost_model_id,
                 "rate_uuid": rate_info.get("rate_uuid"),
                 "custom_name": rate_info.get("custom_name", metric_name),
+                "metric_type": self._get_routing_metric_type(metric_name=metric_name),
             }
             if metric_params := metadata.get("metric_params"):
                 context_params.update(metric_params)
@@ -1655,6 +1682,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 context_params["cost_model_id"] = cost_model_id
                 context_params["rate_uuid"] = rate_info.get("rate_uuid")
                 context_params["custom_name"] = rate_info.get("custom_name", name)
+                context_params["metric_type"] = self._get_routing_metric_type(metric_name=name)
                 final_sql_params = param_builder.build_parameters(context_params=context_params)
                 sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
                 LOG.info(log_json(msg=metadata["log_msg"], context=context_params))

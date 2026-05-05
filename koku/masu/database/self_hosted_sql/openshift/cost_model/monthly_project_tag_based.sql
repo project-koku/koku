@@ -102,9 +102,9 @@ SELECT
     fd.filtered_namespace_labels as pod_labels,
     NULL::jsonb AS volume_labels,
     fd.filtered_namespace_labels as all_labels,
-    md5(COALESCE(fd.filtered_namespace_labels::text, '') || '|' || COALESCE((NULL::jsonb)::text, '') || '|' || COALESCE(fd.filtered_namespace_labels::text, '')) AS label_hash,
+    encode(sha256(decode(COALESCE(fd.filtered_namespace_labels::text, '') || '|' || COALESCE((NULL::jsonb)::text, '') || '|' || COALESCE(fd.filtered_namespace_labels::text, ''), 'escape')), 'hex') AS label_hash,
     {{custom_name}} AS custom_name,
-    'cpu' AS metric_type,
+    {{metric_type}} AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
     'Tag' AS monthly_cost_type,
     CASE
