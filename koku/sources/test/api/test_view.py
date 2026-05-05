@@ -863,7 +863,6 @@ class SourcesViewRbacTests(IamTestCase):
         response = self.client.get(url, content_type="application/json")
         self.assertEqual(response.status_code, 200)
 
-    @unittest.skipUnless(settings.ONPREM or settings.DEVELOPMENT, "Write endpoints require ONPREM or DEVELOPMENT")
     @RbacPermissions({"sources": {"read": ["*"]}})
     def test_create_with_read_only_access_returns_403(self):
         """Test that a user with only read access gets 403 on create."""

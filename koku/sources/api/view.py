@@ -87,7 +87,7 @@ LOG = logging.getLogger(__name__)
 MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet]
 HTTP_METHOD_LIST = ["get", "head"]
 
-SOURCES_PERMISSION_CLASSES = (SourcesAccessPermission,) if settings.ONPREM else (AllowAny,)
+SOURCES_PERMISSION_CLASSES = [SourcesAccessPermission] if settings.ONPREM else [AllowAny]
 
 if settings.ONPREM or settings.DEVELOPMENT:
     MIXIN_LIST.extend([mixins.CreateModelMixin, mixins.UpdateModelMixin, DestroySourceMixin])
@@ -168,9 +168,7 @@ class SourcesViewSet(*MIXIN_LIST):
     filterset_class = SourceFilter
     http_method_names = HTTP_METHOD_LIST
 
-    @action(
-        methods=["get"], detail=False, permission_classes=list(SOURCES_PERMISSION_CLASSES), url_path="aws-s3-regions"
-    )
+    @action(methods=["get"], detail=False, permission_classes=SOURCES_PERMISSION_CLASSES, url_path="aws-s3-regions")
     def aws_s3_regions(self, request):
         regions = get_available_regions("s3")
         return ListPaginator(regions, request).paginated_response
@@ -187,7 +185,7 @@ class SourcesViewSet(*MIXIN_LIST):
         """Get excluded source types by access."""
         excludes = []
         keep = []
-        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
+        if (settings.ENHANCED_ORG_ADMIN and request.user.admin) or settings.ONPREM:
             return excludes
         resource_access = request.user.access
         if resource_access is None or not isinstance(resource_access, dict):
@@ -376,7 +374,7 @@ class SourcesViewSet(*MIXIN_LIST):
         return response
 
     @method_decorator(never_cache)
-    @action(methods=["get"], detail=True, permission_classes=list(SOURCES_PERMISSION_CLASSES))
+    @action(methods=["get"], detail=True, permission_classes=SOURCES_PERMISSION_CLASSES)
     def stats(self, request, pk=None):
         """Get source stats."""
         source = self.get_object()
