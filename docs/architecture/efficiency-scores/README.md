@@ -6,7 +6,7 @@ Help FinOps and Dev/Ops reason about CPU and memory utilization using **usage ef
 
 ## One-paragraph scope
 
-**Implemented:** For `cpu` and `memory` report types, the API adds **`total_score`** on the **`total`** object and **`score`** on each **data** row (when scores are computed), exposing **`usage_efficiency_percent`** and **`wasted_cost`** derived from aggregated usage/request hours and CPU- or memory-scoped **`cost_total`** on [`OCPUsageLineItemDailySummary`](../../../koku/reporting/models.py). **Not implemented:** a separate `efficiency`-only route; cost/volume reports do not expose these fields. **Backlog** (out of code): idle/cost-efficiency/overhead scores and dedicated Optimizations Summary routing in the UI. **Design note:** pooled aggregate math vs “sum of per-workload waste” and CPU+memory double-count are analyzed in [solution-options-and-limitations.md](./solution-options-and-limitations.md) (not bugs—semantic choices).
+**Implemented:** For `cpu` and `memory` report types, the API adds **`total_score`** on the **`total`** object and **`score`** on each **data** row (when scores are computed), exposing **`usage_efficiency_percent`** (ratio of summed usage to summed request) and **`wasted_cost`** (**sum of per-line-item clamped waste**, same cost basis as **`cost_total`** at row grain — details in [formulas-and-data-contract.md](./formulas-and-data-contract.md)) on [`OCPUsageLineItemDailySummary`](../../../koku/reporting/models.py). **Not implemented:** a separate `efficiency`-only route; cost/volume reports do not expose these fields. **Backlog** (out of code): idle/cost-efficiency/overhead scores and dedicated Optimizations Summary routing in the UI. **Design note:** summing **`wasted_cost`** from both compute and memory can double-count shared infra costs if customers treat the two numbers as additive “total waste”—call that out in UX copy rather than changing the API contract here.
 
 ---
 
@@ -27,7 +27,6 @@ Help FinOps and Dev/Ops reason about CPU and memory utilization using **usage ef
 |-------|----------|------|
 | 1 | This README | As-built behavior, code map, builder handoff |
 | 2 | [formulas-and-data-contract.md](./formulas-and-data-contract.md) | Exact math, cost basis, rounding, when scores are empty |
-| 3 | [solution-options-and-limitations.md](./solution-options-and-limitations.md) | Known math limitations (aggregation / double-count), solution axes, IQ for future changes |
 
 ---
 
@@ -40,7 +39,7 @@ Help FinOps and Dev/Ops reason about CPU and memory utilization using **usage ef
 | **Scores in response** | [`OCPReportQueryHandler._pack_score`](../../../koku/api/report/ocp/query_handler.py) builds `usage_efficiency_percent` (int) and `wasted_cost` `{ value, units }`. The **`total`** block exposes this as **`total_score`** (rename from internal `score` after packing). **Data rows** keep the key **`score`** (same inner shape). |
 | **When scores are omitted** | For `cpu` / `memory` only: if **more than one** `group_by` dimension is present **or** there is **tag** `group_by` **or** tag keys under **`filter`**, `should_compute` is false → `total_score` and per-row `score` are **empty objects** `{}`. **Tag `exclude` is not part of this check** ([`execute_query`](../../../koku/api/report/ocp/query_handler.py) uses `get_tag_filter_keys()` with the default **`filter`** parameter in [`ReportQueryHandler.get_tag_filter_keys`](../../../koku/api/report/queries.py)). Multi `group_by` is covered by [`test_efficiency_score_multi_group_by_returns_empty`](../../../koku/api/report/test/ocp/test_ocp_query_handler.py). |
 | **Reports without scores** | `costs`, `costs_by_project`, `volume`, and other non-inventory types do not add `total_score`. Tests: [`test_efficiency_score_cost_report_excluded`](../../../koku/api/report/test/ocp/test_ocp_query_handler.py), [`test_efficiency_score_volume_report_excluded`](../../../koku/api/report/test/ocp/test_ocp_query_handler.py). |
-| **Aggregations** | [`OCPProviderMap._efficiency_annotations`](../../../koku/api/report/ocp/provider_map.py) defines ORM expressions for `usage_efficiency` and `wasted_cost` on `cpu` and `memory` **aggregates** and **report_annotations**. |
+| **Aggregations** | [`OCPProviderMap._efficiency_annotations_row_waste_sum`](../../../koku/api/report/ocp/provider_map.py) defines `usage_efficiency` (ratio-of-sums) and `wasted_cost` (`Sum` of per-row clamped waste) for `cpu` and `memory` **aggregates** and **report_annotations**, using [`_per_row_cost_cpu_expr`](../../../koku/api/report/ocp/provider_map.py) / [`_per_row_cost_memory_expr`](../../../koku/api/report/ocp/provider_map.py). |
 | **Ordering** | In-memory sort includes `usage_efficiency` and `wasted_cost` in [`ReportQueryHandler._order_by`](../../../koku/api/report/queries.py). |
 | **Tenant boundary** | All queries run under **`tenant_context(self.tenant)`** in [`OCPReportQueryHandler.execute_query`](../../../koku/api/report/ocp/query_handler.py). |
 | **Pipeline / SQL** | No Celery tasks and no new SQL templates — scores are ORM aggregates on existing tenant line items. **Dual-path** (`trino_sql` / `self_hosted_sql`) is unchanged for this feature. |
@@ -68,8 +67,8 @@ flowchart LR
 | ID | Resolution | Evidence |
 |----|------------|----------|
 | IQ-5 (endpoint shape) | **Extend** existing compute/memory inventory endpoints; **no** separate `efficiency` route. | Views unchanged path; handler gates on `report_type in ("cpu", "memory")`. |
-| IQ-1 (fleet / total row) | **Single ratio over the filtered row set** — totals use the same aggregate expressions as grouped rows (ratio-of-sums style at the SQL aggregate level). | `query.aggregate(**aggregates)` in [`execute_query`](../../../koku/api/report/ocp/query_handler.py) includes `usage_efficiency` / `wasted_cost` from [`OCPProviderMap`](../../../koku/api/report/ocp/provider_map.py). |
-| IQ-2 (wasted cost basis) | **`wasted_cost = max(cost_total * (1 - usage/request), 0)`** with CPU- or memory-specific **`cost_total`** and matching usage/request **sums**. | [`_efficiency_annotations`](../../../koku/api/report/ocp/provider_map.py). Details in [formulas-and-data-contract.md](./formulas-and-data-contract.md). |
+| IQ-1 (fleet / total row) | **`usage_efficiency_percent`:** single ratio of sums over the filtered row set. **`wasted_cost`:** `Sum` of per-row clamped waste over that same set (not fleet pooled `cost × (1 - U/R)`). Grouped rows use the same pattern per bucket. | `query.aggregate(**aggregates)` in [`execute_query`](../../../koku/api/report/ocp/query_handler.py); annotations from [`OCPProviderMap`](../../../koku/api/report/ocp/provider_map.py). |
+| IQ-2 (wasted cost basis) | **Per-row sum:** each row contributes `max(row_cost × (1 - u/r), 0)` with row cost aligned to **`cost_total`** components; fleet and groups use **`Sum`** of those values. | [`_efficiency_annotations_row_waste_sum`](../../../koku/api/report/ocp/provider_map.py), [formulas-and-data-contract.md](./formulas-and-data-contract.md). |
 | IQ-6 (RBAC) | Same access pattern as other OCP report views (no separate optimizations-only permission in backend). | Reuses existing views. |
 
 ---
@@ -83,7 +82,7 @@ flowchart LR
 | — | **`request_sum == 0`** semantics | Implementation coalesces **`usage_efficiency_percent`** to **0** and **`wasted_cost`** to **0** (not `null`). Confirm UX/OpenAPI wording. |
 | — | Tag / multi-dimension `group_by` | Scores intentionally empty; document for UI. |
 | — | Tag **`exclude`** vs `should_compute` | Code does not pass `"exclude"` into [`get_tag_filter_keys`](../../../koku/api/report/queries.py); align product/UI expectations or extend `has_tag_interaction` if excludes should suppress scores. |
-| IQ-7–IQ-10 | Bottom-up waste grain, metric alignment, dual-metric naming, infra split | See [solution-options-and-limitations.md](./solution-options-and-limitations.md). |
+| IQ-7–IQ-10 | Grain / naming / infra split follow-ups | **`wasted_cost`** is sum of row-level clamped waste; **`usage_efficiency_percent`** remains ratio-of-sums (the two can diverge). Further product choices are backlog, not encoded here. |
 
 ---
 
@@ -91,10 +90,11 @@ flowchart LR
 
 | Date | Summary |
 |------|---------|
-| 2026-04-24 | Added [solution-options-and-limitations.md](./solution-options-and-limitations.md) (cost-efficiency problems brief → solution axes and IQ-7–10). |
+| 2026-04-24 | Added companion solution-options doc (cost-efficiency brief; doc later removed from tree). |
 | 2026-04-16 | Initial agent-focused hub and formulas doc from product brief. |
 | 2026-04-17 | Rewrote hub for **as-built** implementation (compute/memory, `total_score` / `score`, formulas, no new pipeline). |
 | 2026-04-21 | Corrected **when scores are omitted**: tag **`exclude`** does not affect `should_compute` today (only tag `group_by` and tag **`filter`** keys). |
+| 2026-05-05 | **`wasted_cost`** documented as per-row clamped waste **`Sum`**; README tables and aggregation pointer updated (`_efficiency_annotations_row_waste_sum`). |
 
 ---
 
@@ -102,7 +102,7 @@ flowchart LR
 
 | Block | Content |
 |-------|---------|
-| **Doc map** | This README (overview + links) → [formulas-and-data-contract.md](./formulas-and-data-contract.md) (math + JSON) → [solution-options-and-limitations.md](./solution-options-and-limitations.md) (limitations + future fixes). Reading order: README → formulas → solution options (if changing behavior). |
+| **Doc map** | This README (overview + links) → [formulas-and-data-contract.md](./formulas-and-data-contract.md) (math + JSON). Reading order: README → formulas when changing behavior. |
 | **Assumptions** | None beyond what is cited from code; UI “Optimizations Summary” tab wiring lives in koku-ui. |
 | **IQ / decisions** | Resolved items in **Resolved decisions** table; backlog in **Open questions**. |
 | **API contract summary** | `GET …/reports/openshift/compute/` and `GET …/reports/openshift/memory/` with `filter` / `group_by` / `order_by` as other OCP inventory reports. Response: **`total.total_score`**: `{ usage_efficiency_percent: int, wasted_cost: { value, units } }` or `{}`. Data leaves: **`score`** same shape or `{}`. **`order_by[usage_efficiency]`**, **`order_by[wasted_cost]`** supported (with valid `group_by` per existing serializer rules). |
