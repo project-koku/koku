@@ -662,3 +662,91 @@
 - For every distributed row:
   `row.cost_model_context == "default"`
 - Distribution SQL correctly propagates the context tag
+
+---
+
+## Module: `cost_models/test/test_context_e2e.py` (visibility)
+
+### Class: `CostVisibilityE2ETest`
+
+---
+
+### TC-V20: ocp_only context excludes cloud infrastructure costs
+
+| Field | Value |
+|-------|-------|
+| Identifier | TC-V20 |
+| Test Items | `OCPReportQueryHandler`, `OCPProviderMap` (C11) |
+| BAC | BAC-39 |
+| Module | `cost_models/test/test_context_e2e.py` |
+| Dependencies | TC-90 |
+
+**Scenario**: A context with `data_visibility=ocp_only` suppresses cloud infrastructure costs in API response.
+
+**Given**
+- Context "consumer" with `data_visibility="ocp_only"` and cost model ($10/core-hour)
+- OCP-on-cloud cluster with `infrastructure_raw_cost > 0` rows in daily summary
+- Pipeline has run for context "consumer"
+
+**When**
+- GET `/reports/openshift/costs/?cost_model_context=consumer`
+
+**Then**
+- `response.meta.data_visibility == "ocp_only"`
+- `infra_raw == 0` in the response (cloud infrastructure costs excluded)
+- `cost_usage > 0` (cost-model-derived costs still present)
+
+---
+
+### TC-V21: cloud_and_ocp context includes all costs
+
+| Field | Value |
+|-------|-------|
+| Identifier | TC-V21 |
+| Test Items | `OCPReportQueryHandler`, `OCPProviderMap` (C11) |
+| BAC | BAC-40 |
+| Module | `cost_models/test/test_context_e2e.py` |
+| Dependencies | TC-90 |
+
+**Scenario**: A context with `data_visibility=cloud_and_ocp` includes all costs (backward-compatible).
+
+**Given**
+- Default context with `data_visibility="cloud_and_ocp"` and cost model ($10/core-hour)
+- OCP-on-cloud cluster with `infrastructure_raw_cost > 0` rows in daily summary
+- Pipeline has run for default context
+
+**When**
+- GET `/reports/openshift/costs/?cost_model_context=default`
+
+**Then**
+- `response.meta.data_visibility == "cloud_and_ocp"`
+- `infra_raw > 0` (cloud infrastructure costs included)
+- `cost_usage > 0` (cost-model-derived costs present)
+
+---
+
+### TC-V22: Switching visibility updates subsequent report queries
+
+| Field | Value |
+|-------|-------|
+| Identifier | TC-V22 |
+| Test Items | `CostModelContext` model, `OCPReportQueryHandler` (C1, C11) |
+| BAC | BAC-39, BAC-40 |
+| Module | `cost_models/test/test_context_e2e.py` |
+| Dependencies | TC-V20, TC-V21 |
+
+**Scenario**: Changing a context's `data_visibility` affects subsequent report queries.
+
+**Given**
+- Context "consumer" with `data_visibility="cloud_and_ocp"`
+- OCP-on-cloud cluster with cloud costs
+
+**When**
+1. GET `/reports/openshift/costs/?cost_model_context=consumer` → `infra_raw > 0`
+2. Update context: `consumer.data_visibility = "ocp_only"` and save
+3. GET `/reports/openshift/costs/?cost_model_context=consumer` → `infra_raw == 0`
+
+**Then**
+- First request includes cloud costs
+- After visibility change, second request excludes cloud costs
+- No pipeline re-run needed — filtering is query-time only

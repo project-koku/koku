@@ -28,7 +28,7 @@
 | Module | `cost_models/test/test_context_migration.py` |
 | Dependencies | None |
 
-**Scenario**: Forward data migration creates the default "Consumer" context.
+**Scenario**: Forward data migration creates the default context.
 
 **Given**
 - Schema is at `MIGRATE_FROM` state (`cost_models 0011`)
@@ -44,8 +44,9 @@
 **Then**
 - A `CostModelContext` with `is_default=True` exists
 - `default_ctx.name == "default"`
-- `default_ctx.display_name == "Consumer"`
+- `default_ctx.display_name == "Default context"`
 - `default_ctx.position == 1`
+- `default_ctx.data_visibility == "cloud_and_ocp"`
 
 ---
 
@@ -894,3 +895,32 @@ test plan.
 **Then**
 - `is_context_writes_disabled` is never called (`mock_flag.assert_not_called()`)
 - `CostModelCostUpdater` is called exactly once — the legacy path proceeds
+
+---
+
+## Module: `cost_models/test/test_context_migration.py` (visibility)
+
+### Class: `CostModelContextVisibilityMigrationTest`
+
+---
+
+### TC-V10: Migration sets data_visibility on default context
+
+| Field | Value |
+|-------|-------|
+| Identifier | TC-V10 |
+| Test Items | Migration M4 `RunPython` (C14) |
+| BAC | BAC-41 |
+| Module | `cost_models/test/test_context_migration.py` |
+| Dependencies | None |
+
+**Scenario**: Forward migration sets `data_visibility = 'cloud_and_ocp'` on the default context.
+
+**Given**
+- Schema is at `MIGRATE_FROM` state (`cost_models 0011`)
+
+**When**
+- Forward migration is run to `MIGRATE_TO_DATA` (`cost_models 0015`)
+
+**Then**
+- `default_ctx.data_visibility == "cloud_and_ocp"`

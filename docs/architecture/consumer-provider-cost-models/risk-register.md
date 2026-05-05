@@ -11,7 +11,7 @@
 | R1 | Daily summary table migration on high-volume partitioned table | **Critical** | **Resolved by codebase pattern** — nullable `AddField` + RunSQL backfill |
 | R3 | RBAC service has no "context" dimension; cross-service dependency | **High** | **Resolved by precedent** — `IngressAccessPermission` pattern |
 | R4 | 3× storage multiplier on cost data (summary + UI tables) | **High** | Resolvable — proposed mitigation below |
-| R13 | OCP-on-cloud cost rows appear in OCP summaries — context interaction unclear | Medium | **Resolved by code** — cloud costs already context-independent |
+| R13 | OCP-on-cloud cost rows appear in OCP summaries — context visibility controls data | Medium | **Reopened** — `data_visibility` on `CostModelContext` + API-layer filtering (DQ-5) |
 | R20 | On-prem vs SaaS scope not defined — affects RBAC path and migration strategy | **High** | **Resolved by code** — cost models are universal; follow existing pattern |
 | R2 | Pipeline runs N× per cluster (3 contexts = 3× compute) | **High** | Resolvable — proposed mitigation below |
 | R5 | `CostModelDBAccessor.cost_model` uses `.first()` — single-model assumption | **High** | Resolvable — proposed mitigation below |
@@ -29,6 +29,7 @@
 | R18 | Tag-based CASE statements repeated per context | Low | Resolvable — proposed mitigation below |
 | R19 | Celery task dedup collision for same provider across contexts | Medium | Resolvable — proposed mitigation below |
 | R21 | Deployment sequencing — code before backfill causes data duplication | **High** | Proposed mitigation: write-freeze flag + deployment runbook |
+| R22 | Visibility filtering may break OCP-on-cloud report expectations | Medium | Resolvable — default `cloud_and_ocp`; change requires explicit admin action |
 
 ---
 
@@ -41,12 +42,34 @@ our resolution.
 
 ---
 
-## R13 (was TQ-2): OCP-on-Cloud Context Interaction — RESOLVED BY CODE
+## R13 (was TQ-2): OCP-on-Cloud Context Interaction — REOPENED
 
-**Severity**: Medium · **Status**: **Resolved** — cloud costs are
-already context-independent by design.
+**Severity**: Medium · **Status**: **Reopened** — updated PRD
+(2026-05-05) introduces cost visibility per context.
 
-### Code evidence
+### Original resolution (v2.0, now superseded)
+
+The original analysis concluded that cloud costs are context-
+independent because they use separate columns
+(`infrastructure_raw_cost`) and separate rate type markers
+(`cost_model_rate_type = NULL`). This remains **structurally true**
+at the pipeline level.
+
+### Why reopened
+
+The updated PRD adds a new requirement:
+
+> **Context Assignment also handles cost visibility:**
+> It states what data visibility is possible in that context:
+> OpenShift-only, or cloud + OpenShift.
+
+This means a context can declare `ocp_only` visibility, which must
+**exclude** cloud infrastructure costs from query results for that
+context. The original resolution ("cloud costs will continue to
+appear in every context response") is now incorrect for `ocp_only`
+contexts.
+
+### Code evidence (unchanged)
 
 1. **Separate columns**: Cloud infrastructure costs use
    `infrastructure_raw_cost` (+ `infrastructure_markup_cost`). Cost
@@ -59,26 +82,54 @@ already context-independent by design.
 
 3. **SQL isolation**: Cost model DELETE→INSERT operations scope by
    `cost_model_rate_type = {{rate_type}}` — they **never touch**
-   cloud rows (which have NULL rate type). The SQL explicitly filters:
-   ```sql
-   AND (cost_model_rate_type IS NULL
-        OR cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary'))
-   ```
-   This means cost model SQL reads from cloud/usage rows as input
-   but only DELETEs/INSERTs its own output rows.
+   cloud rows (which have NULL rate type).
 
 4. **Provider map separation**: `OCPProviderMap` already distinguishes:
    - `cloud_infrastructure_cost` → `Sum(infrastructure_raw_cost)`
    - `cost_model_infrastructure_cost` → sum of `cost_model_*` where
      `cost_model_rate_type = 'Infrastructure'`
 
-**Resolution**: No TL decision needed. Adding a `context` column to
-cost-model rows (those with non-NULL `cost_model_rate_type`) leaves
-cloud rows untouched (`context = NULL`). The report API already
-merges both column families in aggregates — cloud costs will continue
-to appear in every context response, clearly separated as
-infrastructure costs. This is Option C from our original analysis,
-and it's the existing behavior.
+### Proposed resolution (DQ-5)
+
+Add a `data_visibility` field to `CostModelContext`:
+
+```python
+class DataVisibility(models.TextChoices):
+    OCP_ONLY = "ocp_only", "OpenShift only"
+    CLOUD_AND_OCP = "cloud_and_ocp", "Cloud + OpenShift"
+
+# On CostModelContext:
+data_visibility = models.CharField(
+    max_length=20,
+    choices=DataVisibility.choices,
+    default=DataVisibility.CLOUD_AND_OCP,
+)
+```
+
+**Why `CostModelContext` and not `CostModelMap`**:
+
+1. `CostModelMap` is a pure junction table (zero config properties
+   in the codebase — only `provider_uuid` + `cost_model` FK).
+2. A context with no cost model assigned has no `CostModelMap` row,
+   but the PRD requires visibility to apply even to empty contexts
+   (which still show metering data).
+3. API reports aggregate across clusters. Per-context visibility
+   (org-level) avoids undefined behavior when clusters in the same
+   context have mixed settings.
+
+**Filtering strategy**: API-layer, not pipeline-layer.
+
+- Cloud costs come from ingestion, not cost models — the pipeline
+  cannot filter what it did not create.
+- `OCPProviderMap` already separates `cloud_infrastructure_cost`
+  from `cost_model_infrastructure_cost` as independent ORM
+  expressions. For `ocp_only` contexts, the query handler
+  substitutes `cloud_infrastructure_cost` with `Value(0)`.
+- Precedent: AWS `cost_type` (blended/unblended/amortized) selects
+  columns at query time without changing pipeline output.
+
+See [DQ-5 in README.md](./README.md#dq-5-cost-visibility-filtering)
+and [GA-11 in prd-gap-analysis.md](./prd-gap-analysis.md#ga-11-cost-visibility).
 
 ---
 
@@ -534,6 +585,30 @@ See [phased-delivery.md § Deployment Runbook](./phased-delivery.md#deployment-r
 
 ---
 
+## R22: Visibility Filtering Breaks OCP-on-Cloud Report Expectations
+
+**Severity**: Medium · **Category**: Data correctness
+
+Setting a context to `data_visibility = ocp_only` suppresses cloud
+infrastructure costs (`infrastructure_raw_cost`,
+`infrastructure_markup_cost`) from report queries. Users who
+currently see combined OCP + cloud totals for OCP-on-AWS/Azure/GCP
+clusters would see reduced totals when viewing that context.
+
+### Proposed mitigation
+
+1. **Default is `cloud_and_ocp`**: Migration M4 sets
+   `data_visibility = 'cloud_and_ocp'` on the default context.
+   Existing users see no change.
+2. **Explicit admin action**: Changing visibility to `ocp_only`
+   requires a deliberate PUT on the context — it cannot happen
+   accidentally.
+3. **API response annotation**: When `data_visibility = ocp_only`,
+   the response `meta` includes `"data_visibility": "ocp_only"` so
+   consumers know cloud costs are excluded.
+
+---
+
 ## Tech Lead Questions — All Resolved
 
 All 5 original TL-blocked questions have been resolved through
@@ -543,7 +618,7 @@ design or implementation.
 | # | Question | Risk | Resolution |
 |---|----------|------|------------|
 | ~~TQ-1~~ | Environment scope | R20 | **Resolved by code** — cost models are universal today; context APIs follow the same pattern |
-| ~~TQ-2~~ | Cloud-backed infra costs | R13 | **Resolved by code** — cloud rows use separate columns + NULL rate type; already context-independent |
+| ~~TQ-2~~ | Cloud-backed infra costs | R13 | **Reopened** — updated PRD adds cost visibility per context; see [DQ-5](./README.md#dq-5-cost-visibility-filtering) |
 | ~~TQ-3~~ | Daily summary migration | R1 | **Resolved by codebase pattern** — nullable `AddField` (0339, 0341 precedent); NULL = default context |
 | ~~TQ-4~~ | PR sequencing | R10 | **Resolved** — confirmed merge order #5981 → #5983 → #5984 |
 | ~~TQ-5~~ | RBAC strategy | R3 | **Resolved by precedent** — `IngressAccessPermission` hybrid pattern |
@@ -560,3 +635,4 @@ design or implementation.
 | v2.1 | 2026-04-08 | TQ-4 resolved: confirmed merge order #5981→#5983→#5984 |
 | v2.2 | 2026-04-08 | R20 resolved: universal scope follows established cost model pattern; all 5 TL questions now resolved |
 | v3.0 | 2026-04-09 | Design proposal: R1 corrected (backfill required, not optional); R20 updated with dedicated write-freeze Unleash flag per PR #5983 pattern; R21 added (deployment sequencing risk + write-freeze mitigation) |
+| v4.0 | 2026-05-05 | PRD realignment: R13 reopened (updated PRD adds cost visibility per context); R22 added (visibility filtering may break OCP-on-cloud expectations); TQ-2 updated to reference DQ-5 |

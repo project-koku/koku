@@ -24,6 +24,7 @@ implementation proceeds.
 | **DQ-2** | Write-freeze Unleash flag during data migration | Pending | Phase 5 | [Details](#dq-2-write-freeze-during-migration) |
 | **DQ-3** | RBAC scope: Koku-side auth (v1) vs platform RBAC | Pending | Phase 4 | [Details](#dq-3-rbac-scope) |
 | **DQ-4** | Per-context pipeline dispatch: parallel Celery tasks vs sequential loop | Pending | Phase 3 | [Details](#dq-4-per-context-pipeline-dispatch) |
+| **DQ-5** | Cost visibility filtering: `data_visibility` field placement + API-layer filtering | Pending | Phase 1, 4 | [Details](#dq-5-cost-visibility-filtering) |
 
 ### DQ-1: Migration Strategy
 
@@ -86,6 +87,41 @@ context, queries `CostModelContext` for the tenant and dispatches
 one task per context. Each task includes `cost_model_context` in the
 Celery cache key (resolving R19). Most tenants will have 1-2 contexts,
 keeping the common case fast.
+
+### DQ-5: Cost Visibility Filtering
+
+**Problem**: The updated PRD (2026-05-05) adds a cost visibility
+requirement: each context declares what data is visible —
+"OpenShift-only" or "cloud + OpenShift". This reopens R13 (which
+previously concluded cloud costs always appear in every context).
+
+**Sub-decision A: Where does `data_visibility` live?**
+
+| Option | Where | Pros | Cons |
+|--------|-------|------|------|
+| **A — `CostModelContext`** | Per-context, org-level | Simple; works for empty contexts (no `CostModelMap` row); avoids mixed-visibility across clusters | Cannot differ per cluster |
+| **B — `CostModelMap`** | Per-assignment, per-cluster | Maximum flexibility | Empty contexts have no row to store visibility; cross-cluster aggregation undefined |
+
+**Proposal: Option A.** Structural constraints support this:
+1. `CostModelMap` is a pure junction table (zero config properties).
+2. Empty contexts (no cost model assigned) have no `CostModelMap`
+   row but still need visibility (PRD requires metering for empty
+   contexts).
+3. API reports aggregate across clusters — per-context visibility
+   avoids undefined behavior.
+
+**Sub-decision B: API-layer or pipeline-layer filtering?**
+
+**Proposal: API-layer.** Cloud costs come from ingestion, not cost
+models — the pipeline cannot filter what it did not create.
+`OCPProviderMap` already separates `cloud_infrastructure_cost` from
+`cost_model_infrastructure_cost` as independent ORM expressions. For
+`ocp_only` contexts, the query handler substitutes
+`cloud_infrastructure_cost` with `Value(0)`. Precedent: AWS
+`cost_type` (blended/unblended) selects columns at query time.
+
+See [risk-register.md § R13](./risk-register.md#r13-was-tq-2-ocp-on-cloud-context-interaction--reopened)
+and [prd-gap-analysis.md § GA-11](./prd-gap-analysis.md#ga-11-cost-visibility).
 
 ---
 
@@ -176,7 +212,7 @@ graph TD
 |-------------|-------------|-------------|--------|----------------|
 | **Context setup** | CostModelContext model, max 3, one default | Straightforward | Low | 1 |
 | **Assignment** | Context on CostModelMap, one model per context per cluster | Moderate | Medium | 1 |
-| **Migration** | Default "Consumer" context, assign existing data, backfill reporting | Moderate | Medium | 1-2 |
+| **Migration** | Default "Default context" context (renamable), assign existing data, backfill reporting | Moderate | Medium | 1-2 |
 | **Pipeline** | Per-context cost calculation | Hard | High | 3 |
 | **Reporting tables** | Context dimension on summary tables | Hard | High | 2-3 |
 | **API** | `cost_model_context` query parameter | Moderate | Medium | 4 |
@@ -184,7 +220,9 @@ graph TD
 | **Write-freeze** | Unleash flag for migration data consistency | Moderate | Low | 5 |
 | **Cost model creation** | Unchanged (context-free) | No work needed | None | — |
 | **Default metering** | Empty context still reports usage at $0 | Exists today | Low | — |
-| **UI** | Context dropdown, notifications | Frontend — out of koku scope | N/A | — |
+| **Cost visibility** | Context declares data visibility: OpenShift-only or cloud + OpenShift | Moderate | Low-Medium | 1 (model), 4 (API) |
+| **Notifications** | Cluster missing context notification | Deferred per updated PRD | N/A | — |
+| **UI** | Context dropdown | Frontend — out of koku scope | N/A | — |
 
 ---
 
@@ -226,6 +264,7 @@ flowchart TD
 | Pipeline dispatch | Parallel Celery tasks per (provider, context) | Independent contexts; reuses existing task infrastructure |
 | SQL scoping | `AND cost_model_context = {{cost_model_context}}` in all SQL | Follows existing `cost_model_rate_type` scoping pattern |
 | Feature flags | None for feature gating | Write-freeze flag is operational, not feature-gating |
+| Cost visibility | `data_visibility` on `CostModelContext` + API-layer filtering | Empty-context constraint requires model-level field; API-layer follows `cost_type` precedent |
 
 ---
 
@@ -235,3 +274,4 @@ flowchart TD
 |---------|------|---------|
 | v1.0 | 2026-04-08 | Initial due diligence: codebase exploration, PRD gap analysis, dependency graph |
 | v2.0 | 2026-04-09 | Evolved to design proposal: decisions needed, proposed architecture, phased delivery, write-freeze strategy, backfill migrations, updated risk register |
+| v3.0 | 2026-05-05 | PRD realignment: DQ-5 added (cost visibility filtering); PRD summary updated (default name, notifications deferred, visibility row); key decisions updated; R13 reopened; R22 added |

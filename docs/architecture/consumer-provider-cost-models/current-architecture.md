@@ -337,6 +337,8 @@ PriceListCostModelMap ──► PriceList (price_list)
 
 ```
 CostModelContext (NEW — tenant-scoped)
+    │  Fields: uuid, name, display_name, is_default, position, data_visibility
+    │  data_visibility: "cloud_and_ocp" (default) | "ocp_only"
     │
     │ context_id (FK on CostModelMap)
     ▼
@@ -351,4 +353,20 @@ reporting_ocpusagelineitem_daily_summary + context column
     │
     ▼
 reporting_ocp_*_summary_p + context column
+    │
+    ▼
+OCPReportQueryHandler
+    │  Reads CostModelContext.data_visibility
+    │  ocp_only → substitutes cloud_infrastructure_cost with Value(0)
+    │  cloud_and_ocp → current behavior (all costs)
+    ▼
+Report API response
 ```
+
+**Cost visibility hook**: `OCPProviderMap` already separates cloud
+infrastructure costs (`Sum(infrastructure_raw_cost)`) from cost-model
+infrastructure costs (`Sum(cost_model_*_cost WHERE cost_model_rate_type
+= 'Infrastructure')`) as independent `@cached_property` ORM
+expressions. This separation is the structural hook for per-context
+visibility filtering — the query handler can conditionally zero-out
+the cloud family without affecting cost-model costs.

@@ -19,6 +19,7 @@ for full context.
 | **DQ-2**: Write-freeze Unleash flag | Pending | Phase 5 artifacts + deployment runbook |
 | **DQ-3**: RBAC scope (Koku-side v1) | Pending | Phase 4 permission design |
 | **DQ-4**: Pipeline dispatch strategy | Pending | Phase 3 task orchestration |
+| **DQ-5**: Cost visibility filtering | Pending | Phase 1 model field + Phase 4 API filtering |
 
 ---
 
@@ -82,11 +83,11 @@ changes — existing behavior unchanged.
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| `CostModelContext` model | `cost_models/models.py` | UUID PK, `name`, `display_name`, `is_default`, `position` |
+| `CostModelContext` model | `cost_models/models.py` | UUID PK, `name`, `display_name`, `is_default`, `position`, `data_visibility` |
 | Migration M1 | `cost_models/migrations/0012_create_cost_model_context.py` | CreateModel with partial unique index on `is_default=TRUE` |
 | Migration M2 | `cost_models/migrations/0013_add_context_to_cost_model_map.py` | AddField: nullable FK `cost_model_context` on CostModelMap |
 | Migration M3 | `cost_models/migrations/0014_alter_unique_cost_model_map.py` | AlterUniqueTogether: `(provider_uuid, cost_model_context)` |
-| Migration M4 | `cost_models/migrations/0015_create_default_context.py` | RunPython: create default "Consumer" context per tenant; assign all CostModelMap rows |
+| Migration M4 | `cost_models/migrations/0015_create_default_context.py` | RunPython: create default "Default context" context per tenant (renamable); assign all CostModelMap rows; set `data_visibility = 'cloud_and_ocp'` |
 | Migration M5 | `cost_models/migrations/0016_update_audit_trigger.py` | Include context array in audit row |
 | Migration M6 | `cost_models/migrations/0017_set_context_not_null.py` | After M4 backfill, set FK NOT NULL |
 
@@ -269,7 +270,7 @@ report endpoints and enforce context-aware access control.
 | `CostModelContextSerializer` | `cost_models/serializers.py` | CRUD serializer for CostModelContext |
 | `CostModelContextViewSet` | `cost_models/views.py` | ModelViewSet at `/api/v1/cost-model-contexts/` |
 | `OCPQueryParamSerializer` | `api/report/ocp/serializers.py` | Add optional `cost_model_context` field |
-| `OCPReportQueryHandler` | `api/report/ocp/query_handler.py` | Pass context to provider_map; add ORM filter |
+| `OCPReportQueryHandler` | `api/report/ocp/query_handler.py` | Pass context to provider_map; add ORM filter; apply `data_visibility` filtering (GA-11) |
 | `CostModelContextPermission` | `api/common/permissions/cost_model_context_access.py` | Koku-side auth: subclasses CostModelsAccessPermission |
 | URL registration | `cost_models/urls.py` | Register context viewset |
 
@@ -311,6 +312,9 @@ that do not send the parameter.
 - Context CRUD API works (create, read, update, delete)
 - Default context cannot be deleted
 - Max 3 contexts enforced
+- `data_visibility=ocp_only` excludes cloud infrastructure costs
+- `data_visibility=cloud_and_ocp` includes all costs (backward-compatible)
+- Response `meta` includes `data_visibility` when context is requested
 
 ### Rollback
 
@@ -452,3 +456,4 @@ flowchart TD
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.0 | 2026-04-09 | Initial phased delivery plan: 5 phases, 3 PRs, deployment runbook, write-freeze strategy, migration dependency chain |
+| v2.0 | 2026-05-05 | PRD realignment: DQ-5 added to pending decisions; Phase 1 M4 default name updated to "Default context" + `data_visibility`; Phase 4 adds visibility filtering; CostModelContext model gains `data_visibility` field |

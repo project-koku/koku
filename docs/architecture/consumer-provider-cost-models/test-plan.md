@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | Test Plan Identifier | COST-3920-TP-001 |
-| Version | 3.2 |
+| Version | 4.0 |
 | Date | 2026-04-09 |
 | Author | COST-3920 Engineering |
 | Status | Design Proposal |
@@ -36,11 +36,14 @@ testing conventions. Each test case is specified as a BDD scenario
 - Write-freeze guards (Unleash flag, serializer, pipeline)
 - Cross-context data isolation
 
+- Cost visibility filtering (`data_visibility` on CostModelContext)
+- RBAC cluster + context access combinations
+
 **Out of scope:**
-- Frontend UI changes (context dropdown, notifications)
+- Frontend UI changes (context dropdown)
 - Kessel/ReBAC integration (deferred to v2)
 - `ocp_tag_mapping_update_daily_summary.sql` context scoping
-- OCP-on-cloud cross-provider context interaction
+- Notifications (deferred per updated PRD)
 
 ### 1.3 Definitions
 
@@ -151,6 +154,10 @@ testing conventions. Each test case is specified as a BDD scenario
 | BAC-31 | Audit trigger captures context array | P2 | C14 |
 | BAC-32 | Empty context (no cost model) shows $0 cost | P2 | C7, C11 |
 | BAC-33 | Report views pass through when `cost_model_context` absent (backward-compat) | P1 | C12 |
+| BAC-39 | `data_visibility=ocp_only` excludes cloud infrastructure costs from reports | P1 | C1, C11 |
+| BAC-40 | `data_visibility=cloud_and_ocp` includes all costs (backward-compatible) | P1 | C1, C11 |
+| BAC-41 | Default context migration sets `data_visibility=cloud_and_ocp` | P1 | C14 |
+| BAC-42 | RBAC: cluster + context access combinations match PRD examples | P1 | C12 |
 
 #### Phase 5 — Write-Freeze + Data Consistency (5 BACs)
 
@@ -265,7 +272,7 @@ requirements) are in the per-tier companion documents:
 
 | TC | BAC | Given | When | Then |
 |----|-----|-------|------|------|
-| [TC-30](./test-cases-t2-integration.md#tc-30-forward-migration-creates-default-context-per-tenant) | BAC-9 | Schema at `MIGRATE_FROM` with one `CostModel` row | Run forward migration to `MIGRATE_TO_DATA` | `CostModelContext(is_default=True, name="default", display_name="Consumer", position=1)` exists |
+| [TC-30](./test-cases-t2-integration.md#tc-30-forward-migration-creates-default-context-per-tenant) | BAC-9 | Schema at `MIGRATE_FROM` with one `CostModel` row | Run forward migration to `MIGRATE_TO_DATA` | `CostModelContext(is_default=True, name="default", display_name="Default context", position=1, data_visibility="cloud_and_ocp")` exists |
 | [TC-31](./test-cases-t2-integration.md#tc-31-forward-migration-assigns-existing-costmodelmap-rows-to-default) | BAC-10 | Schema at `MIGRATE_FROM` with `CostModelMap` row (raw SQL INSERT) | Run forward migration to `MIGRATE_TO_DATA` | `CostModelMap.cost_model_context` is set, `is_default=True`, `name="default"` |
 | [TC-32](./test-cases-t2-integration.md#tc-32-new-unique-constraint-is-active-post-migration) | BAC-6 | Schema at `MIGRATE_TO_DATA` with default context | Create 2 `CostModelMap` rows for same `(provider_uuid, context)` | `IntegrityError` — new unique constraint active |
 | [TC-33](./test-cases-t2-integration.md#tc-33-old-unique-constraint-is-dropped-post-migration) | BAC-5 | Schema at `MIGRATE_TO_DATA` with 2 contexts | Create 2 `CostModelMap` rows for same `(provider_uuid, cost_model)` but different contexts | Succeeds — old `(provider_uuid, cost_model)` constraint dropped |
@@ -637,3 +644,4 @@ acceptance, report filtering, CRUD lifecycle, and write-freeze guards.
 | v3.0 | 2026-04-09 | IEEE 829 compliance: split detailed test case specifications into per-tier companion documents (T1/T2/T3) with full Given/When/Then blocks; test-plan.md retains summary tables with links to specs |
 | v3.1 | 2026-04-09 | Add deep links from every TC identifier in summary tables to its corresponding heading in the per-tier companion documents |
 | v3.2 | 2026-04-09 | Normalize tier counts to maintain 82 canonical tests (TC-XX marked supplemental) and split TC-72..TC-76 into individually linkable summary rows |
+| v4.0 | 2026-05-05 | PRD realignment: remove OCP-on-cloud from out-of-scope (now addressed via cost visibility); add visibility and RBAC combo BACs (BAC-39 through BAC-42); add visibility test cases to in-scope; defer notifications |

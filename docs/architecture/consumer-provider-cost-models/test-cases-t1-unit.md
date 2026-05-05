@@ -668,3 +668,110 @@
 **Then**
 - Returns `False`
 - No `KeyError` is raised — the missing key is handled gracefully
+
+---
+
+## Module: `cost_models/test/test_cost_model_context.py` (visibility)
+
+### Class: `CostModelContextVisibilityTest`
+
+---
+
+### TC-V01: data_visibility defaults to cloud_and_ocp
+
+| Field | Value |
+|-------|-------|
+| Identifier | TC-V01 |
+| Test Items | `CostModelContext` model (C1) |
+| BAC | BAC-40 |
+| Module | `cost_models/test/test_cost_model_context.py` |
+| Dependencies | None |
+
+**Scenario**: A new context defaults to `cloud_and_ocp` visibility.
+
+**Given**
+- A tenant schema with no existing contexts
+
+**When**
+- `baker.make("CostModelContext", name="test", display_name="Test", position=1, is_default=True)` is called
+
+**Then**
+- `ctx.data_visibility == "cloud_and_ocp"`
+
+---
+
+### TC-V02: data_visibility accepts ocp_only
+
+| Field | Value |
+|-------|-------|
+| Identifier | TC-V02 |
+| Test Items | `CostModelContext` model (C1) |
+| BAC | BAC-39 |
+| Module | `cost_models/test/test_cost_model_context.py` |
+| Dependencies | None |
+
+**Scenario**: A context can be created with `ocp_only` visibility.
+
+**Given**
+- A tenant schema with a default context
+
+**When**
+- `baker.make("CostModelContext", name="consumer", display_name="Consumer", position=2, is_default=False, data_visibility="ocp_only")` is called
+
+**Then**
+- `ctx.data_visibility == "ocp_only"`
+
+---
+
+## Module: `api/common/permissions/test/test_context_permission.py` (RBAC combos)
+
+### Class: `CostModelContextRBACComboTest`
+
+---
+
+### TC-V03: User with cluster + context access sees context costs
+
+| Field | Value |
+|-------|-------|
+| Identifier | TC-V03 |
+| Test Items | `CostModelContextPermission` (C12) |
+| BAC | BAC-42 |
+| Module | `api/common/permissions/test/test_context_permission.py` |
+| Dependencies | None |
+
+**Scenario**: User has access to Cluster 1 and Context B — sees Context B costs for Cluster 1.
+
+**Given**
+- User mock with `cost_model.read=["*"]` access
+- Request mock: `query_params={"cost_model_context": "context_b"}`
+
+**When**
+- `perm.has_permission(request, None)` is called
+
+**Then**
+- Returns `True` — user has both cluster and context access
+
+---
+
+### TC-V04: User without default context does not see default
+
+| Field | Value |
+|-------|-------|
+| Identifier | TC-V04 |
+| Test Items | `CostModelContextPermission` (C12) |
+| BAC | BAC-42 |
+| Module | `api/common/permissions/test/test_context_permission.py` |
+| Dependencies | None |
+
+**Scenario**: User with Context B access but NOT default context access cannot see default context.
+
+**Given**
+- User mock with RBAC granting context_b only (when platform RBAC supports it)
+- Request mock: `query_params={"cost_model_context": "default"}`
+
+**When**
+- `perm.has_permission(request, None)` is called
+
+**Then**
+- Returns `False` — user lacks access to the default context
+- Note: This test validates the future platform RBAC path. For Koku-side v1, `cost_model.read` is the gate.

@@ -26,20 +26,34 @@ class CostModelContext(models.Model):
     display_name = models.CharField(max_length=100)
     is_default = models.BooleanField(default=False)
     position = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    data_visibility = models.CharField(
+        max_length=20,
+        choices=DataVisibility.choices,
+        default=DataVisibility.CLOUD_AND_OCP,
+    )
     created_timestamp = models.DateTimeField(auto_now_add=True)
+```
+
+Where `DataVisibility` is:
+```python
+class DataVisibility(models.TextChoices):
+    OCP_ONLY = "ocp_only", "OpenShift only"
+    CLOUD_AND_OCP = "cloud_and_ocp", "Cloud + OpenShift"
 ```
 
 **Constraints**:
 - Exactly one row with `is_default=True` per tenant schema (partial unique index)
 - Max 3 rows per tenant schema (serializer + `position` CHECK constraint)
 - Default context cannot be deleted (viewset guard)
+- `data_visibility` defaults to `cloud_and_ocp` (backward-compatible)
 
 **CRUD API**: `CostModelContextSerializer` (ModelSerializer) +
 `CostModelContextViewSet` (ModelViewSet) at `/api/v1/cost-model-contexts/`.
 Supports GET, POST, PUT, DELETE.
 
 **Risk**: [R15](./risk-register.md#r15-max-3-contexts--no-db-enforcement),
-[R16](./risk-register.md#r16-default-context-cannot-be-deleted)
+[R16](./risk-register.md#r16-default-context-cannot-be-deleted),
+[R13](./risk-register.md#r13-was-tq-2-ocp-on-cloud-context-interaction--reopened)
 
 ---
 
@@ -80,6 +94,20 @@ compatible). When explicitly requested, the user must have
 a resource type, replace the Koku-side check with the RBAC lookup.
 The API contract does not change.
 
+**PRD extended RBAC examples** (added 2026-05-05):
+
+- User has access to Cluster 1 and the default context → sees
+  default context costs for Cluster 1 (or just usage if no cost
+  model assigned to default on that cluster).
+- User has access to Cluster 1 and Context B, but NOT the default
+  context → sees only Context B for Cluster 1; default is hidden.
+- User has access to Context B and default context, plus Cluster 1
+  and Cluster 2 → sees both contexts on both clusters.
+
+Context access is **additive to cluster access**, not a replacement.
+Having access to a context does not grant access to all clusters
+with that context — cluster RBAC still applies.
+
 **Alternatives evaluated**: See [current-architecture.md § 6.3](./current-architecture.md#63-alternatives)
 
 **Risk**: [R3](./risk-register.md#r3-was-tq-5-rbac-context-authorization--resolved-by-precedent)
@@ -100,7 +128,10 @@ of contexts. Assignment to contexts happens via `CostModelMap`.
 ## GA-4: Assignment with Context
 
 **PRD**: One cost model per context per OCP cluster. Assignment
-goes through `CostModelMap`.
+goes through `CostModelMap`. Each context exists for each cluster
+(contexts are org-level entities with per-cluster "slots").
+Context assignment also declares data visibility (OpenShift-only
+vs cloud + OpenShift).
 
 **Current state**: `CostModelMap` has `(provider_uuid, cost_model)`.
 The manager enforces one-model-per-provider at the application level.
@@ -110,20 +141,27 @@ The manager enforces one-model-per-provider at the application level.
 1. Add FK `cost_model_context` on `CostModelMap` → `CostModelContext`
 2. Change unique constraint to `unique_together = ("provider_uuid", "cost_model_context")`
 3. Update `CostModelManager.update_provider_uuids()` to check per-context uniqueness
+4. `CostModelContext.data_visibility` controls what cost data is
+   visible when querying that context (see GA-11)
 
 **Migration strategy (M1-M4)**:
 
 | Migration | Type | Description |
 |-----------|------|-------------|
-| M1 | DDL | Create `CostModelContext` model |
+| M1 | DDL | Create `CostModelContext` model (includes `data_visibility` field) |
 | M2 | DDL | Add nullable `cost_model_context` FK to `CostModelMap` |
 | M3 | DDL | Add unique constraint `(provider_uuid, cost_model_context)` |
-| M4 | Data | Create default "Consumer" context per tenant; assign all existing `CostModelMap` rows to it |
+| M4 | Data | Create default "Default context" context per tenant (renamable); assign all existing `CostModelMap` rows to it; set `data_visibility = 'cloud_and_ocp'` |
 
 M4 uses `RunPython` with fail-fast on duplicate `(provider_uuid)`
 rows — if a provider has multiple `CostModelMap` rows, the migration
 raises an error with actionable guidance. This follows koku's norm
 of non-destructive, deterministic data migrations.
+
+**Note**: The updated PRD (2026-05-05) changed the default context
+display name from "Consumer" to "Default context" and added the
+requirement that the default context display name is renamable by
+customers.
 
 **Risk**: [R9](./risk-register.md#r9-update_provider_uuids-blocks-multi-assignment),
 [R10](./risk-register.md#r10-was-tq-4-predecessor-pr-sequencing--resolved)
@@ -160,11 +198,22 @@ the pattern to follow.
    `None` when not explicitly provided (backward compatible)
 3. **QueryHandler**: `OCPReportQueryHandler` passes context to
    `provider_map`; adds ORM filter `cost_model_context=X` when set
-4. **Response**: When `cost_model_context` is explicitly provided,
-   include it in response `meta`; otherwise omit it
+4. **Visibility filtering**: When `cost_model_context` is provided,
+   the handler looks up the context's `data_visibility` field:
+   - `cloud_and_ocp`: Current behavior — include both
+     `infrastructure_raw_cost` and `cost_model_*_cost` columns
+   - `ocp_only`: Substitute `cloud_infrastructure_cost` with
+     `Value(0)` in the `OCPProviderMap` — cloud infrastructure
+     columns are excluded from aggregation
+5. **Response**: When `cost_model_context` is explicitly provided,
+   include `cost_model_context` and `data_visibility` in response
+   `meta`; otherwise omit both
 
 When no context parameter is provided, the API returns all data
 regardless of context — identical to today's behavior.
+
+**Risk**: [R13](./risk-register.md#r13-was-tq-2-ocp-on-cloud-context-interaction--reopened),
+[R22](./risk-register.md#r22-visibility-filtering-breaks-ocp-on-cloud-report-expectations)
 
 ---
 
@@ -237,18 +286,19 @@ on the first post-migration pipeline run.
 
 ---
 
-## GA-9: Notifications
+## GA-9: Notifications — DEFERRED
 
-**PRD**: Notify when a context is missing a cost model assignment.
+**PRD (original)**: Notify when a context is missing a cost model
+assignment.
+
+**PRD (updated 2026-05-05)**: Notifications moved to **out of scope**.
 
 **Current state**: Koku has `koku/notifications.py` with notification
 helpers.
 
-**Proposed implementation**: Add a check in `update_cost_model_costs`
-(after context dispatch) that inspects whether any context for the
-tenant has no `CostModelMap` assignment for the provider. If so,
-log a notification event. The check runs at the end of each pipeline
-cycle.
+**Status**: **Deferred** per updated PRD. The implementation design
+(pipeline check for missing context assignments) remains valid and
+can be re-activated if notifications are brought back into scope.
 
 ---
 
@@ -269,6 +319,53 @@ aging.
 
 ---
 
+## GA-11: Cost Visibility
+
+**PRD (updated 2026-05-05)**: Context Assignment declares data
+visibility — OpenShift-only or cloud + OpenShift per context.
+
+**Current state**: Cloud infrastructure costs
+(`infrastructure_raw_cost`, `infrastructure_markup_cost`) always
+appear in OCP reports alongside cost-model-derived costs. There is
+no mechanism to suppress them per context. `OCPProviderMap` already
+separates these as independent ORM expressions:
+- `cloud_infrastructure_cost` → `Sum(infrastructure_raw_cost)`
+- `cost_model_infrastructure_cost` → sum of `cost_model_*` where
+  `cost_model_rate_type = 'Infrastructure'`
+
+**Proposed implementation**:
+
+1. **Model**: `data_visibility` field on `CostModelContext`
+   (see GA-1). Default: `cloud_and_ocp`.
+2. **API filtering**: `OCPReportQueryHandler` reads the context's
+   `data_visibility` when `cost_model_context` is in the request.
+   For `ocp_only`: substitute `self.cloud_infrastructure_cost` with
+   `Value(0, output_field=DecimalField())` in the `OCPProviderMap`
+   ORM expressions. This zeroes out `infra_raw` and reduces
+   `infra_total` / `cost_total` accordingly.
+3. **Pipeline**: No changes. Cloud costs are written by ingestion,
+   not by the cost model pipeline. Filtering is query-time only.
+4. **Migration M4**: Default context gets
+   `data_visibility = 'cloud_and_ocp'` (no change for existing
+   users).
+5. **Response meta**: Include `data_visibility` in response `meta`
+   when `cost_model_context` is explicitly provided.
+
+**Why API-layer, not pipeline-layer**:
+
+- Cloud costs come from ingestion, not cost models — the pipeline
+  cannot filter what it did not create.
+- AWS `cost_type` is the direct precedent: a query parameter selects
+  which columns to aggregate at query time without changing pipeline
+  output.
+- No data duplication — the same base data serves both visibility
+  modes.
+
+**Risk**: [R13](./risk-register.md#r13-was-tq-2-ocp-on-cloud-context-interaction--reopened),
+[R22](./risk-register.md#r22-visibility-filtering-breaks-ocp-on-cloud-report-expectations)
+
+---
+
 ## Gap Summary
 
 | GA | Gap | Proposed Phase | Status |
@@ -281,8 +378,9 @@ aging.
 | GA-6 | API query parameter | Phase 4 | Design proposed |
 | GA-7 | Pipeline per-context | Phase 3 | Design proposed |
 | GA-8 | Reporting table migration | Phase 2 | Design proposed |
-| GA-9 | Notifications | Phase 3 | Design proposed |
+| GA-9 | Notifications | — | **Deferred** (out of scope per updated PRD) |
 | GA-10 | Storage/performance | — | Monitor |
+| GA-11 | Cost visibility (`data_visibility`) | Phase 1 (model) + Phase 4 (API) | Design proposed |
 
 ---
 
@@ -292,3 +390,4 @@ aging.
 |---------|------|---------|
 | v1.0 | 2026-04-08 | Initial gap identification |
 | v2.0 | 2026-04-09 | Evolved to design proposals: code sketches, migration strategy, alternatives, risk references, write-freeze rationale for GA-8 |
+| v3.0 | 2026-05-05 | PRD realignment: GA-1 adds `data_visibility` field; GA-2 adds extended RBAC examples; GA-4 updates default name to "Default context" + visibility semantics; GA-6 adds visibility filtering; GA-9 deferred (notifications out of scope); GA-11 added (cost visibility) |
