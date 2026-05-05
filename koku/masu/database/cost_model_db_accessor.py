@@ -58,7 +58,9 @@ class CostModelDBAccessor:
     def cost_model(self):
         """Return the cost model database object."""
         if self._cost_model is None:
-            self._cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            self._cost_model = CostModel.objects.filter(
+                costmodelmap__provider_uuid=self.provider_uuid
+            ).first()
         return self._cost_model
 
     @cached_property
@@ -148,18 +150,24 @@ class CostModelDBAccessor:
     def infrastructure_rates(self):
         """Return the rates designated as infrastructure cost."""
         return {
-            key: value.get("tiered_rates").get(metric_constants.INFRASTRUCTURE_COST_TYPE)[0].get("value")
+            key: value.get("tiered_rates")
+            .get(metric_constants.INFRASTRUCTURE_COST_TYPE)[0]
+            .get("value")
             for key, value in self.price_list.items()
-            if metric_constants.INFRASTRUCTURE_COST_TYPE in value.get("tiered_rates").keys()
+            if metric_constants.INFRASTRUCTURE_COST_TYPE
+            in value.get("tiered_rates").keys()
         }
 
     @property
     def supplementary_rates(self):
         """Return the rates designated as supplementary cost."""
         return {
-            key: value.get("tiered_rates").get(metric_constants.SUPPLEMENTARY_COST_TYPE)[0].get("value")
+            key: value.get("tiered_rates")
+            .get(metric_constants.SUPPLEMENTARY_COST_TYPE)[0]
+            .get("value")
             for key, value in self.price_list.items()
-            if metric_constants.SUPPLEMENTARY_COST_TYPE in value.get("tiered_rates").keys()
+            if metric_constants.SUPPLEMENTARY_COST_TYPE
+            in value.get("tiered_rates").keys()
         }
 
     @property
@@ -242,7 +250,9 @@ class CostModelDBAccessor:
     def tag_based_price_list(self):  # noqa: C901
         """Return the rates definied on this cost model that come from tag based rates."""
         metric_rate_map = {}
-        tag_based_price_list = copy.deepcopy(self.effective_rates) if self.effective_rates else None
+        tag_based_price_list = (
+            copy.deepcopy(self.effective_rates) if self.effective_rates else None
+        )
         if not tag_based_price_list:
             return {}
         for rate in tag_based_price_list:
@@ -262,8 +272,18 @@ class CostModelDBAccessor:
                 if default:
                     default_rate = rate_value
                 tag_value = tag_rate.get("tag_value")
-                tag_rate_dict[tag_value] = {"unit": unit, "value": rate_value, "default": default}
-            tag_rates_list.append({"tag_key": tag_key, "tag_values": tag_rate_dict, "tag_key_default": default_rate})
+                tag_rate_dict[tag_value] = {
+                    "unit": unit,
+                    "value": rate_value,
+                    "default": default,
+                }
+            tag_rates_list.append(
+                {
+                    "tag_key": tag_key,
+                    "tag_values": tag_rate_dict,
+                    "tag_key_default": default_rate,
+                }
+            )
             if metric_name in metric_rate_map.keys():
                 tag_rates = metric_rate_map.get(metric_name)
                 existing_cost_dict = tag_rates.get("tag_rates")
@@ -297,9 +317,14 @@ class CostModelDBAccessor:
         """
         results_dict = {}
         for key, value in self.tag_based_price_list.items():
-            if metric_constants.INFRASTRUCTURE_COST_TYPE in value.get("tag_rates").keys():
+            if (
+                metric_constants.INFRASTRUCTURE_COST_TYPE
+                in value.get("tag_rates").keys()
+            ):
                 tag_dict = {}
-                for tag in value.get("tag_rates").get(metric_constants.INFRASTRUCTURE_COST_TYPE):
+                for tag in value.get("tag_rates").get(
+                    metric_constants.INFRASTRUCTURE_COST_TYPE
+                ):
                     tag_key = tag.get("tag_key")
                     tag_values = {}
                     for value_key, val in tag.get("tag_values").items():
@@ -324,14 +349,22 @@ class CostModelDBAccessor:
         """
         results_dict = {}
         for key, value in self.tag_based_price_list.items():
-            if metric_constants.INFRASTRUCTURE_COST_TYPE in value.get("tag_rates").keys():
+            if (
+                metric_constants.INFRASTRUCTURE_COST_TYPE
+                in value.get("tag_rates").keys()
+            ):
                 tag_dict = {}
-                for tag in value.get("tag_rates").get(metric_constants.INFRASTRUCTURE_COST_TYPE):
+                for tag in value.get("tag_rates").get(
+                    metric_constants.INFRASTRUCTURE_COST_TYPE
+                ):
                     tag_key = tag.get("tag_key")
                     tag_keys_to_ignore = list(tag.get("tag_values").keys())
                     default_value = tag.get("tag_key_default")
                     # NOTE: defined keys is actually list of values that have a rate associated with them.
-                    tag_dict[tag_key] = {"default_value": default_value, "defined_keys": tag_keys_to_ignore}
+                    tag_dict[tag_key] = {
+                        "default_value": default_value,
+                        "defined_keys": tag_keys_to_ignore,
+                    }
                     results_dict[key] = tag_dict
         return results_dict
 
@@ -351,9 +384,14 @@ class CostModelDBAccessor:
         """
         results_dict = {}
         for key, value in self.tag_based_price_list.items():
-            if metric_constants.SUPPLEMENTARY_COST_TYPE in value.get("tag_rates").keys():
+            if (
+                metric_constants.SUPPLEMENTARY_COST_TYPE
+                in value.get("tag_rates").keys()
+            ):
                 tag_dict = {}
-                for tag in value.get("tag_rates").get(metric_constants.SUPPLEMENTARY_COST_TYPE):
+                for tag in value.get("tag_rates").get(
+                    metric_constants.SUPPLEMENTARY_COST_TYPE
+                ):
                     tag_key = tag.get("tag_key")
                     tag_values = {}
                     for value_key, val in tag.get("tag_values").items():
@@ -378,13 +416,21 @@ class CostModelDBAccessor:
         """
         results_dict = {}
         for key, value in self.tag_based_price_list.items():
-            if metric_constants.SUPPLEMENTARY_COST_TYPE in value.get("tag_rates").keys():
+            if (
+                metric_constants.SUPPLEMENTARY_COST_TYPE
+                in value.get("tag_rates").keys()
+            ):
                 tag_dict = {}
-                for tag in value.get("tag_rates").get(metric_constants.SUPPLEMENTARY_COST_TYPE):
+                for tag in value.get("tag_rates").get(
+                    metric_constants.SUPPLEMENTARY_COST_TYPE
+                ):
                     tag_key = tag.get("tag_key")
                     tag_keys_to_ignore = list(tag.get("tag_values").keys())
                     default_value = tag.get("tag_key_default")
                     # Note: defined_keys is actually a list of tag values that have a specific rate
-                    tag_dict[tag_key] = {"default_value": default_value, "defined_keys": tag_keys_to_ignore}
+                    tag_dict[tag_key] = {
+                        "default_value": default_value,
+                        "defined_keys": tag_keys_to_ignore,
+                    }
                     results_dict[key] = tag_dict
         return results_dict
