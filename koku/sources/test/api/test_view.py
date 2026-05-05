@@ -358,6 +358,7 @@ class SourcesViewTests(IamTestCase):
             self.assertEqual(response.status_code, 404)
             self.assertIsNotNone(body)
 
+    @unittest.skipIf(settings.ONPREM, "SaaS-only: per-resource-type filtering is bypassed in ONPREM mode")
     def test_sources_access(self):
         """Test the limiting of source type visibility."""
         mock_user = Mock(admin=True)
