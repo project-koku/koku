@@ -8,6 +8,7 @@ from collections import OrderedDict
 from json.decoder import JSONDecodeError
 
 import requests
+from django.conf import settings
 from prometheus_client import Counter
 from requests.exceptions import ConnectionError
 from rest_framework import status
@@ -22,21 +23,21 @@ PROTOCOL = "protocol"
 HOST = "host"
 PORT = "port"
 PATH = "path"
-RESOURCE_TYPES = OrderedDict(
-    [
-        ("aws.account", ["read"]),
-        ("aws.organizational_unit", ["read"]),
-        ("gcp.account", ["read"]),
-        ("gcp.project", ["read"]),
-        ("azure.subscription_guid", ["read"]),
-        ("openshift.cluster", ["read"]),
-        ("openshift.node", ["read"]),
-        ("openshift.project", ["read"]),
-        ("cost_model", ["read", "write"]),
-        ("settings", ["read", "write"]),
-        ("sources", ["read", "write"]),
-    ]
-)
+_RESOURCE_TYPE_LIST = [
+    ("aws.account", ["read"]),
+    ("aws.organizational_unit", ["read"]),
+    ("gcp.account", ["read"]),
+    ("gcp.project", ["read"]),
+    ("azure.subscription_guid", ["read"]),
+    ("openshift.cluster", ["read"]),
+    ("openshift.node", ["read"]),
+    ("openshift.project", ["read"]),
+    ("cost_model", ["read", "write"]),
+    ("settings", ["read", "write"]),
+]
+if settings.ONPREM:
+    _RESOURCE_TYPE_LIST.append(("sources", ["read", "write"]))
+RESOURCE_TYPES = OrderedDict(_RESOURCE_TYPE_LIST)
 
 
 def _extract_permission_data(permission):

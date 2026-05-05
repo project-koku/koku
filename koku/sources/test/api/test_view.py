@@ -790,6 +790,7 @@ class DestroySourceMixinTests(IamTestCase):
             mock_publish.assert_not_called()
 
 
+@unittest.skipUnless(settings.ONPREM, "ONPREM-only: RBAC enforcement is only enabled for on-prem")
 @override_settings(ROOT_URLCONF="koku.urls")
 class SourcesViewRbacTests(IamTestCase):
     """Test RBAC permission enforcement on the sources endpoint."""

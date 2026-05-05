@@ -25,6 +25,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.exceptions import ParseError
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.serializers import UUIDField
 from rest_framework.serializers import ValidationError
@@ -85,6 +86,8 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
 LOG = logging.getLogger(__name__)
 MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet]
 HTTP_METHOD_LIST = ["get", "head"]
+
+SOURCES_PERMISSION_CLASSES = (SourcesAccessPermission,) if settings.ONPREM else (AllowAny,)
 
 if settings.ONPREM or settings.DEVELOPMENT:
     MIXIN_LIST.extend([mixins.CreateModelMixin, mixins.UpdateModelMixin, DestroySourceMixin])
@@ -160,12 +163,14 @@ class SourcesViewSet(*MIXIN_LIST):
 
     lookup_fields = ("source_id", "source_uuid")
     queryset = Sources.objects.all()
-    permission_classes = (SourcesAccessPermission,)
+    permission_classes = SOURCES_PERMISSION_CLASSES
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
     http_method_names = HTTP_METHOD_LIST
 
-    @action(methods=["get"], detail=False, url_path="aws-s3-regions")
+    @action(
+        methods=["get"], detail=False, permission_classes=list(SOURCES_PERMISSION_CLASSES), url_path="aws-s3-regions"
+    )
     def aws_s3_regions(self, request):
         regions = get_available_regions("s3")
         return ListPaginator(regions, request).paginated_response
@@ -189,16 +194,14 @@ class SourcesViewSet(*MIXIN_LIST):
             for resource_type in RESOURCE_TYPE_MAP.keys():
                 excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
             return list(set(excludes))
-        sources_read = resource_access.get("sources", {}).get("read", [])
-        if "*" in sources_read:
-            return excludes
         for resource_type in RESOURCE_TYPE_MAP.keys():
             access_value = resource_access.get(resource_type)
-            has_read = access_value is not None and access_value.get("read", [])
-            if has_read:
-                keep.extend(RESOURCE_TYPE_MAP.get(resource_type))
-            else:
+            if access_value is None:
                 excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
+            elif not access_value.get("read", []):
+                excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
+            else:
+                keep.extend(RESOURCE_TYPE_MAP.get(resource_type))
 
         excludes = list(set(excludes))
         keep = list(set(keep))
@@ -373,7 +376,7 @@ class SourcesViewSet(*MIXIN_LIST):
         return response
 
     @method_decorator(never_cache)
-    @action(methods=["get"], detail=True)
+    @action(methods=["get"], detail=True, permission_classes=list(SOURCES_PERMISSION_CLASSES))
     def stats(self, request, pk=None):
         """Get source stats."""
         source = self.get_object()
