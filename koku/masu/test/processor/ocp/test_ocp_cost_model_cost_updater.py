@@ -6,6 +6,7 @@
 import random
 from decimal import Decimal
 from unittest import skip
+from unittest.mock import ANY
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
@@ -372,9 +373,16 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         updater._load_rates(start_date)
         updater._update_tag_usage_costs(start_date, end_date)
-        # assert that populate_tag_usage_costs was called with the correct info
         mock_update_usage.assert_called_once_with(
-            infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
+            infrastructure_rates,
+            supplementary_rates,
+            start_date,
+            end_date,
+            self.cluster_id,
+            cost_model_id=ANY,
+            rate_info_map=ANY,
+            source_uuid=ANY,
+            report_period_id=ANY,
         )
 
     def test_delete_tag_usage_costs_no_report_period(self):
