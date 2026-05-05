@@ -32,6 +32,11 @@ access_log_format = '%(h)s %(l)s %(u)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
 # Allow HTTP headers up to this size
 limit_request_field_size = 16380
 
+# Control Socket (https://gunicorn.org/reference/settings/#control)
+# Disable the control socket (gunicornc) to avoid PermissionError in containers
+# where $HOME resolves to / (e.g. OpenShift random UIDs).
+control_socket_disable = True
+
 # Server Socket (https://docs.gunicorn.org/en/stable/settings.html#server-socket)
 bind = f"0.0.0.0:{CLOWDER_PORT}"
 
