@@ -1036,6 +1036,58 @@ class OCPGpuSummaryP(models.Model):
     cost_model_rate_type = models.TextField(null=True)
 
 
+class RatesToUsage(models.Model):
+    """Per-rate cost rows produced by the Phase 2 SQL pipeline.
+
+    Partitioned by usage_start (same strategy as all OCP reporting tables).
+    See docs/architecture/cost-breakdown/data-model.md § RatesToUsage.
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        db_table = "rates_to_usage"
+        indexes = [
+            models.Index(
+                fields=["usage_start", "source_uuid", "report_period_id"],
+                name="ratestousage_start_src_rp_idx",
+            ),
+            models.Index(fields=["namespace"], name="ratestousage_namespace_idx"),
+            models.Index(fields=["cluster_id"], name="ratestousage_cluster_idx"),
+            models.Index(fields=["custom_name"], name="ratestousage_custom_name_idx"),
+            models.Index(fields=["monthly_cost_type"], name="ratestousage_monthly_cost_idx"),
+            models.Index(fields=["label_hash"], name="ratestousage_label_hash_idx"),
+        ]
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    rate = models.ForeignKey("cost_models.Rate", on_delete=models.SET_NULL, null=True)
+    cost_model = models.ForeignKey("cost_models.CostModel", on_delete=models.SET_NULL, null=True)
+    report_period_id = models.IntegerField(null=True)
+    source_uuid = models.UUIDField()
+    usage_start = models.DateField()
+    usage_end = models.DateField()
+    node = models.CharField(max_length=253, null=True)
+    namespace = models.CharField(max_length=253, null=True)
+    cluster_id = models.TextField()
+    cluster_alias = models.TextField(null=True)
+    data_source = models.CharField(max_length=63, null=True)
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
+    pod_labels = JSONField(null=True)
+    volume_labels = JSONField(null=True)
+    all_labels = JSONField(null=True)
+    custom_name = models.CharField(max_length=50)
+    metric_type = models.CharField(max_length=20)
+    cost_model_rate_type = models.TextField(null=True)
+    monthly_cost_type = models.TextField(null=True)
+    calculated_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
+    labels = JSONField(null=True)
+    label_hash = models.CharField(max_length=32, null=True)
+
+
 # Import on-prem line item models so Django can discover them for migrations
 # These models are only used when ONPREM=True, but need to be discoverable for migrations
 from reporting.provider.ocp.self_hosted_models import OCPGPUUsageLineItem  # noqa: E402, F401
