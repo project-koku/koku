@@ -12,4 +12,8 @@ class Migration(migrations.Migration):
             name="label_hash",
             field=models.CharField(max_length=64, null=True),
         ),
+        migrations.RunSQL(
+            sql=migrations.RunSQL.noop,
+            reverse_sql="TRUNCATE TABLE rates_to_usage;",
+        ),
     ]
