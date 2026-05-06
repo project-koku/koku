@@ -60,6 +60,15 @@ class CostModelDBAccessor:
             self._cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
         return self._cost_model
 
+    @cached_property
+    def _effective_price_list(self):
+        """Resolve the effective PriceList for the billing date (cached)."""
+        if not self.cost_model or not self.price_list_effective_on:
+            return None
+        from cost_models.price_list_manager import PriceListManager
+
+        return PriceListManager.get_effective_price_list(self.cost_model.uuid, self.price_list_effective_on)
+
     @property
     def effective_rates(self):
         """Return rates from the effective price list for the target date.
@@ -76,9 +85,7 @@ class CostModelDBAccessor:
         if self.price_list_effective_on is None:
             self._effective_rates = self.cost_model.rates or {}
             return self._effective_rates
-        from cost_models.price_list_manager import PriceListManager
-
-        effective_pl = PriceListManager.get_effective_price_list(self.cost_model.uuid, self.price_list_effective_on)
+        effective_pl = self._effective_price_list
         if effective_pl:
             self._effective_rates = effective_pl.rates or {}
         else:
@@ -165,6 +172,32 @@ class CostModelDBAccessor:
     def get_rates(self, value):
         """Get the rates."""
         return self.price_list.get(value)
+
+    @cached_property
+    def rate_info_map(self):
+        """Return (metric, cost_type, tag_key) -> {rate_uuid, custom_name} for Rate rows.
+
+        Scoped to the effective price list when price_list_effective_on is set,
+        matching the resolution used by effective_rates.
+        """
+        if not self.cost_model:
+            return {}
+        if self.price_list_effective_on:
+            effective_pl = self._effective_price_list
+            if not effective_pl:
+                return {}
+            rate_rows = effective_pl.rate_rows.only("uuid", "metric", "cost_type", "custom_name", "tag_key")
+        else:
+            rate_rows = Rate.objects.filter(price_list__cost_model_maps__cost_model=self.cost_model).only(
+                "uuid", "metric", "cost_type", "custom_name", "tag_key"
+            )
+        return {
+            (rate.metric, rate.cost_type, rate.tag_key or ""): {
+                "rate_uuid": str(rate.uuid),
+                "custom_name": rate.custom_name,
+            }
+            for rate in rate_rows
+        }
 
     @property
     def metric_to_tag_params_map(self):
