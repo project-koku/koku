@@ -9,6 +9,7 @@ from json.decoder import JSONDecodeError
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import TestCase
 from prometheus_client import REGISTRY
 from requests.exceptions import ConnectionError
@@ -43,6 +44,8 @@ def create_expected_access(access_dict=None, default_write=None, default_read=No
         "openshift.node": default_read,
         "openshift.project": default_read,
     }
+    if settings.ONPREM:
+        default["sources"] = default_write
     return default | access_dict
 
 
