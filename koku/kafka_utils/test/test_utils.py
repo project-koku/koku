@@ -7,6 +7,8 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from kafka_utils import utils
+from koku.configurator import EnvConfigurator
+from koku.configurator import KafkaSASLConfig
 from masu.prometheus_stats import WORKER_REGISTRY
 
 
@@ -90,3 +92,62 @@ class AdminClientSingletonTest(TestCase):
         p1 = utils.AdminClientSingleton({})
         p2 = utils.AdminClientSingleton({})
         self.assertEqual(id(p1), id(p2))
+
+
+class EnvConfiguratorKafkaSASLTest(TestCase):
+    """Test EnvConfigurator Kafka SASL/TLS methods."""
+
+    @patch.dict(
+        "os.environ",
+        {
+            "KAFKA_SASL_MECHANISM": "SCRAM-SHA-512",
+            "KAFKA_SASL_USERNAME": "user1",
+            "KAFKA_SASL_PASSWORD": "pass1",
+            "KAFKA_SECURITY_PROTOCOL": "SASL_SSL",
+        },
+    )
+    def test_get_kafka_sasl_with_env_vars(self):
+        """EnvConfigurator returns KafkaSASLConfig when KAFKA_SASL_MECHANISM is set."""
+        result = EnvConfigurator.get_kafka_sasl()
+        self.assertIsInstance(result, KafkaSASLConfig)
+        self.assertEqual(result.saslMechanism, "SCRAM-SHA-512")
+        self.assertEqual(result.username, "user1")
+        self.assertEqual(result.password, "pass1")
+        self.assertEqual(result.securityProtocol, "SASL_SSL")
+
+    @patch.dict("os.environ", {}, clear=True)
+    def test_get_kafka_sasl_without_env_vars(self):
+        """EnvConfigurator returns empty dict when no SASL env vars are set."""
+        result = EnvConfigurator.get_kafka_sasl()
+        self.assertEqual(result, {})
+        self.assertFalse(result)
+
+    @patch.dict("os.environ", {"KAFKA_SASL_MECHANISM": "PLAIN"})
+    def test_get_kafka_sasl_defaults_security_protocol(self):
+        """EnvConfigurator defaults securityProtocol to SASL_SSL."""
+        result = EnvConfigurator.get_kafka_sasl()
+        self.assertEqual(result.securityProtocol, "SASL_SSL")
+
+    @patch.dict("os.environ", {"KAFKA_SSL_CA_LOCATION": "/etc/kafka/certs/ca.crt"})
+    def test_get_kafka_cacert_with_env_var(self):
+        """EnvConfigurator returns CA cert path when set."""
+        result = EnvConfigurator.get_kafka_cacert()
+        self.assertEqual(result, "/etc/kafka/certs/ca.crt")
+
+    @patch.dict("os.environ", {}, clear=True)
+    def test_get_kafka_cacert_without_env_var(self):
+        """EnvConfigurator returns None when no CA cert path is set."""
+        result = EnvConfigurator.get_kafka_cacert()
+        self.assertIsNone(result)
+
+    @patch.dict("os.environ", {"KAFKA_SASL_MECHANISM": "SCRAM-SHA-512"})
+    def test_get_kafka_authtype_with_sasl(self):
+        """EnvConfigurator returns 'sasl' when mechanism is set."""
+        result = EnvConfigurator.get_kafka_authtype()
+        self.assertEqual(result, "sasl")
+
+    @patch.dict("os.environ", {}, clear=True)
+    def test_get_kafka_authtype_without_sasl(self):
+        """EnvConfigurator returns None when no mechanism is set."""
+        result = EnvConfigurator.get_kafka_authtype()
+        self.assertIsNone(result)
