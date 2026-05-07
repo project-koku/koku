@@ -10,6 +10,41 @@ from django.db import migrations
 from django.db import models
 
 
+DEFAULT_ENABLED_CURRENCIES = (
+    "AED",
+    "AUD",
+    "BRL",
+    "CAD",
+    "CHF",
+    "CNY",
+    "CZK",
+    "DKK",
+    "EUR",
+    "GBP",
+    "HKD",
+    "INR",
+    "JPY",
+    "NGN",
+    "NOK",
+    "NZD",
+    "SAR",
+    "SEK",
+    "SGD",
+    "TWD",
+    "USD",
+    "ZAR",
+)
+
+
+def seed_enabled_currencies(apps, schema_editor):
+    """Seed EnabledCurrency with the default set that was previously hardcoded."""
+    EnabledCurrency = apps.get_model("cost_models", "EnabledCurrency")
+    EnabledCurrency.objects.bulk_create(
+        [EnabledCurrency(currency_code=code) for code in DEFAULT_ENABLED_CURRENCIES],
+        ignore_conflicts=True,
+    )
+
+
 def seed_current_month(apps, schema_editor):
     """Seed MonthlyExchangeRate with current-month dynamic rates from ExchangeRateDictionary."""
     ExchangeRateDictionary = apps.get_model("api", "ExchangeRateDictionary")
@@ -101,5 +136,6 @@ class Migration(migrations.Migration):
                 "unique_together": {("effective_date", "base_currency", "target_currency")},
             },
         ),
+        migrations.RunPython(code=seed_enabled_currencies, reverse_code=migrations.RunPython.noop),
         migrations.RunPython(code=seed_current_month, reverse_code=migrations.RunPython.noop),
     ]
