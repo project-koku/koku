@@ -116,7 +116,12 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
-        if old_base != instance.base_currency or old_target != instance.target_currency:
+        if (
+            old_base != instance.base_currency
+            or old_target != instance.target_currency
+            or old_start != instance.start_date
+            or old_end != instance.end_date
+        ):
             remove_static_and_backfill_dynamic(old_base, old_target, old_start, old_end)
 
         upsert_static_monthly_rates(instance)
