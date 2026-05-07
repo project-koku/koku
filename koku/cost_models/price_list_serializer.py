@@ -9,6 +9,9 @@ from datetime import timedelta
 from rest_framework import serializers
 
 from api.common import error_obj
+from api.metrics import constants as metric_constants
+from api.metrics.views import CostModelMetricMapJSONException
+from api.provider.models import Provider
 from api.report.serializers import BaseSerializer
 from api.utils import get_currency
 from cost_models.models import PriceList
@@ -44,6 +47,18 @@ class PriceListSerializer(BaseSerializer):
         tag_rates = [rate for rate in rates if rate.get("tag_rates")]
         if tag_rates:
             CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
+        seen = set()
+        dupes = set()
+        for r in rates:
+            name = r.get("custom_name")
+            if name:
+                if name in seen:
+                    dupes.add(name)
+                seen.add(name)
+        if dupes:
+            raise serializers.ValidationError(
+                f"Duplicate custom_name values in a single request are not allowed: {sorted(dupes)}"
+            )
         return rates
 
     @staticmethod
@@ -126,8 +141,30 @@ class PriceListSerializer(BaseSerializer):
             raise serializers.ValidationError(str(error))
 
     def to_representation(self, instance):
-        """Add assigned cost model data to the response."""
+        """Add assigned cost model data and metric display labels to the response."""
         rep = super().to_representation(instance)
+        if rep.get("rates"):
+            schema = None
+            request = self.context.get("request")
+            if request and hasattr(request, "user") and hasattr(request.user, "customer"):
+                schema = request.user.customer.schema_name
+            metric_map = metric_constants.get_cost_model_metrics_map(schema=schema)
+            source_type = Provider.PROVIDER_OCP
+            metric_map_by_source = {k: v for k, v in metric_map.items() if v.get("source_type") == source_type}
+            for rate in rep["rates"]:
+                metric = rate.get("metric", {})
+                display_data = metric_map_by_source.get(metric.get("name"))
+                try:
+                    metric.update(
+                        {
+                            "label_metric": display_data["label_metric"],
+                            "label_measurement": display_data["label_measurement"],
+                            "label_measurement_unit": display_data["label_measurement_unit"],
+                        }
+                    )
+                except (KeyError, TypeError):
+                    LOG.error("Invalid Cost Model Metric Map", exc_info=True)
+                    raise CostModelMetricMapJSONException("Internal Error.")
         rep["assigned_cost_model_count"] = (
             instance.assigned_cost_model_count
             if hasattr(instance, "assigned_cost_model_count")
