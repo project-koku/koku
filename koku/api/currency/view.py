@@ -18,7 +18,7 @@ from cost_models.models import EnabledCurrency
 
 
 @api_view(("GET",))
-@permission_classes((permissions.AllowAny,))
+@permission_classes((permissions.IsAuthenticated,))
 @renderer_classes([JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES)
 def get_currency(request):
     """Get available currencies.
