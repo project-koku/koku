@@ -71,6 +71,11 @@ class User(models.Model):
         self.identity_header = None
         self.beta = False
 
+    @property
+    def is_authenticated(self):
+        """Always True — User instances only exist after middleware authentication."""
+        return True
+
     class Meta:
         ordering = ["username"]
 
