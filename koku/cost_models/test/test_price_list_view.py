@@ -4,6 +4,7 @@
 #
 """Test the Price List views."""
 import logging
+from unittest.mock import patch
 
 from django.urls import reverse
 from django_tenants.utils import tenant_context
@@ -70,6 +71,54 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(response.data["name"], "Test Price List")
         self.assertEqual(response.data["version"], 1)
         self.assertIsNotNone(response.data["uuid"])
+
+    def test_create_price_list_rates_include_metric_labels(self):
+        """Test that rates include label_metric, label_measurement, label_measurement_unit."""
+        response = self._create_price_list()
+        rates = response.data["rates"]
+        self.assertTrue(len(rates) > 0)
+        metric = rates[0]["metric"]
+        self.assertEqual(metric["label_metric"], "CPU")
+        self.assertEqual(metric["label_measurement"], "Usage")
+        self.assertEqual(metric["label_measurement_unit"], "core-hours")
+
+        detail_url = reverse("price-lists-detail", kwargs={"uuid": response.data["uuid"]})
+        get_response = self.client.get(detail_url, **self.headers)
+        self.assertEqual(get_response.status_code, status.HTTP_200_OK)
+        get_metric = get_response.data["rates"][0]["metric"]
+        self.assertEqual(get_metric["label_metric"], "CPU")
+        self.assertEqual(get_metric["label_measurement"], "Usage")
+        self.assertEqual(get_metric["label_measurement_unit"], "core-hours")
+
+    @patch("cost_models.price_list_serializer.metric_constants.get_cost_model_metrics_map")
+    def test_metric_labels_error_on_corrupted_map(self, mock_map):
+        """Test that corrupted metric map returns 500."""
+        mock_map.return_value = {"cpu_core_usage_per_hour": {"source_type": "OCP"}}
+        url = reverse("price-lists-list")
+        response = self.client.post(url, data=self.price_list_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_create_price_list_duplicate_custom_name_fails(self):
+        """Test that duplicate custom_name in rates fails."""
+        url = reverse("price-lists-list")
+        data = self.price_list_data.copy()
+        data["rates"] = [
+            {
+                "metric": {"name": "cpu_core_usage_per_hour"},
+                "custom_name": "my_rate",
+                "tiered_rates": [{"value": "1.50", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}],
+                "cost_type": "Infrastructure",
+            },
+            {
+                "metric": {"name": "memory_gb_usage_per_hour"},
+                "custom_name": "my_rate",
+                "tiered_rates": [{"value": "2.00", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}],
+                "cost_type": "Infrastructure",
+            },
+        ]
+        response = self.client.post(url, data=data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Duplicate custom_name", str(response.data))
 
     def test_create_price_list_without_name(self):
         """Test that creating a price list without a name fails."""
