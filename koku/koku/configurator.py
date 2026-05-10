@@ -229,7 +229,7 @@ class EnvConfigurator(Configurator):
     @staticmethod
     def get_kafka_sasl():
         """Obtain kafka sasl from environment variables."""
-        if Configurator.get_kafka_authtype():
+        if EnvConfigurator.get_kafka_authtype():
             return KafkaSASLConfig(
                 securityProtocol=ENVIRONMENT.get_value("KAFKA_SECURITY_PROTOCOL", default="SASL_SSL"),
                 saslMechanism=ENVIRONMENT.get_value("KAFKA_SASL_MECHANISM", default=None),
