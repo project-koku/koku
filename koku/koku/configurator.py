@@ -229,15 +229,14 @@ class EnvConfigurator(Configurator):
     @staticmethod
     def get_kafka_sasl():
         """Obtain kafka sasl from environment variables."""
-        mechanism = ENVIRONMENT.get_value("KAFKA_SASL_MECHANISM", default="")
-        if mechanism:
+        if Configurator.get_kafka_authtype():
             return KafkaSASLConfig(
                 securityProtocol=ENVIRONMENT.get_value("KAFKA_SECURITY_PROTOCOL", default="SASL_SSL"),
-                saslMechanism=mechanism,
+                saslMechanism=ENVIRONMENT.get_value("KAFKA_SASL_MECHANISM", default=None),
                 username=ENVIRONMENT.get_value("KAFKA_SASL_USERNAME", default=""),
                 password=ENVIRONMENT.get_value("KAFKA_SASL_PASSWORD", default=""),
             )
-        return {}
+        return None
 
     @staticmethod
     def get_kafka_cacert():
@@ -247,7 +246,7 @@ class EnvConfigurator(Configurator):
     @staticmethod
     def get_kafka_authtype():
         """Obtain kafka Authentication Type from environment variable."""
-        mechanism = ENVIRONMENT.get_value("KAFKA_SASL_MECHANISM", default="")
+        mechanism = ENVIRONMENT.get_value("KAFKA_SASL_MECHANISM", default=None)
         return "sasl" if mechanism else None
 
     @staticmethod

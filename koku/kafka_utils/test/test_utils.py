@@ -117,10 +117,9 @@ class EnvConfiguratorKafkaSASLTest(TestCase):
 
     @patch.dict("os.environ", {}, clear=True)
     def test_get_kafka_sasl_without_env_vars(self):
-        """EnvConfigurator returns empty dict when no SASL env vars are set."""
+        """EnvConfigurator returns None when no SASL env vars are set."""
         result = EnvConfigurator.get_kafka_sasl()
-        self.assertEqual(result, {})
-        self.assertFalse(result)
+        self.assertIsNone(result)
 
     @patch.dict("os.environ", {"KAFKA_SASL_MECHANISM": "PLAIN"})
     def test_get_kafka_sasl_defaults_security_protocol(self):
