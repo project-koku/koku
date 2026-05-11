@@ -335,7 +335,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             A dict keyed by tuple(*group_by field values) → Decimal waste.
             The sentinel key '__total__' holds the overall waste sum.
         """
-        _dec = OCPProviderMap._efficiency_decimal_field()
+        _dec = DecimalField(max_digits=33, decimal_places=15)
 
         if self._report_type == "cpu":
             usage_field = "pod_usage_cpu_core_hours"
