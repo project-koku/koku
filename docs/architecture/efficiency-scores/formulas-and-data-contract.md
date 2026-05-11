@@ -28,7 +28,7 @@ Let **`usage_sum`** and **`request_sum`** be the **Sum** expressions for the app
 | Expression | Meaning |
 |------------|---------|
 | Ratio | `usage_sum / NULLIF(request_sum, 0)` — avoids division by zero. |
-| **Percent** | `Round(ratio * 100)` as **integer** (Django `Round` + `IntegerField` in [`_efficiency_annotations_row_waste_sum`](../../../koku/api/report/ocp/provider_map.py)). |
+| **Percent** | `Round(ratio * 100)` as **integer** (Django `Round` + `IntegerField` in [`_efficiency_annotations`](../../../koku/api/report/ocp/provider_map.py)). |
 | **Null / zero request** | `Coalesce(..., 0)` → API exposes **`0`** when the ratio is null (including **`request_sum == 0`**). |
 
 So **`usage_efficiency_percent` can exceed 100** when usage exceeds request over the aggregated rows (not clamped).
@@ -41,16 +41,18 @@ Response shaping is done in [`OCPReportQueryHandler._pack_score`](../../../koku/
 
 ## Wasted cost (`wasted_cost`)
 
-### Definition (implemented) — sum of per-row waste
+### Definition (implemented)
 
-[`_efficiency_annotations_row_waste_sum`](../../../koku/api/report/ocp/provider_map.py) computes **`wasted_cost`** as **`Sum(per_row_waste)`** over the same rows that feed the report (fleet aggregate or each `group_by` bucket). **`usage_efficiency_percent`** in that helper remains **ratio-of-sums** (see above); the two fields **can diverge** by design.
+Uses the same **`usage_sum`**, **`request_sum`**, and a **`cost_total_expr`** passed into [`_efficiency_annotations`](../../../koku/api/report/ocp/provider_map.py):
 
-Per row *i*, with coalesced usage **u_i**, request **r_i**, and row cost **c_i** (same linear components as aggregate **`cost_total`**, without wrapping **`Sum`**):
+`wasted_cost = Coalesce(Greatest(cost_total * (1 - usage_sum / NullIf(request_sum, 0)), 0), 0)` (ORM/SQL expression; `NullIf` avoids divide-by-zero).
 
-- **c_i** from [`_per_row_cost_cpu_expr`](../../../koku/api/report/ocp/provider_map.py) (**`cpu`**) or [`_per_row_cost_memory_expr`](../../../koku/api/report/ocp/provider_map.py) (**`memory`**): infra raw + markup (each × `infra_exchange_rate`) + cost-model CPU or memory (× `exchange_rate`), matching the inventory **`cost_total`** basis at row grain.
-- **waste_i** = `Coalesce(Greatest(c_i * (1 - u_i / NullIf(r_i, 0)), 0), 0)` — `NullIf` avoids divide-by-zero; **`r_i == 0`** → that row contributes **0**; over-requested rows contribute **0** waste.
+- **`cost_total`** for **`cpu`**: `cloud_infrastructure_cost + markup_cost + cost_model_cpu_cost` (same components as the `cost_total` aggregate for CPU inventory).
+- **`cost_total`** for **`memory`**: `cloud_infrastructure_cost + markup_cost + cost_model_memory_cost`.
 
-**`wasted_cost`** = **Σ waste_i** (ORM **`Sum(per_row_waste)`**), with outer **`Coalesce(..., 0)`** when the aggregate is null.
+So this is **not** “waste percent × arbitrary headline cost” from a different column — it tracks the **`cost_total` expression for that dimension** in the provider map.
+
+When **`request_sum`** is zero, the ratio is null; the expression yields null and **`Coalesce`** forces **`wasted_cost`** to **decimal 0**.
 
 ### API shape
 
@@ -67,8 +69,8 @@ Per row *i*, with coalesced usage **u_i**, request **r_i**, and row cost **c_i**
 
 ## Fleet vs grouped rows
 
-- **Total row:** `query.aggregate(**aggregates)` applies **`usage_efficiency`** as **one ratio of sums** over the **entire filtered queryset**, and **`wasted_cost`** as the **sum of per-row waste** over those same rows (not an average of per-cluster percentages, and not fleet `cost_total × (1 - U/R)`).
-- **Grouped rows:** Each group gets its own **`usage_sum`**, **`request_sum`**, and its own **`Sum(per_row_waste)`** from `values(...).annotate(...)`.
+- **Total row:** `query.aggregate(**aggregates)` applies the same **`usage_efficiency`** and **`wasted_cost`** definitions over the **entire filtered queryset** — i.e. one combined ratio and one wasted-cost expression for the fleet (not an average of per-cluster percentages).
+- **Grouped rows:** Each group gets its own **`usage_sum`**, **`request_sum`**, and **`cost_total`** slice from `values(...).annotate(...)`.
 
 ---
 
@@ -134,7 +136,7 @@ When scores are disabled, `"total_score": {}`.
 
 | Metric | Status |
 |--------|--------|
-| Waste score `max(100 - efficiency, 0)` | Not exposed as its own field; **`wasted_cost`** is sum-of-row clamped waste (not that scalar). |
+| Waste score `max(100 - efficiency, 0)` | Not exposed as its own field; wasted cost follows the formula above. |
 | Idle / signed unused | Backlog; see README IQ-3. |
 | Cost efficiency / overhead scores | Backlog. |
 
@@ -145,5 +147,4 @@ When scores are disabled, `"total_score": {}`.
 | Date | Summary |
 |------|---------|
 | 2026-04-16 | Initial formulas; illustrative JSON; fleet and wasted-cost options. |
-| 2026-04-17 | Aligned with implementation: `_pack_score`, `total_score` vs `score`, `request=0` → 0, wasted cost formula and cost basis. |
-| 2026-05-05 | **`wasted_cost`:** `_efficiency_annotations_row_waste_sum`, per-row cost helpers, **`Sum`** of clamped row waste; **`usage_efficiency_percent`** unchanged (ratio-of-sums). |
+| 2026-04-17 | Aligned with implementation: `_efficiency_annotations`, `_pack_score`, `total_score` vs `score`, `request=0` → 0, wasted cost formula and cost basis. |
