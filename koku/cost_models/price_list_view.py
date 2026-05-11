@@ -4,11 +4,8 @@
 #
 """View for Price Lists."""
 import logging
-from functools import reduce
-from operator import and_
 
 from django.db.models import Count
-from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django_filters import BooleanFilter
@@ -25,6 +22,7 @@ from rest_framework.response import Response
 
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from api.report.constants import URL_ENCODED_SAFE
+from api.settings.utils import ListFilter
 from api.settings.utils import SettingsFilter
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
@@ -40,17 +38,10 @@ VALID_PARAMS = {"filter", "order_by", "limit", "offset"}
 class PriceListFilter(SettingsFilter):
     """Price list custom filters."""
 
-    name = CharFilter(field_name="name", method="list_contain_filter")
+    name = ListFilter(field_name="name", lookup_expr="icontains")
     uuid = UUIDFilter(field_name="uuid")
     enabled = BooleanFilter(field_name="enabled")
     currency = CharFilter(field_name="currency", lookup_expr="iexact")
-
-    def list_contain_filter(self, qs, name, values):
-        """Filter items that contain values in their name (AND logic for comma-separated)."""
-        lookup = "__".join([name, "icontains"])
-        value_list = values.split(",")
-        queries = [Q(**{lookup: val}) for val in value_list]
-        return qs.filter(reduce(and_, queries))
 
     def filter_queryset(self, queryset):
         """Validate top-level params before delegating to SettingsFilter."""

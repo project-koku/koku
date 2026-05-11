@@ -13,8 +13,6 @@ from koku.probe_server import start_probe_server
 
 ENVIRONMENT = environ.Env()
 
-SOURCES = ENVIRONMENT.bool("SOURCES", default=False)
-
 CLOWDER_PORT = "8000"
 if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
     from app_common_python import LoadedConfig
@@ -24,18 +22,23 @@ if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
     if ENVIRONMENT.bool("MASU", default=False) or ENVIRONMENT.bool("SOURCES", default=False):
         CLOWDER_PORT = LoadedConfig.privatePort
 
-# Logging (https://docs.gunicorn.org/en/stable/settings.html#logging)
+# Logging (https://gunicorn.org/reference/settings/#logging)
 loglevel = ENVIRONMENT.get_value("GUNICORN_LOG_LEVEL", default="DEBUG")
 access_log_format = '%(h)s %(l)s %(u)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
 
-# Security (https://docs.gunicorn.org/en/stable/settings.html?highlight=limit_request_field_size#security)
+# Security (https://gunicorn.org/reference/settings/#security)
 # Allow HTTP headers up to this size
 limit_request_field_size = 16380
 
-# Server Socket (https://docs.gunicorn.org/en/stable/settings.html#server-socket)
+# Control Socket (https://gunicorn.org/reference/settings/#control)
+# Disable the control socket (gunicornc) to avoid PermissionError in containers
+# where $HOME resolves to / (e.g. OpenShift random UIDs).
+control_socket_disable = True
+
+# Server Socket (https://gunicorn.org/reference/settings/#server-socket)
 bind = f"0.0.0.0:{CLOWDER_PORT}"
 
-# Worker Processes (https://docs.gunicorn.org/en/stable/settings.html#worker-processes)
+# Worker Processes (https://gunicorn.org/reference/settings/#worker-processes)
 cpu_resources = ENVIRONMENT.int("POD_CPU_LIMIT", default=multiprocessing.cpu_count())
 workers = ENVIRONMENT.int("GUNICORN_WORKERS", default=(cpu_resources * 2 + 1))
 gunicorn_threads = ENVIRONMENT.bool("GUNICORN_THREADS", default=False)
@@ -45,7 +48,7 @@ timeout = ENVIRONMENT.int("TIMEOUT", default=90)
 graceful_timeout = ENVIRONMENT.int("GRACEFUL_TIMEOUT", default=180)
 
 
-# Server Hooks (https://docs.gunicorn.org/en/stable/settings.html#server-hooks)
+# Server Hooks (https://gunicorn.org/reference/settings/#server-hooks)
 def on_starting(server):
     """Called just before the main process is initialized."""
     httpd = start_probe_server(BasicProbeServer, server.log)

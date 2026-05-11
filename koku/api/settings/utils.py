@@ -6,11 +6,16 @@ import logging
 import os
 import typing as t
 from copy import deepcopy
+from functools import reduce
+from operator import or_
 
+from django import forms
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import ProhibitNullCharactersValidator
+from django.db.models import Q
 from django.db.models import QuerySet
+from django_filters import Filter
 from django_filters import MultipleChoiceFilter
 from django_filters.fields import MultipleChoiceField
 from django_filters.rest_framework import FilterSet
@@ -48,6 +53,45 @@ class NonValidatingMultipleChoiceField(MultipleChoiceField):
 
 class NonValidatedMultipleChoiceFilter(MultipleChoiceFilter):
     field_class = NonValidatingMultipleChoiceField
+
+
+class ListField(forms.CharField):
+    """Form field that normalizes strings and lists into a flat list."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.validators.append(ProhibitNullCharactersValidator())
+
+    def validate(self, value):
+        if isinstance(value, str):
+            self.run_validators(value)
+        else:
+            for val in value:
+                self.run_validators(val)
+
+    def to_python(self, value):
+        if isinstance(value, list) and value:
+            value = ",".join(str(v) for v in value)
+        if isinstance(value, str):
+            return [v.strip() for v in value.split(",") if v.strip()]
+        return []
+
+
+class ListFilter(Filter):
+    """Filter that accepts strings, CSV, and lists; applies OR/AND with a configurable lookup."""
+
+    field_class = ListField
+
+    def __init__(self, *args, compose=or_, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.compose = compose
+
+    def filter(self, qs, value):
+        if not value:
+            return qs
+        lookup = f"{self.field_name}__{self.lookup_expr}"
+        queries = [Q(**{lookup: v}) for v in value]
+        return qs.filter(reduce(self.compose, queries))
 
 
 class SettingsFilter(FilterSet):

@@ -24,6 +24,7 @@ from api.common.permissions import RESOURCE_TYPE_MAP
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.iam.models import Customer
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
@@ -357,6 +358,7 @@ class SourcesViewTests(IamTestCase):
             self.assertEqual(response.status_code, 404)
             self.assertIsNotNone(body)
 
+    @unittest.skipIf(settings.ONPREM, "SaaS-only: per-resource-type filtering is bypassed in ONPREM mode")
     def test_sources_access(self):
         """Test the limiting of source type visibility."""
         mock_user = Mock(admin=True)
@@ -787,3 +789,104 @@ class DestroySourceMixinTests(IamTestCase):
             DestroySourceMixin.destroy(view, request=mock_request)
 
             mock_publish.assert_not_called()
+
+
+@unittest.skipUnless(settings.ONPREM, "ONPREM-only: RBAC enforcement is only enabled for on-prem")
+@override_settings(ROOT_URLCONF="koku.urls")
+class SourcesViewRbacTests(IamTestCase):
+    """Test RBAC permission enforcement on the sources endpoint."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        self.test_account = "10001"
+        self.test_org_id = "1234567"
+        user_data = self._create_user_data()
+        customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
+        self.admin_request_context = self._create_request_context(
+            customer, user_data, create_customer=True, is_admin=True
+        )
+        customer_obj = Customer.objects.get(org_id=customer.get("org_id"))
+
+        self.ocp_provider = Provider(name="RBAC Test OCP", type=Provider.PROVIDER_OCP, customer=customer_obj)
+        self.ocp_provider.save()
+        self.ocp_source = Sources(
+            source_id=9901,
+            auth_header=self.admin_request_context["request"].META,
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=9901,
+            source_type=Provider.PROVIDER_OCP,
+            name="RBAC Test OCP Source",
+            authentication={"credentials": {"cluster_id": "rbac-test-cluster"}},
+            source_uuid=self.ocp_provider.uuid,
+        )
+        self.ocp_source.save()
+
+        mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
+        SourcesViewSet.url = mock_url
+
+    @RbacPermissions({"sources": {"read": ["*"], "write": ["*"]}})
+    def test_list_with_sources_read_access(self):
+        """Test that a user with sources:*:read can list sources."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+    @RbacPermissions({"sources": {"read": ["*"], "write": ["*"]}})
+    def test_retrieve_with_sources_read_access(self):
+        """Test that a user with sources:*:read can retrieve a source."""
+        url = reverse("sources-detail", kwargs={"pk": self.ocp_source.source_id})
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+    @RbacPermissions({})
+    def test_list_without_sources_access_returns_403(self):
+        """Test that a user without sources access gets 403 on list."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+
+    @RbacPermissions({})
+    def test_retrieve_without_sources_access_returns_403(self):
+        """Test that a user without sources access gets 403 on retrieve."""
+        url = reverse("sources-detail", kwargs={"pk": self.ocp_source.source_id})
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+
+    @RbacPermissions({"sources": {"read": ["*"]}})
+    def test_list_with_read_only_access(self):
+        """Test that a user with sources read-only access can list."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+    @RbacPermissions({"sources": {"read": ["*"]}})
+    def test_create_with_read_only_access_returns_403(self):
+        """Test that a user with only read access gets 403 on create."""
+        url = reverse("sources-list")
+        payload = {
+            "name": "Forbidden Source",
+            "source_type": Provider.PROVIDER_OCP,
+            "authentication": {"credentials": {"cluster_id": "forbidden-cluster"}},
+        }
+        response = self.client.post(url, json.dumps(payload), content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+
+    @RbacPermissions({"sources": {"read": ["*"], "write": ["*"]}})
+    @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
+    def test_stats_with_sources_access(self, _):
+        """Test that a user with sources access can view stats."""
+        url = reverse("sources-stats", kwargs={"pk": self.ocp_source.source_id})
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+    @RbacPermissions({})
+    def test_stats_without_sources_access_returns_403(self):
+        """Test that a user without sources access gets 403 on stats."""
+        url = reverse("sources-stats", kwargs={"pk": self.ocp_source.source_id})
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 403)
