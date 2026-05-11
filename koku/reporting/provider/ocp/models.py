@@ -1085,7 +1085,7 @@ class RatesToUsage(models.Model):
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     labels = JSONField(null=True)
-    label_hash = models.CharField(max_length=32, null=True)
+    label_hash = models.CharField(max_length=64, null=True)
 
 
 # Import on-prem line item models so Django can discover them for migrations
