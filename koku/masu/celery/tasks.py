@@ -293,6 +293,9 @@ def _fetch_and_store_exchange_rates(url):
         if not is_valid_iso_currency(curr_type):
             LOG.warning(f"Skipping unsupported currency {curr_type}")
             continue
+        if not value or value <= 0:
+            LOG.warning(f"Skipping currency {curr_type} with invalid rate {value}")
+            continue
         try:
             exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
             LOG.info(f"Updating currency {curr_type} to {value}")
