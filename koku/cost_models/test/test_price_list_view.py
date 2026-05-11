@@ -14,6 +14,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import CostModel
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
+from cost_models.models import Rate
 
 
 class PriceListViewTests(IamTestCase):
@@ -203,6 +204,10 @@ class PriceListViewTests(IamTestCase):
         response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["version"], 1)
+
+        with tenant_context(self.tenant):
+            rate = Rate.objects.get(price_list__uuid=pl_uuid)
+            self.assertEqual(rate.description, "updated rate description")
 
     def test_update_currency_fails(self):
         """Test that updating currency fails - currency is immutable."""
