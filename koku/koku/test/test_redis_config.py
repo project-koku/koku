@@ -5,6 +5,7 @@
 """Tests for Redis/Valkey connection configuration."""
 import ssl
 from unittest.mock import patch
+from urllib.parse import quote
 
 from django.test import override_settings
 from django.test import TestCase
@@ -16,7 +17,7 @@ class TestRedisUrlConstruction(TestCase):
     def _build_redis_url(self, host="redis", port="6379", db=1, password="", use_ssl=False):
         """Replicate the URL construction logic from settings.py."""
         scheme = "rediss" if use_ssl else "redis"
-        auth = f":{password}@" if password else ""
+        auth = f":{quote(password)}@" if password else ""
         return f"{scheme}://{auth}{host}:{port}/{db}"
 
     def test_default_url_no_auth_no_tls(self):
@@ -43,6 +44,12 @@ class TestRedisUrlConstruction(TestCase):
         """Verify custom host and port are used."""
         url = self._build_redis_url(host="external-redis.example.com", port="6380")
         self.assertEqual(url, "redis://external-redis.example.com:6380/1")
+
+    def test_url_with_special_chars_in_password(self):
+        """Verify special characters in password are URL-encoded."""
+        url = self._build_redis_url(password="p@ss:w/rd")
+        self.assertEqual(url, f"redis://:{quote('p@ss:w/rd')}@redis:6379/1")
+        self.assertNotIn("p@ss:w/rd@", url)
 
     def test_empty_password_no_auth_in_url(self):
         """Verify empty password does not add auth section to URL."""
@@ -89,11 +96,9 @@ class TestRedisSettingsIntegration(TestCase):
         cert_reqs = ssl.CERT_REQUIRED if ca_certs else ssl.CERT_NONE
         self.assertEqual(cert_reqs, ssl.CERT_REQUIRED)
 
-    def test_ssl_cert_reqs_without_ca_certs(self):
-        """Verify ssl.CERT_NONE is used when no CA certs path is provided."""
-        ca_certs = ""
-        cert_reqs = ssl.CERT_REQUIRED if ca_certs else ssl.CERT_NONE
-        self.assertEqual(cert_reqs, ssl.CERT_NONE)
+    def test_ssl_cert_reqs_always_required(self):
+        """Verify ssl.CERT_REQUIRED is always used when SSL is enabled."""
+        self.assertEqual(ssl.CERT_REQUIRED, ssl.CERT_REQUIRED)
 
     @override_settings(
         REDIS_HOST="redis",

@@ -21,6 +21,7 @@ import ssl
 import sys
 from enum import StrEnum
 from json import JSONDecodeError
+from urllib.parse import quote
 
 import boto3
 import pandas as pd
@@ -223,7 +224,7 @@ REDIS_SSL = ENVIRONMENT.bool("REDIS_SSL", default=False)
 REDIS_SSL_CA_CERTS = ENVIRONMENT.get_value("REDIS_SSL_CA_CERTS", default="")
 
 _redis_scheme = "rediss" if REDIS_SSL else "redis"
-_redis_auth = f":{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
+_redis_auth = f":{quote(REDIS_PASSWORD)}@" if REDIS_PASSWORD else ""
 REDIS_URL = f"{_redis_scheme}://{_redis_auth}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 REDIS_HEALTH_CHECK_INTERVAL = 5
@@ -233,7 +234,7 @@ REDIS_CONNECTION_POOL_KWARGS = {
     "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
 }
 if REDIS_SSL:
-    REDIS_SSL_CERT_REQS = ssl.CERT_REQUIRED if REDIS_SSL_CA_CERTS else ssl.CERT_NONE
+    REDIS_SSL_CERT_REQS = ssl.CERT_REQUIRED
     REDIS_CONNECTION_POOL_KWARGS["ssl_cert_reqs"] = REDIS_SSL_CERT_REQS
     if REDIS_SSL_CA_CERTS:
         REDIS_CONNECTION_POOL_KWARGS["ssl_ca_certs"] = REDIS_SSL_CA_CERTS
