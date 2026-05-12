@@ -48,7 +48,7 @@ def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None
             host=settings.REDIS_HOST,
             port=settings.REDIS_PORT,
             db=settings.REDIS_DB,
-            password=settings.REDIS_PASSWORD,
+            password=settings.REDIS_PASSWORD or None,
             ssl=settings.REDIS_SSL,
             **settings.REDIS_CONNECTION_POOL_KWARGS,
         )
