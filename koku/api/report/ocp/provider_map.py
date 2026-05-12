@@ -22,7 +22,6 @@ from django.db.models import When
 from django.db.models.functions import Cast
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
-from django.db.models.functions import Greatest
 from django.db.models.functions import JSONObject
 from django.db.models.functions import Round
 from django.db.models.functions.comparison import NullIf
@@ -193,45 +192,6 @@ class OCPProviderMap(ProviderMap):
             )
             * Coalesce(exchange_rate_column, Value(1, output_field=DecimalField())),
         )
-
-    def _cpu_usage_sum(self):
-        """Return a new Sum expression for CPU usage hours."""
-        return Sum(Coalesce(F("pod_usage_cpu_core_hours"), Value(0, output_field=DecimalField())))
-
-    def _cpu_request_sum(self):
-        """Return a new Sum expression for CPU request hours."""
-        return Sum(Coalesce(F("pod_request_cpu_core_hours"), Value(0, output_field=DecimalField())))
-
-    def _memory_usage_sum(self):
-        """Return a new Sum expression for memory usage hours."""
-        return Sum(Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0, output_field=DecimalField())))
-
-    def _memory_request_sum(self):
-        """Return a new Sum expression for memory request hours."""
-        return Sum(Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0, output_field=DecimalField())))
-
-    def _efficiency_annotations(self, usage_sum_prop, request_sum_prop, cost_total_expr):
-        """Build usage_efficiency and wasted_cost annotation expressions."""
-        _dec = DecimalField(max_digits=33, decimal_places=15)
-        return {
-            "usage_efficiency": Coalesce(
-                Round(usage_sum_prop / NullIf(request_sum_prop, Value(0, output_field=_dec)) * Value(100)),
-                Value(0),
-                output_field=IntegerField(),
-            ),
-            "wasted_cost": Coalesce(
-                Greatest(
-                    cost_total_expr
-                    * (
-                        Value(1, output_field=_dec)
-                        - usage_sum_prop / NullIf(request_sum_prop, Value(0, output_field=_dec))
-                    ),
-                    Value(0, output_field=_dec),
-                ),
-                Value(0, output_field=_dec),
-                output_field=_dec,
-            ),
-        }
 
     def __init__(self, provider, report_type, schema_name):
         """Constructor."""
@@ -441,11 +401,23 @@ class OCPProviderMap(ProviderMap):
                                 "pod_request_cpu_core_hours", default=Value(0, output_field=DecimalField())
                             ),
                             "limit": Sum("pod_limit_cpu_core_hours", default=Value(0, output_field=DecimalField())),
-                            **self._efficiency_annotations(
-                                self._cpu_usage_sum(),
-                                self._cpu_request_sum(),
-                                self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
+                            "usage_efficiency": Coalesce(
+                                Round(
+                                    Sum(Coalesce(F("pod_usage_cpu_core_hours"), Value(0, output_field=DecimalField())))
+                                    / NullIf(
+                                        Sum(
+                                            Coalesce(
+                                                F("pod_request_cpu_core_hours"), Value(0, output_field=DecimalField())
+                                            )
+                                        ),
+                                        Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                    )
+                                    * Value(100)
+                                ),
+                                Value(0),
+                                output_field=IntegerField(),
                             ),
+                            "wasted_cost": Sum(Value(0, output_field=DecimalField())),
                         },
                         "capacity_aggregate": {
                             "cluster": {
@@ -501,11 +473,23 @@ class OCPProviderMap(ProviderMap):
                             "limit": Sum(
                                 Coalesce(F("pod_limit_cpu_core_hours"), Value(0, output_field=DecimalField()))
                             ),
-                            **self._efficiency_annotations(
-                                self._cpu_usage_sum(),
-                                self._cpu_request_sum(),
-                                self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
+                            "usage_efficiency": Coalesce(
+                                Round(
+                                    Sum(Coalesce(F("pod_usage_cpu_core_hours"), Value(0, output_field=DecimalField())))
+                                    / NullIf(
+                                        Sum(
+                                            Coalesce(
+                                                F("pod_request_cpu_core_hours"), Value(0, output_field=DecimalField())
+                                            )
+                                        ),
+                                        Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                    )
+                                    * Value(100)
+                                ),
+                                Value(0),
+                                output_field=IntegerField(),
                             ),
+                            "wasted_cost": Sum(Value(0, output_field=DecimalField())),
                             "capacity": Max("cluster_capacity_cpu_core_hours"),  # overwritten in capacity aggregation
                             "clusters": ArrayAgg(
                                 Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
@@ -598,11 +582,28 @@ class OCPProviderMap(ProviderMap):
                             "limit": Sum(
                                 "pod_limit_memory_gigabyte_hours", default=Value(0, output_field=DecimalField())
                             ),
-                            **self._efficiency_annotations(
-                                self._memory_usage_sum(),
-                                self._memory_request_sum(),
-                                self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_memory_cost,
+                            "usage_efficiency": Coalesce(
+                                Round(
+                                    Sum(
+                                        Coalesce(
+                                            F("pod_usage_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                        )
+                                    )
+                                    / NullIf(
+                                        Sum(
+                                            Coalesce(
+                                                F("pod_request_memory_gigabyte_hours"),
+                                                Value(0, output_field=DecimalField()),
+                                            )
+                                        ),
+                                        Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                    )
+                                    * Value(100)
+                                ),
+                                Value(0),
+                                output_field=IntegerField(),
                             ),
+                            "wasted_cost": Sum(Value(0, output_field=DecimalField())),
                         },
                         "capacity_aggregate": {
                             "cluster": {
@@ -659,11 +660,28 @@ class OCPProviderMap(ProviderMap):
                             "limit": Sum(
                                 Coalesce(F("pod_limit_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
                             ),
-                            **self._efficiency_annotations(
-                                self._memory_usage_sum(),
-                                self._memory_request_sum(),
-                                self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_memory_cost,
+                            "usage_efficiency": Coalesce(
+                                Round(
+                                    Sum(
+                                        Coalesce(
+                                            F("pod_usage_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                        )
+                                    )
+                                    / NullIf(
+                                        Sum(
+                                            Coalesce(
+                                                F("pod_request_memory_gigabyte_hours"),
+                                                Value(0, output_field=DecimalField()),
+                                            )
+                                        ),
+                                        Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                    )
+                                    * Value(100)
+                                ),
+                                Value(0),
+                                output_field=IntegerField(),
                             ),
+                            "wasted_cost": Sum(Value(0, output_field=DecimalField())),
                             "capacity": Max(
                                 "cluster_capacity_memory_gigabyte_hours"
                             ),  # This is to keep the order, overwritten with capacity aggregate
