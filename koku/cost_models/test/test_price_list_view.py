@@ -15,6 +15,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import CostModel
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
+from cost_models.models import Rate
 
 
 class PriceListViewTests(IamTestCase):
@@ -220,6 +221,42 @@ class PriceListViewTests(IamTestCase):
         response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["version"], 2)
+
+    def test_update_metadata_does_not_increment_version(self):
+        """Test that metadata-only updates do not increment version."""
+        create_response = self._create_price_list()
+        pl_uuid = create_response.data["uuid"]
+        self.assertEqual(create_response.data["version"], 1)
+
+        detail_url = reverse("price-lists-detail", kwargs={"uuid": pl_uuid})
+
+        update_data = dict(create_response.data)
+        update_data["name"] = "Renamed"
+        response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["version"], 1)
+
+        update_data = dict(response.data)
+        update_data["description"] = "new desc"
+        response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["version"], 1)
+
+        update_data = dict(response.data)
+        response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["version"], 1)
+
+        update_data = dict(response.data)
+        update_data["rates"] = [dict(r) for r in update_data["rates"]]
+        update_data["rates"][0]["description"] = "updated rate description"
+        response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["version"], 1)
+
+        with tenant_context(self.tenant):
+            rate = Rate.objects.get(price_list__uuid=pl_uuid)
+            self.assertEqual(rate.description, "updated rate description")
 
     def test_update_currency_fails(self):
         """Test that updating currency fails - currency is immutable."""
