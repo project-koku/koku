@@ -44,12 +44,15 @@ def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None
     """
     cache = caches[cache_name]
     if isinstance(cache, RedisCache):  # pragma: no cover
-        cache = Redis(
+        redis_kwargs = dict(
             host=settings.REDIS_HOST,
             port=settings.REDIS_PORT,
             db=settings.REDIS_DB,
+            password=settings.REDIS_PASSWORD or None,
+            ssl=settings.REDIS_SSL,
             **settings.REDIS_CONNECTION_POOL_KWARGS,
         )
+        cache = Redis(**redis_kwargs)
         all_keys = cache.keys("*")
         all_keys = [key.decode("utf-8") for key in all_keys]
     elif isinstance(cache, LocMemCache):
