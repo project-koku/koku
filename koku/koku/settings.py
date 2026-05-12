@@ -219,7 +219,7 @@ HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 REDIS_HOST = CONFIGURATOR.get_in_memory_db_host()
 REDIS_PORT = CONFIGURATOR.get_in_memory_db_port()
 REDIS_DB = 1
-REDIS_PASSWORD = ENVIRONMENT.get_value("REDIS_PASSWORD", default="")
+REDIS_PASSWORD = ENVIRONMENT.get_value("REDIS_PASSWORD", default="") or None
 REDIS_SSL = ENVIRONMENT.bool("REDIS_SSL", default=False)
 REDIS_SSL_CA_CERTS = ENVIRONMENT.get_value("REDIS_SSL_CA_CERTS", default="")
 
