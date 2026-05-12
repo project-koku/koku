@@ -355,7 +355,7 @@ def get_daily_currency_rates():
     return rate_metrics
 
 
-@celery_app.task(name="masu.celery.scrape_azure_storage_capacities", queue=DEFAULT)
+@celery_app.task(name="masu.celery.tasks.scrape_azure_storage_capacities", queue=DEFAULT)
 def scrape_azure_storage_capacities():
     """Task to retrieve the Azure disk capacities.
 
