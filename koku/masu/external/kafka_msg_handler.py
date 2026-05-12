@@ -384,13 +384,15 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
         )
     )
     org_id = context["org_id"]
-    schema_name_for_flag = Customer.objects.filter(org_id=org_id).values_list("schema_name", flat=True).first()
-    skip_org_id_filter = bool(
-        schema_name_for_flag and is_feature_flag_enabled_by_schema(schema_name_for_flag, CROSS_ORG_CLUSTER_LOOKUP_FLAG)
-    )
-    source = utils.get_source_and_provider_from_cluster_id(
-        manifest.cluster_id, org_id=org_id, skip_org_id_filter=skip_org_id_filter
-    )
+    source = utils.get_source_and_provider_from_cluster_id(manifest.cluster_id, org_id=org_id)
+    if not source:
+        schema_name_for_flag = Customer.objects.filter(org_id=org_id).values_list("schema_name", flat=True).first()
+        if schema_name_for_flag and is_feature_flag_enabled_by_schema(
+            schema_name_for_flag, CROSS_ORG_CLUSTER_LOOKUP_FLAG
+        ):
+            source = utils.get_source_and_provider_from_cluster_id(
+                manifest.cluster_id, org_id=org_id, skip_org_id_filter=True
+            )
     if not source:
         msg = f"Received unexpected OCP report from {manifest.cluster_id}"
         LOG.warning(log_json(manifest.uuid, msg=msg, context=context))

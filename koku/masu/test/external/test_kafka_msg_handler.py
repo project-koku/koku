@@ -822,8 +822,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_data_dir)
 
-    def test_extract_payload_cross_org_flag_disabled(self):
-        """Test that cluster ID lookup is called with skip_org_id_filter=False when flag is off."""
+    def test_extract_payload_cross_org_flag_not_checked_on_successful_lookup(self):
+        """Test that the feature flag is never consulted when the standard org_id lookup succeeds."""
         payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.tarball_file)
@@ -834,11 +834,10 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         patch(
                             "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
                             return_value=self.ocp_source,
-                        ) as mock_lookup,
+                        ),
                         patch(
                             "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema",
-                            return_value=False,
-                        ),
+                        ) as mock_flag,
                         patch("masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1),
                         patch("masu.external.kafka_msg_handler.record_report_status", returns=None),
                     ):
@@ -848,12 +847,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
                             "fake_identity",
                             {"account": "1234", "org_id": "5678"},
                         )
-                        _, call_kwargs = mock_lookup.call_args
-                        self.assertFalse(call_kwargs.get("skip_org_id_filter", False))
+                        mock_flag.assert_not_called()
                         shutil.rmtree(fake_dir)
 
-    def test_extract_payload_cross_org_flag_enabled(self):
-        """Test that get_source_and_provider_from_cluster_id is called with skip_org_id_filter=True when flag is on."""
+    def test_extract_payload_cross_org_flag_enabled_retries_without_org_filter(self):
+        """Test that when standard lookup fails and flag is on, a cross-org lookup is attempted."""
         payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.tarball_file)
@@ -863,12 +861,13 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     with (
                         patch(
                             "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
-                            return_value=self.ocp_source,
+                            side_effect=[None, self.ocp_source],
                         ) as mock_lookup,
                         patch(
                             "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema",
                             return_value=True,
                         ),
+                        patch("masu.external.kafka_msg_handler.Customer"),
                         patch("masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1),
                         patch("masu.external.kafka_msg_handler.record_report_status", returns=None),
                     ):
@@ -878,8 +877,37 @@ class KafkaMsgHandlerTest(MasuTestCase):
                             "fake_identity",
                             {"account": "1234", "org_id": self.org_id},
                         )
-                        _, call_kwargs = mock_lookup.call_args
-                        self.assertTrue(call_kwargs.get("skip_org_id_filter"))
+                        self.assertEqual(mock_lookup.call_count, 2)
+                        _, second_call_kwargs = mock_lookup.call_args
+                        self.assertTrue(second_call_kwargs.get("skip_org_id_filter"))
+                        shutil.rmtree(fake_dir)
+
+    def test_extract_payload_cross_org_flag_disabled_does_not_retry(self):
+        """Test that when standard lookup fails and flag is off, no cross-org retry is attempted."""
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=self.tarball_file)
+            fake_dir = tempfile.mkdtemp()
+            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
+                with patch.object(Config, "TMP_DIR", fake_dir):
+                    with (
+                        patch(
+                            "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                            return_value=None,
+                        ) as mock_lookup,
+                        patch(
+                            "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema",
+                            return_value=False,
+                        ),
+                        patch("masu.external.kafka_msg_handler.Customer"),
+                    ):
+                        msg_handler.extract_payload(
+                            payload_url,
+                            "test_request_id",
+                            "fake_identity",
+                            {"account": "1234", "org_id": "5678"},
+                        )
+                        self.assertEqual(mock_lookup.call_count, 1)
                         shutil.rmtree(fake_dir)
 
     @patch("masu.external.kafka_msg_handler.ROSReportShipper")
