@@ -6,8 +6,19 @@
 Handler module for gathering configuration data.
 """
 import pathlib
+from dataclasses import dataclass
 
 from .env import ENVIRONMENT
+
+
+@dataclass
+class KafkaSASLConfig:
+    """SASL authentication config matching the Clowder broker SASL interface."""
+
+    securityProtocol: str
+    saslMechanism: str
+    username: str
+    password: str
 
 
 CLOWDER_ENABLED = ENVIRONMENT.bool("CLOWDER_ENABLED", default=False)
@@ -217,18 +228,26 @@ class EnvConfigurator(Configurator):
 
     @staticmethod
     def get_kafka_sasl():
-        """Obtain kafka sasl"""
-        return {}
+        """Obtain kafka sasl from environment variables."""
+        if EnvConfigurator.get_kafka_authtype() == "sasl":
+            return KafkaSASLConfig(
+                securityProtocol=ENVIRONMENT.get_value("KAFKA_SECURITY_PROTOCOL", default="SASL_SSL"),
+                saslMechanism=ENVIRONMENT.get_value("KAFKA_SASL_MECHANISM", default=None),
+                username=ENVIRONMENT.get_value("KAFKA_SASL_USERNAME", default=""),
+                password=ENVIRONMENT.get_value("KAFKA_SASL_PASSWORD", default=""),
+            )
+        return None
 
     @staticmethod
     def get_kafka_cacert():
-        """Obtain kafka CA Certificate"""
-        return None
+        """Obtain kafka CA Certificate from environment variable."""
+        return ENVIRONMENT.get_value("KAFKA_SSL_CA_LOCATION", default=None)
 
     @staticmethod
     def get_kafka_authtype():
-        """Obtain kafka Authentication Type"""
-        return None
+        """Obtain kafka Authentication Type from environment variable."""
+        mechanism = ENVIRONMENT.get_value("KAFKA_SASL_MECHANISM", default=None)
+        return "sasl" if mechanism else None
 
     @staticmethod
     def get_cloudwatch_access_id():
