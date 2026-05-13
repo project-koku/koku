@@ -5,6 +5,7 @@
 """Test the CostModelDBAccessor utility object."""
 import random
 from datetime import date
+from unittest.mock import patch
 
 from django_tenants.utils import schema_context
 
@@ -450,8 +451,10 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
             rates = cost_model_accessor.effective_rates
             self.assertEqual(rates, cost_model_accessor.cost_model.rates)
 
-    def test_effective_rates_with_price_list_effective_on_uses_price_list(self):
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_effective_rates_with_price_list_effective_on_uses_price_list(self, _mock_flag):
         """Test that effective_rates resolves via price list when price_list_effective_on is provided."""
+        target_date = date(2026, 6, 15)
         with schema_context(self.schema):
             cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
             test_rates = [
@@ -461,6 +464,7 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
                     "cost_type": "Infrastructure",
                 }
             ]
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
             pl = PriceList.objects.create(
                 name="Test PL",
                 effective_start_date=date(2026, 1, 1),
@@ -470,15 +474,19 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
             PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model, priority=1)
 
         with CostModelDBAccessor(
-            self.schema, self.provider_uuid, price_list_effective_on=date(2026, 6, 15)
+            self.schema, self.provider_uuid, price_list_effective_on=target_date
         ) as cost_model_accessor:
+            cost_model_accessor.price_list_effective_on = target_date
             rates = cost_model_accessor.effective_rates
             self.assertEqual(rates, test_rates)
 
-    def test_effective_rates_with_price_list_effective_on_no_matching_price_list(self):
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_effective_rates_with_price_list_effective_on_no_matching_price_list(self, _mock_flag):
         """Test that effective_rates returns empty when no price list covers the date."""
+        target_date = date(2100, 6, 1)
         with CostModelDBAccessor(
-            self.schema, self.provider_uuid, price_list_effective_on=date(2099, 1, 1)
+            self.schema, self.provider_uuid, price_list_effective_on=target_date
         ) as cost_model_accessor:
+            cost_model_accessor.price_list_effective_on = target_date
             rates = cost_model_accessor.effective_rates
             self.assertEqual(rates, {})

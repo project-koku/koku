@@ -18,7 +18,7 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
-from cost_models.rate_sync import derive_metric_type  # noqa: F401 — re-exported for back-compat
+from cost_models.rate_sync import derive_metric_type  # noqa: F401 — back-compat re-export
 from cost_models.rate_sync import extract_default_rate  # noqa: F401
 from cost_models.rate_sync import generate_custom_name  # noqa: F401
 from cost_models.rate_sync import sync_rate_table
@@ -86,7 +86,6 @@ class CostModelManager:
             CostModelMap.objects.filter(provider_uuid=provider_uuid, cost_model=self._model).delete()
 
         for provider_uuid in providers_to_create:
-            # Raise exception if source is already associated with another cost model.
             existing_cost_model = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             if existing_cost_model.exists():
                 cost_model_uuid = existing_cost_model.first().cost_model.uuid
@@ -99,7 +98,6 @@ class CostModelManager:
         end_date = DateHelper().today.strftime("%Y-%m-%d")
         for provider_uuid in all_providers:
             tracing_id = uuid.uuid4()
-            # Update cost-model costs for each provider, on every PUT/DELETE
             try:
                 provider = Provider.objects.get(uuid=provider_uuid)
             except Provider.DoesNotExist:
@@ -108,7 +106,6 @@ class CostModelManager:
                 if provider.active:
                     schema_name = provider.customer.schema_name
                     fallback_queue = get_customer_queue(schema_name, PriorityQueue)
-                    # Because this is triggered from the UI, we use the priority queue
                     LOG.info(
                         f"provider {provider_uuid} update for cost model {self._cost_model_uuid} "
                         + f"with tracing_id {tracing_id}"
