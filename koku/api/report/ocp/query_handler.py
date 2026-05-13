@@ -471,14 +471,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self._report_type in ("cpu", "memory"):
                 has_tag_interaction = self._tag_group_by or self.get_tag_filter_keys()
                 should_compute = not has_tag_interaction and len(group_by_value) <= 1
-                # Compute wasted_cost from the finest available grain (per-pod daily rows)
-                # rather than from the pre-aggregated summary table buckets. Bucket-level
-                # aggregation causes over- and under-utilised pods to cancel, collapsing
-                # the waste formula toward zero even when real per-pod waste exists.
-                line_item_waste: dict = {}
-                if should_compute:
-                    line_item_waste = self._line_item_wasted_cost(query_group_by)
-                    query_sum["wasted_cost"] = line_item_waste.get("__total__", Decimal(0))
+                # # should_compute = False
+                # # Compute wasted_cost from the finest available grain (per-pod daily rows)
+                # # rather than from the pre-aggregated summary table buckets. Bucket-level
+                # # aggregation causes over- and under-utilised pods to cancel, collapsing
+                # # the waste formula toward zero even when real per-pod waste exists.
+                # line_item_waste: dict = {}
+                # if should_compute:
+                #     line_item_waste = self._line_item_wasted_cost(query_group_by)
+                #     query_sum["wasted_cost"] = line_item_waste.get("__total__", Decimal(0))
                 self._pack_score(query_sum, should_compute)
 
             if self._delta:
@@ -488,9 +489,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self._report_type in ("cpu", "memory"):
                 for row in query_data:
-                    if should_compute:
-                        key = tuple(row.get(g) for g in query_group_by)
-                        row["wasted_cost"] = line_item_waste.get(key, Decimal(0))
+                    # if should_compute:
+                    #     key = tuple(row.get(g) for g in query_group_by)
+                    #     row["wasted_cost"] = line_item_waste.get(key, Decimal(0))
                     self._pack_score(row, should_compute)
 
             for row in query_data:
