@@ -219,12 +219,18 @@ HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 REDIS_HOST = CONFIGURATOR.get_in_memory_db_host()
 REDIS_PORT = CONFIGURATOR.get_in_memory_db_port()
 REDIS_DB = 1
-REDIS_PASSWORD = ENVIRONMENT.get_value("REDIS_PASSWORD", default="")
+REDIS_USERNAME = ENVIRONMENT.get_value("REDIS_USERNAME", default="") or None
+REDIS_PASSWORD = ENVIRONMENT.get_value("REDIS_PASSWORD", default="") or None
 REDIS_SSL = ENVIRONMENT.bool("REDIS_SSL", default=False)
 REDIS_SSL_CA_CERTS = ENVIRONMENT.get_value("REDIS_SSL_CA_CERTS", default="")
 
 _redis_scheme = "rediss" if REDIS_SSL else "redis"
-_redis_auth = f":{quote(REDIS_PASSWORD)}@" if REDIS_PASSWORD else ""
+if REDIS_USERNAME and REDIS_PASSWORD:
+    _redis_auth = f"{quote(REDIS_USERNAME)}:{quote(REDIS_PASSWORD)}@"
+elif REDIS_PASSWORD:
+    _redis_auth = f":{quote(REDIS_PASSWORD)}@"
+else:
+    _redis_auth = ""
 REDIS_URL = f"{_redis_scheme}://{_redis_auth}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 REDIS_HEALTH_CHECK_INTERVAL = 5

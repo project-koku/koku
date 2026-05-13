@@ -84,7 +84,7 @@ def clear_celery_queues(request):
                 host=settings.REDIS_HOST,
                 port=settings.REDIS_PORT,
                 db=settings.REDIS_DB,
-                password=settings.REDIS_PASSWORD or None,
+                password=settings.REDIS_PASSWORD,
                 ssl=settings.REDIS_SSL,
                 **settings.REDIS_CONNECTION_POOL_KWARGS,
             )
@@ -96,7 +96,7 @@ def clear_celery_queues(request):
                 host=settings.REDIS_HOST,
                 port=settings.REDIS_PORT,
                 db=settings.REDIS_DB,
-                password=settings.REDIS_PASSWORD or None,
+                password=settings.REDIS_PASSWORD,
                 ssl=settings.REDIS_SSL,
                 **settings.REDIS_CONNECTION_POOL_KWARGS,
             )
