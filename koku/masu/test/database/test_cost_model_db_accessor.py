@@ -630,7 +630,10 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
             cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
             PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
             pl = PriceList.objects.create(
-                name="Apr", effective_start_date=date(2026, 4, 1), effective_end_date=date(2026, 4, 30), rates=rates_json
+                name="Apr",
+                effective_start_date=date(2026, 4, 1),
+                effective_end_date=date(2026, 4, 30),
+                rates=rates_json,
             )
             PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model, priority=1)
             Rate.objects.create(
