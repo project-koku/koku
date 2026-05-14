@@ -494,9 +494,7 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
 
     def _make_price_list(self, cost_model, name, start, end, priority=1):
         """Create a PriceList linked to cost_model with a single CPU rate."""
-        pl = PriceList.objects.create(
-            name=name, effective_start_date=start, effective_end_date=end, rates=[]
-        )
+        pl = PriceList.objects.create(name=name, effective_start_date=start, effective_end_date=end, rates=[])
         PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model, priority=priority)
         rate = Rate.objects.create(
             price_list=pl,
@@ -519,9 +517,7 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
         """Without price_list_effective_on, every Rate row for the cost model is returned."""
         with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=None) as accessor:
             rate_map = accessor.rate_info_map
-            expected = Rate.objects.filter(
-                price_list__cost_model_maps__cost_model=accessor.cost_model
-            ).count()
+            expected = Rate.objects.filter(price_list__cost_model_maps__cost_model=accessor.cost_model).count()
             self.assertEqual(len(rate_map), expected)
             for info in rate_map.values():
                 self.assertIn("rate_uuid", info)
@@ -633,7 +629,8 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
                 has_rates = bool(acc.effective_rates)
                 has_info = bool(acc.rate_info_map)
                 self.assertEqual(
-                    has_rates, has_info,
+                    has_rates,
+                    has_info,
                     f"effective_rates and rate_info_map disagree for {label} date {test_date}",
                 )
 

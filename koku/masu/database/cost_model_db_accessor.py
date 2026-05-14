@@ -6,6 +6,7 @@
 import copy
 import logging
 from collections import defaultdict
+from functools import cached_property
 
 from django.db import transaction
 
@@ -188,8 +189,10 @@ class CostModelDBAccessor:
                 return {}
             rate_rows = effective_pl.rate_rows.only("uuid", "metric", "cost_type", "custom_name", "tag_key")
         else:
-            rate_rows = Rate.objects.filter(price_list__cost_model_maps__cost_model=self.cost_model).only(
-                "uuid", "metric", "cost_type", "custom_name", "tag_key"
+            rate_rows = (
+                Rate.objects.filter(price_list__cost_model_maps__cost_model=self.cost_model)
+                .order_by("-price_list__cost_model_maps__priority")
+                .only("uuid", "metric", "cost_type", "custom_name", "tag_key")
             )
         return {
             (rate.metric, rate.cost_type, rate.tag_key or ""): {
