@@ -547,3 +547,43 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
         ) as accessor:
             rate_map = accessor.rate_info_map
             self.assertEqual(rate_map, {})
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_rate_info_map_respects_validity_period_across_months(self, _mock_flag):
+        """Regression test for COST-7492: rates must not leak across validity periods.
+
+        Creates a price list valid only for April 2026. Querying rate_info_map
+        for an April date must return the rates; querying for May must return
+        nothing, ensuring costs are not calculated outside the validity window.
+        """
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+
+            april_pl = PriceList.objects.create(
+                name="April Only PL",
+                effective_start_date=date(2026, 4, 1),
+                effective_end_date=date(2026, 4, 30),
+                rates=[],
+            )
+            PriceListCostModelMap.objects.create(price_list=april_pl, cost_model=cost_model, priority=1)
+            Rate.objects.create(
+                price_list=april_pl,
+                custom_name="april-cpu-rate",
+                metric="cpu_core_usage_per_hour",
+                metric_type="cpu",
+                cost_type="Supplementary",
+                default_rate="4.40",
+            )
+
+        with CostModelDBAccessor(
+            self.schema, self.provider_uuid, price_list_effective_on=date(2026, 4, 15)
+        ) as accessor:
+            april_map = accessor.rate_info_map
+            self.assertEqual(len(april_map), 1, "April should return the rate")
+
+        with CostModelDBAccessor(
+            self.schema, self.provider_uuid, price_list_effective_on=date(2026, 5, 12)
+        ) as accessor:
+            may_map = accessor.rate_info_map
+            self.assertEqual(may_map, {}, "May should return no rates — price list only covers April")
