@@ -83,15 +83,15 @@ class AzureClientFactory:
             client.get_account_information()
             return client
         except HttpResponseError as httpError:
+            error_msg = str(httpError)
             listkeys_err = (
                 "does not have authorization to perform action 'Microsoft.Storage/storageAccounts/listKeys/action'"
             )
             key_disabled_err = "KeyBasedAuthenticationNotPermitted"
-            if listkeys_err not in str(httpError) and key_disabled_err not in str(httpError):
+            if listkeys_err not in error_msg and key_disabled_err not in error_msg:
                 raise httpError
             LOG.warning(
-                "falling back to non storage account key access: "
-                f"unable to use storage account keys: {str(httpError)}"
+                "falling back to non storage account key access: " f"unable to use storage account keys: {error_msg}"
             )
             return BlobServiceClient(account_url, self.credentials)
 
