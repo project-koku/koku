@@ -15,21 +15,12 @@ from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
-from django.db.models import Sum
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
-from django.db.models.functions import Greatest
-from django.db.models.functions.comparison import NullIf
 from django_tenants.utils import tenant_context
 
-from api.metrics.constants import OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR
-from api.metrics.constants import OCP_METRIC_CPU_CORE_REQUEST_HOUR
-from api.metrics.constants import OCP_METRIC_CPU_CORE_USAGE_HOUR
-from api.metrics.constants import OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR
-from api.metrics.constants import OCP_METRIC_MEM_GB_REQUEST_HOUR
-from api.metrics.constants import OCP_METRIC_MEM_GB_USAGE_HOUR
 from api.models import Provider
 from api.report.ocp.capacity.cluster_capacity import calculate_unused
 from api.report.ocp.capacity.cluster_capacity import ClusterCapacity
@@ -40,7 +31,6 @@ from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
-from reporting.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -49,16 +39,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for OCP."""
 
     provider = Provider.PROVIDER_OCP
-
-    _CPU_HOUR_METRICS = frozenset(
-        {OCP_METRIC_CPU_CORE_USAGE_HOUR, OCP_METRIC_CPU_CORE_REQUEST_HOUR, OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR}
-    )
-    _MEM_HOUR_METRICS = frozenset(
-        {OCP_METRIC_MEM_GB_USAGE_HOUR, OCP_METRIC_MEM_GB_REQUEST_HOUR, OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR}
-    )
-    _SENTINEL_NAMESPACES = frozenset(
-        ["Worker unallocated", "Platform unallocated", "Network unattributed", "Storage unattributed"]
-    )
 
     def __init__(self, parameters):
         """Establish OCP report query handler.
@@ -276,154 +256,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             score["wasted_cost"] = {"value": wasted, "units": self.currency}
 
         row["score"] = score
-
-    def _rate_sum_by_source(self, metric_names: frozenset) -> dict:
-        """Return {source_uuid_str: sum_of_flat_tier_values_in_cost_model_currency}.
-
-        Parses CostModel.rates (a JSON list) and sums all rate values whose metric
-        name is in metric_names.  Two structures are handled:
-
-        * ``tiered_rates`` – a list of tier dicts each with a ``value`` key.
-        * ``tag_rates``    – a dict with a ``tag_values`` list; only entries where
-          ``default`` is true are included.  These apply to every pod that does not
-          match a more-specific tag value (in practice, to all pods in the common
-          case of a single-value tag rule with ``default: true``).
-        """
-        rate_by_cm: dict = {}
-        for row in CostModel.objects.all().values("uuid", "rates"):
-            total = Decimal("0")
-            for rate_entry in row["rates"] or []:
-                if rate_entry.get("metric", {}).get("name") in metric_names:
-                    for tier in rate_entry.get("tiered_rates", []):
-                        total += Decimal(str(tier.get("value", 0)))
-                    for tv in (rate_entry.get("tag_rates", {}) or {}).get("tag_values", []) or []:
-                        if tv.get("default"):
-                            total += Decimal(str(tv.get("value", 0)))
-            rate_by_cm[str(row["uuid"])] = total
-
-        return {
-            str(mapping_row["provider_uuid"]): rate_by_cm.get(str(mapping_row["cost_model_id"]), Decimal("0"))
-            for mapping_row in CostModelMap.objects.all().values("provider_uuid", "cost_model_id")
-        }
-
-    def _line_item_wasted_cost(self, group_by: list) -> dict:
-        """Compute wasted_cost from OCPUsageLineItemDailySummary at daily per-pod grain.
-
-        OCP pod summary tables (OCPPodSummaryP, etc.) aggregate across all pods within
-        a cluster/namespace/node before storing. When over-utilised and under-utilised
-        pods are pooled together their usage/request ratio approaches 1, driving the
-        waste formula toward zero at the bucket level while real per-pod waste remains.
-        This method queries the finest available grain (per-pod daily rows) so the
-        clamped-waste formula is evaluated before any cross-pod aggregation.
-
-        The per-row cost basis is:
-          max(usage, request) × total_rate_from_cost_model × exchange_rate
-          + infrastructure_raw_cost × infra_exchange_rate
-          + infrastructure_markup_cost × infra_exchange_rate
-
-        max(usage, request) is evaluated on the already-aggregated row (not the stored
-        pod_effective_usage field, which is sum(max(u_i, r_i)) per individual pod and
-        can exceed max(sum_u, sum_r) when the group contains both over- and
-        under-utilised pods). Using the row-level max matches the product's wasted-cost
-        definition and the integration test fixture.
-
-        Rates are read from the CostModel table at query time so the computation is
-        correct whether or not the cost model application SQL has already run.
-        Only original rows (cost_model_rate_type IS NULL) are queried to avoid
-        double-counting when the cost model has been applied.
-
-        Args:
-            group_by: the query_group_by list used by execute_query (["date", ...]).
-
-        Returns:
-            A dict keyed by tuple(*group_by field values) → Decimal waste.
-            The sentinel key '__total__' holds the overall waste sum.
-        """
-        _dec = DecimalField(max_digits=33, decimal_places=15)
-
-        if self._report_type == "cpu":
-            usage_field = "pod_usage_cpu_core_hours"
-            effective_field = "pod_effective_usage_cpu_core_hours"
-            rate_by_source = self._rate_sum_by_source(self._CPU_HOUR_METRICS)
-        else:
-            usage_field = "pod_usage_memory_gigabyte_hours"
-            effective_field = "pod_effective_usage_memory_gigabyte_hours"
-            rate_by_source = self._rate_sum_by_source(self._MEM_HOUR_METRICS)
-
-        # Per-source rate annotation: Case(When(source_uuid=X, then=rate_X), ..., default=0)
-        rate_whens = [
-            When(**{"source_uuid": uuid, "then": Value(rate, output_field=_dec)})
-            for uuid, rate in rate_by_source.items()
-            if rate
-        ]
-        rate_ann = (
-            Case(*rate_whens, default=Value(Decimal("0"), output_field=_dec), output_field=_dec)
-            if rate_whens
-            else Value(Decimal("0"), output_field=_dec)
-        )
-
-        row_infra = Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=_dec))
-        row_markup = Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=_dec))
-        row_u = Coalesce(F(usage_field), Value(0, output_field=_dec))
-
-        # pod_effective_usage_*_hours stores SUM(MAX(usage_i, request_i)) aggregated
-        # across all raw intervals in the day. This preserves the per-interval clamping
-        # so that hours where a pod is over-utilised contribute MAX(u_i, r_i) = u_i
-        # (no waste for that interval) rather than collapsing to MAX(SUM(u), SUM(r))
-        # which would incorrectly cancel within-day over/under utilisation swings.
-        # waste = (effective - usage) * rate = SUM(MAX(0, r_i - u_i)) * rate  ✓
-        row_eff = Coalesce(F(effective_field), Value(0, output_field=_dec))
-
-        per_row_cost = (
-            # Cloud infrastructure cost converted to the report currency
-            (row_infra + row_markup) * Coalesce(F("infra_exchange_rate"), Value(1, output_field=_dec))
-            # Cost model contribution: rate × effective_usage → report currency.
-            # effective_usage = SUM(MAX(u_i, r_i)) already encodes the per-interval
-            # clamp, giving the correct cost basis for the waste formula.
-            + row_eff * F("_wc_rate") * Coalesce(F("exchange_rate"), Value(1, output_field=_dec))
-        )
-        # waste = per_row_cost × (1 − usage/effective) = (effective − usage) × rate
-        # Uses effective in the denominator (not request) so the ratio is always in [0,1]
-        # and the result equals the fixture's SUM(MAX(0, r_i − u_i)) × rate per group.
-        per_row_waste = Coalesce(
-            Greatest(
-                per_row_cost * (Value(1, output_field=_dec) - row_u / NullIf(row_eff, Value(0, output_field=_dec))),
-                Value(0, output_field=_dec),
-            ),
-            Value(0, output_field=_dec),
-        )
-        waste_ann = Coalesce(Sum(per_row_waste), Value(0, output_field=_dec), output_field=_dec)
-
-        # Original rows only: cost model application creates additional rows in the same
-        # table with cost_model_rate_type set. Querying only original rows avoids double-
-        # counting and gives the correct per-pod-group grain.
-        li_q = OCPUsageLineItemDailySummary.objects.filter(self.query_filter)
-        li_q = li_q.filter(cost_model_rate_type__isnull=True)
-        li_q = li_q.exclude(namespace__in=self._SENTINEL_NAMESPACES)
-        if self.query_exclusions:
-            li_q = li_q.exclude(self.query_exclusions)
-
-        # Build a minimal annotation set to avoid GROUP BY pollution.
-        # Applying self.annotations directly adds cluster, currency_annotation, etc.
-        # as non-aggregate expressions which Django may include in GROUP BY,
-        # fragmenting groups beyond the intended dimensions.
-        fresh_ann: dict = {
-            "date": self.date_trunc("usage_start"),
-            "_wc_rate": rate_ann,
-            **self.exchange_rate_annotation_dict,
-        }
-        for gb in group_by:
-            if gb != "date" and gb in self.annotations:
-                fresh_ann[gb] = self.annotations[gb]
-        li_q = li_q.annotate(**fresh_ann)
-
-        total = li_q.aggregate(wasted_cost=waste_ann)["wasted_cost"] or Decimal(0)
-        by_group = {
-            tuple(row[g] for g in group_by): row["wasted_cost"]
-            for row in li_q.values(*group_by).annotate(wasted_cost=waste_ann)
-        }
-        by_group["__total__"] = total
-        return by_group
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
