@@ -73,16 +73,22 @@ class OCPProviderMapTest(IamTestCase):
 
                     self.assertEqual(result["val"], cost_val * expected_multiplier)
 
-    def test_wasted_cost_cpu_is_sum_of_per_row_clamped_waste(self):
-        """Pooled utilization can be 100% while rows still have opportunity waste (S1-a)."""
+    def test_wasted_cost_cpu_reads_precomputed_column_with_exchange_rate(self):
+        """wasted_cpu_cost_expr sums the pre-computed column and applies exchange_rate.
+
+        The SQL summarization pre-computes per-pod waste before any cross-pod aggregation,
+        avoiding the pooling problem (over- and under-utilised pods cancelling each other).
+        The provider map expression simply reads that value and converts to display currency.
+        """
         cluster_id = "s1a-waste-test-cpu"
         usage_date = self.dh.yesterday.date()
         _dec = DecimalField(max_digits=33, decimal_places=15)
-        one = Value(Decimal("1"), output_field=_dec)
+        exchange_rate = Value(Decimal("2"), output_field=_dec)
 
         with tenant_context(self.tenant):
             OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).delete()
 
+            # Row representing a pod group with pre-computed waste=50 (e.g. 50% waste on 100 cost)
             self.baker.make(
                 OCPUsageLineItemDailySummary,
                 cluster_id=cluster_id,
@@ -90,12 +96,9 @@ class OCPProviderMapTest(IamTestCase):
                 namespace="s1a-test",
                 usage_start=usage_date,
                 usage_end=usage_date,
-                pod_request_cpu_core_hours=Decimal("10"),
-                pod_usage_cpu_core_hours=Decimal("5"),
-                infrastructure_raw_cost=Decimal("100"),
-                infrastructure_markup_cost=Decimal("0"),
-                cost_model_cpu_cost=Decimal("0"),
+                wasted_cpu_cost=Decimal("50"),
             )
+            # Row representing an over-utilised pod group — waste already clamped to 0 by SQL
             self.baker.make(
                 OCPUsageLineItemDailySummary,
                 cluster_id=cluster_id,
@@ -103,35 +106,21 @@ class OCPProviderMapTest(IamTestCase):
                 namespace="s1a-test",
                 usage_start=usage_date,
                 usage_end=usage_date,
-                pod_request_cpu_core_hours=Decimal("10"),
-                pod_usage_cpu_core_hours=Decimal("15"),
-                infrastructure_raw_cost=Decimal("100"),
-                infrastructure_markup_cost=Decimal("0"),
-                cost_model_cpu_cost=Decimal("0"),
+                wasted_cpu_cost=Decimal("0"),
             )
 
             mapper = OCPProviderMap(provider=Provider.PROVIDER_OCP, report_type="cpu", schema_name=self.schema_name)
             aggregates = mapper.report_type_map["aggregates"]
             qs = OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id, data_source="Pod").annotate(
-                exchange_rate=one,
-                infra_exchange_rate=one,
+                exchange_rate=exchange_rate,
+                infra_exchange_rate=exchange_rate,
             )
-            result = qs.aggregate(
-                wasted_cost=aggregates["wasted_cost"],
-                cost_total=aggregates["cost_total"],
-            )
-            # Row1: 100 * (1 - 5/10) = 50; row2: over-utilized -> 0
-            self.assertEqual(result["wasted_cost"], Decimal("50"))
-            self.assertEqual(result["cost_total"], Decimal("200"))
+            result = qs.aggregate(wasted_cost=aggregates["wasted_cost"])
+            # SUM(50 + 0) * exchange_rate(2) = 100
+            self.assertEqual(result["wasted_cost"], Decimal("100"))
 
-            pooled_waste = result["cost_total"] * (
-                Decimal("1") - Decimal("20") / Decimal("20")
-            )  # sum usage / sum request == 1
-            self.assertEqual(pooled_waste, Decimal("0"))
-            self.assertNotEqual(result["wasted_cost"], pooled_waste)
-
-    def test_wasted_cost_memory_is_sum_of_per_row_clamped_waste(self):
-        """Memory report uses the same per-row waste pattern as CPU."""
+    def test_wasted_cost_memory_reads_precomputed_column_with_exchange_rate(self):
+        """wasted_memory_cost_expr mirrors the CPU expression for the memory report."""
         cluster_id = "s1a-waste-test-mem"
         usage_date = self.dh.yesterday.date()
         _dec = DecimalField(max_digits=33, decimal_places=15)
@@ -147,11 +136,7 @@ class OCPProviderMapTest(IamTestCase):
                 namespace="s1a-test",
                 usage_start=usage_date,
                 usage_end=usage_date,
-                pod_request_memory_gigabyte_hours=Decimal("10"),
-                pod_usage_memory_gigabyte_hours=Decimal("5"),
-                infrastructure_raw_cost=Decimal("100"),
-                infrastructure_markup_cost=Decimal("0"),
-                cost_model_memory_cost=Decimal("0"),
+                wasted_memory_cost=Decimal("30"),
             )
             self.baker.make(
                 OCPUsageLineItemDailySummary,
@@ -160,11 +145,7 @@ class OCPProviderMapTest(IamTestCase):
                 namespace="s1a-test",
                 usage_start=usage_date,
                 usage_end=usage_date,
-                pod_request_memory_gigabyte_hours=Decimal("10"),
-                pod_usage_memory_gigabyte_hours=Decimal("15"),
-                infrastructure_raw_cost=Decimal("100"),
-                infrastructure_markup_cost=Decimal("0"),
-                cost_model_memory_cost=Decimal("0"),
+                wasted_memory_cost=Decimal("20"),
             )
 
             mapper = OCPProviderMap(provider=Provider.PROVIDER_OCP, report_type="memory", schema_name=self.schema_name)
@@ -176,8 +157,9 @@ class OCPProviderMapTest(IamTestCase):
             result = qs.aggregate(wasted_cost=aggregates["wasted_cost"])
             self.assertEqual(result["wasted_cost"], Decimal("50"))
 
-    def test_wasted_cost_cpu_row_with_zero_request_contributes_zero(self):
-        cluster_id = "s1a-waste-test-zero-req"
+    def test_wasted_cost_null_column_contributes_zero(self):
+        """Rows without a pre-computed wasted_cost (NULL) are treated as zero."""
+        cluster_id = "s1a-waste-test-null"
         usage_date = self.dh.yesterday.date()
         _dec = DecimalField(max_digits=33, decimal_places=15)
         one = Value(Decimal("1"), output_field=_dec)
@@ -192,11 +174,7 @@ class OCPProviderMapTest(IamTestCase):
                 namespace="s1a-test",
                 usage_start=usage_date,
                 usage_end=usage_date,
-                pod_request_cpu_core_hours=Decimal("0"),
-                pod_usage_cpu_core_hours=Decimal("50"),
-                infrastructure_raw_cost=Decimal("999"),
-                infrastructure_markup_cost=Decimal("0"),
-                cost_model_cpu_cost=Decimal("0"),
+                wasted_cpu_cost=None,
             )
 
             mapper = OCPProviderMap(provider=Provider.PROVIDER_OCP, report_type="cpu", schema_name=self.schema_name)
@@ -272,11 +250,7 @@ class OCPProviderMapTest(IamTestCase):
                 namespace="low-waste",
                 usage_start=usage_date,
                 usage_end=usage_date,
-                pod_request_cpu_core_hours=Decimal("10"),
-                pod_usage_cpu_core_hours=Decimal("9"),
-                infrastructure_raw_cost=Decimal("100"),
-                infrastructure_markup_cost=Decimal("0"),
-                cost_model_cpu_cost=Decimal("0"),
+                wasted_cpu_cost=Decimal("10"),
             )
             self.baker.make(
                 OCPUsageLineItemDailySummary,
@@ -285,11 +259,7 @@ class OCPProviderMapTest(IamTestCase):
                 namespace="high-waste",
                 usage_start=usage_date,
                 usage_end=usage_date,
-                pod_request_cpu_core_hours=Decimal("10"),
-                pod_usage_cpu_core_hours=Decimal("1"),
-                infrastructure_raw_cost=Decimal("100"),
-                infrastructure_markup_cost=Decimal("0"),
-                cost_model_cpu_cost=Decimal("0"),
+                wasted_cpu_cost=Decimal("90"),
             )
 
             mapper = OCPProviderMap(provider=Provider.PROVIDER_OCP, report_type="cpu", schema_name=self.schema_name)

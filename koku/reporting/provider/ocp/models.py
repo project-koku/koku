@@ -204,6 +204,8 @@ class OCPUsageLineItemDailySummary(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
     raw_currency = models.TextField(null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    wasted_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    wasted_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
 
 class OCPTagsValues(models.Model):
