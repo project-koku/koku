@@ -193,22 +193,6 @@ class OCPProviderMap(ProviderMap):
             * Coalesce(exchange_rate_column, Value(1, output_field=DecimalField())),
         )
 
-    def _cpu_usage_sum(self):
-        """Return a new Sum expression for CPU usage hours."""
-        return Sum(Coalesce(F("pod_usage_cpu_core_hours"), Value(0, output_field=DecimalField())))
-
-    def _cpu_request_sum(self):
-        """Return a new Sum expression for CPU request hours."""
-        return Sum(Coalesce(F("pod_request_cpu_core_hours"), Value(0, output_field=DecimalField())))
-
-    def _memory_usage_sum(self):
-        """Return a new Sum expression for memory usage hours."""
-        return Sum(Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0, output_field=DecimalField())))
-
-    def _memory_request_sum(self):
-        """Return a new Sum expression for memory request hours."""
-        return Sum(Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0, output_field=DecimalField())))
-
     def __init__(self, provider, report_type, schema_name):
         """Constructor."""
         self._schema_name = schema_name
@@ -1473,27 +1457,27 @@ class OCPProviderMap(ProviderMap):
     @cached_property
     def wasted_cpu_cost_expr(self):
         """Sum of pre-computed wasted CPU cost, converted to display currency."""
-        _dec = DecimalField(max_digits=33, decimal_places=15)
         return Coalesce(
             Sum(
-                Coalesce(F("wasted_cpu_cost"), Value(0, output_field=_dec))
-                * Coalesce(F("exchange_rate"), Value(1, output_field=_dec))
+                Coalesce(F("wasted_cpu_cost"), Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)))
+                * Coalesce(F("exchange_rate"), Value(1, output_field=DecimalField(max_digits=33, decimal_places=15)))
             ),
-            Value(0, output_field=_dec),
-            output_field=_dec,
+            Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+            output_field=DecimalField(max_digits=33, decimal_places=15),
         )
 
     @cached_property
     def wasted_memory_cost_expr(self):
         """Sum of pre-computed wasted memory cost, converted to display currency."""
-        _dec = DecimalField(max_digits=33, decimal_places=15)
         return Coalesce(
             Sum(
-                Coalesce(F("wasted_memory_cost"), Value(0, output_field=_dec))
-                * Coalesce(F("exchange_rate"), Value(1, output_field=_dec))
+                Coalesce(
+                    F("wasted_memory_cost"), Value(0, output_field=DecimalField(max_digits=33, decimal_places=15))
+                )
+                * Coalesce(F("exchange_rate"), Value(1, output_field=DecimalField(max_digits=33, decimal_places=15)))
             ),
-            Value(0, output_field=_dec),
-            output_field=_dec,
+            Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+            output_field=DecimalField(max_digits=33, decimal_places=15),
         )
 
     @cached_property
