@@ -191,6 +191,22 @@ class PriceListManagerUpdateTest(MasuTestCase):
             with self.assertRaises(PriceListException):
                 manager.update(name="New Name", currency="EUR")
 
+    def test_update_disabled_price_list_name_with_full_unchanged_payload_ok(self):
+        """Test that updating name on a disabled price list works with full unchanged payload."""
+        with tenant_context(self.tenant):
+            manager = PriceListManager(self.price_list.uuid)
+            manager.update(enabled=False)
+            manager.update(
+                name="Renamed Full Payload",
+                description=self.price_list.description,
+                currency=self.price_list.currency,
+                effective_start_date=self.price_list.effective_start_date,
+                effective_end_date=self.price_list.effective_end_date,
+                rates=self.rates_v1,
+            )
+            self.assertEqual(manager.instance.name, "Renamed Full Payload")
+            self.assertEqual(manager.instance.version, 1)  # Version should not increment
+
     def test_reenable_disabled_price_list_with_full_payload(self):
         """Test that re-enabling a disabled price list accepts a full payload (currency, rates, dates)."""
         with tenant_context(self.tenant):

@@ -134,6 +134,22 @@ class AzureClientFactoryTestCase(TestCase):
             cloud_account = obj.blob_service_client(FAKE.word(), FAKE.word())
             self.assertIsInstance(cloud_account, BlobServiceClient)
 
+    def test_blob_service_client_list_keys_auth_error_none_message(self):
+        """Test that a TypeError is not raised when HttpResponseError.message is None."""
+        obj = AzureClientFactory(
+            subscription_id=FAKE.uuid4(),
+            tenant_id=FAKE.uuid4(),
+            client_id=FAKE.uuid4(),
+            client_secret=FAKE.word(),
+            cloud=random.choice(self.clouds),
+        )
+        with patch("providers.azure.client.AzureClientFactory.storage_client") as mock_storage_client:
+            error = HttpResponseError()
+            error.message = None
+            mock_storage_client.storage_accounts.list_keys.side_effect = error
+            with self.assertRaises(HttpResponseError):
+                obj.blob_service_client(FAKE.word(), FAKE.word())
+
     @patch("providers.azure.client.ClientSecretCredential.get_token")
     def test_scope_and_export_name(self, mock_get_token):
         """Test the scope and export_name properties."""
