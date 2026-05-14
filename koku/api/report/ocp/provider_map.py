@@ -12,6 +12,7 @@ from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Func
+from django.db.models import Greatest
 from django.db.models import IntegerField
 from django.db.models import Max
 from django.db.models import Q
@@ -192,6 +193,45 @@ class OCPProviderMap(ProviderMap):
             )
             * Coalesce(exchange_rate_column, Value(1, output_field=DecimalField())),
         )
+
+    def _cpu_usage_sum(self):
+        """Return a new Sum expression for CPU usage hours."""
+        return Sum(Coalesce(F("pod_usage_cpu_core_hours"), Value(0, output_field=DecimalField())))
+
+    def _cpu_request_sum(self):
+        """Return a new Sum expression for CPU request hours."""
+        return Sum(Coalesce(F("pod_request_cpu_core_hours"), Value(0, output_field=DecimalField())))
+
+    def _memory_usage_sum(self):
+        """Return a new Sum expression for memory usage hours."""
+        return Sum(Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0, output_field=DecimalField())))
+
+    def _memory_request_sum(self):
+        """Return a new Sum expression for memory request hours."""
+        return Sum(Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0, output_field=DecimalField())))
+
+    def _efficiency_annotations(self, usage_sum_prop, request_sum_prop, cost_total_expr):
+        """Build usage_efficiency and wasted_cost annotation expressions."""
+        _dec = DecimalField(max_digits=33, decimal_places=15)
+        return {
+            "usage_efficiency": Coalesce(
+                Round(usage_sum_prop / NullIf(request_sum_prop, Value(0, output_field=_dec)) * Value(100)),
+                Value(0),
+                output_field=IntegerField(),
+            ),
+            "wasted_cost": Coalesce(
+                Greatest(
+                    cost_total_expr
+                    * (
+                        Value(1, output_field=_dec)
+                        - usage_sum_prop / NullIf(request_sum_prop, Value(0, output_field=_dec))
+                    ),
+                    Value(0, output_field=_dec),
+                ),
+                Value(0, output_field=_dec),
+                output_field=_dec,
+            ),
+        }
 
     def __init__(self, provider, report_type, schema_name):
         """Constructor."""

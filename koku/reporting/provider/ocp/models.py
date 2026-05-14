@@ -740,6 +740,10 @@ class OCPPodSummaryP(models.Model):
     cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
 
+    # Pre-computed per-line-item wasted cost (pipeline-time, correct grain)
+    wasted_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    wasted_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
 
 class OCPPodSummaryByProjectP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
@@ -799,6 +803,10 @@ class OCPPodSummaryByProjectP(models.Model):
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
+
+    # Pre-computed per-line-item wasted cost (pipeline-time, correct grain)
+    wasted_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    wasted_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
 
 class OCPPodSummaryByNodeP(models.Model):
@@ -863,6 +871,10 @@ class OCPPodSummaryByNodeP(models.Model):
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
+
+    # Pre-computed per-line-item wasted cost (pipeline-time, correct grain)
+    wasted_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    wasted_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
 
 class OCPVolumeSummaryP(models.Model):

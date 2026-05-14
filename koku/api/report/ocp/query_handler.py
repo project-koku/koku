@@ -41,8 +41,14 @@ from api.report.queries import ReportQueryHandler
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from reporting.models import OCPUsageLineItemDailySummary
+from reporting.provider.ocp.models import OCPPodSummaryByNodeP
+from reporting.provider.ocp.models import OCPPodSummaryByProjectP
+from reporting.provider.ocp.models import OCPPodSummaryP
 
 LOG = logging.getLogger(__name__)
+
+# Models that carry pre-computed per-line-item wasted cost columns.
+_POD_SUMMARY_MODELS = frozenset({OCPPodSummaryP, OCPPodSummaryByProjectP, OCPPodSummaryByNodeP})
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -259,19 +265,46 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return output
 
     def _pack_score(self, row, should_compute):
-        """Shape efficiency annotations into the score response object."""
+        """Shape efficiency annotations into the score response object.
+
+        wasted_cost is always included when present because it is a SUM of pre-computed
+        per-line-item values and is correct for any GROUP BY dimension.
+        usage_efficiency_percent is a ratio-of-sums that is only meaningful when
+        should_compute is True (single GROUP BY dimension, no tag interaction).
+        """
+        score: dict = {}
         if should_compute:
-            row["score"] = {
-                "usage_efficiency_percent": row.pop("usage_efficiency", 0),
-                "wasted_cost": {
-                    "value": row.pop("wasted_cost", Decimal(0)),
-                    "units": self.currency,
-                },
-            }
+            score["usage_efficiency_percent"] = row.pop("usage_efficiency", 0)
         else:
             row.pop("usage_efficiency", None)
-            row.pop("wasted_cost", None)
-            row["score"] = {}
+
+        wasted = row.pop("wasted_cost", None)
+        if wasted is not None:
+            score["wasted_cost"] = {"value": wasted, "units": self.currency}
+
+        row["score"] = score
+
+    def _wasted_cost_precomputed_expr(self):
+        """Return a Sum expression for the pre-computed wasted cost column, or None.
+
+        Returns a ready-to-use ORM expression only when the active query table is one of
+        the pod summary models that carry the pre-computed column. Falls back to None so
+        the caller can use the bucket-level formula from the provider map instead.
+        """
+        if self._report_type not in ("cpu", "memory"):
+            return None
+        if self.query_table not in _POD_SUMMARY_MODELS:
+            return None
+        _dec = DecimalField(max_digits=33, decimal_places=15)
+        field = "wasted_cpu_cost" if self._report_type == "cpu" else "wasted_memory_cost"
+        return Coalesce(
+            Sum(
+                Coalesce(F(field), Value(0, output_field=_dec))
+                * Coalesce(F("exchange_rate"), Value(1, output_field=_dec))
+            ),
+            Value(0, output_field=_dec),
+            output_field=_dec,
+        )
 
     def _rate_sum_by_source(self, metric_names: frozenset) -> dict:
         """Return {source_uuid_str: sum_of_flat_tier_values_in_cost_model_currency}.
@@ -441,9 +474,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date", self.order]
 
-            query_data = query.values(*query_group_by).annotate(
-                **{k: v for k, v in self.report_annotations.items() if k not in group_by_value}
-            )
+            # When the query table carries pre-computed per-line-item wasted cost columns,
+            # replace the bucket-level formula with a simple SUM of those columns.
+            wasted_precomputed = self._wasted_cost_precomputed_expr()
+            row_annotations = {k: v for k, v in self.report_annotations.items() if k not in group_by_value}
+            if wasted_precomputed is not None:
+                row_annotations = {**row_annotations, "wasted_cost": wasted_precomputed}
+
+            query_data = query.values(*query_group_by).annotate(**row_annotations)
 
             if is_grouped_by_project(self.parameters):
                 query_data = self._project_classification_annotation(query_data)
@@ -460,6 +498,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # Populate the 'total' section of the API response
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
+                if wasted_precomputed is not None:
+                    aggregates = {**aggregates, "wasted_cost": wasted_precomputed}
                 metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
