@@ -519,9 +519,7 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
     def test_feature_flag_disables_price_list(self, _mock_flag):
         """When DISABLE_PRICE_LIST_UNLEASH_FLAG is on, price_list_effective_on is forced to None."""
         target_date = date(2026, 6, 15)
-        with CostModelDBAccessor(
-            self.schema, self.provider_uuid, price_list_effective_on=target_date
-        ) as acc:
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=target_date) as acc:
             self.assertIsNone(acc.price_list_effective_on)
             rates = acc.effective_rates
             self.assertEqual(rates, acc.cost_model.rates)
