@@ -87,7 +87,11 @@ def purge_trino_files(request):  # noqa: C901
     Required Params:
         provider_uuid - source_uuid
         schema - account schema
-        bill_date - usually the start of the month example 2022-08-12
+        bill_date - usually start of the billing month (yyyy-mm-dd)
+    Optional Params (required for OCP):
+        start_date - purge range start (yyyy-mm-dd)
+        end_date - purge range end (yyyy-mm-dd)
+        ignore_manifest - skip manifest deletion when present
     """
     # Parameter Validation
     params = request.query_params
