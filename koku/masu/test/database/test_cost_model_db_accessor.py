@@ -178,6 +178,30 @@ class CostModelDBAccessorTest(MasuTestCase):
             self.assertIsNotNone(gpu_rate)
             self.assertEqual(gpu_rate["tiered_rates"]["Infrastructure"][0]["value"], 0.0)
 
+    def test_price_list_skips_tag_rates(self):
+        """Rate rows with tag_key are skipped by price_list (handled by tag_based_price_list)."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            pl = PriceList.objects.create(
+                name="tag-pl",
+                effective_start_date=date(2026, 1, 1),
+                effective_end_date=date(2026, 12, 31),
+                rates=[],
+            )
+            PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model, priority=1)
+            Rate.objects.create(
+                price_list=pl,
+                custom_name="tagged-rate",
+                metric="cpu_core_usage_per_hour",
+                cost_type="Infrastructure",
+                default_rate="2.00",
+                tag_key="environment",
+            )
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=None) as acc:
+            pl_map = acc.price_list
+            for entry in pl_map.values():
+                self.assertNotEqual(entry.get("description"), "tagged-rate")
+
 
 class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
     """Test Cases for the CostModelDBAccessor object."""
@@ -225,6 +249,16 @@ class CostModelDBAccessorNoCostModel(MasuTestCase):
     def test_params_with_no_cost_model(self):
         with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=None) as cost_model_accessor:
             self.assertFalse(cost_model_accessor.metric_to_tag_params_map)
+
+    def test_rate_info_map_no_cost_model(self):
+        """rate_info_map returns empty dict when there is no cost model."""
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=None) as acc:
+            self.assertEqual(acc.rate_info_map, {})
+
+    def test_effective_price_list_no_cost_model(self):
+        """_effective_price_list returns None when there is no cost model."""
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=date(2026, 6, 1)) as acc:
+            self.assertIsNone(acc._effective_price_list)
 
 
 class CostModelDBAccessorTagRatesTest(MasuTestCase):
