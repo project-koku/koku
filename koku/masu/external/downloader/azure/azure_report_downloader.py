@@ -81,7 +81,7 @@ def _get_date_column(local_file, context, tracing_id):
     matching_cols = pd.read_csv(local_file, nrows=0).columns.intersection(expected_date_cols)
     if matching_cols.empty:
         msg = f"Azure report CSV is missing date columns {expected_date_cols}"
-        LOG.warning(log_json(msg=msg, context=context, tracing_id=tracing_id))
+        LOG.warning(log_json(tracing_id, msg=msg, context=context))
         return None
     time_interval = matching_cols[0]
     if time_interval not in ["Date", "date"]:
@@ -90,7 +90,7 @@ def _get_date_column(local_file, context, tracing_id):
             "The report contains the 'UsageDateTime' column, which indicates an outdated format. "
             "Please use a modern report schema (which uses the 'Date' column)."
         )
-        LOG.warning(log_json(msg=msg, context=context))
+        LOG.warning(log_json(tracing_id, msg=msg, context=context))
         return None
     return time_interval
 
@@ -128,10 +128,10 @@ def create_daily_archives(
     process_date = get_processing_date(
         s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id, ingress_reports
     )
-    time_interval = _get_date_column(local_file, context, tracing_id)
-    if time_interval is None:
-        return [], {}
     try:
+        time_interval = _get_date_column(local_file, context, tracing_id)
+        if time_interval is None:
+            return [], {}
         with pd.read_csv(
             local_file,
             chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
@@ -164,9 +164,9 @@ def create_daily_archives(
                         tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
                     )
                     daily_file_names.append(day_filepath)
-    except Exception:
+    except Exception as err:
         msg = f"unable to create daily archives from: {base_filename}"
-        LOG.info(log_json(tracing_id, msg=msg, context=context))
+        LOG.info(log_json(tracing_id, msg=msg, context=context), exc_info=err)
         raise com_utils.CreateDailyArchivesError(msg)
     if not batch_date_range:
         return [], {}
