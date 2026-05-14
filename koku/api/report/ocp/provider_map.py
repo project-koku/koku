@@ -417,7 +417,20 @@ class OCPProviderMap(ProviderMap):
                                 Value(0),
                                 output_field=IntegerField(),
                             ),
-                            "wasted_cost": self.wasted_cpu_cost_expr,
+                            "wasted_cost": Coalesce(
+                                Sum(
+                                    Coalesce(
+                                        F("wasted_cpu_cost"),
+                                        Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                    )
+                                    * Coalesce(
+                                        F("exchange_rate"),
+                                        Value(1, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                    )
+                                ),
+                                Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                output_field=DecimalField(max_digits=33, decimal_places=15),
+                            ),
                         },
                         "capacity_aggregate": {
                             "cluster": {
@@ -489,7 +502,20 @@ class OCPProviderMap(ProviderMap):
                                 Value(0),
                                 output_field=IntegerField(),
                             ),
-                            "wasted_cost": self.wasted_cpu_cost_expr,
+                            "wasted_cost": Coalesce(
+                                Sum(
+                                    Coalesce(
+                                        F("wasted_cpu_cost"),
+                                        Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                    )
+                                    * Coalesce(
+                                        F("exchange_rate"),
+                                        Value(1, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                    )
+                                ),
+                                Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                output_field=DecimalField(max_digits=33, decimal_places=15),
+                            ),
                             "wasted_cost_units": Coalesce(
                                 "currency_annotation", Value("USD", output_field=CharField())
                             ),
@@ -606,7 +632,20 @@ class OCPProviderMap(ProviderMap):
                                 Value(0),
                                 output_field=IntegerField(),
                             ),
-                            "wasted_cost": self.wasted_memory_cost_expr,
+                            "wasted_cost": Coalesce(
+                                Sum(
+                                    Coalesce(
+                                        F("wasted_memory_cost"),
+                                        Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                    )
+                                    * Coalesce(
+                                        F("exchange_rate"),
+                                        Value(1, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                    )
+                                ),
+                                Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                output_field=DecimalField(max_digits=33, decimal_places=15),
+                            ),
                         },
                         "capacity_aggregate": {
                             "cluster": {
@@ -684,7 +723,20 @@ class OCPProviderMap(ProviderMap):
                                 Value(0),
                                 output_field=IntegerField(),
                             ),
-                            "wasted_cost": self.wasted_memory_cost_expr,
+                            "wasted_cost": Coalesce(
+                                Sum(
+                                    Coalesce(
+                                        F("wasted_memory_cost"),
+                                        Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                    )
+                                    * Coalesce(
+                                        F("exchange_rate"),
+                                        Value(1, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                    )
+                                ),
+                                Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
+                                output_field=DecimalField(max_digits=33, decimal_places=15),
+                            ),
                             "wasted_cost_units": Coalesce(
                                 "currency_annotation", Value("USD", output_field=CharField())
                             ),
@@ -1459,32 +1511,6 @@ class OCPProviderMap(ProviderMap):
     def cost_model_gpu_cost(self):
         """Return all GPU cost model costs."""
         return self.__cost_model_gpu_cost()
-
-    @cached_property
-    def wasted_cpu_cost_expr(self):
-        """Sum of pre-computed wasted CPU cost, converted to display currency."""
-        return Coalesce(
-            Sum(
-                Coalesce(F("wasted_cpu_cost"), Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)))
-                * Coalesce(F("exchange_rate"), Value(1, output_field=DecimalField(max_digits=33, decimal_places=15)))
-            ),
-            Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
-            output_field=DecimalField(max_digits=33, decimal_places=15),
-        )
-
-    @cached_property
-    def wasted_memory_cost_expr(self):
-        """Sum of pre-computed wasted memory cost, converted to display currency."""
-        return Coalesce(
-            Sum(
-                Coalesce(
-                    F("wasted_memory_cost"), Value(0, output_field=DecimalField(max_digits=33, decimal_places=15))
-                )
-                * Coalesce(F("exchange_rate"), Value(1, output_field=DecimalField(max_digits=33, decimal_places=15)))
-            ),
-            Value(0, output_field=DecimalField(max_digits=33, decimal_places=15)),
-            output_field=DecimalField(max_digits=33, decimal_places=15),
-        )
 
     @cached_property
     def cloud_infrastructure_cost(self):
