@@ -619,10 +619,28 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
     @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
     def test_rate_info_map_and_effective_rates_agree_on_coverage(self, _):
         """Both properties must agree: if effective_rates is empty, rate_info_map must be too."""
+        rates_json = [
+            {
+                "metric": {"name": "cpu_core_usage_per_hour"},
+                "tiered_rates": [{"value": "1.50", "unit": "USD"}],
+                "cost_type": "Supplementary",
+            }
+        ]
         with schema_context(self.schema):
             cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
             PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
-            self._make_price_list(cost_model, "Apr", date(2026, 4, 1), date(2026, 4, 30))
+            pl = PriceList.objects.create(
+                name="Apr", effective_start_date=date(2026, 4, 1), effective_end_date=date(2026, 4, 30), rates=rates_json
+            )
+            PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model, priority=1)
+            Rate.objects.create(
+                price_list=pl,
+                custom_name="Apr-cpu",
+                metric="cpu_core_usage_per_hour",
+                metric_type="cpu",
+                cost_type="Supplementary",
+                default_rate="1.50",
+            )
 
         for test_date, label in [(date(2026, 4, 15), "in-range"), (date(2026, 5, 15), "out-of-range")]:
             with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=test_date) as acc:
