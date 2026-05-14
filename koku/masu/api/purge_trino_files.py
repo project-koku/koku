@@ -27,17 +27,17 @@ LOG = logging.getLogger(__name__)
 OCP_REPORT_TYPES = ["pod_usage", "storage_usage", "node_labels", "namespace_labels", "vm_usage", "gpu_usage"]
 
 
-def _build_ocp_paths_for_date_range(schema, provider_type, provider_uuid, start_date_obj, dates):
+def _build_ocp_paths_for_date_range(schema, provider_type, provider_uuid, dates):
     """Build S3 paths for OCP provider with specific date range."""
     s3_csv_path = []
     s3_parquet_path = []
     s3_daily_parquet_path = []
     s3_daily_openshift_path = []
-    csv_path = get_path_prefix(schema, provider_type, provider_uuid, start_date_obj, Config.CSV_DATA_TYPE)
 
     for date in dates:
         # CSV files are report-type and day-specific (e.g. pod_usage.2026-03-05.*.csv).
         # Build prefixes that target only the requested day range.
+        csv_path = get_path_prefix(schema, provider_type, provider_uuid, date, Config.CSV_DATA_TYPE)
         for report_type in OCP_REPORT_TYPES:
             s3_csv_path.append(f"{csv_path}/{report_type}.{date}")
 
@@ -45,7 +45,7 @@ def _build_ocp_paths_for_date_range(schema, provider_type, provider_uuid, start_
         for report_type in OCP_REPORT_TYPES:
             # Hourly parquet
             parquet_path = get_path_prefix(
-                schema, provider_type, provider_uuid, start_date_obj, Config.PARQUET_DATA_TYPE, report_type=report_type
+                schema, provider_type, provider_uuid, date, Config.PARQUET_DATA_TYPE, report_type=report_type
             )
             s3_parquet_path.append(parquet_path + f"/{report_type}.{date}")
 
@@ -54,7 +54,7 @@ def _build_ocp_paths_for_date_range(schema, provider_type, provider_uuid, start_
                 schema,
                 provider_type,
                 provider_uuid,
-                start_date_obj,
+                date,
                 Config.PARQUET_DATA_TYPE,
                 report_type=report_type,
                 daily=True,
@@ -66,56 +66,12 @@ def _build_ocp_paths_for_date_range(schema, provider_type, provider_uuid, start_
             schema,
             provider_type,
             provider_uuid,
-            start_date_obj,
+            date,
             Config.PARQUET_DATA_TYPE,
             report_type="openshift",
             daily=True,
         )
         s3_daily_openshift_path.append(ocp_cloud_path + f"/openshift.{date}")
-
-    return s3_csv_path, s3_parquet_path, s3_daily_parquet_path, s3_daily_openshift_path
-
-
-def _build_ocp_paths_for_bill_month(schema, provider_type, provider_uuid, bill_date_obj):
-    """Build S3 paths for OCP provider for entire billing month."""
-    s3_csv_path = []
-    s3_parquet_path = []
-    s3_daily_parquet_path = []
-    s3_daily_openshift_path = []
-
-    # CSV path
-    s3_csv_path.append(get_path_prefix(schema, provider_type, provider_uuid, bill_date_obj, Config.CSV_DATA_TYPE))
-
-    # Parquet paths for each report type
-    for report_type in OCP_REPORT_TYPES:
-        s3_parquet_path.append(
-            get_path_prefix(
-                schema, provider_type, provider_uuid, bill_date_obj, Config.PARQUET_DATA_TYPE, report_type=report_type
-            )
-        )
-        s3_daily_parquet_path.append(
-            get_path_prefix(
-                schema,
-                provider_type,
-                provider_uuid,
-                bill_date_obj,
-                Config.PARQUET_DATA_TYPE,
-                report_type=report_type,
-                daily=True,
-            )
-        )
-
-    s3_daily_openshift_path.append(
-        get_path_prefix(
-            schema,
-            provider_type,
-            provider_uuid,
-            bill_date_obj,
-            Config.PARQUET_DATA_TYPE,
-            report_type="openshift",
-            daily=True,
-        )
-    )
 
     return s3_csv_path, s3_parquet_path, s3_daily_parquet_path, s3_daily_openshift_path
 
@@ -162,7 +118,14 @@ def purge_trino_files(request):  # noqa: C901
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     start_date = params.get("start_date")
-    end_date = params.get("end_date") if params.get("end_date") else start_date
+    end_date = params.get("end_date")
+
+    if provider_type == Provider.PROVIDER_OCP and (not start_date or not end_date):
+        errmsg = "OCP purge requires start_date and end_date parameters."
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not end_date:
+        end_date = start_date
     if "ignore_manifest" in params.keys():
         delete_manifest = False
 
@@ -174,13 +137,8 @@ def purge_trino_files(request):  # noqa: C901
 
     # Convert date strings to date objects
     date_helper = DateHelper()
-    bill_date_obj = date_helper.parse_to_date(bill_date)
 
     if start_date and end_date:
-        # Only need start_date_obj for get_path_prefix() calls
-        # list_days() accepts strings and does its own parsing
-        start_date_obj = date_helper.parse_to_date(start_date)
-
         invoice_month = str(date_helper.invoice_month_from_bill_date(bill_date))
         dates = date_helper.list_days(start_date, end_date)
 
@@ -190,7 +148,7 @@ def purge_trino_files(request):  # noqa: C901
                 s3_parquet_path,
                 s3_daily_parquet_path,
                 s3_daily_openshift_path,
-            ) = _build_ocp_paths_for_date_range(schema, provider_type, provider_uuid, start_date_obj, dates)
+            ) = _build_ocp_paths_for_date_range(schema, provider_type, provider_uuid, dates)
         else:
             # Non-OCP providers (GCP, AWS, Azure)
             pq_processor_object = ParquetReportProcessor(
@@ -202,39 +160,29 @@ def purge_trino_files(request):  # noqa: C901
                 context={"start_date": bill_date},
             )
 
-            path = None
-            if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-                path = f"/{invoice_month}_"
-
             for date in dates:
-                path = path + f"{date}" if path else f"/{date}"
+                if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+                    path = f"/{invoice_month}_{date}"
+                else:
+                    path = f"/{date}"
                 s3_csv_path.append(pq_processor_object.csv_path_s3 + path)
                 s3_parquet_path.append(pq_processor_object.parquet_path_s3 + path)
                 s3_daily_parquet_path.append(pq_processor_object.parquet_daily_path_s3 + path)
                 s3_daily_openshift_path.append(pq_processor_object.parquet_ocp_on_cloud_path_s3 + path)
     else:
-        # No date range specified, purge entire bill month
-        if provider_type == Provider.PROVIDER_OCP:
-            (
-                s3_csv_path,
-                s3_parquet_path,
-                s3_daily_parquet_path,
-                s3_daily_openshift_path,
-            ) = _build_ocp_paths_for_bill_month(schema, provider_type, provider_uuid, bill_date_obj)
-        else:
-            # Non-OCP providers
-            pq_processor_object = ParquetReportProcessor(
-                schema_name=schema,
-                report_path="",
-                provider_uuid=provider_uuid,
-                provider_type=provider_type,
-                manifest_id=None,
-                context={"start_date": bill_date},
-            )
-            s3_csv_path = [pq_processor_object.csv_path_s3]
-            s3_parquet_path = [pq_processor_object.parquet_path_s3]
-            s3_daily_parquet_path = [pq_processor_object.parquet_daily_path_s3]
-            s3_daily_openshift_path = [pq_processor_object.parquet_ocp_on_cloud_path_s3]
+        # No date range specified, purge entire bill month (non-OCP only; OCP rejected above)
+        pq_processor_object = ParquetReportProcessor(
+            schema_name=schema,
+            report_path="",
+            provider_uuid=provider_uuid,
+            provider_type=provider_type,
+            manifest_id=None,
+            context={"start_date": bill_date},
+        )
+        s3_csv_path = [pq_processor_object.csv_path_s3]
+        s3_parquet_path = [pq_processor_object.parquet_path_s3]
+        s3_daily_parquet_path = [pq_processor_object.parquet_daily_path_s3]
+        s3_daily_openshift_path = [pq_processor_object.parquet_ocp_on_cloud_path_s3]
 
     path_info = {
         "s3_csv_path": s3_csv_path,
