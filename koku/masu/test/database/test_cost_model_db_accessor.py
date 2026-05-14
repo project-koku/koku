@@ -492,98 +492,168 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
             rates = cost_model_accessor.effective_rates
             self.assertEqual(rates, {})
 
-    def test_rate_info_map_no_price_list_effective_on(self):
-        """Test rate_info_map returns entries from all Rate rows when no price_list_effective_on."""
+    def _make_price_list(self, cost_model, name, start, end, priority=1):
+        """Create a PriceList linked to cost_model with a single CPU rate."""
+        pl = PriceList.objects.create(
+            name=name, effective_start_date=start, effective_end_date=end, rates=[]
+        )
+        PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model, priority=priority)
+        rate = Rate.objects.create(
+            price_list=pl,
+            custom_name=f"{name}-cpu",
+            metric="cpu_core_usage_per_hour",
+            metric_type="cpu",
+            cost_type="Supplementary",
+            default_rate="1.50",
+        )
+        return pl, rate
+
+    def _rate_info(self, effective_on):
+        """Shortcut: return rate_info_map for self.provider_uuid on a given date."""
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=effective_on) as acc:
+            return acc.rate_info_map
+
+    # -- fallback behaviour (no date constraint) --
+
+    def test_rate_info_map_without_date_returns_all_rates(self):
+        """Without price_list_effective_on, every Rate row for the cost model is returned."""
         with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=None) as accessor:
             rate_map = accessor.rate_info_map
-            if accessor.cost_model:
-                rate_count = Rate.objects.filter(
-                    price_list__cost_model_maps__cost_model=accessor.cost_model
-                ).count()
-                self.assertEqual(len(rate_map), rate_count)
-                for key, info in rate_map.items():
-                    self.assertIn("rate_uuid", info)
-                    self.assertIn("custom_name", info)
+            expected = Rate.objects.filter(
+                price_list__cost_model_maps__cost_model=accessor.cost_model
+            ).count()
+            self.assertEqual(len(rate_map), expected)
+            for info in rate_map.values():
+                self.assertIn("rate_uuid", info)
+                self.assertIn("custom_name", info)
+
+    # -- scoping to effective price list --
 
     @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
-    def test_rate_info_map_scoped_to_effective_price_list(self, _mock_flag):
-        """Test rate_info_map returns only rates from the effective price list."""
-        target_date = date(2026, 6, 15)
+    def test_rate_info_map_returns_only_rates_from_effective_price_list(self, _):
+        """When a date is provided, only rates from the matching price list are returned."""
         with schema_context(self.schema):
             cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
             PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
-            pl = PriceList.objects.create(
-                name="Scoped PL",
-                effective_start_date=date(2026, 1, 1),
-                effective_end_date=date(2026, 12, 31),
-                rates=[],
-            )
-            PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model, priority=1)
-            rate = Rate.objects.create(
-                price_list=pl,
-                custom_name="test-cpu-rate",
-                metric="cpu_core_usage_per_hour",
-                metric_type="cpu",
-                cost_type="Infrastructure",
-                default_rate="1.50",
-            )
+            _pl, rate = self._make_price_list(cost_model, "H1-2026", date(2026, 1, 1), date(2026, 6, 30))
 
-        with CostModelDBAccessor(
-            self.schema, self.provider_uuid, price_list_effective_on=target_date
-        ) as accessor:
-            rate_map = accessor.rate_info_map
-            self.assertEqual(len(rate_map), 1)
-            key = ("cpu_core_usage_per_hour", "Infrastructure", "")
-            self.assertIn(key, rate_map)
-            self.assertEqual(rate_map[key]["rate_uuid"], str(rate.uuid))
-            self.assertEqual(rate_map[key]["custom_name"], "test-cpu-rate")
+        result = self._rate_info(effective_on=date(2026, 3, 15))
+
+        self.assertEqual(len(result), 1)
+        key = ("cpu_core_usage_per_hour", "Supplementary", "")
+        self.assertIn(key, result)
+        self.assertEqual(result[key]["rate_uuid"], str(rate.uuid))
+        self.assertEqual(result[key]["custom_name"], "H1-2026-cpu")
 
     @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
-    def test_rate_info_map_empty_when_no_matching_price_list(self, _mock_flag):
-        """Test rate_info_map returns empty when no price list covers the date."""
-        target_date = date(2100, 6, 1)
-        with CostModelDBAccessor(
-            self.schema, self.provider_uuid, price_list_effective_on=target_date
-        ) as accessor:
-            rate_map = accessor.rate_info_map
-            self.assertEqual(rate_map, {})
+    def test_rate_info_map_empty_when_date_outside_all_price_lists(self, _):
+        """A date covered by no price list yields an empty map (zero costs)."""
+        result = self._rate_info(effective_on=date(2100, 1, 1))
+        self.assertEqual(result, {})
+
+    # -- boundary conditions on validity window --
 
     @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
-    def test_rate_info_map_respects_validity_period_across_months(self, _mock_flag):
-        """Regression test for COST-7492: rates must not leak across validity periods.
+    def test_rate_info_map_includes_first_day_of_validity(self, _):
+        """The first day of the validity period must return rates."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+            self._make_price_list(cost_model, "Apr", date(2026, 4, 1), date(2026, 4, 30))
 
-        Creates a price list valid only for April 2026. Querying rate_info_map
-        for an April date must return the rates; querying for May must return
-        nothing, ensuring costs are not calculated outside the validity window.
+        result = self._rate_info(effective_on=date(2026, 4, 1))
+        self.assertEqual(len(result), 1)
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_rate_info_map_includes_last_day_of_validity(self, _):
+        """The last day of the validity period must return rates."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+            self._make_price_list(cost_model, "Apr", date(2026, 4, 1), date(2026, 4, 30))
+
+        result = self._rate_info(effective_on=date(2026, 4, 30))
+        self.assertEqual(len(result), 1)
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_rate_info_map_excludes_day_before_validity(self, _):
+        """The day before the validity period must return no rates."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+            self._make_price_list(cost_model, "Apr", date(2026, 4, 1), date(2026, 4, 30))
+
+        result = self._rate_info(effective_on=date(2026, 3, 31))
+        self.assertEqual(result, {})
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_rate_info_map_excludes_day_after_validity(self, _):
+        """The day after the validity period must return no rates."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+            self._make_price_list(cost_model, "Apr", date(2026, 4, 1), date(2026, 4, 30))
+
+        result = self._rate_info(effective_on=date(2026, 5, 1))
+        self.assertEqual(result, {})
+
+    # -- multi-month / adjacent price lists --
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_rate_info_map_selects_correct_price_list_per_month(self, _):
+        """Adjacent price lists: each month resolves only the rate from its own PL."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+            _apr_pl, apr_rate = self._make_price_list(
+                cost_model, "Apr", date(2026, 4, 1), date(2026, 4, 30), priority=1
+            )
+            _may_pl, may_rate = self._make_price_list(
+                cost_model, "May", date(2026, 5, 1), date(2026, 5, 31), priority=1
+            )
+
+        apr_result = self._rate_info(effective_on=date(2026, 4, 15))
+        may_result = self._rate_info(effective_on=date(2026, 5, 15))
+
+        self.assertEqual(apr_result[("cpu_core_usage_per_hour", "Supplementary", "")]["rate_uuid"], str(apr_rate.uuid))
+        self.assertEqual(may_result[("cpu_core_usage_per_hour", "Supplementary", "")]["rate_uuid"], str(may_rate.uuid))
+
+    # -- consistency: rate_info_map and effective_rates agree --
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_rate_info_map_and_effective_rates_agree_on_coverage(self, _):
+        """Both properties must agree: if effective_rates is empty, rate_info_map must be too."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+            self._make_price_list(cost_model, "Apr", date(2026, 4, 1), date(2026, 4, 30))
+
+        for test_date, label in [(date(2026, 4, 15), "in-range"), (date(2026, 5, 15), "out-of-range")]:
+            with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=test_date) as acc:
+                has_rates = bool(acc.effective_rates)
+                has_info = bool(acc.rate_info_map)
+                self.assertEqual(
+                    has_rates, has_info,
+                    f"effective_rates and rate_info_map disagree for {label} date {test_date}",
+                )
+
+    # -- COST-7492 regression: costs must not leak across validity periods --
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_rate_info_map_does_not_leak_rates_outside_validity_period(self, _):
+        """COST-7492: a price list valid only for April must not produce rates in May.
+
+        Reproduces the exact scenario from the bug report: ingest two months of
+        OCP data with a cost model whose price list covers April only. The May
+        cost report must show zero supplementary costs.
         """
         with schema_context(self.schema):
             cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
             PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+            self._make_price_list(cost_model, "April Only", date(2026, 4, 1), date(2026, 4, 30))
 
-            april_pl = PriceList.objects.create(
-                name="April Only PL",
-                effective_start_date=date(2026, 4, 1),
-                effective_end_date=date(2026, 4, 30),
-                rates=[],
-            )
-            PriceListCostModelMap.objects.create(price_list=april_pl, cost_model=cost_model, priority=1)
-            Rate.objects.create(
-                price_list=april_pl,
-                custom_name="april-cpu-rate",
-                metric="cpu_core_usage_per_hour",
-                metric_type="cpu",
-                cost_type="Supplementary",
-                default_rate="4.40",
-            )
+        april_map = self._rate_info(effective_on=date(2026, 4, 15))
+        may_map = self._rate_info(effective_on=date(2026, 5, 12))
 
-        with CostModelDBAccessor(
-            self.schema, self.provider_uuid, price_list_effective_on=date(2026, 4, 15)
-        ) as accessor:
-            april_map = accessor.rate_info_map
-            self.assertEqual(len(april_map), 1, "April should return the rate")
-
-        with CostModelDBAccessor(
-            self.schema, self.provider_uuid, price_list_effective_on=date(2026, 5, 12)
-        ) as accessor:
-            may_map = accessor.rate_info_map
-            self.assertEqual(may_map, {}, "May should return no rates — price list only covers April")
+        self.assertEqual(len(april_map), 1, "April is within validity — rate expected")
+        self.assertEqual(may_map, {}, "May is outside validity — no rates, zero costs")
