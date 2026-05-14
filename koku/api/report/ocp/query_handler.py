@@ -112,6 +112,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ocp_pack_definitions["compute"] = {"keys": ["compute"], "units": "mig_compute_units"}
         ocp_pack_definitions["memory"] = {"keys": ["memory"], "units": "mig_memory_units"}
         ocp_pack_definitions["gpu_count"] = {"keys": ["gpu_count"], "units": "gpu_count_units"}
+        ocp_pack_definitions["score_efficiency"] = {
+            "keys": {"usage_efficiency": {"key": "usage_efficiency_percent", "group": "score"}},
+            "units": None,
+        }
+        ocp_pack_definitions["score_wasted"] = {
+            "keys": {"wasted_cost": {"key": "wasted_cost", "group": "score"}},
+            "units": "wasted_cost_units",
+        }
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
@@ -238,25 +246,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def _pack_score(self, row, should_compute):
-        """Shape efficiency annotations into the score response object.
-
-        wasted_cost comes from the provider map's pre-computed column sum and is always
-        included. usage_efficiency_percent is a ratio-of-sums that is only meaningful
-        when should_compute is True (single GROUP BY dimension, no tag interaction).
-        """
-        score: dict = {}
-        if should_compute:
-            score["usage_efficiency_percent"] = row.pop("usage_efficiency", 0)
-        else:
-            row.pop("usage_efficiency", None)
-
-        wasted = row.pop("wasted_cost", None)
-        if wasted is not None:
-            score["wasted_cost"] = {"value": wasted, "units": self.currency}
-
-        row["score"] = score
-
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
@@ -306,16 +295,18 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self._report_type in ("cpu", "memory"):
                 has_tag_interaction = self._tag_group_by or self.get_tag_filter_keys()
                 should_compute = not has_tag_interaction and len(group_by_value) <= 1
-                self._pack_score(query_sum, should_compute)
+                query_sum["wasted_cost_units"] = self.currency
+                if not should_compute:
+                    query_sum.pop("usage_efficiency", None)
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
             query_data = self.order_by(query_data, query_order_by)
 
-            if self._report_type in ("cpu", "memory"):
+            if self._report_type in ("cpu", "memory") and not should_compute:
                 for row in query_data:
-                    self._pack_score(row, should_compute)
+                    row.pop("usage_efficiency", None)
 
             for row in query_data:
                 if tag_iterable := row.get("tags"):

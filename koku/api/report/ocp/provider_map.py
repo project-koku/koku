@@ -490,6 +490,9 @@ class OCPProviderMap(ProviderMap):
                                 output_field=IntegerField(),
                             ),
                             "wasted_cost": self.wasted_cpu_cost_expr,
+                            "wasted_cost_units": Coalesce(
+                                "currency_annotation", Value("USD", output_field=CharField())
+                            ),
                             "capacity": Max("cluster_capacity_cpu_core_hours"),  # overwritten in capacity aggregation
                             "clusters": ArrayAgg(
                                 Coalesce("cluster_alias", "cluster_id"), distinct=True, default=Value([])
@@ -682,6 +685,9 @@ class OCPProviderMap(ProviderMap):
                                 output_field=IntegerField(),
                             ),
                             "wasted_cost": self.wasted_memory_cost_expr,
+                            "wasted_cost_units": Coalesce(
+                                "currency_annotation", Value("USD", output_field=CharField())
+                            ),
                             "capacity": Max(
                                 "cluster_capacity_memory_gigabyte_hours"
                             ),  # This is to keep the order, overwritten with capacity aggregate
