@@ -155,6 +155,29 @@ class CostModelDBAccessorTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=None) as cost_model_accessor:
             self.assertFalse(cost_model_accessor.metric_to_tag_params_map)
 
+    def test_price_list_handles_null_default_rate(self):
+        """Rate rows with default_rate=None should be treated as 0.0."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            pl = PriceList.objects.create(
+                name="null-rate-pl",
+                effective_start_date=date(2026, 1, 1),
+                effective_end_date=date(2026, 12, 31),
+                rates=[],
+            )
+            PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model, priority=1)
+            Rate.objects.create(
+                price_list=pl,
+                custom_name="null-default",
+                metric="gpu_request_per_hour",
+                cost_type="Infrastructure",
+                default_rate=None,
+            )
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=None) as acc:
+            gpu_rate = acc.price_list.get("gpu_request_per_hour")
+            self.assertIsNotNone(gpu_rate)
+            self.assertEqual(gpu_rate["tiered_rates"]["Infrastructure"][0]["value"], 0.0)
+
 
 class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
     """Test Cases for the CostModelDBAccessor object."""
@@ -491,6 +514,17 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
             cost_model_accessor.price_list_effective_on = target_date
             rates = cost_model_accessor.effective_rates
             self.assertEqual(rates, {})
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_feature_flag_disables_price_list(self, _mock_flag):
+        """When DISABLE_PRICE_LIST_UNLEASH_FLAG is on, price_list_effective_on is forced to None."""
+        target_date = date(2026, 6, 15)
+        with CostModelDBAccessor(
+            self.schema, self.provider_uuid, price_list_effective_on=target_date
+        ) as acc:
+            self.assertIsNone(acc.price_list_effective_on)
+            rates = acc.effective_rates
+            self.assertEqual(rates, acc.cost_model.rates)
 
     def _make_price_list(self, cost_model, name, start, end, priority=1):
         """Create a PriceList linked to cost_model with a single CPU rate."""
