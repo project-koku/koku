@@ -21,11 +21,19 @@ _ENRICHMENT_KEYS = frozenset(("rate_id", "custom_name"))
 _COMPARISON_EXCLUDE_KEYS = frozenset(("description",))
 
 
+def _normalize_rate(rate):
+    """Normalize a single rate dict for comparison by removing enrichment and empty strings."""
+    if not rate:
+        return {}
+    # Remove enrichment keys and keys with empty string values (serializer defaults)
+    return {k: v for k, v in rate.items() if k not in _ENRICHMENT_KEYS and v != ""}
+
+
 def _strip_enrichment(rates):
     """Strip backend-added enrichment fields so semantic rate comparison is stable."""
     if not rates:
         return rates
-    return [{k: v for k, v in r.items() if k not in _ENRICHMENT_KEYS} for r in rates]
+    return [_normalize_rate(r) for r in rates]
 
 
 def _strip_for_comparison(rates):
@@ -56,6 +64,28 @@ class PriceListManager:
         """Return the price list model instance."""
         return self._model
 
+    def _validate_disabled_update(self, data, re_enabling):
+        """Validate that disabled price lists only allow metadata updates."""
+        if self._model.enabled or re_enabling:
+            return
+
+        allowed_fields = {"name", "description", "enabled"}
+        # Allow currency, rates, dates through if the value is unchanged
+        if data.get("currency") == self._model.currency:
+            allowed_fields = allowed_fields | {"currency"}
+        if "rates" in data and _strip_enrichment(data["rates"]) == _strip_enrichment(self._model.rates):
+            allowed_fields = allowed_fields | {"rates"}
+        if "effective_start_date" in data and data["effective_start_date"] == self._model.effective_start_date:
+            allowed_fields = allowed_fields | {"effective_start_date"}
+        if "effective_end_date" in data and data["effective_end_date"] == self._model.effective_end_date:
+            allowed_fields = allowed_fields | {"effective_end_date"}
+        disallowed = set(data.keys()) - allowed_fields
+        if disallowed:
+            raise PriceListException(
+                f"Cannot update {disallowed} on a disabled price list. "
+                "Only name, description, and status can be updated."
+            )
+
     def create(self, **data):
         """Create a price list and populate Rate rows if rates are provided."""
         self._model = PriceList.objects.create(**data)
@@ -78,17 +108,7 @@ class PriceListManager:
             raise PriceListException("Currency cannot be changed after price list creation.")
 
         re_enabling = data.get("enabled") is True
-        if not self._model.enabled and not re_enabling:
-            allowed_fields = {"name", "description", "enabled"}
-            # Allow currency through if the value is unchanged (auto-injected by serializer)
-            if data.get("currency") == self._model.currency:
-                allowed_fields = allowed_fields | {"currency"}
-            disallowed = set(data.keys()) - allowed_fields
-            if disallowed:
-                raise PriceListException(
-                    f"Cannot update {disallowed} on a disabled price list. "
-                    "Only name, description, and status can be updated."
-                )
+        self._validate_disabled_update(data, re_enabling)
 
         rates_changed = "rates" in data and _strip_for_comparison(data["rates"]) != _strip_for_comparison(
             self._model.rates
