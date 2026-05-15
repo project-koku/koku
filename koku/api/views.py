@@ -45,6 +45,7 @@ from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPGpuView
 from api.report.ocp.view import OCPMemoryView
+from api.report.ocp.view import OCPMigProfilesView
 from api.report.ocp.view import OCPNetworkView
 from api.report.ocp.view import OCPReportVirtualMachinesView
 from api.report.ocp.view import OCPVolumeView
@@ -86,6 +87,7 @@ from api.settings.tags.view import SettingsDisableTagView
 from api.settings.tags.view import SettingsEnableTagView
 from api.settings.tags.view import SettingsTagView
 from api.settings.views import AccountSettings
+from api.settings.views import GlobalSettingsView
 from api.settings.views import UserCostTypeSettings
 from api.status.views import StatusView
 from api.tags.all.openshift.view import OCPAllTagView

@@ -135,6 +135,38 @@ def safe_float(val):
     return result
 
 
+def safe_int_or_none(val):
+    """
+    Convert the given value to an int or None.
+    Returns None for empty strings, NaN, or invalid values.
+    Used for nullable integer fields like MIG slice counts.
+    """
+    if val is None or val == "":
+        return None
+    if isinstance(val, float) and pd.isna(val):
+        return None
+    try:
+        return int(float(val))
+    except (ValueError, TypeError):
+        return None
+
+
+def safe_float_or_none(val):
+    """
+    Convert the given value to a float or None.
+    Returns None for empty strings, NaN, or invalid values.
+    Used for nullable float fields like MIG memory capacity.
+    """
+    if val is None or val == "":
+        return None
+    if isinstance(val, float) and pd.isna(val):
+        return None
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
+
+
 def safe_dict(val):
     """
     Convert the given value to a dictionary or empyt dict.

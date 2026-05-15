@@ -992,6 +992,7 @@ class OCPGpuSummaryP(models.Model):
             models.Index(fields=["node"], name="ocpgpusumm_node_idx"),
             models.Index(fields=["vendor_name"], name="ocpgpusumm_vendor_idx"),
             models.Index(fields=["model_name"], name="ocpgpusumm_model_idx"),
+            models.Index(fields=["mig_profile"], name="ocpgpusumm_mig_profile_idx"),
         ]
 
     id = models.UUIDField(primary_key=True)
@@ -1006,7 +1007,17 @@ class OCPGpuSummaryP(models.Model):
     vendor_name = models.CharField(max_length=128, null=True)
     model_name = models.CharField(max_length=128, null=True)
     memory_capacity_gb = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    gpu_count = models.IntegerField(null=True)
+    gpu_count = models.IntegerField(null=True)  # TODO: Remove this field
+    mig_instance_id = models.CharField(max_length=128, null=True)
+    gpu_uuid = models.CharField(max_length=128, null=True)
+
+    # MIG (Multi-Instance GPU) fields
+    gpu_mode = models.CharField(max_length=32, null=True)  # 'dedicated' or 'MIG'
+    mig_profile = models.CharField(max_length=64, null=True)  # e.g., '1g.5gb', '2g.10gb'
+    mig_slice_count = models.IntegerField(null=True)
+    mig_memory_capacity_gb = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    mig_strategy = models.CharField(max_length=10, null=True)
+    gpu_max_slices = models.IntegerField(null=True)
 
     # Cost fields - aggregated from cost_model_gpu_cost in daily_summary
     cost_model_gpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -1023,6 +1034,58 @@ class OCPGpuSummaryP(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
+
+
+class RatesToUsage(models.Model):
+    """Per-rate cost rows produced by the Phase 2 SQL pipeline.
+
+    Partitioned by usage_start (same strategy as all OCP reporting tables).
+    See docs/architecture/cost-breakdown/data-model.md § RatesToUsage.
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        db_table = "rates_to_usage"
+        indexes = [
+            models.Index(
+                fields=["usage_start", "source_uuid", "report_period_id"],
+                name="ratestousage_start_src_rp_idx",
+            ),
+            models.Index(fields=["namespace"], name="ratestousage_namespace_idx"),
+            models.Index(fields=["cluster_id"], name="ratestousage_cluster_idx"),
+            models.Index(fields=["custom_name"], name="ratestousage_custom_name_idx"),
+            models.Index(fields=["monthly_cost_type"], name="ratestousage_monthly_cost_idx"),
+            models.Index(fields=["label_hash"], name="ratestousage_label_hash_idx"),
+        ]
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    rate = models.ForeignKey("cost_models.Rate", on_delete=models.SET_NULL, null=True)
+    cost_model = models.ForeignKey("cost_models.CostModel", on_delete=models.SET_NULL, null=True)
+    report_period_id = models.IntegerField(null=True)
+    source_uuid = models.UUIDField()
+    usage_start = models.DateField()
+    usage_end = models.DateField()
+    node = models.CharField(max_length=253, null=True)
+    namespace = models.CharField(max_length=253, null=True)
+    cluster_id = models.TextField()
+    cluster_alias = models.TextField(null=True)
+    data_source = models.CharField(max_length=63, null=True)
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
+    pod_labels = JSONField(null=True)
+    volume_labels = JSONField(null=True)
+    all_labels = JSONField(null=True)
+    custom_name = models.CharField(max_length=50)
+    metric_type = models.CharField(max_length=20)
+    cost_model_rate_type = models.TextField(null=True)
+    monthly_cost_type = models.TextField(null=True)
+    calculated_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
+    labels = JSONField(null=True)
+    label_hash = models.CharField(max_length=64, null=True)
 
 
 # Import on-prem line item models so Django can discover them for migrations

@@ -308,7 +308,7 @@ def get_daily_currency_rates():
     return rate_metrics
 
 
-@celery_app.task(name="masu.celery.scrape_azure_storage_capacities", queue=DEFAULT)
+@celery_app.task(name="masu.celery.tasks.scrape_azure_storage_capacities", queue=DEFAULT)
 def scrape_azure_storage_capacities():
     """Task to retrieve the Azure disk capacities.
 
@@ -373,7 +373,9 @@ def check_cost_model_status(provider_uuid=None):
     processed = 0
     skipped = 0
     for provider in providers:
-        with CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid) as cmdba:
+        with CostModelDBAccessor(
+            provider.account.get("schema_name"), provider.uuid, price_list_effective_on=None
+        ) as cmdba:
             if cmdba.cost_model:
                 skipped += 1
                 continue

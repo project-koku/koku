@@ -11,6 +11,9 @@ from django.db import transaction
 
 from api.metrics import constants as metric_constants
 from cost_models.models import CostModel
+from cost_models.models import Rate
+from masu.processor import DISABLE_PRICE_LIST_UNLEASH_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
 
 LOG = logging.getLogger(__name__)
 
@@ -18,17 +21,26 @@ LOG = logging.getLogger(__name__)
 class CostModelDBAccessor:
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, provider_uuid):
+    def __init__(self, schema, provider_uuid, price_list_effective_on):
         """Establish the database connection.
 
         Args:
             schema (str): The customer schema to associate with
             provider_uuid (str): Provider uuid
+            price_list_effective_on (date, optional): When set, tiered/tag rates are resolved
+                via the effective price list for this date. When omitted, rates come from
+                CostModel.rates directly.
 
         """
+        if is_feature_flag_enabled_by_schema(schema, DISABLE_PRICE_LIST_UNLEASH_FLAG):
+            price_list_effective_on = None
+            LOG.info(f"Price list cost model is disabled for schema {schema}")
+            # gets set to cost model rates in the effective_rates property.
         self.schema = schema
         self.provider_uuid = provider_uuid
+        self.price_list_effective_on = price_list_effective_on
         self._cost_model = None
+        self._effective_rates = None
 
     def __enter__(self):
         """Enter context manager."""
@@ -49,35 +61,74 @@ class CostModelDBAccessor:
         return self._cost_model
 
     @property
+    def effective_rates(self):
+        """Return rates from the effective price list for the target date.
+
+        When price_list_effective_on is provided, resolves rates via price list priority.
+        Returns empty rates if no price list covers the date (zero costs per PRD).
+        When price_list_effective_on is None, falls back to CostModel.rates for backward compatibility.
+        """
+        if self._effective_rates is not None:
+            return self._effective_rates
+        if not self.cost_model:
+            self._effective_rates = {}
+            return self._effective_rates
+        if self.price_list_effective_on is None:
+            self._effective_rates = self.cost_model.rates or {}
+            return self._effective_rates
+        from cost_models.price_list_manager import PriceListManager
+
+        effective_pl = PriceListManager.get_effective_price_list(self.cost_model.uuid, self.price_list_effective_on)
+        if effective_pl:
+            self._effective_rates = effective_pl.rates or {}
+        else:
+            self._effective_rates = {}
+        return self._effective_rates
+
+    @property
     def price_list(self):
-        """Return the rates definied on this cost model."""
-        metric_rate_map = {}
-        price_list = None
-        if self.cost_model:
-            price_list = copy.deepcopy(self.cost_model.rates)
-        if not price_list:
+        """Return the rates defined on this cost model.
+
+        Reads from the Rate table (via PriceListCostModelMap -> PriceList -> Rate).
+        Output dict matches the legacy JSON-based format so all downstream
+        properties (infrastructure_rates, supplementary_rates, etc.) work unchanged.
+
+        Tag rates (Rate rows with a non-empty tag_key) are skipped here;
+        they are handled by tag_based_price_list which still reads from JSON
+        until Phase 3 switches it to the Rate table.
+        """
+        if not self.cost_model:
             return {}
-        for rate in price_list:
-            if not rate.get("tiered_rates"):
+        rate_rows = Rate.objects.filter(price_list__cost_model_maps__cost_model=self.cost_model).only(
+            "metric", "cost_type", "default_rate", "description", "tag_key"
+        )
+
+        metric_rate_map = {}
+        for rate in rate_rows:
+            if rate.tag_key:
                 continue
-            metric_name = rate.get("metric", {}).get("name")
-            metric_cost_type = rate["cost_type"]
-            if metric_name in metric_rate_map.keys():
-                metric_mapping = metric_rate_map.get(metric_name)
-                if metric_cost_type in metric_mapping.get("tiered_rates", {}).keys():
-                    current_tiered_mapping = metric_mapping.get("tiered_rates", {}).get(metric_cost_type)
-                    new_tiered_rate = rate.get("tiered_rates")
-                    current_value = float(current_tiered_mapping[0].get("value"))
-                    value_to_add = float(new_tiered_rate[0].get("value"))
-                    current_tiered_mapping[0]["value"] = current_value + value_to_add
-                    metric_rate_map[metric_name] = metric_mapping
+
+            metric_name = rate.metric
+            cost_type = rate.cost_type
+            value = float(rate.default_rate) if rate.default_rate is not None else 0.0
+
+            if metric_name in metric_rate_map:
+                existing = metric_rate_map[metric_name]
+                tiered = existing["tiered_rates"]
+                if cost_type in tiered:
+                    tiered[cost_type][0]["value"] += value
                 else:
-                    new_tiered_rate = rate.get("tiered_rates")
-                    current_tiered_mapping = metric_mapping.get("tiered_rates", {})[metric_cost_type] = new_tiered_rate
+                    tiered[cost_type] = [{"value": value, "unit": "USD"}]
             else:
-                format_tiered_rates = {f"{metric_cost_type}": rate.get("tiered_rates")}
-                rate["tiered_rates"] = format_tiered_rates
-                metric_rate_map[metric_name] = rate
+                metric_rate_map[metric_name] = {
+                    "metric": {"name": metric_name},
+                    "cost_type": cost_type,
+                    "description": rate.description,
+                    "tiered_rates": {
+                        cost_type: [{"value": value, "unit": "USD"}],
+                    },
+                }
+
         return metric_rate_map
 
     @property
@@ -118,10 +169,10 @@ class CostModelDBAccessor:
     @property
     def metric_to_tag_params_map(self):
         """Returns the tag rate parameters"""
-        if not self.cost_model:
+        if not self.cost_model or not self.effective_rates:
             return {}
         tag_rate_list = []
-        all_rates = copy.deepcopy(self.cost_model.rates)
+        all_rates = copy.deepcopy(self.effective_rates)
         for rate in all_rates:
             tag_rate_param = {}
             tag_rate = rate.get("tag_rates")
@@ -135,7 +186,8 @@ class CostModelDBAccessor:
                 if tag_value.get("default"):
                     tag_rate_param["default_rate"] = float(tag_value.get("value"))
                 else:
-                    kv_pairs_rates[tag_value.get("tag_value")] = float(tag_value.get("value"))
+                    key = tag_value.get("tag_value")
+                    kv_pairs_rates[key] = float(tag_value.get("value"))
             if kv_pairs_rates:
                 tag_rate_param["value_rates"] = kv_pairs_rates
             tag_rate_list.append({metric_name: tag_rate_param})
@@ -149,9 +201,7 @@ class CostModelDBAccessor:
     def tag_based_price_list(self):  # noqa: C901
         """Return the rates definied on this cost model that come from tag based rates."""
         metric_rate_map = {}
-        tag_based_price_list = None
-        if self.cost_model:
-            tag_based_price_list = copy.deepcopy(self.cost_model.rates)
+        tag_based_price_list = copy.deepcopy(self.effective_rates) if self.effective_rates else None
         if not tag_based_price_list:
             return {}
         for rate in tag_based_price_list:

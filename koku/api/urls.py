@@ -48,6 +48,7 @@ from api.views import GCPStorageView
 from api.views import GCPTagView
 from api.views import get_currency
 from api.views import get_exchange_rates
+from api.views import GlobalSettingsView
 from api.views import IngressReportsDetailView
 from api.views import IngressReportsView
 from api.views import metrics
@@ -79,6 +80,7 @@ from api.views import OCPGpuModelsView
 from api.views import OCPGpuVendorsView
 from api.views import OCPGpuView
 from api.views import OCPMemoryView
+from api.views import OCPMigProfilesView
 from api.views import OCPNetworkView
 from api.views import OCPNodesView
 from api.views import OCPProjectsView
@@ -336,6 +338,13 @@ urlpatterns = [
         name="reports-openshift-gpu",
     ),
     path(
+        "reports/openshift/gpu/mig_profiles/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_CACHE_PREFIX)(
+            OCPMigProfilesView.as_view()
+        ),
+        name="reports-openshift-gpu-mig-profiles",
+    ),
+    path(
         "reports/openshift/infrastructures/all/costs/",
         cache_page(
             timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_ALL_CACHE_PREFIX
@@ -554,6 +563,17 @@ urlpatterns = [
     path("settings/", SunsetView, name="settings"),
 ]
 if settings.ONPREM:
+    # data-retention must precede the <str:setting> catch-all to avoid shadowing
+    for _i, _p in enumerate(urlpatterns):
+        if getattr(_p, "name", None) == "get-account-setting":
+            urlpatterns.insert(
+                _i, path("account-settings/data-retention/", GlobalSettingsView.as_view(), name="data-retention")
+            )
+            break
+    else:
+        import logging as _logging
+
+        _logging.getLogger(__name__).warning("get-account-setting URL not found; data-retention route not registered")
     urlpatterns += [
         path("source_types", SourceTypesView.as_view(), name="source-types"),
         path("application_types", ApplicationTypesView.as_view(), name="application-types"),

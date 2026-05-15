@@ -8,8 +8,10 @@ from functools import cached_property
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
+from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Func
 from django.db.models import IntegerField
 from django.db.models import Max
 from django.db.models import Q
@@ -17,6 +19,7 @@ from django.db.models import Sum
 from django.db.models import TextField
 from django.db.models import Value
 from django.db.models import When
+from django.db.models.functions import Cast
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import Greatest
@@ -41,6 +44,36 @@ from reporting.provider.ocp.models import OCPPodSummaryP
 from reporting.provider.ocp.models import OCPVirtualMachineSummaryP
 from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
 from reporting.provider.ocp.models import OCPVolumeSummaryP
+
+
+def _mig_profile_segment(part: int) -> Func:
+    """One dot-separated piece of mig_profile (e.g. '1g' or '5gb')."""
+    return Func(F("mig_profile"), Value("."), Value(part), function="split_part", output_field=CharField())
+
+
+def _mig_profile_segment_numeric(part: int):
+    """Integer from segment (e.g. 1 from '1g', 5 from '5gb'); NULL if unparseable."""
+    segment = _mig_profile_segment(part)
+    digits = Func(
+        segment,
+        Value("[^0-9]"),
+        Value(""),
+        Value("g"),
+        function="regexp_replace",
+        output_field=CharField(),
+    )
+    return Cast(NullIf(digits, Value("")), IntegerField())
+
+
+def _mig_profile_segment_units(part: int):
+    """Unit suffix from segment (e.g. 'g' from '1g', 'gb' from '5gb'); '' if missing."""
+    return Func(
+        _mig_profile_segment(part),
+        Value("^[0-9]+"),
+        Value(""),
+        function="regexp_replace",
+        output_field=CharField(),
+    )
 
 
 class OCPProviderMap(ProviderMap):
@@ -222,6 +255,8 @@ class OCPProviderMap(ProviderMap):
                     "vm_name": {"field": "vm_name", "operation": "icontains"},
                     "gpu_vendor": {"field": "vendor_name", "operation": "icontains"},
                     "gpu_model": {"field": "model_name", "operation": "icontains"},
+                    "gpu_mode": {"field": "gpu_mode", "operation": "icontains"},
+                    "mig_profile": {"field": "mig_profile", "operation": "icontains"},
                     "infrastructures": {
                         "field": "cluster_id",
                         "operation": "exact",
@@ -996,8 +1031,18 @@ class OCPProviderMap(ProviderMap):
                                 "node",
                                 output_field=TextField(),  # Specify output field type
                             ),
+                            # Note: gpu_mode and mig_profile are model fields, not annotations
                         },
-                        "group_by_options": ["cluster", "project", "gpu_vendor", "gpu_model", "gpu_name"],
+                        "group_by_options": [
+                            "cluster",
+                            "project",
+                            "node",
+                            "gpu_vendor",
+                            "gpu_model",
+                            "gpu_name",
+                            "gpu_mode",
+                            "mig_profile",
+                        ],
                         "tag_column": "all_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -1045,12 +1090,14 @@ class OCPProviderMap(ProviderMap):
                                 Coalesce(F("memory_capacity_gb"), Value(0, output_field=DecimalField()))
                             ),
                             "gpu_memory_units": Value("GB", output_field=CharField()),
-                            "gpu_count": Sum("gpu_count", default=Value(0, output_field=IntegerField())),
+                            "gpu_count": Count("gpu_uuid", distinct=True),
                             "gpu_count_units": Value("GPUs", output_field=CharField()),
+                            "gpu_mode": F("gpu_mode"),
                         },
                         "aggregate_ranks_exclusions": [
                             "gpu_model",
                             "gpu_vendor",
+                            "gpu_mode",
                             "node",
                         ],  # _aggregate_ranks_over_limit
                         "delta_key": {},
@@ -1062,6 +1109,71 @@ class OCPProviderMap(ProviderMap):
                             "sup_total",
                             "infra_total",
                         ],
+                    },
+                    "mig_profiles": {
+                        "tables": {"query": OCPGpuSummaryP},
+                        "report_type_annotations": {
+                            "gpu_vendor": F("vendor_name"),
+                            "gpu_model": F("model_name"),
+                            "gpu_name": Concat(
+                                "vendor_name",
+                                Value("_"),
+                                "model_name",
+                                Value("_"),
+                                "node",
+                                output_field=TextField(),
+                            ),
+                        },
+                        "group_by_options": ["cluster", "node", "namespace"],
+                        "tag_column": "all_labels",
+                        "aggregates": {},
+                        "default_ordering": {"mig_profile": "asc"},
+                        "capacity_aggregate": {},
+                        "annotations": {
+                            "gpu_model": F("model_name"),
+                            "gpu_vendor": F("vendor_name"),
+                            "mig_id": F("mig_instance_id"),
+                            "gpu_name": Concat(
+                                "vendor_name",
+                                Value("_"),
+                                "model_name",
+                                Value("_"),
+                                "node",
+                                output_field=TextField(),
+                            ),
+                            "node": F("node"),
+                            "mig_profile": F("mig_profile"),
+                            "compute": _mig_profile_segment_numeric(1),
+                            "mig_compute_units": _mig_profile_segment_units(1),
+                            "memory": _mig_profile_segment_numeric(2),
+                            "mig_memory_units": _mig_profile_segment_units(2),
+                            "mig_slice_count": Max(
+                                Coalesce(F("mig_slice_count"), Value(0, output_field=IntegerField()))
+                            ),
+                            "gpu_max_slices": Max(
+                                Coalesce(F("gpu_max_slices"), Value(0, output_field=IntegerField()))
+                            ),
+                        },
+                        "aggregate_ranks_exclusions": [
+                            "gpu_model",
+                            "gpu_vendor",
+                            "node",
+                            "mig_profile",
+                            "mig_id",
+                        ],
+                        "delta_key": {},
+                        "filter": [
+                            {"field": "mig_profile", "operation": "isnull", "parameter": False},
+                            {"field": "mig_profile", "operation": "gt", "parameter": ""},
+                        ],
+                        "group_by": ["mig_profile"],
+                        # filter[limit] ranks individual MIG instances (mig_id level), not profiles.
+                        # A node can have many instances per profile, so limiting by profile is not useful.
+                        "rank_group_by": ["mig_profile", "mig_id"],
+                        # Do not synthesize an "Other(s)" bucket when filter[limit] is used; return top-N only.
+                        "rank_limit_include_others": False,
+                        "cost_units_key": "raw_currency",
+                        "sum_columns": [],
                     },
                     "virtual_machines": {
                         "tag_column": "pod_labels",

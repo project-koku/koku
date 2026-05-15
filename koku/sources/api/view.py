@@ -33,6 +33,7 @@ from rest_framework.serializers import ValidationError
 from api.common.filters import CharListFilter
 from api.common.pagination import ListPaginator
 from api.common.permissions import RESOURCE_TYPE_MAP
+from api.common.permissions.sources_access import SourcesAccessPermission
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
@@ -85,6 +86,8 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
 LOG = logging.getLogger(__name__)
 MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet]
 HTTP_METHOD_LIST = ["get", "head"]
+
+SOURCES_PERMISSION_CLASSES = [SourcesAccessPermission] if settings.ONPREM else [AllowAny]
 
 if settings.ONPREM or settings.DEVELOPMENT:
     MIXIN_LIST.extend([mixins.CreateModelMixin, mixins.UpdateModelMixin, DestroySourceMixin])
@@ -160,12 +163,12 @@ class SourcesViewSet(*MIXIN_LIST):
 
     lookup_fields = ("source_id", "source_uuid")
     queryset = Sources.objects.all()
-    permission_classes = (AllowAny,)
+    permission_classes = SOURCES_PERMISSION_CLASSES
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
     http_method_names = HTTP_METHOD_LIST
 
-    @action(methods=["get"], detail=False, permission_classes=[AllowAny], url_path="aws-s3-regions")
+    @action(methods=["get"], detail=False, permission_classes=SOURCES_PERMISSION_CLASSES, url_path="aws-s3-regions")
     def aws_s3_regions(self, request):
         regions = get_available_regions("s3")
         return ListPaginator(regions, request).paginated_response
@@ -182,7 +185,7 @@ class SourcesViewSet(*MIXIN_LIST):
         """Get excluded source types by access."""
         excludes = []
         keep = []
-        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
+        if (settings.ENHANCED_ORG_ADMIN and request.user.admin) or settings.ONPREM:
             return excludes
         resource_access = request.user.access
         if resource_access is None or not isinstance(resource_access, dict):
@@ -258,7 +261,7 @@ class SourcesViewSet(*MIXIN_LIST):
         """Create a Source."""
         schema_name = request.user.customer.schema_name
         try:
-            response = super().create(request=request, args=args, kwargs=kwargs)
+            response = super().create(request, *args, **kwargs)
             invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
             return response
         except (SourcesStorageError, ParseError) as error:
@@ -271,7 +274,7 @@ class SourcesViewSet(*MIXIN_LIST):
         """Update a Source."""
         schema_name = request.user.customer.schema_name
         try:
-            result = super().update(request=request, args=args, kwargs=kwargs)
+            result = super().update(request, *args, **kwargs)
             invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
             return result
         except (SourcesStorageError, ParseError) as error:
@@ -285,7 +288,7 @@ class SourcesViewSet(*MIXIN_LIST):
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
 
-        response = super().list(request=request, args=args, kwargs=kwargs)
+        response = super().list(request, *args, **kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:
             if (
@@ -331,7 +334,7 @@ class SourcesViewSet(*MIXIN_LIST):
     @method_decorator(never_cache)
     def retrieve(self, request, *args, **kwargs):
         """Get a source."""
-        response = super().retrieve(request=request, args=args, kwargs=kwargs)
+        response = super().retrieve(request, *args, **kwargs)
         _, tenant = self._get_account_and_tenant(request)
 
         if response.data.get("authentication", {}).get("credentials", {}).get("client_secret"):
@@ -371,7 +374,7 @@ class SourcesViewSet(*MIXIN_LIST):
         return response
 
     @method_decorator(never_cache)
-    @action(methods=["get"], detail=True, permission_classes=[AllowAny])
+    @action(methods=["get"], detail=True, permission_classes=SOURCES_PERMISSION_CLASSES)
     def stats(self, request, pk=None):
         """Get source stats."""
         source = self.get_object()

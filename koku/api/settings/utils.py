@@ -2,13 +2,20 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import logging
+import os
 import typing as t
 from copy import deepcopy
+from functools import reduce
+from operator import or_
 
+from django import forms
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import ProhibitNullCharactersValidator
+from django.db.models import Q
 from django.db.models import QuerySet
+from django_filters import Filter
 from django_filters import MultipleChoiceFilter
 from django_filters.fields import MultipleChoiceField
 from django_filters.rest_framework import FilterSet
@@ -22,7 +29,11 @@ from api.settings.settings import COST_TYPES
 from api.settings.settings import DEFAULT_USER_SETTINGS
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
+from masu.config import Config
+from reporting.tenant_settings.models import TenantSettings
 from reporting.user_settings.models import UserSettings
+
+LOG = logging.getLogger(__name__)
 
 """Utilities for Settings."""
 
@@ -42,6 +53,45 @@ class NonValidatingMultipleChoiceField(MultipleChoiceField):
 
 class NonValidatedMultipleChoiceFilter(MultipleChoiceFilter):
     field_class = NonValidatingMultipleChoiceField
+
+
+class ListField(forms.CharField):
+    """Form field that normalizes strings and lists into a flat list."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.validators.append(ProhibitNullCharactersValidator())
+
+    def validate(self, value):
+        if isinstance(value, str):
+            self.run_validators(value)
+        else:
+            for val in value:
+                self.run_validators(val)
+
+    def to_python(self, value):
+        if isinstance(value, list) and value:
+            value = ",".join(str(v) for v in value)
+        if isinstance(value, str):
+            return [v.strip() for v in value.split(",") if v.strip()]
+        return []
+
+
+class ListFilter(Filter):
+    """Filter that accepts strings, CSV, and lists; applies OR/AND with a configurable lookup."""
+
+    field_class = ListField
+
+    def __init__(self, *args, compose=or_, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.compose = compose
+
+    def filter(self, qs, value):
+        if not value:
+            return qs
+        lookup = f"{self.field_name}__{self.lookup_expr}"
+        queries = [Q(**{lookup: v}) for v in value]
+        return qs.filter(reduce(self.compose, queries))
 
 
 class SettingsFilter(FilterSet):
@@ -241,3 +291,31 @@ def set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
         else:
             account_current_setting.settings["cost_type"] = cost_type_code
             account_current_setting.save()
+
+
+def get_data_retention_months(schema_name: str) -> "int | None":
+    """Return the effective data-retention period for the given tenant.
+
+    Priority: env var > DB > Config default.
+    Returns None on DB read failure (caller should skip purge).
+    """
+    env_val = os.environ.get("RETAIN_NUM_MONTHS")
+    if env_val is not None:
+        try:
+            return int(env_val)
+        except (ValueError, TypeError):
+            LOG.error("RETAIN_NUM_MONTHS env var is not a valid integer: %r", env_val)
+            return None
+    try:
+        with schema_context(schema_name):
+            row = TenantSettings.objects.first()
+            if row:
+                return row.data_retention_months
+    except Exception:
+        LOG.error(
+            "Failed to read tenant_settings for %s; skipping purge for this tenant",
+            schema_name,
+            exc_info=True,
+        )
+        return None
+    return Config.MASU_RETAIN_NUM_MONTHS

@@ -417,6 +417,25 @@ class CostModelSerializerTest(IamTestCase):
                     result_metric_count += 1
         self.assertEqual(expected_metric_count, result_metric_count)
 
+    def test_duplicate_custom_name_rejected(self):
+        """Test that two rates with the same explicit custom_name in one request are rejected."""
+        rate_a = {
+            "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR},
+            "tiered_rates": [{"unit": "USD", "value": 0.10}],
+            "custom_name": "my-rate",
+        }
+        rate_b = {
+            "metric": {"name": metric_constants.OCP_METRIC_MEM_GB_USAGE_HOUR},
+            "tiered_rates": [{"unit": "USD", "value": 0.20}],
+            "custom_name": "my-rate",
+        }
+        self.ocp_data["rates"] = [rate_a, rate_b]
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+            with self.assertRaises(serializers.ValidationError) as ctx:
+                serializer.validate_rates(self.ocp_data["rates"])
+            self.assertIn("my-rate", str(ctx.exception))
+
     def test_rate_cost_type_valid(self):
         """Test that a valid cost type is accepted."""
         self.ocp_data["rates"][0]["tiered_rates"] = [

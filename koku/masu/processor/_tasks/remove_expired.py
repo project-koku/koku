@@ -6,6 +6,7 @@
 import logging
 
 from api.common import log_json
+from api.settings.utils import get_data_retention_months
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.expired_data_remover import ExpiredDataRemoverError
 
@@ -30,7 +31,12 @@ def _remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
 
     LOG.info(log_json(msg="Remove expired data", context=context))
 
-    remover = ExpiredDataRemover(schema_name, provider)
+    retention = get_data_retention_months(schema_name)
+    if retention is None:
+        LOG.warning(log_json(msg="Skipping purge — DB read failed", context=context))
+        return
+
+    remover = ExpiredDataRemover(schema_name, provider, num_of_months_to_keep=retention)
     removed_data = remover.remove(simulate=simulate, provider_uuid=provider_uuid)
     if removed_data:
         status_msg = "Expired Data" if simulate else "Removed Data"

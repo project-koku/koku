@@ -169,6 +169,42 @@ class OCPUtilTests(MasuTestCase):
                     result, _ = utils.detect_type("")
                     self.assertEqual(result, expected)
 
+    def test_detect_type_gpu_usage(self):
+        """Test that we detect GPU usage report type from csv."""
+        expected_result = "gpu_usage"
+        test_table = [
+            copy.deepcopy(utils.GPU_USAGE_COLUMNS),
+            copy.deepcopy(utils.GPU_USAGE_COLUMNS).union(utils.GPU_USAGE_NEWV_COLUMNS_AND_TYPES),
+        ]
+        for test in test_table:
+            with self.subTest(test=test):
+                with patch("masu.util.ocp.common.pd.read_csv") as mock_csv:
+                    mock_csv.return_value.columns = test
+                    result, _ = utils.detect_type("")
+                    self.assertEqual(result, expected_result)
+
+    def test_detect_type_gpu_usage_without_mig_columns(self):
+        """Test that GPU usage is detected even without MIG columns (backward compatibility)."""
+        expected_result = "gpu_usage"
+        # Simulate old operator data without MIG columns
+        gpu_columns_without_mig = copy.deepcopy(utils.GPU_USAGE_COLUMNS)
+        with patch("masu.util.ocp.common.pd.read_csv") as mock_csv:
+            mock_csv.return_value.columns = gpu_columns_without_mig
+            result, _ = utils.detect_type("")
+            self.assertEqual(result, expected_result)
+
+    def test_detect_type_gpu_usage_with_mig_columns(self):
+        """Test that GPU usage is detected with MIG columns present."""
+        expected_result = "gpu_usage"
+        # Simulate new operator data with MIG columns
+        gpu_columns_with_mig = copy.deepcopy(utils.GPU_USAGE_COLUMNS).union(
+            set(utils.GPU_USAGE_NEWV_COLUMNS_AND_TYPES.keys())
+        )
+        with patch("masu.util.ocp.common.pd.read_csv") as mock_csv:
+            mock_csv.return_value.columns = gpu_columns_with_mig
+            result, _ = utils.detect_type("")
+            self.assertEqual(result, expected_result)
+
 
 class DistributionConfigTest(MasuTestCase):
     """Test the DistributionConfig class (AI generated tests)."""
