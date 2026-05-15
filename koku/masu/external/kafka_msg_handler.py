@@ -393,6 +393,20 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
             source = utils.get_source_and_provider_from_cluster_id(
                 manifest.cluster_id, org_id=org_id, skip_org_id_filter=True
             )
+            if source:
+                LOG.warning(
+                    log_json(
+                        manifest.uuid,
+                        msg="cross-org cluster lookup bypass used",
+                        context={
+                            **context,
+                            "requesting_org_id": org_id,
+                            "source_org_id": source.org_id,
+                            "cluster_id": manifest.cluster_id,
+                            "provider_uuid": str(source.koku_uuid),
+                        },
+                    )
+                )
     if not source:
         msg = f"Received unexpected OCP report from {manifest.cluster_id}"
         LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
