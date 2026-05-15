@@ -211,7 +211,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             "uuid",
             "name",
             "type",
-            "authentication",
+            "provider_authentication",
             "billing_source",
             "customer",
             "created_by",
