@@ -427,6 +427,19 @@ class TestCeleryTasks(MasuTestCase):
         self.assertNotEqual(beforeRows, afterRows)
         self.assertEqual(afterRows, 14)
 
+    @patch("masu.celery.tasks.celery_app")
+    def test_scrape_azure_storage_capacities_updates_stale_capacity(self, mock_celery_app):
+        """Test that scraping updates an existing row whose capacity has changed."""
+        adsf = AzureDiskSizeScraper()
+        DiskCapacity.objects.all().delete()
+        DiskCapacity.objects.create(product_substring="P80", capacity=99999, provider_type=Provider.PROVIDER_AZURE)
+        with requests_mock.mock() as reqmock:
+            reqmock.register_uri("GET", adsf.url, status_code=200, text=test_azure_scrape_output)
+            tasks.scrape_azure_storage_capacities()
+        p80 = DiskCapacity.objects.get(product_substring="P80")
+        self.assertEqual(p80.capacity, 32768)
+        self.assertEqual(DiskCapacity.objects.count(), 14)
+
     def test_error_scrape_azure_storage_capacities(self):
         """Test HTTP error capture."""
         adsf = AzureDiskSizeScraper()
