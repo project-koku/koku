@@ -13,12 +13,14 @@ from tempfile import NamedTemporaryFile
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pandas as pd
 from azure.core.exceptions import HttpResponseError
 from faker import Faker
 
 from api.utils import DateHelper
 from masu.config import Config
 from masu.external import UNCOMPRESSED
+from masu.external.downloader.azure.azure_report_downloader import _get_date_column
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
 from masu.external.downloader.azure.azure_report_downloader import create_daily_archives
@@ -530,6 +532,24 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.assertEqual(date_range, expected_date_range)
         self.assertIsInstance(daily_file_names, list)
         self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.pd.read_csv")
+    def test_get_date_column(self, mock_read_csv):
+        """Test _get_date_column handles various CSV column scenarios."""
+        test_matrix = [
+            ("no recognized columns", ["ColA", "ColB", "ColC"], None),
+            ("legacy UsageDateTime column", ["UsageDateTime", "MeterCategory", "PreTaxCost"], None),
+            ("valid Date column", ["Date", "MeterCategory", "PreTaxCost"], "Date"),
+            ("valid lowercase date column", ["date", "MeterCategory", "PreTaxCost"], "date"),
+            ("empty CSV", [], None),
+        ]
+        for label, columns, expected in test_matrix:
+            with self.subTest(label):
+                mock_df = Mock()
+                mock_df.columns = pd.Index(columns)
+                mock_read_csv.return_value = mock_df
+                result = _get_date_column("fake_file.csv", {}, "trace_id")
+                self.assertEqual(result, expected)
 
     @patch(
         "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
