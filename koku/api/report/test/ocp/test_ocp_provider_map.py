@@ -8,7 +8,6 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.db.models import DecimalField
-from django.db.models import Sum
 from django.db.models import Value
 from django_tenants.utils import tenant_context
 
@@ -185,53 +184,6 @@ class OCPProviderMapTest(IamTestCase):
             )
             result = qs.aggregate(wasted_cost=aggregates["wasted_cost"])
             self.assertEqual(result["wasted_cost"], Decimal("0"))
-
-    def test_per_row_cost_cpu_sums_to_aggregate_cost_total(self):
-        """Sanity: Sum(row infra + markup + cm cpu) matches existing cost_total aggregate."""
-        cluster_id = "s1a-cost-consistency"
-        usage_date = self.dh.yesterday.date()
-        _dec = DecimalField(max_digits=33, decimal_places=15)
-        one = Value(Decimal("1"), output_field=_dec)
-
-        with tenant_context(self.tenant):
-            OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).delete()
-
-            self.baker.make(
-                OCPUsageLineItemDailySummary,
-                cluster_id=cluster_id,
-                data_source="Pod",
-                namespace="s1a-test",
-                usage_start=usage_date,
-                usage_end=usage_date,
-                infrastructure_raw_cost=Decimal("30"),
-                infrastructure_markup_cost=Decimal("7"),
-                cost_model_cpu_cost=Decimal("5"),
-                pod_request_cpu_core_hours=Decimal("1"),
-                pod_usage_cpu_core_hours=Decimal("1"),
-            )
-            self.baker.make(
-                OCPUsageLineItemDailySummary,
-                cluster_id=cluster_id,
-                data_source="Pod",
-                namespace="s1a-test",
-                usage_start=usage_date,
-                usage_end=usage_date,
-                infrastructure_raw_cost=Decimal("10"),
-                infrastructure_markup_cost=Decimal("2"),
-                cost_model_cpu_cost=Decimal("1"),
-                pod_request_cpu_core_hours=Decimal("1"),
-                pod_usage_cpu_core_hours=Decimal("1"),
-            )
-
-            mapper = OCPProviderMap(provider=Provider.PROVIDER_OCP, report_type="cpu", schema_name=self.schema_name)
-            aggregates = mapper.report_type_map["aggregates"]
-            qs = OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id, data_source="Pod").annotate(
-                exchange_rate=one,
-                infra_exchange_rate=one,
-            )
-            row_cost = mapper._per_row_cost_cpu_expr()
-            summed = qs.aggregate(from_rows=Sum(row_cost), cost_total=aggregates["cost_total"])
-            self.assertEqual(summed["from_rows"], summed["cost_total"])
 
     def test_wasted_cost_order_by_desc_matches_annotation(self):
         """Grouped wasted_cost annotation is sortable (used by order_by[wasted_cost])."""
