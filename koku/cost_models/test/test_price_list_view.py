@@ -4,6 +4,7 @@
 #
 """Test the Price List views."""
 import logging
+from unittest.mock import patch
 
 from django.urls import reverse
 from django_tenants.utils import tenant_context
@@ -14,6 +15,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import CostModel
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
+from cost_models.models import Rate
 
 
 class PriceListViewTests(IamTestCase):
@@ -70,6 +72,54 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(response.data["name"], "Test Price List")
         self.assertEqual(response.data["version"], 1)
         self.assertIsNotNone(response.data["uuid"])
+
+    def test_create_price_list_rates_include_metric_labels(self):
+        """Test that rates include label_metric, label_measurement, label_measurement_unit."""
+        response = self._create_price_list()
+        rates = response.data["rates"]
+        self.assertTrue(len(rates) > 0)
+        metric = rates[0]["metric"]
+        self.assertEqual(metric["label_metric"], "CPU")
+        self.assertEqual(metric["label_measurement"], "Usage")
+        self.assertEqual(metric["label_measurement_unit"], "core-hours")
+
+        detail_url = reverse("price-lists-detail", kwargs={"uuid": response.data["uuid"]})
+        get_response = self.client.get(detail_url, **self.headers)
+        self.assertEqual(get_response.status_code, status.HTTP_200_OK)
+        get_metric = get_response.data["rates"][0]["metric"]
+        self.assertEqual(get_metric["label_metric"], "CPU")
+        self.assertEqual(get_metric["label_measurement"], "Usage")
+        self.assertEqual(get_metric["label_measurement_unit"], "core-hours")
+
+    @patch("cost_models.price_list_serializer.metric_constants.get_cost_model_metrics_map")
+    def test_metric_labels_error_on_corrupted_map(self, mock_map):
+        """Test that corrupted metric map returns 500."""
+        mock_map.return_value = {"cpu_core_usage_per_hour": {"source_type": "OCP"}}
+        url = reverse("price-lists-list")
+        response = self.client.post(url, data=self.price_list_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_create_price_list_duplicate_custom_name_fails(self):
+        """Test that duplicate custom_name in rates fails."""
+        url = reverse("price-lists-list")
+        data = self.price_list_data.copy()
+        data["rates"] = [
+            {
+                "metric": {"name": "cpu_core_usage_per_hour"},
+                "custom_name": "my_rate",
+                "tiered_rates": [{"value": "1.50", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}],
+                "cost_type": "Infrastructure",
+            },
+            {
+                "metric": {"name": "memory_gb_usage_per_hour"},
+                "custom_name": "my_rate",
+                "tiered_rates": [{"value": "2.00", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}],
+                "cost_type": "Infrastructure",
+            },
+        ]
+        response = self.client.post(url, data=data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Duplicate custom_name", str(response.data))
 
     def test_create_price_list_without_name(self):
         """Test that creating a price list without a name fails."""
@@ -172,6 +222,42 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["version"], 2)
 
+    def test_update_metadata_does_not_increment_version(self):
+        """Test that metadata-only updates do not increment version."""
+        create_response = self._create_price_list()
+        pl_uuid = create_response.data["uuid"]
+        self.assertEqual(create_response.data["version"], 1)
+
+        detail_url = reverse("price-lists-detail", kwargs={"uuid": pl_uuid})
+
+        update_data = dict(create_response.data)
+        update_data["name"] = "Renamed"
+        response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["version"], 1)
+
+        update_data = dict(response.data)
+        update_data["description"] = "new desc"
+        response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["version"], 1)
+
+        update_data = dict(response.data)
+        response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["version"], 1)
+
+        update_data = dict(response.data)
+        update_data["rates"] = [dict(r) for r in update_data["rates"]]
+        update_data["rates"][0]["description"] = "updated rate description"
+        response = self.client.put(detail_url, data=update_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["version"], 1)
+
+        with tenant_context(self.tenant):
+            rate = Rate.objects.get(price_list__uuid=pl_uuid)
+            self.assertEqual(rate.description, "updated rate description")
+
     def test_update_currency_fails(self):
         """Test that updating currency fails - currency is immutable."""
         create_response = self._create_price_list(currency="USD")
@@ -255,8 +341,8 @@ class PriceListViewTests(IamTestCase):
 
     # --- Filtering (bracket notation) ---
 
-    def test_filter_by_name(self):
-        """Test filtering price lists by name using bracket notation."""
+    def test_filter_by_name_single_value(self):
+        """Test filtering price lists by name with a single value."""
         self._create_price_list(name="Production Rates")
         self._create_price_list(name="Staging Rates")
 
@@ -267,18 +353,40 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["name"], "Production Rates")
 
-    def test_filter_by_name_comma_separated(self):
-        """Test AND filtering with comma-separated name values."""
-        self._create_price_list(name="Production OCP Rates")
-        self._create_price_list(name="Staging OCP Rates")
-        self._create_price_list(name="Production AWS Rates")
+    def test_filter_by_name_csv_one_match(self):
+        """Test OR filtering with comma-separated values where only one matches."""
+        self._create_price_list(name="Production Rates")
 
         url = reverse("price-lists-list")
-        response = self.client.get(f"{url}?filter[name]=Production,OCP", **self.headers)  # noqa: E231
+        response = self.client.get(f"{url}?filter[name]=Production,Nonexistent", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         results = response.data.get("data", response.data.get("results", []))
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["name"], "Production OCP Rates")
+        matching = [r for r in results if r["name"] == "Production Rates"]
+        self.assertEqual(len(matching), 1)
+
+    def test_filter_by_name_repeated_params_both_match(self):
+        """Test OR filtering with repeated bracket params where both values match."""
+        self._create_price_list(name="Production Rates")
+        self._create_price_list(name="Staging Rates")
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?filter[name]=Production&filter[name]=Staging", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        names = [r["name"] for r in results]
+        self.assertIn("Production Rates", names)
+        self.assertIn("Staging Rates", names)
+
+    def test_filter_by_name_repeated_params_one_match(self):
+        """Test OR filtering with repeated bracket params where only one value matches."""
+        self._create_price_list(name="Production Rates")
+
+        url = reverse("price-lists-list")
+        response = self.client.get(f"{url}?filter[name]=Production&filter[name]=Nonexistent", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        matching = [r for r in results if r["name"] == "Production Rates"]
+        self.assertEqual(len(matching), 1)
 
     def test_filter_by_enabled_true(self):
         """Test filtering for enabled price lists."""
