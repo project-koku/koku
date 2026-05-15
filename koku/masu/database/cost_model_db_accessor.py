@@ -11,9 +11,9 @@ from django.db import transaction
 
 from api.metrics import constants as metric_constants
 from cost_models.models import CostModel
+from cost_models.models import Rate
 from masu.processor import DISABLE_PRICE_LIST_UNLEASH_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
-
 
 LOG = logging.getLogger(__name__)
 
@@ -74,7 +74,6 @@ class CostModelDBAccessor:
             self._effective_rates = {}
             return self._effective_rates
         if self.price_list_effective_on is None:
-            # No target date — fall back to CostModel.rates for backward compatibility
             self._effective_rates = self.cost_model.rates or {}
             return self._effective_rates
         from cost_models.price_list_manager import PriceListManager
@@ -88,32 +87,48 @@ class CostModelDBAccessor:
 
     @property
     def price_list(self):
-        """Return the rates definied on this cost model."""
-        metric_rate_map = {}
-        price_list = copy.deepcopy(self.effective_rates) if self.effective_rates else None
-        if not price_list:
+        """Return the rates defined on this cost model.
+
+        Reads from the Rate table (via PriceListCostModelMap -> PriceList -> Rate).
+        Output dict matches the legacy JSON-based format so all downstream
+        properties (infrastructure_rates, supplementary_rates, etc.) work unchanged.
+
+        Tag rates (Rate rows with a non-empty tag_key) are skipped here;
+        they are handled by tag_based_price_list which still reads from JSON
+        until Phase 3 switches it to the Rate table.
+        """
+        if not self.cost_model:
             return {}
-        for rate in price_list:
-            if not rate.get("tiered_rates"):
+        rate_rows = Rate.objects.filter(price_list__cost_model_maps__cost_model=self.cost_model).only(
+            "metric", "cost_type", "default_rate", "description", "tag_key"
+        )
+
+        metric_rate_map = {}
+        for rate in rate_rows:
+            if rate.tag_key:
                 continue
-            metric_name = rate.get("metric", {}).get("name")
-            metric_cost_type = rate["cost_type"]
-            if metric_name in metric_rate_map.keys():
-                metric_mapping = metric_rate_map.get(metric_name)
-                if metric_cost_type in metric_mapping.get("tiered_rates", {}).keys():
-                    current_tiered_mapping = metric_mapping.get("tiered_rates", {}).get(metric_cost_type)
-                    new_tiered_rate = rate.get("tiered_rates")
-                    current_value = float(current_tiered_mapping[0].get("value"))
-                    value_to_add = float(new_tiered_rate[0].get("value"))
-                    current_tiered_mapping[0]["value"] = current_value + value_to_add
-                    metric_rate_map[metric_name] = metric_mapping
+
+            metric_name = rate.metric
+            cost_type = rate.cost_type
+            value = float(rate.default_rate) if rate.default_rate is not None else 0.0
+
+            if metric_name in metric_rate_map:
+                existing = metric_rate_map[metric_name]
+                tiered = existing["tiered_rates"]
+                if cost_type in tiered:
+                    tiered[cost_type][0]["value"] += value
                 else:
-                    new_tiered_rate = rate.get("tiered_rates")
-                    current_tiered_mapping = metric_mapping.get("tiered_rates", {})[metric_cost_type] = new_tiered_rate
+                    tiered[cost_type] = [{"value": value, "unit": "USD"}]
             else:
-                format_tiered_rates = {f"{metric_cost_type}": rate.get("tiered_rates")}
-                rate["tiered_rates"] = format_tiered_rates
-                metric_rate_map[metric_name] = rate
+                metric_rate_map[metric_name] = {
+                    "metric": {"name": metric_name},
+                    "cost_type": cost_type,
+                    "description": rate.description,
+                    "tiered_rates": {
+                        cost_type: [{"value": value, "unit": "USD"}],
+                    },
+                }
+
         return metric_rate_map
 
     @property
