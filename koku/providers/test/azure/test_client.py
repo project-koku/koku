@@ -4,6 +4,7 @@
 #
 """Test Azure Client Class."""
 import random
+from unittest.mock import MagicMock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -101,7 +102,11 @@ class AzureClientFactoryTestCase(TestCase):
             client_secret=FAKE.word(),
             cloud=random.choice(self.clouds),
         )
-        with patch("providers.azure.client.AzureClientFactory.storage_client", new_callable=PropertyMock):
+        with (
+            patch("providers.azure.client.AzureClientFactory.storage_client", new_callable=PropertyMock),
+            patch("providers.azure.client.BlobServiceClient.from_connection_string") as mock_from_conn,
+        ):
+            mock_from_conn.return_value = MagicMock(spec=BlobServiceClient)
             cloud_account = obj.blob_service_client(resource_group_name, storage_account_name)
             self.assertIsInstance(cloud_account, BlobServiceClient)
 
