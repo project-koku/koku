@@ -97,19 +97,24 @@ class CostModelDBAccessor:
     def price_list(self):
         """Return the rates defined on this cost model.
 
-        Reads from the Rate table (via PriceListCostModelMap -> PriceList -> Rate).
-        Output dict matches the legacy JSON-based format so all downstream
-        properties (infrastructure_rates, supplementary_rates, etc.) work unchanged.
+        When price_list_effective_on is set, scopes to the effective price list
+        for that date. Returns empty dict when no price list covers the date
+        (zero costs per PRD). Falls back to all Rate rows when no date is set.
 
         Tag rates (Rate rows with a non-empty tag_key) are skipped here;
-        they are handled by tag_based_price_list which still reads from JSON
-        until Phase 3 switches it to the Rate table.
+        they are handled by tag_based_price_list via effective_rates.
         """
         if not self.cost_model:
             return {}
-        rate_rows = Rate.objects.filter(price_list__cost_model_maps__cost_model=self.cost_model).only(
-            "metric", "cost_type", "default_rate", "description", "tag_key"
-        )
+        if self.price_list_effective_on:
+            effective_pl = self._effective_price_list
+            if not effective_pl:
+                return {}
+            rate_rows = effective_pl.rate_rows.only("metric", "cost_type", "default_rate", "description", "tag_key")
+        else:
+            rate_rows = Rate.objects.filter(price_list__cost_model_maps__cost_model=self.cost_model).only(
+                "metric", "cost_type", "default_rate", "description", "tag_key"
+            )
 
         metric_rate_map = {}
         for rate in rate_rows:
