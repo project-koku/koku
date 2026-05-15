@@ -558,6 +558,45 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
             rates = acc.effective_rates
             self.assertEqual(rates, acc.cost_model.rates)
 
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_price_list_respects_effective_dates(self, _mock_flag):
+        """COST-7492: price_list must return empty when date is outside the PL validity period.
+
+        Reproduces the QE scenario: a price list covering April only should NOT
+        produce costs for May. infrastructure_rates and supplementary_rates
+        derive from price_list, so if price_list is empty, costs are zero.
+        """
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+            pl = PriceList.objects.create(
+                name="price_list_previous_month",
+                effective_start_date=date(2026, 4, 1),
+                effective_end_date=date(2026, 4, 30),
+                rates=[],
+            )
+            PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model, priority=1)
+            Rate.objects.create(
+                price_list=pl,
+                custom_name="apr-cpu",
+                metric="cpu_core_usage_per_hour",
+                cost_type="Supplementary",
+                default_rate="3.50",
+            )
+
+        may_date = date(2026, 5, 1)
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=may_date) as acc:
+            pl_map = acc.price_list
+            self.assertEqual(pl_map, {}, "price_list should be empty for May when PL only covers April")
+            self.assertEqual(acc.infrastructure_rates, {})
+            self.assertEqual(acc.supplementary_rates, {})
+
+        apr_date = date(2026, 4, 15)
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=apr_date) as acc:
+            pl_map = acc.price_list
+            self.assertIn("cpu_core_usage_per_hour", pl_map, "price_list should contain rates for April")
+            self.assertNotEqual(acc.supplementary_rates, {})
+
     def _make_price_list(self, cost_model, name, start, end, priority=1):
         """Create a PriceList linked to cost_model with a single CPU rate."""
         pl = PriceList.objects.create(name=name, effective_start_date=start, effective_end_date=end, rates=[])
@@ -741,3 +780,248 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
 
         self.assertEqual(len(april_map), 1, "April is within validity — rate expected")
         self.assertEqual(may_map, {}, "May is outside validity — no rates, zero costs")
+
+    # -- GA readiness: tag-rate properties with date scoping --
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_tag_rate_properties_empty_outside_validity(self, _):
+        """All 6 tag-rate properties must return empty for a date outside the PL window.
+
+        tag_infrastructure_rates, tag_supplementary_rates,
+        tag_default_infrastructure_rates, tag_default_supplementary_rates,
+        metric_to_tag_params_map, and tag_based_price_list all derive from
+        effective_rates. If the date is outside every PL, they must all be empty.
+        """
+        tag_rates_json = [
+            {
+                "metric": {"name": "node_cost_per_month"},
+                "cost_type": "Infrastructure",
+                "tag_rates": {
+                    "tag_key": "env",
+                    "tag_values": [
+                        {"tag_value": "prod", "value": 100, "unit": "USD", "default": True, "description": ""},
+                    ],
+                },
+            },
+            {
+                "metric": {"name": "node_cost_per_month"},
+                "cost_type": "Supplementary",
+                "tag_rates": {
+                    "tag_key": "tier",
+                    "tag_values": [
+                        {"tag_value": "gold", "value": 50, "unit": "USD", "default": True, "description": ""},
+                    ],
+                },
+            },
+        ]
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+            pl = PriceList.objects.create(
+                name="apr-tags",
+                effective_start_date=date(2026, 4, 1),
+                effective_end_date=date(2026, 4, 30),
+                rates=tag_rates_json,
+            )
+            PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model, priority=1)
+
+        may_date = date(2026, 5, 1)
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=may_date) as acc:
+            self.assertEqual(acc.tag_based_price_list, {}, "tag_based_price_list should be empty outside PL")
+            self.assertEqual(acc.tag_infrastructure_rates, {}, "tag_infrastructure_rates should be empty")
+            self.assertEqual(acc.tag_supplementary_rates, {}, "tag_supplementary_rates should be empty")
+            self.assertEqual(
+                acc.tag_default_infrastructure_rates, {}, "tag_default_infrastructure_rates should be empty"
+            )
+            self.assertEqual(
+                acc.tag_default_supplementary_rates, {}, "tag_default_supplementary_rates should be empty"
+            )
+            self.assertEqual(acc.metric_to_tag_params_map, {}, "metric_to_tag_params_map should be empty")
+
+        apr_date = date(2026, 4, 15)
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=apr_date) as acc:
+            self.assertNotEqual(acc.tag_based_price_list, {}, "tag_based_price_list should have data in April")
+            self.assertNotEqual(acc.tag_infrastructure_rates, {}, "tag_infrastructure_rates should have data")
+            self.assertNotEqual(acc.tag_supplementary_rates, {}, "tag_supplementary_rates should have data")
+            self.assertNotEqual(
+                acc.tag_default_infrastructure_rates, {}, "tag_default_infrastructure_rates should have data"
+            )
+            self.assertNotEqual(
+                acc.tag_default_supplementary_rates, {}, "tag_default_supplementary_rates should have data"
+            )
+            self.assertNotEqual(acc.metric_to_tag_params_map, {}, "metric_to_tag_params_map should have data")
+
+    # -- GA readiness: overlapping price lists with priority --
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_overlapping_price_lists_lower_priority_wins(self, _):
+        """When two PLs cover the same date, the one with lower priority number wins."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+
+            pl_hi = PriceList.objects.create(
+                name="high-priority",
+                effective_start_date=date(2026, 4, 1),
+                effective_end_date=date(2026, 4, 30),
+                rates=[],
+            )
+            PriceListCostModelMap.objects.create(price_list=pl_hi, cost_model=cost_model, priority=1)
+            Rate.objects.create(
+                price_list=pl_hi,
+                custom_name="hi-cpu",
+                metric="cpu_core_usage_per_hour",
+                cost_type="Supplementary",
+                default_rate="5.00",
+            )
+
+            pl_lo = PriceList.objects.create(
+                name="low-priority",
+                effective_start_date=date(2026, 4, 1),
+                effective_end_date=date(2026, 4, 30),
+                rates=[],
+            )
+            PriceListCostModelMap.objects.create(price_list=pl_lo, cost_model=cost_model, priority=2)
+            Rate.objects.create(
+                price_list=pl_lo,
+                custom_name="lo-cpu",
+                metric="cpu_core_usage_per_hour",
+                cost_type="Supplementary",
+                default_rate="10.00",
+            )
+
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=date(2026, 4, 15)) as acc:
+            cpu = acc.price_list.get("cpu_core_usage_per_hour")
+            self.assertIsNotNone(cpu)
+            value = cpu["tiered_rates"]["Supplementary"][0]["value"]
+            self.assertEqual(value, 5.0, "Priority 1 PL rate ($5) should win over priority 2 ($10)")
+
+    # -- GA readiness: gap between two price lists --
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_date_in_gap_between_price_lists_returns_empty(self, _):
+        """A date falling in a gap between two PLs must return empty rates."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+            self._make_price_list(cost_model, "April", date(2026, 4, 1), date(2026, 4, 30))
+            self._make_price_list(cost_model, "June", date(2026, 6, 1), date(2026, 6, 30))
+
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=date(2026, 5, 15)) as acc:
+            self.assertEqual(acc.price_list, {}, "May is in the gap — price_list should be empty")
+            self.assertEqual(acc.infrastructure_rates, {})
+            self.assertEqual(acc.supplementary_rates, {})
+            self.assertEqual(acc.rate_info_map, {})
+
+    # -- GA readiness: mid-month date matches PL --
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_mid_month_date_matches_price_list(self, _):
+        """A mid-month start_date (as production callers use) must find the covering PL."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+            self._make_price_list(cost_model, "April", date(2026, 4, 1), date(2026, 4, 30))
+
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=date(2026, 4, 15)) as acc:
+            self.assertIn("cpu_core_usage_per_hour", acc.price_list)
+            self.assertNotEqual(acc.supplementary_rates, {}, "Supplementary rate from _make_price_list expected")
+
+    # -- GA readiness: markup and distribution_info are date-independent --
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_markup_and_distribution_stable_regardless_of_date(self, _):
+        """markup and distribution_info come from CostModel, not PL — must be the same with any date."""
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=None) as acc_none:
+            markup_none = acc_none.markup
+            dist_none = acc_none.distribution_info
+
+        with CostModelDBAccessor(
+            self.schema, self.provider_uuid, price_list_effective_on=date(2100, 1, 1)
+        ) as acc_future:
+            self.assertEqual(acc_future.markup, markup_none, "markup must not depend on PL date")
+            self.assertEqual(acc_future.distribution_info, dist_none, "distribution_info must not depend on PL date")
+
+    # -- GA readiness: price_list with date=None merges all PLs --
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_price_list_no_date_returns_rates_from_all_price_lists(self, _):
+        """With date=None, price_list returns rates from ALL PLs for the cost model."""
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+
+            pl_apr = PriceList.objects.create(
+                name="apr-only",
+                effective_start_date=date(2026, 4, 1),
+                effective_end_date=date(2026, 4, 30),
+                rates=[],
+            )
+            PriceListCostModelMap.objects.create(price_list=pl_apr, cost_model=cost_model, priority=1)
+            Rate.objects.create(
+                price_list=pl_apr,
+                custom_name="apr-cpu",
+                metric="cpu_core_usage_per_hour",
+                cost_type="Supplementary",
+                default_rate="2.00",
+            )
+
+            pl_may = PriceList.objects.create(
+                name="may-only",
+                effective_start_date=date(2026, 5, 1),
+                effective_end_date=date(2026, 5, 31),
+                rates=[],
+            )
+            PriceListCostModelMap.objects.create(price_list=pl_may, cost_model=cost_model, priority=1)
+            Rate.objects.create(
+                price_list=pl_may,
+                custom_name="may-mem",
+                metric="memory_gb_usage_per_hour",
+                cost_type="Infrastructure",
+                default_rate="4.00",
+            )
+
+        with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=None) as acc:
+            pl_map = acc.price_list
+            self.assertIn("cpu_core_usage_per_hour", pl_map, "CPU rate from April PL expected")
+            self.assertIn("memory_gb_usage_per_hour", pl_map, "Memory rate from May PL expected")
+
+    # -- GA readiness: price_list and effective_rates consistency --
+
+    @patch("masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_price_list_and_effective_rates_consistency(self, _):
+        """price_list and effective_rates must agree: both empty or both populated."""
+        rates_json = [
+            {
+                "metric": {"name": "cpu_core_usage_per_hour"},
+                "tiered_rates": [{"value": "1.50", "unit": "USD"}],
+                "cost_type": "Supplementary",
+            }
+        ]
+        with schema_context(self.schema):
+            cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            PriceListCostModelMap.objects.filter(cost_model=cost_model).delete()
+            pl = PriceList.objects.create(
+                name="Apr",
+                effective_start_date=date(2026, 4, 1),
+                effective_end_date=date(2026, 4, 30),
+                rates=rates_json,
+            )
+            PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model, priority=1)
+            Rate.objects.create(
+                price_list=pl,
+                custom_name="Apr-cpu",
+                metric="cpu_core_usage_per_hour",
+                cost_type="Supplementary",
+                default_rate="1.50",
+            )
+
+        for test_date, label in [(date(2026, 4, 15), "in-range"), (date(2026, 5, 15), "out-of-range")]:
+            with CostModelDBAccessor(self.schema, self.provider_uuid, price_list_effective_on=test_date) as acc:
+                has_pl = bool(acc.price_list)
+                has_eff = bool(acc.effective_rates)
+                self.assertEqual(
+                    has_pl,
+                    has_eff,
+                    f"price_list and effective_rates disagree for {label} date {test_date}",
+                )
