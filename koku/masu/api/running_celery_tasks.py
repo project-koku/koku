@@ -80,12 +80,28 @@ def clear_celery_queues(request):
             LOG.info(f"Clearing all queues parameter: {clear_all}")
             queue_lengths = list(collect_queue_metrics().values())
             purged_tasks += sum(queue_lengths)
-            r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB)
+            r = redis.Redis(
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                db=settings.REDIS_DB,
+                username=settings.REDIS_USERNAME,
+                password=settings.REDIS_PASSWORD,
+                ssl=settings.REDIS_SSL,
+                **settings.REDIS_CONNECTION_POOL_KWARGS,
+            )
             r.flushall()
 
         if queue:
             LOG.info(f"Clearing tasks from {queue} queue")
-            r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB)
+            r = redis.Redis(
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                db=settings.REDIS_DB,
+                username=settings.REDIS_USERNAME,
+                password=settings.REDIS_PASSWORD,
+                ssl=settings.REDIS_SSL,
+                **settings.REDIS_CONNECTION_POOL_KWARGS,
+            )
             queue_lengths = collect_queue_metrics().get(queue)
             purged_tasks += queue_lengths
             r.delete(queue)

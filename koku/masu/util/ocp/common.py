@@ -559,16 +559,22 @@ def get_cluster_alias_from_cluster_id(cluster_id):
     return cluster_alias
 
 
-def get_source_and_provider_from_cluster_id(cluster_id, org_id):
-    """Return the provider given the cluster ID."""
-    source = None
+def get_source_and_provider_from_cluster_id(cluster_id, org_id, skip_org_id_filter=False):
+    """Return the provider given the cluster ID.
+
+    Args:
+        cluster_id: OCP cluster identifier.
+        org_id: Organization ID used to scope the lookup and prevent cross-org data leakage.
+        skip_org_id_filter: When True, the org_id filter is omitted. Should only be set by
+            callers that have verified the cross-org lookup Unleash flag is enabled for the
+            target schema.
+    """
     credentials = {"cluster_id": cluster_id}
-    if (
-        source := Sources.objects.select_related("provider")
-        .filter(provider__authentication__credentials=credentials)
-        .filter(org_id=org_id)
-        .first()
-    ):
+    qs = Sources.objects.select_related("provider").filter(provider__authentication__credentials=credentials)
+    if not skip_org_id_filter:
+        qs = qs.filter(org_id=org_id)
+    source = qs.first()
+    if source:
         context = {"provider_uuid": source.koku_uuid, "cluster_id": cluster_id}
         LOG.info(log_json("", msg="found provider for cluster-id", context=context))
     return source
