@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Shared exchange rate annotation builders for query handlers and forecasts."""
-
 from django.conf import settings
 from django.db.models import DecimalField
 from django.db.models import OuterRef
@@ -91,9 +90,7 @@ def build_ocp_exchange_rate_annotation_dict(cost_units_key, target_currency):
     - infra_exchange_rate: cloud bill currency (raw_currency column)
     """
     cost_model_currency = Subquery(
-        CostModel.objects.filter(
-            costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),
-        ).values(
+        CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
             "currency"
         )[:1],
     )
