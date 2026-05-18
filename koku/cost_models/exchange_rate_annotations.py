@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Shared exchange rate annotation builders for query handlers and forecasts."""
+
 from django.conf import settings
 from django.db.models import DecimalField
 from django.db.models import OuterRef
@@ -19,7 +20,6 @@ class ExchangeRateNotFound(Exception):
     """Raised when no exchange rate exists for a required currency pair."""
 
     def __init__(self, target_currency):
-        self.target_currency = target_currency
         if settings.CURRENCY_URL:
             msg = (
                 f"No exchange rate available for {target_currency}. "
@@ -91,7 +91,9 @@ def build_ocp_exchange_rate_annotation_dict(cost_units_key, target_currency):
     - infra_exchange_rate: cloud bill currency (raw_currency column)
     """
     cost_model_currency = Subquery(
-        CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
+        CostModel.objects.filter(
+            costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),
+        ).values(
             "currency"
         )[:1],
     )
