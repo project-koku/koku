@@ -318,6 +318,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     data = [{"date": date_string, "vm_names": query_data}]
                 else:
                     data = list(query_data)
+                    if self._report_type in ("cpu", "memory"):
+                        # Pack score fields so the CSV renderer emits score.usage_efficiency_percent
+                        # and score.wasted_cost.* columns to match the JSON response structure.
+                        score_pack = {k: v for k, v in self._mapper.PACK_DEFINITIONS.items() if k.startswith("score_")}
+                        for row in data:
+                            self._pack_data_object(row, **score_pack)
             else:
                 # Pass in a copy of the group by without the added
                 # tag column name prefix
