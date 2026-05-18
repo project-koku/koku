@@ -16,6 +16,7 @@ from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.currency.currencies import get_currency_info
 from api.currency.currencies import is_valid_iso_currency
+from api.currency.utils import get_missing_rate_warning
 from cost_models.models import EnabledCurrency
 
 LOG = logging.getLogger(__name__)
@@ -53,7 +54,11 @@ class EnabledCurrencyView(APIView):
             return error
         EnabledCurrency.objects.get_or_create(currency_code=code)
         LOG.info(log_json(msg="Currency enabled", currency=code))
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
+        warning = get_missing_rate_warning(code)
+        if warning:
+            LOG.warning(log_json(msg="Currency enabled with warning", currency=code, warning=warning))
+        return Response({"warning": warning}, status=status.HTTP_200_OK)
 
     @method_decorator(never_cache)
     def delete(self, request, *args, **kwargs):

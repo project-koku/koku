@@ -174,7 +174,9 @@ UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.j
 MAX_GROUP_BY = ENVIRONMENT.int("MAX_GROUP_BY_OVERRIDE", default=3)
 
 ### Currency URL
-CURRENCY_URL = ENVIRONMENT.get_value("CURRENCY_URL", default="https://open.er-api.com/v6/latest/USD")
+CURRENCY_URL = ENVIRONMENT.get_value(
+    "CURRENCY_URL", default=None if ONPREM else "https://open.er-api.com/v6/latest/USD"
+)
 
 ### End Middleware
 
