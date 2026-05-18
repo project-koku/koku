@@ -248,11 +248,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         combined_case_statements = {}
         if openshift_resource_type in ["Node", "Node_Core_Month"]:
             node_core = metric_constants.OCP_NODE_CORE_MONTH if openshift_resource_type == "Node_Core_Month" else ""
-            (
-                cost_case_statements,
-                unallocated_cost_case_statements,
-                labels_case_statement,
-            ) = self._node_statements(
+            (cost_case_statements, unallocated_cost_case_statements, labels_case_statement,) = self._node_statements(
                 rates,
                 start_date,
                 default_rates,
@@ -277,11 +273,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
 
     def _get_all_node_hour_tag_based_case_statements(self, rates, default_rates, start_date):
         """Call and organize cost, unallocated, and label case statements."""
-        (
-            cost_case_statements,
-            unallocated_cost_case_statements,
-            labels_case_statement,
-        ) = self._node_statements(
+        (cost_case_statements, unallocated_cost_case_statements, labels_case_statement,) = self._node_statements(
             rates,
             start_date,
             default_rates,
