@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Shared exchange rate annotation builders for query handlers and forecasts."""
+from django.conf import settings
 from django.db.models import DecimalField
 from django.db.models import OuterRef
 from django.db.models import Subquery
@@ -19,11 +20,18 @@ class ExchangeRateNotFound(Exception):
 
     def __init__(self, target_currency):
         self.target_currency = target_currency
-        super().__init__(
-            f"No exchange rate available for {target_currency}. "
-            "Ask your administrator to configure static exchange rates "
-            "or enable dynamic exchange rates."
-        )
+        if settings.CURRENCY_URL:
+            msg = (
+                f"No exchange rate available for {target_currency}. "
+                "Ask your administrator to configure static exchange rates "
+                "or enable dynamic exchange rates."
+            )
+        else:
+            msg = (
+                f"No exchange rate available for {target_currency}. "
+                "Ask your administrator to configure static exchange rates."
+            )
+        super().__init__(msg)
 
 
 def _build_monthly_rate_annotation(base_currency, target_currency):
