@@ -127,6 +127,7 @@ For each PR:
 
 ```bash
 LAST_COMMIT=$(gh pr view <pr_number> --repo project-koku/koku --json headRefOid --jq '.headRefOid')
+LAST_COMMIT_TS=$(gh api repos/project-koku/koku/commits/$LAST_COMMIT --jq '.commit.author.date')
 
 gh api repos/project-koku/koku/issues/<pr_number>/comments \
   --jq '.[] | select(.user.login == "koku-ci-triager-bot") | {body: .body, created_at: .created_at}'
@@ -135,7 +136,7 @@ gh api repos/project-koku/koku/pulls/<pr_number>/reviews \
   --jq '.[] | select(.user.login == "koku-ci-triager-bot") | {body: .body, submitted_at: .submitted_at}'
 ```
 
-Skip if a bot comment mentioning the same check name exists and was posted after `LAST_COMMIT`'s push timestamp.
+Skip if a bot comment mentioning the same check name exists and was posted after `LAST_COMMIT_TS`.
 
 ### Step 1b: Bootstrap Konflux access (once per session)
 
@@ -202,8 +203,8 @@ NS="cost-mgmt-dev-tenant"
 
 # Extract PipelineRun name from check detailsUrl
 PIPELINE_RUN=$(gh pr view <pr_number> --repo project-koku/koku --json statusCheckRollup \
-  --jq '.statusCheckRollup[] | select(.name | test("koku-ci")) | .detailsUrl' \
-  | grep -oE '[^/]+$')
+  --jq '.statusCheckRollup[] | select(.name == "Red Hat Konflux / koku-ci / koku") | .detailsUrl' \
+  | grep -oE '[^/]+$' | head -n 1)
 
 # Verify KubeArchive health
 curl -sk -H "Authorization: Bearer $TOKEN" "$KA_HOST/livez"
