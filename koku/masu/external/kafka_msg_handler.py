@@ -32,6 +32,7 @@ from kombu.exceptions import OperationalError as KombuOperationalError
 
 import masu.util.ocp.ocp_data_validator  # noqa: F401
 from api.common import log_json
+from api.iam.models import Customer
 from api.provider.models import Provider
 from api.settings.utils import get_data_retention_months
 from api.utils import DateHelper
@@ -47,6 +48,8 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.ros_report_shipper import ROSReportShipper
+from masu.processor import CROSS_ORG_CLUSTER_LOOKUP_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.processor.report_processor import ReportProcessorDBError
@@ -380,7 +383,30 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
             context=context,
         )
     )
-    source = utils.get_source_and_provider_from_cluster_id(manifest.cluster_id, org_id=context["org_id"])
+    org_id = context["org_id"]
+    source = utils.get_source_and_provider_from_cluster_id(manifest.cluster_id, org_id=org_id)
+    if not source:
+        schema_name_for_flag = Customer.objects.filter(org_id=org_id).values_list("schema_name", flat=True).first()
+        if schema_name_for_flag and is_feature_flag_enabled_by_schema(
+            schema_name_for_flag, CROSS_ORG_CLUSTER_LOOKUP_FLAG
+        ):
+            source = utils.get_source_and_provider_from_cluster_id(
+                manifest.cluster_id, org_id=org_id, skip_org_id_filter=True
+            )
+            if source:
+                LOG.warning(
+                    log_json(
+                        manifest.uuid,
+                        msg="cross-org cluster lookup bypass used",
+                        context={
+                            **context,
+                            "requesting_org_id": org_id,
+                            "source_org_id": source.org_id,
+                            "cluster_id": manifest.cluster_id,
+                            "provider_uuid": str(source.koku_uuid),
+                        },
+                    )
+                )
     if not source:
         msg = f"Received unexpected OCP report from {manifest.cluster_id}"
         LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
