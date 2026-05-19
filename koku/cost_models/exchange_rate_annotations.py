@@ -22,13 +22,13 @@ class ExchangeRateNotFound(Exception):
         if settings.CURRENCY_URL:
             msg = (
                 f"No exchange rate available for {target_currency}. "
-                "Ask your administrator to configure static exchange rates "
-                "or enable dynamic exchange rates."
+                "Ask your administrator to configure static exchange rates."
             )
         else:
             msg = (
                 f"No exchange rate available for {target_currency}. "
-                "Ask your administrator to configure static exchange rates."
+                "Ask your administrator to configure static exchange rates "
+                "or enable dynamic exchange rates."
             )
         super().__init__(msg)
 
