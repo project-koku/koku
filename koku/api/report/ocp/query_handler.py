@@ -237,8 +237,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         output["data"] = self.query_data
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
-        if "score" in self.query_sum:
-            self.query_sum["total_score"] = self.query_sum.pop("score")
+        self.query_sum["total_score"] = self.query_sum.pop("score", {})
         output["total"] = self.query_sum
 
         if self._delta:
@@ -295,9 +294,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self._report_type in ("cpu", "memory"):
                 has_tag_interaction = self._tag_group_by or self.get_tag_filter_keys()
                 should_compute = not has_tag_interaction and len(group_by_value) <= 1
-                query_sum["wasted_cost_units"] = self.currency
-                if not should_compute:
+                if should_compute:
+                    query_sum["wasted_cost_units"] = self.currency
+                else:
                     query_sum.pop("usage_efficiency", None)
+                    query_sum.pop("wasted_cost", None)
+                    query_sum.pop("wasted_cost_units", None)
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
@@ -307,6 +309,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self._report_type in ("cpu", "memory") and not should_compute:
                 for row in query_data:
                     row.pop("usage_efficiency", None)
+                    row.pop("wasted_cost", None)
+                    row.pop("wasted_cost_units", None)
 
             for row in query_data:
                 if tag_iterable := row.get("tags"):
