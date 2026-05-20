@@ -20,6 +20,7 @@ from django.db.models.functions import RowNumber
 from django.utils import timezone
 
 from api.common import log_json
+from api.provider.models import Provider
 from koku.database import cascade_delete
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
@@ -286,10 +287,21 @@ class ReportManifestDBAccessor:
             return f"{day}_manifestid-{manifest_id}_{counter}.csv"
 
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
-        """Return a list of GCP manifests for a date range."""
-        manifests = (
-            CostUsageReportManifest.objects.filter(provider_id=provider_uuid)
-            .annotate(
+        """Return manifests for a date range with provider-aware filtering."""
+
+        # Parse dates if needed
+        if isinstance(start_date, str):
+            start_date = date.fromisoformat(start_date)
+        if isinstance(end_date, str):
+            end_date = date.fromisoformat(end_date)
+
+        provider_type = Provider.objects.filter(uuid=provider_uuid).values_list("type", flat=True).first()
+        manifests = CostUsageReportManifest.objects.filter(provider_id=provider_uuid)
+
+        # GCP manifests encode partition date/export time in assembly_id and are consumed this way
+        # by GCPReportDownloader.retrieve_current_manifests_mapping.
+        if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+            return manifests.annotate(
                 partition_date=Cast(
                     Func(F("assembly_id"), Value("|"), Value(1), function="split_part", output_field=DateField()),
                     output_field=DateField(),
@@ -298,10 +310,15 @@ class ReportManifestDBAccessor:
                     Func(F("assembly_id"), Value("|"), Value(2), function="split_part", output_field=DateTimeField()),
                     output_field=DateTimeField(),
                 ),
-            )
-            .filter(partition_date__gte=start_date, partition_date__lte=end_date)
+            ).filter(partition_date__gte=start_date, partition_date__lte=end_date)
+
+        # Non-GCP manifests are tracked by billing period month.
+        billing_period_start = start_date.replace(day=1)
+        billing_period_end = end_date.replace(day=1)
+        return manifests.filter(
+            billing_period_start_datetime__gte=billing_period_start,
+            billing_period_start_datetime__lte=billing_period_end,
         )
-        return manifests
 
     def bulk_delete_manifests(self, provider_uuid, manifest_id_list):
         """

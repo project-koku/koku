@@ -17,6 +17,7 @@ from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
 
 
@@ -571,6 +572,42 @@ class CostModelManagerTest(IamTestCase):
             pl_rates = mapping.price_list.rates
             self.assertEqual(pl_rates[0]["metric"], updated_rates[0]["metric"])
             self.assertIn("rate_id", pl_rates[0])
+
+    def test_update_empty_rates_does_not_wipe_linked_price_list(self):
+        """Test that updating a cost model with empty rates does not wipe a linked price list's rates."""
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        rates = [
+            {
+                "metric": {"name": metric},
+                "source_type": Provider.PROVIDER_OCP,
+                "tiered_rates": [{"unit": "USD", "value": 0.5}],
+            }
+        ]
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+                cost_model_obj = manager.create(
+                    name="CM no rates",
+                    description="Test",
+                    rates={},
+                )
+
+            pl = PriceList.objects.create(
+                name="User PL",
+                currency="USD",
+                rates=rates,
+                effective_start_date="2026-01-01",
+                effective_end_date="2099-12-31",
+            )
+            PriceListCostModelMap.objects.create(price_list=pl, cost_model=cost_model_obj, priority=1)
+
+            manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
+            manager.update(rates={})
+
+            pl.refresh_from_db()
+            self.assertEqual(len(pl.rates), 1)
+            self.assertEqual(pl.rates[0]["tiered_rates"][0]["value"], 0.5)
 
     def test_update_without_rates_no_sync(self):
         """Test that updating without rates in data does not sync to PriceList."""
