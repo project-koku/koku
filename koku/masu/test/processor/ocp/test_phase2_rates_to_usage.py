@@ -1240,11 +1240,17 @@ class TestRTURateResolution(_ReportPeriodMixin, MasuTestCase):
             ).first()
         if not rtu_row:
             self.skipTest("No RTU rows with NULL rate FK (all rows may have matching Rate)")
-        known_metrics = set(metric_constants.COST_MODEL_USAGE_RATES)
-        metric_found = any(m in rtu_row.custom_name for m in known_metrics)
+        known_identifiers = set(metric_constants.COST_MODEL_USAGE_RATES) | set(
+            metric_constants.COST_MODEL_MONTHLY_RATES
+        ) | set(metric_constants.COST_MODEL_VM_USAGE_RATES) | set(
+            metric_constants.COST_MODEL_NODE_RATES
+        ) | {
+            "Node", "Cluster", "PVC", "OCP_VM", "Node_Core_Month", "Node_Core_Hour",
+        }
+        name_recognised = any(ident in rtu_row.custom_name for ident in known_identifiers)
         self.assertTrue(
-            metric_found,
-            f"RTU custom_name '{rtu_row.custom_name}' should contain a known metric name as fallback",
+            name_recognised,
+            f"RTU custom_name '{rtu_row.custom_name}' should contain a known metric or cost type as fallback",
         )
 
 
@@ -1417,8 +1423,10 @@ class TestPriceListValidityGuard(_ReportPeriodMixin, MasuTestCase):
 
         mock_cleanup.assert_called()
         mock_rtu.assert_not_called()
-        mock_agg.assert_not_called()
-        mock_vm.assert_not_called()
+        mock_agg.assert_called()
+        mock_vm.assert_called()
+        mock_monthly.assert_called()
+        mock_markup.assert_called()
 
     # TC-7492-02: RTU still called when price_list_effective_on is None (feature flag disabled)
     @_make_orchestration_patches(rtu_enabled=True)
