@@ -1,5 +1,4 @@
 """Tests for the PriceListManager."""
-
 import logging
 from datetime import date
 from unittest.mock import patch

@@ -16,7 +16,6 @@ Usage:
 Or standalone:
     python docs/architecture/cost-breakdown/poc/price_list_compat.py
 """
-
 import copy
 from dataclasses import dataclass
 from dataclasses import field

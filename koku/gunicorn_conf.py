@@ -1,5 +1,4 @@
 """Gunicorn configuration file."""
-
 import io
 import multiprocessing
 import traceback
