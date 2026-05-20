@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for EnabledCurrency views."""
+from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -11,9 +12,10 @@ from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.currency.models import ExchangeRateDictionary
 from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import EnabledCurrency
+from cost_models.models import MonthlyExchangeRate
+from cost_models.models import RateType
 
 
 class EnabledCurrencyDetailViewTest(IamTestCase):
@@ -25,6 +27,16 @@ class EnabledCurrencyDetailViewTest(IamTestCase):
 
     def _url(self, code):
         return reverse("enabled-currencies-detail", kwargs={"code": code})
+
+    def _create_rate(self, target_currency):
+        """Helper to create a MonthlyExchangeRate for the given target currency."""
+        MonthlyExchangeRate.objects.create(
+            effective_date=date(2026, 1, 1),
+            base_currency="USD",
+            target_currency=target_currency,
+            exchange_rate=Decimal("1.000000000000000"),
+            rate_type=RateType.STATIC,
+        )
 
     def test_post_enables_currency(self):
         with tenant_context(self.tenant):
@@ -83,61 +95,23 @@ class EnabledCurrencyDetailViewTest(IamTestCase):
         response = self.client.get(self._url("USD"), **self.headers)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    @patch("api.currency.utils.settings")
-    def test_post_returns_warning_when_no_dynamic_rate(self, mock_settings):
-        """When CURRENCY_URL is set but the currency has no dynamic rate, return a warning."""
-        mock_settings.CURRENCY_URL = "https://example.com/rates"
-        ExchangeRateDictionary.objects.all().delete()
-        ExchangeRateDictionary.objects.create(
-            currency_exchange_dictionary={
-                "USD": {"USD": Decimal(1), "EUR": Decimal("0.92")},
-                "EUR": {"USD": Decimal("1.087"), "EUR": Decimal(1)},
-            }
-        )
+    def test_post_warns_no_rate(self):
+        """When no exchange rate exists for the currency, return a warning."""
         with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.all().delete()
             EnabledCurrency.objects.all().delete()
             response = self.client.post(self._url("JPY"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn("warning", response.data)
-            self.assertIn("JPY", response.data["warning"])
+            self.assertIsNotNone(response.data["warning"])
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="JPY").exists())
 
-    @patch("api.currency.utils.settings")
-    def test_post_returns_warning_when_no_exchange_data(self, mock_settings):
-        """When CURRENCY_URL is set but ExchangeRateDictionary is empty, return a warning."""
-        mock_settings.CURRENCY_URL = "https://example.com/rates"
-        ExchangeRateDictionary.objects.all().delete()
+    def test_post_no_warning_when_rate_exists(self):
+        """No warning when MonthlyExchangeRate has a row for the target currency."""
         with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.all().delete()
+            self._create_rate("EUR")
             EnabledCurrency.objects.all().delete()
             response = self.client.post(self._url("EUR"), **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn("warning", response.data)
-            self.assertIn("static rate", response.data["warning"])
-
-    @patch("api.currency.utils.settings")
-    def test_post_no_warning_when_dynamic_rate_exists(self, mock_settings):
-        """When CURRENCY_URL is set and the currency has a dynamic rate, no warning."""
-        mock_settings.CURRENCY_URL = "https://example.com/rates"
-        ExchangeRateDictionary.objects.all().delete()
-        ExchangeRateDictionary.objects.create(
-            currency_exchange_dictionary={
-                "USD": {"USD": Decimal(1), "EUR": Decimal("0.92")},
-                "EUR": {"USD": Decimal("1.087"), "EUR": Decimal(1)},
-            }
-        )
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-            response = self.client.post(self._url("EUR"), **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIsNone(response.data["warning"])
-
-    @patch("api.currency.utils.settings")
-    def test_post_no_warning_when_currency_url_not_configured(self, mock_settings):
-        """When CURRENCY_URL is None (on-prem default), no warning."""
-        mock_settings.CURRENCY_URL = None
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-            response = self.client.post(self._url("JPY"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertIsNone(response.data["warning"])
 
