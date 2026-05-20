@@ -123,6 +123,10 @@ class CostModelManager:
     @transaction.atomic
     def update(self, **data):
         """Update the cost model object and sync rates to linked price list if one exists."""
+        incoming_rates = data.get("rates")
+        existing_rates = self._model.rates
+        sync_to_pricelist = "rates" in data and (bool(incoming_rates) or bool(existing_rates))
+
         self._model.name = data.get("name", self._model.name)
         self._model.description = data.get("description", self._model.description)
         self._model.rates = data.get("rates", self._model.rates)
@@ -132,7 +136,7 @@ class CostModelManager:
         self._model.currency = data.get("currency", self._model.currency)
         self._model.save()
 
-        if "rates" in data:
+        if sync_to_pricelist:
             pl = self._get_or_create_price_list()
             if pl:
                 rates_data = copy.deepcopy(data.get("rates", []))
