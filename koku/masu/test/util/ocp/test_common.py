@@ -19,8 +19,7 @@ from masu.test import MasuTestCase
 from masu.util.ocp import common as utils
 
 
-class ManifestFactory(ModelFactory[utils.Manifest]):
-    ...
+class ManifestFactory(ModelFactory[utils.Manifest]): ...
 
 
 class OCPUtilTests(MasuTestCase):

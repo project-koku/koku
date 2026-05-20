@@ -1,4 +1,5 @@
 """Tests for the PriceList and PriceListCostModelMap models."""
+
 import logging
 from datetime import date
 

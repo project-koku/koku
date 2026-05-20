@@ -1240,13 +1240,20 @@ class TestRTURateResolution(_ReportPeriodMixin, MasuTestCase):
             ).first()
         if not rtu_row:
             self.skipTest("No RTU rows with NULL rate FK (all rows may have matching Rate)")
-        known_identifiers = set(metric_constants.COST_MODEL_USAGE_RATES) | set(
-            metric_constants.COST_MODEL_MONTHLY_RATES
-        ) | set(metric_constants.COST_MODEL_VM_USAGE_RATES) | set(
-            metric_constants.COST_MODEL_NODE_RATES
-        ) | {
-            "Node", "Cluster", "PVC", "OCP_VM", "Node_Core_Month", "Node_Core_Hour",
-        }
+        known_identifiers = (
+            set(metric_constants.COST_MODEL_USAGE_RATES)
+            | set(metric_constants.COST_MODEL_MONTHLY_RATES)
+            | set(metric_constants.COST_MODEL_VM_USAGE_RATES)
+            | set(metric_constants.COST_MODEL_NODE_RATES)
+            | {
+                "Node",
+                "Cluster",
+                "PVC",
+                "OCP_VM",
+                "Node_Core_Month",
+                "Node_Core_Hour",
+            }
+        )
         name_recognised = any(ident in rtu_row.custom_name for ident in known_identifiers)
         self.assertTrue(
             name_recognised,
