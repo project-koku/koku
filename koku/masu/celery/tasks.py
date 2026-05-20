@@ -366,10 +366,10 @@ def scrape_azure_storage_capacities():
     disk_size_mapping = disk_fetcher.scrape_disk_size()
     if disk_size_mapping:
         for sku_prefix, disk_size in disk_size_mapping.items():
-            DiskCapacity.objects.get_or_create(
+            DiskCapacity.objects.update_or_create(
                 product_substring=sku_prefix,
-                capacity=disk_size,
                 provider_type=Provider.PROVIDER_AZURE,
+                defaults={"capacity": disk_size},
             )
     return disk_size_mapping
 
