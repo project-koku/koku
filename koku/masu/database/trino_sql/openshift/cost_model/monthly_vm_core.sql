@@ -107,7 +107,7 @@ SELECT
     labels.combined_labels as pod_labels,
     CAST(NULL AS json) AS volume_labels,
     labels.combined_labels as all_labels,
-    max(to_hex(sha256(to_utf8(COALESCE(CAST(labels.combined_labels AS varchar), '') || '|' || '' || '|' || COALESCE(CAST(labels.combined_labels AS varchar), ''))))) AS label_hash,
+    max(to_hex(sha256(to_utf8(COALESCE(json_format(CAST(labels.combined_labels AS json)), '') || '|' || '' || '|' || COALESCE(json_format(CAST(labels.combined_labels AS json)), ''))))) AS label_hash,
     {{custom_name}} AS custom_name,
     {{metric_type}} AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
