@@ -222,9 +222,33 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["version"], 2)
 
+    def _create_price_list_no_usage(self):
+        """Helper: create a price list without usage in tiered_rates (matches real client behavior)."""
+        url = reverse("price-lists-list")
+        post_data = {
+            "rates": [
+                {
+                    "cost_type": "Infrastructure",
+                    "custom_name": "a test",
+                    "description": "",
+                    "metric": {"name": "cpu_core_effective_usage_per_hour"},
+                    "tiered_rates": [{"unit": "USD", "value": 1}],
+                }
+            ],
+            "currency": "USD",
+            "description": "",
+            "effective_end_date": "2026-06-30",
+            "effective_start_date": "2026-05-01",
+            "name": "pedro_test",
+        }
+        resp = self.client.post(url, data=post_data, format="json", **self.headers)
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data["version"], 1)
+        return resp
+
     def test_update_metadata_does_not_increment_version(self):
         """Test that metadata-only updates do not increment version."""
-        create_response = self._create_price_list()
+        create_response = self._create_price_list_no_usage()
         pl_uuid = create_response.data["uuid"]
         self.assertEqual(create_response.data["version"], 1)
 
