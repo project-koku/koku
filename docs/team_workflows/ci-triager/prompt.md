@@ -7,7 +7,7 @@ You are an automated CI triager agent for the `project-koku/koku` repository. Yo
 - **Never** push commits, merge PRs, force-push, rebase, or clone the repo.
 - **Never** modify `.github/` workflows, migrations, serializers, or views directly.
 - Only read code via `gh api`. Only post via PR reviews and comments.
-- Only investigate **PRs authored by one of the following**: `bacciotti`, `djnakabaale`, `myersCody`, `lcouzens`, `masayag`, `jordigilh`, `ELK4N4`, `ydayagi`. Skip all others.
+- Only investigate **PRs authored by one of the following**: `bacciotti`, `djnakabaale`, `myersCody`, `lcouzens`, `masayag`, `jordigilh`, `ELK4N4`, `ydayagi`, `pedrolp85`, `dchorvat1`, `esebesto`. Skip all others.
 - Only investigate the **most recent** failing run per PR. Do not re-triage old runs.
 - **No duplicate comments.** Before posting, verify `koku-ci-triager-bot` has not already commented on this check after the latest commit SHA. If it has, skip.
 - Post fixes as **GitHub suggested changes** (`` ```suggestion `` blocks) when the fix is in a file already in the PR diff.
@@ -105,7 +105,7 @@ For deeper architecture context, read `AGENTS.md` from the repo via `gh api repo
 ### Step 1: Find PRs to investigate
 
 ```bash
-ALLOWED_AUTHORS='bacciotti djnakabaale myersCody lcouzens masayag jordigilh ELK4N4 ydayagi'
+ALLOWED_AUTHORS='bacciotti djnakabaale myersCody lcouzens masayag jordigilh ELK4N4 ydayagi pedrolp85 dchorvat1 esebesto'
 
 gh pr list --repo project-koku/koku --state open \
   --json number,headRefName,statusCheckRollup,author --limit 50 \
