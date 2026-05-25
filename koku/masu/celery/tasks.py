@@ -341,13 +341,10 @@ def get_daily_currency_rates():
         return {}
 
     rate_metrics = _fetch_and_store_exchange_rates(url)
-    if rate_metrics is None:
+    if not rate_metrics:
         return {}
 
     erd = ExchangeRateDictionary.objects.first()
-    if not erd or not erd.currency_exchange_dictionary:
-        return rate_metrics
-
     current_month = DateHelper().this_month_start.date()
     for tenant in Tenant.objects.exclude(schema_name="public"):
         _upsert_tenant_dynamic_exchange_rates(tenant.schema_name, erd.currency_exchange_dictionary, current_month)
