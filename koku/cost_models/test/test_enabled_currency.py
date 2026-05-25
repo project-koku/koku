@@ -12,6 +12,7 @@ from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from api.currency.models import ExchangeRates
 from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
@@ -127,8 +128,20 @@ class EnabledCurrencyListViewTest(IamTestCase):
     @patch(
         "api.settings.currency_views.get_currency_info",
         side_effect=lambda c: {
-            "USD": {"code": "USD", "name": "US Dollar", "symbol": "$", "description": "USD ($) - US Dollar"},
-            "EUR": {"code": "EUR", "name": "Euro", "symbol": "\u20ac", "description": "EUR (\u20ac) - Euro"},
+            "USD": {
+                "code": "USD",
+                "name": "US Dollar",
+                "symbol": "$",
+                "description": "USD ($) - US Dollar",
+                "has_dynamic_rate": True,
+            },
+            "EUR": {
+                "code": "EUR",
+                "name": "Euro",
+                "symbol": "\u20ac",
+                "description": "EUR (\u20ac) - Euro",
+                "has_dynamic_rate": False,
+            },
         }[c],
     )
     def test_get_returns_enabled_currencies(self, _mock):
@@ -143,6 +156,22 @@ class EnabledCurrencyListViewTest(IamTestCase):
             self.assertEqual(codes, ["EUR", "USD"])
             self.assertEqual(data[0]["name"], "Euro")
             self.assertEqual(data[1]["symbol"], "$")
+
+    def test_get_has_dynamic_rate_flag(self):
+        """Test that has_dynamic_rate reflects ExchangeRates table."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+            ExchangeRates.objects.all().delete()
+            ExchangeRates.objects.create(currency_type="usd", exchange_rate=1.0)
+            response = self.client.get(self.url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            data = response.data["data"]
+            eur_entry = next(c for c in data if c["code"] == "EUR")
+            usd_entry = next(c for c in data if c["code"] == "USD")
+            self.assertTrue(usd_entry["has_dynamic_rate"])
+            self.assertFalse(eur_entry["has_dynamic_rate"])
 
     def test_get_returns_empty_list_when_none_enabled(self):
         with tenant_context(self.tenant):

@@ -16,6 +16,7 @@ from babel.numbers import get_currency_symbol
 from babel.numbers import UnknownCurrencyError
 from rest_framework import serializers
 
+from api.currency.models import ExchangeRates
 from cost_models.models import EnabledCurrency
 
 _ISO_4217_CURRENCIES = get_global("all_currencies")
@@ -51,7 +52,7 @@ def is_valid_iso_currency(code):
 
 
 def get_currency_info(code):
-    """Return a dict with code, name, symbol, and description for a currency.
+    """Return a dict with code, name, symbol, description, and dynamic rate availability.
 
     All metadata is resolved via babel at call time.  Falls back to the
     code itself for currencies babel does not recognise.
@@ -63,9 +64,13 @@ def get_currency_info(code):
     except UnknownCurrencyError:
         name = code
         symbol = code
+
+    has_dynamic_rate = ExchangeRates.objects.filter(currency_type=code.lower()).exists()
+
     return {
         "code": code,
         "name": name,
         "symbol": symbol,
         "description": f"{code} ({symbol}) - {name}",
+        "has_dynamic_rate": has_dynamic_rate,
     }
