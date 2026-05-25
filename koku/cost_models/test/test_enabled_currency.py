@@ -127,7 +127,7 @@ class EnabledCurrencyListViewTest(IamTestCase):
 
     @patch(
         "api.settings.currency_views.get_currency_info",
-        side_effect=lambda c: {
+        side_effect=lambda c, dynamic_rate_codes: {
             "USD": {
                 "code": "USD",
                 "name": "US Dollar",

@@ -11,6 +11,7 @@ from rest_framework import serializers
 
 from api.common import log_json
 from api.currency.currencies import get_currency_info
+from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import is_valid_iso_currency
 from cost_models.models import EnabledCurrency
 from cost_models.models import StaticExchangeRate
@@ -150,19 +151,16 @@ class CurrencyExchangeRateSerializer(serializers.Serializer):
     def build_grouped_response(cls, queryset):
         """Group exchange rates by base_currency and attach currency metadata + enabled flag."""
         enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+        dynamic_codes = get_dynamic_rate_currencies()
 
         grouped = {}
         for rate in queryset:
             code = rate.base_currency
             if code not in grouped:
-                info = get_currency_info(code)
-                grouped[code] = {
-                    "code": info["code"],
-                    "name": info["name"],
-                    "symbol": info["symbol"],
-                    "enabled": code in enabled_codes,
-                    "exchange_rates": [],
-                }
+                info = get_currency_info(code, dynamic_codes)
+                info["enabled"] = code in enabled_codes
+                info["exchange_rates"] = []
+                grouped[code] = info
             grouped[code]["exchange_rates"].append(rate)
 
         result = []

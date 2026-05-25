@@ -51,7 +51,12 @@ def is_valid_iso_currency(code):
     return code.upper() in _ISO_4217_CURRENCIES
 
 
-def get_currency_info(code):
+def get_dynamic_rate_currencies():
+    """Return the set of currency codes that have a dynamic exchange rate available."""
+    return set(ExchangeRates.objects.values_list("currency_type", flat=True).distinct())
+
+
+def get_currency_info(code, dynamic_rate_codes):
     """Return a dict with code, name, symbol, description, and dynamic rate availability.
 
     All metadata is resolved via babel at call time.  Falls back to the
@@ -65,7 +70,7 @@ def get_currency_info(code):
         name = code
         symbol = code
 
-    has_dynamic_rate = ExchangeRates.objects.filter(currency_type=code.lower()).exists()
+    has_dynamic_rate = code.lower() in dynamic_rate_codes
 
     return {
         "code": code,
