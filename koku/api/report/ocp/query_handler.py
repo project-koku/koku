@@ -237,7 +237,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         output["data"] = self.query_data
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
-        self.query_sum["total_score"] = self.query_sum.pop("score", {})
+        if self._report_type in ("cpu", "memory"):
+            self.query_sum["total_score"] = self.query_sum.pop("score", {})
+        elif "score" in self.query_sum:
+            self.query_sum.pop("score")
         output["total"] = self.query_sum
 
         if self._delta:

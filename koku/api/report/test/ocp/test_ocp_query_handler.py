@@ -2215,10 +2215,11 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIn("units", total_score["wasted_cost"])
 
     def test_efficiency_score_multi_group_by_omits_efficiency_percent(self):
-        """Test that multi group-by omits usage_efficiency_percent but still returns wasted_cost.
+        """Test that multi group-by returns an empty total_score.
 
-        usage_efficiency_percent is a ratio-of-sums that is only meaningful for a single
-        group-by dimension. wasted_cost is always a SUM of values and is returned regardless.
+        Efficiency scores (usage_efficiency_percent, wasted_cost) are only meaningful
+        for a single group-by dimension. Multi-dimensional group-bys return total_score: {}
+        to signal that no efficiency metrics are available for this query shape.
         """
         url = "?group_by[cluster]=*&group_by[project]=*"
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -2226,8 +2227,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         query_output = handler.execute_query()
         total = query_output.get("total")
         total_score = total.get("total_score")
-        self.assertNotIn("usage_efficiency_percent", total_score)
-        self.assertIn("wasted_cost", total_score)
+        self.assertEqual(total_score, {})
 
     def test_efficiency_score_cost_report_excluded(self):
         """Test that cost report does not include total_score."""
