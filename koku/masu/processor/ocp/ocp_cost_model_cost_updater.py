@@ -57,6 +57,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         self._tag_supplementary_rates = {}
         self._tag_default_supplementary_rates = {}
         self.metric_to_tag_params_map = {}
+        self._price_list_effective_on = None
 
     def _load_rates(self, price_list_effective_on):
         """Load rates from the effective price list for the given billing date."""
@@ -72,6 +73,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
             self.metric_to_tag_params_map = cost_model_accessor.metric_to_tag_params_map
+            self._price_list_effective_on = cost_model_accessor.price_list_effective_on
 
     def _ensure_rates_to_usage_partitions(self, start_date, end_date):
         """Create monthly partitions for rates_to_usage on demand."""
@@ -759,14 +761,30 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
 
             self._load_rates(start_date)
 
+            no_effective_pl = self._price_list_effective_on is not None and not (
+                self._infra_rates
+                or self._supplementary_rates
+                or self._tag_infra_rates
+                or self._tag_supplementary_rates
+            )
+
             rtu_enabled = is_feature_flag_enabled_by_schema(
                 self._schema, COST_BREAKDOWN_RTU_UNLEASH_FLAG, dev_fallback=True
             )
             if rtu_enabled:
-                if self._cost_model_id:
+                if self._cost_model_id and not no_effective_pl:
                     self._update_usage_rates_to_usage(start_date, end_date)
                     self._aggregate_rates_to_daily_summary(start_date, end_date)
                     self._update_vm_usage_costs(start_date, end_date)
+                elif self._cost_model_id:
+                    LOG.info(
+                        log_json(
+                            msg="no effective price list for billing month, cleaning stale RTU rows",
+                            provider_uuid=self._provider_uuid,
+                            start_date=start_date,
+                        )
+                    )
+                    self._cleanup_stale_rtu_costs(start_date, end_date)
                 else:
                     self._cleanup_stale_rtu_costs(start_date, end_date)
             else:
