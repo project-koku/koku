@@ -53,6 +53,11 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f"Invalid currency code: {value}")
         return value.upper()
 
+    def validate_exchange_rate(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("exchange_rate must be greater than zero.")
+        return value
+
     def validate_start_date(self, value):
         if value.day != 1:
             raise serializers.ValidationError("start_date must be the first day of a month.")

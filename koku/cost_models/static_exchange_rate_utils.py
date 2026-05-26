@@ -39,6 +39,8 @@ def upsert_static_monthly_rates(static_rate):
     is written only when no explicit StaticExchangeRate defines the reverse pair
     for that month, ensuring explicit user-defined rates always take precedence.
     """
+    if static_rate.exchange_rate <= 0:
+        raise ValueError(f"exchange_rate must be positive, got {static_rate.exchange_rate}")
     inverse_rate = Decimal(1) / static_rate.exchange_rate
 
     for month_start in _iter_months(static_rate.start_date, static_rate.end_date):
