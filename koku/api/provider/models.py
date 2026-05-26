@@ -292,14 +292,19 @@ class Provider(models.Model):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
                 _type = self.type.lower()
                 self._normalized_type = _type.removesuffix("-local")
-                self._cascade_delete()
-                LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
-                LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table}")
-                self._delete_from_target(
-                    {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
-                    target_values=[self.pk],
-                )
-                LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table} COMPLETE")
+                with transaction.atomic():
+                    # Lock the provider row before cascading so concurrent FK inserts
+                    # (e.g. IngressReports created between cascade and final delete) block
+                    # until the transaction commits and the row is gone.
+                    Provider.objects.select_for_update().get(pk=self.pk)
+                    self._cascade_delete()
+                    LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
+                    LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table}")
+                    self._delete_from_target(
+                        {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
+                        target_values=[self.pk],
+                    )
+                    LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table} COMPLETE")
                 post_delete.send(sender=self.__class__, instance=self, using=using)
         else:
             LOG.warning("Customer link cannot be found! Using ORM delete!")
