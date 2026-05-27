@@ -292,6 +292,15 @@ class Provider(models.Model):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
                 _type = self.type.lower()
                 self._normalized_type = _type.removesuffix("-local")
+                # Explicitly delete IngressReports rows before cascade because the pg_constraint
+                # catalog query in _get_linked_table_names misses this tenant-schema FK reliably.
+                self._delete_from_target(
+                    {
+                        "table_schema": self.customer.schema_name,
+                        "table_name": "reporting_ingressreports",
+                        "column_name": "source_id",
+                    }
+                )
                 self._cascade_delete()
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table}")
