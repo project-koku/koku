@@ -140,14 +140,23 @@ base AS (
         cmi.distribution
 ),
 
+effective_pl AS (
+    SELECT pcm.price_list_id
+    FROM {{schema | sqlsafe}}.price_list_cost_model_map pcm
+    JOIN {{schema | sqlsafe}}.price_list pl ON pcm.price_list_id = pl.uuid
+    WHERE pcm.cost_model_id = {{cost_model_id}}
+      AND pl.effective_start_date <= {{start_date}}
+      AND pl.effective_end_date >= {{start_date}}
+    ORDER BY pcm.priority
+    LIMIT 1
+),
+
 rate_names AS (
     SELECT r.uuid AS rate_uuid, r.custom_name, r.metric,
            r.metric_type, r.default_rate, r.cost_type
     FROM {{schema | sqlsafe}}.cost_model_rate r
-    JOIN {{schema | sqlsafe}}.price_list pl ON r.price_list_id = pl.uuid
-    JOIN {{schema | sqlsafe}}.price_list_cost_model_map pcm ON pcm.price_list_id = pl.uuid
-    WHERE pcm.cost_model_id = {{cost_model_id}}
-      AND r.default_rate IS NOT NULL
+    JOIN effective_pl epl ON r.price_list_id = epl.price_list_id
+    WHERE r.default_rate IS NOT NULL
       AND r.default_rate != 0
 )
 

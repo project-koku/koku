@@ -1356,3 +1356,273 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_agg.assert_not_called()
         mock_vm.assert_not_called()
         mock_usage.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# COST-7492 — Price List Validity Period Enforcement (blast-radius audit)
+# ---------------------------------------------------------------------------
+
+
+class TestPriceListValidityGuard(_ReportPeriodMixin, MasuTestCase):
+    """Verify the Python guard skips RTU when no price list covers the billing month."""
+
+    def _make_summary_range(self):
+        dh = DateHelper()
+        return SummaryRangeConfig(
+            schema=self.schema,
+            provider_uuid=self.ocp_provider_uuid,
+            start_date=dh.this_month_start,
+            end_date=dh.this_month_end,
+            cost_model_update=True,
+        )
+
+    # TC-7492-01: cleanup called when cost model exists but no effective PL
+    @_make_orchestration_patches(rtu_enabled=True)
+    def test_cleanup_when_no_effective_price_list(
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
+    ):
+        """When _load_rates finds no effective PL, RTU is skipped and stale rows cleaned."""
+        from datetime import date
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+
+        def fake_load(start_date):
+            updater._infra_rates = {}
+            updater._supplementary_rates = {}
+            updater._tag_infra_rates = {}
+            updater._tag_supplementary_rates = {}
+            updater._tag_default_infra_rates = {}
+            updater._tag_default_supplementary_rates = {}
+            updater.metric_to_tag_params_map = {}
+            updater._price_list_effective_on = date(2026, 5, 1)
+
+        mock_load.side_effect = fake_load
+
+        sr = self._make_summary_range()
+        updater.update_summary_cost_model_costs(sr)
+
+        mock_cleanup.assert_called()
+        mock_rtu.assert_not_called()
+        mock_agg.assert_not_called()
+        mock_vm.assert_not_called()
+
+    # TC-7492-02: RTU still called when price_list_effective_on is None (feature flag disabled)
+    @_make_orchestration_patches(rtu_enabled=True)
+    def test_rtu_called_when_price_list_effective_on_is_none(
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
+    ):
+        """When _price_list_effective_on is None (feature flag disabled), RTU proceeds normally."""
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+
+        def fake_load(start_date):
+            updater._infra_rates = {}
+            updater._supplementary_rates = {}
+            updater._tag_infra_rates = {}
+            updater._tag_supplementary_rates = {}
+            updater._tag_default_infra_rates = {}
+            updater._tag_default_supplementary_rates = {}
+            updater.metric_to_tag_params_map = {}
+            updater._price_list_effective_on = None
+
+        mock_load.side_effect = fake_load
+
+        sr = self._make_summary_range()
+        updater.update_summary_cost_model_costs(sr)
+
+        mock_rtu.assert_called_once()
+        mock_cleanup.assert_not_called()
+
+    # TC-7492-03: RTU called when effective PL found and rates are loaded
+    @_make_orchestration_patches(rtu_enabled=True)
+    def test_rtu_called_when_effective_pl_found(
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
+    ):
+        """When _load_rates finds an effective PL with rates, RTU proceeds."""
+        from datetime import date
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+
+        def fake_load(start_date):
+            updater._infra_rates = {"cpu_core_usage_per_hour": 0.2}
+            updater._supplementary_rates = {}
+            updater._tag_infra_rates = {}
+            updater._tag_supplementary_rates = {}
+            updater._tag_default_infra_rates = {}
+            updater._tag_default_supplementary_rates = {}
+            updater.metric_to_tag_params_map = {}
+            updater._price_list_effective_on = date(2026, 4, 1)
+
+        mock_load.side_effect = fake_load
+
+        sr = self._make_summary_range()
+        updater.update_summary_cost_model_costs(sr)
+
+        mock_rtu.assert_called_once()
+        mock_cleanup.assert_not_called()
+
+    # TC-7492-04: _load_rates stores price_list_effective_on from accessor
+    def test_load_rates_stores_price_list_effective_on(self):
+        """_load_rates must propagate price_list_effective_on from the accessor."""
+        from datetime import date
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        self.assertIsNone(updater._price_list_effective_on)
+
+        test_date = date(2026, 4, 1)
+        updater._load_rates(test_date)
+
+        self.assertEqual(updater._price_list_effective_on, test_date)
+
+    # TC-7492-05: _load_rates stores None when feature flag disables date scoping
+    @patch(
+        "masu.database.cost_model_db_accessor.is_feature_flag_enabled_by_schema",
+        return_value=True,
+    )
+    def test_load_rates_stores_none_when_flag_disables_scoping(self, mock_ff):
+        """When DISABLE_PRICE_LIST flag is on, _price_list_effective_on should be None."""
+        from datetime import date
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        updater._load_rates(date(2026, 4, 1))
+
+        self.assertIsNone(updater._price_list_effective_on)
+
+    # TC-7492-06: tag cost paths skipped when no effective PL
+    @_make_orchestration_patches(rtu_enabled=True)
+    def test_tag_costs_skipped_when_no_effective_pl(
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
+    ):
+        """Tag-based cost paths must be skipped when no PL covers the month."""
+        from datetime import date
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+
+        def fake_load(start_date):
+            updater._infra_rates = {}
+            updater._supplementary_rates = {}
+            updater._tag_infra_rates = {}
+            updater._tag_supplementary_rates = {}
+            updater._tag_default_infra_rates = {}
+            updater._tag_default_supplementary_rates = {}
+            updater.metric_to_tag_params_map = {}
+            updater._price_list_effective_on = date(2026, 5, 1)
+
+        mock_load.side_effect = fake_load
+
+        sr = self._make_summary_range()
+        with patch.object(updater, "_delete_tag_usage_costs"), patch.object(
+            updater, "_update_tag_usage_costs"
+        ) as mock_tag_usage:
+            updater.update_summary_cost_model_costs(sr)
+            mock_tag_usage.assert_not_called()
+
+
+class TestTwoMonthOrchestration(_ReportPeriodMixin, MasuTestCase):
+    """Verify correct behavior across a two-month range where only one month has an effective PL."""
+
+    # TC-7492-07: two-month range — April RTU, May cleanup
+    def test_two_month_range_april_rtu_may_cleanup(self):
+        """Over April+May with an April-only PL, RTU runs for April and cleanup for May."""
+        from datetime import datetime
+        from datetime import timezone
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not updater._cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+
+        sr = SummaryRangeConfig(
+            schema=self.schema,
+            provider_uuid=self.ocp_provider_uuid,
+            start_date=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            end_date=datetime(2026, 5, 31, tzinfo=timezone.utc),
+            cost_model_update=True,
+        )
+
+        call_log = []
+
+        def fake_load(start_date):
+            if hasattr(start_date, "date"):
+                d = start_date.date()
+            else:
+                d = start_date
+            if d.month == 4:
+                updater._infra_rates = {"cpu_core_usage_per_hour": 0.2}
+                updater._supplementary_rates = {"cpu_core_usage_per_hour": 0.2}
+            else:
+                updater._infra_rates = {}
+                updater._supplementary_rates = {}
+            updater._tag_infra_rates = {}
+            updater._tag_supplementary_rates = {}
+            updater._tag_default_infra_rates = {}
+            updater._tag_default_supplementary_rates = {}
+            updater.metric_to_tag_params_map = {}
+            updater._price_list_effective_on = d
+
+        with patch.object(updater, "_load_rates", side_effect=fake_load), patch.object(
+            updater, "_update_usage_rates_to_usage"
+        ) as mock_rtu, patch.object(updater, "_aggregate_rates_to_daily_summary"), patch.object(
+            updater, "_update_vm_usage_costs"
+        ), patch.object(
+            updater, "_cleanup_stale_rtu_costs"
+        ) as mock_cleanup, patch.object(
+            updater, "_update_markup_cost"
+        ), patch.object(
+            updater, "_update_monthly_cost"
+        ), patch.object(
+            updater, "distribute_costs_and_update_ui_summary"
+        ), patch(
+            "masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema",
+            return_value=True,
+        ):
+            mock_rtu.side_effect = lambda s, e: call_log.append(("rtu", s))
+            mock_cleanup.side_effect = lambda s, e: call_log.append(("cleanup", s))
+
+            updater.update_summary_cost_model_costs(sr)
+
+        rtu_months = [d.month for action, d in call_log if action == "rtu"]
+        cleanup_months = [d.month for action, d in call_log if action == "cleanup"]
+
+        self.assertIn(4, rtu_months, "April should get RTU insert")
+        self.assertNotIn(5, rtu_months, "May should NOT get RTU insert")
+        self.assertIn(5, cleanup_months, "May should get cleanup")
+        self.assertNotIn(4, cleanup_months, "April should NOT get cleanup")
