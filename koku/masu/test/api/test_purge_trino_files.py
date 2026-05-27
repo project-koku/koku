@@ -12,6 +12,7 @@ from celery.result import AsyncResult
 from django.test.utils import override_settings
 from django.urls import reverse
 
+from masu.api.purge_trino_files import OCP_REPORT_TYPES
 from masu.test import MasuTestCase
 
 
@@ -112,6 +113,97 @@ class PurgeTrinoFilesTest(MasuTestCase):
         url = reverse("purge_trino_files") + "?" + query_string
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_ocp_get_request_date_range_builds_day_specific_csv_prefixes(self, _):
+        """Test OCP date-range purge builds day-specific and manifest-based CSV prefixes."""
+        params = {
+            "provider_uuid": self.ocp_provider_uuid,
+            "schema": self.schema,
+            "bill_date": self.bill_date,
+            "start_date": self.bill_date,
+            "end_date": "2022-08-02",
+        }
+        query_string = urlencode(params)
+        url = reverse("purge_trino_files") + "?" + query_string
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        csv_paths = body.get("s3_csv_path", [])
+
+        day_specific = [p for p in csv_paths if any(f"/{rt}." in p for rt in OCP_REPORT_TYPES)]
+        self.assertEqual(len(day_specific), len(OCP_REPORT_TYPES) * 2)
+        for report_type in OCP_REPORT_TYPES:
+            self.assertIn(f"/{report_type}.2022-08-01", " ".join(day_specific))
+            self.assertIn(f"/{report_type}.2022-08-02", " ".join(day_specific))
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_purge_path_generation_by_provider_and_date_range(self, _):
+        """Test purge path generation for OCP validation, cross-month partitioning, and non-OCP independence."""
+        test_cases = [
+            {
+                "label": "OCP without dates returns 400",
+                "params": {
+                    "provider_uuid": self.ocp_provider_uuid,
+                    "schema": self.schema,
+                    "bill_date": self.bill_date,
+                },
+                "expected_status": 400,
+                "check": lambda body: self.assertIn("OCP purge requires start_date and end_date", body["Error"]),
+            },
+            {
+                "label": "OCP cross-month uses correct partition per date",
+                "params": {
+                    "provider_uuid": self.ocp_provider_uuid,
+                    "schema": self.schema,
+                    "bill_date": self.bill_date,
+                    "start_date": "2022-08-31",
+                    "end_date": "2022-09-01",
+                },
+                "expected_status": 200,
+                "check": lambda body: (
+                    self.assertTrue(
+                        any("2022-08-31" in p for p in body["s3_csv_path"]),
+                        "Expected Aug 31 day-specific paths",
+                    ),
+                    self.assertTrue(
+                        any("2022-09-01" in p for p in body["s3_csv_path"]),
+                        "Expected Sep 01 day-specific paths",
+                    ),
+                    self.assertTrue(
+                        any("month=08" in p for p in body["s3_csv_path"]),
+                        "Expected month=08 partition",
+                    ),
+                    self.assertTrue(
+                        any("month=09" in p for p in body["s3_csv_path"]),
+                        "Expected month=09 partition",
+                    ),
+                ),
+            },
+            {
+                "label": "Non-OCP date range produces independent path per date",
+                "params": {
+                    "provider_uuid": self.aws_provider_uuid,
+                    "schema": self.schema,
+                    "bill_date": self.bill_date,
+                    "start_date": self.bill_date,
+                    "end_date": "2022-08-03",
+                },
+                "expected_status": 200,
+                "check": lambda body: (
+                    self.assertEqual(len(body["s3_csv_path"]), 3),
+                    self.assertTrue(body["s3_csv_path"][0].endswith("/2022-08-01")),
+                    self.assertTrue(body["s3_csv_path"][1].endswith("/2022-08-02")),
+                    self.assertTrue(body["s3_csv_path"][2].endswith("/2022-08-03")),
+                ),
+            },
+        ]
+        for case in test_cases:
+            with self.subTest(case["label"]):
+                url = reverse("purge_trino_files") + "?" + urlencode(case["params"])
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, case["expected_status"])
+                case["check"](response.json())
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch(

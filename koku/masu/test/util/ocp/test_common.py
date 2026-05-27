@@ -76,6 +76,29 @@ class OCPUtilTests(MasuTestCase):
         provider_uuid = utils.get_source_and_provider_from_cluster_id(cluster_id, self.org_id)
         self.assertIsNone(provider_uuid)
 
+    def test_get_source_and_provider_from_cluster_id_cross_org_filter_skipped(self):
+        """Test that skip_org_id_filter=True returns a source regardless of org_id mismatch."""
+        different_org_id = "different_org"
+        baker.make("Sources", provider=self.ocp_provider, org_id=different_org_id)
+        # Without skip, a different org_id should return None
+        source = utils.get_source_and_provider_from_cluster_id(self.ocp_cluster_id, self.org_id)
+        self.assertIsNone(source)
+        # With skip, the org_id filter is bypassed and the source is found
+        source = utils.get_source_and_provider_from_cluster_id(
+            self.ocp_cluster_id, self.org_id, skip_org_id_filter=True
+        )
+        self.assertIsNotNone(source)
+        self.assertEqual(source.provider, self.ocp_provider)
+
+    def test_get_source_and_provider_from_cluster_id_cross_org_filter_enforced(self):
+        """Test that skip_org_id_filter=False (default) enforces the org_id filter."""
+        baker.make("Sources", provider=self.ocp_provider, org_id=self.org_id)
+        wrong_org_id = "wrong_org"
+        source = utils.get_source_and_provider_from_cluster_id(
+            self.ocp_cluster_id, wrong_org_id, skip_org_id_filter=False
+        )
+        self.assertIsNone(source)
+
     def test_match_openshift_labels(self):
         """Test that a label match returns."""
         matched_tags = [{"key": "value"}, {"other_key": "other_value"}]
