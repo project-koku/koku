@@ -5,6 +5,7 @@
 """Views for currency enablement."""
 import logging
 
+from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -18,7 +19,10 @@ from api.currency.currencies import get_currency_info
 from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import is_valid_iso_currency
 from api.currency.utils import get_missing_rate_warning
+from api.utils import DateHelper
 from cost_models.models import EnabledCurrency
+from cost_models.models import MonthlyExchangeRate
+from cost_models.models import RateType
 
 LOG = logging.getLogger(__name__)
 
@@ -68,5 +72,15 @@ class EnabledCurrencyView(APIView):
         if error:
             return error
         EnabledCurrency.objects.filter(currency_code=code).delete()
+        current_month = DateHelper().this_month_start.date()
+        deleted_count, _ = MonthlyExchangeRate.objects.filter(
+            Q(base_currency=code) | Q(target_currency=code),
+            rate_type=RateType.DYNAMIC,
+            effective_date=current_month,
+        ).delete()
+        if deleted_count:
+            LOG.info(
+                log_json(msg="Cleaned up dynamic rates for disabled currency", currency=code, deleted=deleted_count)
+            )
         LOG.info(log_json(msg="Currency disabled", currency=code))
         return Response(status=status.HTTP_204_NO_CONTENT)

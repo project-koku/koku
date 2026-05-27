@@ -27,6 +27,7 @@ from api.utils import DateHelper
 from common.queues import DownloadQueue
 from common.queues import PriorityQueue
 from common.queues import SummaryQueue
+from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from koku import celery_app
@@ -310,8 +311,16 @@ def _fetch_and_store_exchange_rates(url):
 
 
 def _upsert_tenant_dynamic_exchange_rates(schema_name, exchange_dict, current_month):
-    """Upsert dynamic MonthlyExchangeRate rows for one tenant."""
+    """Upsert dynamic MonthlyExchangeRate rows for one tenant.
+
+    Only writes rates where both base and target currencies are enabled.
+    Removes stale dynamic rows for currencies that are no longer enabled.
+    """
     with schema_context(schema_name):
+        enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+        if not enabled_codes:
+            return
+
         static_pairs = set(
             MonthlyExchangeRate.objects.filter(
                 effective_date=current_month,
@@ -320,7 +329,11 @@ def _upsert_tenant_dynamic_exchange_rates(schema_name, exchange_dict, current_mo
         )
 
         for base_cur, targets in exchange_dict.items():
+            if base_cur not in enabled_codes:
+                continue
             for target_cur, rate in targets.items():
+                if target_cur not in enabled_codes:
+                    continue
                 if base_cur != target_cur and (base_cur, target_cur) not in static_pairs:
                     MonthlyExchangeRate.objects.update_or_create(
                         effective_date=current_month,

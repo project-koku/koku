@@ -14,6 +14,7 @@ from rest_framework.test import APIClient
 
 from api.currency.models import ExchangeRates
 from api.iam.test.iam_test_case import IamTestCase
+from api.utils import DateHelper
 from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
@@ -47,12 +48,77 @@ class EnabledCurrencyDetailViewTest(IamTestCase):
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="USD").exists())
 
     def test_delete_disables_currency(self):
+        current_month = DateHelper().this_month_start.date()
+        last_month = DateHelper().last_month_start.date()
+
         with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.all().delete()
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
-            response = self.client.delete(self._url("USD"), **self.headers)
+            EnabledCurrency.objects.create(currency_code="EUR")
+            EnabledCurrency.objects.create(currency_code="GBP")
+
+            MonthlyExchangeRate.objects.create(
+                effective_date=current_month,
+                base_currency="GBP",
+                target_currency="USD",
+                exchange_rate=Decimal("1.27"),
+                rate_type=RateType.DYNAMIC,
+            )
+            MonthlyExchangeRate.objects.create(
+                effective_date=current_month,
+                base_currency="USD",
+                target_currency="GBP",
+                exchange_rate=Decimal("0.79"),
+                rate_type=RateType.DYNAMIC,
+            )
+            MonthlyExchangeRate.objects.create(
+                effective_date=current_month,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.87"),
+                rate_type=RateType.DYNAMIC,
+            )
+            MonthlyExchangeRate.objects.create(
+                effective_date=last_month,
+                base_currency="GBP",
+                target_currency="USD",
+                exchange_rate=Decimal("1.25"),
+                rate_type=RateType.DYNAMIC,
+            )
+            MonthlyExchangeRate.objects.create(
+                effective_date=last_month,
+                base_currency="USD",
+                target_currency="GBP",
+                exchange_rate=Decimal("0.79"),
+                rate_type=RateType.STATIC,
+            )
+
+            response = self.client.delete(self._url("GBP"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-            self.assertFalse(EnabledCurrency.objects.filter(currency_code="USD").exists())
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="GBP").exists())
+
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(
+                    base_currency="GBP", effective_date=current_month, rate_type=RateType.DYNAMIC
+                ).exists(),
+            )
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(
+                    target_currency="GBP", effective_date=current_month, rate_type=RateType.DYNAMIC
+                ).exists(),
+            )
+            self.assertTrue(
+                MonthlyExchangeRate.objects.filter(
+                    base_currency="GBP", effective_date=last_month, rate_type=RateType.DYNAMIC
+                ).exists(),
+            )
+            self.assertTrue(
+                MonthlyExchangeRate.objects.filter(
+                    base_currency="USD", target_currency="GBP", rate_type=RateType.STATIC
+                ).exists(),
+            )
+            self.assertTrue(MonthlyExchangeRate.objects.filter(base_currency="USD", target_currency="EUR").exists())
 
     def test_post_enable_is_idempotent(self):
         with tenant_context(self.tenant):
