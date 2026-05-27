@@ -826,7 +826,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 log_json(
                     msg="RTU pipeline path selected",
                     rtu_enabled=rtu_enabled,
-                    cost_model_id=(str(self._cost_model_id) if self._cost_model_id else None),
+                    cost_model_id=str(self._cost_model_id) if self._cost_model_id else None,
                     provider_uuid=self._provider_uuid,
                 )
             )
