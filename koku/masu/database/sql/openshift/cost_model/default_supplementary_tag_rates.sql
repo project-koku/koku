@@ -28,12 +28,12 @@ SELECT uuid_generate_v4(),
     cluster_alias,
     data_source,
     persistentvolumeclaim,
-    pod_labels,
-    volume_labels,
-    all_labels,
-    encode(sha256(decode(COALESCE(pod_labels::text, '')
-        || '|' || COALESCE(volume_labels::text, '')
-        || '|' || COALESCE(all_labels::text, ''), 'escape')), 'hex'),
+    {{labels_field | sqlsafe}} AS pod_labels,
+    {{labels_field | sqlsafe}} AS volume_labels,
+    {{labels_field | sqlsafe}} AS all_labels,
+    encode(sha256(decode(COALESCE({{labels_field | sqlsafe}}::text, '')
+        || '|' || COALESCE({{labels_field | sqlsafe}}::text, '')
+        || '|' || COALESCE({{labels_field | sqlsafe}}::text, ''), 'escape')), 'hex'),
     {{custom_name}},
     {{usage_type}},
     'Supplementary',
@@ -54,9 +54,7 @@ FROM (
         lids.persistentvolume,
         lids.storageclass,
         lids.source_uuid,
-        lids.pod_labels,
-        lids.volume_labels,
-        lids.all_labels,
+        lids.{{labels_field | sqlsafe}},
         CASE
             WHEN {{metric}}='cpu_core_usage_per_hour' THEN sum(lids.pod_usage_cpu_core_hours)
             WHEN {{metric}}='cpu_core_request_per_hour' THEN sum(lids.pod_request_cpu_core_hours)
@@ -92,8 +90,6 @@ FROM (
         lids.persistentvolume,
         lids.storageclass,
         lids.source_uuid,
-        lids.pod_labels,
-        lids.volume_labels,
-        lids.all_labels,
+        lids.{{labels_field | sqlsafe}},
         lids.cost_category_id
 ) AS sub
