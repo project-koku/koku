@@ -4,6 +4,7 @@
 #
 """Test Azure Client Class."""
 import random
+from unittest.mock import MagicMock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -101,7 +102,11 @@ class AzureClientFactoryTestCase(TestCase):
             client_secret=FAKE.word(),
             cloud=random.choice(self.clouds),
         )
-        with patch("providers.azure.client.AzureClientFactory.storage_client", new_callable=PropertyMock):
+        with (
+            patch("providers.azure.client.AzureClientFactory.storage_client", new_callable=PropertyMock),
+            patch("providers.azure.client.BlobServiceClient.from_connection_string") as mock_from_conn,
+        ):
+            mock_from_conn.return_value = MagicMock(spec=BlobServiceClient)
             cloud_account = obj.blob_service_client(resource_group_name, storage_account_name)
             self.assertIsInstance(cloud_account, BlobServiceClient)
 
@@ -134,8 +139,26 @@ class AzureClientFactoryTestCase(TestCase):
             cloud_account = obj.blob_service_client(FAKE.word(), FAKE.word())
             self.assertIsInstance(cloud_account, BlobServiceClient)
 
-    def test_blob_service_client_list_keys_auth_error_none_message(self):
-        """Test that a TypeError is not raised when HttpResponseError.message is None."""
+    def test_blob_service_client_key_auth_not_permitted(self):
+        """Test fallback to credential-based auth when key-based authentication is disabled on the storage account."""
+        obj = AzureClientFactory(
+            subscription_id=FAKE.uuid4(),
+            tenant_id=FAKE.uuid4(),
+            client_id=FAKE.uuid4(),
+            client_secret=FAKE.word(),
+            cloud=random.choice(self.clouds),
+        )
+        with (
+            patch("providers.azure.client.AzureClientFactory.storage_client"),
+            patch("providers.azure.client.BlobServiceClient.from_connection_string") as mock_from_conn,
+        ):
+            err = "KeyBasedAuthenticationNotPermitted"
+            mock_from_conn.return_value.get_account_information.side_effect = HttpResponseError(err)
+            cloud_account = obj.blob_service_client(FAKE.word(), FAKE.word())
+            self.assertIsInstance(cloud_account, BlobServiceClient)
+
+    def test_blob_service_client_none_message(self):
+        """Test that TypeError is not raised when HttpResponseError.message is None."""
         obj = AzureClientFactory(
             subscription_id=FAKE.uuid4(),
             tenant_id=FAKE.uuid4(),
