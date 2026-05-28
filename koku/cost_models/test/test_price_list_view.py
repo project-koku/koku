@@ -246,6 +246,16 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(resp.data["version"], 1)
         return resp
 
+    def test_normalize_tiered_rate_creates_usage_when_values_provided(self):
+        """Test that usage dict is created when usage_start/usage_end have real values."""
+        from cost_models.serializers import RateSerializer
+
+        rate = {"value": "1.00", "unit": "USD", "usage_start": "0", "usage_end": "100"}
+        RateSerializer._normalize_tiered_rate(rate)
+        self.assertIn("usage", rate)
+        self.assertNotIn("usage_start", rate)
+        self.assertNotIn("usage_end", rate)
+
     def test_update_metadata_does_not_increment_version(self):
         """Test that metadata-only updates do not increment version."""
         create_response = self._create_price_list_no_usage()
