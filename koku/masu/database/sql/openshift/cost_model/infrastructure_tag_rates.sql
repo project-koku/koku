@@ -31,9 +31,9 @@ SELECT uuid_generate_v4(),
     {{k_v_pair}}::jsonb AS pod_labels,
     {{k_v_pair}}::jsonb AS volume_labels,
     {{k_v_pair}}::jsonb AS all_labels,
-    encode(sha256(decode(COALESCE({{k_v_pair}}, '')
-        || '|' || COALESCE({{k_v_pair}}, '')
-        || '|' || COALESCE({{k_v_pair}}, ''), 'escape')), 'hex'),
+    encode(sha256(decode(COALESCE(({{k_v_pair}}::jsonb)::text, '')
+        || '|' || COALESCE(({{k_v_pair}}::jsonb)::text, '')
+        || '|' || COALESCE(({{k_v_pair}}::jsonb)::text, ''), 'escape')), 'hex'),
     {{custom_name}},
     {{usage_type}},
     'Infrastructure',
