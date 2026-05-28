@@ -295,6 +295,14 @@ class Provider(models.Model):
                 self._cascade_delete()
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table}")
+                # Catch IngressReports rows inserted concurrently after the cascade ran.
+                self._delete_from_target(
+                    {
+                        "table_schema": self.customer.schema_name,
+                        "table_name": "reporting_ingressreports",
+                        "column_name": "source_id",
+                    },
+                )
                 self._delete_from_target(
                     {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
                     target_values=[self.pk],
