@@ -9,6 +9,7 @@ from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -38,11 +39,8 @@ class EnabledCurrencyView(APIView):
     def _validate_code(self, code):
         code = code.upper()
         if not is_valid_iso_currency(code):
-            return None, Response(
-                {"code": [f"Invalid ISO 4217 currency code: {code}"]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        return code, None
+            raise ValidationError({"code": f"Invalid ISO 4217 currency code: {code}"})
+        return code
 
     @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
@@ -55,9 +53,7 @@ class EnabledCurrencyView(APIView):
 
     @method_decorator(never_cache)
     def post(self, request, *args, **kwargs):
-        code, error = self._validate_code(kwargs["code"])
-        if error:
-            return error
+        code = self._validate_code(kwargs["code"])
         EnabledCurrency.objects.get_or_create(currency_code=code)
         LOG.info(log_json(msg="Currency enabled", currency=code))
 
@@ -68,9 +64,7 @@ class EnabledCurrencyView(APIView):
 
     @method_decorator(never_cache)
     def delete(self, request, *args, **kwargs):
-        code, error = self._validate_code(kwargs["code"])
-        if error:
-            return error
+        code = self._validate_code(kwargs["code"])
         EnabledCurrency.objects.filter(currency_code=code).delete()
         current_month = DateHelper().this_month_start.date()
         deleted_count, _ = MonthlyExchangeRate.objects.filter(
