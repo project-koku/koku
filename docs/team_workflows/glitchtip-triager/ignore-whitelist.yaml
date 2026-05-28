@@ -1,0 +1,17 @@
+# GlitchTip Triager — Ignore Whitelist
+#
+# Add rules here for issues that are expected noise and should not be triaged.
+# Supported match keys:
+#   issue_id        - exact GlitchTip issue ID
+#   culprit         - exact culprit string
+#   metadata.type   - exception type from event metadata
+#   message_contains - list of substrings (all must match, case-insensitive)
+#
+# Example:
+# rules:
+#   - id: ignore-celery-softtimelimit
+#     reason: "Expected task timeout; ops monitors separately"
+#     match:
+#       metadata.type: SoftTimeLimitExceeded
+
+rules: []
