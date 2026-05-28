@@ -17,9 +17,17 @@
 -- have identical JSONB values, and avoids materializing a full array.
 --
 -- The base CTE reads columns that rates_to_usage does not store
--- (resource_id, persistentvolume, storageclass, capacity columns) from
--- the original daily summary base rows, using the same GROUP BY keys
--- and WHERE filter as insert_usage_rates_to_usage.sql's base CTE.
+-- (resource_id, persistentvolume, storageclass, capacity columns, and
+-- usage/effective hours for waste computation) from the original daily
+-- summary base rows, using the same GROUP BY keys and WHERE filter as
+-- insert_usage_rates_to_usage.sql's base CTE.
+--
+-- Waste is computed at LIDS-row grain (label-set/node/namespace/day) rather
+-- than deferring to the UI summary SQL.  This preserves more pod-level signal:
+-- the formula wasted = cost * (1 - usage/effective) is applied to each row
+-- before any further aggregation, so heterogeneous pods in different label
+-- groups are not averaged together.  The UI summary SQL then simply SUMs
+-- the pre-computed wasted_cpu_cost / wasted_memory_cost columns.
 --
 -- Parameters:
 --   schema, start_date, end_date, source_uuid, report_period_id
@@ -56,7 +64,11 @@ WITH base AS (
         max(lids.node_capacity_memory_gigabytes) AS node_capacity_memory_gigabytes,
         max(lids.node_capacity_memory_gigabyte_hours) AS node_capacity_memory_gigabyte_hours,
         max(lids.cluster_capacity_cpu_core_hours) AS cluster_capacity_cpu_core_hours,
-        max(lids.cluster_capacity_memory_gigabyte_hours) AS cluster_capacity_memory_gigabyte_hours
+        max(lids.cluster_capacity_memory_gigabyte_hours) AS cluster_capacity_memory_gigabyte_hours,
+        sum(coalesce(lids.pod_usage_cpu_core_hours, 0)) AS cpu_usage_hours,
+        sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) AS cpu_effective_hours,
+        sum(coalesce(lids.pod_usage_memory_gigabyte_hours, 0)) AS mem_usage_hours,
+        sum(coalesce(lids.pod_effective_usage_memory_gigabyte_hours, 0)) AS mem_effective_hours
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
     WHERE lids.usage_start >= {{start_date}}
       AND lids.usage_start <= {{end_date}}
@@ -87,7 +99,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cluster_capacity_cpu_core_hours, cluster_capacity_memory_gigabyte_hours,
     cost_category_id, cost_model_rate_type,
     cost_model_cpu_cost, cost_model_memory_cost, cost_model_volume_cost,
-    distributed_cost
+    distributed_cost,
+    wasted_cpu_cost, wasted_memory_cost
 )
 SELECT
     uuid_generate_v4(),
@@ -118,7 +131,15 @@ SELECT
     SUM(CASE WHEN rtu.metric_type = 'cpu'     THEN rtu.calculated_cost ELSE 0 END),
     SUM(CASE WHEN rtu.metric_type = 'memory'  THEN rtu.calculated_cost ELSE 0 END),
     SUM(CASE WHEN rtu.metric_type = 'storage' THEN rtu.calculated_cost ELSE 0 END),
-    SUM(COALESCE(rtu.distributed_cost, 0))
+    SUM(COALESCE(rtu.distributed_cost, 0)),
+    GREATEST(0,
+        SUM(CASE WHEN rtu.metric_type = 'cpu' THEN rtu.calculated_cost ELSE 0 END)
+        * (1 - MAX(base.cpu_usage_hours) / NULLIF(MAX(base.cpu_effective_hours), 0))
+    ),
+    GREATEST(0,
+        SUM(CASE WHEN rtu.metric_type = 'memory' THEN rtu.calculated_cost ELSE 0 END)
+        * (1 - MAX(base.mem_usage_hours) / NULLIF(MAX(base.mem_effective_hours), 0))
+    )
 FROM {{schema | sqlsafe}}.rates_to_usage rtu
 LEFT JOIN base
     ON  rtu.usage_start              = base.usage_start

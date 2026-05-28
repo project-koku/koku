@@ -36,16 +36,10 @@ WITH line_items AS (
         raw_currency,
         distributed_cost,
         data_source,
-        -- Window: sums from base rows (rate_type IS NULL) at node+cluster+date level.
-        -- Enables cross-rate-type waste computation in the outer SELECT.
-        SUM(CASE WHEN cost_model_rate_type IS NULL THEN COALESCE(pod_usage_cpu_core_hours, 0) ELSE 0 END)
-            OVER (PARTITION BY cluster_id, node, usage_start) AS grp_cpu_usage,
-        SUM(CASE WHEN cost_model_rate_type IS NULL THEN COALESCE(pod_effective_usage_cpu_core_hours, 0) ELSE 0 END)
-            OVER (PARTITION BY cluster_id, node, usage_start) AS grp_cpu_effective,
-        SUM(CASE WHEN cost_model_rate_type IS NULL THEN COALESCE(pod_usage_memory_gigabyte_hours, 0) ELSE 0 END)
-            OVER (PARTITION BY cluster_id, node, usage_start) AS grp_mem_usage,
-        SUM(CASE WHEN cost_model_rate_type IS NULL THEN COALESCE(pod_effective_usage_memory_gigabyte_hours, 0) ELSE 0 END)
-            OVER (PARTITION BY cluster_id, node, usage_start) AS grp_mem_effective
+        -- Waste is pre-computed at LIDS-row grain by aggregate_rates_to_daily_summary.sql.
+        -- Cost model rows carry wasted_cpu_cost / wasted_memory_cost; base rows have NULL.
+        wasted_cpu_cost,
+        wasted_memory_cost
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
@@ -128,22 +122,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_pod_summary_by_node_p (
         max(cost_category_id) as cost_category_id,
         max(raw_currency) as raw_currency,
         sum(distributed_cost) as distributed_cost,
-        CASE
-            WHEN cost_model_rate_type IN ('Infrastructure', 'Supplementary')
-            THEN GREATEST(0,
-                SUM(COALESCE(cost_model_cpu_cost, 0))
-                * (1 - MAX(grp_cpu_usage) / NULLIF(MAX(grp_cpu_effective), 0))
-            )
-            ELSE 0
-        END AS wasted_cpu_cost,
-        CASE
-            WHEN cost_model_rate_type IN ('Infrastructure', 'Supplementary')
-            THEN GREATEST(0,
-                SUM(COALESCE(cost_model_memory_cost, 0))
-                * (1 - MAX(grp_mem_usage) / NULLIF(MAX(grp_mem_effective), 0))
-            )
-            ELSE 0
-        END AS wasted_memory_cost
+        SUM(COALESCE(wasted_cpu_cost, 0)) AS wasted_cpu_cost,
+        SUM(COALESCE(wasted_memory_cost, 0)) AS wasted_memory_cost
     FROM line_items
     GROUP BY usage_start, cluster_id, cluster_alias, node, cost_model_rate_type
 ;
