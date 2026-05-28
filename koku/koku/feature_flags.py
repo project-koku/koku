@@ -33,6 +33,7 @@ class MockUnleashClient:
         "cost-management.backend.ocp_gpu_cost_model": True,
         "cost-management.backend.disable-ingress-rate-limit": True,
         "cost-management.backend.override_customer_group_by_limit": False,
+        "cost-management.backend.disable_price_list": True,
     }
 
     def __init__(self, app_name, environment, instance_id, **kwargs):
