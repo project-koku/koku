@@ -295,6 +295,10 @@ class Provider(models.Model):
                 self._cascade_delete()
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table}")
+                # reporting_ingressreports can have records in other tenant schemas (race condition or
+                # cross-schema data) that _cascade_delete misses because it only covers the provider's
+                # own schema.  Sweep all schemas immediately before the api_provider delete.
+                self._cleanup_ingress_reports_across_schemas()
                 self._delete_from_target(
                     {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
                     target_values=[self.pk],
@@ -304,6 +308,37 @@ class Provider(models.Model):
         else:
             LOG.warning("Customer link cannot be found! Using ORM delete!")
             super().delete()
+
+    def _cleanup_ingress_reports_across_schemas(self):
+        """Delete reporting_ingressreports rows for this provider from every schema.
+
+        _cascade_delete only queries FK tables in ('public', self.customer.schema_name).
+        If IngressReports exist in any other schema — due to a concurrent POST that landed
+        in a different tenant context, or legacy data — those rows block the final
+        api_provider DELETE with a FK violation.  This sweep closes that window.
+        """
+        _find_schemas_sql = """
+            SELECT ns.nspname
+              FROM pg_catalog.pg_class c
+              JOIN pg_catalog.pg_namespace ns ON ns.oid = c.relnamespace
+             WHERE c.relname = 'reporting_ingressreports'
+               AND c.relkind = 'r'
+        """
+        with connection.cursor() as cur:
+            cur.execute(_find_schemas_sql)
+            schemas = [row[0] for row in cur.fetchall()]
+
+        for schema in schemas:
+            with transaction.get_connection().cursor() as cur:
+                cur.execute(
+                    f'DELETE FROM "{schema}"."reporting_ingressreports" WHERE source_id = %s',
+                    [self.pk],
+                )
+                if cur.rowcount:
+                    LOG.warning(
+                        f"IngressReports cross-schema cleanup: removed {cur.rowcount} row(s) "
+                        f"from {schema}.reporting_ingressreports for provider {self.pk}"
+                    )
 
     def _get_sub_target_values(self, target_info, target_values):
         sub_target = get_model(target_info["table_name"])
