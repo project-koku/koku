@@ -293,6 +293,7 @@ class Provider(models.Model):
                 _type = self.type.lower()
                 self._normalized_type = _type.removesuffix("-local")
                 self._cascade_delete()
+                self._delete_ingress_reports_all_schemas()
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table}")
                 self._delete_from_target(
@@ -304,6 +305,28 @@ class Provider(models.Model):
         else:
             LOG.warning("Customer link cannot be found! Using ORM delete!")
             super().delete()
+
+    def _delete_ingress_reports_all_schemas(self):
+        """Delete IngressReports rows for this provider from every schema.
+
+        IngressReports rows may be created in a tenant schema that differs from
+        the provider's owner schema when the DB connection has the wrong
+        search_path at creation time.  _cascade_delete only searches the owner
+        schema, so those misplaced rows survive and cause a ForeignKeyViolation
+        when the final api_provider row is deleted.
+        """
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT n.nspname FROM pg_class c"
+                " JOIN pg_namespace n ON n.oid = c.relnamespace"
+                " WHERE c.relname = 'reporting_ingressreports'"
+            )
+            schemas = [row[0] for row in cur.fetchall()]
+        for schema in schemas:
+            self._delete_from_target(
+                {"table_schema": schema, "table_name": "reporting_ingressreports", "column_name": "source_id"},
+                [self.pk],
+            )
 
     def _get_sub_target_values(self, target_info, target_values):
         sub_target = get_model(target_info["table_name"])
