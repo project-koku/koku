@@ -173,6 +173,29 @@ class AzureClientFactoryTestCase(TestCase):
             with self.assertRaises(HttpResponseError):
                 obj.blob_service_client(FAKE.word(), FAKE.word())
 
+    def test_blob_service_client_uses_keys_property(self):
+        """Test list_keys result from azure-mgmt-storage >=25 uses keys_property."""
+        obj = AzureClientFactory(
+            subscription_id=FAKE.uuid4(),
+            tenant_id=FAKE.uuid4(),
+            client_id=FAKE.uuid4(),
+            client_secret=FAKE.word(),
+            cloud=random.choice(self.clouds),
+        )
+        list_keys_result = MagicMock()
+        list_keys_result.keys = MagicMock()
+        key = MagicMock()
+        key.value = FAKE.word()
+        list_keys_result.keys_property = [key]
+        with (
+            patch("providers.azure.client.AzureClientFactory.storage_client") as mock_storage_client,
+            patch("providers.azure.client.BlobServiceClient.from_connection_string") as mock_from_conn,
+        ):
+            mock_storage_client.storage_accounts.list_keys.return_value = list_keys_result
+            mock_from_conn.return_value = MagicMock(spec=BlobServiceClient)
+            cloud_account = obj.blob_service_client(FAKE.word(), FAKE.word())
+            self.assertIsInstance(cloud_account, BlobServiceClient)
+
     @patch("providers.azure.client.ClientSecretCredential.get_token")
     def test_scope_and_export_name(self, mock_get_token):
         """Test the scope and export_name properties."""
