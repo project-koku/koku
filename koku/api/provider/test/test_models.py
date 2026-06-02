@@ -20,6 +20,7 @@ from api.provider.models import Sources
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
 from masu.test import MasuTestCase
+from reporting.ingress.models import IngressReports
 
 FAKE = Faker()
 
@@ -122,6 +123,31 @@ class ProviderModelTest(MasuTestCase):
 
         # restore filters on logging
         logging.disable(logging.CRITICAL)
+
+    @patch("masu.celery.tasks.delete_archived_data")
+    def test_delete_provider_also_deletes_ingress_reports(self, _mock):
+        """Assert IngressReports rows are deleted when the associated provider is deleted.
+
+        Regression test for INSIGHTS-HCCM-STAGE-4UV: _cascade_delete() misses
+        reporting_ingressreports because _get_linked_table_names() does not find
+        the tenant-schema FK via pg_constraint. The fix explicitly deletes
+        IngressReports rows before the cascade to prevent ForeignKeyViolation.
+        """
+        with tenant_context(self.tenant):
+            ingress = IngressReports.objects.create(
+                source=self.ocp_provider,
+                reports_list=["test-report.tar.gz"],
+                bill_year="2026",
+                bill_month="01",
+                sources_id=1,
+            )
+            ingress_pk = ingress.pk
+            self.ocp_provider.delete()
+            self.assertEqual(
+                0,
+                IngressReports.objects.filter(pk=ingress_pk).count(),
+                "IngressReports rows must be deleted when the provider is deleted",
+            )
 
     @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_all_providers_from_queryset(self, mock_delete_archived_data):
