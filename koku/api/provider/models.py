@@ -287,16 +287,19 @@ class Provider(models.Model):
 
     def delete(self, *args, **kwargs):
         if self.customer:
-            using = router.db_for_write(self.__class__, isinstance=self)
+            using = router.db_for_write(self.__class__, instance=self)
             with schema_context(self.customer.schema_name):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
                 _type = self.type.lower()
                 self._normalized_type = _type.removesuffix("-local")
-                with transaction.atomic():
+                with transaction.atomic(using=using):
                     # Lock the provider row before cascading so concurrent FK inserts
                     # (e.g. IngressReports created between cascade and final delete) block
                     # until the transaction commits and the row is gone.
-                    Provider.objects.select_for_update().get(pk=self.pk)
+                    # of=("self",) locks only api_provider; plain select_for_update() would fail
+                    # with "FOR UPDATE cannot be applied to the nullable side of an outer join"
+                    # because ProviderObjectsManager adds select_related() with nullable FKs.
+                    Provider.objects.using(using).select_for_update(of=("self",)).get(pk=self.pk)
                     self._cascade_delete()
                     LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
                     LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table}")
