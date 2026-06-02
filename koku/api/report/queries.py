@@ -1056,11 +1056,7 @@ class ReportQueryHandler(QueryHandler):
 
         if self.currency:
             output["currency"] = self.currency
-            output["exchange_rates_applied"] = self._get_and_validate_exchange_rates(
-                self.start_datetime.date(),
-                self.end_datetime.date(),
-                self.currency,
-            )
+            output["exchange_rates_applied"] = self._get_exchange_rates()
 
         return output
 
@@ -1086,20 +1082,21 @@ class ReportQueryHandler(QueryHandler):
                 .distinct()
             )
 
-    def _get_and_validate_exchange_rates(self, start_date, end_date, target_currency):
+    def _get_exchange_rates(self):
         """Fetch exchange rates for the query range and validate that all pairs are covered.
 
         Returns the formatted exchange_rates_applied list for the response.
         Raises ExchangeRateNotFound if any base currency that needs conversion
-        has no rate at all in MER.
+        has no rate within the queried date range.
         """
+        target_currency = self.currency
         base_currencies = self._get_base_currencies_in_data()
         bases_needing_conversion = base_currencies - {target_currency}
         if not bases_needing_conversion:
             return []
 
-        start_month = start_date.replace(day=1)
-        end_month = end_date.replace(day=1)
+        start_month = self.start_datetime.date().replace(day=1)
+        end_month = self.end_datetime.date().replace(day=1)
 
         with tenant_context(self.tenant):
             rates = list(
@@ -1107,28 +1104,19 @@ class ReportQueryHandler(QueryHandler):
                     effective_date__gte=start_month,
                     effective_date__lte=end_month,
                     target_currency=target_currency,
-                    base_currency__in=base_currencies,
+                    base_currency__in=bases_needing_conversion,
                 )
                 .order_by("base_currency", "effective_date")
                 .values("base_currency", "target_currency", "exchange_rate", "rate_type", "effective_date")
             )
 
-            bases_covered_in_range = {rate["base_currency"] for rate in rates}
-            bases_missing = bases_needing_conversion - bases_covered_in_range
+            bases_missing = bases_needing_conversion - {rate["base_currency"] for rate in rates}
             if bases_missing:
-                # The date-filtered query may miss pairs whose only rate is
-                # outside the range (the annotation's earliest-rate fallback
-                # would still use them).  Check once more without date filter.
-                bases_covered_any = set(
-                    MonthlyExchangeRate.objects.filter(
-                        target_currency=target_currency,
-                        base_currency__in=bases_missing,
-                    )
-                    .values_list("base_currency", flat=True)
-                    .distinct()
+                LOG.warning(
+                    f"No exchange rates found for {bases_missing} -> {target_currency} "
+                    f"between {start_month} and {end_month}"
                 )
-                if bases_missing - bases_covered_any:
-                    raise ExchangeRateNotFound(target_currency)
+                raise ExchangeRateNotFound(target_currency)
 
         return [
             {
