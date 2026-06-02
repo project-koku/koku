@@ -5,6 +5,7 @@
 """Asynchronous tasks."""
 import json
 import logging
+from decimal import Decimal
 
 import requests
 from botocore.exceptions import ClientError
@@ -314,7 +315,8 @@ def _upsert_tenant_dynamic_exchange_rates(schema_name, exchange_dict, current_mo
     """Upsert dynamic MonthlyExchangeRate rows for one tenant.
 
     Only writes rates where both base and target currencies are enabled.
-    Removes stale dynamic rows for currencies that are no longer enabled.
+    Synthesizes the inverse direction (1/rate) when the API dictionary
+    does not include it, mirroring the static-rate behavior.
     """
     with schema_context(schema_name):
         enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
@@ -328,19 +330,22 @@ def _upsert_tenant_dynamic_exchange_rates(schema_name, exchange_dict, current_mo
             ).values_list("base_currency", "target_currency")
         )
 
+        pairs_to_upsert = {}
         for base_cur, targets in exchange_dict.items():
-            if base_cur not in enabled_codes:
-                continue
             for target_cur, rate in targets.items():
-                if target_cur not in enabled_codes:
+                if base_cur == target_cur or base_cur not in enabled_codes or target_cur not in enabled_codes:
                     continue
-                if base_cur != target_cur and (base_cur, target_cur) not in static_pairs:
-                    MonthlyExchangeRate.objects.update_or_create(
-                        effective_date=current_month,
-                        base_currency=base_cur,
-                        target_currency=target_cur,
-                        defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
-                    )
+                pairs_to_upsert[(base_cur, target_cur)] = Decimal(str(rate))
+                pairs_to_upsert.setdefault((target_cur, base_cur), Decimal(1) / Decimal(str(rate)))
+
+        for (base_cur, target_cur), rate in pairs_to_upsert.items():
+            if (base_cur, target_cur) not in static_pairs:
+                MonthlyExchangeRate.objects.update_or_create(
+                    effective_date=current_month,
+                    base_currency=base_cur,
+                    target_currency=target_cur,
+                    defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
+                )
 
         invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
 
