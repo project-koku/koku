@@ -1049,14 +1049,8 @@ class ReportQueryHandler(QueryHandler):
         return bucket_by_date
 
     def _validate_exchange_rates(self, target_currency):
-        """Raise ExchangeRateNotFound if no MonthlyExchangeRate rows exist for the target currency.
-
-        Skips validation when MonthlyExchangeRate is completely empty (feature not configured).
-        The Coalesce(..., Value(1)) fallback in provider maps ensures costs are returned as-is.
-        """
+        """Raise ExchangeRateNotFound if no MonthlyExchangeRate rows exist for the target currency."""
         with tenant_context(self.tenant):
-            if not MonthlyExchangeRate.objects.exists():
-                return
             if not MonthlyExchangeRate.objects.filter(target_currency=target_currency).exists():
                 raise ExchangeRateNotFound(target_currency)
 
