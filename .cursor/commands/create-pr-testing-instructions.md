@@ -8,7 +8,7 @@ Use this command when preparing a PR description or a `pr-testing.md` file. If a
 
 ## Output Template
 
-Use this exact structure and headings:
+Use this exact structure and headings. **Deliver the completed text inside one `markdown` fenced code block** so the user can copy it into the PR in one step.
 
 ````
 ## Jira Ticket
@@ -34,6 +34,8 @@ This change will ...
 * [COST-####](https://issues.redhat.com/browse/COST-####) Fix some things
 ```
 ````
+
+**Copy-paste:** Wrap the filled-in sections in a single outer ` ```markdown ` … ` ``` ` block for one-step copy. In **Testing**, use normal fenced snippets (` ```bash `, ` ```shell `, etc.) for commands, `curl`, and tox. GitHub PR descriptions render these correctly when pasted.
 
 ## Jira Optional Handling
 

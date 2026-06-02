@@ -362,11 +362,14 @@ class RateSerializer(serializers.Serializer):
         """Convert decimals and ensure usage dict structure on a single tiered rate."""
         RateSerializer._convert_to_decimal(rate)
         if not rate.get("usage"):
-            rate["usage"] = {
-                "usage_start": rate.pop("usage_start", None),
-                "usage_end": rate.pop("usage_end", None),
-                "unit": rate.get("unit"),
-            }
+            usage_start = rate.pop("usage_start", None)
+            usage_end = rate.pop("usage_end", None)
+            if usage_start is not None or usage_end is not None:
+                rate["usage"] = {
+                    "usage_start": usage_start,
+                    "usage_end": usage_end,
+                    "unit": rate.get("unit"),
+                }
 
     def to_representation(self, rate_obj):
         """Create external representation of a rate."""
