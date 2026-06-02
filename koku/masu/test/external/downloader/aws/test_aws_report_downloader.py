@@ -207,6 +207,11 @@ class AWSReportDownloaderTest(MasuTestCase):
         )
         self.aws_manifest = CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).first()
         self.aws_manifest_id = self.aws_manifest.id
+        self.daily_archives_context = {
+            "account": "account",
+            "provider_type": Provider.PROVIDER_AWS_LOCAL,
+            "provider_uuid": self.aws_provider_uuid,
+        }
 
     def tearDown(self):
         """Remove test generated data."""
@@ -687,14 +692,26 @@ class AWSReportDownloaderTest(MasuTestCase):
             f"{temp_dir}/2023-06-01_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
         ]
         start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
-        with patch(
-            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
-            return_value=start_date,
+        with (
+            patch(
+                "masu.external.downloader.aws.aws_report_downloader.utils.get_or_clear_daily_s3_by_date",
+                return_value=start_date,
+            ),
+            patch(
+                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+                return_value=start_date,
+            ),
         ):
-            with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=start_date):
-                daily_file_names, date_range = create_daily_archives(
-                    "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, {}
-                )
+            daily_file_names, date_range = create_daily_archives(
+                "trace_id",
+                "account",
+                self.aws_provider_uuid,
+                temp_path,
+                file_name,
+                manifest_id,
+                start_date,
+                self.daily_archives_context,
+            )
             expected_date_range = {"start": "2023-06-01", "end": "2023-06-01"}
             mock_copy.assert_called()
             self.assertEqual(date_range, expected_date_range)
@@ -717,14 +734,26 @@ class AWSReportDownloaderTest(MasuTestCase):
         shutil.copy2(file_path, temp_path)
         start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
 
-        with patch(
-            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
-            return_value=start_date,
+        with (
+            patch(
+                "masu.external.downloader.aws.aws_report_downloader.utils.get_or_clear_daily_s3_by_date",
+                return_value=start_date,
+            ),
+            patch(
+                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+                return_value=start_date,
+            ),
         ):
-            with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=start_date):
-                daily_file_names, date_range = create_daily_archives(
-                    "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, {}
-                )
+            daily_file_names, date_range = create_daily_archives(
+                "trace_id",
+                "account",
+                self.aws_provider_uuid,
+                temp_path,
+                file_name,
+                manifest_id,
+                start_date,
+                self.daily_archives_context,
+            )
 
         for daily_file in daily_file_names:
             with open(daily_file) as file:
@@ -751,7 +780,14 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         start_date = self.dh.this_month_start.replace(year=2023, month=9).date()
         daily_file_names, date_range = create_daily_archives(
-            "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, {}
+            "trace_id",
+            "account",
+            self.aws_provider_uuid,
+            temp_path,
+            file_name,
+            manifest_id,
+            start_date,
+            self.daily_archives_context,
         )
         self.assertEqual(date_range, {})
         self.assertEqual(daily_file_names, [])
@@ -770,7 +806,14 @@ class AWSReportDownloaderTest(MasuTestCase):
         shutil.copy2(file_path, temp_path)
         start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
         daily_file_names, date_range = create_daily_archives(
-            "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, {}
+            "trace_id",
+            "account",
+            self.aws_provider_uuid,
+            temp_path,
+            file_name,
+            manifest_id,
+            start_date,
+            self.daily_archives_context,
         )
         self.assertEqual(date_range, {})
         self.assertIsInstance(daily_file_names, list)
@@ -790,12 +833,25 @@ class AWSReportDownloaderTest(MasuTestCase):
             f"{temp_dir}/2022-07-01_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
         ]
         start_date = self.dh.this_month_start.replace(year=2022, month=7).date()
-        with patch(
-            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
-            return_value=start_date,
+        with (
+            patch(
+                "masu.external.downloader.aws.aws_report_downloader.utils.get_or_clear_daily_s3_by_date",
+                return_value=start_date,
+            ),
+            patch(
+                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+                return_value=start_date,
+            ),
         ):
             daily_file_names, date_range = create_daily_archives(
-                "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, {}
+                "trace_id",
+                "account",
+                self.aws_provider_uuid,
+                temp_path,
+                file_name,
+                manifest_id,
+                start_date,
+                self.daily_archives_context,
             )
             expected_date_range = {"start": "2022-07-01", "end": "2022-07-01"}
             mock_copy.assert_called()
