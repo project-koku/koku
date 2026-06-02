@@ -7,9 +7,6 @@ import logging
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.common.pagination import ForecastListPaginator
@@ -28,7 +25,6 @@ from api.forecast.serializers import OCPCostForecastParamSerializer
 from api.forecast.serializers import OCPGCPCostForecastParamSerializer
 from api.provider.models import Provider
 from api.query_params import QueryParameters
-from cost_models.exchange_rate_annotations import ExchangeRateNotFound
 from forecast import AWSForecast
 from forecast import AzureForecast
 from forecast import GCPForecast
@@ -51,16 +47,10 @@ class ForecastView(APIView):
         """Respond to GET requests."""
         LOG.debug(f"API: {request.path} USER: {request.user.username}")
 
-        try:
-            params = QueryParameters(request=request, caller=self, **kwargs)
-        except ValidationError as exc:
-            return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
+        params = QueryParameters(request=request, caller=self, **kwargs)
 
         handler = self.query_handler(params)
-        try:
-            output = handler.predict()
-        except ExchangeRateNotFound as exc:
-            return Response(data={"currency": [str(exc)]}, status=status.HTTP_400_BAD_REQUEST)
+        output = handler.predict()
         LOG.debug(f"DATA: {output}")
         cost_type = params.parameters.get("cost_type")
         paginator = ForecastListPaginator(output, request, cost_type)

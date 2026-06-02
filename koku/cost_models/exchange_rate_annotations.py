@@ -10,12 +10,13 @@ from django.db.models import Subquery
 from django.db.models.functions import Coalesce
 from django.db.models.functions import ExtractMonth
 from django.db.models.functions import ExtractYear
+from rest_framework.exceptions import ValidationError
 
 from cost_models.models import CostModel
 from cost_models.models import MonthlyExchangeRate
 
 
-class ExchangeRateNotFound(Exception):
+class ExchangeRateNotFound(ValidationError):
     """Raised when no exchange rate exists for a required currency pair."""
 
     def __init__(self, target_currency):
@@ -30,7 +31,7 @@ class ExchangeRateNotFound(Exception):
                 "Ask your administrator to configure static exchange rates "
                 "or enable dynamic exchange rates."
             )
-        super().__init__(msg)
+        super().__init__({"currency": msg})
 
 
 def _build_monthly_rate_annotation(base_currency, target_currency):

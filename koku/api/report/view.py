@@ -7,9 +7,6 @@ import logging
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.common import CACHE_RH_IDENTITY_HEADER
@@ -18,7 +15,6 @@ from api.common.pagination import OrgUnitPagination
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
 from api.query_params import QueryParameters
-from cost_models.exchange_rate_annotations import ExchangeRateNotFound
 
 
 LOG = logging.getLogger(__name__)
@@ -66,16 +62,10 @@ class ReportView(APIView):
         """
         LOG.debug(f"API: {request.path} USER: {request.user.username}")
 
-        try:
-            params = QueryParameters(request=request, caller=self, **kwargs)
-        except ValidationError as exc:
-            return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
+        params = QueryParameters(request=request, caller=self, **kwargs)
         handler = self.query_handler(params)
 
-        try:
-            output = handler.execute_query()
-        except ExchangeRateNotFound as exc:
-            return Response(data={"currency": [str(exc)]}, status=status.HTTP_400_BAD_REQUEST)
+        output = handler.execute_query()
 
         # reset the meta when order_by[date] is used
         if output.get("cost_explorer_order_by"):
