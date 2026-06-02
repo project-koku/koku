@@ -170,7 +170,11 @@ class Forecast:
         """Define ORM query to run forecast and return prediction."""
         cost_predictions = {}
         with tenant_context(self.params.tenant):
-            if self.currency and not MonthlyExchangeRate.objects.filter(target_currency=self.currency).exists():
+            if (
+                self.currency
+                and self.currency != settings.KOKU_DEFAULT_CURRENCY
+                and not MonthlyExchangeRate.objects.filter(target_currency=self.currency).exists()
+            ):
                 raise ExchangeRateNotFound(self.currency)
             data = self.get_data()
 
