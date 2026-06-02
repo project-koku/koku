@@ -46,7 +46,6 @@ from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
 from cost_models.exchange_rate_annotations import ExchangeRateNotFound
 from cost_models.models import MonthlyExchangeRate
-from koku.settings import KOKU_DEFAULT_CURRENCY
 
 LOG = logging.getLogger(__name__)
 
@@ -1052,12 +1051,13 @@ class ReportQueryHandler(QueryHandler):
     def _validate_exchange_rates(self, target_currency):
         """Raise ExchangeRateNotFound if no MonthlyExchangeRate rows exist for the target currency.
 
-        The default currency (USD) is an identity conversion and never requires
-        a MER row — costs are already stored in that currency.
+        Skips validation when there is no data or when all data is already
+        denominated in the target currency (identity conversion).
         """
-        if target_currency == KOKU_DEFAULT_CURRENCY:
-            return
         with tenant_context(self.tenant):
+            base_currencies = self._get_base_currencies_in_data()
+            if not base_currencies or base_currencies == {target_currency}:
+                return
             if not MonthlyExchangeRate.objects.filter(target_currency=target_currency).exists():
                 raise ExchangeRateNotFound(target_currency)
 

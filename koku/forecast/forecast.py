@@ -147,6 +147,17 @@ class Forecast:
         """Return the provider map value for total inftrastructure cost."""
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
+    def _get_base_currencies_in_data(self):
+        """Return the set of base currencies present in the forecast data range."""
+        return set(
+            self.provider_map.query_table.objects.filter(
+                usage_start__gte=self.query_range[0],
+                usage_start__lte=self.query_range[1],
+            )
+            .values_list(self.provider_map.cost_units_key, flat=True)
+            .distinct()
+        )
+
     @cached_property
     def exchange_rate_annotation_dict(self):
         """Get per-month exchange rate annotation from MonthlyExchangeRate via Subquery."""
@@ -170,12 +181,14 @@ class Forecast:
         """Define ORM query to run forecast and return prediction."""
         cost_predictions = {}
         with tenant_context(self.params.tenant):
-            if (
-                self.currency
-                and self.currency != settings.KOKU_DEFAULT_CURRENCY
-                and not MonthlyExchangeRate.objects.filter(target_currency=self.currency).exists()
-            ):
-                raise ExchangeRateNotFound(self.currency)
+            if self.currency:
+                base_currencies = self._get_base_currencies_in_data()
+                if (
+                    base_currencies
+                    and base_currencies != {self.currency}
+                    and not MonthlyExchangeRate.objects.filter(target_currency=self.currency).exists()
+                ):
+                    raise ExchangeRateNotFound(self.currency)
             data = self.get_data()
 
             for fieldname in COST_FIELD_NAMES:
