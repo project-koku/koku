@@ -1,0 +1,4 @@
+# GlitchTip Triager — ignore whitelist
+# Add rules here for known-noise issues that should not be triaged.
+# Match fields: issue_id, culprit, metadata.type, message_contains (list, all must match)
+rules: []
