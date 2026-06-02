@@ -18,6 +18,7 @@ from rest_framework.exceptions import ValidationError
 
 from cost_models.models import CostModel
 from cost_models.models import MonthlyExchangeRate
+from cost_models.models import RateType
 
 
 class ExchangeRateNotFound(ValidationError):
@@ -63,12 +64,14 @@ def _build_monthly_rate_annotation(base_currency, target_currency):
         ).values("exchange_rate")[:1]
     )
 
-    earliest_qs = MonthlyExchangeRate.objects.filter(**pair_filter).order_by("effective_date")
+    earliest_dynamic_qs = MonthlyExchangeRate.objects.filter(rate_type=RateType.DYNAMIC, **pair_filter).order_by(
+        "effective_date"
+    )
 
     backward_looking = Case(
         When(
-            condition=LessThan(TruncDate("usage_start"), Subquery(earliest_qs.values("effective_date")[:1])),
-            then=Subquery(earliest_qs.values("exchange_rate")[:1]),
+            condition=LessThan(TruncDate("usage_start"), Subquery(earliest_dynamic_qs.values("effective_date")[:1])),
+            then=Subquery(earliest_dynamic_qs.values("exchange_rate")[:1]),
         ),
         output_field=DecimalField(),
     )
