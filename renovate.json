@@ -10,6 +10,16 @@
     "packageRules": [
         {
             "matchManagers": [
+                "github-actions"
+            ],
+            "groupName": "ci-dependencies",
+            "groupSlug": "ci-dependencies",
+            "addLabels": [
+                "ok-to-skip-smokes"
+            ]
+        },
+        {
+            "matchManagers": [
                 "pipenv"
             ],
             "matchUpdateTypes": [
