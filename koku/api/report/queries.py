@@ -21,6 +21,7 @@ from urllib.parse import quote
 import ciso8601
 import numpy as np
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
@@ -1083,11 +1084,15 @@ class ReportQueryHandler(QueryHandler):
             )
 
     def _get_exchange_rates(self):
-        """Fetch exchange rates for the query range and validate that all pairs are covered.
+        """Fetch exchange rates for the query range and validate per-month coverage.
 
         Returns the formatted exchange_rates_applied list for the response.
         Raises ExchangeRateNotFound if any base currency that needs conversion
-        has no rate within the queried date range.
+        is missing a rate for any month within the MER coverage window.
+
+        Months before the earliest MER row for a pair are exempt (the SQL
+        annotation uses the earliest rate as a backward-looking fallback for
+        pre-release historical data).
         """
         target_currency = self.currency
         base_currencies = self._get_base_currencies_in_data()
@@ -1116,7 +1121,9 @@ class ReportQueryHandler(QueryHandler):
                     f"No exchange rates found for {bases_missing} -> {target_currency} "
                     f"between {start_month} and {end_month}"
                 )
-                raise ExchangeRateNotFound(target_currency)
+                raise ExchangeRateNotFound(target_currency, list(bases_missing), start_month, end_month)
+
+            self._validate_per_month_coverage(rates, start_month, end_month)
 
         return [
             {
@@ -1129,6 +1136,24 @@ class ReportQueryHandler(QueryHandler):
             }
             for rate in rates
         ]
+
+    def _validate_per_month_coverage(self, rates, start_month, end_month):
+        """Ensure every month from the earliest covered month through end_month has a rate.
+
+        Pre-coverage months (before any MER row) are exempt — the SQL
+        annotation handles those with a backward-looking fallback.
+        """
+        covered = {rate["effective_date"] for rate in rates}
+        if not covered:
+            return
+
+        base_currencies = list({rate["base_currency"] for rate in rates})
+        current = min(covered)
+        while current <= end_month:
+            if current >= start_month and current not in covered:
+                LOG.warning(f"Exchange rate gap: missing {current} in range {start_month}..{end_month}")
+                raise ExchangeRateNotFound(self.currency, base_currencies, start_month, end_month)
+            current += relativedelta(months=1)
 
     def _pack_data_object(self, data, **kwargs):  # noqa: C901
         """Pack data into object format."""

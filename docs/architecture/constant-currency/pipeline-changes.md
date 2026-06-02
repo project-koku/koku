@@ -231,18 +231,27 @@ current month's data from `ExchangeRateDictionary` at deployment time (see
 so `MonthlyExchangeRate` has data from the moment of deployment.
 
 **Pre-deployment months**: For months before deployment, no
-`MonthlyExchangeRate` rows exist for the exact month. Instead of defaulting to
-a rate of 1 (no conversion), the query handler falls back to the **earliest
-available rate** for that currency pair. For example, if the feature is deployed
-in March, a query for February will use March's rate — the best available
-approximation. This is implemented as a second `Subquery` inside `Coalesce`
+`MonthlyExchangeRate` rows exist for the exact month. The query handler falls
+back to the **earliest available rate** for that currency pair, but **only when
+`usage_start` predates the earliest MER row**. For example, if the feature is
+deployed in March, a query for February will use March's rate — the best
+available approximation. However, a query for April (after March) with no April
+MER row will **not** fall back to March — it will get `NULL`, preventing
+expired static rates from silently leaking into future months. This is
+implemented as a `Case`/`When` inside `Coalesce` that checks
+`usage_start < earliest MER effective_date`
 (see [base annotation](#changed-base-exchange_rate_annotation_dict) and
 [OCP annotation](#changed-ocp-exchange_rate_annotation_dict-dual-annotation-pattern)).
 
+**Post-coverage gaps**: When a MER row exists for a pair but not for a specific
+month within or after the coverage window (e.g., a static rate valid only for
+January queried in May), the annotation returns `NULL` and the per-month
+validation in `_get_exchange_rates` raises `ExchangeRateNotFound` (HTTP 400).
+
 **Missing rates**: If no rate exists at all for a required currency pair (both
-the exact-month and earliest-available subqueries return `NULL`), the annotation
-evaluates to `NULL`. A [post-query validation step](#post-query-exchange-rate-validation)
-detects these `NULL` values and raises an exception — this indicates a system
+the exact-month and backward-looking subqueries return `NULL`), the annotation
+evaluates to `NULL`. The [post-query validation step](#post-query-exchange-rate-validation)
+detects the gap and raises an exception — this indicates a system
 configuration error (e.g., the Celery seeding task failed or
 `MonthlyExchangeRate` was not populated).
 
@@ -257,29 +266,42 @@ Replace single-rate `Case`/`When` with a correlated `Subquery` that joins
 base implementation in `ReportQueryHandler` used by AWS, Azure, and GCP:
 
 ```python
-@cached_property
-def exchange_rate_annotation_dict(self):
+# Shared builder in cost_models/exchange_rate_annotations.py
+def _build_monthly_rate_annotation(base_currency, target_currency):
     # Primary: exact month match
     rate_subquery = MonthlyExchangeRate.objects.filter(
-        effective_date=TruncMonth(OuterRef("usage_start")),
-        base_currency=OuterRef(self._mapper.cost_units_key),
-        target_currency=self.currency,
+        effective_date__year=ExtractYear(OuterRef("usage_start")),
+        effective_date__month=ExtractMonth(OuterRef("usage_start")),
+        base_currency=base_currency,
+        target_currency=target_currency,
     ).values("exchange_rate")[:1]
 
-    # Fallback: earliest available rate for this currency pair
-    # (covers pre-deployment months where no exact-month row exists)
-    earliest_rate_subquery = MonthlyExchangeRate.objects.filter(
-        base_currency=OuterRef(self._mapper.cost_units_key),
-        target_currency=self.currency,
-    ).order_by("effective_date").values("exchange_rate")[:1]
+    # Earliest MER effective_date and rate for this currency pair
+    earliest_effective = Subquery(
+        MonthlyExchangeRate.objects.filter(...)
+        .order_by("effective_date").values("effective_date")[:1],
+        output_field=DateField(),
+    )
+    earliest_rate = Subquery(
+        MonthlyExchangeRate.objects.filter(...)
+        .order_by("effective_date").values("exchange_rate")[:1],
+        output_field=DecimalField(),
+    )
 
-    return {
-        "exchange_rate": Coalesce(
-            Subquery(rate_subquery),
-            Subquery(earliest_rate_subquery),
-            output_field=DecimalField(),
-        )
-    }
+    # Only fall back for usage months BEFORE MER coverage began
+    backward_looking_fallback = Case(
+        When(
+            condition=Cast(OuterRef("usage_start"), DateField()) < earliest_effective,
+            then=earliest_rate,
+        ),
+        output_field=DecimalField(),
+    )
+
+    return Coalesce(
+        Subquery(rate_subquery),
+        backward_looking_fallback,
+        output_field=DecimalField(),
+    )
 ```
 
 **Three-level resolution**:
@@ -287,8 +309,8 @@ def exchange_rate_annotation_dict(self):
 | Priority | Source | When it applies |
 |----------|--------|-----------------|
 | 1st | Exact month match | Normal case — rate exists for that month |
-| 2nd | Earliest available rate | Pre-deployment months (no row for that month, but rows exist for later months) |
-| 3rd | `NULL` | No rates at all for this currency pair — caught by [post-query validation](#post-query-exchange-rate-validation) |
+| 2nd | Earliest available rate | Pre-deployment months only (`usage_start < earliest MER effective_date`) |
+| 3rd | `NULL` | Post-coverage gap (expired static rate) or no rates at all — caught by [per-month validation](#post-query-exchange-rate-validation) |
 
 For cloud providers (AWS, Azure, GCP), `cost_units_key` points to the bill's
 currency column (e.g., `currency_code`). All cost columns use the same
@@ -419,19 +441,23 @@ produces both annotations.
 
 Months before deployment have no `MonthlyExchangeRate` rows for the exact month.
 The query handler falls back to the **earliest available rate** for that currency
-pair — typically the rate from the deployment month (seeded by the M2 migration).
-This provides the best available approximation rather than showing unconverted
-costs.
+pair, but **only when `usage_start` predates the earliest MER row** — typically
+the rate from the deployment month (seeded by the M2 migration). This provides
+the best available approximation rather than showing unconverted costs.
 
 For example, if the feature is deployed in March 2026 and a user queries
 January–April data:
 
 | Month | Resolution | Rate used |
 |-------|-----------|-----------|
-| January 2026 | No exact match → earliest available (March) | March rate |
-| February 2026 | No exact match → earliest available (March) | March rate |
+| January 2026 | `usage_start < earliest MER (March)` → backward-looking fallback | March rate |
+| February 2026 | `usage_start < earliest MER (March)` → backward-looking fallback | March rate |
 | March 2026 | Exact match | March rate |
 | April 2026 | Exact match | April rate |
+
+If a static rate was defined only for January and the user queries May, the
+fallback does **not** apply (May is after January), and the per-month validation
+in `_get_exchange_rates` raises `ExchangeRateNotFound` (HTTP 400).
 
 The M2 migration seeds the current month at deployment time, so there is no gap
 for the deployment month. Going forward, the daily Celery task and CRUD

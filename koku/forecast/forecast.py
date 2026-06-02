@@ -192,8 +192,14 @@ class Forecast:
                         .values_list("base_currency", flat=True)
                         .distinct()
                     )
-                    if bases_needing_conversion - covered:
-                        raise ExchangeRateNotFound(self.currency)
+                    missing = bases_needing_conversion - covered
+                    if missing:
+                        raise ExchangeRateNotFound(
+                            self.currency,
+                            list(missing),
+                            self.query_range[0].date(),
+                            self.query_range[1].date(),
+                        )
             data = self.get_data()
 
             for fieldname in COST_FIELD_NAMES:

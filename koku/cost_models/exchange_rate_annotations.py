@@ -4,12 +4,15 @@
 #
 """Shared exchange rate annotation builders for query handlers and forecasts."""
 from django.conf import settings
+from django.db.models import Case
 from django.db.models import DecimalField
 from django.db.models import OuterRef
 from django.db.models import Subquery
+from django.db.models import When
 from django.db.models.functions import Coalesce
 from django.db.models.functions import ExtractMonth
 from django.db.models.functions import ExtractYear
+from django.db.models.functions import TruncDate
 from rest_framework.exceptions import ValidationError
 
 from cost_models.models import CostModel
@@ -19,15 +22,18 @@ from cost_models.models import MonthlyExchangeRate
 class ExchangeRateNotFound(ValidationError):
     """Raised when no exchange rate exists for a required currency pair."""
 
-    def __init__(self, target_currency):
+    def __init__(self, target_currency, base_currencies, start_date, end_date):
+        missing_pairs = ", ".join(f"{base} -> {target_currency}" for base in base_currencies)
         if settings.CURRENCY_URL:
             msg = (
-                f"No exchange rate available for {target_currency}. "
+                f"No exchange rate available for {missing_pairs} "
+                f"for {start_date} to {end_date}. "
                 "Ask your administrator to configure static exchange rates."
             )
         else:
             msg = (
-                f"No exchange rate available for {target_currency}. "
+                f"No exchange rate available for {missing_pairs} "
+                f"for {start_date} to {end_date}. "
                 "Ask your administrator to configure static exchange rates "
                 "or enable dynamic exchange rates."
             )
@@ -37,41 +43,36 @@ class ExchangeRateNotFound(ValidationError):
 def _build_monthly_rate_annotation(base_currency, target_currency):
     """Build a Coalesce annotation that resolves exchange rates per month.
 
-    Tries the rate matching the row's usage_start month first, then falls back
-    to the earliest available rate for the currency pair.
+    Resolution order:
+    1. Exact month match for the row's usage_start.
+    2. Earliest available rate, but ONLY when usage_start predates the first
+       MER row (backward-looking for pre-release history).
+    3. NULL — caught by validation in _get_exchange_rates (returns 400).
 
     Uses ExtractYear/ExtractMonth instead of TruncMonth on OuterRef because
-    Django's ResolvedOuterRef lacks the output_field attribute that TruncMonth
-    requires for date truncation.
-
-    Args:
-        base_currency: A Django expression resolving to the base currency code.
-        target_currency: The target currency code string.
-
-    Returns:
-        A Coalesce expression suitable for use in an .annotate() call.
+    Django's ResolvedOuterRef lacks the output_field that TruncMonth requires.
     """
-    rate_subquery = MonthlyExchangeRate.objects.filter(
-        effective_date__year=ExtractYear(OuterRef("usage_start")),
-        effective_date__month=ExtractMonth(OuterRef("usage_start")),
-        base_currency=base_currency,
-        target_currency=target_currency,
-    ).values("exchange_rate")[:1]
+    pair_filter = dict(base_currency=base_currency, target_currency=target_currency)
 
-    earliest_rate_subquery = (
+    exact_month = Subquery(
         MonthlyExchangeRate.objects.filter(
-            base_currency=base_currency,
-            target_currency=target_currency,
-        )
-        .order_by("effective_date")
-        .values("exchange_rate")[:1]
+            effective_date__year=ExtractYear(OuterRef("usage_start")),
+            effective_date__month=ExtractMonth(OuterRef("usage_start")),
+            **pair_filter,
+        ).values("exchange_rate")[:1]
     )
 
-    return Coalesce(
-        Subquery(rate_subquery),
-        Subquery(earliest_rate_subquery),
+    earliest_qs = MonthlyExchangeRate.objects.filter(**pair_filter).order_by("effective_date")
+
+    backward_looking = Case(
+        When(
+            condition=TruncDate("usage_start") < Subquery(earliest_qs.values("effective_date")[:1]),
+            then=Subquery(earliest_qs.values("exchange_rate")[:1]),
+        ),
         output_field=DecimalField(),
     )
+
+    return Coalesce(exact_month, backward_looking, output_field=DecimalField())
 
 
 def build_exchange_rate_annotation_dict(cost_units_key, target_currency):
