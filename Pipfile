@@ -53,8 +53,7 @@ pandas = "<3.0"
 scipy = ">=1.16"
 boto3 = "*"
 sqlalchemy = ">=2.0.0"
-platformdirs = ">=4.3.6"  # floor set to satisfy tox's transitive dep (via fcache/unleashclient)
-babel = "*"
+Babel = "*"
 
 [dev-packages]
 argh = ">=0.26.2"
@@ -75,7 +74,7 @@ requests-mock = ">=1.7"
 responses = ">=0.10"
 snakeviz = "*"
 tblib = ">=1.6"
-tox = ">=4.26.0"
+tox = "==4.26.0"  # requires a higher cachetools version than google-auth at the moment
 watchdog = ">=2.1.1"
 polyfactory = "*"
 koku-nise = "*"
