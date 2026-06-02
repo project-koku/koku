@@ -293,12 +293,9 @@ class Provider(models.Model):
                 _type = self.type.lower()
                 self._normalized_type = _type.removesuffix("-local")
                 with transaction.atomic(using=using):
-                    # Lock the provider row before cascading so concurrent FK inserts
-                    # (e.g. IngressReports created between cascade and final delete) block
-                    # until the transaction commits and the row is gone.
-                    # of=("self",) locks only api_provider; plain select_for_update() would fail
-                    # with "FOR UPDATE cannot be applied to the nullable side of an outer join"
-                    # because ProviderObjectsManager adds select_related() with nullable FKs.
+                    # Lock api_provider row so concurrent FK inserts (e.g. IngressReports) block
+                    # until the delete commits. of=("self",) avoids "FOR UPDATE on nullable outer
+                    # join" caused by ProviderObjectsManager.get_queryset() → select_related().
                     Provider.objects.using(using).select_for_update(of=("self",)).get(pk=self.pk)
                     self._cascade_delete()
                     LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
