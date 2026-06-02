@@ -182,13 +182,18 @@ class Forecast:
         cost_predictions = {}
         with tenant_context(self.params.tenant):
             if self.currency:
-                base_currencies = self._get_base_currencies_in_data()
-                if (
-                    base_currencies
-                    and base_currencies != {self.currency}
-                    and not MonthlyExchangeRate.objects.filter(target_currency=self.currency).exists()
-                ):
-                    raise ExchangeRateNotFound(self.currency)
+                bases_needing_conversion = self._get_base_currencies_in_data() - {self.currency}
+                if bases_needing_conversion:
+                    covered = set(
+                        MonthlyExchangeRate.objects.filter(
+                            target_currency=self.currency,
+                            base_currency__in=bases_needing_conversion,
+                        )
+                        .values_list("base_currency", flat=True)
+                        .distinct()
+                    )
+                    if bases_needing_conversion - covered:
+                        raise ExchangeRateNotFound(self.currency)
             data = self.get_data()
 
             for fieldname in COST_FIELD_NAMES:
