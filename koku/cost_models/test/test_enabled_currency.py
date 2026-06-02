@@ -5,7 +5,6 @@
 """Tests for EnabledCurrency views."""
 from datetime import date
 from decimal import Decimal
-from unittest.mock import patch
 
 from django.urls import reverse
 from django_tenants.utils import tenant_context
@@ -191,31 +190,12 @@ class EnabledCurrencyListViewTest(IamTestCase):
         self.client = APIClient()
         self.url = reverse("enabled-currencies-list")
 
-    @patch(
-        "api.settings.currency_views.get_currency_info",
-        side_effect=lambda c, dynamic_rate_codes: {
-            "USD": {
-                "code": "USD",
-                "name": "US Dollar",
-                "symbol": "$",
-                "description": "USD ($) - US Dollar",
-                "has_dynamic_rate": True,
-            },
-            "EUR": {
-                "code": "EUR",
-                "name": "Euro",
-                "symbol": "\u20ac",
-                "description": "EUR (\u20ac) - Euro",
-                "has_dynamic_rate": False,
-            },
-        }[c],
-    )
-    def test_get_returns_enabled_currencies(self, _mock):
+    def test_get_returns_enabled_currencies(self):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="EUR")
-            response = self.client.get(self.url, **self.headers)
+            response = self.client.get(self.url, {"enabled": "true", "limit": 1000}, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.data["data"]
             codes = [c["code"] for c in data]
@@ -231,7 +211,7 @@ class EnabledCurrencyListViewTest(IamTestCase):
             EnabledCurrency.objects.create(currency_code="EUR")
             ExchangeRates.objects.all().delete()
             ExchangeRates.objects.create(currency_type="usd", exchange_rate=1.0)
-            response = self.client.get(self.url, **self.headers)
+            response = self.client.get(self.url, {"limit": 1000}, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.data["data"]
             eur_entry = next(c for c in data if c["code"] == "EUR")
@@ -242,6 +222,6 @@ class EnabledCurrencyListViewTest(IamTestCase):
     def test_get_returns_empty_list_when_none_enabled(self):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
-            response = self.client.get(self.url, **self.headers)
+            response = self.client.get(self.url, {"enabled": "true"}, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.data["data"], [])

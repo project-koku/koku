@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 from api.common import log_json
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
+from api.currency.currencies import get_all_iso_currency_codes
 from api.currency.currencies import get_currency_info
 from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import is_valid_iso_currency
@@ -46,10 +47,28 @@ class EnabledCurrencyView(APIView):
     def get(self, request, *args, **kwargs):
         if "code" in kwargs:
             return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-        enabled_codes = EnabledCurrency.objects.values_list("currency_code", flat=True)
+
+        enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
         dynamic_codes = get_dynamic_rate_currencies()
-        available = [get_currency_info(code, dynamic_rate_codes=dynamic_codes) for code in sorted(enabled_codes)]
-        return ListPaginator(available, request).paginated_response
+
+        search_term = request.query_params.get("search", "").strip().lower()
+        all_codes = get_all_iso_currency_codes()
+        result = []
+        for code in all_codes:
+            info = get_currency_info(code, dynamic_rate_codes=dynamic_codes)
+            if search_term and search_term not in info["code"].lower() and search_term not in info["name"].lower():
+                continue
+            info["enabled"] = code in enabled_codes
+            result.append(info)
+
+        enabled_filter = request.query_params.get("enabled")
+        if enabled_filter is not None:
+            show_enabled = enabled_filter.lower() in ("true", "1")
+            result = [currency for currency in result if currency["enabled"] is show_enabled]
+
+        result.sort(key=lambda currency: (not currency["enabled"], currency["code"]))
+
+        return ListPaginator(result, request).paginated_response
 
     @method_decorator(never_cache)
     def post(self, request, *args, **kwargs):

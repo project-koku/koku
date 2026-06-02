@@ -154,14 +154,27 @@ can be toggled individually.
 ### URL
 
 ```
+GET     /api/cost-management/v1/settings/currency/enabled-currencies/
 POST    /api/cost-management/v1/settings/currency/enabled-currencies/{code}/
 DELETE  /api/cost-management/v1/settings/currency/enabled-currencies/{code}/
 ```
 
+- **GET**: Returns **all** ISO 4217 currencies with an `enabled` flag indicating
+  whether the currency is currently enabled for the tenant. Supports query
+  parameters for filtering (see below).
 - **POST**: Enables the currency (creates an `EnabledCurrency` row). No request body.
 - **DELETE**: Disables the currency (removes the `EnabledCurrency` row). No request body.
 
-Both return `204 No Content`.
+POST returns `200 OK` (with optional warning). DELETE returns `204 No Content`.
+
+### GET Query Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `search` | string | Case-insensitive partial match against currency code or name (e.g., `?search=yen` or `?search=JPY`) |
+| `enabled` | boolean | Filter by enabled status (`?enabled=true` or `?enabled=false`). Omit to return all. |
+| `limit` | integer | Page size (default 10, max 1000) |
+| `offset` | integer | Pagination offset |
 
 ### View
 
@@ -197,9 +210,17 @@ administrator has explicitly enabled.
 Defining a static exchange rate does **not** automatically make its currencies
 available in the report dropdown. The administrator must explicitly enable them.
 
+### Currency Discovery
+
+The `GET settings/currency/enabled-currencies/` endpoint returns all ISO 4217
+currencies (~170) with their enabled status. The UI uses this as the source of
+truth for currency discovery — administrators can search for any currency and
+enable it. Use `?search=` for autocomplete/typeahead filtering.
+
 The settings admin page (`GET settings/currency/exchange_rate/`) shows all
-currencies with static rates regardless of enabled status, so the administrator
-can see and manage exchange rates without needing to enable currencies first.
+currencies that have static rates **or** are enabled, so the administrator
+can see and manage exchange rates for enabled currencies even before rates
+are defined.
 
 ### No Currencies Available
 
@@ -413,3 +434,4 @@ The frontend will:
 | v1.9 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. Settings admin page shows static rates regardless for management. |
 | v2.0 | 2026-04-28 | Added "costs as-is" behavior to Corner Case section: when `MonthlyExchangeRate` is empty, feature is inactive, costs returned in original currency. |
 | v2.1 | 2026-04-30 | Fixed currency enablement URLs to `settings/currency/enabled-currencies/{code}/`. Clarified "costs as-is" Corner Case: serializer enforces enabled currencies before query handler validation. |
+| v2.2 | 2026-06-02 | `GET enabled-currencies/` now returns all ISO 4217 currencies with `enabled` flag. Added `?search` and `?enabled` query params. `GET exchange_rate/` list now includes enabled currencies with no static rates. |

@@ -46,6 +46,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
         """Test that GET list returns exchange rates grouped by base currency with enabled flag."""
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
+            StaticExchangeRate.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
             self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
 
@@ -53,10 +54,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
             data = response.data["data"]
-            self.assertEqual(len(data), 1)
-
-            usd_entry = data[0]
-            self.assertEqual(usd_entry["code"], "USD")
+            usd_entry = next(e for e in data if e["code"] == "USD")
             self.assertEqual(usd_entry["enabled"], True)
             self.assertIn("name", usd_entry)
             self.assertIn("symbol", usd_entry)
@@ -71,14 +69,14 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def test_list_disabled_currency_shows_enabled_false(self, mock_invalidate):
         """Test that a currency without EnabledCurrency row shows enabled=False."""
         with tenant_context(self.tenant):
-            EnabledCurrency.objects.filter(currency_code="USD").delete()
+            EnabledCurrency.objects.all().delete()
+            StaticExchangeRate.objects.all().delete()
             self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
 
             response = self.client.get(self.list_url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-            usd_entry = response.data["data"][0]
-            self.assertEqual(usd_entry["code"], "USD")
+            usd_entry = next(e for e in response.data["data"] if e["code"] == "USD")
             self.assertEqual(usd_entry["enabled"], False)
 
     @patch("cost_models.static_exchange_rate_serializer.invalidate_view_cache_for_tenant_and_all_source_types")

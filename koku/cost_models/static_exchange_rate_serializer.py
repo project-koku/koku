@@ -154,7 +154,11 @@ class CurrencyExchangeRateSerializer(serializers.Serializer):
 
     @classmethod
     def build_grouped_response(cls, queryset):
-        """Group exchange rates by base_currency and attach currency metadata + enabled flag."""
+        """Group exchange rates by base_currency and attach currency metadata + enabled flag.
+
+        Includes enabled currencies that have no static exchange rates yet
+        so the admin can see all enabled currencies in one view.
+        """
         enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
         dynamic_codes = get_dynamic_rate_currencies()
 
@@ -167,6 +171,13 @@ class CurrencyExchangeRateSerializer(serializers.Serializer):
                 info["exchange_rates"] = []
                 grouped[code] = info
             grouped[code]["exchange_rates"].append(rate)
+
+        for code in enabled_codes:
+            if code not in grouped:
+                info = get_currency_info(code, dynamic_codes)
+                info["enabled"] = True
+                info["exchange_rates"] = []
+                grouped[code] = info
 
         result = []
         for code in sorted(grouped):
