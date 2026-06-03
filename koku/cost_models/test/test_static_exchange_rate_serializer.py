@@ -3,10 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for the StaticExchangeRate serializer."""
+import calendar
 from decimal import Decimal
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from dateutil.relativedelta import relativedelta
+from django.utils import timezone
 from django_tenants.utils import tenant_context
 
 from cost_models.models import MonthlyExchangeRate
@@ -17,17 +20,31 @@ from cost_models.static_exchange_rate_utils import remove_static_and_backfill_dy
 from masu.test import MasuTestCase
 
 
+def _first_of_month(offset=0):
+    """Return the 1st of the month ``offset`` months from the current month."""
+    return timezone.now().date().replace(day=1) + relativedelta(months=offset)
+
+
+def _last_of_month(offset=0):
+    """Return the last day of the month ``offset`` months from the current month."""
+    dt = _first_of_month(offset)
+    return dt.replace(day=calendar.monthrange(dt.year, dt.month)[1])
+
+
 class StaticExchangeRateSerializerTest(MasuTestCase):
     """Tests for StaticExchangeRateSerializer."""
 
     def setUp(self):
         super().setUp()
+        self.start_date = str(_first_of_month())
+        self.end_date = str(_last_of_month(2))
+        self.mid_month = str(_first_of_month().replace(day=15))
         self.valid_data = {
             "base_currency": "USD",
             "target_currency": "EUR",
             "exchange_rate": "0.870000000000000",
-            "start_date": "2026-01-01",
-            "end_date": "2026-03-31",
+            "start_date": self.start_date,
+            "end_date": self.end_date,
         }
 
     def _make_request_context(self):
@@ -64,7 +81,7 @@ class StaticExchangeRateSerializerTest(MasuTestCase):
         """Test that start_date must be the 1st of a month."""
         with tenant_context(self.tenant):
             data = self.valid_data.copy()
-            data["start_date"] = "2026-01-15"
+            data["start_date"] = self.mid_month
             serializer = StaticExchangeRateSerializer(data=data, context=self._make_request_context())
             self.assertFalse(serializer.is_valid())
 
@@ -72,7 +89,7 @@ class StaticExchangeRateSerializerTest(MasuTestCase):
         """Test that end_date must be the last day of a month."""
         with tenant_context(self.tenant):
             data = self.valid_data.copy()
-            data["end_date"] = "2026-03-15"
+            data["end_date"] = self.mid_month
             serializer = StaticExchangeRateSerializer(data=data, context=self._make_request_context())
             self.assertFalse(serializer.is_valid())
 
@@ -80,8 +97,8 @@ class StaticExchangeRateSerializerTest(MasuTestCase):
         """Test that start_date > end_date is rejected."""
         with tenant_context(self.tenant):
             data = self.valid_data.copy()
-            data["start_date"] = "2026-04-01"
-            data["end_date"] = "2026-03-31"
+            data["start_date"] = str(_first_of_month(3))
+            data["end_date"] = str(_last_of_month(2))
             serializer = StaticExchangeRateSerializer(data=data, context=self._make_request_context())
             self.assertFalse(serializer.is_valid())
 
@@ -118,8 +135,8 @@ class StaticExchangeRateSerializerTest(MasuTestCase):
                 "base_currency": "USD",
                 "target_currency": "EUR",
                 "exchange_rate": "0.900000000000000",
-                "start_date": "2026-02-01",
-                "end_date": "2026-04-30",
+                "start_date": str(_first_of_month(1)),
+                "end_date": str(_last_of_month(3)),
             }
             serializer2 = StaticExchangeRateSerializer(data=overlap_data, context=self._make_request_context())
             self.assertFalse(serializer2.is_valid())
@@ -186,8 +203,8 @@ class StaticExchangeRateSerializerTest(MasuTestCase):
                 "base_currency": "EUR",
                 "target_currency": "USD",
                 "exchange_rate": "1.150000000000000",
-                "start_date": "2026-01-01",
-                "end_date": "2026-03-31",
+                "start_date": self.start_date,
+                "end_date": self.end_date,
             }
             reverse_serializer = StaticExchangeRateSerializer(data=reverse_data, context=self._make_request_context())
             self.assertTrue(reverse_serializer.is_valid(), reverse_serializer.errors)
@@ -228,8 +245,8 @@ class StaticExchangeRateSerializerTest(MasuTestCase):
                 "base_currency": "EUR",
                 "target_currency": "USD",
                 "exchange_rate": "1.150000000000000",
-                "start_date": "2026-01-01",
-                "end_date": "2026-03-31",
+                "start_date": self.start_date,
+                "end_date": self.end_date,
             }
             reverse_serializer = StaticExchangeRateSerializer(
                 data=explicit_reverse_data, context=self._make_request_context()
@@ -282,8 +299,8 @@ class StaticExchangeRateSerializerTest(MasuTestCase):
                 "base_currency": "EUR",
                 "target_currency": "USD",
                 "exchange_rate": "1.150000000000000",
-                "start_date": "2026-01-01",
-                "end_date": "2026-03-31",
+                "start_date": self.start_date,
+                "end_date": self.end_date,
             }
             reverse_serializer = StaticExchangeRateSerializer(data=reverse_data, context=self._make_request_context())
             self.assertTrue(reverse_serializer.is_valid(), reverse_serializer.errors)
