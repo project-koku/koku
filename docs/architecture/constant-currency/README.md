@@ -128,19 +128,21 @@ immediately available for use, or should an administrator explicitly enable them
 
 **Resolution**: Explicit enablement. The full list of known currencies comes from
 Babel's ISO 4217 registry. Only currencies that an administrator has explicitly
-enabled are stored in the `EnabledCurrency` table. An administrator must enable
-currencies through the Settings API (`POST settings/currency/enabled/{code}/`) before
-they appear in the target currency dropdown.
+enabled are stored in the `EnabledCurrency` table. The migration seeds 22
+commonly used currencies as enabled (AED, AUD, BRL, CAD, CHF, CNY, CZK, DKK,
+EUR, GBP, HKD, INR, JPY, NGN, NOK, NZD, SAR, SEK, SGD, TWD, USD, ZAR). An
+administrator can enable/disable currencies through the Settings API
+(`POST/DELETE settings/currency/enabled/{code}/`).
 
-All currencies are always stored in `MonthlyExchangeRate` regardless of their
-enabled status — the `EnabledCurrency` table only controls dropdown visibility,
-not data storage. This ensures the underlying data is complete and
-ready when an administrator enables a currency.
+The Celery task only writes dynamic `MonthlyExchangeRate` rows for currency
+pairs where **both** base and target are enabled. Disabling a currency also
+deletes its dynamic `MonthlyExchangeRate` rows for the current month.
 
 **Rationale**: Explicit enablement gives administrators control over which
 currencies appear in their UI. In on-premise environments, customers may only
 need a small subset of the ~300 ISO 4217 currencies. Showing all currencies by
-default would clutter the dropdown.
+default would clutter the dropdown. Restricting dynamic rate storage to enabled
+currencies keeps the `MonthlyExchangeRate` table size bounded.
 
 
 ### IQ-6: Rate resolution without `CURRENCY_URL` — RESOLVED
@@ -255,8 +257,8 @@ graph LR
     API["open.er-api.com<br/>(or custom URL)"] -->|"daily fetch<br/>(skipped if no URL)"| CT["Celery Task:<br/>get_daily_currency_rates"]
     CT -->|upsert| ER["ExchangeRates<br/>(public schema)"]
     CT -->|rebuild| ERD["ExchangeRateDictionary<br/>(public schema)"]
-    CT -->|"no currency discovery"| EC["EnabledCurrency<br/>(tenant schema)<br/>admin-managed"]
-    CT -->|"Writer 1: per-tenant<br/>skip static pairs<br/>all currencies"| MER["MonthlyExchangeRate<br/>(tenant schema)<br/>single source of truth"]
+    CT -->|"no currency discovery"| EC["EnabledCurrency<br/>(tenant schema)<br/>admin-managed<br/>seeded with 22 defaults"]
+    CT -->|"Writer 1: per-tenant<br/>skip static pairs<br/>enabled currencies only"| MER["MonthlyExchangeRate<br/>(tenant schema)<br/>single source of truth"]
     MER -->|"all months:<br/>per-month rates"| QH["QueryHandler<br/>Subquery annotation"]
     QH -->|"per-month rates +<br/>rate metadata"| REPORT["Report Response<br/>+ exchange_rates_applied"]
     QH -->|"no rate +<br/>feature active? →<br/>actionable error"| ERR["Error: no exchange rate<br/>available"]
@@ -273,7 +275,7 @@ graph LR
 2. **Two writers**: Celery task writes dynamic rates daily for the current month; CRUD serializer writes static rates for affected months
 3. **Rate resolution**: All months read from `MonthlyExchangeRate`; M2 migration seeds current-month data at deployment; pre-deployment months fall back to earliest available rate. When `MonthlyExchangeRate` is empty (feature not configured), no currencies are enabled and costs are returned as-is; when rows exist but not for the target currency, an actionable error is returned
 4. Report responses include rate provenance metadata
-5. **Currency enablement**: Dynamic currencies arrive as disabled; administrator enables them via Settings to make them visible in the dropdown (all currencies are always stored)
+5. **Currency enablement**: Migration seeds 22 commonly used currencies as enabled; administrators can enable/disable others via Settings. The Celery task only writes dynamic rates where both base and target currencies are enabled.
 6. **Dropdown visibility**: Target currency dropdown shows only currencies that an administrator has explicitly enabled (static rate currencies still require enablement)
 7. **No-rate handling**: If `MonthlyExchangeRate` is empty, the feature is inactive — no currencies are enabled, so costs are returned as-is. If rows exist but not for the selected currency, an actionable error is returned
 
@@ -292,7 +294,7 @@ graph LR
 | 7 | **Automatic finalized month locking** | Dynamic rows overwritten daily during current month; untouched after month ends |
 | 8 | **Forward-only with current-month seed** | M2 migration seeds current-month data from `ExchangeRateDictionary`; pre-deployment months fall back to earliest available rate |
 | 9 | **Per-pair rows, not JSON blob** | Enables `unique_together` constraint, simpler queries, cleaner ORM integration |
-| 10 | **Explicit currency enablement** | Dynamic currencies arrive disabled; administrator enables them in Settings to control which currencies appear in the dropdown. All currencies are always stored regardless of enabled status. |
+| 10 | **Explicit currency enablement** | Migration seeds 22 commonly used currencies as enabled. Administrators can enable/disable others in Settings to control which currencies appear in the dropdown. The Celery task only writes dynamic rates for enabled currencies. |
 | 11 | **Configurable exchange rate URL** | `CURRENCY_URL` is a variable; empty value skips dynamic rate fetching. System works with whatever rates are available (static first, dynamic fallback). Documentation references `open.er-api.com` (free tier) as the production example |
 | 12 | **Show-then-error for no-rate currencies** | Available currencies appear in dropdown even without a conversion path from the bill currency; actionable error returned on selection. When `MonthlyExchangeRate` is empty (no rates configured at all), the feature is inactive — no currencies are enabled and costs are returned as-is |
 | 13 | **Enablement is always required for reports** | Static exchange rate currencies must still be explicitly enabled to appear in the report dropdown. The settings admin page shows them regardless for management purposes. |
@@ -316,3 +318,4 @@ graph LR
 | v2.0 | 2026-04-28 | Removed static-rate enablement bypass (decision #13). Report dropdown governed solely by `EnabledCurrency`; settings admin page shows static rates regardless. |
 | v2.1 | 2026-04-28 | Added "costs as-is" behavior: when `MonthlyExchangeRate` is empty, feature is inactive, validation skipped, costs returned in original currency. Updated IQ-6, decision #12, data flow key changes. |
 | v2.2 | 2026-04-30 | Fixed currency enablement URL to `settings/currency/enabled/{code}/`. Clarified "costs as-is": no currencies enabled means serializer blocks currency selection; costs returned as-is. |
+| v2.3 | 2026-06-03 | Synced with implementation: `EnabledCurrency` migration seeds 22 defaults, Celery task only writes rates for enabled currencies, disable cleans up dynamic MER rows. Updated IQ-5, decisions #10, data flow diagram, key changes. |

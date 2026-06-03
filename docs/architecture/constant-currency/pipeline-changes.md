@@ -138,11 +138,8 @@ steps. The system does not require `CURRENCY_URL` to function — it uses
 whatever rates are available (static first, then dynamic, then error if
 neither exists for a given pair).
 
-```python
-if not settings.CURRENCY_URL:
-    LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
-    return
-```
+See [`get_daily_currency_rates()`](../../koku/masu/celery/tasks.py) for the
+implementation.
 
 ### Step 2: Fetch and store (unchanged)
 
@@ -152,35 +149,11 @@ Fetch rates from `CURRENCY_URL`, upsert `ExchangeRates`, rebuild
 ### Step 3: `MonthlyExchangeRate` upsert (new)
 
 After rebuilding `ExchangeRateDictionary`, upsert per-tenant
-`MonthlyExchangeRate` rows:
+`MonthlyExchangeRate` rows. This is factored into
+`_upsert_tenant_dynamic_exchange_rates()`:
 
-```python
-current_month = dh.this_month_start  # date(2026, 3, 1)
-exchange_dict = ExchangeRateDictionary.objects.first().currency_exchange_dictionary
-
-for tenant in Tenant.objects.exclude(schema_name="public"):
-    with schema_context(tenant.schema_name):
-        # Pre-fetch all static pairs for this month in a single query
-        static_pairs = set(
-            MonthlyExchangeRate.objects.filter(
-                effective_date=current_month,
-                rate_type=RateType.STATIC,
-            ).values_list("base_currency", "target_currency")
-        )
-
-        # Upsert all currencies — EnabledCurrency controls dropdown visibility
-        for base_cur, targets in exchange_dict.items():
-            for target_cur, rate in targets.items():
-                if base_cur == target_cur:
-                    continue
-                if (base_cur, target_cur) not in static_pairs:
-                    MonthlyExchangeRate.objects.update_or_create(
-                        effective_date=current_month,
-                        base_currency=base_cur,
-                        target_currency=target_cur,
-                        defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
-                    )
-```
+See [`_upsert_tenant_dynamic_exchange_rates()`](../../koku/masu/celery/tasks.py)
+for the full implementation.
 
 **Key behaviors**:
 
@@ -190,9 +163,13 @@ for tenant in Tenant.objects.exclude(schema_name="public"):
   completely empty (no rates configured), the feature is inactive — no
   currencies are enabled and costs are returned as-is in their original bill
   currency.
-- **All currencies stored**: Upserts dynamic rates for all currency pairs
-  returned by the API. The `EnabledCurrency` table controls dropdown visibility,
-  not rate storage. Administrators enable currencies via the Settings API.
+- **Enabled currencies only**: Only writes dynamic rates where **both** base
+  and target currencies are in the tenant's `EnabledCurrency` table. If no
+  currencies are enabled, the per-tenant upsert is skipped entirely.
+- **Inverse rate synthesis**: For each `base→target` pair from the API
+  dictionary, the task also synthesizes the inverse `target→base` rate
+  (`1/rate`) when the API does not include it, mirroring the static-rate
+  bidirectional behavior.
 - Runs daily; overwrites current month's dynamic rows with latest rate
 - Skips pairs with `rate_type=RateType.STATIC` (static takes precedence)
 - Past months' rows are never updated (automatic finalization)
@@ -265,51 +242,15 @@ Replace single-rate `Case`/`When` with a correlated `Subquery` that joins
 `MonthlyExchangeRate` by truncating `usage_start` to its month. This is the
 base implementation in `ReportQueryHandler` used by AWS, Azure, and GCP:
 
-```python
-# Shared builder in cost_models/exchange_rate_annotations.py
-def _build_monthly_rate_annotation(base_currency, target_currency):
-    # Primary: exact month match
-    rate_subquery = MonthlyExchangeRate.objects.filter(
-        effective_date__year=ExtractYear(OuterRef("usage_start")),
-        effective_date__month=ExtractMonth(OuterRef("usage_start")),
-        base_currency=base_currency,
-        target_currency=target_currency,
-    ).values("exchange_rate")[:1]
-
-    # Earliest MER effective_date and rate for this currency pair
-    earliest_effective = Subquery(
-        MonthlyExchangeRate.objects.filter(...)
-        .order_by("effective_date").values("effective_date")[:1],
-        output_field=DateField(),
-    )
-    earliest_rate = Subquery(
-        MonthlyExchangeRate.objects.filter(...)
-        .order_by("effective_date").values("exchange_rate")[:1],
-        output_field=DecimalField(),
-    )
-
-    # Only fall back for usage months BEFORE MER coverage began
-    backward_looking_fallback = Case(
-        When(
-            condition=Cast(OuterRef("usage_start"), DateField()) < earliest_effective,
-            then=earliest_rate,
-        ),
-        output_field=DecimalField(),
-    )
-
-    return Coalesce(
-        Subquery(rate_subquery),
-        backward_looking_fallback,
-        output_field=DecimalField(),
-    )
-```
+See [`_build_monthly_rate_annotation()`](../../koku/cost_models/exchange_rate_annotations.py)
+for the full implementation.
 
 **Three-level resolution**:
 
 | Priority | Source | When it applies |
 |----------|--------|-----------------|
-| 1st | Exact month match | Normal case — rate exists for that month |
-| 2nd | Earliest available rate | Pre-deployment months only (`usage_start < earliest MER effective_date`) |
+| 1st | Exact month match (any rate type) | Normal case — rate exists for that month |
+| 2nd | Earliest **dynamic** rate | Pre-deployment months only (`usage_start < earliest dynamic MER effective_date`) |
 | 3rd | `NULL` | Post-coverage gap (expired static rate) or no rates at all — caught by [per-month validation](#post-query-exchange-rate-validation) |
 
 For cloud providers (AWS, Azure, GCP), `cost_units_key` points to the bill's
@@ -355,56 +296,15 @@ row, so they need independent exchange rate lookups.
 - `infra_exchange_rate` `Case`/`When` matches on `cost_units_key`
   (`raw_currency`)
 
-**Updated pseudocode** — the `Subquery`-based constant-currency version:
+**Updated code** — the `Subquery`-based constant-currency version uses
+`_build_monthly_rate_annotation` (the same helper as the base implementation):
 
-```python
-@cached_property
-def exchange_rate_annotation_dict(self):
-    # Step 1: Resolve source_uuid → cost model currency via DB subquery
-    # (replaces the Python-side source_to_currency_map lookup)
-    cost_model_currency = CostModel.objects.filter(
-        cost_model_map__provider_uuid=OuterRef("source_uuid"),
-    ).values("currency")[:1]
+See [`build_ocp_exchange_rate_annotation_dict()`](../../koku/cost_models/exchange_rate_annotations.py)
+for the full implementation.
 
-    # Step 2: Supplementary / cost-model costs — rate by cost model currency
-    exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
-        effective_date=TruncMonth(OuterRef("usage_start")),
-        base_currency=Subquery(cost_model_currency),
-        target_currency=self.currency,
-    ).values("exchange_rate")[:1]
-
-    # Step 2b: Fallback — earliest available rate for cost model currency pair
-    earliest_exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
-        base_currency=Subquery(cost_model_currency),
-        target_currency=self.currency,
-    ).order_by("effective_date").values("exchange_rate")[:1]
-
-    # Step 3: Infrastructure costs — rate by cloud bill currency column
-    infra_exchange_rate_subquery = MonthlyExchangeRate.objects.filter(
-        effective_date=TruncMonth(OuterRef("usage_start")),
-        base_currency=OuterRef(self._mapper.cost_units_key),
-        target_currency=self.currency,
-    ).values("exchange_rate")[:1]
-
-    # Step 3b: Fallback — earliest available rate for infra currency pair
-    earliest_infra_rate_subquery = MonthlyExchangeRate.objects.filter(
-        base_currency=OuterRef(self._mapper.cost_units_key),
-        target_currency=self.currency,
-    ).order_by("effective_date").values("exchange_rate")[:1]
-
-    return {
-        "exchange_rate": Coalesce(
-            Subquery(exchange_rate_subquery),
-            Subquery(earliest_exchange_rate_subquery),
-            output_field=DecimalField(),
-        ),
-        "infra_exchange_rate": Coalesce(
-            Subquery(infra_exchange_rate_subquery),
-            Subquery(earliest_infra_rate_subquery),
-            output_field=DecimalField(),
-        ),
-    }
-```
+Both annotations use the same three-level resolution as the base annotation
+(exact month → earliest dynamic → NULL). The `cost_model_currency` is resolved
+via a nested `Subquery` through `CostModelMap`.
 
 Both annotations follow the same three-level resolution as the
 [base implementation](#changed-base-exchange_rate_annotation_dict): exact month
@@ -480,23 +380,19 @@ currencies are enabled (feature not configured), any `currency` parameter is
 rejected — the user cannot select a target currency and costs are returned
 as-is in their default currency.
 
-**Level 2 — Query handler** (`_validate_exchange_rates`): If the serializer
-passes, the query handler checks that `MonthlyExchangeRate` has rows for the
-target currency:
+**Level 2 — Query handler** (`_get_exchange_rates` and
+`_validate_per_month_coverage`): If the serializer passes, validation is
+performed inline within `_get_exchange_rates()` in `api/report/queries.py`.
+There is no separate `_validate_exchange_rates` method:
 
-```python
-def _validate_exchange_rates(self, target_currency):
-    """Raise ExchangeRateNotFound if no MonthlyExchangeRate rows exist for the target currency.
+See [`_get_exchange_rates()`](../../koku/api/report/queries.py) and
+[`_validate_per_month_coverage()`](../../koku/api/report/queries.py)
+for the full implementation.
 
-    Skips validation when MonthlyExchangeRate is completely empty (feature not configured).
-    The Coalesce(..., Value(1)) fallback in provider maps ensures costs are returned as-is.
-    """
-    with tenant_context(self.tenant):
-        if not MonthlyExchangeRate.objects.exists():
-            return  # feature not configured, costs returned as-is
-        if not MonthlyExchangeRate.objects.filter(target_currency=target_currency).exists():
-            raise ExchangeRateNotFound(target_currency)
-```
+**`ExchangeRateNotFound`** accepts four arguments: `target_currency`,
+`base_currencies` (list), `start_date`, `end_date`. Its error message varies
+based on whether `CURRENCY_URL` is configured — when it is, the message omits
+"or enable dynamic exchange rates" since dynamic rates are already active.
 
 **Key design choices**:
 
@@ -506,14 +402,14 @@ def _validate_exchange_rates(self, target_currency):
   runs. Without a `currency` parameter, the `Coalesce("exchange_rate",
   Value(1))` fallback in provider maps ensures NULL annotations resolve to `1`
   (no conversion).
-- **Pre-query check**: The query handler validation runs before the query
-  executes. It verifies that *any* `MonthlyExchangeRate` row exists for the
-  target currency. Per-row mismatches (e.g., a specific base currency with no
-  rate) are handled gracefully by the `Coalesce` fallback to `1`.
-- **Exception type**: `ExchangeRateNotFound` is a custom exception caught by
-  the view layer and returned as HTTP 400 with an actionable error message.
-  This only fires when rates are configured but not for the requested currency
-  — indicating an administrator configuration gap, not a system error.
+- **Inline validation**: The query handler validates exchange rate coverage
+  inline within `_get_exchange_rates()`, which is called by
+  `_initialize_response_output()`. It checks that every base currency needing
+  conversion has at least one MER row, and that every month within coverage has
+  a rate (via `_validate_per_month_coverage`).
+- **Exception type**: `ExchangeRateNotFound` is a custom exception (subclass
+  of DRF `ValidationError`) caught by the view layer and returned as HTTP 400
+  with an actionable error message.
 
 ### New: Available Currency Resolution
 
@@ -616,24 +512,16 @@ tenant's report cache for all source types. Since exchange rates affect all
 provider reports (not just a single source type), use
 `invalidate_view_cache_for_tenant_and_all_source_types()`:
 
-```python
-# In StaticExchangeRateSerializer, after MonthlyExchangeRate upsert/delete:
-from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
-
-invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
-```
+See [`StaticExchangeRateSerializer`](../../koku/cost_models/static_exchange_rate_serializer.py)
+for the implementation.
 
 ### Celery Task (Writer 1)
 
 After the daily `MonthlyExchangeRate` upsert completes for a tenant, flush
 that tenant's report cache. This runs inside the existing per-tenant loop:
 
-```python
-# In get_daily_currency_rates, after MonthlyExchangeRate upsert per tenant:
-from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
-
-invalidate_view_cache_for_tenant_and_all_source_types(tenant.schema_name)
-```
+See [`get_daily_currency_rates()`](../../koku/masu/celery/tasks.py) for the
+implementation.
 
 **Why all source types?** Exchange rates apply across all providers — a USD→EUR
 rate change affects AWS, Azure, GCP, and OCP reports equally. Invalidating
@@ -674,3 +562,4 @@ per-source-type would miss cross-provider reports (e.g., OCP-on-AWS).
 | v2.3 | 2026-04-28 | Removed static-rate enablement bypass from available currency resolution. Report dropdown governed solely by `EnabledCurrency`. |
 | v2.4 | 2026-04-28 | Replaced post-query validation pseudocode with actual pre-query implementation. Added "costs as-is" behavior: when `MonthlyExchangeRate` is empty, feature inactive, validation skipped. |
 | v2.5 | 2026-04-30 | Documented two-level validation: serializer (`CurrencyField(enabled_only=True)`) blocks non-enabled currencies before query handler checks `MonthlyExchangeRate`. |
+| v2.6 | 2026-06-03 | Synced with implementation: Celery task only writes rates for enabled currencies (not all), added inverse rate synthesis (1/rate), backward-looking fallback filters to DYNAMIC-only rows, updated `ExchangeRateNotFound` to 4-arg constructor with conditional message, replaced `_validate_exchange_rates` with inline `_get_exchange_rates`/`_validate_per_month_coverage`, updated OCP pseudocode to match actual `build_ocp_exchange_rate_annotation_dict` helper. |

@@ -36,9 +36,7 @@ pairs. Show rate provenance in report responses.
 | `StaticExchangeRate` model | `koku/cost_models/models.py` | User-defined rate pairs with validity periods |
 | `MonthlyExchangeRate` model | `koku/cost_models/models.py` | Single source of truth: per-month, per-pair rate storage for all months |
 | `EnabledCurrency` model | `koku/cost_models/models.py` | Tracks enabled currencies per tenant (presence = enabled) |
-| Migration M1 | `koku/cost_models/migrations/XXXX_*.py` | Create `static_exchange_rate` table |
-| Migration M2 | `koku/cost_models/migrations/XXXX_*.py` | Create `monthly_exchange_rate` table + seed current-month data from `ExchangeRateDictionary` |
-| Migration M3 | `koku/cost_models/migrations/XXXX_*.py` | Create `enabled_currency` table |
+| Migration | `koku/cost_models/migrations/0014_constant_currency.py` | Create all three tables + seed `EnabledCurrency` with 22 defaults + seed current-month `MonthlyExchangeRate` from `ExchangeRateDictionary` |
 | Serializer | `koku/cost_models/static_exchange_rate_serializer.py` | Validation + `MonthlyExchangeRate` upsert side-effects |
 | ViewSet | `koku/cost_models/static_exchange_rate_view.py` | CRUD API for static rates |
 | Currency enablement view | `koku/api/settings/currency_views.py` | POST/DELETE enablement for individual currencies |
@@ -61,7 +59,7 @@ pairs. Show rate provenance in report responses.
 - [ ] Overlapping validity period rejection returns 400
 - [ ] Natural month boundary enforcement (mid-month dates rejected)
 - [x] Bidirectional inverse rate resolution (1/rate when reverse undefined)
-- [ ] Dynamic rate daily `MonthlyExchangeRate` upsert per tenant
+- [ ] Dynamic rate daily `MonthlyExchangeRate` upsert per tenant (enabled currencies only, with inverse rate synthesis)
 - [ ] Static rate precedence: task skips pairs with existing static rates
 - [ ] Finalized month immutability: past month rows never overwritten
 - [ ] `MonthlyExchangeRate` is the single source of truth: query handler reads from it for all months (no fallback)
@@ -73,7 +71,9 @@ pairs. Show rate provenance in report responses.
 - [ ] Unit tests pass for serializer, view, MonthlyExchangeRate logic, query handler
 - [ ] On-prem mode: full functionality without Trino
 - [ ] **Currency enablement**: Administrator can enable currencies via `POST settings/currency/enabled/{code}/`
-- [ ] **Currency enablement**: All currencies are stored in `MonthlyExchangeRate` regardless of enabled status; `enabled` flag only controls dropdown visibility
+- [ ] **Currency enablement**: Only enabled currencies are stored in `MonthlyExchangeRate`; `EnabledCurrency` controls both dropdown visibility and dynamic rate storage
+- [ ] **Currency enablement seeding**: Migration seeds 22 default currencies as enabled
+- [ ] **Currency disablement**: DELETE removes `EnabledCurrency` row and cleans up dynamic `MonthlyExchangeRate` rows for current month
 - [ ] **Rate resolution**: Static rates take precedence over dynamic rates; when `MonthlyExchangeRate` is empty (feature not configured), no currencies are enabled and costs returned as-is; when rows exist but not for target, error returned
 - [ ] **No `CURRENCY_URL`**: Celery task skips API fetch; system works with whatever rates are available
 - [ ] **Available currencies**: Report dropdown shows only enabled currencies (static rates do not bypass enablement)
@@ -92,9 +92,9 @@ pairs. Show rate provenance in report responses.
 4. Revert report meta changes in `koku/api/report/queries.py` (remove
    `exchange_rates_applied` metadata and no-rate error handling)
 5. Revert URL registration in `koku/api/urls.py` (remove `settings/currency/`, `settings/currency/exchange-rates/`, and `settings/currency/enabled/` routes)
-7. Drop tables via reverse migration (`migrate_schemas` runs `DeleteModel` for
-   all three new tables: `static_exchange_rate`, `monthly_exchange_rate`,
-   `enabled_currency`)
+7. Reverse migration `0014_constant_currency` (`migrate_schemas` runs
+   `DeleteModel` for all three tables: `static_exchange_rate`,
+   `monthly_exchange_rate`, `enabled_currency`)
 8. Remove new files: serializer, view, currency enablement views, test files
 9. Revert OpenAPI changes
 
@@ -180,3 +180,4 @@ design would be needed to handle path prioritization.
 | v2.2 | 2026-04-28 | Removed static-rate enablement bypass from validation checklist. Report dropdown governed solely by `EnabledCurrency`. |
 | v2.3 | 2026-04-28 | Added "costs as-is" validation item: when `MonthlyExchangeRate` is empty, feature inactive, costs returned as-is. Updated rate resolution and no-rate validation items. |
 | v2.4 | 2026-04-30 | Fixed currency enablement URL to `settings/currency/enabled/{code}/`. Clarified "costs as-is": serializer blocks non-enabled currencies before query handler. |
+| v2.5 | 2026-06-03 | Synced with implementation: consolidated M1/M2/M3 into single migration `0014_constant_currency`, updated Celery task to enabled-currencies-only, added currency disablement and seeding validation items, fixed rollback reference. |

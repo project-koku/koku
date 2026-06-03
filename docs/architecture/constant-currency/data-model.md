@@ -60,22 +60,8 @@ placement rationale.
 ### `StaticExchangeRate`
 
 User-defined exchange rates with validity periods.
-
-```python
-class StaticExchangeRate(models.Model):
-    uuid = models.UUIDField(primary_key=True, default=uuid4)
-    base_currency = models.CharField(max_length=5)
-    target_currency = models.CharField(max_length=5)
-    exchange_rate = models.DecimalField(max_digits=33, decimal_places=15)
-    start_date = models.DateField()   # first day of a natural month
-    end_date = models.DateField()     # last day of a natural month (or later)
-    created_timestamp = models.DateTimeField(auto_now_add=True)
-    updated_timestamp = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "static_exchange_rate"
-        ordering = ["-updated_timestamp"]
-```
+See [`cost_models/models.py`](../../koku/cost_models/models.py) for the full
+model definition.
 
 **Example `static_exchange_rate` rows**:
 
@@ -90,10 +76,17 @@ In this example:
 - The `USD→GBP` rate only covers January
 - The `EUR→GBP` rate covers Feb–Jun 2026
 
-**Constraints** (enforced in serializer validation):
+**Constraints**:
 
-- `base_currency` and `target_currency` must be in `VALID_CURRENCIES`
+- `unique_together` on `(base_currency, target_currency, start_date, end_date)`
+  at the database level prevents duplicate rate definitions
+
+Additional validation enforced in the serializer:
+
+- `base_currency` and `target_currency` must be valid ISO 4217 codes (validated
+  via Babel's currency registry using `is_valid_iso_currency()`)
 - `base_currency != target_currency`
+- `exchange_rate` must be greater than zero
 - `start_date` must be the 1st of a month; `end_date` must be the last day of
   that same month or a later month
 - No overlapping validity periods for the same `(base_currency, target_currency)`
@@ -116,17 +109,8 @@ defined, each uses its own rate.
 Tracks which currencies are enabled for the target currency dropdown. Only
 enabled currencies are stored — presence in this table means the currency is
 enabled. The full list of known currencies comes from Babel's ISO 4217 registry
-at runtime.
-
-```python
-class EnabledCurrency(models.Model):
-    currency_code = models.CharField(max_length=5, unique=True)
-    created_timestamp = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "enabled_currency"
-        ordering = ["currency_code"]
-```
+at runtime. See [`cost_models/models.py`](../../koku/cost_models/models.py)
+for the full model definition.
 
 **Example `enabled_currency` rows**:
 
@@ -144,7 +128,7 @@ enabled.
 | Event | Action |
 |-------|--------|
 | Administrator enables a currency via `POST settings/currency/enabled/{code}/` | Creates an `EnabledCurrency` row for that currency |
-| Administrator disables a currency via `DELETE settings/currency/enabled/{code}/` | Removes the `EnabledCurrency` row for that currency |
+| Administrator disables a currency via `DELETE settings/currency/enabled/{code}/` | Removes the `EnabledCurrency` row and deletes dynamic `MonthlyExchangeRate` rows for the current month where the currency appears as base or target |
 | `GET settings/currency/` | Returns all ISO 4217 currencies with exchange rates, `enabled` flag based on `EnabledCurrency` table membership |
 
 **How currencies become "available" in the report dropdown**:
@@ -189,25 +173,8 @@ static and dynamic rates as per-pair rows, one row per month. The query handler
 reads from this table for **all months** — current and past alike. For the
 current month, dynamic rows are updated daily by the Celery task; once the
 month rolls over, rows are never updated again (automatic finalization).
-
-```python
-class RateType(models.TextChoices):
-    STATIC = "static", "Static"
-    DYNAMIC = "dynamic", "Dynamic"
-
-class MonthlyExchangeRate(models.Model):
-    effective_date = models.DateField()  # First day of month: 2026-03-01
-    base_currency = models.CharField(max_length=5)
-    target_currency = models.CharField(max_length=5)
-    exchange_rate = models.DecimalField(max_digits=33, decimal_places=15)
-    rate_type = models.CharField(max_length=10, choices=RateType.choices)
-    created_timestamp = models.DateTimeField(auto_now_add=True)
-    updated_timestamp = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "monthly_exchange_rate"
-        unique_together = ("effective_date", "base_currency", "target_currency")
-```
+See [`cost_models/models.py`](../../koku/cost_models/models.py) for the full
+model definition (`RateType` and `MonthlyExchangeRate`).
 
 **Constraints**:
 
@@ -263,99 +230,51 @@ registry — this is a configuration/metadata table, not a reporting table.
 
 ## Database Migration Plan
 
-### Migration Sequence Overview
+### Migration Overview
 
-```mermaid
-graph TD
-    M1["M1: Create<br/>static_exchange_rate"] --> M2["M2: Create<br/>monthly_exchange_rate"]
-```
-
-All are standard `CreateModel` migrations in `cost_models/migrations/`. Since
-`cost_models` is a tenant app, migrations run in each tenant schema via
-`migrate_schemas`.
-
-### M1: Create `static_exchange_rate` Table
+All three tables are created in a single migration:
+`cost_models/migrations/0014_constant_currency.py`. Since `cost_models` is a
+tenant app, migrations run in each tenant schema via `migrate_schemas`.
 
 | Field | Value |
 |-------|-------|
 | **Phase** | 1 |
-| **Type** | `CreateModel` (standard, no partitioning) |
+| **Type** | 3× `CreateModel` + 2× `RunPython` (seed data) |
 | **App** | `cost_models` |
-| **Depends on** | Previous `cost_models` migration |
-| **Rollback** | `DeleteModel` |
+| **Depends on** | `0013_normalize_rates_to_rate_table` |
+| **Rollback** | `DeleteModel` for all three tables |
 
-**What migration does NOT do**: No data migration needed. Table starts empty;
-populated via user CRUD.
+The migration performs the following operations in order:
 
-### M2: Create and seed `monthly_exchange_rate` Table
+1. `CreateModel` — `static_exchange_rate` table (starts empty; populated via CRUD)
+2. `CreateModel` — `enabled_currency` table
+3. `CreateModel` — `monthly_exchange_rate` table
+4. `RunPython: seed_enabled_currencies` — seeds `EnabledCurrency` with 22
+   default currencies (AED, AUD, BRL, CAD, CHF, CNY, CZK, DKK, EUR, GBP, HKD,
+   INR, JPY, NGN, NOK, NZD, SAR, SEK, SGD, TWD, USD, ZAR). These are the
+   currencies that were previously hardcoded in the dropdown.
+5. `RunPython: seed_current_month` — reads from `ExchangeRateDictionary`
+   (public schema) and populates `MonthlyExchangeRate` with `rate_type=dynamic`
+   rows for the **current month**.
 
-| Field | Value |
-|-------|-------|
-| **Phase** | 1 |
-| **Type** | `CreateModel` + `RunPython` (seed current month) |
-| **App** | `cost_models` |
-| **Depends on** | M1 |
-| **Rollback** | `DeleteModel` (seed data dropped with the table) |
+Since `cost_models` is a tenant app, `migrate_schemas` executes this migration
+once per tenant with the correct schema context — no explicit tenant loop is
+needed. `ExchangeRateDictionary` (a shared/public model) remains accessible
+because `django-tenants` sets `search_path` to `<tenant_schema>, public`.
 
-**Seed step**: After creating the table, a `RunPython` step reads from
-`ExchangeRateDictionary` (public schema) and populates `MonthlyExchangeRate`
-with `rate_type=dynamic` rows for the **current month**. Since `cost_models`
-is a tenant app, `migrate_schemas` already executes this migration once per
-tenant with the correct schema context — no explicit tenant loop is needed.
-`ExchangeRateDictionary` (a shared/public model) remains accessible because
-`django-tenants` sets `search_path` to `<tenant_schema>, public`.
-
-```python
-def seed_current_month(apps, schema_editor):
-    """Seed MonthlyExchangeRate with current-month rates from ExchangeRateDictionary."""
-    ExchangeRateDictionary = apps.get_model("api", "ExchangeRateDictionary")
-    MonthlyExchangeRate = apps.get_model("cost_models", "MonthlyExchangeRate")
-
-    erd = ExchangeRateDictionary.objects.first()
-    if not erd or not erd.currency_exchange_dictionary:
-        return
-
-    current_month = date.today().replace(day=1)
-
-    rows = []
-    for base_cur, targets in erd.currency_exchange_dictionary.items():
-        for target_cur, rate in targets.items():
-            if base_cur == target_cur:
-                continue
-            rows.append(MonthlyExchangeRate(
-                effective_date=current_month,
-                base_currency=base_cur,
-                target_currency=target_cur,
-                exchange_rate=rate,
-                rate_type="dynamic",
-            ))
-    MonthlyExchangeRate.objects.bulk_create(rows, ignore_conflicts=True)
-```
+See [`0014_constant_currency.py`](../../koku/cost_models/migrations/0014_constant_currency.py)
+for the full seed logic.
 
 If `ExchangeRateDictionary` is empty (e.g., fresh deployment with no
 `CURRENCY_URL` configured), the seed step is a no-op — there are no dynamic
 rates to seed, and the table starts empty. The daily Celery task and static
 rate CRUD will populate it going forward.
 
-### M3: Create `enabled_currency` Table
-
-| Field | Value |
-|-------|-------|
-| **Phase** | 1 |
-| **Type** | `CreateModel` (standard, no partitioning) |
-| **App** | `cost_models` |
-| **Depends on** | Previous `cost_models` migration |
-| **Rollback** | `DeleteModel` |
-
-**What migration does NOT do**: No data migration needed. Table is populated
-going forward by the daily Celery task (which creates rows with `enabled=False`
-for newly discovered currencies) and by administrator actions in Settings.
-
 ### Phase-to-Migration Mapping
 
 | Phase | Migrations | Description |
 |-------|-----------|-------------|
-| 1 | M1, M2, M3 | Create all new tables |
+| 1 | `0014_constant_currency` | Create all three tables + seed data |
 | 2 | TBD | Audit history tables (future) |
 
 **Note**: No tables are partitioned (`set_pg_extended_mode` not needed).
@@ -388,3 +307,4 @@ changes required.
 | v2.1 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. |
 | v2.2 | 2026-04-28 | Added "costs as-is" behavior: when `MonthlyExchangeRate` is empty, feature is inactive, costs returned in original currency. |
 | v2.3 | 2026-04-30 | Fixed `EnabledCurrency` lifecycle URLs to `settings/currency/enabled/{code}/`. Clarified "costs as-is" behavior: serializer blocks non-enabled currencies. |
+| v2.4 | 2026-06-03 | Synced with implementation: added `unique_together` to `StaticExchangeRate` model, replaced `VALID_CURRENCIES` with Babel ISO 4217 validation, consolidated M1/M2/M3 into single migration (`0014_constant_currency`), documented `EnabledCurrency` seed with 22 defaults, documented DELETE side effect (cleans up dynamic MER rows), added `exchange_rate > 0` validation. |

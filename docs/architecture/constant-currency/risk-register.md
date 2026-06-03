@@ -41,12 +41,15 @@ retains the rate from the most recent successful run.
 
 **Status**: Open. Requires monitoring after deployment.
 
-**Context**: The daily task iterates over all tenants and all currency pairs.
-With `T` tenants and `P` pairs, this is `O(T × P)` database operations per run.
+**Context**: The daily task iterates over all tenants and their enabled currency
+pairs. With `T` tenants and `P` enabled pairs per tenant, this is `O(T × P)`
+database operations per run.
 
-For a deployment with 100 tenants and 170 currency pairs (current `VALID_CURRENCIES`
-list), this is ~17,000 `update_or_create` calls. Each call involves a
-`SELECT` + conditional `INSERT`/`UPDATE`, so ~34,000 queries per task run.
+Since the task only writes rates for enabled currencies (plus synthesized
+inverse pairs), the actual pair count is bounded by the tenant's `EnabledCurrency`
+table rather than all ISO 4217 currencies. With 22 default enabled currencies,
+this is at most ~462 pairs per tenant (22 × 21). Tenants with no enabled
+currencies are skipped entirely.
 
 **Mitigation options** (apply if monitoring shows unacceptable runtime):
 
@@ -136,6 +139,10 @@ from the current `ExchangeRateDictionary` for the affected pairs/months. This
 eliminates the data gap that would otherwise exist until the next daily Celery
 task run.
 
+Similarly, when a currency is disabled via `DELETE settings/currency/enabled/{code}/`,
+the view deletes dynamic `MonthlyExchangeRate` rows for the current month where
+the currency appears as base or target, preventing stale rates from lingering.
+
 **Linked from**: [pipeline-changes.md § Writer 2](./pipeline-changes.md#static-rate--monthlyexchangerate-upsert--writer-2)
 
 ---
@@ -183,12 +190,13 @@ with unconverted or zero amounts.
 **Behavior**: Two distinct cases:
 
 1. **`MonthlyExchangeRate` is completely empty** (feature not configured): The
-   constant currency feature is inactive. No currencies are enabled, so the
-   serializer rejects any explicit `currency` parameter. Without a `currency`
-   parameter, the `Coalesce("exchange_rate", Value(1))` fallback in provider
-   maps ensures all exchange rate annotations resolve to `1`, so costs are
-   returned as-is in their original bill currency. This is the default state
-   for fresh deployments without `CURRENCY_URL` or static rates.
+   constant currency feature is inactive. The migration seeds 22 default
+   currencies as enabled and seeds current-month dynamic rates from
+   `ExchangeRateDictionary`, so fresh deployments with `CURRENCY_URL`
+   configured will have data immediately. Without `CURRENCY_URL` and no static
+   rates, `MonthlyExchangeRate` remains empty — the serializer rejects any
+   explicit `currency` parameter and costs are returned as-is in their original
+   bill currency.
 
 2. **`MonthlyExchangeRate` has rows but none for the target currency**: The
    feature is active but the specific currency pair is missing. Rate resolution
@@ -244,3 +252,4 @@ R8       ✓
 | v1.8 | 2026-04-28 | R8: updated CRUD API URL to `settings/currency/exchange-rates/`. |
 | v1.9 | 2026-04-28 | R8: added "costs as-is" behavior — when `MonthlyExchangeRate` is empty, feature is inactive, validation skipped, costs returned in original currency. |
 | v2.0 | 2026-04-30 | R8: clarified "costs as-is" — serializer blocks non-enabled currencies; query handler skip is secondary defense. |
+| v2.1 | 2026-06-03 | Synced with implementation: R2 updated for enabled-currencies-only scope (not all ISO 4217), R6 added currency disablement MER cleanup, R8 updated for 22-currency seed behavior. |

@@ -73,7 +73,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
             EnabledCurrency.objects.create(currency_code="USD")
             self.client.post(self.create_url, data=self.valid_data, format="json", **self.headers)
 
-            response = self.client.get(self.list_url, **self.headers)
+            response = self.client.get(self.list_url, {"search": "USD"}, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
             data = response.data["data"]
@@ -96,7 +96,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
             StaticExchangeRate.objects.all().delete()
             self.client.post(self.create_url, data=self.valid_data, format="json", **self.headers)
 
-            response = self.client.get(self.list_url, **self.headers)
+            response = self.client.get(self.list_url, {"search": "USD"}, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
             usd_entry = next(e for e in response.data["data"] if e["code"] == "USD")

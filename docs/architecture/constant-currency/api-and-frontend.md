@@ -37,23 +37,32 @@ list, `settings/currency/exchange-rates/` for static rate CRUD, and
 | `search` | string | Filter currencies by code or name (case-insensitive substring) |
 | `enabled` | boolean | Filter by enabled status (`true` or `false`) |
 
-### View
+### Views
+
+**File**: `koku/api/settings/currency_views.py`
+
+The `CurrencyListView` handles the `GET settings/currency/` endpoint. It
+returns all ISO 4217 currencies (~170) grouped by base currency, each with an
+`enabled` flag, `has_dynamic_rate` flag, `description` string, and a nested
+`exchange_rates` array of static rates. Supports `?search=` and `?enabled=`
+query params for filtering.
+
+**Permission**: `SettingsAccessPermission` — requires the **Cost Management
+Administrator** role.
 
 **File**: `koku/cost_models/static_exchange_rate_view.py`
 
-The `StaticExchangeRateViewSet` handles CRUD for exchange rates. The `list`
-action returns all ISO 4217 currencies (~170) grouped by base currency, each
-with an `enabled` flag and nested `exchange_rates` array. Supports `?search=`
-and `?enabled=` query params for filtering. All other actions use the flat
-`StaticExchangeRateSerializer`.
-
-**Permission**: `CostModelsAccessPermission` — requires the **Price List
-Administrator** role. Same permission used for cost model CRUD.
+The `StaticExchangeRateViewSet` handles create, update, and delete for static
+exchange rates. It exposes only `POST`, `PUT`, and `DELETE` methods (no `GET`
+— the list view is separate). Uses `CostModelsAccessPermission` — requires
+the **Price List Administrator** role.
 
 **File**: `koku/api/settings/currency_views.py`
 
 The `EnabledCurrencyView` handles currency enablement via POST (enable) and
-DELETE (disable). No request body required.
+DELETE (disable). No request body required. On DELETE, it also cleans up
+dynamic `MonthlyExchangeRate` rows for the current month where the currency
+appears as base or target.
 
 **Permission**: `SettingsAccessPermission` — requires the **Cost Management
 Administrator** role.
@@ -101,6 +110,8 @@ Only currencies with at least one `StaticExchangeRate` record appear.
       "code": "USD",
       "name": "US Dollar",
       "symbol": "$",
+      "description": "USD ($) - US Dollar",
+      "has_dynamic_rate": true,
       "enabled": true,
       "exchange_rates": [
         {
@@ -175,9 +186,13 @@ POST returns `200 OK` (with optional warning). DELETE returns `204 No Content`.
 **Permission**: `SettingsAccessPermission` — requires the **Cost Management
 Administrator** role.
 
-**Side effects**: Enabling or disabling a currency only affects its visibility
-in the target currency dropdown. It does not affect the `MonthlyExchangeRate`,
-`ExchangeRateDictionary`, `ExchangeRates`, or `StaticExchangeRate` tables.
+**Side effects**:
+- **POST (enable)**: Creates an `EnabledCurrency` row. Returns a warning if no
+  exchange rate is available for the currency.
+- **DELETE (disable)**: Removes the `EnabledCurrency` row and deletes dynamic
+  `MonthlyExchangeRate` rows for the current month where the currency appears
+  as base or target. Does not affect `ExchangeRateDictionary`, `ExchangeRates`,
+  or `StaticExchangeRate` tables.
 
 ---
 
@@ -411,9 +426,10 @@ The frontend will:
 | v1.5 | 2026-04-09 | Replaced stale `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate`, removed `StaticExchangeRateDictionary` references (removed in pipeline-changes v1.6). |
 | v1.6 | 2026-04-12 | Updated `exchange_rates_applied` implementation to reflect `Subquery`-based rate resolution (removed `effective_exchange_rates` reference). |
 | v1.7 | 2026-04-13 | Removed stale "snapshotted" terminology (remnant from `MonthlyExchangeRateSnapshot` rename). |
-| v1.8 | 2026-04-28 | Consolidated endpoints under `settings/currency/exchange_rate/`. List returns grouped response with enabled status. Currency enablement via POST/DELETE at `settings/currency/enabled-currencies/{code}/` (no body). Removed separate `AllCurrencyView` and `available-currencies` endpoints. |
+| v1.8 | 2026-04-28 | Consolidated endpoints under `settings/currency/exchange-rates/`. List returns grouped response with enabled status. Currency enablement via POST/DELETE at `settings/currency/enabled/{code}/` (no body). Removed separate `AllCurrencyView` and `available-currencies` endpoints. |
 | v1.9 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. Settings admin page shows static rates regardless for management. |
 | v2.0 | 2026-04-28 | Added "costs as-is" behavior to Corner Case section: when `MonthlyExchangeRate` is empty, feature is inactive, costs returned in original currency. |
-| v2.1 | 2026-04-30 | Fixed currency enablement URLs to `settings/currency/enabled-currencies/{code}/`. Clarified "costs as-is" Corner Case: serializer enforces enabled currencies before query handler validation. |
-| v2.2 | 2026-06-02 | `GET enabled-currencies/` now returns all ISO 4217 currencies with `enabled` flag. Added `?search` and `?enabled` query params. `GET exchange_rate/` list now includes enabled currencies with no static rates. |
+| v2.1 | 2026-04-30 | Fixed currency enablement URLs to `settings/currency/enabled/{code}/`. Clarified "costs as-is" Corner Case: serializer enforces enabled currencies before query handler validation. |
+| v2.2 | 2026-06-02 | `GET enabled-currencies/` now returns all ISO 4217 currencies with `enabled` flag. Added `?search` and `?enabled` query params. `GET exchange-rates/` list now includes enabled currencies with no static rates. |
 | v2.3 | 2026-06-03 | Removed `GET enabled-currencies/` endpoint. Restructured URLs: `GET settings/currency/` returns all ISO 4217 currencies (with `?search=`, `?enabled=`), `settings/currency/exchange-rates/` for static rate CRUD, `settings/currency/enabled/{code}/` for enablement toggling. |
+| v2.4 | 2026-06-03 | Synced with implementation: `GET settings/currency/` is `CurrencyListView` (SettingsAccessPermission), not `StaticExchangeRateViewSet`. ViewSet exposes POST/PUT/DELETE only (no GET). EnabledCurrency DELETE also cleans up dynamic MER rows. Added `description` and `has_dynamic_rate` to response example. Fixed changelog URL inconsistencies. |
