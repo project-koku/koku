@@ -764,9 +764,9 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         self.assertNotIn("cluster_cost_per_hour", sql_params)
         self.assertNotIn("rate_type", sql_params)
 
-    # TC-55: RTU skipped when feature flag disabled
+    # TC-55: Flag OFF overrides to RTU (Phase 3 SQL requires RTU pipeline)
     @_make_orchestration_patches(rtu_enabled=False)
-    def test_orchestration_skips_rtu_when_flag_disabled(
+    def test_orchestration_overrides_to_rtu_when_flag_disabled(
         self,
         mock_ff,
         mock_load,
@@ -779,12 +779,13 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         mock_monthly,
         mock_dist,
     ):
+        """Phase 3 SQL writes to rates_to_usage, so flag OFF still uses RTU pipeline."""
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
-        mock_rtu.assert_not_called()
-        mock_agg.assert_not_called()
-        mock_usage.assert_called_once()
+        mock_rtu.assert_called_once()
+        mock_agg.assert_called_once()
+        mock_usage.assert_not_called()
 
 
 class TestPartitionWiring(MasuTestCase):
@@ -1239,11 +1240,24 @@ class TestRTURateResolution(_ReportPeriodMixin, MasuTestCase):
             ).first()
         if not rtu_row:
             self.skipTest("No RTU rows with NULL rate FK (all rows may have matching Rate)")
-        known_metrics = set(metric_constants.COST_MODEL_USAGE_RATES)
-        metric_found = any(m in rtu_row.custom_name for m in known_metrics)
+        known_identifiers = (
+            set(metric_constants.COST_MODEL_USAGE_RATES)
+            | set(metric_constants.COST_MODEL_MONTHLY_RATES)
+            | set(metric_constants.COST_MODEL_VM_USAGE_RATES)
+            | set(metric_constants.COST_MODEL_NODE_RATES)
+            | {
+                "Node",
+                "Cluster",
+                "PVC",
+                "OCP_VM",
+                "Node_Core_Month",
+                "Node_Core_Hour",
+            }
+        )
+        name_recognised = any(ident in rtu_row.custom_name for ident in known_identifiers)
         self.assertTrue(
-            metric_found,
-            f"RTU custom_name '{rtu_row.custom_name}' should contain a known metric name as fallback",
+            name_recognised,
+            f"RTU custom_name '{rtu_row.custom_name}' should contain a known metric or cost type as fallback",
         )
 
 
@@ -1265,7 +1279,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
             cost_model_update=True,
         )
 
-    # TC-R20-01: full RTU-enabled ordering: rtu -> agg -> vm -> markup -> monthly -> dist
+    # TC-R20-01: full ordering: rtu -> monthly -> vm -> agg -> markup -> dist
     @_make_orchestration_patches(rtu_enabled=True)
     def test_rtu_enabled_full_ordering(
         self,
@@ -1280,20 +1294,20 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_monthly,
         mock_dist,
     ):
-        """R20: When RTU is enabled, order must be rtu -> agg -> vm -> markup -> monthly -> dist."""
+        """R20: Orchestration order is rtu -> monthly -> vm -> agg -> markup -> dist."""
         call_order = []
         mock_rtu.side_effect = lambda *a: call_order.append("rtu")
-        mock_agg.side_effect = lambda *a: call_order.append("agg")
-        mock_vm.side_effect = lambda *a: call_order.append("vm")
-        mock_markup.side_effect = lambda *a: call_order.append("markup")
         mock_monthly.side_effect = lambda *a: call_order.append("monthly")
+        mock_vm.side_effect = lambda *a: call_order.append("vm")
+        mock_agg.side_effect = lambda *a: call_order.append("agg")
+        mock_markup.side_effect = lambda *a: call_order.append("markup")
         mock_dist.side_effect = lambda *a: call_order.append("dist")
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
 
-        expected = ["rtu", "agg", "vm", "markup", "monthly", "dist"]
+        expected = ["rtu", "monthly", "vm", "agg", "markup", "dist"]
         self.assertEqual(call_order, expected, f"R20: expected {expected}, got {call_order}")
         mock_usage.assert_not_called()
         mock_cleanup.assert_not_called()
@@ -1330,7 +1344,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
             "R20: aggregation must run before markup (and therefore before tags)",
         )
 
-    # TC-R20-03: cleanup called when cost_model_id is None with RTU enabled
+    # TC-R20-03: cleanup called when cost_model_id is None; monthly/vm/agg/markup still run
     @_make_orchestration_patches(rtu_enabled=True)
     def test_cleanup_called_when_no_cost_model(
         self,
@@ -1345,7 +1359,8 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_monthly,
         mock_dist,
     ):
-        """R20: When RTU is enabled but cost_model_id is None, cleanup must run instead of RTU+agg."""
+        """R20: When cost_model_id is None, cleanup runs instead of RTU insert.
+        Monthly/vm/agg/markup still run (monthly cleanup, agg guards on cost_model_id)."""
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         updater._cost_model_id = None
         sr = self._make_summary_range()
@@ -1353,9 +1368,11 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
 
         mock_cleanup.assert_called()
         mock_rtu.assert_not_called()
-        mock_agg.assert_not_called()
-        mock_vm.assert_not_called()
         mock_usage.assert_not_called()
+        mock_monthly.assert_called()
+        mock_vm.assert_called()
+        mock_agg.assert_called()
+        mock_markup.assert_called()
 
 
 # ---------------------------------------------------------------------------
@@ -1413,8 +1430,10 @@ class TestPriceListValidityGuard(_ReportPeriodMixin, MasuTestCase):
 
         mock_cleanup.assert_called()
         mock_rtu.assert_not_called()
-        mock_agg.assert_not_called()
-        mock_vm.assert_not_called()
+        mock_agg.assert_called()
+        mock_vm.assert_called()
+        mock_monthly.assert_called()
+        mock_markup.assert_called()
 
     # TC-7492-02: RTU still called when price_list_effective_on is None (feature flag disabled)
     @_make_orchestration_patches(rtu_enabled=True)
@@ -1626,3 +1645,62 @@ class TestTwoMonthOrchestration(_ReportPeriodMixin, MasuTestCase):
         self.assertNotIn(5, rtu_months, "May should NOT get RTU insert")
         self.assertIn(5, cleanup_months, "May should get cleanup")
         self.assertNotIn(4, cleanup_months, "April should NOT get cleanup")
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Routing Helper and Rate Info Tests
+# ---------------------------------------------------------------------------
+
+
+class TestRoutingMetricType(MasuTestCase):
+    """Verify _get_routing_metric_type returns correct aggregation buckets."""
+
+    def test_pvc_returns_storage(self):
+        result = OCPReportDBAccessor._get_routing_metric_type(cost_type="PVC")
+        self.assertEqual(result, "storage")
+
+    def test_node_cpu_distribution(self):
+        result = OCPReportDBAccessor._get_routing_metric_type(cost_type="Node", distribution="cpu")
+        self.assertEqual(result, "cpu")
+
+    def test_node_memory_distribution(self):
+        result = OCPReportDBAccessor._get_routing_metric_type(cost_type="Node", distribution="memory")
+        self.assertEqual(result, "memory")
+
+    def test_cluster_cpu_distribution(self):
+        result = OCPReportDBAccessor._get_routing_metric_type(cost_type="Cluster", distribution="cpu")
+        self.assertEqual(result, "cpu")
+
+    def test_node_core_month_memory(self):
+        result = OCPReportDBAccessor._get_routing_metric_type(cost_type="Node_Core_Month", distribution="memory")
+        self.assertEqual(result, "memory")
+
+    def test_gpu_metric_name(self):
+        result = OCPReportDBAccessor._get_routing_metric_type(metric_name="gpu_cost_per_month")
+        self.assertEqual(result, "gpu")
+
+    def test_vm_metric_returns_cpu(self):
+        result = OCPReportDBAccessor._get_routing_metric_type(metric_name="vm_cost_per_hour")
+        self.assertEqual(result, "cpu")
+
+    def test_ocp_vm_cost_type(self):
+        result = OCPReportDBAccessor._get_routing_metric_type(cost_type="OCP_VM", distribution="cpu")
+        self.assertEqual(result, "cpu")
+
+    def test_usage_type_passthrough(self):
+        result = OCPReportDBAccessor._get_routing_metric_type(usage_type="storage")
+        self.assertEqual(result, "storage")
+
+    def test_usage_type_takes_priority(self):
+        result = OCPReportDBAccessor._get_routing_metric_type(
+            usage_type="memory", cost_type="PVC", metric_name="gpu_cost"
+        )
+        self.assertEqual(result, "memory")
+
+    def test_default_returns_cpu(self):
+        result = OCPReportDBAccessor._get_routing_metric_type()
+        self.assertEqual(result, "cpu")
+
+    def test_node_core_hour(self):
+        result = OCPReportDBAccessor._get_routing_metric_type(cost_type="Node_Core_Hour", distribution="cpu")
+        self.assertEqual(result, "cpu")

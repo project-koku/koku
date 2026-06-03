@@ -262,8 +262,18 @@ class CostModelDBAccessor:
                 if default:
                     default_rate = rate_value
                 tag_value = tag_rate.get("tag_value")
-                tag_rate_dict[tag_value] = {"unit": unit, "value": rate_value, "default": default}
-            tag_rates_list.append({"tag_key": tag_key, "tag_values": tag_rate_dict, "tag_key_default": default_rate})
+                tag_rate_dict[tag_value] = {
+                    "unit": unit,
+                    "value": rate_value,
+                    "default": default,
+                }
+            tag_rates_list.append(
+                {
+                    "tag_key": tag_key,
+                    "tag_values": tag_rate_dict,
+                    "tag_key_default": default_rate,
+                }
+            )
             if metric_name in metric_rate_map.keys():
                 tag_rates = metric_rate_map.get(metric_name)
                 existing_cost_dict = tag_rates.get("tag_rates")
@@ -331,7 +341,10 @@ class CostModelDBAccessor:
                     tag_keys_to_ignore = list(tag.get("tag_values").keys())
                     default_value = tag.get("tag_key_default")
                     # NOTE: defined keys is actually list of values that have a rate associated with them.
-                    tag_dict[tag_key] = {"default_value": default_value, "defined_keys": tag_keys_to_ignore}
+                    tag_dict[tag_key] = {
+                        "default_value": default_value,
+                        "defined_keys": tag_keys_to_ignore,
+                    }
                     results_dict[key] = tag_dict
         return results_dict
 
@@ -385,6 +398,9 @@ class CostModelDBAccessor:
                     tag_keys_to_ignore = list(tag.get("tag_values").keys())
                     default_value = tag.get("tag_key_default")
                     # Note: defined_keys is actually a list of tag values that have a specific rate
-                    tag_dict[tag_key] = {"default_value": default_value, "defined_keys": tag_keys_to_ignore}
+                    tag_dict[tag_key] = {
+                        "default_value": default_value,
+                        "defined_keys": tag_keys_to_ignore,
+                    }
                     results_dict[key] = tag_dict
         return results_dict
