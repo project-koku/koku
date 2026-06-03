@@ -26,7 +26,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
         super().setUp()
         self.client = APIClient()
         self.list_url = reverse("currency-list")
-        self.create_url = reverse("exchange-rate-create")
+        self.create_url = reverse("static-rate-create")
         today = timezone.now().date()
         current_month_start = today.replace(day=1)
         end_month = current_month_start + relativedelta(months=2)
@@ -81,9 +81,9 @@ class StaticExchangeRateViewSetTest(IamTestCase):
             self.assertEqual(usd_entry["enabled"], True)
             self.assertIn("name", usd_entry)
             self.assertIn("symbol", usd_entry)
-            self.assertEqual(len(usd_entry["exchange_rates"]), 1)
+            self.assertEqual(len(usd_entry["static_rates"]), 1)
 
-            rate = usd_entry["exchange_rates"][0]
+            rate = usd_entry["static_rates"][0]
             self.assertEqual(rate["base_currency"], "USD")
             self.assertEqual(rate["target_currency"], "EUR")
             self.assertIn("uuid", rate)
@@ -108,7 +108,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
         with tenant_context(self.tenant):
             create_response = self.client.post(self.create_url, data=self.valid_data, format="json", **self.headers)
             uuid = create_response.data["uuid"]
-            detail_url = reverse("exchange-rate-detail", kwargs={"uuid": uuid})
+            detail_url = reverse("static-rate-detail", kwargs={"uuid": uuid})
 
             update_data = self.valid_data.copy()
             update_data["exchange_rate"] = "0.900000000000000"
@@ -125,7 +125,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
         with tenant_context(self.tenant):
             create_response = self.client.post(self.create_url, data=self.valid_data, format="json", **self.headers)
             uuid = create_response.data["uuid"]
-            detail_url = reverse("exchange-rate-detail", kwargs={"uuid": uuid})
+            detail_url = reverse("static-rate-detail", kwargs={"uuid": uuid})
             response = self.client.delete(detail_url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
             self.assertFalse(StaticExchangeRate.objects.filter(uuid=uuid).exists())

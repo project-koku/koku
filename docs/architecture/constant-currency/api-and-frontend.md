@@ -13,8 +13,8 @@ OpenAPI updates.
 
 ```
 GET             /api/cost-management/v1/settings/currency/
-POST            /api/cost-management/v1/settings/currency/exchange-rates/
-PUT/DELETE      /api/cost-management/v1/settings/currency/exchange-rates/{uuid}/
+POST            /api/cost-management/v1/settings/currency/static-rates/
+PUT/DELETE      /api/cost-management/v1/settings/currency/static-rates/{uuid}/
 POST/DELETE     /api/cost-management/v1/settings/currency/enabled/{code}/
 ```
 
@@ -23,7 +23,7 @@ POST/DELETE     /api/cost-management/v1/settings/currency/enabled/{code}/
 **File**: `koku/api/urls.py`
 
 Registered as explicit `path()` entries: `settings/currency/` for the currency
-list, `settings/currency/exchange-rates/` for static rate CRUD, and
+list, `settings/currency/static-rates/` for static rate CRUD, and
 `settings/currency/enabled/{code}/` for enablement toggling.
 
 ### Query Parameters
@@ -44,7 +44,7 @@ list, `settings/currency/exchange-rates/` for static rate CRUD, and
 The `CurrencyListView` handles the `GET settings/currency/` endpoint. It
 returns all ISO 4217 currencies (~170) grouped by base currency, each with an
 `enabled` flag, `has_dynamic_rate` flag, `description` string, and a nested
-`exchange_rates` array of static rates. Supports `?search=` and `?enabled=`
+`static_rates` array of static rates. Supports `?search=` and `?enabled=`
 query params for filtering.
 
 **Permission**: `SettingsAccessPermission` — requires the **Cost Management
@@ -113,7 +113,7 @@ Only currencies with at least one `StaticExchangeRate` record appear.
       "description": "USD ($) - US Dollar",
       "has_dynamic_rate": true,
       "enabled": true,
-      "exchange_rates": [
+      "static_rates": [
         {
           "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
           "name": "USD-EUR",
@@ -366,9 +366,9 @@ costs) and cost model currencies are considered.
 Add endpoint definitions for:
 
 - `GET /api/cost-management/v1/settings/currency/` — list all ISO 4217 currencies with exchange rates and enabled status (supports `?search=`, `?enabled=`)
-- `POST /api/cost-management/v1/settings/currency/exchange-rates/` — create static exchange rate
-- `PUT /api/cost-management/v1/settings/currency/exchange-rates/{uuid}/` — update static exchange rate
-- `DELETE /api/cost-management/v1/settings/currency/exchange-rates/{uuid}/` — delete static exchange rate
+- `POST /api/cost-management/v1/settings/currency/static-rates/` — create static exchange rate
+- `PUT /api/cost-management/v1/settings/currency/static-rates/{uuid}/` — update static exchange rate
+- `DELETE /api/cost-management/v1/settings/currency/static-rates/{uuid}/` — delete static exchange rate
 - `POST /api/cost-management/v1/settings/currency/enabled/{code}/` — enable currency
 - `DELETE /api/cost-management/v1/settings/currency/enabled/{code}/` — disable currency
 
@@ -426,10 +426,10 @@ The frontend will:
 | v1.5 | 2026-04-09 | Replaced stale `MonthlyExchangeRateSnapshot` → `MonthlyExchangeRate`, removed `StaticExchangeRateDictionary` references (removed in pipeline-changes v1.6). |
 | v1.6 | 2026-04-12 | Updated `exchange_rates_applied` implementation to reflect `Subquery`-based rate resolution (removed `effective_exchange_rates` reference). |
 | v1.7 | 2026-04-13 | Removed stale "snapshotted" terminology (remnant from `MonthlyExchangeRateSnapshot` rename). |
-| v1.8 | 2026-04-28 | Consolidated endpoints under `settings/currency/exchange-rates/`. List returns grouped response with enabled status. Currency enablement via POST/DELETE at `settings/currency/enabled/{code}/` (no body). Removed separate `AllCurrencyView` and `available-currencies` endpoints. |
+| v1.8 | 2026-04-28 | Consolidated endpoints under `settings/currency/static-rates/`. List returns grouped response with enabled status. Currency enablement via POST/DELETE at `settings/currency/enabled/{code}/` (no body). Removed separate `AllCurrencyView` and `available-currencies` endpoints. |
 | v1.9 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. Settings admin page shows static rates regardless for management. |
 | v2.0 | 2026-04-28 | Added "costs as-is" behavior to Corner Case section: when `MonthlyExchangeRate` is empty, feature is inactive, costs returned in original currency. |
 | v2.1 | 2026-04-30 | Fixed currency enablement URLs to `settings/currency/enabled/{code}/`. Clarified "costs as-is" Corner Case: serializer enforces enabled currencies before query handler validation. |
-| v2.2 | 2026-06-02 | `GET enabled-currencies/` now returns all ISO 4217 currencies with `enabled` flag. Added `?search` and `?enabled` query params. `GET exchange-rates/` list now includes enabled currencies with no static rates. |
-| v2.3 | 2026-06-03 | Removed `GET enabled-currencies/` endpoint. Restructured URLs: `GET settings/currency/` returns all ISO 4217 currencies (with `?search=`, `?enabled=`), `settings/currency/exchange-rates/` for static rate CRUD, `settings/currency/enabled/{code}/` for enablement toggling. |
+| v2.2 | 2026-06-02 | `GET enabled-currencies/` now returns all ISO 4217 currencies with `enabled` flag. Added `?search` and `?enabled` query params. `GET static-rates/` list now includes enabled currencies with no static rates. |
+| v2.3 | 2026-06-03 | Removed `GET enabled-currencies/` endpoint. Restructured URLs: `GET settings/currency/` returns all ISO 4217 currencies (with `?search=`, `?enabled=`), `settings/currency/static-rates/` for static rate CRUD, `settings/currency/enabled/{code}/` for enablement toggling. |
 | v2.4 | 2026-06-03 | Synced with implementation: `GET settings/currency/` is `CurrencyListView` (SettingsAccessPermission), not `StaticExchangeRateViewSet`. ViewSet exposes POST/PUT/DELETE only (no GET). EnabledCurrency DELETE also cleans up dynamic MER rows. Added `description` and `has_dynamic_rate` to response example. Fixed changelog URL inconsistencies. |

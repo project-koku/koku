@@ -40,7 +40,7 @@ pairs. Show rate provenance in report responses.
 | Serializer | `koku/cost_models/static_exchange_rate_serializer.py` | Validation + `MonthlyExchangeRate` upsert side-effects |
 | ViewSet | `koku/cost_models/static_exchange_rate_view.py` | CRUD API for static rates |
 | Currency enablement view | `koku/api/settings/currency_views.py` | POST/DELETE enablement for individual currencies |
-| URL registration | `koku/api/urls.py` | Routes for `settings/currency/` (list), `settings/currency/exchange-rates/` (create/update/delete), and `settings/currency/enabled/{code}/` (enable/disable) |
+| URL registration | `koku/api/urls.py` | Routes for `settings/currency/` (list), `settings/currency/static-rates/` (create/update/delete), and `settings/currency/enabled/{code}/` (enable/disable) |
 | Celery task update | `koku/masu/celery/tasks.py` | Currency discovery, `MonthlyExchangeRate` upsert for all currencies per tenant (skips fetch if no `CURRENCY_URL`) |
 | Query handler update | `koku/api/query_handler.py` | Read from `MonthlyExchangeRate` for all months (no fallback; M2 seeds current month) |
 | OCP handler update | `koku/api/report/ocp/query_handler.py` | OCP-specific rate resolution from `MonthlyExchangeRate` |
@@ -91,7 +91,7 @@ pairs. Show rate provenance in report responses.
    `MonthlyExchangeRate` upsert, currency discovery)
 4. Revert report meta changes in `koku/api/report/queries.py` (remove
    `exchange_rates_applied` metadata and no-rate error handling)
-5. Revert URL registration in `koku/api/urls.py` (remove `settings/currency/`, `settings/currency/exchange-rates/`, and `settings/currency/enabled/` routes)
+5. Revert URL registration in `koku/api/urls.py` (remove `settings/currency/`, `settings/currency/static-rates/`, and `settings/currency/enabled/` routes)
 7. Reverse migration `0014_constant_currency` (`migrate_schemas` runs
    `DeleteModel` for all three tables: `static_exchange_rate`,
    `monthly_exchange_rate`, `enabled_currency`)
@@ -176,7 +176,7 @@ design would be needed to handle path prioritization.
 | v1.8 | 2026-04-12 | Fixed R6 status from "Low" to "Mitigated" to match risk-register.md. |
 | v1.9 | 2026-04-12 | R5 mitigated (Subquery replaces Case/When). Updated validation to reflect Subquery approach. |
 | v2.0 | 2026-04-13 | Updated pre-deployment month validation item: fall back to earliest available rate (aligns with pipeline-changes.md v2.1). |
-| v2.1 | 2026-04-28 | Updated URL references to `settings/currency/exchange-rates/`. Consolidated URL registration to `koku/api/urls.py`. Removed separate available-currencies endpoint. |
+| v2.1 | 2026-04-28 | Updated URL references to `settings/currency/static-rates/`. Consolidated URL registration to `koku/api/urls.py`. Removed separate available-currencies endpoint. |
 | v2.2 | 2026-04-28 | Removed static-rate enablement bypass from validation checklist. Report dropdown governed solely by `EnabledCurrency`. |
 | v2.3 | 2026-04-28 | Added "costs as-is" validation item: when `MonthlyExchangeRate` is empty, feature inactive, costs returned as-is. Updated rate resolution and no-rate validation items. |
 | v2.4 | 2026-04-30 | Fixed currency enablement URL to `settings/currency/enabled/{code}/`. Clarified "costs as-is": serializer blocks non-enabled currencies before query handler. |

@@ -158,7 +158,7 @@ class CurrencyExchangeRateSerializer(serializers.Serializer):
     name = serializers.CharField()
     symbol = serializers.CharField()
     enabled = serializers.BooleanField()
-    exchange_rates = StaticExchangeRateSerializer(many=True)
+    static_rates = StaticExchangeRateSerializer(many=True)
 
     @classmethod
     def build_grouped_response(cls, queryset):
@@ -178,6 +178,6 @@ class CurrencyExchangeRateSerializer(serializers.Serializer):
         for code in sorted(get_all_iso_currency_codes()):
             info = get_currency_info(code, dynamic_codes)
             info["enabled"] = code in enabled_codes
-            info["exchange_rates"] = StaticExchangeRateSerializer(rates_by_code.get(code, []), many=True).data
+            info["static_rates"] = StaticExchangeRateSerializer(rates_by_code.get(code, []), many=True).data
             result.append(info)
         return result

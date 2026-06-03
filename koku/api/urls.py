@@ -432,14 +432,14 @@ urlpatterns = [
         name="currency-list",
     ),
     path(
-        "settings/currency/exchange-rates/",
+        "settings/currency/static-rates/",
         StaticExchangeRateViewSet.as_view({"post": "create"}),
-        name="exchange-rate-create",
+        name="static-rate-create",
     ),
     path(
-        "settings/currency/exchange-rates/<uuid:uuid>/",
+        "settings/currency/static-rates/<uuid:uuid>/",
         StaticExchangeRateViewSet.as_view({"put": "update", "delete": "destroy"}),
-        name="exchange-rate-detail",
+        name="static-rate-detail",
     ),
     path(
         "settings/currency/enabled/<str:code>/",
