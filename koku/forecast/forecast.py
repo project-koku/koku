@@ -148,7 +148,11 @@ class Forecast:
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
     def _get_base_currencies_in_data(self):
-        """Return the set of base currencies present in the forecast data range."""
+        """Return the set of base currencies present in the forecast data range.
+
+        None values are discarded — they represent rows that predate the
+        constant-currency feature (no conversion needed).
+        """
         return set(
             self.provider_map.query_table.objects.filter(
                 usage_start__gte=self.query_range[0],
@@ -156,7 +160,7 @@ class Forecast:
             )
             .values_list(self.provider_map.cost_units_key, flat=True)
             .distinct()
-        )
+        ) - {None}
 
     @cached_property
     def exchange_rate_annotation_dict(self):

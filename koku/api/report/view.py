@@ -7,6 +7,9 @@ import logging
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.common import CACHE_RH_IDENTITY_HEADER
@@ -62,7 +65,10 @@ class ReportView(APIView):
         """
         LOG.debug(f"API: {request.path} USER: {request.user.username}")
 
-        params = QueryParameters(request=request, caller=self, **kwargs)
+        try:
+            params = QueryParameters(request=request, caller=self, **kwargs)
+        except ValidationError as exc:
+            return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
         handler = self.query_handler(params)
 
         output = handler.execute_query()

@@ -7,6 +7,9 @@ import logging
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.common.pagination import ForecastListPaginator
@@ -47,7 +50,10 @@ class ForecastView(APIView):
         """Respond to GET requests."""
         LOG.debug(f"API: {request.path} USER: {request.user.username}")
 
-        params = QueryParameters(request=request, caller=self, **kwargs)
+        try:
+            params = QueryParameters(request=request, caller=self, **kwargs)
+        except ValidationError as exc:
+            return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
 
         handler = self.query_handler(params)
         output = handler.predict()

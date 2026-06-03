@@ -1070,6 +1070,10 @@ class ReportQueryHandler(QueryHandler):
 
         Subclasses (e.g. OCP) can override to include additional currency
         sources such as cost model currencies.
+
+        None values are discarded — they represent rows that predate the
+        constant-currency feature and are treated as already in the target
+        currency (no conversion needed).
         """
         cost_units_key = self._mapper.cost_units_key
         base_table = self._mapper.query_table
@@ -1081,7 +1085,7 @@ class ReportQueryHandler(QueryHandler):
                 )
                 .values_list(cost_units_key, flat=True)
                 .distinct()
-            )
+            ) - {None}
 
     def _get_exchange_rates(self):
         """Fetch exchange rates for the query range and validate per-month coverage.

@@ -185,7 +185,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     costmodelmap__provider_uuid__in=source_uuids,
                 ).values_list("currency", flat=True)
             )
-        return base_currencies | cm_currencies
+        return (base_currencies | cm_currencies) - {None}
 
     def format_tags(self, tags_iterable):
         """
