@@ -51,6 +51,10 @@
             "description": "Operations about tag interactions"
         },
         {
+            "name": "Currency",
+            "description": "Operations about currency management and exchange rates"
+        },
+        {
             "name": "Settings",
             "description": "Operations about settings"
         },
@@ -100,11 +104,12 @@
                 "tags": [
                     "Currency"
                 ],
-                "summary": "Obtain the supported currencies",
+                "summary": "Obtain the enabled currencies",
+                "description": "Returns currencies that have been enabled by an administrator via the EnabledCurrency table. Name, symbol, and description are computed at response time via babel.",
                 "operationId": "getCurrency",
                 "responses": {
                     "200": {
-                        "description": "An object describing the supported currencies",
+                        "description": "A paginated list of enabled currencies",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -112,6 +117,9 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
                     },
                     "404": {
                         "description": "Currencies not found",
@@ -123,7 +131,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/cost-type/": {
@@ -6091,6 +6104,404 @@
                 ]
             }
         },
+        "/settings/currency/": {
+            "get": {
+                "tags": [
+                    "Currency",
+                    "Settings"
+                ],
+                "summary": "List all currencies with enabled status and exchange rates",
+                "description": "Returns all ISO 4217 currencies with their enabled status and any static exchange rates. Supports filtering by search term and enabled status.",
+                "operationId": "listCurrencies",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter currencies by code (case-insensitive substring match)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "enabled",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by enabled status (true or false)",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of all currencies with enabled status and exchange rates",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CurrencyListPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Insufficient permissions"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            }
+        },
+        "/settings/currency/exchange-rates/": {
+            "post": {
+                "tags": [
+                    "Currency",
+                    "Settings"
+                ],
+                "summary": "Create a static exchange rate",
+                "description": "Create a new static exchange rate for a currency pair with a validity period. The start_date must be the 1st of a month and end_date must be the last day of a month. Only current and future months are allowed.",
+                "operationId": "createStaticExchangeRate",
+                "requestBody": {
+                    "description": "Static exchange rate to create",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StaticExchangeRateIn"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Static exchange rate created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaticExchangeRate"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input (bad currency codes, overlapping dates, past billing period, etc.)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Insufficient permissions"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            }
+        },
+        "/settings/currency/exchange-rates/{uuid}/": {
+            "put": {
+                "tags": [
+                    "Currency",
+                    "Settings"
+                ],
+                "summary": "Update a static exchange rate",
+                "description": "Full replacement update of a static exchange rate. All fields must be provided. Only rates starting in the current month or later may be modified.",
+                "operationId": "updateStaticExchangeRate",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "description": "The UUID of the static exchange rate to update",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "Updated static exchange rate",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StaticExchangeRateIn"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Static exchange rate updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaticExchangeRate"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input (bad currency codes, overlapping dates, past billing period, etc.)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Insufficient permissions"
+                    },
+                    "404": {
+                        "description": "Exchange rate not found"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Currency",
+                    "Settings"
+                ],
+                "summary": "Delete a static exchange rate",
+                "description": "Delete a static exchange rate. Only rates starting in the current month or later may be deleted.",
+                "operationId": "deleteStaticExchangeRate",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "description": "The UUID of the static exchange rate to delete",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Static exchange rate deleted"
+                    },
+                    "400": {
+                        "description": "Cannot delete rates covering past billing periods",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Insufficient permissions"
+                    },
+                    "404": {
+                        "description": "Exchange rate not found"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            }
+        },
+        "/settings/currency/enabled/{code}/": {
+            "post": {
+                "tags": [
+                    "Currency",
+                    "Settings"
+                ],
+                "summary": "Enable a currency",
+                "description": "Enable a currency for the tenant. No request body is required. Returns a warning if no exchange rate is configured.",
+                "operationId": "enableCurrency",
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "path",
+                        "required": true,
+                        "description": "ISO 4217 currency code to enable",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "EUR"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Currency enabled",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EnabledCurrencyResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid ISO 4217 currency code",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Insufficient permissions"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Currency",
+                    "Settings"
+                ],
+                "summary": "Disable a currency",
+                "description": "Disable a currency for the tenant and clean up any dynamic exchange rates for the current month.",
+                "operationId": "disableCurrency",
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "path",
+                        "required": true,
+                        "description": "ISO 4217 currency code to disable",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "EUR"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Currency disabled"
+                    },
+                    "400": {
+                        "description": "Invalid ISO 4217 currency code",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Insufficient permissions"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            }
+        },
         "/settings/cost-groups/": {
             "get": {
                 "tags": [
@@ -7491,20 +7902,207 @@
                     "code",
                     "symbol",
                     "name",
-                    "description"
+                    "description",
+                    "has_dynamic_rate"
                 ],
                 "properties": {
                     "code": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "ISO 4217 currency code",
+                        "example": "USD"
                     },
                     "symbol": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Currency symbol",
+                        "example": "$"
                     },
                     "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Currency name",
+                        "example": "US Dollar"
                     },
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Formatted description string",
+                        "example": "USD ($) - US Dollar"
+                    },
+                    "has_dynamic_rate": {
+                        "type": "boolean",
+                        "description": "Whether this currency has a dynamic exchange rate available from the external rate provider"
+                    }
+                }
+            },
+            "StaticExchangeRate": {
+                "type": "object",
+                "required": [
+                    "uuid",
+                    "name",
+                    "base_currency",
+                    "target_currency",
+                    "exchange_rate",
+                    "start_date",
+                    "end_date",
+                    "created_timestamp",
+                    "updated_timestamp"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Computed as base_currency-target_currency",
+                        "example": "USD-EUR"
+                    },
+                    "base_currency": {
+                        "type": "string",
+                        "description": "ISO 4217 currency code for the base currency",
+                        "example": "USD"
+                    },
+                    "target_currency": {
+                        "type": "string",
+                        "description": "ISO 4217 currency code for the target currency",
+                        "example": "EUR"
+                    },
+                    "exchange_rate": {
+                        "type": "string",
+                        "format": "decimal",
+                        "description": "Exchange rate value (must be greater than zero)",
+                        "example": "0.920000000000000"
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "First day of the validity period (must be the 1st of a month)",
+                        "example": "2026-06-01"
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Last day of the validity period (must be the last day of a month)",
+                        "example": "2026-12-31"
+                    },
+                    "created_timestamp": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_timestamp": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                }
+            },
+            "StaticExchangeRateIn": {
+                "type": "object",
+                "required": [
+                    "base_currency",
+                    "target_currency",
+                    "exchange_rate",
+                    "start_date",
+                    "end_date"
+                ],
+                "properties": {
+                    "base_currency": {
+                        "type": "string",
+                        "description": "ISO 4217 currency code for the base currency",
+                        "example": "USD"
+                    },
+                    "target_currency": {
+                        "type": "string",
+                        "description": "ISO 4217 currency code for the target currency",
+                        "example": "EUR"
+                    },
+                    "exchange_rate": {
+                        "type": "string",
+                        "format": "decimal",
+                        "description": "Exchange rate value (must be greater than zero)",
+                        "example": "0.920000000000000"
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "First day of the validity period (must be the 1st of a month)",
+                        "example": "2026-06-01"
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Last day of the validity period (must be the last day of a month)",
+                        "example": "2026-12-31"
+                    }
+                }
+            },
+            "CurrencyWithExchangeRates": {
+                "type": "object",
+                "required": [
+                    "code",
+                    "name",
+                    "symbol",
+                    "enabled",
+                    "exchange_rates"
+                ],
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "ISO 4217 currency code",
+                        "example": "USD"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Currency name",
+                        "example": "US Dollar"
+                    },
+                    "symbol": {
+                        "type": "string",
+                        "description": "Currency symbol",
+                        "example": "$"
+                    },
+                    "enabled": {
+                        "type": "boolean",
+                        "description": "Whether this currency is enabled for the tenant"
+                    },
+                    "exchange_rates": {
+                        "type": "array",
+                        "description": "Static exchange rates defined for this currency as the base",
+                        "items": {
+                            "$ref": "#/components/schemas/StaticExchangeRate"
+                        }
+                    }
+                }
+            },
+            "CurrencyListPagination": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/CurrencyWithExchangeRates"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "EnabledCurrencyResponse": {
+                "type": "object",
+                "properties": {
+                    "warning": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Warning message if no exchange rate is configured for this currency"
                     }
                 }
             },
