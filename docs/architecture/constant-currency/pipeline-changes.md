@@ -522,7 +522,7 @@ enabled via the `EnabledCurrency` table. Defining a static exchange rate does
 **not** automatically make its currencies available in the report dropdown — the
 administrator must still enable them.
 
-The settings admin page (`GET settings/currency/exchange_rate/`) shows all
+The settings admin page (`GET settings/currency/`) shows all
 currencies with static rates regardless of enabled status, so the administrator
 can manage them without needing to enable them first.
 

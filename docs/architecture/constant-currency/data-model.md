@@ -143,9 +143,9 @@ enabled.
 
 | Event | Action |
 |-------|--------|
-| Administrator enables a currency via `POST settings/currency/enabled-currencies/{code}/` | Creates an `EnabledCurrency` row for that currency |
-| Administrator disables a currency via `DELETE settings/currency/enabled-currencies/{code}/` | Removes the `EnabledCurrency` row for that currency |
-| `GET settings/currency/exchange_rate/` | Returns currencies that have exchange rates, grouped by base currency, with `enabled` flag based on `EnabledCurrency` table membership |
+| Administrator enables a currency via `POST settings/currency/enabled/{code}/` | Creates an `EnabledCurrency` row for that currency |
+| Administrator disables a currency via `DELETE settings/currency/enabled/{code}/` | Removes the `EnabledCurrency` row for that currency |
+| `GET settings/currency/` | Returns all ISO 4217 currencies with exchange rates, `enabled` flag based on `EnabledCurrency` table membership |
 
 **How currencies become "available" in the report dropdown**:
 
@@ -153,7 +153,7 @@ A currency is visible in the target currency dropdown only if it exists in the
 `EnabledCurrency` table. Defining a static exchange rate does **not** automatically
 make its currencies available — the administrator must explicitly enable them.
 
-The settings admin page (`GET settings/currency/exchange_rate/`) shows all
+The settings admin page (`GET settings/currency/`) shows all
 currencies with static rates regardless of enabled status, so the administrator
 can see and manage them.
 
@@ -384,7 +384,7 @@ changes required.
 | v1.7 | 2026-03-30 | M2 now seeds current-month data from `ExchangeRateDictionary` during migration. Eliminates `ExchangeRateDictionary` fallback in query handler. |
 | v1.8 | 2026-04-12 | Updated reader description to reflect `Subquery`-based rate resolution (replaces `Case`/`When`). |
 | v1.9 | 2026-04-13 | Fixed `ExchangeRates` model description: actual fields are `currency_type` (CharField) and `exchange_rate` (FloatField), not `base_currency`/`exchange_rates` JSONField. Removed non-existent `updated_timestamp` column from `ExchangeRateDictionary` example. |
-| v2.0 | 2026-04-28 | Updated `EnabledCurrency` lifecycle to reflect POST/DELETE per-currency enablement at `settings/currency/enabled-currencies/{code}/`. |
+| v2.0 | 2026-04-28 | Updated `EnabledCurrency` lifecycle to reflect POST/DELETE per-currency enablement at `settings/currency/enabled/{code}/`. |
 | v2.1 | 2026-04-28 | Removed static-rate enablement bypass. Report dropdown governed solely by `EnabledCurrency`. |
 | v2.2 | 2026-04-28 | Added "costs as-is" behavior: when `MonthlyExchangeRate` is empty, feature is inactive, costs returned in original currency. |
-| v2.3 | 2026-04-30 | Fixed `EnabledCurrency` lifecycle URLs to `settings/currency/enabled-currencies/{code}/`. Clarified "costs as-is" behavior: serializer blocks non-enabled currencies. |
+| v2.3 | 2026-04-30 | Fixed `EnabledCurrency` lifecycle URLs to `settings/currency/enabled/{code}/`. Clarified "costs as-is" behavior: serializer blocks non-enabled currencies. |

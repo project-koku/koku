@@ -559,12 +559,12 @@ Returns only the currencies that an administrator has enabled via the `EnabledCu
 
 #### Enable a Currency
 ```
-POST /settings/currency/exchange_rate/<code>/enable/
+POST /settings/currency/enabled/<code>/
 ```
 
 #### Disable a Currency
 ```
-DELETE /settings/currency/exchange_rate/<code>/enable/
+DELETE /settings/currency/enabled/<code>/
 ```
 
 Enable or disable a single currency by its ISO 4217 code in the URL path.
@@ -586,7 +586,7 @@ Enable or disable a single currency by its ISO 4217 code in the URL path.
 **Behavior:**
 - `POST` — idempotently creates an `EnabledCurrency` row for the code
 - `DELETE` — idempotently deletes the `EnabledCurrency` row if it exists
-- Currency code in the URL is case-insensitive (`/settings/currency/exchange_rate/usd/enable/` enables `USD`)
+- Currency code in the URL is case-insensitive (`/settings/currency/enabled/usd/` enables `USD`)
 
 ---
 

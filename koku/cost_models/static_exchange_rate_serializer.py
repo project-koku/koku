@@ -10,6 +10,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from api.common import log_json
+from api.currency.currencies import get_all_iso_currency_codes
 from api.currency.currencies import get_currency_info
 from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import is_valid_iso_currency
@@ -154,34 +155,22 @@ class CurrencyExchangeRateSerializer(serializers.Serializer):
 
     @classmethod
     def build_grouped_response(cls, queryset):
-        """Group exchange rates by base_currency and attach currency metadata + enabled flag.
+        """Return all ISO 4217 currencies with exchange rates and enabled status.
 
-        Includes enabled currencies that have no static exchange rates yet
-        so the admin can see all enabled currencies in one view.
+        Every known currency is included so the admin can discover, enable,
+        and manage exchange rates from a single endpoint.
         """
         enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
         dynamic_codes = get_dynamic_rate_currencies()
 
-        grouped = {}
+        rates_by_code = {}
         for rate in queryset:
-            code = rate.base_currency
-            if code not in grouped:
-                info = get_currency_info(code, dynamic_codes)
-                info["enabled"] = code in enabled_codes
-                info["exchange_rates"] = []
-                grouped[code] = info
-            grouped[code]["exchange_rates"].append(rate)
-
-        for code in enabled_codes:
-            if code not in grouped:
-                info = get_currency_info(code, dynamic_codes)
-                info["enabled"] = True
-                info["exchange_rates"] = []
-                grouped[code] = info
+            rates_by_code.setdefault(rate.base_currency, []).append(rate)
 
         result = []
-        for code in sorted(grouped):
-            entry = grouped[code]
-            entry["exchange_rates"] = StaticExchangeRateSerializer(entry["exchange_rates"], many=True).data
-            result.append(entry)
+        for code in sorted(get_all_iso_currency_codes()):
+            info = get_currency_info(code, dynamic_codes)
+            info["enabled"] = code in enabled_codes
+            info["exchange_rates"] = StaticExchangeRateSerializer(rates_by_code.get(code, []), many=True).data
+            result.append(info)
         return result

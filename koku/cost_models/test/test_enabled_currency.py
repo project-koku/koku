@@ -11,7 +11,6 @@ from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.currency.models import ExchangeRates
 from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
 from cost_models.models import EnabledCurrency
@@ -20,14 +19,14 @@ from cost_models.models import RateType
 
 
 class EnabledCurrencyDetailViewTest(IamTestCase):
-    """Tests for POST/DELETE on settings/currency/enabled-currencies/<code>/."""
+    """Tests for POST/DELETE on settings/currency/enabled/<code>/."""
 
     def setUp(self):
         super().setUp()
         self.client = APIClient()
 
     def _url(self, code):
-        return reverse("enabled-currencies-detail", kwargs={"code": code})
+        return reverse("currency-enabled-detail", kwargs={"code": code})
 
     def _create_rate(self, target_currency):
         """Helper to create a MonthlyExchangeRate for the given target currency."""
@@ -180,48 +179,3 @@ class EnabledCurrencyDetailViewTest(IamTestCase):
             response = self.client.post(self._url("EUR"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertIsNone(response.data["warning"])
-
-
-class EnabledCurrencyListViewTest(IamTestCase):
-    """Tests for GET on settings/currency/enabled-currencies/."""
-
-    def setUp(self):
-        super().setUp()
-        self.client = APIClient()
-        self.url = reverse("enabled-currencies-list")
-
-    def test_get_returns_enabled_currencies(self):
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-            EnabledCurrency.objects.create(currency_code="USD")
-            EnabledCurrency.objects.create(currency_code="EUR")
-            response = self.client.get(self.url, {"enabled": "true", "limit": 1000}, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            data = response.data["data"]
-            codes = [c["code"] for c in data]
-            self.assertEqual(codes, ["EUR", "USD"])
-            self.assertEqual(data[0]["name"], "Euro")
-            self.assertEqual(data[1]["symbol"], "$")
-
-    def test_get_has_dynamic_rate_flag(self):
-        """Test that has_dynamic_rate reflects ExchangeRates table."""
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-            EnabledCurrency.objects.create(currency_code="USD")
-            EnabledCurrency.objects.create(currency_code="EUR")
-            ExchangeRates.objects.all().delete()
-            ExchangeRates.objects.create(currency_type="usd", exchange_rate=1.0)
-            response = self.client.get(self.url, {"limit": 1000}, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            data = response.data["data"]
-            eur_entry = next(c for c in data if c["code"] == "EUR")
-            usd_entry = next(c for c in data if c["code"] == "USD")
-            self.assertTrue(usd_entry["has_dynamic_rate"])
-            self.assertFalse(eur_entry["has_dynamic_rate"])
-
-    def test_get_returns_empty_list_when_none_enabled(self):
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-            response = self.client.get(self.url, {"enabled": "true"}, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(response.data["data"], [])

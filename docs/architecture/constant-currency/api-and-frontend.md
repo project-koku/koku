@@ -12,17 +12,19 @@ OpenAPI updates.
 ### URL
 
 ```
-GET/POST        /api/cost-management/v1/settings/currency/exchange_rate/
-PUT/DELETE      /api/cost-management/v1/settings/currency/exchange_rate/{uuid}/
-POST/DELETE     /api/cost-management/v1/settings/currency/enabled-currencies/{code}/
+GET             /api/cost-management/v1/settings/currency/
+POST            /api/cost-management/v1/settings/currency/exchange-rates/
+PUT/DELETE      /api/cost-management/v1/settings/currency/exchange-rates/{uuid}/
+POST/DELETE     /api/cost-management/v1/settings/currency/enabled/{code}/
 ```
 
 ### Registration
 
 **File**: `koku/api/urls.py`
 
-Registered as explicit `path()` entries mapping to `StaticExchangeRateViewSet`
-and `EnabledCurrencyView`.
+Registered as explicit `path()` entries: `settings/currency/` for the currency
+list, `settings/currency/exchange-rates/` for static rate CRUD, and
+`settings/currency/enabled/{code}/` for enablement toggling.
 
 ### Query Parameters
 
@@ -32,14 +34,17 @@ and `EnabledCurrencyView`.
 | `target_currency` | string | Filter by target currency code (e.g., `EUR`) |
 | `start_date` | date | Filter rates active on or after this date |
 | `end_date` | date | Filter rates active on or before this date |
+| `search` | string | Filter currencies by code or name (case-insensitive substring) |
+| `enabled` | boolean | Filter by enabled status (`true` or `false`) |
 
 ### View
 
 **File**: `koku/cost_models/static_exchange_rate_view.py`
 
 The `StaticExchangeRateViewSet` handles CRUD for exchange rates. The `list`
-action returns exchange rates grouped by base currency with enabled status
-(via `CurrencyExchangeRateSerializer`). All other actions use the flat
+action returns all ISO 4217 currencies (~170) grouped by base currency, each
+with an `enabled` flag and nested `exchange_rates` array. Supports `?search=`
+and `?enabled=` query params for filtering. All other actions use the flat
 `StaticExchangeRateSerializer`.
 
 **Permission**: `CostModelsAccessPermission` — requires the **Price List
@@ -146,35 +151,22 @@ This endpoint is always available. No Unleash feature flag gating.
 
 ## Currency Enablement
 
-Currency enablement is managed via a dedicated endpoint under
-`settings/currency/enabled-currencies/`. The enabled status for each currency
-is also visible in the `GET settings/currency/exchange_rate/` list response and
-can be toggled individually.
+Currency enablement is toggled via POST/DELETE on a per-currency endpoint.
+Currency discovery (browsing all currencies with their enabled status) is
+provided by `GET settings/currency/`, which returns all ISO 4217
+currencies.
 
 ### URL
 
 ```
-GET     /api/cost-management/v1/settings/currency/enabled-currencies/
-POST    /api/cost-management/v1/settings/currency/enabled-currencies/{code}/
-DELETE  /api/cost-management/v1/settings/currency/enabled-currencies/{code}/
+POST    /api/cost-management/v1/settings/currency/enabled/{code}/
+DELETE  /api/cost-management/v1/settings/currency/enabled/{code}/
 ```
 
-- **GET**: Returns **all** ISO 4217 currencies with an `enabled` flag indicating
-  whether the currency is currently enabled for the tenant. Supports query
-  parameters for filtering (see below).
 - **POST**: Enables the currency (creates an `EnabledCurrency` row). No request body.
 - **DELETE**: Disables the currency (removes the `EnabledCurrency` row). No request body.
 
 POST returns `200 OK` (with optional warning). DELETE returns `204 No Content`.
-
-### GET Query Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `search` | string | Case-insensitive partial match against currency code or name (e.g., `?search=yen` or `?search=JPY`) |
-| `enabled` | boolean | Filter by enabled status (`?enabled=true` or `?enabled=false`). Omit to return all. |
-| `limit` | integer | Page size (default 10, max 1000) |
-| `offset` | integer | Pagination offset |
 
 ### View
 
@@ -186,13 +178,6 @@ Administrator** role.
 **Side effects**: Enabling or disabling a currency only affects its visibility
 in the target currency dropdown. It does not affect the `MonthlyExchangeRate`,
 `ExchangeRateDictionary`, `ExchangeRates`, or `StaticExchangeRate` tables.
-
-### No `CURRENCY_URL` Configured
-
-When no `CURRENCY_URL` is configured, no dynamic exchange rates are fetched by
-the Celery task. The `EnabledCurrency` table only contains currencies that an
-administrator has explicitly enabled. The full list of ISO 4217 currencies is
-always available from Babel.
 
 ---
 
@@ -212,15 +197,11 @@ available in the report dropdown. The administrator must explicitly enable them.
 
 ### Currency Discovery
 
-The `GET settings/currency/enabled-currencies/` endpoint returns all ISO 4217
+The `GET settings/currency/` endpoint returns all ISO 4217
 currencies (~170) with their enabled status. The UI uses this as the source of
 truth for currency discovery — administrators can search for any currency and
-enable it. Use `?search=` for autocomplete/typeahead filtering.
-
-The settings admin page (`GET settings/currency/exchange_rate/`) shows all
-currencies that have static rates **or** are enabled, so the administrator
-can see and manage exchange rates for enabled currencies even before rates
-are defined.
+enable it. Use `?search=` for autocomplete/typeahead filtering and `?enabled=`
+to show only enabled or disabled currencies.
 
 ### No Currencies Available
 
@@ -369,12 +350,12 @@ costs) and cost model currencies are considered.
 
 Add endpoint definitions for:
 
-- `GET /api/cost-management/v1/settings/currency/exchange_rate/` — list exchange rates grouped by currency (with enabled status)
-- `POST /api/cost-management/v1/settings/currency/exchange_rate/` — create exchange rate
-- `PUT /api/cost-management/v1/settings/currency/exchange_rate/{uuid}/` — update exchange rate
-- `DELETE /api/cost-management/v1/settings/currency/exchange_rate/{uuid}/` — delete exchange rate
-- `POST /api/cost-management/v1/settings/currency/enabled-currencies/{code}/` — enable currency
-- `DELETE /api/cost-management/v1/settings/currency/enabled-currencies/{code}/` — disable currency
+- `GET /api/cost-management/v1/settings/currency/` — list all ISO 4217 currencies with exchange rates and enabled status (supports `?search=`, `?enabled=`)
+- `POST /api/cost-management/v1/settings/currency/exchange-rates/` — create static exchange rate
+- `PUT /api/cost-management/v1/settings/currency/exchange-rates/{uuid}/` — update static exchange rate
+- `DELETE /api/cost-management/v1/settings/currency/exchange-rates/{uuid}/` — delete static exchange rate
+- `POST /api/cost-management/v1/settings/currency/enabled/{code}/` — enable currency
+- `DELETE /api/cost-management/v1/settings/currency/enabled/{code}/` — disable currency
 
 Add `exchange_rates_applied` to report response schemas.
 
@@ -391,12 +372,12 @@ and will consume the APIs defined above.
 The frontend will:
 
 - Add a currency exchange rate table in the Settings "Currency" tab, using
-  `GET settings/currency/exchange_rate/` (grouped response with enabled status)
+  `GET settings/currency/` (all currencies with enabled status and exchange rates)
 - Allow Price List Administrators to add, edit, and remove rate pairs
 - Display validity periods (start/end month)
 - Show a note explaining dynamic rates are used when no static rate is defined
 - **Add a currency enablement toggle** using
-  `POST/DELETE settings/currency/enabled-currencies/{code}/`
+  `POST/DELETE settings/currency/enabled/{code}/`
 - **Populate the target currency dropdown** from enabled currencies only.
   Disabled currencies are stored but hidden from the report dropdown.
 - **Handle the no-rate error**: When the user selects a target currency that
@@ -435,3 +416,4 @@ The frontend will:
 | v2.0 | 2026-04-28 | Added "costs as-is" behavior to Corner Case section: when `MonthlyExchangeRate` is empty, feature is inactive, costs returned in original currency. |
 | v2.1 | 2026-04-30 | Fixed currency enablement URLs to `settings/currency/enabled-currencies/{code}/`. Clarified "costs as-is" Corner Case: serializer enforces enabled currencies before query handler validation. |
 | v2.2 | 2026-06-02 | `GET enabled-currencies/` now returns all ISO 4217 currencies with `enabled` flag. Added `?search` and `?enabled` query params. `GET exchange_rate/` list now includes enabled currencies with no static rates. |
+| v2.3 | 2026-06-03 | Removed `GET enabled-currencies/` endpoint. Restructured URLs: `GET settings/currency/` returns all ISO 4217 currencies (with `?search=`, `?enabled=`), `settings/currency/exchange-rates/` for static rate CRUD, `settings/currency/enabled/{code}/` for enablement toggling. |

@@ -21,7 +21,8 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def setUp(self):
         super().setUp()
         self.client = APIClient()
-        self.list_url = reverse("exchange-rate-list")
+        self.list_url = reverse("currency-list")
+        self.create_url = reverse("exchange-rate-create")
         self.valid_data = {
             "base_currency": "USD",
             "target_currency": "EUR",
@@ -34,7 +35,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def test_create_static_rate(self, mock_invalidate):
         """Test creating a static exchange rate via API."""
         with tenant_context(self.tenant):
-            response = self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
+            response = self.client.post(self.create_url, data=self.valid_data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             data = response.data
             self.assertEqual(data["base_currency"], "USD")
@@ -48,7 +49,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
             EnabledCurrency.objects.all().delete()
             StaticExchangeRate.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
-            self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
+            self.client.post(self.create_url, data=self.valid_data, format="json", **self.headers)
 
             response = self.client.get(self.list_url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -71,7 +72,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
             StaticExchangeRate.objects.all().delete()
-            self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
+            self.client.post(self.create_url, data=self.valid_data, format="json", **self.headers)
 
             response = self.client.get(self.list_url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -83,7 +84,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def test_update_static_rate(self, mock_invalidate):
         """Test updating a static exchange rate via PUT."""
         with tenant_context(self.tenant):
-            create_response = self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
+            create_response = self.client.post(self.create_url, data=self.valid_data, format="json", **self.headers)
             uuid = create_response.data["uuid"]
             detail_url = reverse("exchange-rate-detail", kwargs={"uuid": uuid})
 
@@ -96,7 +97,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
     def test_delete_static_rate(self, mock_invalidate):
         """Test deleting a static exchange rate."""
         with tenant_context(self.tenant):
-            create_response = self.client.post(self.list_url, data=self.valid_data, format="json", **self.headers)
+            create_response = self.client.post(self.create_url, data=self.valid_data, format="json", **self.headers)
             uuid = create_response.data["uuid"]
             detail_url = reverse("exchange-rate-detail", kwargs={"uuid": uuid})
             response = self.client.delete(detail_url, **self.headers)
@@ -108,7 +109,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
         with tenant_context(self.tenant):
             data = self.valid_data.copy()
             data["base_currency"] = "FAKE"
-            response = self.client.post(self.list_url, data=data, format="json", **self.headers)
+            response = self.client.post(self.create_url, data=data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_mid_month_start_date(self):
@@ -116,11 +117,47 @@ class StaticExchangeRateViewSetTest(IamTestCase):
         with tenant_context(self.tenant):
             data = self.valid_data.copy()
             data["start_date"] = "2026-01-15"
-            response = self.client.post(self.list_url, data=data, format="json", **self.headers)
+            response = self.client.post(self.create_url, data=data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_filter_by_base_currency(self):
-        """Test filtering by base_currency query parameter."""
+    def test_list_returns_all_iso_currencies(self):
+        """Test that GET list returns all ISO 4217 currencies, not just those with rates."""
         with tenant_context(self.tenant):
-            response = self.client.get(self.list_url, {"base_currency": "USD"}, **self.headers)
+            EnabledCurrency.objects.all().delete()
+            StaticExchangeRate.objects.all().delete()
+            response = self.client.get(self.list_url, {"limit": 1000}, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
+            data = response.data["data"]
+            codes = [c["code"] for c in data]
+            self.assertIn("USD", codes)
+            self.assertIn("EUR", codes)
+            self.assertIn("JPY", codes)
+            self.assertGreater(len(codes), 100)
+
+    def test_list_search_filters_by_code_or_name(self):
+        """Test that ?search= filters currencies by code or name."""
+        with tenant_context(self.tenant):
+            response = self.client.get(self.list_url, {"search": "eur", "limit": 1000}, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            data = response.data["data"]
+            codes = [c["code"] for c in data]
+            self.assertIn("EUR", codes)
+            for entry in data:
+                self.assertTrue(
+                    "eur" in entry["code"].lower() or "eur" in entry["name"].lower(),
+                    f"{entry['code']} should not match 'eur'",
+                )
+
+    def test_list_enabled_filter(self):
+        """Test that ?enabled=true returns only enabled currencies."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+            response = self.client.get(self.list_url, {"enabled": "true", "limit": 1000}, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            data = response.data["data"]
+            codes = [c["code"] for c in data]
+            self.assertEqual(sorted(codes), ["EUR", "USD"])
+            for entry in data:
+                self.assertTrue(entry["enabled"])

@@ -204,7 +204,7 @@ currency dropdown is either hidden or shows *"No exchange rates available"*.
 
 **Recovery path**: The administrator can:
 
-1. Define static exchange rates via the CRUD API (`/settings/currency/exchange_rate/`)
+1. Define static exchange rates via the CRUD API (`/settings/currency/exchange-rates/`)
 2. Configure `CURRENCY_URL` to fetch dynamic rates from an exchange rate API
 3. Enable discovered currencies in Settings to make them visible in the dropdown
 
@@ -241,6 +241,6 @@ R8       ✓
 | v1.5 | 2026-03-30 | R4 resolved: M2 seeds current-month data, eliminating need for `ExchangeRateDictionary` fallback. |
 | v1.6 | 2026-04-12 | R5 mitigated: `Subquery` approach replaces `Case`/`When`, eliminating O(months × currencies) scaling concern. |
 | v1.7 | 2026-04-13 | R4: updated to reflect earliest-available-rate fallback for pre-deployment months (aligns with pipeline-changes.md v2.1). |
-| v1.8 | 2026-04-28 | R8: updated CRUD API URL to `settings/currency/exchange_rate/`. |
+| v1.8 | 2026-04-28 | R8: updated CRUD API URL to `settings/currency/exchange-rates/`. |
 | v1.9 | 2026-04-28 | R8: added "costs as-is" behavior — when `MonthlyExchangeRate` is empty, feature is inactive, validation skipped, costs returned in original currency. |
 | v2.0 | 2026-04-30 | R8: clarified "costs as-is" — serializer blocks non-enabled currencies; query handler skip is secondary defense. |
