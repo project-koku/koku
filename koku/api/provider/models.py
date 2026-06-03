@@ -292,6 +292,12 @@ class Provider(models.Model):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
                 _type = self.type.lower()
                 self._normalized_type = _type.removesuffix("-local")
+                # Explicitly delete IngressReports rows before the cascade.
+                # The FK discovery query in _cascade_delete can miss cross-schema
+                # references when reporting_ingressreports lives in the tenant schema.
+                from reporting.ingress.models import IngressReports
+
+                IngressReports.objects.filter(source_id=self.pk).delete()
                 self._cascade_delete()
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table}")
