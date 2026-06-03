@@ -6,6 +6,7 @@
 from datetime import date
 
 from django.db import connection
+from django.db import transaction
 from django_tenants.utils import tenant_context
 
 from cost_models.models import CostModel
@@ -25,6 +26,14 @@ class MigrateRatesToPriceListsTest(MasuTestCase):
         from django.db.migrations.executor import MigrationExecutor
 
         executor = MigrationExecutor(connection)
+        plan = executor.migration_plan([target])
+        if any(backwards for _, backwards in plan):
+            try:
+                with transaction.atomic():
+                    with connection.cursor() as cursor:
+                        cursor.execute("TRUNCATE TABLE rates_to_usage")
+            except Exception:
+                pass
         executor.migrate([target])
         executor.loader.build_graph()
 

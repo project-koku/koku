@@ -24,14 +24,14 @@ design documents link here for details.
 | R10 | Trino SQL dialect issues | Active | 3 | Test with Trino locally. |
 | R11 | Concurrent cost model updates create duplicate rows | Active | 2-3 | Redis lock + DELETE-before-INSERT. |
 | R12 | `CostModelManager.update()` missing `@transaction.atomic` | Active | 1 | Add `@transaction.atomic`. |
-| R13 | JSONB JOIN performance in aggregation | **MITIGATED** | 2 | `label_hash` column replaces JSONB GROUP BY. |
+| R13 | JSONB JOIN performance in aggregation | **MITIGATED** | 2-3 | `label_hash` (sha256) column replaces JSONB GROUP BY. |
 | R14 | Back-allocation rounding | **N/A** | — | Eliminated by IQ-9 Option 1. |
 | R15 | Back-allocation JOIN complexity | **REPLACED** | 4 | Replaced by simpler RTU × daily summary JOIN. |
 | R16 | Aggregation GROUP BY granularity mismatch | Active | 2 | `resource_id` confirmed absent from GROUP BY. |
 | R17 | Markup ORM overhead | **MITIGATED** | 2 | ORM-first + SQL fallback if >30s. |
 | R18 | Distribution SQL rewrite regression | Active | 4 | Old files preserved for rollback; existing integration tests sufficient per tech lead. |
 | R19 | Aggregation handling of `distributed_cost` | **RESOLVED** | 4 | Aggregation sums both `calculated_cost` and `distributed_cost` (Option A). |
-| R20 | Aggregation DELETE scope too broad for Phase 2 partial deployment | **MITIGATED** | 2 | Reorder orchestration: aggregation runs before legacy VM/tag direct-write paths (Option D). |
+| R20 | Aggregation DELETE scope too broad for partial deployment | **MITIGATED** | 2-3 | Phase 2: reorder orchestration (Option D). Phase 3: RTU unconditional, flag is warning-only. |
 | R21 | Transitional VM cost handling during Phase 2 → Phase 3 gap | **MITIGATED** | 2-3 | Resolved by R20 Option D + existing `_update_vm_usage_costs()` split from `_update_usage_costs()`. |
 
 ---
@@ -132,30 +132,49 @@ This is a production hot path (every cost model recalculation).
 | A | GIN indexes | Standard PostgreSQL JSONB pattern. | GIN does not support equality (`=`); useless for GROUP BY. | **Rejected** |
 | B | B-tree indexes | Supports equality. | Still O(document size) per comparison. Three separate indexes don't combine for multi-column GROUP BY. | **Rejected** |
 | C | Hash indexes | Equality-only, WAL-logged since v10. | No multi-column keys. Hash computed on full value at query time. | **Rejected** |
-| D | Computed `label_hash` (md5) | Fixed 32-char VARCHAR. O(1) comparison. Computed at INSERT time. | Extra column + index. md5 collision risk (see below). | **Selected** |
+| D | Computed `label_hash` (sha256) | Fixed 64-char VARCHAR. O(1) comparison. Computed at INSERT time. | Extra column + index. | **Selected** |
 | E | Accept the cost, benchmark first | Zero complexity. | If slow, blocks production. Retrofitting requires data migration. | **Rejected** |
 
 ### Why Option D
 
-1. Single 32-byte comparison replaces three variable-size JSONB documents.
-2. md5 computed once at INSERT time; aggregation only compares 32-char strings.
-3. B-tree on `VARCHAR(32)` is compact and cache-efficient.
+1. Single 64-byte comparison replaces three variable-size JSONB documents.
+2. sha256 computed once at INSERT time; aggregation only compares 64-char strings.
+3. B-tree on `VARCHAR(64)` is compact and cache-efficient.
 4. JSONB columns stay for data access / debugging.
 5. Koku precedent: computed columns used elsewhere (`cluster_alias`, `all_labels`).
 6. Cheap to add now; expensive to retrofit after Phase 2.
 
 ### Hash collision risk
 
-md5 = 128-bit hash. Birthday paradox probability for 100M distinct
-combinations: ~10⁻²² (effectively zero). Detectable by CI validation
-query. Can widen to `sha256` / `VARCHAR(64)` if preferred.
+sha256 = 256-bit hash. Birthday paradox probability for 100M distinct
+combinations: effectively zero. Detectable by CI validation query.
+
+### md5 → sha256 upgrade (Phase 3)
+
+Phase 2 shipped with md5 (128-bit, `VARCHAR(32)`). Phase 3 upgraded to
+sha256 (`VARCHAR(64)`) for FedRAMP compliance alignment — NIST 800-53
+Rev 5 discourages md5 for new implementations. `sha256(bytea)` is a
+built-in PostgreSQL function (PG 11+), already proven in production by
+`koku/db_functions/jsonb_sha256_text.sql` (migration 0046, 2021).
+No `pgcrypto` extension required. Migration `0350` widens the column.
+No data migration needed — the delete-and-rebuild nature of the RTU
+pipeline naturally converts existing rows on the next processing run.
 
 ### Computation
 
 ```sql
-md5(COALESCE(pod_labels::text, '')
-    || COALESCE(volume_labels::text, '')
-    || COALESCE(all_labels::text, ''))
+-- PostgreSQL
+encode(sha256(decode(
+    COALESCE(pod_labels::text, '')
+    || '|' || COALESCE(volume_labels::text, '')
+    || '|' || COALESCE(all_labels::text, ''),
+    'escape')), 'hex')
+
+-- Trino
+to_hex(sha256(to_utf8(
+    COALESCE(CAST(pod_labels AS varchar), '')
+    || '|' || COALESCE(CAST(volume_labels AS varchar), '')
+    || '|' || COALESCE(CAST(all_labels AS varchar), ''))))
 ```
 
 ---
@@ -268,14 +287,14 @@ R9                                           ██
 R10                               ██
 R11                    ██         ██
 R12         ██
-R13                    ✓ (mitigated — label_hash)
+R13                    ✓          ✓ (mitigated — label_hash, sha256 in Phase 3)
 R14                                         — (eliminated — Option 1)
 R15                                         ██ (Option 1 distribution JOINs)
 R16                    ██ (GROUP BY granularity)
 R17                    ██         ██ (markup ORM)
 R18                                         ██ (distribution regression)
 R19                                         ✓ (resolved — aggregation sums both columns)
-R20                    ✓ (mitigated — orchestration reorder)
+R20                    ✓          ✓ (mitigated — Phase 2 reorder, Phase 3 RTU unconditional)
 R21                    ✓          ✓ (mitigated — VM split + orchestration reorder)
 ```
 
@@ -354,13 +373,42 @@ from the **previous** processing cycle. Legacy VM (step 4) and tag
 (step 7) paths write their rows **after** the DELETE, so they are
 never affected.
 
-### Transitional → end-state
+### Phase 3 realization: RTU unconditional, flag is warning-only
 
-When Phase 3 migrates VM, monthly, and tag costs into RTU, steps 4–7
-will be replaced by additional RTU INSERTs (before step 3). The
-aggregation then naturally picks up all cost types from RTU with no
-further reordering needed — converging to the target order documented
-in `sql-pipeline.md § Insertion Point in Orchestration Code`.
+Phase 3 converted all 25 monthly/tag/VM SQL files to INSERT into
+`rates_to_usage`. This completes the transition predicted above —
+all cost types now flow through RTU, and the aggregation naturally
+picks up every cost type.
+
+**Consequence for the feature flag**: The `COST_BREAKDOWN_RTU_UNLEASH_FLAG`
+can no longer gate between RTU and legacy paths. If the flag is OFF and
+usage costs go through the legacy direct-write path (`_update_usage_costs`),
+the aggregation DELETE would wipe them because monthly/tag/VM costs
+(now in RTU) trigger the aggregation step. Maintaining two versions of
+every SQL file (RTU + legacy) would reintroduce the dual-path
+architecture rejected by the TL in PR #5948.
+
+**Decision**: The RTU pipeline runs unconditionally for all cost types.
+When the flag is OFF, a warning log is emitted for operational visibility.
+The legacy `_update_usage_costs()` method is preserved (not called) for
+git-revert rollback scenarios.
+
+**Rollback mechanism**: Phase 3 rollback requires a git revert of the
+SQL migration commits, not a flag toggle. This is consistent with R18
+(distribution SQL rewrite) which also uses git revert as its rollback
+mechanism.
+
+```
+Phase 3 orchestration order:
+  1. _update_usage_rates_to_usage()          ← RTU INSERT (usage costs)
+     OR _cleanup_stale_rtu_costs()           ← when no cost model
+  2. _update_monthly_cost()                  ← RTU INSERT (monthly costs)
+  3. Tag cost methods                        ← RTU INSERT (tag costs)
+  4. _update_vm_usage_costs()                ← RTU INSERT (VM costs)
+  5. _aggregate_rates_to_daily_summary()     ← DELETE+INSERT (all cost types)
+  6. _update_markup_cost()                   ← Markup ORM UPDATE
+  7. distribute_costs_and_update_ui_summary()
+```
 
 ---
 
@@ -413,3 +461,4 @@ and the aggregation picks up VM costs from RTU naturally.
 | v1.0 | 2026-03-19 | Initial: extracted from phased-delivery.md, data-model.md, sql-pipeline.md. Full risk register (R1-R19), decision rationales (R2/R3, R6, R11, R13, R17), Phase 2 benchmarks, R18 regression test approach, R19 aggregation question. |
 | v1.1 | 2026-03-23 | **R19 RESOLVED (Option A)**: aggregation sums both `calculated_cost` and `distributed_cost`. R18: acceptance criteria confirmed — existing integration tests sufficient per tech lead. |
 | v1.2 | 2026-04-16 | **R20 NEW → MITIGATED (Option D)**: Aggregation DELETE scope too broad for Phase 2 partial deployment. Fixed by reordering orchestration so aggregation runs before legacy VM/tag direct-write paths. Justified by TL's rejection of dual-path architectures ([PR #5948](https://github.com/project-koku/koku/pull/5948)) and acceptance of orchestration ordering as a constraint. **R21 NEW → MITIGATED**: Transitional VM cost handling resolved by the existing `_update_usage_costs()` → `_update_vm_usage_costs()` split plus R20 Option D ordering. |
+| v1.3 | 2026-05-05 | **R20 Phase 3 update**: All 25 monthly/tag/VM SQL files converted to RTU; feature flag now warning-only (RTU unconditional). Rollback via git revert, not flag toggle. **R13 sha256 upgrade**: `label_hash` widened from md5/VARCHAR(32) to sha256/VARCHAR(64) for FedRAMP alignment. Migration 0350. No data migration needed (delete-and-rebuild). |
