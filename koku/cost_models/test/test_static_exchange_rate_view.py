@@ -175,8 +175,8 @@ class StaticExchangeRateViewSetTest(IamTestCase):
             self.assertIn("JPY", codes)
             self.assertGreater(len(codes), 100)
 
-    def test_list_search_filters_by_code_or_name(self):
-        """Test that ?search= filters currencies by code or name."""
+    def test_list_search_filters_by_code(self):
+        """Test that ?search= filters currencies by code."""
         with tenant_context(self.tenant):
             response = self.client.get(self.list_url, {"search": "eur", "limit": 1000}, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -185,7 +185,7 @@ class StaticExchangeRateViewSetTest(IamTestCase):
             self.assertIn("EUR", codes)
             for entry in data:
                 self.assertTrue(
-                    "eur" in entry["code"].lower() or "eur" in entry["name"].lower(),
+                    "eur" in entry["code"].lower(),
                     f"{entry['code']} should not match 'eur'",
                 )
 

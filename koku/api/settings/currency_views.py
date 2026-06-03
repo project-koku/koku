@@ -43,7 +43,7 @@ class CurrencyListView(APIView):
 
         search_term = request.query_params.get("search", "").strip().lower()
         if search_term:
-            result = [c for c in result if search_term in c["code"].lower() or search_term in c["name"].lower()]
+            result = [c for c in result if search_term in c["code"].lower()]
 
         enabled_filter = request.query_params.get("enabled")
         if enabled_filter is not None:
