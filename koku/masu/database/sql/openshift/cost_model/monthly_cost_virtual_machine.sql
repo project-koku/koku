@@ -1,40 +1,43 @@
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
-    uuid,
-    report_period_id,
-    cluster_id,
-    cluster_alias,
-    data_source,
-    usage_start,
-    usage_end,
-    namespace,
-    node,
-    resource_id,
-    pod_labels,
-    all_labels,
-    source_uuid,
-    cost_model_rate_type,
-    cost_model_cpu_cost,
-    cost_model_memory_cost,
-    cost_model_volume_cost,
-    monthly_cost_type,
-    cost_category_id
+-- monthly_cost_virtual_machine.sql (Phase 3: RTU INSERT)
+--
+-- Inserts monthly OCP_VM costs into rates_to_usage.
+-- Supports flat rate, per-tag-value rates, and default rate patterns.
+--
+-- Parameters:
+--   schema, start_date, end_date, source_uuid, report_period_id,
+--   rate (optional), cost_type, rate_type, cost_model_id,
+--   rate_uuid, custom_name, tag_key (optional), value_rates (optional),
+--   default_rate (optional), amortized_denominator (optional)
+
+INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
+    uuid, cost_model_id, report_period_id, source_uuid,
+    usage_start, usage_end, node, namespace, cluster_id, cluster_alias,
+    data_source, persistentvolumeclaim, pod_labels, volume_labels, all_labels,
+    label_hash, custom_name, metric_type, cost_model_rate_type,
+    monthly_cost_type, calculated_cost, cost_category_id, rate_id
 )
 SELECT uuid_generate_v4(),
-    max(report_period_id) AS report_period_id,
+    {{cost_model_id}},
+    max(report_period_id),
+    source_uuid,
+    usage_start,
+    usage_end,
+    node,
+    lids.namespace,
     cluster_id,
     cluster_alias,
     data_source,
-    usage_start,
-    usage_end,
-    namespace,
-    node,
-    max(resource_id) AS resource_id,
+    NULL,
     pod_labels,
+    NULL::jsonb,
     all_labels,
-    source_uuid,
-    {{rate_type}} AS cost_model_rate_type,
+    encode(sha256(decode(COALESCE(pod_labels::text, '') || '|' || '|' || COALESCE(all_labels::text, ''), 'escape')), 'hex'),
+    {{custom_name}},
+    {{metric_type}},
+    {{rate_type}},
+    {{cost_type}},
     {%- if rate is defined %}
-    {{rate}}::decimal AS cost_model_cpu_cost,
+    {{rate}}::decimal,
     {%- elif value_rates is defined %}
     CASE
         {%- for value, value_rate in value_rates.items() %}
@@ -44,16 +47,14 @@ SELECT uuid_generate_v4(),
         {%- if default_rate is defined %}
         ELSE ({{ default_rate }} / {{amortized_denominator}})::decimal
         {%- endif %}
-    END AS cost_model_cpu_cost,
+    END,
     {%- elif default_rate is defined %}
-    ({{ default_rate }} / {{amortized_denominator}})::decimal as cost_model_cpu_cost,
+    ({{ default_rate }} / {{amortized_denominator}})::decimal,
     {%- else %}
-    0::decimal as cost_model_cpu_cost,
+    0::decimal,
     {%- endif %}
-    0 AS cost_model_memory_cost,
-    0 AS cost_model_volume_cost,
-    {{cost_type}} AS monthly_cost_type,
-    cost_category_id
+    cost_category_id,
+    {{rate_uuid}}
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
