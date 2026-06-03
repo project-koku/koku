@@ -7,6 +7,7 @@ import calendar
 import logging
 
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from api.common import log_json
@@ -76,23 +77,29 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         start = data.get("start_date") or (self.instance.start_date if self.instance else None)
         end = data.get("end_date") or (self.instance.end_date if self.instance else None)
 
-        if base and target and base == target:
+        if base == target:
             raise serializers.ValidationError("base_currency and target_currency must be different.")
 
-        if start and end and start > end:
+        if start > end:
             raise serializers.ValidationError("start_date must be on or before end_date.")
 
-        if base and target and start and end:
-            overlap_qs = StaticExchangeRate.objects.filter(
-                base_currency=base,
-                target_currency=target,
-                start_date__lte=end,
-                end_date__gte=start,
+        overlap_qs = StaticExchangeRate.objects.filter(
+            base_currency=base,
+            target_currency=target,
+            start_date__lte=end,
+            end_date__gte=start,
+        )
+        if self.instance:
+            overlap_qs = overlap_qs.exclude(uuid=self.instance.uuid)
+        if overlap_qs.exists():
+            raise serializers.ValidationError("Overlapping validity period exists for this currency pair.")
+
+        current_month_start = timezone.now().date().replace(day=1)
+        if start < current_month_start:
+            raise serializers.ValidationError(
+                "Cannot create or modify exchange rates for past billing periods. "
+                "Only the current month and future months may be affected."
             )
-            if self.instance:
-                overlap_qs = overlap_qs.exclude(uuid=self.instance.uuid)
-            if overlap_qs.exists():
-                raise serializers.ValidationError("Overlapping validity period exists for this currency pair.")
 
         return data
 

@@ -6,6 +6,8 @@
 import logging
 
 from django.db import transaction
+from django.utils import timezone
+from rest_framework import serializers
 from rest_framework import viewsets
 
 from api.common import log_json
@@ -29,6 +31,12 @@ class StaticExchangeRateViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def perform_destroy(self, instance):
+        current_month_start = timezone.now().date().replace(day=1)
+        if instance.start_date < current_month_start:
+            raise serializers.ValidationError(
+                "Cannot delete exchange rates that cover past billing periods. "
+                "Only rates starting in the current month or later may be deleted."
+            )
         remove_static_and_backfill_dynamic(
             instance.base_currency,
             instance.target_currency,
