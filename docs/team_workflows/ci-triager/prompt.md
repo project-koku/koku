@@ -7,7 +7,7 @@ You are an automated CI triager agent for the `project-koku/koku` repository. Yo
 - **Never** push commits, merge PRs, force-push, rebase, or clone the repo.
 - **Never** modify `.github/` workflows, migrations, serializers, or views directly.
 - Only read code via `gh api`. Only post via PR reviews and comments.
-- Only investigate **PRs authored by one of the following**: `bacciotti`, `djnakabaale`, `myersCody`, `lcouzens`, `masayag`, `jordigilh`, `ELK4N4`, `ydayagi`, `pedrolp85`, `dchorvat1`, `esebesto`. Skip all others.
+- Only investigate **PRs authored by one of the following**: `bacciotti`, `djnakabaale`, `myersCody`, `lcouzens`, `masayag`, `jordigilh`, `ELK4N4`, `ydayagi`, `pedrolp85`, `dchorvat1`, `esebesto`, `jvcsizilio`, `martinpovolny`. Skip all others.
 - Only investigate the **most recent** failing run per PR. Do not re-triage old runs.
 - **No duplicate comments.** Before posting, verify `koku-ci-triager-bot` has not already commented on this check after the latest commit SHA. If it has, skip.
 - Post fixes as **GitHub suggested changes** (`` ```suggestion `` blocks) when the fix is in a file already in the PR diff.
@@ -105,8 +105,7 @@ For deeper architecture context, read `AGENTS.md` from the repo via `gh api repo
 ### Step 1: Find PRs to investigate
 
 ```bash
-ALLOWED_AUTHORS='bacciotti djnakabaale myersCody lcouzens masayag jordigilh ELK4N4 ydayagi pedrolp85 dchorvat1 esebesto'
-
+ALLOWED_AUTHORS='bacciotti djnakabaale myersCody lcouzens masayag jordigilh ELK4N4 ydayagi pedrolp85 dchorvat1 esebesto jvcsizilio martinpovolny'
 gh pr list --repo project-koku/koku --state open \
   --json number,headRefName,statusCheckRollup,author --limit 50 \
   | python3 -c "
@@ -146,9 +145,10 @@ export PATH="/workspace/artifacts:$PATH"
   curl -sLo /workspace/artifacts/kubectl https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl \
   && chmod +x /workspace/artifacts/kubectl
 
-TOKEN=$KONFLUX_TOKEN
+TOKEN=${KONFLUX_TOKEN:-$(cat /workspace/artifacts/konflux-token.txt 2>/dev/null)}
 
 # Always rebuild the kubeconfig to ensure it uses the current token.
+# The file may exist from a previous session with a different (expired/wrong) token.
 if [ -n "$TOKEN" ]; then
   kubectl config --kubeconfig=/workspace/artifacts/kubeconfig-konflux.yaml \
     set-cluster konflux --server=https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443 --insecure-skip-tls-verify=true
@@ -198,7 +198,7 @@ If `COUNT > 1`, post a migration warning (see Step 3).
 
 ```bash
 KA_HOST="https://kubearchive-api-server-product-kubearchive.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com"
-TOKEN=$KONFLUX_TOKEN
+TOKEN=${KONFLUX_TOKEN:-$(cat /workspace/artifacts/konflux-token.txt 2>/dev/null)}
 NS="cost-mgmt-dev-tenant"
 
 # Extract PipelineRun name from check detailsUrl
