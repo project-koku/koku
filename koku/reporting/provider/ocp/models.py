@@ -1088,6 +1088,52 @@ class RatesToUsage(models.Model):
     label_hash = models.CharField(max_length=64, null=True)
 
 
+class OCPCostUIBreakDownP(models.Model):
+    """UI summary table for the per-rate cost breakdown API.
+
+    Populated from RatesToUsage. Partitioned by usage_start.
+    See docs/architecture/cost-breakdown/data-model.md § OCPCostUIBreakDownP.
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        db_table = "reporting_ocp_cost_breakdown_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpcostbreakdown_usage_start"),
+            models.Index(fields=["namespace"], name="ocpcostbreakdown_namespace"),
+            models.Index(fields=["cluster_id"], name="ocpcostbreakdown_cluster_id"),
+            models.Index(fields=["custom_name"], name="ocpcostbreakdown_custom_name"),
+            models.Index(fields=["path"], name="ocpcostbreakdown_path"),
+            models.Index(fields=["depth"], name="ocpcostbreakdown_depth"),
+            models.Index(fields=["top_category"], name="ocpcostbreakdown_top_category"),
+        ]
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    usage_start = models.DateField()
+    usage_end = models.DateField()
+    source_uuid = models.ForeignKey(
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+    cluster_id = models.TextField()
+    cluster_alias = models.TextField(null=True)
+    namespace = models.TextField(null=True)
+    node = models.TextField(null=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
+    custom_name = models.CharField(max_length=50)
+    metric_type = models.CharField(max_length=30)
+    cost_model_rate_type = models.TextField(null=True)
+    cost_value = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    path = models.CharField(max_length=200)
+    depth = models.SmallIntegerField()
+    parent_path = models.CharField(max_length=200)
+    top_category = models.CharField(max_length=200)
+    breakdown_category = models.CharField(max_length=50)
+
+
 # Import on-prem line item models so Django can discover them for migrations
 # These models are only used when ONPREM=True, but need to be discoverable for migrations
 from reporting.provider.ocp.self_hosted_models import OCPGPUUsageLineItem  # noqa: E402, F401
