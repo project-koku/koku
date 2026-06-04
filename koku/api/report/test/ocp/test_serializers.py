@@ -8,6 +8,11 @@ from unittest import TestCase
 from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.ocp.serializers import OCPCostBreakdownExcludeSerializer
+from api.report.ocp.serializers import OCPCostBreakdownFilterSerializer
+from api.report.ocp.serializers import OCPCostBreakdownGroupBySerializer
+from api.report.ocp.serializers import OCPCostBreakdownOrderBySerializer
+from api.report.ocp.serializers import OCPCostBreakdownQueryParamSerializer
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
 from api.report.ocp.serializers import OCPExcludeSerializer
 from api.report.ocp.serializers import OCPFilterSerializer
@@ -804,3 +809,275 @@ class OCPGpuQueryParamSerializerTest(IamTestCase):
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertNotIn("tag:application", serializer.validated_data.get("filter", {}))
         self.assertIn("gpu_vendor", serializer.validated_data.get("filter", {}))
+
+
+# =============================================================================
+# Cost Breakdown Serializer Tests (Phase 4)
+# =============================================================================
+
+
+class OCPCostBreakdownGroupBySerializerTest(TestCase):
+    """Tests for the cost breakdown group_by serializer."""
+
+    def test_all_group_by_op_fields(self):
+        """Test that cluster, project, node are all valid group_by fields."""
+        for field in ("cluster", "project", "node"):
+            data = {field: ["*"]}
+            serializer = OCPCostBreakdownGroupBySerializer(data=data)
+            self.assertTrue(serializer.is_valid(), f"{field} should be valid: {serializer.errors}")
+
+    def test_invalid_group_by_field_rejected(self):
+        """Test that fields not in _opfields are rejected."""
+        serializer = OCPCostBreakdownGroupBySerializer(data={"account": ["test"]})
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+
+class OCPCostBreakdownOrderBySerializerTest(TestCase):
+    """Tests for the cost breakdown order_by serializer."""
+
+    def test_valid_order_by_fields(self):
+        """Test that path, depth, cost_value are valid order_by fields."""
+        for field in ("path", "depth", "cost_value"):
+            serializer = OCPCostBreakdownOrderBySerializer(data={field: "asc"})
+            self.assertTrue(serializer.is_valid(), f"{field} should be valid: {serializer.errors}")
+
+    def test_invalid_order_by_field_rejected(self):
+        """Test that unsupported order_by fields are rejected."""
+        serializer = OCPCostBreakdownOrderBySerializer(data={"usage": "asc"})
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+
+class OCPCostBreakdownFilterSerializerTest(TestCase):
+    """Tests for the cost breakdown filter serializer."""
+
+    def test_valid_filter_fields(self):
+        """Test that all opfields are accepted."""
+        for field in ("cluster", "project", "node"):
+            data = {field: ["test-value"]}
+            serializer = OCPCostBreakdownFilterSerializer(data=data)
+            self.assertTrue(serializer.is_valid(), f"{field} should be valid: {serializer.errors}")
+
+    def test_depth_filter_valid_range(self):
+        """Test that depth filter accepts values 1-5."""
+        for depth in (1, 3, 5):
+            serializer = OCPCostBreakdownFilterSerializer(data={"depth": depth})
+            self.assertTrue(serializer.is_valid(), f"depth={depth} should be valid")
+
+    def test_depth_filter_invalid_range(self):
+        """Test that depth filter rejects values outside 1-5."""
+        for depth in (0, 6, -1):
+            serializer = OCPCostBreakdownFilterSerializer(data={"depth": depth})
+            self.assertFalse(serializer.is_valid(), f"depth={depth} should be invalid")
+
+    def test_top_category_filter_valid(self):
+        """Test that top_category accepts project and overhead."""
+        for cat in ("project", "overhead"):
+            serializer = OCPCostBreakdownFilterSerializer(data={"top_category": cat})
+            self.assertTrue(serializer.is_valid())
+
+    def test_top_category_filter_invalid(self):
+        """Test that top_category rejects invalid values."""
+        serializer = OCPCostBreakdownFilterSerializer(data={"top_category": "invalid"})
+        self.assertFalse(serializer.is_valid())
+
+    def test_path_with_dashes_accepted(self):
+        """[H3] Path filter must accept dashes — rate names contain them.
+
+        e.g. 'project.usage_cost.cpu_core_usage_per_hour-Infrastructure'
+        Regression test for H3: regex ^[a-zA-Z0-9_.]+$ rejects dashes.
+        """
+        dashed_path = "project.usage_cost.cpu_core_usage_per_hour-Infrastructure"
+        serializer = OCPCostBreakdownFilterSerializer(data={"path": dashed_path})
+        self.assertTrue(
+            serializer.is_valid(),
+            f"Path with dashes should be accepted but got: {serializer.errors}",
+        )
+
+    def test_path_rejects_injection_characters(self):
+        """Path filter must reject SQL injection characters."""
+        for bad_path in ("'; DROP TABLE--", "path OR 1=1", "test<script>"):
+            serializer = OCPCostBreakdownFilterSerializer(data={"path": bad_path})
+            self.assertFalse(serializer.is_valid(), f"Path '{bad_path}' should be rejected")
+
+    def test_path_accepts_dotted_segments(self):
+        """Path filter accepts normal dotted breakdown paths."""
+        valid_paths = [
+            "total_cost",
+            "project.usage_cost",
+            "overhead.platform_distributed.infrastructure",
+            "overhead.worker_distributed.usage_cost.memory_gb_usage_per_hour",
+        ]
+        for path in valid_paths:
+            serializer = OCPCostBreakdownFilterSerializer(data={"path": path})
+            self.assertTrue(serializer.is_valid(), f"Path '{path}' should be valid: {serializer.errors}")
+
+
+class OCPCostBreakdownExcludeSerializerTest(TestCase):
+    """Tests for the cost breakdown exclude serializer."""
+
+    def test_cluster_exclude_valid(self):
+        """Test that cluster exclude is valid."""
+        serializer = OCPCostBreakdownExcludeSerializer(data={"cluster": ["test-cluster"]})
+        self.assertTrue(serializer.is_valid())
+
+    def test_invalid_exclude_field_rejected(self):
+        """Test that non-cluster exclude fields are rejected."""
+        serializer = OCPCostBreakdownExcludeSerializer(data={"invalid": "param"})
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+
+class OCPCostBreakdownQueryParamSerializerTest(IamTestCase):
+    """Tests for the cost breakdown query parameter serializer."""
+
+    def test_valid_flat_view(self):
+        """Test that view=flat is accepted."""
+        query_params = {
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+        }
+        self.request_path = "/api/cost-management/v1/breakdown/openshift/cost/"
+        serializer = OCPCostBreakdownQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data.get("view"), "flat")
+
+    def test_valid_tree_view(self):
+        """Test that view=tree is accepted."""
+        query_params = {
+            "view": "tree",
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+        }
+        self.request_path = "/api/cost-management/v1/breakdown/openshift/cost/"
+        serializer = OCPCostBreakdownQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_invalid_view_rejected(self):
+        """Test that view=invalid is rejected."""
+        query_params = {
+            "view": "graph",
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+        }
+        self.request_path = "/api/cost-management/v1/breakdown/openshift/cost/"
+        serializer = OCPCostBreakdownQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertFalse(serializer.is_valid())
+
+    def test_group_by_cluster(self):
+        """Test that group_by[cluster] is accepted."""
+        query_params = {
+            "group_by": {"cluster": ["*"]},
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+        }
+        self.request_path = "/api/cost-management/v1/breakdown/openshift/cost/"
+        serializer = OCPCostBreakdownQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_order_by_with_group_by(self):
+        """Test that order_by[cost_value] is accepted when paired with group_by."""
+        query_params = {
+            "group_by": {"cluster": ["*"]},
+            "order_by": {"cost_value": "desc"},
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+        }
+        self.request_path = "/api/cost-management/v1/breakdown/openshift/cost/"
+        serializer = OCPCostBreakdownQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_order_by_allowlist_no_group_by(self):
+        """Test that allowlisted order_by fields work without group_by."""
+        query_params = {
+            "order_by": {"cost_value": "desc"},
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+        }
+        self.request_path = "/api/cost-management/v1/breakdown/openshift/cost/"
+        serializer = OCPCostBreakdownQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+
+# =============================================================================
+# Tree Builder Unit Tests (Phase 4 — OCPCostBreakdownView._build_tree)
+# =============================================================================
+
+
+class OCPCostBreakdownTreeBuilderTest(TestCase):
+    """Unit tests for _build_tree and _transform_to_tree (pure logic, no DB)."""
+
+    def _make_flat_breakdown(self):
+        """Produce a minimal valid flat breakdown matching the population SQL output."""
+        return [
+            {"path": "total_cost", "parent_path": "", "depth": 1, "custom_name": "total_cost",
+             "cost_value": 100, "distributed_cost": 50, "metric_type": "aggregate"},
+            {"path": "project", "parent_path": "total_cost", "depth": 2, "custom_name": "project",
+             "cost_value": 60, "distributed_cost": None, "metric_type": "aggregate"},
+            {"path": "overhead", "parent_path": "total_cost", "depth": 2, "custom_name": "overhead",
+             "cost_value": None, "distributed_cost": 50, "metric_type": "aggregate"},
+            {"path": "project.usage_cost", "parent_path": "project", "depth": 3,
+             "custom_name": "usage_cost", "cost_value": 60, "distributed_cost": None,
+             "metric_type": "aggregate"},
+            {"path": "project.usage_cost.cpu_rate", "parent_path": "project.usage_cost", "depth": 4,
+             "custom_name": "cpu_rate", "cost_value": 60, "distributed_cost": None,
+             "metric_type": "cpu"},
+            {"path": "overhead.platform_distributed", "parent_path": "overhead", "depth": 3,
+             "custom_name": "platform_distributed", "cost_value": None, "distributed_cost": 50,
+             "metric_type": "aggregate"},
+            {"path": "overhead.platform_distributed.usage_cost", "parent_path": "overhead.platform_distributed",
+             "depth": 4, "custom_name": "usage_cost", "cost_value": None, "distributed_cost": 50,
+             "metric_type": "aggregate"},
+            {"path": "overhead.platform_distributed.usage_cost.cpu_rate",
+             "parent_path": "overhead.platform_distributed.usage_cost", "depth": 5,
+             "custom_name": "cpu_rate", "cost_value": None, "distributed_cost": 50,
+             "metric_type": "cpu"},
+        ]
+
+    def test_build_tree_root_is_depth_1(self):
+        """Tree root must be the depth-1 node."""
+        from api.report.ocp.view import OCPCostBreakdownView
+
+        tree = OCPCostBreakdownView._build_tree(self._make_flat_breakdown())
+        self.assertEqual(tree["depth"], 1)
+        self.assertEqual(tree["path"], "total_cost")
+
+    def test_build_tree_children_count(self):
+        """Root should have exactly 2 children: project and overhead."""
+        from api.report.ocp.view import OCPCostBreakdownView
+
+        tree = OCPCostBreakdownView._build_tree(self._make_flat_breakdown())
+        self.assertEqual(len(tree["children"]), 2)
+        child_names = {c["custom_name"] for c in tree["children"]}
+        self.assertEqual(child_names, {"project", "overhead"})
+
+    def test_build_tree_leaf_has_no_children(self):
+        """Leaf nodes (depth 4/5) should have empty children lists."""
+        from api.report.ocp.view import OCPCostBreakdownView
+
+        tree = OCPCostBreakdownView._build_tree(self._make_flat_breakdown())
+        project = next(c for c in tree["children"] if c["custom_name"] == "project")
+        usage_cost = project["children"][0]
+        cpu_rate = usage_cost["children"][0]
+        self.assertEqual(cpu_rate["children"], [])
+
+    def test_build_tree_empty_values_returns_empty_dict(self):
+        """Empty input returns empty dict."""
+        from api.report.ocp.view import OCPCostBreakdownView
+
+        tree = OCPCostBreakdownView._build_tree([])
+        self.assertEqual(tree, {})
+
+    def test_transform_to_tree_replaces_values_key(self):
+        """_transform_to_tree replaces 'values' with 'tree' key."""
+        from api.report.ocp.view import OCPCostBreakdownView
+
+        data_item = {"values": self._make_flat_breakdown()}
+        OCPCostBreakdownView._transform_to_tree(data_item)
+        self.assertNotIn("values", data_item)
+        self.assertIn("tree", data_item)
+        self.assertEqual(data_item["tree"]["depth"], 1)
+
+    def test_transform_to_tree_nested_list(self):
+        """_transform_to_tree recursively processes lists of dicts."""
+        from api.report.ocp.view import OCPCostBreakdownView
+
+        data = [{"values": self._make_flat_breakdown()}, {"other_key": "untouched"}]
+        OCPCostBreakdownView._transform_to_tree(data)
+        self.assertIn("tree", data[0])
+        self.assertNotIn("tree", data[1])

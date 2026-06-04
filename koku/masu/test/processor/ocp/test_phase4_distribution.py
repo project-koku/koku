@@ -24,7 +24,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.test import MasuTestCase
 from masu.util.common import SummaryRangeConfig
-from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
+from reporting.provider.ocp.models import OCPCostUIBreakDownP
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import RatesToUsage
 
@@ -457,4 +457,232 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
             float(new_sum),
             places=10,
             msg="Re-run should produce same total distributed cost",
+        )
+
+
+DISTRIBUTION_SOURCE_NAMESPACES = frozenset({
+    "Worker unallocated",
+    "Storage unattributed",
+    "Network unattributed",
+    "GPU unallocated",
+})
+
+
+class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
+    """Integration tests for reporting_ocp_cost_breakdown_p.sql.
+
+    Exercises the population SQL against the real test database and verifies
+    tree structure, cost conservation, and namespace exclusions.
+    These tests form the mid-tier of the test pyramid for the breakdown feature.
+    """
+
+    _populated = False
+
+    def setUp(self):
+        super().setUp()
+        self.dh = DateHelper()
+        self.rp = self._get_report_period()
+        start = self.rp.report_period_start
+        end = self.dh.month_end(start)
+        self.start_date = start.date() if hasattr(start, "date") else start
+        self.end_date = end.date() if hasattr(end, "date") else end
+        self.provider_uuid = self.ocp_provider.uuid
+
+        if not TestBreakdownPopulationSQL._populated:
+            self._seed_rtu_and_populate_breakdown()
+            TestBreakdownPopulationSQL._populated = True
+
+    def _seed_rtu_and_populate_breakdown(self):
+        """Run cost model updater then populate breakdown table."""
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not updater._cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        updater._load_rates(self.start_date)
+        if not (updater._infra_rates or updater._supplementary_rates):
+            self.skipTest("No rates loaded for OCP provider")
+
+        updater._update_usage_rates_to_usage(self.start_date, self.end_date)
+
+        distribution_info = {
+            "distribution_type": "cpu",
+            "platform_cost": True,
+            "worker_cost": True,
+        }
+        summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_distributed_cost_sql(summary_range, self.provider_uuid, distribution_info)
+            accessor.populate_ui_summary_tables(
+                summary_range,
+                self.provider_uuid,
+                tables=["reporting_ocp_cost_breakdown_p"],
+            )
+
+    def _breakdown_qs(self, **extra_filters):
+        return OCPCostUIBreakDownP.objects.filter(
+            source_uuid=self.provider_uuid,
+            usage_start__gte=self.start_date,
+            usage_start__lte=self.end_date,
+            **extra_filters,
+        )
+
+    # ------------------------------------------------------------------
+    # C1 regression: Step 4 column count mismatch
+    # ------------------------------------------------------------------
+    def test_population_sql_executes_without_error(self):
+        """[C1] Population SQL must not raise psycopg2 SyntaxError.
+
+        Step 4 had 18 SELECT expressions for 19 INSERT columns.
+        If this test runs (setUp didn't crash), the SQL executed successfully.
+        We additionally verify at least one row was written.
+        """
+        with schema_context(self.schema):
+            count = self._breakdown_qs().count()
+        self.assertGreater(count, 0, "Population SQL produced no rows")
+
+    # ------------------------------------------------------------------
+    # H1 regression: Distribution source namespaces in project subtree
+    # ------------------------------------------------------------------
+    def test_project_subtree_excludes_distribution_sources(self):
+        """[H1] Project leaves must not include Worker/Storage/Network/GPU namespaces.
+
+        These namespaces are distribution sources whose costs appear under
+        overhead via distributed rows. Including them in project causes
+        double-counting in the tree total.
+        """
+        with schema_context(self.schema):
+            project_leaves = self._breakdown_qs(top_category="project", depth=4)
+            source_ns_in_project = project_leaves.filter(
+                namespace__in=DISTRIBUTION_SOURCE_NAMESPACES
+            ).values_list("namespace", flat=True).distinct()
+            source_ns_list = list(source_ns_in_project)
+        self.assertEqual(
+            source_ns_list,
+            [],
+            f"Distribution source namespaces found in project subtree: {source_ns_list}. "
+            "This causes double-counting with the overhead subtree.",
+        )
+
+    # ------------------------------------------------------------------
+    # Tree structure: valid depths
+    # ------------------------------------------------------------------
+    def test_tree_has_valid_depth_range(self):
+        """All breakdown rows have depth between 1 and 5."""
+        with schema_context(self.schema):
+            invalid = self._breakdown_qs().exclude(depth__gte=1, depth__lte=5).count()
+        self.assertEqual(invalid, 0, "Found rows with depth outside [1, 5]")
+
+    # ------------------------------------------------------------------
+    # Tree structure: root node exists
+    # ------------------------------------------------------------------
+    def test_root_node_exists(self):
+        """There must be at least one depth-1 root node per day."""
+        with schema_context(self.schema):
+            roots = self._breakdown_qs(depth=1).count()
+        self.assertGreater(roots, 0, "No root node (depth=1) found in breakdown table")
+
+    # ------------------------------------------------------------------
+    # Tree structure: every child has a valid parent
+    # ------------------------------------------------------------------
+    def test_every_child_has_valid_parent_path(self):
+        """Non-root nodes must reference a parent_path that exists as a path."""
+        with schema_context(self.schema):
+            all_paths = set(self._breakdown_qs().values_list("path", flat=True).distinct())
+            non_root = self._breakdown_qs().exclude(depth=1).values_list("parent_path", flat=True).distinct()
+            orphan_parents = set(non_root) - all_paths
+        self.assertEqual(
+            orphan_parents,
+            set(),
+            f"Nodes reference parent_path(s) that don't exist as path: {orphan_parents}",
+        )
+
+    # ------------------------------------------------------------------
+    # Cost conservation: root total = sum of leaves
+    # ------------------------------------------------------------------
+    def test_cost_conservation_root_equals_leaves(self):
+        """Root node totals must equal the sum of leaf node values.
+
+        For project: cost_value at root = sum of depth-4 project leaf cost_values.
+        For overhead: distributed_cost at root = sum of depth-5 overhead leaf distributed_costs.
+        """
+        with schema_context(self.schema):
+            root = self._breakdown_qs(depth=1).aggregate(
+                total_cv=Sum("cost_value"),
+                total_dc=Sum("distributed_cost"),
+            )
+            project_leaf_sum = (
+                self._breakdown_qs(depth=4, top_category="project")
+                .aggregate(total=Sum("cost_value"))["total"]
+                or Decimal(0)
+            )
+            overhead_leaf_sum = (
+                self._breakdown_qs(depth=5, top_category="overhead")
+                .aggregate(total=Sum("distributed_cost"))["total"]
+                or Decimal(0)
+            )
+
+        root_cv = root["total_cv"] or Decimal(0)
+        root_dc = root["total_dc"] or Decimal(0)
+
+        if project_leaf_sum > 0:
+            self.assertAlmostEqual(
+                float(root_cv), float(project_leaf_sum), places=2,
+                msg="Root cost_value != sum of project leaf cost_values",
+            )
+        if overhead_leaf_sum > 0:
+            self.assertAlmostEqual(
+                float(root_dc), float(overhead_leaf_sum), places=2,
+                msg="Root distributed_cost != sum of overhead leaf distributed_costs",
+            )
+
+    # ------------------------------------------------------------------
+    # Top category correctness
+    # ------------------------------------------------------------------
+    def test_top_category_values(self):
+        """top_category must be one of: project, overhead, total."""
+        with schema_context(self.schema):
+            categories = set(self._breakdown_qs().values_list("top_category", flat=True).distinct())
+        allowed = {"project", "overhead", "total"}
+        unexpected = categories - allowed
+        self.assertEqual(
+            unexpected,
+            set(),
+            f"Unexpected top_category values: {unexpected}. Expected subset of {allowed}.",
+        )
+
+    # ------------------------------------------------------------------
+    # M2 regression: source_uuid type safety
+    # ------------------------------------------------------------------
+    def test_population_idempotent(self):
+        """[M2] Re-running population produces identical row count and totals.
+
+        Also validates that source_uuid casting is consistent across all steps.
+        """
+        with schema_context(self.schema):
+            pre_count = self._breakdown_qs().count()
+            pre_totals = self._breakdown_qs().aggregate(
+                cv=Sum("cost_value"), dc=Sum("distributed_cost")
+            )
+
+        summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_ui_summary_tables(
+                summary_range,
+                self.provider_uuid,
+                tables=["reporting_ocp_cost_breakdown_p"],
+            )
+
+        with schema_context(self.schema):
+            post_count = self._breakdown_qs().count()
+            post_totals = self._breakdown_qs().aggregate(
+                cv=Sum("cost_value"), dc=Sum("distributed_cost")
+            )
+
+        self.assertEqual(pre_count, post_count, "Idempotency: row count changed")
+        self.assertAlmostEqual(
+            float(pre_totals["cv"] or 0), float(post_totals["cv"] or 0), places=10,
+            msg="Idempotency: cost_value total changed",
+        )
+        self.assertAlmostEqual(
+            float(pre_totals["dc"] or 0), float(post_totals["dc"] or 0), places=10,
+            msg="Idempotency: distributed_cost total changed",
         )

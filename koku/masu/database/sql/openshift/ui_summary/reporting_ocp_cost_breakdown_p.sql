@@ -11,14 +11,14 @@
 DELETE FROM {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
-    AND source_uuid = {{source_uuid}}
+    AND source_uuid = {{source_uuid}}::uuid
 ;
 
 -- Step 1: Depth 4 -- project per-rate leaves (usage costs from RTU)
 INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p (
     id, usage_start, usage_end, source_uuid, cluster_id, cluster_alias,
     namespace, node, cost_category_id, custom_name, metric_type,
-    cost_model_rate_type, cost_value, distributed_cost,
+    cost_model_rate_type, cost_value, distributed_cost, raw_currency,
     path, depth, parent_path, top_category, breakdown_category
 )
 SELECT
@@ -36,6 +36,8 @@ SELECT
     r.cost_model_rate_type,
     SUM(r.calculated_cost),
     NULL,
+    (SELECT raw_currency FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+     WHERE source_uuid = {{source_uuid}}::uuid AND raw_currency IS NOT NULL LIMIT 1),
     'project.' || CASE WHEN r.metric_type = 'markup' THEN 'markup'
                        ELSE 'usage_cost'
                   END || '.' || r.custom_name,
@@ -53,6 +55,7 @@ WHERE r.usage_start >= {{start_date}}::date
     AND r.source_uuid = {{source_uuid}}::uuid
     AND r.monthly_cost_type IS NULL
     AND (r.cost_category_id IS NULL OR cc.name != 'Platform')
+    AND r.namespace NOT IN ('Worker unallocated', 'Storage unattributed', 'Network unattributed', 'GPU unallocated')
 GROUP BY r.usage_start, r.source_uuid, r.cluster_id,
          r.namespace, r.node, r.custom_name, r.metric_type, r.cost_model_rate_type
 ;
@@ -61,7 +64,7 @@ GROUP BY r.usage_start, r.source_uuid, r.cluster_id,
 INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p (
     id, usage_start, usage_end, source_uuid, cluster_id, cluster_alias,
     namespace, node, cost_category_id, custom_name, metric_type,
-    cost_model_rate_type, cost_value, distributed_cost,
+    cost_model_rate_type, cost_value, distributed_cost, raw_currency,
     path, depth, parent_path, top_category, breakdown_category
 )
 SELECT
@@ -79,6 +82,8 @@ SELECT
     r.cost_model_rate_type,
     NULL,
     SUM(r.distributed_cost),
+    (SELECT raw_currency FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+     WHERE source_uuid = {{source_uuid}}::uuid AND raw_currency IS NOT NULL LIMIT 1),
     'overhead.' || r.monthly_cost_type
         || '.' || CASE WHEN r.metric_type = 'markup' THEN 'markup'
                        WHEN r.cost_model_rate_type = 'Infrastructure' THEN 'infrastructure'
@@ -111,7 +116,7 @@ GROUP BY r.usage_start, r.source_uuid, r.cluster_id,
 INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p (
     id, usage_start, usage_end, source_uuid, cluster_id, cluster_alias,
     namespace, node, cost_category_id, custom_name, metric_type,
-    cost_model_rate_type, cost_value, distributed_cost,
+    cost_model_rate_type, cost_value, distributed_cost, raw_currency,
     path, depth, parent_path, top_category, breakdown_category
 )
 SELECT
@@ -126,6 +131,7 @@ SELECT
     'aggregate',
     NULL, NULL,
     SUM(b.distributed_cost),
+    MAX(b.raw_currency),
     b.parent_path,
     4,
     SPLIT_PART(b.parent_path, '.', 1) || '.' || SPLIT_PART(b.parent_path, '.', 2),
@@ -134,7 +140,7 @@ SELECT
 FROM {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p b
 WHERE b.usage_start >= {{start_date}}::date
     AND b.usage_start <= {{end_date}}::date
-    AND b.source_uuid = {{source_uuid}}
+    AND b.source_uuid = {{source_uuid}}::uuid
     AND b.depth = 5
 GROUP BY b.usage_start, b.source_uuid, b.cluster_id,
          b.parent_path, b.breakdown_category
@@ -145,7 +151,7 @@ GROUP BY b.usage_start, b.source_uuid, b.cluster_id,
 INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p (
     id, usage_start, usage_end, source_uuid, cluster_id, cluster_alias,
     namespace, node, cost_category_id, custom_name, metric_type,
-    cost_model_rate_type, cost_value, distributed_cost,
+    cost_model_rate_type, cost_value, distributed_cost, raw_currency,
     path, depth, parent_path, top_category, breakdown_category
 )
 SELECT
@@ -161,14 +167,16 @@ SELECT
     NULL,
     SUM(b.cost_value),
     SUM(b.distributed_cost),
+    MAX(b.raw_currency),
     b.parent_path,
     3,
+    b.top_category,
     b.top_category,
     SPLIT_PART(b.parent_path, '.', 2)
 FROM {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p b
 WHERE b.usage_start >= {{start_date}}::date
     AND b.usage_start <= {{end_date}}::date
-    AND b.source_uuid = {{source_uuid}}
+    AND b.source_uuid = {{source_uuid}}::uuid
     AND b.depth = 4
 GROUP BY b.usage_start, b.source_uuid, b.cluster_id,
          b.top_category, b.parent_path
@@ -178,7 +186,7 @@ GROUP BY b.usage_start, b.source_uuid, b.cluster_id,
 INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p (
     id, usage_start, usage_end, source_uuid, cluster_id, cluster_alias,
     namespace, node, cost_category_id, custom_name, metric_type,
-    cost_model_rate_type, cost_value, distributed_cost,
+    cost_model_rate_type, cost_value, distributed_cost, raw_currency,
     path, depth, parent_path, top_category, breakdown_category
 )
 SELECT
@@ -194,6 +202,7 @@ SELECT
     NULL,
     SUM(b.cost_value),
     SUM(b.distributed_cost),
+    MAX(b.raw_currency),
     b.top_category,
     2,
     'total_cost',
@@ -202,7 +211,7 @@ SELECT
 FROM {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p b
 WHERE b.usage_start >= {{start_date}}::date
     AND b.usage_start <= {{end_date}}::date
-    AND b.source_uuid = {{source_uuid}}
+    AND b.source_uuid = {{source_uuid}}::uuid
     AND b.depth = 3
 GROUP BY b.usage_start, b.source_uuid, b.cluster_id, b.top_category
 ;
@@ -211,7 +220,7 @@ GROUP BY b.usage_start, b.source_uuid, b.cluster_id, b.top_category
 INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p (
     id, usage_start, usage_end, source_uuid, cluster_id, cluster_alias,
     namespace, node, cost_category_id, custom_name, metric_type,
-    cost_model_rate_type, cost_value, distributed_cost,
+    cost_model_rate_type, cost_value, distributed_cost, raw_currency,
     path, depth, parent_path, top_category, breakdown_category
 )
 SELECT
@@ -227,6 +236,7 @@ SELECT
     NULL,
     SUM(b.cost_value),
     SUM(b.distributed_cost),
+    MAX(b.raw_currency),
     'total_cost',
     1,
     '',
@@ -235,7 +245,7 @@ SELECT
 FROM {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p b
 WHERE b.usage_start >= {{start_date}}::date
     AND b.usage_start <= {{end_date}}::date
-    AND b.source_uuid = {{source_uuid}}
+    AND b.source_uuid = {{source_uuid}}::uuid
     AND b.depth = 2
 GROUP BY b.usage_start, b.source_uuid, b.cluster_id
 ;

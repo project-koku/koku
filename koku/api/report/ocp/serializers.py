@@ -561,7 +561,7 @@ class OCPCostBreakdownFilterSerializer(BaseFilterSerializer):
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
-    path = serializers.RegexField(r"^[a-zA-Z0-9_.]+$", max_length=200, required=False)
+    path = serializers.RegexField(r"^[a-zA-Z0-9_.\-]+$", max_length=200, required=False)
     depth = serializers.IntegerField(min_value=1, max_value=5, required=False)
     top_category = serializers.ChoiceField(choices=(("project", "project"), ("overhead", "overhead")), required=False)
 
@@ -580,5 +580,7 @@ class OCPCostBreakdownQueryParamSerializer(ReportQueryParamSerializer):
     ORDER_BY_SERIALIZER = OCPCostBreakdownOrderBySerializer
     FILTER_SERIALIZER = OCPCostBreakdownFilterSerializer
     EXCLUDE_SERIALIZER = OCPCostBreakdownExcludeSerializer
+
+    order_by_allowlist = ("cost_value", "distributed_cost", "depth", "path")
 
     view = serializers.ChoiceField(choices=(("flat", "flat"), ("tree", "tree")), required=False, default="flat")

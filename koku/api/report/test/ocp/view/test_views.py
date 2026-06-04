@@ -1953,3 +1953,56 @@ class OCPReportViewTest(IamTestCase):
         total_cost = data.get("meta", {}).get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
         self.assertIsNotNone(total_cost)
         self.assertAlmostEqual(Decimal(str(total_cost)), expected_total, places=2)
+
+
+class OCPCostBreakdownViewTest(IamTestCase):
+    """E2E tests for the /breakdown/openshift/cost/ endpoint."""
+
+    def test_breakdown_url_resolves(self):
+        """Breakdown URL name resolves correctly."""
+        url = reverse("ocp-cost-breakdown")
+        self.assertIn("breakdown/openshift/cost", url)
+
+    def test_breakdown_endpoint_returns_200(self):
+        """Breakdown endpoint must return 200 with valid default params."""
+        url = reverse("ocp-cost-breakdown")
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_breakdown_flat_view_has_data_key(self):
+        """Flat view response must contain 'data' key."""
+        url = reverse("ocp-cost-breakdown")
+        response = APIClient().get(url, **self.headers)
+        self.assertIn("data", response.data)
+
+    def test_breakdown_tree_view_transforms_values(self):
+        """Tree view (view=tree) must replace 'values' with 'tree' in response."""
+        url = reverse("ocp-cost-breakdown") + "?view=tree"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data.get("data", [])
+        for date_group in data:
+            self._assert_no_values_key(date_group)
+
+    def _assert_no_values_key(self, obj):
+        """Recursively assert that 'values' is replaced by 'tree' in tree view."""
+        if isinstance(obj, dict):
+            if "tree" in obj:
+                self.assertNotIn("values", obj, "'values' should be replaced by 'tree' in tree view")
+            for v in obj.values():
+                self._assert_no_values_key(v)
+        elif isinstance(obj, list):
+            for item in obj:
+                self._assert_no_values_key(item)
+
+    def test_breakdown_group_by_cluster(self):
+        """Breakdown endpoint must accept group_by[cluster]=*."""
+        url = reverse("ocp-cost-breakdown") + "?group_by[cluster]=*"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_breakdown_invalid_view_returns_400(self):
+        """Invalid view parameter must return 400."""
+        url = reverse("ocp-cost-breakdown") + "?view=invalid"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

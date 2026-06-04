@@ -6,8 +6,6 @@
 import logging
 
 from rest_framework import status
-
-LOG = logging.getLogger(__name__)
 from rest_framework.response import Response
 
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
@@ -23,6 +21,8 @@ from api.report.ocp.serializers import OCPVirtualMachinesQueryParamSerializer
 from api.report.view import ReportView
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPView(ReportView):

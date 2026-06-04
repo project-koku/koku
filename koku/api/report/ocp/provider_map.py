@@ -35,6 +35,7 @@ from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 from reporting.provider.ocp.models import OCPCostSummaryP
 from reporting.provider.ocp.models import OCPGpuSummaryP
+from reporting.provider.ocp.models import OCPCostUIBreakDownP
 from reporting.provider.ocp.models import OCPNetworkSummaryByNodeP
 from reporting.provider.ocp.models import OCPNetworkSummaryByProjectP
 from reporting.provider.ocp.models import OCPNetworkSummaryP
@@ -43,7 +44,6 @@ from reporting.provider.ocp.models import OCPPodSummaryByProjectP
 from reporting.provider.ocp.models import OCPPodSummaryP
 from reporting.provider.ocp.models import OCPVirtualMachineSummaryP
 from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
-from reporting.provider.ocp.models import OCPCostUIBreakDownP
 from reporting.provider.ocp.models import OCPVolumeSummaryP
 
 
@@ -1321,7 +1321,7 @@ class OCPProviderMap(ProviderMap):
                         },
                         "group_by_options": ["cluster", "project", "node"],
                         "filter": [{}],
-                        "cost_units_key": None,
+                        "cost_units_key": "raw_currency",
                         "sum_columns": ["cost_value", "distributed_cost"],
                     },
                 },

@@ -1128,6 +1128,7 @@ class OCPCostUIBreakDownP(models.Model):
     cost_model_rate_type = models.TextField(null=True)
     cost_value = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    raw_currency = models.TextField(null=True)
     path = models.CharField(max_length=200)
     depth = models.SmallIntegerField()
     parent_path = models.CharField(max_length=200)

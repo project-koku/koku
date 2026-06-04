@@ -27,8 +27,8 @@ denominator AS (
     SELECT
         lids.usage_start,
         lids.cluster_id,
-        SUM(lids.pod_effective_usage_cpu_core_hours) AS usage_cpu_sum,
-        SUM(lids.pod_effective_usage_memory_gigabyte_hours) AS usage_memory_sum
+        COALESCE(SUM(lids.pod_effective_usage_cpu_core_hours), 0) AS usage_cpu_sum,
+        COALESCE(SUM(lids.pod_effective_usage_memory_gigabyte_hours), 0) AS usage_memory_sum
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
         ON lids.cost_category_id = cat.id
