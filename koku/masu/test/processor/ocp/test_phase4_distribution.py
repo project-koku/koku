@@ -24,7 +24,6 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.test import MasuTestCase
 from masu.util.common import SummaryRangeConfig
-from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import RatesToUsage
 
@@ -143,11 +142,7 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            days = (
-                self._distributed_qs(dist_type)
-                .values_list("usage_start", flat=True)
-                .distinct()[:3]
-            )
+            days = self._distributed_qs(dist_type).values_list("usage_start", flat=True).distinct()[:3]
             for day in days:
                 day_rows = self._distributed_qs(dist_type).filter(usage_start=day)
                 rates = day_rows.values_list("custom_name", flat=True).distinct()
@@ -201,9 +196,7 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
 
         with schema_context(self.schema):
             source_rates = set(
-                self._source_qs(dist_type)
-                .values_list("custom_name", "metric_type", "cost_model_rate_type")
-                .distinct()
+                self._source_qs(dist_type).values_list("custom_name", "metric_type", "cost_model_rate_type").distinct()
             )
             if not source_rates:
                 self.skipTest("No source rows for platform distribution")
@@ -244,11 +237,7 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            day = (
-                self._distributed_qs(dist_type)
-                .values_list("usage_start", flat=True)
-                .first()
-            )
+            day = self._distributed_qs(dist_type).values_list("usage_start", flat=True).first()
             if not day:
                 self.skipTest("No distributed rows")
 
@@ -298,12 +287,8 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            total_distributed = (
-                self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
-            )
-            total_source = (
-                self._source_qs(dist_type).aggregate(t=Sum("calculated_cost"))["t"] or Decimal(0)
-            )
+            total_distributed = self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+            total_source = self._source_qs(dist_type).aggregate(t=Sum("calculated_cost"))["t"] or Decimal(0)
             if total_source == 0:
                 self.skipTest("No source cost to distribute")
 
@@ -320,15 +305,13 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
     def test_07_sign_invariant(self):
         """All distributed_cost values for recipient rows are positive."""
         with schema_context(self.schema):
-            negative_count = (
-                RatesToUsage.objects.filter(
-                    source_uuid=self.provider_uuid,
-                    usage_start__gte=self.start_date,
-                    usage_start__lte=self.end_date,
-                    monthly_cost_type__isnull=False,
-                    distributed_cost__lt=0,
-                ).count()
-            )
+            negative_count = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                monthly_cost_type__isnull=False,
+                distributed_cost__lt=0,
+            ).count()
             self.assertEqual(
                 negative_count,
                 0,
@@ -425,9 +408,7 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            original_sum = (
-                self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
-            )
+            original_sum = self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
             original_count = self._distributed_qs(dist_type).count()
 
             RatesToUsage.objects.filter(
