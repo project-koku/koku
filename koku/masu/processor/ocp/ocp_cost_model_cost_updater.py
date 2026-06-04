@@ -669,6 +669,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 )
             )
             accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
+            if self._cost_model_id:
+                accessor.populate_markup_rates_to_usage(
+                    start_date,
+                    end_date,
+                    self._provider_uuid,
+                    self._cluster_id,
+                    self._cost_model_id,
+                )
         LOG.info(
             log_json(
                 msg="finished updating markup costs",

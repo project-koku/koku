@@ -16,9 +16,11 @@ Tier 4 (E2E): TestRTUCostBreakdownAPI
 drift5-sql: TestRTURateResolution
 R20: TestOrchestrationOrder
 """
+from decimal import Decimal
 from functools import wraps
 from unittest.mock import patch
 
+from django.db.models import Sum
 from django.test import override_settings
 from django_tenants.utils import schema_context
 
@@ -28,7 +30,9 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.test import MasuTestCase
 from masu.util.common import SummaryRangeConfig
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import RatesToUsage
 
 # ---------------------------------------------------------------------------
 # Tier 1 — Unit Tests
@@ -1704,6 +1708,265 @@ class TestRoutingMetricType(MasuTestCase):
     def test_node_core_hour(self):
         result = OCPReportDBAccessor._get_routing_metric_type(cost_type="Node_Core_Hour", distribution="cpu")
         self.assertEqual(result, "cpu")
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 Gap Closure — Markup RTU Tests (COST-7249-P2GC-TP-001)
+# IEEE 829 Test Plan: docs/tests/COST-7249/phase2-gap-closure-test-plan.md
+# ---------------------------------------------------------------------------
+
+
+class TestPopulateMarkupRatesToUsage(_ReportPeriodMixin, MasuTestCase):
+    """Test populate_markup_rates_to_usage accessor method (BAC-16, BAC-19).
+
+    Tier 1 (unit) tests mock _prepare_and_execute_raw_sql_query to verify
+    SQL wiring without executing real SQL.
+    """
+
+    # TC-60: SQL params correct
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_markup_rtu_sql_params_correct(self, mock_execute):
+        """BAC-16: populate_markup_rates_to_usage passes all required SQL params."""
+        dh = DateHelper()
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_markup_rates_to_usage(
+                dh.this_month_start.date(),
+                dh.this_month_end.date(),
+                self.ocp_provider_uuid,
+                self.ocp_cluster_id,
+                "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+            )
+        mock_execute.assert_called_once()
+        args, kwargs = mock_execute.call_args
+        sql_params = args[2]
+        required_keys = (
+            "schema",
+            "start_date",
+            "end_date",
+            "source_uuid",
+            "cluster_id",
+            "cost_model_id",
+        )
+        for key in required_keys:
+            self.assertIn(key, sql_params, f"Missing SQL param: {key}")
+        self.assertNotIn("report_period_id", sql_params, "report_period_id is read from source table, not passed")
+        self.assertEqual(sql_params["source_uuid"], self.ocp_provider_uuid)
+        self.assertEqual(sql_params["start_date"], dh.this_month_start.date())
+        self.assertEqual(sql_params["end_date"], dh.this_month_end.date())
+        self.assertEqual(sql_params["cost_model_id"], "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+
+    # TC-61: operation is INSERT
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_markup_rtu_operation_is_insert(self, mock_execute):
+        """BAC-16: SQL execution uses operation='INSERT'."""
+        dh = DateHelper()
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_markup_rates_to_usage(
+                dh.this_month_start.date(),
+                dh.this_month_end.date(),
+                self.ocp_provider_uuid,
+                self.ocp_cluster_id,
+                "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+            )
+        args, kwargs = mock_execute.call_args
+        self.assertEqual(args[0], "rates_to_usage")
+        self.assertEqual(kwargs.get("operation"), "INSERT")
+
+    # TC-66: SQL file loaded from correct path
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
+    def test_markup_rtu_sql_file_loaded(self, mock_pkgutil, mock_execute):
+        """BAC-16: SQL loaded from insert_markup_rates_to_usage.sql."""
+        mock_pkgutil.return_value = b"SELECT 1"
+        dh = DateHelper()
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_markup_rates_to_usage(
+                dh.this_month_start.date(),
+                dh.this_month_end.date(),
+                self.ocp_provider_uuid,
+                self.ocp_cluster_id,
+                "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+            )
+        mock_pkgutil.assert_called_once_with(
+            "masu.database",
+            "sql/openshift/cost_model/usage_rates/insert_markup_rates_to_usage.sql",
+        )
+
+    # TC-67: SQL template contains metric_type='markup' in DELETE (scoped delete)
+    def test_markup_rtu_sql_contains_scoped_delete(self):
+        """BAC-19: DELETE predicate includes metric_type = 'markup' to avoid deleting usage RTU rows."""
+        import pkgutil
+
+        sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/usage_rates/insert_markup_rates_to_usage.sql",
+        )
+        sql_text = sql.decode("utf-8")
+        delete_start = sql_text.index("DELETE FROM")
+        insert_start = sql_text.index("INSERT INTO")
+        delete_block = sql_text[delete_start:insert_start]
+        self.assertIn("metric_type", delete_block, "DELETE must filter by metric_type")
+        self.assertIn("'markup'", delete_block, "DELETE must scope to metric_type = 'markup'")
+        self.assertNotIn(
+            "report_period_id", delete_block, "DELETE must NOT filter by report_period_id (avoid global wipe)"
+        )
+
+
+class TestMarkupRTUIntegration(_ReportPeriodMixin, MasuTestCase):
+    """Integration tests for markup RTU rows (BAC-16, BAC-17, BAC-18, BAC-19, BAC-20).
+
+    Tier 2 tests run real SQL against the test database. They rely on
+    ModelBakeryDataLoader having seeded OCP-on-Prem with a cost model
+    and run update_cost_model_costs at DB creation.
+    """
+
+    def _seed_markup_rtu(self):
+        """Ensure infrastructure_raw_cost is set on some rows, then run markup pipeline."""
+        rp = self._get_report_period()
+        start_date = rp.report_period_start.date()
+        end_date = DateHelper().month_end(rp.report_period_start).date()
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not updater._cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        with schema_context(self.schema):
+            OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                cost_model_rate_type__isnull=True,
+            ).update(
+                infrastructure_raw_cost=Decimal("10.00"),
+                infrastructure_project_raw_cost=Decimal("5.00"),
+            )
+        updater._load_rates(start_date)
+        updater._update_usage_rates_to_usage(start_date, end_date)
+        updater._update_markup_cost(start_date, end_date)
+        return start_date, end_date
+
+    # TC-70: markup RTU rows exist after pipeline
+    def test_markup_rtu_rows_exist_after_pipeline(self):
+        """BAC-16: RatesToUsage has rows with metric_type='markup' after markup update."""
+        start_date, end_date = self._seed_markup_rtu()
+        with schema_context(self.schema):
+            count = RatesToUsage.objects.filter(
+                metric_type="markup",
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+            ).count()
+        self.assertGreater(count, 0, "Expected markup RTU rows after pipeline run")
+
+    # TC-71: label_hash is SHA-256 (64-char hex), not MD5 (32-char)
+    def test_markup_rtu_label_hash_is_sha256(self):
+        """BAC-17 / FedRAMP SC-13: label_hash is 64-char SHA-256 hex, not 32-char MD5."""
+        start_date, end_date = self._seed_markup_rtu()
+        with schema_context(self.schema):
+            row = RatesToUsage.objects.filter(
+                metric_type="markup",
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                label_hash__isnull=False,
+            ).first()
+        self.assertIsNotNone(row, "Seed succeeded but no markup RTU rows with label_hash — pipeline regression")
+        self.assertEqual(len(row.label_hash), 64, f"Expected 64-char SHA-256 hash, got {len(row.label_hash)} chars")
+
+    # TC-72: markup RTU rows do NOT affect daily summary cost_model_* columns
+    def test_markup_rtu_no_aggregation_impact(self):
+        """BAC-18 / FedRAMP SI-7: Aggregation after markup RTU insert does not change cost_model_* columns."""
+        rp = self._get_report_period()
+        start_date = rp.report_period_start.date()
+        end_date = DateHelper().month_end(rp.report_period_start).date()
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not updater._cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        updater._load_rates(start_date)
+        updater._update_usage_rates_to_usage(start_date, end_date)
+        updater._aggregate_rates_to_daily_summary(start_date, end_date)
+
+        with schema_context(self.schema):
+            before_sums = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                cost_model_rate_type__in=["Infrastructure", "Supplementary"],
+            ).aggregate(
+                cpu=Sum("cost_model_cpu_cost"),
+                mem=Sum("cost_model_memory_cost"),
+                vol=Sum("cost_model_volume_cost"),
+            )
+
+        updater._update_markup_cost(start_date, end_date)
+        updater._aggregate_rates_to_daily_summary(start_date, end_date)
+
+        with schema_context(self.schema):
+            after_sums = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                cost_model_rate_type__in=["Infrastructure", "Supplementary"],
+            ).aggregate(
+                cpu=Sum("cost_model_cpu_cost"),
+                mem=Sum("cost_model_memory_cost"),
+                vol=Sum("cost_model_volume_cost"),
+            )
+
+        for key in ("cpu", "mem", "vol"):
+            before = before_sums[key] or Decimal("0")
+            after = after_sums[key] or Decimal("0")
+            self.assertAlmostEqual(
+                float(before),
+                float(after),
+                places=6,
+                msg=f"cost_model_{key}_cost changed after markup RTU insert + re-aggregation",
+            )
+
+    # TC-73: DELETE only removes markup rows, not usage rows
+    def test_markup_rtu_delete_scoped_to_markup(self):
+        """BAC-19: Re-running markup RTU insert does not delete usage RTU rows."""
+        start_date, end_date = self._seed_markup_rtu()
+        with schema_context(self.schema):
+            usage_count_before = RatesToUsage.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                metric_type__in=["cpu", "memory", "storage"],
+            ).count()
+        self.assertGreater(usage_count_before, 0, "Seed succeeded but no usage RTU rows — pipeline regression")
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        updater._update_markup_cost(start_date, end_date)
+
+        with schema_context(self.schema):
+            usage_count_after = RatesToUsage.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                metric_type__in=["cpu", "memory", "storage"],
+            ).count()
+        self.assertEqual(
+            usage_count_before,
+            usage_count_after,
+            "Usage RTU rows were deleted by markup RTU re-insert",
+        )
+
+    # TC-74: markup RTU row fields are correct
+    def test_markup_rtu_fields_correct(self):
+        """BAC-16: Markup RTU rows have rate_id=None, custom_name='Markup', etc."""
+        start_date, end_date = self._seed_markup_rtu()
+        with schema_context(self.schema):
+            row = RatesToUsage.objects.filter(
+                metric_type="markup",
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+            ).first()
+        self.assertIsNotNone(row, "Seed succeeded but no markup RTU rows — pipeline regression")
+        self.assertIsNone(row.rate_id, "Markup rows should have rate_id=None")
+        self.assertEqual(row.custom_name, "Markup")
+        self.assertEqual(row.cost_model_rate_type, "Infrastructure")
+        self.assertIsNotNone(row.calculated_cost)
+        self.assertNotEqual(row.calculated_cost, Decimal("0"))
 
 
 # ---------------------------------------------------------------------------
