@@ -2006,3 +2006,47 @@ class OCPCostBreakdownViewTest(IamTestCase):
         url = reverse("ocp-cost-breakdown") + "?view=invalid"
         response = APIClient().get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_breakdown_endpoint_has_rbac_permission(self):
+        """Breakdown view must use OpenShiftAccessPermission for RBAC."""
+        from api.common.permissions.openshift_access import OpenShiftAccessPermission
+        from api.report.ocp.view import OCPCostBreakdownView
+
+        self.assertIn(OpenShiftAccessPermission, OCPCostBreakdownView.permission_classes)
+
+    def test_breakdown_order_by_distributed_cost(self):
+        """order_by[distributed_cost]=desc returns 200."""
+        url = reverse("ocp-cost-breakdown") + "?order_by[distributed_cost]=desc"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_breakdown_order_by_allowlist_fields_no_group_by(self):
+        """Allowlisted order_by fields with string values work without group_by."""
+        for field in ("cost_value", "distributed_cost", "path"):
+            url = reverse("ocp-cost-breakdown") + f"?order_by[{field}]=desc"
+            response = APIClient().get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK, f"order_by[{field}] should return 200")
+
+    def test_breakdown_tag_filter_accepted(self):
+        """Tag filter is silently dropped, not rejected (200 not 400)."""
+        url = reverse("ocp-cost-breakdown") + "?filter[tag:app]=web"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_breakdown_filter_depth(self):
+        """filter[depth]=4 returns 200."""
+        url = reverse("ocp-cost-breakdown") + "?filter[depth]=4"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_breakdown_filter_top_category(self):
+        """filter[top_category]=project returns 200."""
+        url = reverse("ocp-cost-breakdown") + "?filter[top_category]=project"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_breakdown_filter_path(self):
+        """filter[path]=project.usage_cost returns 200."""
+        url = reverse("ocp-cost-breakdown") + "?filter[path]=project.usage_cost"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

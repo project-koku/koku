@@ -547,10 +547,11 @@ class OCPCostBreakdownGroupBySerializer(GroupSerializer):
 class OCPCostBreakdownOrderBySerializer(OrderSerializer):
     """Serializer for cost breakdown order_by parameters."""
 
-    _opfields = ("path", "depth", "cost_value")
+    _opfields = ("path", "depth", "cost_value", "distributed_cost")
     path = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     depth = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     cost_value = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    distributed_cost = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
 class OCPCostBreakdownFilterSerializer(BaseFilterSerializer):
@@ -561,16 +562,25 @@ class OCPCostBreakdownFilterSerializer(BaseFilterSerializer):
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
-    path = serializers.RegexField(r"^[a-zA-Z0-9_.\-]+$", max_length=200, required=False)
-    depth = serializers.IntegerField(min_value=1, max_value=5, required=False)
-    top_category = serializers.ChoiceField(choices=(("project", "project"), ("overhead", "overhead")), required=False)
+    path = StringOrListField(
+        child=serializers.RegexField(r"^[a-zA-Z0-9_.\-]+$", max_length=200), required=False
+    )
+    depth = StringOrListField(child=serializers.IntegerField(min_value=1, max_value=5), required=False)
+    top_category = StringOrListField(
+        child=serializers.ChoiceField(
+            choices=(("project", "project"), ("overhead", "overhead"), ("total", "total"))
+        ),
+        required=False,
+    )
 
 
 class OCPCostBreakdownExcludeSerializer(BaseExcludeSerializer):
     """Serializer for cost breakdown exclude parameters."""
 
-    _opfields = ("cluster",)
+    _opfields = ("cluster", "project", "node")
     cluster = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPCostBreakdownQueryParamSerializer(ReportQueryParamSerializer):
@@ -584,3 +594,13 @@ class OCPCostBreakdownQueryParamSerializer(ReportQueryParamSerializer):
     order_by_allowlist = ("cost_value", "distributed_cost", "depth", "path")
 
     view = serializers.ChoiceField(choices=(("flat", "flat"), ("tree", "tree")), required=False, default="flat")
+
+    def __init__(self, *args, **kwargs):
+        """Strip tag keys from filter/exclude/group_by (breakdown has no tag columns)."""
+        if "data" in kwargs and kwargs["data"]:
+            data = dict(kwargs["data"])
+            for key in ("filter", "exclude", "group_by"):
+                if key in data and data[key]:
+                    data[key] = _strip_tag_keys_from_param_dict(data[key])
+            kwargs = {**kwargs, "data": data}
+        super().__init__(*args, **kwargs)

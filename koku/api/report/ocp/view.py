@@ -124,6 +124,8 @@ class OCPCostBreakdownView(OCPView):
         nodes = {}
         for item in values:
             path = item.get("path", "")
+            if path in nodes:
+                LOG.warning("Duplicate path in breakdown data, overwriting: %s", path)
             nodes[path] = {**item, "children": []}
 
         root = None
@@ -131,6 +133,8 @@ class OCPCostBreakdownView(OCPView):
             parent_path = node.get("parent_path", "")
             if parent_path and parent_path in nodes:
                 nodes[parent_path]["children"].append(node)
+            elif parent_path:
+                LOG.warning("Orphan node in breakdown tree (parent_path=%s not found): %s", parent_path, path)
             if node.get("depth") == 1:
                 root = node
 

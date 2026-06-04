@@ -263,6 +263,9 @@ class OCPProviderMap(ProviderMap):
                         "operation": "exact",
                         "custom": ProviderAccessor(Provider.PROVIDER_OCP).infrastructure_key_list,
                     },
+                    "path": {"field": "path", "operation": "startswith"},
+                    "depth": {"field": "depth", "operation": "exact"},
+                    "top_category": {"field": "top_category", "operation": "exact"},
                 },
                 "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim", "storageclass"],
                 "tag_column": "pod_labels",  # default for if a report type does not have a tag_column

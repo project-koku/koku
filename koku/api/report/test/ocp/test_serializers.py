@@ -842,6 +842,11 @@ class OCPCostBreakdownOrderBySerializerTest(TestCase):
             serializer = OCPCostBreakdownOrderBySerializer(data={field: "asc"})
             self.assertTrue(serializer.is_valid(), f"{field} should be valid: {serializer.errors}")
 
+    def test_order_by_distributed_cost_valid(self):
+        """Test that distributed_cost is a valid order_by field."""
+        serializer = OCPCostBreakdownOrderBySerializer(data={"distributed_cost": "desc"})
+        self.assertTrue(serializer.is_valid(), f"distributed_cost should be valid: {serializer.errors}")
+
     def test_invalid_order_by_field_rejected(self):
         """Test that unsupported order_by fields are rejected."""
         serializer = OCPCostBreakdownOrderBySerializer(data={"usage": "asc"})
@@ -860,26 +865,26 @@ class OCPCostBreakdownFilterSerializerTest(TestCase):
             self.assertTrue(serializer.is_valid(), f"{field} should be valid: {serializer.errors}")
 
     def test_depth_filter_valid_range(self):
-        """Test that depth filter accepts values 1-5."""
-        for depth in (1, 3, 5):
+        """Test that depth filter accepts values 1-5 (as strings from URL params)."""
+        for depth in ("1", "3", "5"):
             serializer = OCPCostBreakdownFilterSerializer(data={"depth": depth})
-            self.assertTrue(serializer.is_valid(), f"depth={depth} should be valid")
+            self.assertTrue(serializer.is_valid(), f"depth={depth} should be valid: {serializer.errors}")
 
     def test_depth_filter_invalid_range(self):
         """Test that depth filter rejects values outside 1-5."""
-        for depth in (0, 6, -1):
+        for depth in ("0", "6", "-1"):
             serializer = OCPCostBreakdownFilterSerializer(data={"depth": depth})
             self.assertFalse(serializer.is_valid(), f"depth={depth} should be invalid")
 
     def test_top_category_filter_valid(self):
-        """Test that top_category accepts project and overhead."""
-        for cat in ("project", "overhead"):
-            serializer = OCPCostBreakdownFilterSerializer(data={"top_category": cat})
-            self.assertTrue(serializer.is_valid())
+        """Test that top_category accepts project, overhead, and total."""
+        for cat in ("project", "overhead", "total"):
+            serializer = OCPCostBreakdownFilterSerializer(data={"top_category": [cat]})
+            self.assertTrue(serializer.is_valid(), f"top_category={cat} should be valid")
 
     def test_top_category_filter_invalid(self):
         """Test that top_category rejects invalid values."""
-        serializer = OCPCostBreakdownFilterSerializer(data={"top_category": "invalid"})
+        serializer = OCPCostBreakdownFilterSerializer(data={"top_category": ["invalid"]})
         self.assertFalse(serializer.is_valid())
 
     def test_path_with_dashes_accepted(self):
@@ -889,7 +894,7 @@ class OCPCostBreakdownFilterSerializerTest(TestCase):
         Regression test for H3: regex ^[a-zA-Z0-9_.]+$ rejects dashes.
         """
         dashed_path = "project.usage_cost.cpu_core_usage_per_hour-Infrastructure"
-        serializer = OCPCostBreakdownFilterSerializer(data={"path": dashed_path})
+        serializer = OCPCostBreakdownFilterSerializer(data={"path": [dashed_path]})
         self.assertTrue(
             serializer.is_valid(),
             f"Path with dashes should be accepted but got: {serializer.errors}",
@@ -898,7 +903,7 @@ class OCPCostBreakdownFilterSerializerTest(TestCase):
     def test_path_rejects_injection_characters(self):
         """Path filter must reject SQL injection characters."""
         for bad_path in ("'; DROP TABLE--", "path OR 1=1", "test<script>"):
-            serializer = OCPCostBreakdownFilterSerializer(data={"path": bad_path})
+            serializer = OCPCostBreakdownFilterSerializer(data={"path": [bad_path]})
             self.assertFalse(serializer.is_valid(), f"Path '{bad_path}' should be rejected")
 
     def test_path_accepts_dotted_segments(self):
@@ -910,7 +915,7 @@ class OCPCostBreakdownFilterSerializerTest(TestCase):
             "overhead.worker_distributed.usage_cost.memory_gb_usage_per_hour",
         ]
         for path in valid_paths:
-            serializer = OCPCostBreakdownFilterSerializer(data={"path": path})
+            serializer = OCPCostBreakdownFilterSerializer(data={"path": [path]})
             self.assertTrue(serializer.is_valid(), f"Path '{path}' should be valid: {serializer.errors}")
 
 
@@ -992,6 +997,28 @@ class OCPCostBreakdownQueryParamSerializerTest(IamTestCase):
         self.request_path = "/api/cost-management/v1/breakdown/openshift/cost/"
         serializer = OCPCostBreakdownQueryParamSerializer(data=query_params, context=self.ctx_w_path)
         self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_order_by_distributed_cost_no_group_by(self):
+        """Test that distributed_cost in allowlist works without group_by."""
+        query_params = {
+            "order_by": {"distributed_cost": "desc"},
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+        }
+        self.request_path = "/api/cost-management/v1/breakdown/openshift/cost/"
+        serializer = OCPCostBreakdownQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_breakdown_tag_filter_dropped(self):
+        """Tag filter keys are dropped so breakdown API accepts request without error."""
+        query_params = {
+            "filter": {"cluster": ["test-cluster"], "tag:application": ["Istio"]},
+            "group_by": {"cluster": ["*"]},
+        }
+        self.request_path = "/api/cost-management/v1/breakdown/openshift/cost/"
+        serializer = OCPCostBreakdownQueryParamSerializer(data=query_params, context=self.ctx_w_path)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertNotIn("tag:application", serializer.validated_data.get("filter", {}))
+        self.assertIn("cluster", serializer.validated_data.get("filter", {}))
 
 
 # =============================================================================
@@ -1081,3 +1108,34 @@ class OCPCostBreakdownTreeBuilderTest(TestCase):
         OCPCostBreakdownView._transform_to_tree(data)
         self.assertIn("tree", data[0])
         self.assertNotIn("tree", data[1])
+
+    def test_build_tree_duplicate_paths_last_wins(self):
+        """When duplicate paths exist, last item's data should be used."""
+        from api.report.ocp.view import OCPCostBreakdownView
+
+        values = [
+            {"path": "total_cost", "parent_path": "", "depth": 1, "cost_value": 100},
+            {"path": "total_cost", "parent_path": "", "depth": 1, "cost_value": 200},
+        ]
+        tree = OCPCostBreakdownView._build_tree(values)
+        self.assertEqual(tree["cost_value"], 200)
+
+    def test_build_tree_orphan_nodes_excluded(self):
+        """Nodes whose parent_path is not in the set should not appear in any children list."""
+        from api.report.ocp.view import OCPCostBreakdownView
+
+        values = [
+            {"path": "total_cost", "parent_path": "", "depth": 1, "cost_value": 100},
+            {"path": "orphan.child", "parent_path": "nonexistent", "depth": 3, "cost_value": 10},
+        ]
+        tree = OCPCostBreakdownView._build_tree(values)
+        self.assertEqual(tree["children"], [])
+
+    def test_build_tree_single_root_only(self):
+        """A single depth-1 node returns correctly with empty children."""
+        from api.report.ocp.view import OCPCostBreakdownView
+
+        values = [{"path": "total_cost", "parent_path": "", "depth": 1, "cost_value": 50}]
+        tree = OCPCostBreakdownView._build_tree(values)
+        self.assertEqual(tree["path"], "total_cost")
+        self.assertEqual(tree["children"], [])
