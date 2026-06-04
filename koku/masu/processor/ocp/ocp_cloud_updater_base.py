@@ -49,16 +49,26 @@ class OCPCloudUpdaterBase:
         """
         infra_map = {}
         if self._provider.type == Provider.PROVIDER_OCP:
-            if not self._provider.infrastructure:
+            try:
+                infra = self._provider.infrastructure
+            except ProviderInfrastructureMap.DoesNotExist:
+                LOG.warning(
+                    log_json(
+                        msg="ProviderInfrastructureMap missing for provider; skipping infra map lookup",
+                        provider_uuid=self._provider_uuid,
+                    )
+                )
                 return infra_map
-            if self._provider.infrastructure.infrastructure_type == Provider.PROVIDER_OCP:
+            if not infra:
+                return infra_map
+            if infra.infrastructure_type == Provider.PROVIDER_OCP:
                 # OCP infra is invalid, so delete these entries from the providerinframap.
                 # The foreign key relation sets the infra on the provider to null when the map is deleted.
-                ProviderInfrastructureMap.objects.filter(id=self._provider.infrastructure.id).delete()
+                ProviderInfrastructureMap.objects.filter(id=infra.id).delete()
                 return infra_map
             infra_map[self._provider_uuid] = (
-                str(self._provider.infrastructure.infrastructure_provider.uuid),
-                self._provider.infrastructure.infrastructure_type,
+                str(infra.infrastructure_provider.uuid),
+                infra.infrastructure_type,
             )
         elif self._provider.type in Provider.CLOUD_PROVIDER_LIST:
             ps = Provider.objects.filter(infrastructure__infrastructure_provider__uuid=self._provider.uuid)
