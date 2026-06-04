@@ -720,6 +720,8 @@ class CostModelSerializer(BaseSerializer):
                 "uuid": str(m.price_list.uuid),
                 "name": m.price_list.name,
                 "priority": m.priority,
+                "effective_start_date": m.price_list.effective_start_date.isoformat(),
+                "effective_end_date": m.price_list.effective_end_date.isoformat(),
             }
             for m in price_list_maps
         ]
