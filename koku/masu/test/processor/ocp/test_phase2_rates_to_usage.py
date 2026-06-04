@@ -1282,7 +1282,9 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
             cost_model_update=True,
         )
 
-    # TC-R20-01: Phase 4 ordering: rtu -> monthly -> vm -> dist -> agg -> markup
+    # TC-R20-01: Phase 4 ordering at outer level: rtu -> monthly -> vm -> dist
+    # (agg and markup now run inside distribute_costs_and_update_ui_summary,
+    #  tested separately in TestPhase4Orchestration)
     @_make_orchestration_patches(rtu_enabled=True)
     def test_rtu_enabled_full_ordering(
         self,
@@ -1297,27 +1299,25 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_monthly,
         mock_dist,
     ):
-        """R20: Phase 4 order is rtu -> monthly -> vm -> dist -> agg -> markup."""
+        """R20: Phase 4 outer order is rtu -> monthly -> vm -> dist."""
         call_order = []
         mock_rtu.side_effect = lambda *a: call_order.append("rtu")
         mock_monthly.side_effect = lambda *a: call_order.append("monthly")
         mock_vm.side_effect = lambda *a: call_order.append("vm")
-        mock_agg.side_effect = lambda *a: call_order.append("agg")
-        mock_markup.side_effect = lambda *a: call_order.append("markup")
         mock_dist.side_effect = lambda *a: call_order.append("dist")
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
 
-        expected = ["rtu", "monthly", "vm", "dist", "agg", "markup"]
+        expected = ["rtu", "monthly", "vm", "dist"]
         self.assertEqual(call_order, expected, f"R20: expected {expected}, got {call_order}")
         mock_usage.assert_not_called()
         mock_cleanup.assert_not_called()
 
-    # TC-R20-02: aggregation before markup (proxy for agg-before-tags)
+    # TC-R20-02: distribute is called (agg+markup ordering tested in TestPhase4Orchestration)
     @_make_orchestration_patches(rtu_enabled=True)
-    def test_aggregation_before_markup(
+    def test_distribute_called(
         self,
         mock_ff,
         mock_load,
@@ -1330,24 +1330,14 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_monthly,
         mock_dist,
     ):
-        """R20: _aggregate must run before _update_markup_cost (proxy for agg-before-tags)."""
-        call_order = []
-        mock_agg.side_effect = lambda *a: call_order.append("agg")
-        mock_markup.side_effect = lambda *a: call_order.append("markup")
-
+        """R20: distribute_costs_and_update_ui_summary is invoked."""
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
 
-        self.assertIn("agg", call_order)
-        self.assertIn("markup", call_order)
-        self.assertLess(
-            call_order.index("agg"),
-            call_order.index("markup"),
-            "R20: aggregation must run before markup (and therefore before tags)",
-        )
+        mock_dist.assert_called_once_with(sr)
 
-    # TC-R20-03: cleanup called when cost_model_id is None; monthly/vm/agg/markup still run
+    # TC-R20-03: cleanup called when cost_model_id is None; monthly/vm/dist still run
     @_make_orchestration_patches(rtu_enabled=True)
     def test_cleanup_called_when_no_cost_model(
         self,
@@ -1363,7 +1353,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_dist,
     ):
         """R20: When cost_model_id is None, cleanup runs instead of RTU insert.
-        Monthly/vm/agg/markup still run (monthly cleanup, agg guards on cost_model_id)."""
+        Monthly/vm/dist still run (agg+markup are inside dist)."""
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         updater._cost_model_id = None
         sr = self._make_summary_range()
@@ -1374,8 +1364,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_usage.assert_not_called()
         mock_monthly.assert_called()
         mock_vm.assert_called()
-        mock_agg.assert_called()
-        mock_markup.assert_called()
+        mock_dist.assert_called()
 
 
 # ---------------------------------------------------------------------------
@@ -1433,7 +1422,7 @@ class TestPriceListValidityGuard(_ReportPeriodMixin, MasuTestCase):
 
         mock_cleanup.assert_called()
         mock_rtu.assert_not_called()
-        mock_agg.assert_called()
+        mock_dist.assert_called()
         mock_vm.assert_called()
         mock_monthly.assert_called()
         mock_markup.assert_called()
