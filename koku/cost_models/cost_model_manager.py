@@ -184,7 +184,26 @@ class CostModelManager:
         providers_query = CostModelMap.objects.filter(cost_model=self._model)
         provider_uuids = [provider.provider_uuid for provider in providers_query]
         providers_qs_list = Provider.objects.filter(uuid__in=provider_uuids)
-        date_helper = DateHelper()
+        ocp_provider_uuids = [
+            provider.uuid for provider in providers_qs_list if provider.type == Provider.PROVIDER_OCP
+        ]
+        manifests_by_provider = {}
+        if ocp_provider_uuids:
+            date_helper = DateHelper()
+            manifests = (
+                CostUsageReportManifest.objects.filter(
+                    provider__in=ocp_provider_uuids,
+                    billing_period_start_datetime__in=[
+                        date_helper.this_month_start,
+                        date_helper.last_month_start,
+                    ],
+                    creation_datetime__isnull=False,
+                )
+                .order_by("provider", "-creation_datetime")
+                .distinct("provider")
+            )
+            manifests_by_provider = {manifest.provider_id: manifest for manifest in manifests}
+
         provider_names_uuids = []
         for provider in providers_qs_list:
             source = {
@@ -193,19 +212,8 @@ class CostModelManager:
                 "last_processed": provider.data_updated_timestamp,
             }
             if provider.type == Provider.PROVIDER_OCP:
-                manifest = (
-                    CostUsageReportManifest.objects.filter(
-                        provider=provider.uuid,
-                        billing_period_start_datetime__in=[
-                            date_helper.this_month_start,
-                            date_helper.last_month_start,
-                        ],
-                        creation_datetime__isnull=False,
-                    )
-                    .order_by("-creation_datetime")
-                    .first()
-                )
-                if manifest:
+                manifest = manifests_by_provider.get(provider.uuid)
+                if manifest and manifest.operator_version:
                     current_version = manifest.operator_version.split(":")[-1].lstrip("v")
                     try:
                         source["operator_update_available"] = Version(current_version) < Version(

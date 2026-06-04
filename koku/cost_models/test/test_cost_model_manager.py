@@ -231,6 +231,11 @@ class CostModelManagerTest(IamTestCase):
                         sources = manager.get_provider_names_uuids()
                     self.assertEqual(sources[0]["operator_update_available"], update_available)
 
+            manifest.operator_version = None
+            manifest.save()
+            sources = manager.get_provider_names_uuids()
+            self.assertNotIn("operator_update_available", sources[0])
+
             manifest.operator_version = str(uuid4())
             manifest.save()
             sources = manager.get_provider_names_uuids()
