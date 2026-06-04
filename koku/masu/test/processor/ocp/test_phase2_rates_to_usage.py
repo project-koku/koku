@@ -1727,9 +1727,7 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
     @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
     @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
-    def test_phase4_per_month_order(
-        self, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions
-    ):
+    def test_phase4_per_month_order(self, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions):
         """Per-month order must be: distribute -> aggregate -> markup -> ui."""
         call_order = []
         mock_dist_sql.side_effect = lambda sr, *a, **kw: (call_order.append("dist"), sr)[1]
@@ -1742,7 +1740,8 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
         updater.distribute_costs_and_update_ui_summary(sr)
 
         self.assertEqual(
-            call_order, ["dist", "agg", "markup", "ui"],
+            call_order,
+            ["dist", "agg", "markup", "ui"],
             f"Expected [dist, agg, markup, ui] but got {call_order}",
         )
 
@@ -1751,9 +1750,7 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
     @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
     @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
-    def test_distribute_calls_dist_entry_point(
-        self, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions
-    ):
+    def test_distribute_calls_dist_entry_point(self, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions):
         """distribute_costs_and_update_ui_summary invokes accessor.populate_distributed_cost_sql."""
         mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
 
@@ -1786,7 +1783,8 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
             rp.refresh_from_db()
         if old_datetime is not None:
             self.assertGreater(
-                rp.derived_cost_datetime, old_datetime,
+                rp.derived_cost_datetime,
+                old_datetime,
                 "derived_cost_datetime should be updated after pipeline run",
             )
         else:
