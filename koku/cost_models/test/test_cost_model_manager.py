@@ -4,14 +4,18 @@
 #
 """Test the Cost Model Manager."""
 from unittest.mock import patch
+from uuid import uuid4
 
 from django_tenants.utils import tenant_context
+from model_bakery import baker
 
 from api.iam.models import Customer
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
 from api.provider.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.utils import DateHelper
 from common.queues import PriorityQueue
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
@@ -19,6 +23,7 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
+from reporting_common.models import CostUsageReportManifest
 
 
 class MockResponse:
@@ -175,6 +180,65 @@ class CostModelManagerTest(IamTestCase):
 
             # Make sure second cost model was never created.
             self.assertIsNone(second_cost_model_obj)
+
+    def test_get_provider_names_uuids_operator_update_available(self):
+        """Sources include operator_update_available for OCP providers with a manifest."""
+        provider_authentication = ProviderAuthentication.objects.create(
+            credentials={"cluster_id": "cluster_id_cost_model_sources"}
+        )
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(
+                name="ocp_provider_sources",
+                type=Provider.PROVIDER_OCP,
+                created_by=self.user,
+                customer=self.customer,
+                authentication=provider_authentication,
+            )
+        date_helper = DateHelper()
+        manifest = baker.make(
+            CostUsageReportManifest,
+            provider=provider,
+            billing_period_start_datetime=date_helper.this_month_start,
+            operator_version="koku-metrics-operator:v4.7.0",
+            creation_datetime=date_helper.now_utc,
+        )
+        cost_model_data = {
+            "name": "Test Cost Model Operator Update",
+            "description": "Test",
+            "provider_uuids": [provider.uuid],
+            "rates": [
+                {
+                    "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR},
+                    "source_type": Provider.PROVIDER_OCP,
+                    "tiered_rates": [{"unit": "USD", "value": 0.22}],
+                }
+            ],
+        }
+        with tenant_context(self.tenant):
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+                cost_model_obj = CostModelManager().create(**cost_model_data)
+            manager = CostModelManager(cost_model_obj.uuid)
+
+            test_matrix = [
+                ("koku-metrics-operator:v4.7.0", "4.8.0", True),
+                ("koku-metrics-operator:v4.8.0", "4.8.0", False),
+            ]
+            for operator_version, latest_version, update_available in test_matrix:
+                with self.subTest(operator_version=operator_version, latest_version=latest_version):
+                    manifest.operator_version = operator_version
+                    manifest.save()
+                    with patch("masu.util.ocp.operator_versions.LATEST_OPERATOR_VERSION", new=latest_version):
+                        sources = manager.get_provider_names_uuids()
+                    self.assertEqual(sources[0]["operator_update_available"], update_available)
+
+            manifest.operator_version = str(uuid4())
+            manifest.save()
+            sources = manager.get_provider_names_uuids()
+            self.assertFalse(sources[0]["operator_update_available"])
+
+            manifest.delete()
+            sources = manager.get_provider_names_uuids()
+            self.assertNotIn("operator_update_available", sources[0])
 
     def test_create_with_two_providers(self):
         """Test creating a cost model with multiple providers."""

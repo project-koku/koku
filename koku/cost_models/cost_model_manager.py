@@ -9,6 +9,8 @@ import uuid
 from datetime import date
 
 from django.db import transaction
+from packaging.version import InvalidVersion
+from packaging.version import Version
 
 from api.provider.models import Provider
 from api.utils import DateHelper
@@ -23,6 +25,8 @@ from cost_models.rate_sync import extract_default_rate  # noqa: F401
 from cost_models.rate_sync import generate_custom_name  # noqa: F401
 from cost_models.rate_sync import sync_rate_table
 from masu.processor.tasks import update_cost_model_costs
+from masu.util.ocp.operator_versions import LATEST_OPERATOR_VERSION
+from reporting_common.models import CostUsageReportManifest
 
 LOG = logging.getLogger(__name__)
 
@@ -180,12 +184,34 @@ class CostModelManager:
         providers_query = CostModelMap.objects.filter(cost_model=self._model)
         provider_uuids = [provider.provider_uuid for provider in providers_query]
         providers_qs_list = Provider.objects.filter(uuid__in=provider_uuids)
-        provider_names_uuids = [
-            {
+        date_helper = DateHelper()
+        provider_names_uuids = []
+        for provider in providers_qs_list:
+            source = {
                 "uuid": str(provider.uuid),
                 "name": provider.name,
                 "last_processed": provider.data_updated_timestamp,
             }
-            for provider in providers_qs_list
-        ]
+            if provider.type == Provider.PROVIDER_OCP:
+                manifest = (
+                    CostUsageReportManifest.objects.filter(
+                        provider=provider.uuid,
+                        billing_period_start_datetime__in=[
+                            date_helper.this_month_start,
+                            date_helper.last_month_start,
+                        ],
+                        creation_datetime__isnull=False,
+                    )
+                    .order_by("-creation_datetime")
+                    .first()
+                )
+                if manifest:
+                    current_version = manifest.operator_version.split(":")[-1].lstrip("v")
+                    try:
+                        source["operator_update_available"] = Version(current_version) < Version(
+                            LATEST_OPERATOR_VERSION
+                        )
+                    except InvalidVersion:
+                        source["operator_update_available"] = False
+            provider_names_uuids.append(source)
         return provider_names_uuids
