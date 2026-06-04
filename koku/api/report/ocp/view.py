@@ -118,8 +118,39 @@ class OCPCostBreakdownView(OCPView):
     report = "cost_breakdown"
     serializer = OCPCostBreakdownQueryParamSerializer
 
+    @staticmethod
+    def _build_tree(values):
+        """Reconstruct a nested tree from flat breakdown rows using path/parent_path."""
+        nodes = {}
+        for item in values:
+            path = item.get("path", "")
+            nodes[path] = {**item, "children": []}
+
+        root = None
+        for path, node in nodes.items():
+            parent_path = node.get("parent_path", "")
+            if parent_path and parent_path in nodes:
+                nodes[parent_path]["children"].append(node)
+            if node.get("depth") == 1:
+                root = node
+
+        return root or {}
+
+    @classmethod
+    def _transform_to_tree(cls, data_item):
+        """Recursively find 'values' lists and replace with nested 'tree'."""
+        if isinstance(data_item, dict):
+            if "values" in data_item:
+                data_item["tree"] = cls._build_tree(data_item.pop("values"))
+            else:
+                for value in data_item.values():
+                    cls._transform_to_tree(value)
+        elif isinstance(data_item, list):
+            for item in data_item:
+                cls._transform_to_tree(item)
+
     def get(self, request, **kwargs):
-        """Get cost breakdown with audit logging."""
+        """Get cost breakdown with audit logging and optional tree view."""
         LOG.info(
             "cost_breakdown API request",
             extra={
@@ -127,4 +158,10 @@ class OCPCostBreakdownView(OCPView):
                 "path_params": dict(request.query_params),
             },
         )
-        return super().get(request, **kwargs)
+        response = super().get(request, **kwargs)
+
+        if request.query_params.get("view") == "tree" and hasattr(response, "data"):
+            for date_group in response.data.get("data", []):
+                self._transform_to_tree(date_group)
+
+        return response

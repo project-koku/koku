@@ -1319,6 +1319,7 @@ class OCPProviderMap(ProviderMap):
                             "metric_type": F("metric_type"),
                             "cost_model_rate_type": F("cost_model_rate_type"),
                         },
+                        "group_by_options": ["cluster", "project", "node"],
                         "filter": [{}],
                         "cost_units_key": None,
                         "sum_columns": ["cost_value", "distributed_cost"],
@@ -1383,6 +1384,10 @@ class OCPProviderMap(ProviderMap):
             "cost_breakdown": {
                 "default": OCPCostUIBreakDownP,
                 ("cluster",): OCPCostUIBreakDownP,
+                ("project",): OCPCostUIBreakDownP,
+                ("node",): OCPCostUIBreakDownP,
+                ("cluster", "project"): OCPCostUIBreakDownP,
+                ("cluster", "node"): OCPCostUIBreakDownP,
             },
         }
         super().__init__(provider, report_type, schema_name)

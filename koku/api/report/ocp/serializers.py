@@ -513,11 +513,35 @@ class OCPMigProfilesQueryParamSerializer(OCPQueryParamSerializer):
         return data
 
 
+class CostBreakdownFlatItemSerializer(serializers.Serializer):
+    """Response serializer for flat breakdown items."""
+
+    depth = serializers.IntegerField()
+    custom_name = serializers.CharField()
+    path = serializers.CharField()
+    parent_path = serializers.CharField()
+    cost_value = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
+    distributed_cost = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
+    metric_type = serializers.CharField()
+
+
+class CostBreakdownTreeNodeSerializer(serializers.Serializer):
+    """Response serializer for tree breakdown nodes."""
+
+    custom_name = serializers.CharField()
+    cost_value = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
+    distributed_cost = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
+    metric_type = serializers.CharField()
+    children = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+
+
 class OCPCostBreakdownGroupBySerializer(GroupSerializer):
     """Serializer for cost breakdown group_by parameters."""
 
-    _opfields = ("cluster",)
+    _opfields = ("cluster", "project", "node")
     cluster = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPCostBreakdownOrderBySerializer(OrderSerializer):
@@ -532,9 +556,11 @@ class OCPCostBreakdownOrderBySerializer(OrderSerializer):
 class OCPCostBreakdownFilterSerializer(BaseFilterSerializer):
     """Serializer for cost breakdown filter parameters."""
 
-    _opfields = ("cluster", "path", "depth", "top_category")
+    _opfields = ("cluster", "project", "node", "path", "depth", "top_category")
 
     cluster = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
     path = serializers.RegexField(r"^[a-zA-Z0-9_.]+$", max_length=200, required=False)
     depth = serializers.IntegerField(min_value=1, max_value=5, required=False)
     top_category = serializers.ChoiceField(choices=(("project", "project"), ("overhead", "overhead")), required=False)
