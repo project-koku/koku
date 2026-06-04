@@ -1,8 +1,8 @@
--- aggregate_rates_to_daily_summary.sql (Phase 3)
+-- aggregate_rates_to_daily_summary.sql (Phase 3/4)
 --
 -- Rolls up per-rate RatesToUsage rows into daily summary cost columns.
--- Runs AFTER all per-rate INSERTs (usage, monthly, tag) and BEFORE
--- cost distribution.
+-- Runs AFTER all per-rate INSERTs (usage, monthly, tag) and AFTER
+-- cost distribution (Phase 4 re-ordered: distribute -> aggregate -> markup).
 --
 -- Block 1: Aggregates usage-cost RTU rows (monthly_cost_type IS NULL)
 --   with a base-row JOIN for capacity columns not stored in RTU.
