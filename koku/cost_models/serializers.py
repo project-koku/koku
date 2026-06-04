@@ -136,7 +136,7 @@ class TagRateValueSerializer(serializers.Serializer):
     unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
     usage = serializers.DictField(required=False)
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
-    description = serializers.CharField(allow_blank=True, max_length=500)
+    description = serializers.CharField(allow_blank=True, max_length=500, required=False)
     default = serializers.BooleanField()
 
     def validate_value(self, value):
