@@ -190,19 +190,17 @@ class CostModelManager:
         manifests_by_provider = {}
         if ocp_provider_uuids:
             date_helper = DateHelper()
-            manifests = (
-                CostUsageReportManifest.objects.filter(
-                    provider__in=ocp_provider_uuids,
-                    billing_period_start_datetime__in=[
-                        date_helper.this_month_start,
-                        date_helper.last_month_start,
-                    ],
-                    creation_datetime__isnull=False,
-                )
-                .order_by("provider", "-creation_datetime")
-                .distinct("provider")
-            )
-            manifests_by_provider = {manifest.provider_id: manifest for manifest in manifests}
+            manifests = CostUsageReportManifest.objects.filter(
+                provider__in=ocp_provider_uuids,
+                billing_period_start_datetime__in=[
+                    date_helper.this_month_start,
+                    date_helper.last_month_start,
+                ],
+                creation_datetime__isnull=False,
+            ).order_by("-creation_datetime")
+            for manifest in manifests:
+                if manifest.provider_id not in manifests_by_provider:
+                    manifests_by_provider[manifest.provider_id] = manifest
 
         provider_names_uuids = []
         for provider in providers_qs_list:

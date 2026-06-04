@@ -227,7 +227,7 @@ class CostModelManagerTest(IamTestCase):
                 with self.subTest(operator_version=operator_version, latest_version=latest_version):
                     manifest.operator_version = operator_version
                     manifest.save()
-                    with patch("masu.util.ocp.operator_versions.LATEST_OPERATOR_VERSION", new=latest_version):
+                    with patch("cost_models.cost_model_manager.LATEST_OPERATOR_VERSION", new=latest_version):
                         sources = manager.get_provider_names_uuids()
                     self.assertEqual(sources[0]["operator_update_available"], update_available)
 
