@@ -80,13 +80,19 @@ SELECT
     NULL,
     SUM(r.distributed_cost),
     'overhead.' || r.monthly_cost_type
-        || '.' || CASE WHEN r.metric_type = 'markup' THEN 'markup' ELSE 'usage_cost' END
+        || '.' || CASE WHEN r.metric_type = 'markup' THEN 'markup'
+                       WHEN r.cost_model_rate_type = 'Infrastructure' THEN 'infrastructure'
+                       ELSE 'usage_cost' END
         || '.' || r.custom_name,
     5,
     'overhead.' || r.monthly_cost_type
-        || '.' || CASE WHEN r.metric_type = 'markup' THEN 'markup' ELSE 'usage_cost' END,
+        || '.' || CASE WHEN r.metric_type = 'markup' THEN 'markup'
+                       WHEN r.cost_model_rate_type = 'Infrastructure' THEN 'infrastructure'
+                       ELSE 'usage_cost' END,
     'overhead',
-    CASE WHEN r.metric_type = 'markup' THEN 'markup' ELSE 'usage_cost' END
+    CASE WHEN r.metric_type = 'markup' THEN 'markup'
+         WHEN r.cost_model_rate_type = 'Infrastructure' THEN 'infrastructure'
+         ELSE 'usage_cost' END
 FROM {{schema | sqlsafe}}.rates_to_usage r
 WHERE r.usage_start >= {{start_date}}::date
     AND r.usage_start <= {{end_date}}::date
