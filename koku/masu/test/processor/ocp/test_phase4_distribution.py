@@ -143,11 +143,7 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            days = (
-                self._distributed_qs(dist_type)
-                .values_list("usage_start", flat=True)
-                .distinct()[:3]
-            )
+            days = self._distributed_qs(dist_type).values_list("usage_start", flat=True).distinct()[:3]
             for day in days:
                 day_rows = self._distributed_qs(dist_type).filter(usage_start=day)
                 rates = day_rows.values_list("custom_name", flat=True).distinct()
@@ -201,9 +197,7 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
 
         with schema_context(self.schema):
             source_rates = set(
-                self._source_qs(dist_type)
-                .values_list("custom_name", "metric_type", "cost_model_rate_type")
-                .distinct()
+                self._source_qs(dist_type).values_list("custom_name", "metric_type", "cost_model_rate_type").distinct()
             )
             if not source_rates:
                 self.skipTest("No source rows for platform distribution")
@@ -244,11 +238,7 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            day = (
-                self._distributed_qs(dist_type)
-                .values_list("usage_start", flat=True)
-                .first()
-            )
+            day = self._distributed_qs(dist_type).values_list("usage_start", flat=True).first()
             if not day:
                 self.skipTest("No distributed rows")
 
@@ -298,12 +288,8 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            total_distributed = (
-                self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
-            )
-            total_source = (
-                self._source_qs(dist_type).aggregate(t=Sum("calculated_cost"))["t"] or Decimal(0)
-            )
+            total_distributed = self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+            total_source = self._source_qs(dist_type).aggregate(t=Sum("calculated_cost"))["t"] or Decimal(0)
             if total_source == 0:
                 self.skipTest("No source cost to distribute")
 
@@ -320,15 +306,13 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
     def test_07_sign_invariant(self):
         """All distributed_cost values for recipient rows are positive."""
         with schema_context(self.schema):
-            negative_count = (
-                RatesToUsage.objects.filter(
-                    source_uuid=self.provider_uuid,
-                    usage_start__gte=self.start_date,
-                    usage_start__lte=self.end_date,
-                    monthly_cost_type__isnull=False,
-                    distributed_cost__lt=0,
-                ).count()
-            )
+            negative_count = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                monthly_cost_type__isnull=False,
+                distributed_cost__lt=0,
+            ).count()
             self.assertEqual(
                 negative_count,
                 0,
@@ -425,9 +409,7 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            original_sum = (
-                self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
-            )
+            original_sum = self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
             original_count = self._distributed_qs(dist_type).count()
 
             RatesToUsage.objects.filter(
@@ -460,12 +442,14 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         )
 
 
-DISTRIBUTION_SOURCE_NAMESPACES = frozenset({
-    "Worker unallocated",
-    "Storage unattributed",
-    "Network unattributed",
-    "GPU unallocated",
-})
+DISTRIBUTION_SOURCE_NAMESPACES = frozenset(
+    {
+        "Worker unallocated",
+        "Storage unattributed",
+        "Network unattributed",
+        "GPU unallocated",
+    }
+)
 
 
 class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
@@ -551,9 +535,11 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
         """
         with schema_context(self.schema):
             project_leaves = self._breakdown_qs(top_category="project", depth=4)
-            source_ns_in_project = project_leaves.filter(
-                namespace__in=DISTRIBUTION_SOURCE_NAMESPACES
-            ).values_list("namespace", flat=True).distinct()
+            source_ns_in_project = (
+                project_leaves.filter(namespace__in=DISTRIBUTION_SOURCE_NAMESPACES)
+                .values_list("namespace", flat=True)
+                .distinct()
+            )
             source_ns_list = list(source_ns_in_project)
         self.assertEqual(
             source_ns_list,
@@ -609,28 +595,28 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
                 total_cv=Sum("cost_value"),
                 total_dc=Sum("distributed_cost"),
             )
-            project_leaf_sum = (
-                self._breakdown_qs(depth=4, top_category="project")
-                .aggregate(total=Sum("cost_value"))["total"]
-                or Decimal(0)
-            )
-            overhead_leaf_sum = (
-                self._breakdown_qs(depth=5, top_category="overhead")
-                .aggregate(total=Sum("distributed_cost"))["total"]
-                or Decimal(0)
-            )
+            project_leaf_sum = self._breakdown_qs(depth=4, top_category="project").aggregate(total=Sum("cost_value"))[
+                "total"
+            ] or Decimal(0)
+            overhead_leaf_sum = self._breakdown_qs(depth=5, top_category="overhead").aggregate(
+                total=Sum("distributed_cost")
+            )["total"] or Decimal(0)
 
         root_cv = root["total_cv"] or Decimal(0)
         root_dc = root["total_dc"] or Decimal(0)
 
         if project_leaf_sum > 0:
             self.assertAlmostEqual(
-                float(root_cv), float(project_leaf_sum), places=2,
+                float(root_cv),
+                float(project_leaf_sum),
+                places=2,
                 msg="Root cost_value != sum of project leaf cost_values",
             )
         if overhead_leaf_sum > 0:
             self.assertAlmostEqual(
-                float(root_dc), float(overhead_leaf_sum), places=2,
+                float(root_dc),
+                float(overhead_leaf_sum),
+                places=2,
                 msg="Root distributed_cost != sum of overhead leaf distributed_costs",
             )
 
@@ -659,9 +645,7 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
         """
         with schema_context(self.schema):
             pre_count = self._breakdown_qs().count()
-            pre_totals = self._breakdown_qs().aggregate(
-                cv=Sum("cost_value"), dc=Sum("distributed_cost")
-            )
+            pre_totals = self._breakdown_qs().aggregate(cv=Sum("cost_value"), dc=Sum("distributed_cost"))
 
         summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
         with OCPReportDBAccessor(self.schema) as accessor:
@@ -673,16 +657,18 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
 
         with schema_context(self.schema):
             post_count = self._breakdown_qs().count()
-            post_totals = self._breakdown_qs().aggregate(
-                cv=Sum("cost_value"), dc=Sum("distributed_cost")
-            )
+            post_totals = self._breakdown_qs().aggregate(cv=Sum("cost_value"), dc=Sum("distributed_cost"))
 
         self.assertEqual(pre_count, post_count, "Idempotency: row count changed")
         self.assertAlmostEqual(
-            float(pre_totals["cv"] or 0), float(post_totals["cv"] or 0), places=10,
+            float(pre_totals["cv"] or 0),
+            float(post_totals["cv"] or 0),
+            places=10,
             msg="Idempotency: cost_value total changed",
         )
         self.assertAlmostEqual(
-            float(pre_totals["dc"] or 0), float(post_totals["dc"] or 0), places=10,
+            float(pre_totals["dc"] or 0),
+            float(post_totals["dc"] or 0),
+            places=10,
             msg="Idempotency: distributed_cost total changed",
         )

@@ -34,8 +34,8 @@ from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 from reporting.provider.ocp.models import OCPCostSummaryP
-from reporting.provider.ocp.models import OCPGpuSummaryP
 from reporting.provider.ocp.models import OCPCostUIBreakDownP
+from reporting.provider.ocp.models import OCPGpuSummaryP
 from reporting.provider.ocp.models import OCPNetworkSummaryByNodeP
 from reporting.provider.ocp.models import OCPNetworkSummaryByProjectP
 from reporting.provider.ocp.models import OCPNetworkSummaryP
