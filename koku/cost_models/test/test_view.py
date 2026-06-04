@@ -760,3 +760,28 @@ class CostModelViewTests(IamTestCase):
             item for item in list_response.data["data"] if item["uuid"] == str(self.fake_data_cost_model_uuid)
         )
         self.assertEqual(list_entry["price_lists"], price_lists)
+
+    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    def test_cost_model_response_includes_price_list_dates(self, _):
+        """Test that cost model GET response includes effective start/end dates for price lists."""
+        with tenant_context(self.tenant):
+            price_list = PriceList.objects.create(
+                name="Test PL",
+                description="",
+                currency="USD",
+                effective_start_date="2026-01-01",
+                effective_end_date="2026-06-30",
+                rates=[],
+            )
+            PriceListManager.attach_price_lists_to_cost_model(self.fake_data_cost_model_uuid, [price_list.uuid])
+
+        url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        price_lists = response.data.get("price_lists", [])
+        self.assertEqual(len(price_lists), 1)
+        self.assertEqual(price_lists[0]["uuid"], str(price_list.uuid))
+        self.assertEqual(price_lists[0]["effective_start_date"], "2026-01-01")
+        self.assertEqual(price_lists[0]["effective_end_date"], "2026-06-30")
