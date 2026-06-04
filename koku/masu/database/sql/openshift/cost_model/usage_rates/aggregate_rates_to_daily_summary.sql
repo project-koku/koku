@@ -145,6 +145,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cost_category_id, cost_model_rate_type,
     cost_model_cpu_cost, cost_model_memory_cost, cost_model_volume_cost,
     cost_model_gpu_cost,
+    distributed_cost,
     monthly_cost_type
 )
 SELECT
@@ -168,6 +169,7 @@ SELECT
     SUM(CASE WHEN rtu.metric_type = 'memory'  THEN rtu.calculated_cost ELSE 0 END),
     SUM(CASE WHEN rtu.metric_type = 'storage' THEN rtu.calculated_cost ELSE 0 END),
     SUM(CASE WHEN rtu.metric_type = 'gpu'     THEN rtu.calculated_cost ELSE 0 END),
+    SUM(COALESCE(rtu.distributed_cost, 0)),
     rtu.monthly_cost_type
 FROM {{schema | sqlsafe}}.rates_to_usage rtu
 WHERE rtu.usage_start >= {{start_date}}
