@@ -534,7 +534,7 @@ class TestValidateRatesToUsage(_ReportPeriodMixin, MasuTestCase):
             )
         mock_execute.assert_called_once()
         args, kwargs = mock_execute.call_args
-        self.assertEqual(kwargs.get("operation"), "SELECT")
+        self.assertEqual(kwargs.get("operation"), "VALIDATION_QUERY")
 
     # TC-32: params include report_period_id
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
@@ -1704,3 +1704,48 @@ class TestRoutingMetricType(MasuTestCase):
     def test_node_core_hour(self):
         result = OCPReportDBAccessor._get_routing_metric_type(cost_type="Node_Core_Hour", distribution="cpu")
         self.assertEqual(result, "cpu")
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 Gap Closure — Validation Bugfix Tests (COST-7249-P2GC-TP-001)
+# ---------------------------------------------------------------------------
+
+
+class TestValidateRatesToUsageFix(_ReportPeriodMixin, MasuTestCase):
+    """Test validate_rates_against_daily_summary returns results (BAC-24, BAC-25)."""
+
+    # TC-65: validate_rates_against_daily_summary uses VALIDATION_QUERY operation
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_validation_uses_validation_query_operation(self, mock_execute):
+        """BAC-24: operation='VALIDATION_QUERY' is passed so cursor.fetchall() returns results."""
+        dh = DateHelper()
+        with OCPReportDBAccessor(self.schema) as accessor:
+            rp = self._get_report_period(accessor)
+            accessor.validate_rates_against_daily_summary(
+                dh.this_month_start.date(),
+                dh.this_month_end.date(),
+                self.ocp_provider_uuid,
+                rp.id,
+            )
+        mock_execute.assert_called_once()
+        args, kwargs = mock_execute.call_args
+        self.assertEqual(
+            kwargs.get("operation"),
+            "VALIDATION_QUERY",
+            "validate_rates_against_daily_summary must use operation='VALIDATION_QUERY' to return results",
+        )
+
+    # TC-75: validate_rates_against_daily_summary returns a list (not None)
+    def test_validation_returns_list(self):
+        """BAC-25: validate_rates_against_daily_summary returns a list, not None."""
+        dh = DateHelper()
+        with OCPReportDBAccessor(self.schema) as accessor:
+            rp = self._get_report_period(accessor)
+            result = accessor.validate_rates_against_daily_summary(
+                dh.this_month_start.date(),
+                dh.this_month_end.date(),
+                self.ocp_provider_uuid,
+                rp.id,
+            )
+        self.assertIsNotNone(result, "validate_rates_against_daily_summary should return a list, not None")
+        self.assertIsInstance(result, list, "Result should be a list of diff rows")

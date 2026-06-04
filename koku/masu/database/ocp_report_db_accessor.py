@@ -1228,7 +1228,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             self._table_map["line_item_daily_summary"],
             sql,
             sql_params,
-            operation="SELECT",
+            operation="VALIDATION_QUERY",
         )
 
     def populate_tag_usage_costs(  # noqa: C901
