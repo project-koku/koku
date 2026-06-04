@@ -720,6 +720,8 @@ class CostModelSerializer(BaseSerializer):
                 "uuid": str(m.price_list.uuid),
                 "name": m.price_list.name,
                 "priority": m.priority,
+                "version": m.price_list.version,
+                "enabled": m.price_list.enabled,
             }
             for m in price_list_maps
         ]
