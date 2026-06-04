@@ -511,3 +511,48 @@ class OCPMigProfilesQueryParamSerializer(OCPQueryParamSerializer):
             )
 
         return data
+
+
+class OCPCostBreakdownGroupBySerializer(GroupSerializer):
+    """Serializer for cost breakdown group_by parameters."""
+
+    _opfields = ("cluster",)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+
+
+class OCPCostBreakdownOrderBySerializer(OrderSerializer):
+    """Serializer for cost breakdown order_by parameters."""
+
+    _opfields = ("path", "depth", "cost_value")
+    path = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    depth = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    cost_value = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+
+
+class OCPCostBreakdownFilterSerializer(BaseFilterSerializer):
+    """Serializer for cost breakdown filter parameters."""
+
+    _opfields = ("cluster", "path", "depth", "top_category")
+
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    path = serializers.RegexField(r"^[a-zA-Z0-9_.]+$", max_length=200, required=False)
+    depth = serializers.IntegerField(min_value=1, max_value=5, required=False)
+    top_category = serializers.ChoiceField(choices=(("project", "project"), ("overhead", "overhead")), required=False)
+
+
+class OCPCostBreakdownExcludeSerializer(BaseExcludeSerializer):
+    """Serializer for cost breakdown exclude parameters."""
+
+    _opfields = ("cluster",)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+
+
+class OCPCostBreakdownQueryParamSerializer(ReportQueryParamSerializer):
+    """Serializer for cost breakdown query parameters."""
+
+    GROUP_BY_SERIALIZER = OCPCostBreakdownGroupBySerializer
+    ORDER_BY_SERIALIZER = OCPCostBreakdownOrderBySerializer
+    FILTER_SERIALIZER = OCPCostBreakdownFilterSerializer
+    EXCLUDE_SERIALIZER = OCPCostBreakdownExcludeSerializer
+
+    view = serializers.ChoiceField(choices=(("flat", "flat"), ("tree", "tree")), required=False, default="flat")

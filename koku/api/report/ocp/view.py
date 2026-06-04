@@ -3,13 +3,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for OpenShift Usage Reports."""
+import logging
+
 from rest_framework import status
+
+LOG = logging.getLogger(__name__)
 from rest_framework.response import Response
 
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.throttling import OcpTagQueryThrottle
 from api.models import Provider
 from api.report.ocp.query_handler import OCPReportQueryHandler
+from api.report.ocp.serializers import OCPCostBreakdownQueryParamSerializer
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
 from api.report.ocp.serializers import OCPGpuQueryParamSerializer
 from api.report.ocp.serializers import OCPInventoryQueryParamSerializer
@@ -104,4 +109,22 @@ class OCPMigProfilesView(OCPView):
         if not is_feature_flag_enabled_by_schema(schema, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
+        return super().get(request, **kwargs)
+
+
+class OCPCostBreakdownView(OCPView):
+    """Get OpenShift per-rate cost breakdown data."""
+
+    report = "cost_breakdown"
+    serializer = OCPCostBreakdownQueryParamSerializer
+
+    def get(self, request, **kwargs):
+        """Get cost breakdown with audit logging."""
+        LOG.info(
+            "cost_breakdown API request",
+            extra={
+                "user": getattr(request.user, "username", None),
+                "path_params": dict(request.query_params),
+            },
+        )
         return super().get(request, **kwargs)

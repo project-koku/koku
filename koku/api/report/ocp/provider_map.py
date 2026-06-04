@@ -43,6 +43,7 @@ from reporting.provider.ocp.models import OCPPodSummaryByProjectP
 from reporting.provider.ocp.models import OCPPodSummaryP
 from reporting.provider.ocp.models import OCPVirtualMachineSummaryP
 from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
+from reporting.provider.ocp.models import OCPCostUIBreakDownP
 from reporting.provider.ocp.models import OCPVolumeSummaryP
 
 
@@ -1301,6 +1302,27 @@ class OCPProviderMap(ProviderMap):
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                     },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
+                    "cost_breakdown": {
+                        "tables": {"query": OCPCostUIBreakDownP},
+                        "aggregates": {
+                            "cost_value": Sum("cost_value"),
+                            "distributed_cost": Sum("distributed_cost"),
+                        },
+                        "default_ordering": {"path": "asc"},
+                        "annotations": {
+                            "path": F("path"),
+                            "depth": F("depth"),
+                            "parent_path": F("parent_path"),
+                            "top_category": F("top_category"),
+                            "breakdown_category": F("breakdown_category"),
+                            "custom_name": F("custom_name"),
+                            "metric_type": F("metric_type"),
+                            "cost_model_rate_type": F("cost_model_rate_type"),
+                        },
+                        "filter": [{}],
+                        "cost_units_key": None,
+                        "sum_columns": ["cost_value", "distributed_cost"],
+                    },
                 },
                 "start_date": "usage_start",
                 "tables": {"query": OCPUsageLineItemDailySummary},
@@ -1357,6 +1379,10 @@ class OCPProviderMap(ProviderMap):
             },
             "gpu": {
                 "default": OCPGpuSummaryP,
+            },
+            "cost_breakdown": {
+                "default": OCPCostUIBreakDownP,
+                ("cluster",): OCPCostUIBreakDownP,
             },
         }
         super().__init__(provider, report_type, schema_name)
