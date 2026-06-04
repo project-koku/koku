@@ -2012,3 +2012,77 @@ class TestValidateRatesToUsageFix(_ReportPeriodMixin, MasuTestCase):
             )
         self.assertIsNotNone(result, "validate_rates_against_daily_summary should return a list, not None")
         self.assertIsInstance(result, list, "Result should be a list of diff rows")
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 Gap Closure — Prometheus Instrumentation Tests (COST-7249-P2GC-TP-001)
+# ---------------------------------------------------------------------------
+
+
+class TestPrometheusMetricRegistration(MasuTestCase):
+    """Test that RTU Prometheus metrics are registered (BAC-21, BAC-22)."""
+
+    # TC-63: RTU metrics exist in prometheus_stats module
+    def test_rtu_metrics_registered(self):
+        """BAC-21: RTU Prometheus metrics are importable from prometheus_stats."""
+        from masu import prometheus_stats
+
+        for metric_name in (
+            "RTU_POPULATE_DURATION",
+            "RTU_AGGREGATE_DURATION",
+            "RTU_MARKUP_DURATION",
+        ):
+            self.assertTrue(
+                hasattr(prometheus_stats, metric_name),
+                f"Missing metric {metric_name} in prometheus_stats",
+            )
+
+    # TC-64: RTU metrics have correct label set (provider_type only)
+    def test_rtu_metrics_labels(self):
+        """BAC-22: RTU metrics use only ['provider_type'] label to avoid cardinality explosion."""
+        from masu import prometheus_stats
+
+        for metric_name in ("RTU_POPULATE_DURATION", "RTU_AGGREGATE_DURATION", "RTU_MARKUP_DURATION"):
+            metric = getattr(prometheus_stats, metric_name)
+            self.assertEqual(
+                metric._labelnames,
+                ("provider_type",),
+                f"{metric_name} should have exactly ['provider_type'] labels",
+            )
+
+
+class TestPrometheusTimingWrappers(_ReportPeriodMixin, MasuTestCase):
+    """Test that timing wrappers observe Prometheus metrics (BAC-23)."""
+
+    # TC-82: _update_usage_rates_to_usage observes RTU_POPULATE_DURATION
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.RTU_POPULATE_DURATION")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_usage_rates_to_usage")
+    def test_rtu_populate_observes_histogram(self, mock_populate, mock_histogram):
+        """BAC-23: _update_usage_rates_to_usage records duration in RTU_POPULATE_DURATION."""
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not updater._cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        dh = DateHelper()
+        updater._load_rates(dh.this_month_start.date())
+        updater._update_usage_rates_to_usage(dh.this_month_start.date(), dh.this_month_end.date())
+        mock_histogram.labels.assert_called_with(provider_type=self.ocp_provider.type)
+        observe_args = mock_histogram.labels.return_value.observe.call_args
+        self.assertIsNotNone(observe_args, "observe() was never called on RTU_POPULATE_DURATION")
+        observed_duration = observe_args[0][0]
+        self.assertGreaterEqual(observed_duration, 0, "Duration must be non-negative")
+
+    # TC-83: _update_markup_cost observes RTU_MARKUP_DURATION
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.RTU_MARKUP_DURATION")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_markup_rtu_observes_histogram(self, mock_cost_accessor, _mock_rtu, mock_histogram):
+        """BAC-23: _update_markup_cost records duration in RTU_MARKUP_DURATION."""
+        mock_cost_accessor.return_value.__enter__.return_value.markup = {"value": 10, "unit": "percent"}
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        dh = DateHelper()
+        updater._update_markup_cost(dh.this_month_start, dh.this_month_end)
+        mock_histogram.labels.assert_called_with(provider_type=self.ocp_provider.type)
+        observe_args = mock_histogram.labels.return_value.observe.call_args
+        self.assertIsNotNone(observe_args, "observe() was never called on RTU_MARKUP_DURATION")
+        observed_duration = observe_args[0][0]
+        self.assertGreaterEqual(observed_duration, 0, "Duration must be non-negative")
