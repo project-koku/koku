@@ -36,8 +36,11 @@ SELECT
     r.cost_model_rate_type,
     SUM(r.calculated_cost),
     NULL,
-    (SELECT raw_currency FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-     WHERE source_uuid = {{source_uuid}}::uuid AND raw_currency IS NOT NULL LIMIT 1),
+    (SELECT MAX(raw_currency) FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+     WHERE source_uuid = {{source_uuid}}::uuid
+       AND usage_start >= {{start_date}}::date
+       AND usage_start <= {{end_date}}::date
+       AND raw_currency IS NOT NULL),
     'project.' || CASE WHEN r.metric_type = 'markup' THEN 'markup'
                        ELSE 'usage_cost'
                   END || '.' || r.custom_name,
@@ -58,6 +61,7 @@ WHERE r.usage_start >= {{start_date}}::date
     AND r.namespace NOT IN ('Worker unallocated', 'Storage unattributed', 'Network unattributed', 'GPU unallocated')
 GROUP BY r.usage_start, r.source_uuid, r.cluster_id,
          r.namespace, r.node, r.custom_name, r.metric_type, r.cost_model_rate_type
+HAVING SUM(r.calculated_cost) != 0
 ;
 
 -- Step 2: Depth 5 -- overhead per-rate distribution leaves
@@ -82,8 +86,11 @@ SELECT
     r.cost_model_rate_type,
     NULL,
     SUM(r.distributed_cost),
-    (SELECT raw_currency FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-     WHERE source_uuid = {{source_uuid}}::uuid AND raw_currency IS NOT NULL LIMIT 1),
+    (SELECT MAX(raw_currency) FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+     WHERE source_uuid = {{source_uuid}}::uuid
+       AND usage_start >= {{start_date}}::date
+       AND usage_start <= {{end_date}}::date
+       AND raw_currency IS NOT NULL),
     'overhead.' || r.monthly_cost_type
         || '.' || CASE WHEN r.metric_type = 'markup' THEN 'markup'
                        WHEN r.cost_model_rate_type = 'Infrastructure' THEN 'infrastructure'

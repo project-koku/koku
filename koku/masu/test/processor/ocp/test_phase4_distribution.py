@@ -25,6 +25,7 @@ from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdat
 from masu.test import MasuTestCase
 from masu.util.common import SummaryRangeConfig
 from reporting.provider.ocp.models import OCPCostUIBreakDownP
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import RatesToUsage
 
@@ -418,7 +419,11 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                 usage_start__lte=self.end_date,
                 monthly_cost_type=dist_type,
             ).delete()
-            self.assertEqual(self._distributed_qs(dist_type).count(), 0, "DELETE should clear all rows")
+            self.assertEqual(
+                self._distributed_qs(dist_type).count(),
+                0,
+                "DELETE should clear all rows",
+            )
 
         distribution_info = {
             "distribution_type": "cpu",
@@ -439,6 +444,97 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
             float(new_sum),
             places=10,
             msg="Re-run should produce same total distributed cost",
+        )
+
+
+class TestBreakdownSQLFixes(_ReportPeriodMixin, MasuTestCase):
+    """Tests for B1 (raw_currency date-scoping) and B2 (zero-cost filtering) fixes."""
+
+    _populated = False
+
+    def setUp(self):
+        super().setUp()
+        self.dh = DateHelper()
+        self.rp = self._get_report_period()
+        start = self.rp.report_period_start
+        end = self.dh.month_end(start)
+        self.start_date = start.date() if hasattr(start, "date") else start
+        self.end_date = end.date() if hasattr(end, "date") else end
+        self.provider_uuid = self.ocp_provider.uuid
+
+        if not TestBreakdownSQLFixes._populated:
+            self._seed_and_populate()
+            TestBreakdownSQLFixes._populated = True
+
+    def _seed_and_populate(self):
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not updater._cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        updater._load_rates(self.start_date)
+        if not (updater._infra_rates or updater._supplementary_rates):
+            self.skipTest("No rates loaded for OCP provider")
+        updater._update_usage_rates_to_usage(self.start_date, self.end_date)
+        distribution_info = {
+            "distribution_type": "cpu",
+            "platform_cost": True,
+            "worker_cost": True,
+        }
+        summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_distributed_cost_sql(summary_range, self.provider_uuid, distribution_info)
+            accessor.populate_ui_summary_tables(
+                summary_range,
+                self.provider_uuid,
+                tables=["reporting_ocp_cost_breakdown_p"],
+            )
+
+    def test_raw_currency_date_scoped(self):
+        """B1: raw_currency in breakdown rows comes from date-scoped subquery."""
+        with schema_context(self.schema):
+            expected_currencies = set(
+                OCPUsageLineItemDailySummary.objects.filter(
+                    source_uuid=self.provider_uuid,
+                    usage_start__gte=self.start_date,
+                    usage_start__lte=self.end_date,
+                    raw_currency__isnull=False,
+                )
+                .values_list("raw_currency", flat=True)
+                .distinct()
+            )
+            if not expected_currencies:
+                self.skipTest("No raw_currency in daily summary for test window")
+
+            breakdown_currencies = set(
+                OCPCostUIBreakDownP.objects.filter(
+                    source_uuid=self.provider_uuid,
+                    usage_start__gte=self.start_date,
+                    usage_start__lte=self.end_date,
+                    raw_currency__isnull=False,
+                )
+                .values_list("raw_currency", flat=True)
+                .distinct()
+            )
+            self.assertTrue(
+                breakdown_currencies.issubset(expected_currencies),
+                f"Breakdown currencies {breakdown_currencies} should be a subset of "
+                f"daily summary currencies {expected_currencies} for the same date range",
+            )
+
+    def test_zero_cost_rows_excluded(self):
+        """B2: Step 1 excludes rows where SUM(calculated_cost) = 0."""
+        with schema_context(self.schema):
+            zero_cost_leaves = OCPCostUIBreakDownP.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                depth=4,
+                top_category="project",
+                cost_value=Decimal("0"),
+            ).count()
+        self.assertEqual(
+            zero_cost_leaves,
+            0,
+            "Project leaves with zero cost_value should be filtered out by HAVING clause",
         )
 
 

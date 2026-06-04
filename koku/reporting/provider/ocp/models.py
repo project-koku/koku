@@ -56,7 +56,6 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_network_summary_by_node_p",
     "reporting_ocp_network_summary_by_project_p",
     "reporting_ocp_gpu_summary_p",
-    "reporting_ocp_cost_breakdown_p",
 )
 
 # Note the reporting_ocp_vm_summary_p is populated separately.
@@ -1110,6 +1109,8 @@ class OCPCostUIBreakDownP(models.Model):
             models.Index(fields=["path"], name="ocpcostbreakdown_path"),
             models.Index(fields=["depth"], name="ocpcostbreakdown_depth"),
             models.Index(fields=["top_category"], name="ocpcostbreakdown_top_category"),
+            models.Index(fields=["usage_start", "source_uuid"], name="ocpcostbreakdown_start_src_idx"),
+            models.Index(fields=["node"], name="ocpcostbreakdown_node_idx"),
         ]
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1120,8 +1121,8 @@ class OCPCostUIBreakDownP(models.Model):
     )
     cluster_id = models.TextField()
     cluster_alias = models.TextField(null=True)
-    namespace = models.TextField(null=True)
-    node = models.TextField(null=True)
+    namespace = models.CharField(max_length=253, null=True)
+    node = models.CharField(max_length=253, null=True)
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     custom_name = models.CharField(max_length=50)
     metric_type = models.CharField(max_length=30)
