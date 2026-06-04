@@ -28,7 +28,7 @@ INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
 )
 SELECT
     uuid_generate_v4(),
-    {{cost_model_id}},
+    {{cost_model_id}}::uuid,
     lids.report_period_id,
     lids.source_uuid,
     lids.usage_start,
@@ -42,9 +42,9 @@ SELECT
     lids.pod_labels,
     lids.volume_labels,
     lids.all_labels,
-    encode(sha256(decode(COALESCE(lids.pod_labels::text, '')
+    encode(sha256(convert_to(COALESCE(lids.pod_labels::text, '')
         || '|' || COALESCE(lids.volume_labels::text, '')
-        || '|' || COALESCE(lids.all_labels::text, ''), 'escape')), 'hex'),
+        || '|' || COALESCE(lids.all_labels::text, ''), 'UTF8')), 'hex'),
     'Markup',
     'markup',
     'Infrastructure',

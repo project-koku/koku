@@ -1205,8 +1205,8 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         )
         sql = sql.decode("utf-8")
         sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
+            "start_date": DateHelper().parse_to_date(start_date),
+            "end_date": DateHelper().parse_to_date(end_date),
             "schema": self.schema,
             "source_uuid": source_uuid,
             "cluster_id": cluster_id,
