@@ -1,0 +1,11 @@
+# GlitchTip Triager — Ignore Whitelist
+#
+# Add rules here when an alert is confirmed expected noise.
+# Each rule must have:
+#   id:     unique slug (kebab-case)
+#   reason: human-readable explanation
+#   match:  one or more of: issue_id, culprit, metadata.type, message_contains (list)
+#
+# A rule matches if ALL provided match fields are satisfied.
+
+rules: []

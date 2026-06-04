@@ -150,8 +150,7 @@ SELECT partitions.year, partitions.month, partitions.source
 FROM (
     SELECT year as year,
         month as month,
-        day as day,
-        cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date) as partition_date,
+        cast(date_parse(concat(year, '-', month, '-', '01'), '%Y-%m-%d') as date) as partition_date,
         {source_column} as source
     FROM  "{table_name}$partitions"
 ) as partitions

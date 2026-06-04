@@ -191,3 +191,27 @@ class TestPostgresReportDBAccessor(TestCase):
         )
         self.assertIn("DELETE FROM", sql)
         self.assertIn("ocp_source", sql)
+
+
+class TestTrinoReportDBAccessor(TestCase):
+    """Test TrinoReportDBAccessor methods."""
+
+    def setUp(self):
+        from koku.reportdb_accessor_trino import TrinoReportDBAccessor
+
+        self.accessor = TrinoReportDBAccessor()
+        self.schema_name = "test_schema"
+        self.table_name = "test_table"
+        self.source_uuid = "12345678-1234-1234-1234-123456789012"
+
+    def test_get_expired_data_ocp_sql_no_day_column(self):
+        """Test that expired data OCP SQL does not reference the day partition column.
+
+        Some managed tables are only partitioned by year/month, so querying 'day'
+        from $partitions raises TrinoUserError: Column 'day' cannot be resolved.
+        """
+        sql = self.accessor.get_expired_data_ocp_sql(self.schema_name, self.table_name, "ocp_source", "2024-01-01")
+        self.assertNotIn("day as day", sql)
+        self.assertIn("'01'", sql)
+        self.assertIn("ocp_source", sql)
+        self.assertIn("partition_date", sql)
