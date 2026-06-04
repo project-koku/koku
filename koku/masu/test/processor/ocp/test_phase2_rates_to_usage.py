@@ -715,9 +715,9 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         self.assertLess(call_order.index("rtu"), call_order.index("agg"))
         self.assertNotIn("usage", call_order)
 
-    # TC-44: aggregate before distribute
+    # TC-44: Phase 4 inversion -- distribute before aggregate
     @_make_orchestration_patches()
-    def test_orchestration_order_aggregate_before_distribute(
+    def test_orchestration_order_distribute_before_aggregate(
         self,
         mock_ff,
         mock_load,
@@ -742,7 +742,7 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
 
         self.assertIn("agg", call_order)
         self.assertIn("dist", call_order)
-        self.assertLess(call_order.index("agg"), call_order.index("dist"))
+        self.assertLess(call_order.index("dist"), call_order.index("agg"))
 
     # TC-53: single-pass INSERT (no rate_type loop)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
@@ -1283,7 +1283,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
             cost_model_update=True,
         )
 
-    # TC-R20-01: full ordering: rtu -> monthly -> vm -> agg -> markup -> dist
+    # TC-R20-01: Phase 4 ordering: rtu -> monthly -> vm -> dist -> agg -> markup
     @_make_orchestration_patches(rtu_enabled=True)
     def test_rtu_enabled_full_ordering(
         self,
@@ -1298,7 +1298,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_monthly,
         mock_dist,
     ):
-        """R20: Orchestration order is rtu -> monthly -> vm -> agg -> markup -> dist."""
+        """R20: Phase 4 order is rtu -> monthly -> vm -> dist -> agg -> markup."""
         call_order = []
         mock_rtu.side_effect = lambda *a: call_order.append("rtu")
         mock_monthly.side_effect = lambda *a: call_order.append("monthly")
@@ -1311,7 +1311,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
 
-        expected = ["rtu", "monthly", "vm", "agg", "markup", "dist"]
+        expected = ["rtu", "monthly", "vm", "dist", "agg", "markup"]
         self.assertEqual(call_order, expected, f"R20: expected {expected}, got {call_order}")
         mock_usage.assert_not_called()
         mock_cleanup.assert_not_called()
