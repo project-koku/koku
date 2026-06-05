@@ -755,11 +755,13 @@ class PriceListRatesUnitTest(IamTestCase):
 
     def _apply_rate_filter(self, pl_uuid, query_string, schema_name=None):
         """Instantiate RateFilter with proper form initialization and return filtered qs."""
+        from django.http import QueryDict
+
         from cost_models.price_list_view import RateFilter
 
         qs = Rate.objects.filter(price_list_id=pl_uuid)
         request = MagicMock()
-        request.query_params.urlencode.return_value = query_string
+        request.query_params = QueryDict(query_string)
         if schema_name:
             request.user.customer.schema_name = schema_name
         f = RateFilter(data={}, queryset=qs, request=request)
