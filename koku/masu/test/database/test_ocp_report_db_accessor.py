@@ -753,13 +753,40 @@ class OCPReportDBAccessorTest(MasuTestCase):
         mock_trino.assert_called()
         self.assertTrue(result)
 
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
-    def test_find_expired_trino_partitions_success(self, mock_trino, mock_table_exist):
-        """Test that deletions work with retries."""
+    def test_find_expired_trino_partitions_success(self, mock_trino, mock_table_exist, mock_schema):
+        """Test find_expired_trino_partitions for a table with a day partition column."""
+        mock_schema.return_value = True
+        mock_table_exist.return_value = True
+        # First call: SHOW COLUMNS returns columns including 'day'. Second: actual results.
+        mock_trino.side_effect = [
+            [("year", "varchar", "", ""), ("month", "varchar", "", ""), ("day", "varchar", "", ""), ("source", "varchar", "", "")],
+            [("2024", "01", "source-uuid")],
+        ]
         result = self.accessor.find_expired_trino_partitions("table", "source_column", "2024-06-01")
-        mock_trino.assert_called()
         self.assertTrue(result)
+        actual_sql = mock_trino.call_args_list[1][0][0]
+        self.assertIn("'-', day", actual_sql)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
+    def test_find_expired_trino_partitions_no_day_partition(self, mock_trino, mock_table_exist, mock_schema):
+        """Test find_expired_trino_partitions for tables without a day partition (e.g., disk_capacities_temp)."""
+        mock_schema.return_value = True
+        mock_table_exist.return_value = True
+        # First call: SHOW COLUMNS returns no 'day' column. Second: actual results.
+        mock_trino.side_effect = [
+            [("year", "varchar", "", ""), ("month", "varchar", "", ""), ("ocp_source", "varchar", "", "")],
+            [("2024", "01", "source-uuid")],
+        ]
+        result = self.accessor.find_expired_trino_partitions("table", "ocp_source", "2024-06-01")
+        self.assertTrue(result)
+        actual_sql = mock_trino.call_args_list[1][0][0]
+        self.assertIn("month, '-01'", actual_sql)
+        self.assertNotIn("'-', day", actual_sql)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")

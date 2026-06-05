@@ -509,18 +509,26 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         return total_deleted
 
     def find_expired_trino_partitions(self, table, source_column, date_str):
-        """Queries Trino for partitions less than the parition date."""
+        """Queries Trino for partitions less than the partition date."""
         if not self.schema_exists_trino():
             LOG.info("Schema does not exist.")
             return False
         if not self.table_exists_trino(table):
             LOG.info("Could not find table.")
             return False
+        partition_cols = (
+            self._execute_trino_raw_sql_query(
+                f'SHOW COLUMNS FROM "{table}$partitions"', log_ref="partition_column_check"
+            )
+            or []
+        )
+        has_day_partition = any(row[0] == "day" for row in partition_cols)
         sql = get_report_db_accessor().get_expired_data_ocp_sql(
             schema_name=self.schema,
             table_name=table,
             source_column=source_column,
             expired_date=date_str,
+            has_day_partition=has_day_partition,
         )
         return self._execute_trino_raw_sql_query(sql, log_ref="finding expired partitions")
 
