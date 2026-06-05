@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Price Lists."""
+import copy
 import logging
 
 from django.db.models import Count
@@ -110,7 +111,7 @@ class PriceListViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Get queryset with assigned cost model count annotation and prefetch."""
         return (
-            PriceList.objects.annotate(assigned_cost_model_count=Count("cost_model_maps"))
+            PriceList.objects.annotate(assigned_cost_model_count=Count("cost_model_maps", distinct=True))
             .prefetch_related("cost_model_maps__cost_model")
             .distinct()
         )
@@ -197,7 +198,11 @@ class PriceListViewSet(viewsets.ModelViewSet):
             return
         if any("rate_id" not in entry for entry in price_list.rates):
             LOG.info("Lazy sync triggered for PriceList %s: rate_id missing from JSON", price_list.uuid)
-            sync_rate_table(price_list, price_list.rates)
+            try:
+                sync_rate_table(price_list, copy.deepcopy(price_list.rates))
+            except (ValueError, Exception):
+                LOG.exception("Lazy sync failed for PriceList %s", price_list.uuid)
+                return
             price_list.refresh_from_db()
 
     def _build_rate_response(self, price_list, filtered_qs, schema=None):
