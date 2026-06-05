@@ -6,6 +6,7 @@
 import copy
 import logging
 
+from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
@@ -53,7 +54,9 @@ class RateFilter(SettingsFilter):
         """Reverse-map measurement labels to metric names and filter."""
         if not value:
             return queryset
-        schema = getattr(getattr(getattr(self.request, "user", None), "customer", None), "schema_name", None)
+        user = getattr(self.request, "user", None)
+        customer = getattr(user, "customer", None) if user else None
+        schema = getattr(customer, "schema_name", None) if customer else None
         metrics_map = metric_constants.get_cost_model_metrics_map(schema=schema)
         matching_metrics = set()
         for metric_name, entry in metrics_map.items():
@@ -186,7 +189,8 @@ class PriceListViewSet(viewsets.ModelViewSet):
         rate_filter = RateFilter(data=request.query_params, queryset=rate_qs, request=request)
         filtered_qs = rate_filter.qs
 
-        schema = getattr(getattr(request.user, "customer", None), "schema_name", None)
+        customer = getattr(request.user, "customer", None) if request.user else None
+        schema = getattr(customer, "schema_name", None) if customer else None
         rate_data = self._build_rate_response(price_list, filtered_qs, schema)
 
         paginator = ListPaginator(rate_data, request)
@@ -199,7 +203,10 @@ class PriceListViewSet(viewsets.ModelViewSet):
         if any("rate_id" not in entry for entry in price_list.rates):
             LOG.info("Lazy sync triggered for PriceList %s: rate_id missing from JSON", price_list.uuid)
             try:
-                sync_rate_table(price_list, copy.deepcopy(price_list.rates))
+                with transaction.atomic():
+                    locked_pl = PriceList.objects.select_for_update().get(uuid=price_list.uuid)
+                    if any("rate_id" not in entry for entry in locked_pl.rates):
+                        sync_rate_table(locked_pl, copy.deepcopy(locked_pl.rates))
             except (ValueError, Exception):
                 LOG.exception("Lazy sync failed for PriceList %s", price_list.uuid)
                 return
