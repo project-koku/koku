@@ -1,0 +1,21 @@
+# GlitchTip Triager — Ignore Whitelist
+# Add rules here to suppress known-noise alerts from being triaged.
+#
+# Each rule must have an `id` (unique string) and `reason` (free text).
+# Match fields (at least one required):
+#   issue_id        - exact GlitchTip issue ID (string)
+#   culprit         - exact culprit string from the event
+#   metadata.type   - exception type from event metadata
+#   message_contains - list of substrings that ALL must appear in the message
+#
+# Example:
+# rules:
+#   - id: example-no-such-bucket
+#     reason: Customer S3 bucket was deleted; operational noise, not a code bug.
+#     match:
+#       metadata.type: ClientError
+#       message_contains:
+#         - "NoSuchBucket"
+#         - "GetObject"
+
+rules: []
