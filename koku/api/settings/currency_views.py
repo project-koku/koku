@@ -25,7 +25,7 @@ from cost_models.models import EnabledCurrency
 LOG = logging.getLogger(__name__)
 
 
-class CurrencyListView(APIView):
+class CurrencySettingsView(APIView):
     """List all ISO 4217 currencies with enabled status and dynamic-rate availability.
 
     Supports ``?search=`` and ``?enabled=`` query params for filtering.

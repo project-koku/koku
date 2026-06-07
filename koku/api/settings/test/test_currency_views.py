@@ -58,7 +58,7 @@ class EnabledCurrencyDetailViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
-class CurrencyListViewTest(IamTestCase):
+class CurrencySettingsViewTest(IamTestCase):
     """Tests for GET settings/currency/."""
 
     def setUp(self):
