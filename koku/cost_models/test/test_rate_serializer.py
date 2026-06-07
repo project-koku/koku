@@ -3,13 +3,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for RateSerializer rate_id and custom_name output."""
-from unittest import TestCase
 from uuid import uuid4
 
+from django_tenants.utils import tenant_context
+
+from api.iam.test.iam_test_case import IamTestCase
 from cost_models.serializers import RateSerializer
 
 
-class RateSerializerToRepresentationTest(TestCase):
+class RateSerializerToRepresentationTest(IamTestCase):
     """Tests for RateSerializer.to_representation with rate_id and custom_name."""
 
     def test_tiered_rate_includes_rate_id(self):
@@ -159,8 +161,9 @@ class RateSerializerToRepresentationTest(TestCase):
             "tiered_rates": [{"value": "0.22", "unit": "USD"}],
             "rate_id": str(uuid4()),
         }
-        serializer = RateSerializer(data=data)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
+        with tenant_context(self.tenant):
+            serializer = RateSerializer(data=data)
+            self.assertTrue(serializer.is_valid(), serializer.errors)
 
     def test_is_valid_rejects_custom_name_over_50_chars(self):
         """Test that a custom_name exceeding 50 characters is rejected."""
@@ -170,6 +173,7 @@ class RateSerializerToRepresentationTest(TestCase):
             "tiered_rates": [{"value": "0.22", "unit": "USD"}],
             "custom_name": "x" * 51,
         }
-        serializer = RateSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("custom_name", serializer.errors)
+        with tenant_context(self.tenant):
+            serializer = RateSerializer(data=data)
+            self.assertFalse(serializer.is_valid())
+            self.assertIn("custom_name", serializer.errors)
