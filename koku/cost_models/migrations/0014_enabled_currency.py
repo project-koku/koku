@@ -37,9 +37,6 @@ DEFAULT_ENABLED_CURRENCIES = (
 
 def seed_enabled_currencies(apps, schema_editor):
     """Seed EnabledCurrency with the default set for SaaS deployments."""
-
-    if settings.ONPREM:
-        return
     EnabledCurrency = apps.get_model("cost_models", "EnabledCurrency")
     EnabledCurrency.objects.bulk_create(
         [EnabledCurrency(currency_code=code) for code in DEFAULT_ENABLED_CURRENCIES],
@@ -71,6 +68,7 @@ class Migration(migrations.Migration):
         ),
     ]
 
-    operations.append(
-        migrations.RunPython(code=seed_enabled_currencies, reverse_code=migrations.RunPython.noop),
-    )
+    if not settings.ONPREM:
+        operations.append(
+            migrations.RunPython(code=seed_enabled_currencies, reverse_code=migrations.RunPython.noop),
+        )
