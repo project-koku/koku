@@ -37,8 +37,13 @@ class CurrencyListView(APIView):
         enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
         dynamic_codes = get_dynamic_rate_currencies()
 
-        all_codes = get_all_iso_currency_codes()
-        sorted_codes = sorted(enabled_codes) + sorted(all_codes - enabled_codes)
+        enabled_filter = request.query_params.get("enabled")
+        if enabled_filter is not None and enabled_filter.lower() in ("true", "1"):
+            sorted_codes = sorted(enabled_codes)
+        elif enabled_filter is not None:
+            sorted_codes = sorted(get_all_iso_currency_codes() - enabled_codes)
+        else:
+            sorted_codes = sorted(enabled_codes) + sorted(get_all_iso_currency_codes() - enabled_codes)
 
         result = []
         for code in sorted_codes:
@@ -49,11 +54,6 @@ class CurrencyListView(APIView):
         search_term = request.query_params.get("search", "").strip().upper()
         if search_term:
             result = [c for c in result if search_term in c["code"]]
-
-        enabled_filter = request.query_params.get("enabled")
-        if enabled_filter is not None:
-            show_enabled = enabled_filter.lower() in ("true", "1")
-            result = [c for c in result if c["enabled"] is show_enabled]
 
         return ListPaginator(result, request).paginated_response
 
