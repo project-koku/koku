@@ -17,6 +17,7 @@ from babel.numbers import UnknownCurrencyError
 from rest_framework import serializers
 
 from api.currency.models import ExchangeRates
+from cost_models.models import EnabledCurrency
 
 _ISO_4217_CURRENCIES = get_global("all_currencies")
 
@@ -27,8 +28,6 @@ def get_enabled_currency_codes():
     Requires tenant schema context (set by django-tenants middleware for
     requests or by ``schema_context()`` in tasks).
     """
-    from cost_models.models import EnabledCurrency
-
     return set(EnabledCurrency.objects.values_list("currency_code", flat=True))
 
 
