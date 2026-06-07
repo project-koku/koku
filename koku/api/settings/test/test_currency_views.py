@@ -12,52 +12,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import EnabledCurrency
 
 
-class EnabledCurrencyDetailViewTest(IamTestCase):
-    """Tests for POST/DELETE on settings/currency/enabled/<code>/."""
-
-    def setUp(self):
-        super().setUp()
-        self.client = APIClient()
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-
-    def _url(self, code):
-        return reverse("currency-enabled-detail", kwargs={"code": code})
-
-    def test_enable_currency(self):
-        with tenant_context(self.tenant):
-            response = self.client.post(self._url("USD"), **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertTrue(EnabledCurrency.objects.filter(currency_code="USD").exists())
-
-    def test_disable_currency(self):
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.create(currency_code="USD")
-            EnabledCurrency.objects.create(currency_code="EUR")
-
-            response = self.client.delete(self._url("USD"), **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-            self.assertFalse(EnabledCurrency.objects.filter(currency_code="USD").exists())
-            self.assertTrue(EnabledCurrency.objects.filter(currency_code="EUR").exists())
-
-    def test_enable_is_idempotent(self):
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.create(currency_code="USD")
-            response = self.client.post(self._url("USD"), **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(EnabledCurrency.objects.filter(currency_code="USD").count(), 1)
-
-    def test_disable_is_idempotent(self):
-        with tenant_context(self.tenant):
-            response = self.client.delete(self._url("USD"), **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-            self.assertFalse(EnabledCurrency.objects.filter(currency_code="USD").exists())
-
-    def test_post_invalid_currency_code(self):
-        response = self.client.post(self._url("INVALID"), **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-
 class CurrencySettingsViewTest(IamTestCase):
     """Tests for GET settings/currency/."""
 
@@ -109,3 +63,49 @@ class CurrencySettingsViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         codes = [c["code"] for c in response.data["data"]]
         self.assertEqual(codes, ["USD"])
+
+
+class EnabledCurrencyViewTest(IamTestCase):
+    """Tests for POST/DELETE on settings/currency/enabled/<code>/."""
+
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient()
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.all().delete()
+
+    def _url(self, code):
+        return reverse("currency-enabled-detail", kwargs={"code": code})
+
+    def test_enable_currency(self):
+        with tenant_context(self.tenant):
+            response = self.client.post(self._url("USD"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertTrue(EnabledCurrency.objects.filter(currency_code="USD").exists())
+
+    def test_disable_currency(self):
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+
+            response = self.client.delete(self._url("USD"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="USD").exists())
+            self.assertTrue(EnabledCurrency.objects.filter(currency_code="EUR").exists())
+
+    def test_enable_is_idempotent(self):
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            response = self.client.post(self._url("USD"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(EnabledCurrency.objects.filter(currency_code="USD").count(), 1)
+
+    def test_disable_is_idempotent(self):
+        with tenant_context(self.tenant):
+            response = self.client.delete(self._url("USD"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="USD").exists())
+
+    def test_post_invalid_currency_code(self):
+        response = self.client.post(self._url("INVALID"), **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
