@@ -22,7 +22,8 @@ class CurrencyViewTest(IamTestCase):
 
     def test_returns_only_enabled_currencies(self):
         """Test that GET returns enabled currencies and excludes non-enabled ones."""
-        url = reverse("currency")
+        qs = "?limit=25"
+        url = reverse("currency") + qs
         client = APIClient()
 
         response = client.get(url, **self.headers)
