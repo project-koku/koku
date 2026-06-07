@@ -8,6 +8,7 @@ from django.test.utils import override_settings
 
 from koku.reportdb_accessor import get_report_db_accessor
 from koku.reportdb_accessor_postgres import PostgresReportDBAccessor
+from koku.reportdb_accessor_trino import TrinoReportDBAccessor
 
 
 class TestGetReportDBAccessor(TestCase):
@@ -191,3 +192,24 @@ class TestPostgresReportDBAccessor(TestCase):
         )
         self.assertIn("DELETE FROM", sql)
         self.assertIn("ocp_source", sql)
+
+
+class TestTrinoReportDBAccessor(TestCase):
+    """Test TrinoReportDBAccessor methods."""
+
+    def setUp(self):
+        self.accessor = TrinoReportDBAccessor()
+        self.schema_name = "test_schema"
+        self.table_name = "test_table"
+        self.source_uuid = "12345678-1234-1234-1234-123456789012"
+
+    def test_get_expired_data_ocp_sql_no_day_column(self):
+        """Expired-partition SQL must not reference the 'day' partition column.
+
+        Tables like managed_gcp_openshift_daily_temp are only partitioned by
+        year/month, so querying day from $partitions raises TrinoUserError.
+        """
+        sql = self.accessor.get_expired_data_ocp_sql(self.schema_name, self.table_name, "ocp_source", "2024-01-01")
+        self.assertIn("$partitions", sql)
+        self.assertNotIn("day", sql)
+        self.assertIn("'-01'", sql)
