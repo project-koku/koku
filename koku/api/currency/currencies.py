@@ -16,6 +16,9 @@ from babel.numbers import get_currency_symbol
 from babel.numbers import UnknownCurrencyError
 from rest_framework import serializers
 
+from api.currency.models import ExchangeRates
+from cost_models.models import EnabledCurrency
+
 _ISO_4217_CURRENCIES = get_global("all_currencies")
 
 
@@ -25,8 +28,6 @@ def get_enabled_currency_codes():
     Requires tenant schema context (set by django-tenants middleware for
     requests or by ``schema_context()`` in tasks).
     """
-    from cost_models.models import EnabledCurrency
-
     return set(EnabledCurrency.objects.values_list("currency_code", flat=True))
 
 
@@ -45,14 +46,19 @@ class CurrencyField(serializers.CharField):
         return value
 
 
-def get_all_iso_currency_codes():
+def _get_all_iso_currency_codes():
     """Return all ISO 4217 currency codes from babel's registry."""
     return _ISO_4217_CURRENCIES
 
 
 def is_valid_iso_currency(code):
     """Check whether *code* is a valid ISO 4217 currency using babel's registry."""
-    return code.upper() in get_all_iso_currency_codes()
+    return code.upper() in _get_all_iso_currency_codes()
+
+
+def get_dynamic_rate_currencies():
+    """Return the set of currency codes that have a dynamic exchange rate available."""
+    return set(ExchangeRates.objects.values_list("currency_type", flat=True).distinct())
 
 
 def get_currency_info(code):

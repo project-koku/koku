@@ -17,6 +17,7 @@ from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.currency.currencies import get_all_iso_currency_codes
 from api.currency.currencies import get_currency_info
+from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import is_valid_iso_currency
 from cost_models.models import EnabledCurrency
 
@@ -34,6 +35,7 @@ class CurrencyListView(APIView):
     @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
         enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+        dynamic_codes = get_dynamic_rate_currencies()
 
         enabled_filter = request.query_params.get("enabled")
         if enabled_filter is not None and enabled_filter.lower() in ("true", "1"):
@@ -49,6 +51,7 @@ class CurrencyListView(APIView):
         for code in sorted_codes:
             info = get_currency_info(code)
             info["enabled"] = code in enabled_codes
+            info["has_dynamic_rate"] = code.lower() in dynamic_codes
             result.append(info)
 
         search_term = request.query_params.get("search", "").strip().upper()
