@@ -21,6 +21,8 @@ from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import get_enabled_currency_codes
 from api.currency.currencies import is_valid_iso_currency
 from cost_models.models import EnabledCurrency
+from koku.settings import KOKU_DEFAULT_CURRENCY
+from reporting.user_settings.models import UserSettings
 
 LOG = logging.getLogger(__name__)
 
@@ -86,6 +88,12 @@ class EnabledCurrencyView(APIView):
     @method_decorator(never_cache)
     def delete(self, request, *args, **kwargs):
         code = self._validate_code(kwargs["code"])
+
+        for user_setting in UserSettings.objects.filter(settings__currency=code):
+            user_setting.settings["currency"] = KOKU_DEFAULT_CURRENCY
+            user_setting.save(update_fields=["settings"])
+            LOG.info(log_json(msg="Account currency reset to default", previous=code, new=KOKU_DEFAULT_CURRENCY))
+
         EnabledCurrency.objects.filter(currency_code=code).delete()
         LOG.info(log_json(msg="Currency disabled", currency=code))
         return Response(status=status.HTTP_204_NO_CONTENT)
