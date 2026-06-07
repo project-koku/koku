@@ -95,7 +95,7 @@ class TieredRateSerializer(serializers.Serializer):
 
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     usage = serializers.DictField(required=False)
-    unit = CurrencyField(enabled_only=True)
+    unit = CurrencyField(enabled_only=False)
 
     def validate_value(self, value):
         """Check that value is a positive value."""
@@ -133,7 +133,7 @@ class TagRateValueSerializer(serializers.Serializer):
     DECIMALS = ("value", "usage_start", "usage_end")
 
     tag_value = serializers.CharField(max_length=100)
-    unit = CurrencyField(enabled_only=True)
+    unit = CurrencyField(enabled_only=False)
     usage = serializers.DictField(required=False)
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     description = serializers.CharField(allow_blank=True, max_length=500, required=False)
