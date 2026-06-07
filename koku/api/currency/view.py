@@ -13,7 +13,6 @@ from rest_framework.settings import api_settings
 
 from api.common.pagination import ListPaginator
 from api.currency.currencies import get_currency_info
-from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.models import ExchangeRateDictionary
 from cost_models.models import EnabledCurrency
 
@@ -29,8 +28,7 @@ def get_currency(request):
     computed at response time via babel.
     """
     enabled_codes = EnabledCurrency.objects.values_list("currency_code", flat=True)
-    dynamic_codes = get_dynamic_rate_currencies()
-    available = [get_currency_info(code, dynamic_rate_codes=dynamic_codes) for code in sorted(enabled_codes)]
+    available = [get_currency_info(code) for code in sorted(enabled_codes)]
     return ListPaginator(available, request).paginated_response
 
 

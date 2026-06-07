@@ -25,20 +25,18 @@ class CurrencyViewTest(IamTestCase):
 
     @patch(
         "api.currency.view.get_currency_info",
-        side_effect=lambda c, dynamic_rate_codes: {
+        side_effect=lambda c: {
             "USD": {
                 "code": "USD",
                 "name": "US Dollar",
                 "symbol": "$",
                 "description": "USD ($) - US Dollar",
-                "has_dynamic_rate": True,
             },
             "EUR": {
                 "code": "EUR",
                 "name": "Euro",
                 "symbol": "\u20ac",
                 "description": "EUR (\u20ac) - Euro",
-                "has_dynamic_rate": False,
             },
         }[c],
     )
@@ -58,14 +56,12 @@ class CurrencyViewTest(IamTestCase):
                 "name": "Euro",
                 "symbol": "\u20ac",
                 "description": "EUR (\u20ac) - Euro",
-                "has_dynamic_rate": False,
             },
             {
                 "code": "USD",
                 "name": "US Dollar",
                 "symbol": "$",
                 "description": "USD ($) - US Dollar",
-                "has_dynamic_rate": True,
             },
         ]
         self.assertEqual(data.get("data"), expected)

@@ -75,12 +75,12 @@ def get_currency_info(code, dynamic_rate_codes=None):
         name = code
         symbol = code
 
-    has_dynamic_rate = dynamic_rate_codes is not None and code.lower() in dynamic_rate_codes
-
-    return {
+    info = {
         "code": code,
         "name": name,
         "symbol": symbol,
         "description": f"{code} ({symbol}) - {name}",
-        "has_dynamic_rate": has_dynamic_rate,
     }
+    if dynamic_rate_codes is not None:
+        info["has_dynamic_rate"] = code.lower() in dynamic_rate_codes
+    return info
