@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Add EnabledCurrency model for per-tenant currency enablement."""
-from django.conf import settings
 from django.db import migrations
 from django.db import models
 
@@ -36,7 +35,7 @@ DEFAULT_ENABLED_CURRENCIES = (
 
 
 def seed_enabled_currencies(apps, schema_editor):
-    """Seed EnabledCurrency with the default set for SaaS deployments."""
+    """Seed EnabledCurrency with the previously hardcoded currency set."""
     EnabledCurrency = apps.get_model("cost_models", "EnabledCurrency")
     EnabledCurrency.objects.bulk_create(
         [EnabledCurrency(currency_code=code) for code in DEFAULT_ENABLED_CURRENCIES],
@@ -68,7 +67,6 @@ class Migration(migrations.Migration):
         ),
     ]
 
-    if not settings.ONPREM:
-        operations.append(
-            migrations.RunPython(code=seed_enabled_currencies, reverse_code=migrations.RunPython.noop),
-        )
+    operations.append(
+        migrations.RunPython(code=seed_enabled_currencies, reverse_code=migrations.RunPython.noop),
+    )
