@@ -61,7 +61,7 @@ def get_dynamic_rate_currencies():
     return set(ExchangeRates.objects.values_list("currency_type", flat=True).distinct())
 
 
-def get_currency_info(code):
+def get_currency_info(code, locale="en_US"):
     """Return a dict with code, name, symbol, and description.
 
     All metadata is resolved via babel at call time.  Falls back to the
@@ -69,8 +69,8 @@ def get_currency_info(code):
     """
     code = code.upper()
     try:
-        name = get_currency_name(code, locale="en_US")
-        symbol = get_currency_symbol(code, locale="en_US")
+        name = get_currency_name(code, locale=locale)
+        symbol = get_currency_symbol(code, locale=locale)
     except UnknownCurrencyError:
         name = code
         symbol = code
