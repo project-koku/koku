@@ -13,7 +13,6 @@ Name, symbol, and description are computed at response time via babel.
 from babel.core import get_global
 from babel.numbers import get_currency_name
 from babel.numbers import get_currency_symbol
-from babel.numbers import UnknownCurrencyError
 from rest_framework import serializers
 
 from api.currency.models import ExchangeRates
@@ -64,16 +63,12 @@ def get_dynamic_rate_currencies():
 def get_currency_info(code, locale="en_US"):
     """Return a dict with code, name, symbol, and description.
 
-    All metadata is resolved via babel at call time.  Falls back to the
-    code itself for currencies babel does not recognise.
+    All metadata is resolved via babel at call time.
+    Callers must validate the code before calling this function.
     """
     code = code.upper()
-    try:
-        name = get_currency_name(code, locale=locale)
-        symbol = get_currency_symbol(code, locale=locale)
-    except UnknownCurrencyError:
-        name = code
-        symbol = code
+    name = get_currency_name(code, locale=locale)
+    symbol = get_currency_symbol(code, locale=locale)
 
     return {
         "code": code,
