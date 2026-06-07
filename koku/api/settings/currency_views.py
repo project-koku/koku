@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from api.common import log_json
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
+from api.currency.currencies import get_all_iso_currency_codes
 from api.currency.currencies import get_currency_info
 from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import is_valid_iso_currency
@@ -24,9 +25,9 @@ LOG = logging.getLogger(__name__)
 
 
 class CurrencyListView(APIView):
-    """List enabled currencies with name, symbol, and dynamic-rate availability.
+    """List all ISO 4217 currencies with enabled status and dynamic-rate availability.
 
-    Supports ``?search=`` to filter by currency code.
+    Supports ``?search=`` and ``?enabled=`` query params for filtering.
     """
 
     permission_classes = [SettingsAccessPermission]
@@ -36,11 +37,20 @@ class CurrencyListView(APIView):
         enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
         dynamic_codes = get_dynamic_rate_currencies()
 
-        result = [get_currency_info(code, dynamic_rate_codes=dynamic_codes) for code in sorted(enabled_codes)]
+        result = []
+        for code in sorted(get_all_iso_currency_codes()):
+            info = get_currency_info(code, dynamic_rate_codes=dynamic_codes)
+            info["enabled"] = code in enabled_codes
+            result.append(info)
 
         search_term = request.query_params.get("search", "").strip().upper()
         if search_term:
             result = [c for c in result if search_term in c["code"]]
+
+        enabled_filter = request.query_params.get("enabled")
+        if enabled_filter is not None:
+            show_enabled = enabled_filter.lower() in ("true", "1")
+            result = [c for c in result if c["enabled"] is show_enabled]
 
         return ListPaginator(result, request).paginated_response
 
