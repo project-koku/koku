@@ -37,12 +37,11 @@ class CurrencyListView(APIView):
         enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
         dynamic_codes = get_dynamic_rate_currencies()
 
-        all_codes = get_all_iso_currency_codes()
-        result = []
-        for code in sorted(all_codes, key=lambda c: (c not in enabled_codes, c)):
-            info = get_currency_info(code, dynamic_rate_codes=dynamic_codes)
-            info["enabled"] = code in enabled_codes
-            result.append(info)
+        enabled_first = sorted(enabled_codes) + sorted(get_all_iso_currency_codes() - enabled_codes)
+        result = [
+            {**get_currency_info(code, dynamic_rate_codes=dynamic_codes), "enabled": code in enabled_codes}
+            for code in enabled_first
+        ]
 
         search_term = request.query_params.get("search", "").strip().upper()
         if search_term:
