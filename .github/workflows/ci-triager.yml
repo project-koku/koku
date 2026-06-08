@@ -82,24 +82,38 @@ jobs:
         run: sleep 300
 
       - name: Trigger CI Triager session
-        uses: ambient-code/ambient-action@v0.0.5
-        with:
-          api-url: ${{ secrets.AMBIENT_API_URL }}
-          api-token: ${{ secrets.AMBIENT_API_TOKEN }}
-          project: koku-ci
-          display-name: "CI Triager — PR #${{ steps.ctx.outputs.pr_number }} / ${{ steps.ctx.outputs.check_name }}"
-          repos: '[{"url": "https://github.com/project-koku/koku", "branch": "${{ steps.ctx.outputs.head_branch }}", "autoPush": false}]'
-          stop-on-run-finished: "true"
-          prompt: |
-            You are being triggered for a specific failing CI check.
-            Skip Step 1 (scanning all open PRs) — investigate only:
+        env:
+          AMBIENT_API_TOKEN: ${{ secrets.AMBIENT_API_TOKEN }}
+        run: |
+          PROMPT="You are being triggered for a specific failing CI check.
+          Skip Step 1 (scanning all open PRs) — investigate only:
 
-            - PR: #${{ steps.ctx.outputs.pr_number }}
-            - Failing check: ${{ steps.ctx.outputs.check_name }}
-            - Head branch: ${{ steps.ctx.outputs.head_branch }}
+          - PR: #${{ steps.ctx.outputs.pr_number }}
+          - Failing check: ${{ steps.ctx.outputs.check_name }}
+          - Head branch: ${{ steps.ctx.outputs.head_branch }}
 
-            The full triager instructions are in
-            `docs/team_workflows/ci-triager/prompt.md` in the cloned
-            repository. Read that file first, then start from Step 1b
-            (Bootstrap Konflux access) and proceed directly to Step 2
-            for the PR and check listed above.
+          The full triager instructions are in
+          \`docs/team_workflows/ci-triager/prompt.md\` in the cloned
+          repository. Read that file first, then start from Step 1b
+          (Bootstrap Konflux access) and proceed directly to Step 2
+          for the PR and check listed above."
+
+          PAYLOAD=$(jq -n \
+            --arg task "$PROMPT" \
+            --arg display "CI Triager — PR #${{ steps.ctx.outputs.pr_number }} / ${{ steps.ctx.outputs.check_name }}" \
+            --arg branch "${{ steps.ctx.outputs.head_branch }}" \
+            '{
+              task: $task,
+              displayName: $display,
+              repos: [{"url": "https://github.com/project-koku/koku", "branch": $branch, "autoPush": false}]
+            }')
+
+          RESPONSE=$(curl -sf \
+            -X POST \
+            -H "Authorization: Bearer ${AMBIENT_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -H "X-Ambient-Project: koku-ci" \
+            -d "$PAYLOAD" \
+            "https://public-api-route-ambient-code.apps.rosa.vteam-uat.0ksl.p3.openshiftapps.com/v1/sessions")
+
+          echo "Session created: $RESPONSE"
