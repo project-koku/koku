@@ -5,9 +5,26 @@
 """View for Price Lists."""
 import copy
 import logging
+import uuid as uuid_mod
+from functools import reduce
+from operator import or_
 
+from api.common.pagination import ListPaginator
+from api.common.permissions.cost_models_access import CostModelsAccessPermission
+from api.metrics import constants as metric_constants
+from api.report.constants import URL_ENCODED_SAFE
+from api.settings.utils import ListFilter
+from api.settings.utils import SettingsFilter
+from cost_models.models import PriceList
+from cost_models.models import PriceListCostModelMap
+from cost_models.models import Rate
+from cost_models.price_list_manager import PriceListException
+from cost_models.price_list_manager import PriceListManager
+from cost_models.price_list_serializer import PriceListSerializer
+from cost_models.rate_sync import sync_rate_table
 from django.db import transaction
 from django.db.models import Count
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
@@ -23,23 +40,10 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from api.common.pagination import ListPaginator
-from api.common.permissions.cost_models_access import CostModelsAccessPermission
-from api.metrics import constants as metric_constants
-from api.report.constants import URL_ENCODED_SAFE
-from api.settings.utils import ListFilter
-from api.settings.utils import SettingsFilter
-from cost_models.models import PriceList
-from cost_models.models import PriceListCostModelMap
-from cost_models.models import Rate
-from cost_models.price_list_manager import PriceListException
-from cost_models.price_list_manager import PriceListManager
-from cost_models.price_list_serializer import PriceListSerializer
-from cost_models.rate_sync import sync_rate_table
-
 LOG = logging.getLogger(__name__)
 
 VALID_PARAMS = {"filter", "order_by", "limit", "offset"}
+VALID_RATE_PARAMS = {"filter", "order_by", "limit", "offset"}
 
 
 class RateFilter(SettingsFilter):
@@ -80,7 +84,22 @@ class PriceListFilter(SettingsFilter):
     uuid = UUIDFilter(field_name="uuid")
     enabled = BooleanFilter(field_name="enabled")
     currency = CharFilter(field_name="currency", lookup_expr="iexact")
-    cost_model = ListFilter(field_name="cost_model_maps__cost_model__uuid", lookup_expr="exact")
+    cost_model = ListFilter(
+        field_name="cost_model_maps__cost_model__uuid", lookup_expr="exact", method="filter_cost_model"
+    )
+
+    def filter_cost_model(self, queryset, name, value):
+        """Validate each value is a well-formed UUID before filtering."""
+        if not value:
+            return queryset
+        for v in value:
+            try:
+                uuid_mod.UUID(str(v))
+            except ValueError:
+                raise ValidationError({"cost_model": f"'{v}' is not a valid UUID."})
+        lookup = "cost_model_maps__cost_model__uuid__exact"
+        queries = [Q(**{lookup: v}) for v in value]
+        return queryset.filter(reduce(or_, queries))
 
     def filter_queryset(self, queryset):
         """Validate top-level params before delegating to SettingsFilter."""
@@ -181,6 +200,10 @@ class PriceListViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="rates")
     def rates(self, request, uuid=None):
         """Return filterable, paginated rates for a price list."""
+        query_params = parser.parse(request.query_params.urlencode(safe=URL_ENCODED_SAFE))
+        invalid = set(query_params.keys()) - VALID_RATE_PARAMS
+        if invalid:
+            raise ValidationError({invalid.pop(): "Unsupported parameter or invalid value"})
         price_list = get_object_or_404(self.get_queryset(), uuid=uuid)
         self.check_object_permissions(request, price_list)
         self._ensure_rate_sync(price_list)

@@ -1245,3 +1245,40 @@ class PriceListRatesBehavioralTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         results = response.data.get("data", response.data.get("results", []))
         self.assertEqual(len(results), 0)
+
+    # --- TC-145: cost_model filter with malformed UUID returns 400 ---
+
+    def test_cost_model_filter_malformed_uuid_returns_400(self):
+        """TC-145/SI-10: filter[cost_model]=not-a-uuid returns 400, not 500."""
+        url = reverse("price-lists-list")
+        response = self.client.get(url, {"filter[cost_model]": "not-a-uuid"}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # --- TC-146: rates endpoint rejects unknown top-level params ---
+
+    def test_rates_unknown_top_level_param_returns_400(self):
+        """TC-146/SI-10: GET /rates/?bogus=bogus returns 400."""
+        url = reverse("price-lists-list")
+        data = {
+            "name": "PL for param test",
+            "description": "test",
+            "currency": "USD",
+            "effective_start_date": "2026-01-01",
+            "effective_end_date": "2026-12-31",
+            "rates": [
+                {
+                    "metric": {"name": "cpu_core_usage_per_hour"},
+                    "tiered_rates": [
+                        {"value": "1.00", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}
+                    ],
+                    "cost_type": "Infrastructure",
+                }
+            ],
+        }
+        create_resp = self.client.post(url, data=data, format="json", **self.headers)
+        self.assertEqual(create_resp.status_code, status.HTTP_201_CREATED)
+        pl_uuid = create_resp.data["uuid"]
+
+        rates_url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        response = self.client.get(rates_url, {"bogus": "bogus"}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
