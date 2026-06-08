@@ -136,7 +136,7 @@ class TagRateValueSerializer(serializers.Serializer):
     unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
     usage = serializers.DictField(required=False)
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
-    description = serializers.CharField(allow_blank=True, max_length=500)
+    description = serializers.CharField(allow_blank=True, max_length=500, required=False)
     default = serializers.BooleanField()
 
     def validate_value(self, value):
@@ -720,6 +720,10 @@ class CostModelSerializer(BaseSerializer):
                 "uuid": str(m.price_list.uuid),
                 "name": m.price_list.name,
                 "priority": m.priority,
+                "version": m.price_list.version,
+                "enabled": m.price_list.enabled,
+                "effective_start_date": m.price_list.effective_start_date.isoformat(),
+                "effective_end_date": m.price_list.effective_end_date.isoformat(),
             }
             for m in price_list_maps
         ]
