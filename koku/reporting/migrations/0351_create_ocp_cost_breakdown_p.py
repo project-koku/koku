@@ -42,10 +42,10 @@ class Migration(migrations.Migration):
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 ("raw_currency", models.TextField(null=True)),
-                ("path", models.CharField(max_length=200)),
+                ("path", models.CharField(max_length=512)),
                 ("depth", models.SmallIntegerField()),
-                ("parent_path", models.CharField(max_length=200)),
-                ("top_category", models.CharField(max_length=200)),
+                ("parent_path", models.CharField(max_length=512)),
+                ("top_category", models.CharField(max_length=512)),
                 ("breakdown_category", models.CharField(max_length=50)),
                 (
                     "cost_category",
