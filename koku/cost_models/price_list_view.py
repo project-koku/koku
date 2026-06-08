@@ -9,19 +9,6 @@ import uuid as uuid_mod
 from functools import reduce
 from operator import or_
 
-from api.common.pagination import ListPaginator
-from api.common.permissions.cost_models_access import CostModelsAccessPermission
-from api.metrics import constants as metric_constants
-from api.report.constants import URL_ENCODED_SAFE
-from api.settings.utils import ListFilter
-from api.settings.utils import SettingsFilter
-from cost_models.models import PriceList
-from cost_models.models import PriceListCostModelMap
-from cost_models.models import Rate
-from cost_models.price_list_manager import PriceListException
-from cost_models.price_list_manager import PriceListManager
-from cost_models.price_list_serializer import PriceListSerializer
-from cost_models.rate_sync import sync_rate_table
 from django.db import transaction
 from django.db.models import Count
 from django.db.models import Q
@@ -39,6 +26,20 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+
+from api.common.pagination import ListPaginator
+from api.common.permissions.cost_models_access import CostModelsAccessPermission
+from api.metrics import constants as metric_constants
+from api.report.constants import URL_ENCODED_SAFE
+from api.settings.utils import ListFilter
+from api.settings.utils import SettingsFilter
+from cost_models.models import PriceList
+from cost_models.models import PriceListCostModelMap
+from cost_models.models import Rate
+from cost_models.price_list_manager import PriceListException
+from cost_models.price_list_manager import PriceListManager
+from cost_models.price_list_serializer import PriceListSerializer
+from cost_models.rate_sync import sync_rate_table
 
 LOG = logging.getLogger(__name__)
 
