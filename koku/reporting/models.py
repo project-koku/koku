@@ -156,6 +156,7 @@ OCP_ON_AZURE_PERSPECTIVES = (
 # Empty dict for on-prem to allow safe imports without errors
 if getattr(settings, "ONPREM", False):
     TRINO_MANAGED_TABLES = {}
+    TRINO_TABLES_NO_DAY_PARTITION = frozenset()
     EXPIRE_MANAGED_TABLES = {}
 else:
     TRINO_MANAGED_TABLES = {
@@ -173,6 +174,16 @@ else:
         "managed_reporting_ocpazurecostlineitem_project_daily_summary_temp": "ocp_source",
         "managed_reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
     }
+
+    # Tables that are only partitioned by year/month (no day column in $partitions view)
+    TRINO_TABLES_NO_DAY_PARTITION = frozenset(
+        {
+            "managed_aws_openshift_disk_capacities_temp",
+            "managed_gcp_openshift_disk_capacities_temp",
+            "managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+            "managed_azure_openshift_disk_capacities_temp",
+        }
+    )
 
     # These are cleaned during expired_data flow
     EXPIRE_MANAGED_TABLES = {

@@ -42,6 +42,7 @@ from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import TRINO_MANAGED_TABLES
+from reporting.models import TRINO_TABLES_NO_DAY_PARTITION
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import (
     TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE,
@@ -516,11 +517,13 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         if not self.table_exists_trino(table):
             LOG.info("Could not find table.")
             return False
+        has_day = table not in TRINO_TABLES_NO_DAY_PARTITION
         sql = get_report_db_accessor().get_expired_data_ocp_sql(
             schema_name=self.schema,
             table_name=table,
             source_column=source_column,
             expired_date=date_str,
+            has_day=has_day,
         )
         return self._execute_trino_raw_sql_query(sql, log_ref="finding expired partitions")
 
