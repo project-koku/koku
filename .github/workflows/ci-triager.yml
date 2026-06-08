@@ -136,7 +136,7 @@ jobs:
           MESSAGE_PAYLOAD=$(jq -n --arg payload "$PROMPT" '{event_type: "user", payload: $payload}')
 
           echo "Sending prompt to session..."
-          MSG_RESPONSE=$(curl -sf \
+          MSG_HTTP_CODE=$(curl -s -o /tmp/msg_response.json -w "%{http_code}" \
             -X POST \
             -H "Authorization: Bearer ${AMBIENT_API_TOKEN}" \
             -H "Content-Type: application/json" \
@@ -144,4 +144,12 @@ jobs:
             -d "$MESSAGE_PAYLOAD" \
             "${AC_API}/api/ambient/v1/sessions/${SESSION_ID}/messages")
 
-          echo "Message sent: $MSG_RESPONSE"
+          echo "HTTP status: $MSG_HTTP_CODE"
+          echo "Response body: $(cat /tmp/msg_response.json)"
+
+          if [ "$MSG_HTTP_CODE" -lt 200 ] || [ "$MSG_HTTP_CODE" -ge 300 ]; then
+            echo "ERROR: messages endpoint returned $MSG_HTTP_CODE"
+            exit 1
+          fi
+
+          echo "Message sent successfully"
