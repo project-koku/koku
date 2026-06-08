@@ -28,8 +28,8 @@ class Migration(migrations.Migration):
                 ("usage_end", models.DateField()),
                 ("cluster_id", models.TextField()),
                 ("cluster_alias", models.TextField(null=True)),
-                ("namespace", models.TextField(null=True)),
-                ("node", models.TextField(null=True)),
+                ("namespace", models.CharField(max_length=253, null=True)),
+                ("node", models.CharField(max_length=253, null=True)),
                 ("custom_name", models.CharField(max_length=50)),
                 ("metric_type", models.CharField(max_length=30)),
                 ("cost_model_rate_type", models.TextField(null=True)),
@@ -95,6 +95,14 @@ class Migration(migrations.Migration):
                     models.Index(
                         fields=["top_category"],
                         name="ocpcostbreakdown_top_category",
+                    ),
+                    models.Index(
+                        fields=["usage_start", "source_uuid"],
+                        name="ocpcostbreakdown_start_src_idx",
+                    ),
+                    models.Index(
+                        fields=["node"],
+                        name="ocpcostbreakdown_node_idx",
                     ),
                 ],
             },
