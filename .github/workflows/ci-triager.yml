@@ -81,9 +81,10 @@ jobs:
         if: github.event_name == 'check_run'
         run: sleep 300
 
-      - name: Trigger CI Triager session
+      - name: Create and prompt CI Triager session
         env:
           AMBIENT_API_TOKEN: ${{ secrets.AMBIENT_API_TOKEN }}
+          AC_API: "https://public-api-route-ambient-code.apps.rosa.vteam-uat.0ksl.p3.openshiftapps.com"
         run: |
           PROMPT="You are being triggered for a specific failing CI check.
           Skip Step 1 (scanning all open PRs) — investigate only:
@@ -98,8 +99,11 @@ jobs:
           (Bootstrap Konflux access) and proceed directly to Step 2
           for the PR and check listed above."
 
-          PAYLOAD=$(jq -n \
-            --arg task "$PROMPT" \
+          # Step 1: create session (task field is intentionally minimal — the real
+          # prompt is injected as a user message in Step 2, working around the
+          # Public API Gateway bug where initialPrompt is not forwarded to the backend).
+          CREATE_PAYLOAD=$(jq -n \
+            --arg task "CI Triager session for PR #${{ steps.ctx.outputs.pr_number }}" \
             --arg display "CI Triager — PR #${{ steps.ctx.outputs.pr_number }} / ${{ steps.ctx.outputs.check_name }}" \
             --arg branch "${{ steps.ctx.outputs.head_branch }}" \
             '{
@@ -108,12 +112,36 @@ jobs:
               repos: [{"url": "https://github.com/project-koku/koku", "branch": $branch, "autoPush": false}]
             }')
 
-          RESPONSE=$(curl -sf \
+          echo "Creating session..."
+          CREATE_RESPONSE=$(curl -sf \
             -X POST \
             -H "Authorization: Bearer ${AMBIENT_API_TOKEN}" \
             -H "Content-Type: application/json" \
             -H "X-Ambient-Project: koku-ci" \
-            -d "$PAYLOAD" \
-            "https://public-api-route-ambient-code.apps.rosa.vteam-uat.0ksl.p3.openshiftapps.com/v1/sessions")
+            -d "$CREATE_PAYLOAD" \
+            "${AC_API}/v1/sessions")
 
-          echo "Session created: $RESPONSE"
+          echo "Session created: $CREATE_RESPONSE"
+          SESSION_ID=$(echo "$CREATE_RESPONSE" | jq -r '.id // empty')
+
+          if [ -z "$SESSION_ID" ]; then
+            echo "ERROR: could not extract session ID from response"
+            exit 1
+          fi
+
+          echo "Session ID: $SESSION_ID"
+
+          # Step 2: send the full prompt as the first user message, bypassing the
+          # initialPrompt bug in the Public API Gateway.
+          MESSAGE_PAYLOAD=$(jq -n --arg payload "$PROMPT" '{event_type: "user", payload: $payload}')
+
+          echo "Sending prompt to session..."
+          MSG_RESPONSE=$(curl -sf \
+            -X POST \
+            -H "Authorization: Bearer ${AMBIENT_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -H "X-Ambient-Project: koku-ci" \
+            -d "$MESSAGE_PAYLOAD" \
+            "${AC_API}/api/ambient/v1/sessions/${SESSION_ID}/messages")
+
+          echo "Message sent: $MSG_RESPONSE"
