@@ -778,7 +778,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "platform_cost": False,
             "worker_cost": False,
         }
-        # We need to bypass the None check for cost model in update_cost_model_costs
+        mock_cost_model.return_value.__enter__.return_value.cost_model = None
+        mock_cost_model.return_value.__enter__.return_value.rate_info_map = {}
         mock_task_cost_model.return_value.__enter__.return_value.cost_model = {}
 
         provider_type = Provider.PROVIDER_OCP
