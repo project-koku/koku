@@ -34,6 +34,7 @@ from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 from reporting.provider.ocp.models import OCPCostSummaryP
+from reporting.provider.ocp.models import OCPCostUIBreakDownP
 from reporting.provider.ocp.models import OCPGpuSummaryP
 from reporting.provider.ocp.models import OCPNetworkSummaryByNodeP
 from reporting.provider.ocp.models import OCPNetworkSummaryByProjectP
@@ -262,6 +263,9 @@ class OCPProviderMap(ProviderMap):
                         "operation": "exact",
                         "custom": ProviderAccessor(Provider.PROVIDER_OCP).infrastructure_key_list,
                     },
+                    "path": {"field": "path", "operation": "startswith"},
+                    "depth": {"field": "depth", "operation": "exact"},
+                    "top_category": {"field": "top_category", "operation": "exact"},
                 },
                 "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim", "storageclass"],
                 "tag_column": "pod_labels",  # default for if a report type does not have a tag_column
@@ -1301,6 +1305,28 @@ class OCPProviderMap(ProviderMap):
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                     },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
+                    "cost_breakdown": {
+                        "tables": {"query": OCPCostUIBreakDownP},
+                        "aggregates": {
+                            "cost_value": Sum("cost_value"),
+                            "distributed_cost": Sum("distributed_cost"),
+                        },
+                        "default_ordering": {"path": "asc"},
+                        "annotations": {
+                            "path": F("path"),
+                            "depth": F("depth"),
+                            "parent_path": F("parent_path"),
+                            "top_category": F("top_category"),
+                            "breakdown_category": F("breakdown_category"),
+                            "custom_name": F("custom_name"),
+                            "metric_type": F("metric_type"),
+                            "cost_model_rate_type": F("cost_model_rate_type"),
+                        },
+                        "group_by_options": ["cluster", "project", "node"],
+                        "filter": [{}],
+                        "cost_units_key": "raw_currency",
+                        "sum_columns": ["cost_value", "distributed_cost"],
+                    },
                 },
                 "start_date": "usage_start",
                 "tables": {"query": OCPUsageLineItemDailySummary},
@@ -1357,6 +1383,14 @@ class OCPProviderMap(ProviderMap):
             },
             "gpu": {
                 "default": OCPGpuSummaryP,
+            },
+            "cost_breakdown": {
+                "default": OCPCostUIBreakDownP,
+                ("cluster",): OCPCostUIBreakDownP,
+                ("project",): OCPCostUIBreakDownP,
+                ("node",): OCPCostUIBreakDownP,
+                ("cluster", "project"): OCPCostUIBreakDownP,
+                ("cluster", "node"): OCPCostUIBreakDownP,
             },
         }
         super().__init__(provider, report_type, schema_name)

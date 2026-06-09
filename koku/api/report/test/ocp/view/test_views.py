@@ -24,6 +24,7 @@ from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.models import User
 from api.provider.models import Provider
 from api.query_handler import TruncDayString
@@ -1953,3 +1954,107 @@ class OCPReportViewTest(IamTestCase):
         total_cost = data.get("meta", {}).get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
         self.assertIsNotNone(total_cost)
         self.assertAlmostEqual(Decimal(str(total_cost)), expected_total, places=2)
+
+
+class OCPCostBreakdownViewTest(IamTestCase):
+    """E2E tests for the /breakdown/openshift/cost/ endpoint."""
+
+    def test_breakdown_url_resolves(self):
+        """Breakdown URL name resolves correctly."""
+        url = reverse("ocp-cost-breakdown")
+        self.assertIn("breakdown/openshift/cost", url)
+
+    def test_breakdown_endpoint_returns_200(self):
+        """Breakdown endpoint must return 200 with valid default params."""
+        url = reverse("ocp-cost-breakdown")
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_breakdown_flat_view_has_data_key(self):
+        """Flat view response must contain 'data' key."""
+        url = reverse("ocp-cost-breakdown")
+        response = APIClient().get(url, **self.headers)
+        self.assertIn("data", response.data)
+
+    def test_breakdown_tree_view_transforms_values(self):
+        """Tree view (view=tree) must replace 'values' with 'tree' in response."""
+        url = reverse("ocp-cost-breakdown") + "?view=tree"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data.get("data", [])
+        for date_group in data:
+            self._assert_no_values_key(date_group)
+
+    def _assert_no_values_key(self, obj):
+        """Recursively assert that 'values' is replaced by 'tree' in tree view."""
+        if isinstance(obj, dict):
+            if "tree" in obj:
+                self.assertNotIn("values", obj, "'values' should be replaced by 'tree' in tree view")
+            for v in obj.values():
+                self._assert_no_values_key(v)
+        elif isinstance(obj, list):
+            for item in obj:
+                self._assert_no_values_key(item)
+
+    def test_breakdown_group_by_cluster(self):
+        """Breakdown endpoint must accept group_by[cluster]=*."""
+        url = reverse("ocp-cost-breakdown") + "?group_by[cluster]=*"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_breakdown_invalid_view_returns_400(self):
+        """Invalid view parameter must return 400."""
+        url = reverse("ocp-cost-breakdown") + "?view=invalid"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_breakdown_endpoint_has_rbac_permission(self):
+        """Breakdown view must use OpenShiftAccessPermission for RBAC."""
+        from api.common.permissions.openshift_access import OpenShiftAccessPermission
+        from api.report.ocp.view import OCPCostBreakdownView
+
+        self.assertIn(OpenShiftAccessPermission, OCPCostBreakdownView.permission_classes)
+
+    @RbacPermissions({"openshift.cluster": {"read": []}})
+    def test_breakdown_rbac_no_cluster_access_returns_403(self):
+        """A user with no openshift.cluster read access must receive 403."""
+        url = reverse("ocp-cost-breakdown")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_breakdown_order_by_distributed_cost(self):
+        """order_by[distributed_cost]=desc returns 200."""
+        url = reverse("ocp-cost-breakdown") + "?order_by[distributed_cost]=desc"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_breakdown_order_by_allowlist_fields_no_group_by(self):
+        """Allowlisted order_by fields with string values work without group_by."""
+        for field in ("cost_value", "distributed_cost", "path"):
+            url = reverse("ocp-cost-breakdown") + f"?order_by[{field}]=desc"
+            response = APIClient().get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK, f"order_by[{field}] should return 200")
+
+    def test_breakdown_tag_filter_accepted(self):
+        """Tag filter is silently dropped, not rejected (200 not 400)."""
+        url = reverse("ocp-cost-breakdown") + "?filter[tag:app]=web"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_breakdown_filter_depth(self):
+        """filter[depth]=4 returns 200."""
+        url = reverse("ocp-cost-breakdown") + "?filter[depth]=4"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_breakdown_filter_top_category(self):
+        """filter[top_category]=project returns 200."""
+        url = reverse("ocp-cost-breakdown") + "?filter[top_category]=project"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_breakdown_filter_path(self):
+        """filter[path]=project.usage_cost returns 200."""
+        url = reverse("ocp-cost-breakdown") + "?filter[path]=project.usage_cost"
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
