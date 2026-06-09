@@ -24,6 +24,7 @@ from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.models import User
 from api.provider.models import Provider
 from api.query_handler import TruncDayString
@@ -2013,6 +2014,13 @@ class OCPCostBreakdownViewTest(IamTestCase):
         from api.report.ocp.view import OCPCostBreakdownView
 
         self.assertIn(OpenShiftAccessPermission, OCPCostBreakdownView.permission_classes)
+
+    @RbacPermissions({"openshift.cluster": {"read": []}})
+    def test_breakdown_rbac_no_cluster_access_returns_403(self):
+        """A user with no openshift.cluster read access must receive 403."""
+        url = reverse("ocp-cost-breakdown")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_breakdown_order_by_distributed_cost(self):
         """order_by[distributed_cost]=desc returns 200."""
