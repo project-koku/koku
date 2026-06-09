@@ -143,15 +143,32 @@ AND day = '{day}'"""
         return f"""DELETE FROM hive.{schema_name}.{table_name}
 WHERE {partition_column} = '{provider_uuid}'"""
 
-    def get_expired_data_ocp_sql(self, schema_name: str, table_name: str, source_column: str, expired_date: str):
-        """Generate Trino SQL to find expired partitions."""
+    def get_expired_data_ocp_sql(
+        self,
+        schema_name: str,
+        table_name: str,
+        source_column: str,
+        expired_date: str,
+        has_day_partition: bool = True,
+    ):
+        """Generate Trino SQL to find expired partitions.
+
+        Some tables are partitioned only by (year, month); others by (year, month, day).
+        Use has_day_partition=False for tables without a day partition column.
+        """
+        if has_day_partition:
+            select_day = "day as day,"
+            date_cast = "cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date)"
+        else:
+            select_day = ""
+            date_cast = "cast(date_parse(concat(year, '-', month, '-01'), '%Y-%m-%d') as date)"
         return f"""
 SELECT partitions.year, partitions.month, partitions.source
 FROM (
     SELECT year as year,
         month as month,
-        day as day,
-        cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date) as partition_date,
+        {select_day}
+        {date_cast} as partition_date,
         {source_column} as source
     FROM  "{table_name}$partitions"
 ) as partitions

@@ -1,0 +1,20 @@
+# GlitchTip Triager — Ignore Whitelist
+# Add rules here when the team agrees an alert is expected noise.
+#
+# Rule match fields (at least one required):
+#   issue_id: numeric GlitchTip issue ID
+#   culprit: exact culprit string
+#   metadata.type: exception class name
+#   message_contains: list of substrings (all must match)
+#
+# A rule matches if ALL provided match fields are satisfied.
+#
+# Example:
+# rules:
+#   - id: example-001
+#     reason: "Expected noise from upstream dependency"
+#     match:
+#       message_contains:
+#         - "some expected error text"
+
+rules: []
