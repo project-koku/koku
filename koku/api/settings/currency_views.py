@@ -20,7 +20,9 @@ from api.currency.currencies import get_currency_info
 from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import get_enabled_currency_codes
 from api.currency.currencies import is_valid_iso_currency
+from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
+from cost_models.models import PriceList
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.user_settings.models import UserSettings
 
@@ -89,6 +91,20 @@ class EnabledCurrencyView(APIView):
     def delete(self, request, *args, **kwargs):
         code = self._validate_code(kwargs["code"])
 
+        affected_cost_models = list(CostModel.objects.filter(currency=code).values("uuid", "name"))
+        affected_price_lists = list(PriceList.objects.filter(currency=code).values("uuid", "name"))
+        has_conflict = affected_cost_models or affected_price_lists
+
+        if has_conflict:
+            LOG.warning(
+                log_json(
+                    msg="Disabling currency that is in use by cost models or price lists",
+                    currency=code,
+                    affected_cost_models=len(affected_cost_models),
+                    affected_price_lists=len(affected_price_lists),
+                )
+            )
+
         for user_setting in UserSettings.objects.filter(settings__currency=code):
             user_setting.settings["currency"] = KOKU_DEFAULT_CURRENCY
             user_setting.save(update_fields=["settings"])
@@ -96,4 +112,17 @@ class EnabledCurrencyView(APIView):
 
         EnabledCurrency.objects.filter(currency_code=code).delete()
         LOG.info(log_json(msg="Currency disabled", currency=code))
+
+        if has_conflict:
+            total = len(affected_cost_models) + len(affected_price_lists)
+            return Response(
+                {
+                    "warning": f"Currency {code} was disabled but is still referenced by "
+                    f"{total} cost model(s) or price list(s). "
+                    "Those items may become uneditable until the currency is re-enabled.",
+                    "affected_cost_models": affected_cost_models,
+                    "affected_price_lists": affected_price_lists,
+                },
+                status=status.HTTP_200_OK,
+            )
         return Response(status=status.HTTP_204_NO_CONTENT)

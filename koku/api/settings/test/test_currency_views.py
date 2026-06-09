@@ -9,7 +9,9 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
+from cost_models.models import PriceList
 
 
 class CurrencySettingsViewTest(IamTestCase):
@@ -109,3 +111,43 @@ class EnabledCurrencyViewTest(IamTestCase):
     def test_post_invalid_currency_code(self):
         response = self.client.post(self._url("INVALID"), **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_disable_currency_in_use_by_cost_model_warns(self):
+        """Disabling a currency referenced by a CostModel should succeed with a warning."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="GBP")
+            CostModel.objects.create(
+                name="GBP Cost Model",
+                description="test",
+                source_type="OCP",
+                rates={},
+                markup={},
+                currency="GBP",
+            )
+
+            response = self.client.delete(self._url("GBP"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertIn("warning", response.data)
+            self.assertEqual(len(response.data["affected_cost_models"]), 1)
+            self.assertEqual(response.data["affected_price_lists"], [])
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="GBP").exists())
+
+    def test_disable_currency_in_use_by_price_list_warns(self):
+        """Disabling a currency referenced by a PriceList should succeed with a warning."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="EUR")
+            PriceList.objects.create(
+                name="EUR Price List",
+                description="test",
+                currency="EUR",
+                effective_start_date="2026-01-01",
+                effective_end_date="2026-12-31",
+                rates=[],
+            )
+
+            response = self.client.delete(self._url("EUR"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertIn("warning", response.data)
+            self.assertEqual(response.data["affected_cost_models"], [])
+            self.assertEqual(len(response.data["affected_price_lists"]), 1)
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="EUR").exists())
