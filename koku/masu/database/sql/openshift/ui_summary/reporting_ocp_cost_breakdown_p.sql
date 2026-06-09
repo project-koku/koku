@@ -5,6 +5,9 @@
 -- Per-rate distributed costs become overhead leaves (depth 5).
 -- Intermediate nodes (depth 3, 2, 1) are bottom-up aggregations.
 --
+-- The tree is rooted per-cluster (one total_cost node per cluster_id per day).
+-- Multi-cluster sources produce multiple roots; the API aggregates as needed.
+--
 -- Parameters: schema, start_date, end_date, source_uuid
 
 -- Step 0: Clear existing breakdown rows for the recalculation window
@@ -223,7 +226,9 @@ WHERE b.usage_start >= {{start_date}}::date
 GROUP BY b.usage_start, b.source_uuid, b.cluster_id, b.top_category
 ;
 
--- Step 6: Depth 1 -- total_cost root node
+-- Step 6: Depth 1 -- total_cost root node (one per cluster per day).
+-- Multi-cluster providers produce one root per cluster_id; the API layer
+-- aggregates across clusters when no group_by[cluster] is specified.
 INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_breakdown_p (
     id, usage_start, usage_end, source_uuid, cluster_id, cluster_alias,
     namespace, node, cost_category_id, custom_name, metric_type,
