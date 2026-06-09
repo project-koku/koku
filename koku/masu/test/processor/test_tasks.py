@@ -1561,6 +1561,36 @@ class TestWorkerCacheThrottling(MasuTestCase):
         with self.assertRaises(ReportSummaryUpdaterCloudError):
             update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
 
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
+    @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    def test_update_summary_tables_preserves_original_error_when_manifest_deleted(
+        self, mock_select_for_update, mock_updater
+    ):
+        """Test that a missing manifest does not mask the original summary failure."""
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
+        manifest = Mock()
+        manifest.state = None
+        mock_select_for_update.return_value.get.side_effect = [
+            manifest,
+            CostUsageReportManifest.DoesNotExist,
+        ]
+        mock_updater.side_effect = IntegrityError("fk violation")
+
+        with self.assertLogs("masu.database.report_manifest_db_accessor", level="WARNING") as logger:
+            with self.assertRaises(IntegrityError):
+                update_summary_tables(
+                    self.schema,
+                    Provider.PROVIDER_AWS,
+                    self.aws_provider_uuid,
+                    start_date,
+                    end_date,
+                    manifest_id=123,
+                    synchronous=True,
+                )
+
+        self.assertIn("manifest not found, skipping state update", logger.output[0])
+
     @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.tasks.chain")
