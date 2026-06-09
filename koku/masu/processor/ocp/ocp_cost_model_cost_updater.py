@@ -755,12 +755,20 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             )
 
     def distribute_costs_and_update_ui_summary(self, summary_range: SummaryRangeConfig):
-        """Distribute cost model costs and update UI summary tables"""
+        """Distribute per-rate costs, aggregate, apply markup, and update UI summaries.
+
+        Phase 4 order per month: distribute -> aggregate -> markup -> UI summary.
+        Distribution runs per-month so report_period_id resolves correctly for
+        each month in a multi-month range.
+        """
+        self._ensure_rates_to_usage_partitions(summary_range.start_date, summary_range.end_date)
         with OCPReportDBAccessor(self._schema) as accessor:
-            summary_range = accessor.populate_distributed_cost_sql(
-                summary_range, self._provider_uuid, self._distribution_info
-            )
             for month_range in summary_range.iter_summary_range_by_month():
+                month_range = accessor.populate_distributed_cost_sql(
+                    month_range, self._provider_uuid, self._distribution_info
+                )
+                self._aggregate_rates_to_daily_summary(month_range.start_date, month_range.end_date)
+                self._update_markup_cost(month_range.start_date, month_range.end_date)
                 accessor.populate_ui_summary_tables(month_range, self._provider.uuid)
 
                 if report_period := accessor.report_periods_for_provider_uuid(
@@ -871,7 +879,5 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
 
             self._update_vm_usage_costs(start_date, end_date)
-            self._aggregate_rates_to_daily_summary(start_date, end_date)
-            self._update_markup_cost(start_date, end_date)
 
         self.distribute_costs_and_update_ui_summary(summary_range)
