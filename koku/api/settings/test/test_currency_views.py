@@ -87,13 +87,13 @@ class EnabledCurrencyViewTest(IamTestCase):
 
     def test_disable_currency(self):
         with tenant_context(self.tenant):
-            EnabledCurrency.objects.create(currency_code="USD")
-            EnabledCurrency.objects.create(currency_code="EUR")
+            EnabledCurrency.objects.create(currency_code="CHF")
+            EnabledCurrency.objects.create(currency_code="JPY")
 
-            response = self.client.delete(self._url("USD"), **self.headers)
+            response = self.client.delete(self._url("CHF"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-            self.assertFalse(EnabledCurrency.objects.filter(currency_code="USD").exists())
-            self.assertTrue(EnabledCurrency.objects.filter(currency_code="EUR").exists())
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="CHF").exists())
+            self.assertTrue(EnabledCurrency.objects.filter(currency_code="JPY").exists())
 
     def test_enable_is_idempotent(self):
         with tenant_context(self.tenant):
@@ -104,9 +104,9 @@ class EnabledCurrencyViewTest(IamTestCase):
 
     def test_disable_is_idempotent(self):
         with tenant_context(self.tenant):
-            response = self.client.delete(self._url("USD"), **self.headers)
+            response = self.client.delete(self._url("CHF"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-            self.assertFalse(EnabledCurrency.objects.filter(currency_code="USD").exists())
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="CHF").exists())
 
     def test_post_invalid_currency_code(self):
         response = self.client.post(self._url("INVALID"), **self.headers)
