@@ -5,6 +5,7 @@
 """Test the Cost Model views."""
 import copy
 import random
+from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 from uuid import uuid4
@@ -22,6 +23,7 @@ from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModelAudit
 from cost_models.models import CostModelMap
 from cost_models.models import PriceList
+from cost_models.models import PriceListCostModelMap
 from cost_models.price_list_manager import PriceListManager
 from cost_models.serializers import CostModelSerializer
 from koku.cache import CacheEnum
@@ -695,6 +697,69 @@ class CostModelViewTests(IamTestCase):
         ):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_cost_model_price_lists_include_version_and_enabled(self):
+        """Test that cost model responses include price list version and enabled status."""
+        client = APIClient()
+        detail_url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
+
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            response = client.get(detail_url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(response.data["price_lists"]), 1)
+        for entry in response.data["price_lists"]:
+            self.assertIn("version", entry)
+            self.assertIn("enabled", entry)
+            self.assertIsInstance(entry["version"], int)
+            self.assertIsInstance(entry["enabled"], bool)
+
+        with tenant_context(self.tenant):
+            PriceListCostModelMap.objects.filter(cost_model_id=self.fake_data_cost_model_uuid).delete()
+            enabled_pl = PriceList.objects.create(
+                name="Enabled PL",
+                description="Test",
+                currency="USD",
+                effective_start_date=date(2026, 1, 1),
+                effective_end_date=date(2026, 6, 30),
+                enabled=True,
+                version=3,
+                rates=[],
+            )
+            formerly_enabled_pl = PriceList.objects.create(
+                name="Disabled PL",
+                description="Test",
+                currency="USD",
+                effective_start_date=date(2026, 7, 1),
+                effective_end_date=date(2026, 12, 31),
+                enabled=True,
+                version=2,
+                rates=[],
+            )
+            PriceListManager.attach_price_lists_to_cost_model(
+                self.fake_data_cost_model_uuid,
+                [enabled_pl.uuid, formerly_enabled_pl.uuid],
+            )
+            PriceListManager(formerly_enabled_pl.uuid).update(enabled=False)
+            formerly_enabled_pl.refresh_from_db()
+
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            detail_response = client.get(detail_url, **self.headers)
+            list_response = client.get(reverse("cost-models-list"), **self.headers)
+
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        price_lists = detail_response.data["price_lists"]
+        self.assertEqual(len(price_lists), 2)
+        self.assertEqual(price_lists[0]["uuid"], str(enabled_pl.uuid))
+        self.assertEqual(price_lists[0]["version"], 3)
+        self.assertTrue(price_lists[0]["enabled"])
+        self.assertEqual(price_lists[1]["uuid"], str(formerly_enabled_pl.uuid))
+        self.assertEqual(price_lists[1]["version"], 2)
+        self.assertFalse(price_lists[1]["enabled"])
+
+        list_entry = next(
+            item for item in list_response.data["data"] if item["uuid"] == str(self.fake_data_cost_model_uuid)
+        )
+        self.assertEqual(list_entry["price_lists"], price_lists)
 
     @patch("cost_models.cost_model_manager.update_cost_model_costs")
     def test_cost_model_response_includes_price_list_dates(self, _):
