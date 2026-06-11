@@ -1,6 +1,8 @@
 # Create the pre-refresh state: Customer, User, and Tenant for the old org_id.
 # Run clean.py first to ensure a fresh start.
-from api.iam.models import Customer, User, Tenant
+from api.iam.models import Customer
+from api.iam.models import Tenant
+from api.iam.models import User
 
 customer = Customer.objects.create(
     org_id="11111111_test",

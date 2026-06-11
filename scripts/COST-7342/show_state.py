@@ -1,5 +1,7 @@
 # Dump the test rows from DB (Customers, Users, Tenants for both test org_ids).
-from api.iam.models import Customer, User, Tenant
+from api.iam.models import Customer
+from api.iam.models import Tenant
+from api.iam.models import User
 
 TEST_ORG_IDS = ["11111111_test", "22222222_test"]
 TEST_SCHEMAS = [f"org{o}" for o in TEST_ORG_IDS]

@@ -451,9 +451,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     org_mismatch = old_user.customer.org_id != org_id
                     # account_id can be None for incomplete user records, only check if both are present
                     account_mismatch = (
-                        old_user.customer.account_id
-                        and account
-                        and old_user.customer.account_id != account
+                        old_user.customer.account_id and account and old_user.customer.account_id != account
                     )
                     if org_mismatch or account_mismatch:
                         IdentityHeaderMiddleware._handle_org_id_mismatch(
