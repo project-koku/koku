@@ -691,7 +691,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
         }
         mock_request = Mock(
             path="/api/v1/tags/aws/",
-            META={"HTTP_X_RH_IDENTITY": RH_IDENTITY_HEADER(new_identity), "QUERY_STRING": ""},
+            META={RH_IDENTITY_HEADER: base64.b64encode(json.dumps(new_identity).encode("utf-8")), "QUERY_STRING": ""},
             method="POST",
         )
 
