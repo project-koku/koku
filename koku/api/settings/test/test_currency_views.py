@@ -112,9 +112,18 @@ class EnabledCurrencyViewTest(IamTestCase):
         response = self.client.post(self._url("INVALID"), **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_disable_last_currency_returns_400(self):
+        """Deleting the only enabled currency should return 400."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            response = self.client.delete(self._url("USD"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertTrue(EnabledCurrency.objects.filter(currency_code="USD").exists())
+
     def test_disable_currency_in_use_by_cost_model_warns(self):
         """Disabling a currency referenced by a CostModel should succeed with a warning."""
         with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="GBP")
             CostModel.objects.create(
                 name="GBP Cost Model",
@@ -135,6 +144,7 @@ class EnabledCurrencyViewTest(IamTestCase):
     def test_disable_currency_in_use_by_price_list_warns(self):
         """Disabling a currency referenced by a PriceList should succeed with a warning."""
         with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="EUR")
             PriceList.objects.create(
                 name="EUR Price List",

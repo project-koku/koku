@@ -91,6 +91,9 @@ class EnabledCurrencyView(APIView):
     def delete(self, request, *args, **kwargs):
         code = self._validate_code(kwargs["code"])
 
+        if EnabledCurrency.objects.count() == 1:
+            raise ValidationError({"error": "At least one currency must be enabled."})
+
         affected_cost_models = list(CostModel.objects.filter(currency=code).values("uuid", "name"))
         affected_price_lists = list(PriceList.objects.filter(currency=code).values("uuid", "name"))
         has_conflict = affected_cost_models or affected_price_lists
