@@ -285,6 +285,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         The rename is skipped on GET/HEAD requests — same pattern as create_customer().
 
         If the flag is disabled an error is logged for manual SRE intervention.
+
+        See: https://redhat.atlassian.net/browse/COST-7342
+        Runbook: https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/docs/operations/sync-org-id-after-stage-refresh.md
         """
         old_org_id = old_user.customer.org_id
 
