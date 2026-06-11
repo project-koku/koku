@@ -75,7 +75,7 @@ SELECT
     gc.custom_name,
     gc.metric_type,
     gc.cost_model_rate_type,
-    {{cost_model_rate_type}},
+    {{distribution_tag}},
     MAX(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost)
 FROM gpu_rtu_cost gc
 JOIN gpu_model_map gm
