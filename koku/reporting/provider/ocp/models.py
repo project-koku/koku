@@ -56,9 +56,10 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_network_summary_by_node_p",
     "reporting_ocp_network_summary_by_project_p",
     "reporting_ocp_gpu_summary_p",
+    "reporting_ocp_vm_summary_p",
 )
 
-# Note the reporting_ocp_vm_summary_p is populated separately.
+# Populated via _populate_virtualization_ui_summary_table(), not the standard UI summary loop.
 VM_UI_SUMMARY_TABLE = "reporting_ocp_vm_summary_p"
 
 
