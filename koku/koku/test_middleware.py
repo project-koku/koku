@@ -570,7 +570,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
         )
 
         old_user.refresh_from_db()
-        self.assertEqual(old_user.username, "rapidast-security")
+        self.assertEqual(old_user.username, "foobar-user")
 
     @patch("koku.middleware.UNLEASH_CLIENT")
     def test_get_request_skips_rename(self, mock_unleash):
@@ -587,7 +587,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
         )
 
         old_user.refresh_from_db()
-        self.assertEqual(old_user.username, "rapidast-security")
+        self.assertEqual(old_user.username, "foobar-user")
 
     @patch("koku.middleware.UNLEASH_CLIENT")
     def test_head_request_skips_rename(self, mock_unleash):
@@ -604,7 +604,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
         )
 
         old_user.refresh_from_db()
-        self.assertEqual(old_user.username, "rapidast-security")
+        self.assertEqual(old_user.username, "foobar-user")
 
     @patch("koku.middleware.UNLEASH_CLIENT")
     def test_username_collision_uses_counter_suffix(self, mock_unleash):
