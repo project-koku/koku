@@ -1668,7 +1668,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         rendered_sql, _ = JinjaSql(param_style="named").prepare_query(sql_template, params)
 
         # The restricting WHERE filter must be absent — unmatched models must pass through
-        self.assertNotIn("gpu.gpu_model_name = 'A100'", rendered_sql.split("WHERE")[1] if "WHERE" in rendered_sql else rendered_sql)
+        self.assertNotIn(
+            "gpu.gpu_model_name = 'A100'", rendered_sql.split("WHERE")[1] if "WHERE" in rendered_sql else rendered_sql
+        )
         # The CASE must fall back to 0 for unmatched models (ELSE 0)
         self.assertIn("ELSE 0", rendered_sql)
 
