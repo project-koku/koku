@@ -196,10 +196,20 @@ class ProviderManager:
         """Get the type/uuid of the infrastructure that the provider is running on."""
         if self.model:
             if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
-                source = Sources.objects.get(koku_uuid=self.model.infrastructure.infrastructure_provider_id)
+                infrastructure_provider_id = self.model.infrastructure.infrastructure_provider_id
+                source = Sources.objects.filter(koku_uuid=infrastructure_provider_id).first()
+                if not source:
+                    LOG.warning(
+                        log_json(
+                            msg="missing infrastructure source for provider",
+                            provider_uuid=self.model.uuid,
+                            infrastructure_provider_uuid=infrastructure_provider_id,
+                        )
+                    )
+                    return {}
                 manifest = (
                     CostUsageReportManifest.objects.filter(
-                        provider=self.model.infrastructure.infrastructure_provider_id,
+                        provider=infrastructure_provider_id,
                         billing_period_start_datetime__in=[
                             self.date_helper.this_month_start,
                             self.date_helper.last_month_start,
@@ -211,11 +221,9 @@ class ProviderManager:
                 )
                 return {
                     "type": self.model.infrastructure.infrastructure_type,
-                    "uuid": self.model.infrastructure.infrastructure_provider_id,
+                    "uuid": infrastructure_provider_id,
                     "id": source.source_id,
-                    "last_polling_time": self.get_last_polling_time(
-                        self.model.infrastructure.infrastructure_provider_id
-                    ),
+                    "last_polling_time": self.get_last_polling_time(infrastructure_provider_id),
                     "paused": source.paused,
                     "source_status": source.status,
                     "cloud_provider_state": self.get_manifest_state(manifest),
