@@ -509,6 +509,146 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         mock_filter.assert_called_once_with(org_id="test_org")
 
 
+class HandleOrgIdMismatchTest(IamTestCase):
+    """Tests for IdentityHeaderMiddleware._handle_org_id_mismatch()."""
+
+    FLAG = "cost-management.backend.auto-heal-org-mismatch"
+
+    def _make_old_user(self, username="rapidast-security", old_org_id="111_test"):
+        from api.iam.models import Customer
+
+        customer = Customer.objects.create(
+            org_id=old_org_id,
+            account_id="55555555",
+            schema_name=f"org{old_org_id}",
+        )
+        user = User.objects.create(username=username, email="test@example.com", customer=customer)
+        return user
+
+    def tearDown(self):
+        super().tearDown()
+        from api.iam.models import Customer
+        from django.db import connection as _conn
+
+        test_org_ids = ["111_test", "222_test"]
+        with _conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM api_user WHERE customer_id IN "
+                "(SELECT id FROM api_customer WHERE org_id = ANY(%s))",
+                [test_org_ids],
+            )
+            cur.execute("DELETE FROM api_customer WHERE org_id = ANY(%s)", [test_org_ids])
+
+    @patch("koku.middleware.UNLEASH_CLIENT")
+    def test_auto_heal_renames_old_user(self, mock_unleash):
+        """Flag ON + POST: old user is renamed, username is freed."""
+        mock_unleash.is_enabled.return_value = True
+        old_user = self._make_old_user()
+
+        IdentityHeaderMiddleware._handle_org_id_mismatch(
+            old_user=old_user,
+            new_org_id="222_test",
+            new_account="66666666",
+            username="rapidast-security",
+            request_method="POST",
+        )
+
+        old_user.refresh_from_db()
+        self.assertEqual(old_user.username, "old-rapidast-security")
+        self.assertFalse(User.objects.filter(username="rapidast-security").exists())
+
+    @patch("koku.middleware.UNLEASH_CLIENT")
+    def test_auto_heal_disabled_no_rename(self, mock_unleash):
+        """Flag OFF: old user is NOT renamed."""
+        mock_unleash.is_enabled.return_value = False
+        old_user = self._make_old_user()
+
+        IdentityHeaderMiddleware._handle_org_id_mismatch(
+            old_user=old_user,
+            new_org_id="222_test",
+            new_account="66666666",
+            username="rapidast-security",
+            request_method="POST",
+        )
+
+        old_user.refresh_from_db()
+        self.assertEqual(old_user.username, "rapidast-security")
+
+    @patch("koku.middleware.UNLEASH_CLIENT")
+    def test_get_request_skips_rename(self, mock_unleash):
+        """Flag ON but GET: rename is skipped (no writes on read-only requests)."""
+        mock_unleash.is_enabled.return_value = True
+        old_user = self._make_old_user()
+
+        IdentityHeaderMiddleware._handle_org_id_mismatch(
+            old_user=old_user,
+            new_org_id="222_test",
+            new_account="66666666",
+            username="rapidast-security",
+            request_method="GET",
+        )
+
+        old_user.refresh_from_db()
+        self.assertEqual(old_user.username, "rapidast-security")
+
+    @patch("koku.middleware.UNLEASH_CLIENT")
+    def test_head_request_skips_rename(self, mock_unleash):
+        """Flag ON but HEAD: rename is skipped."""
+        mock_unleash.is_enabled.return_value = True
+        old_user = self._make_old_user()
+
+        IdentityHeaderMiddleware._handle_org_id_mismatch(
+            old_user=old_user,
+            new_org_id="222_test",
+            new_account="66666666",
+            username="rapidast-security",
+            request_method="HEAD",
+        )
+
+        old_user.refresh_from_db()
+        self.assertEqual(old_user.username, "rapidast-security")
+
+    @patch("koku.middleware.UNLEASH_CLIENT")
+    def test_username_collision_uses_counter_suffix(self, mock_unleash):
+        """If 'old-<username>' is already taken, fall back to 'old-<username>-1'."""
+        mock_unleash.is_enabled.return_value = True
+        old_user = self._make_old_user(username="rapidast-security", old_org_id="111_test")
+        # Pre-occupy 'old-rapidast-security' with a dummy user on the same customer.
+        User.objects.create(
+            username="old-rapidast-security",
+            email="other@example.com",
+            customer=old_user.customer,
+        )
+
+        IdentityHeaderMiddleware._handle_org_id_mismatch(
+            old_user=old_user,
+            new_org_id="222_test",
+            new_account="66666666",
+            username="rapidast-security",
+            request_method="POST",
+        )
+
+        old_user.refresh_from_db()
+        self.assertEqual(old_user.username, "old-rapidast-security-1")
+
+    @patch("koku.middleware.UNLEASH_CLIENT")
+    def test_auto_heal_logs_warning(self, mock_unleash):
+        """Mismatch always emits a WARNING regardless of flag state."""
+        mock_unleash.is_enabled.return_value = False
+        old_user = self._make_old_user()
+
+        with self.assertLogs("koku.middleware", level="WARNING") as cm:
+            IdentityHeaderMiddleware._handle_org_id_mismatch(
+                old_user=old_user,
+                new_org_id="222_test",
+                new_account="66666666",
+                username="rapidast-security",
+                request_method="POST",
+            )
+
+        self.assertTrue(any("Org ID mismatch detected" in line for line in cm.output))
+
+
 class RequestTimingMiddlewareTest(IamTestCase):
     """Tests against the koku tenant middleware."""
 

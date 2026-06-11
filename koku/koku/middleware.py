@@ -28,6 +28,7 @@ from prometheus_client import Counter
 
 from api.common import log_json
 from api.common import RH_IDENTITY_HEADER
+from koku.feature_flags import UNLEASH_CLIENT
 from api.common.pagination import EmptyResultsSetPagination
 from api.iam.models import Customer
 from api.iam.models import Tenant
@@ -272,6 +273,77 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 
         return customer
 
+    @staticmethod
+    def _handle_org_id_mismatch(old_user, new_org_id, new_account, username, request_method):
+        """Detect and optionally self-heal a username collision after a Stage environment refresh.
+
+        After a Stage refresh the same username reappears with a new org_id.  The stale api_user
+        row blocks any future attempt to persist a User with the same username (UNIQUE constraint).
+
+        If the Unleash flag 'cost-management.backend.auto-heal-org-mismatch' is enabled the old
+        user is renamed to 'old-<username>' (with a numeric suffix to avoid secondary collisions).
+        The rename is skipped on GET/HEAD requests — same pattern as create_customer().
+
+        If the flag is disabled an error is logged for manual SRE intervention.
+        """
+        old_org_id = old_user.customer.org_id
+
+        auto_heal = UNLEASH_CLIENT.is_enabled(
+            "cost-management.backend.auto-heal-org-mismatch",
+            {"org_id": new_org_id, "username": username},
+        )
+
+        LOG.warning(
+            log_json(
+                msg="Org ID mismatch detected for user after environment refresh",
+                username=username,
+                old_org_id=old_org_id,
+                new_org_id=new_org_id,
+                new_account=new_account,
+                auto_heal_enabled=auto_heal,
+            )
+        )
+
+        if not auto_heal:
+            LOG.error(
+                log_json(
+                    msg="Org ID mismatch: auto-heal disabled, manual intervention required",
+                    username=username,
+                    old_org_id=old_org_id,
+                    new_org_id=new_org_id,
+                    feature_flag="cost-management.backend.auto-heal-org-mismatch",
+                )
+            )
+            return
+
+        if request_method in ("GET", "HEAD"):
+            LOG.info(
+                log_json(
+                    msg="Org ID mismatch: skipping rename on read-only request",
+                    username=username,
+                    request_method=request_method,
+                )
+            )
+            return
+
+        new_username = f"old-{username}"
+        counter = 1
+        while User.objects.filter(username=new_username).exists():
+            new_username = f"old-{username}-{counter}"
+            counter += 1
+
+        old_user.username = new_username
+        old_user.save()
+        LOG.info(
+            log_json(
+                msg="Org ID mismatch: renamed stale user to free username (COST-7342)",
+                old_username=username,
+                new_username=new_username,
+                old_org_id=old_org_id,
+                new_org_id=new_org_id,
+            )
+        )
+
     def _get_access(self, user):
         """Obtain access for given user from RBAC service."""
         if settings.ENHANCED_ORG_ADMIN and user.admin:
@@ -354,6 +426,15 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 else:
                     customer = IdentityHeaderMiddleware.customer_cache[org_id]
             except Customer.DoesNotExist:
+                old_user = User.objects.filter(username=username).first()
+                if old_user and old_user.customer and old_user.customer.org_id != org_id:
+                    IdentityHeaderMiddleware._handle_org_id_mismatch(
+                        old_user=old_user,
+                        new_org_id=org_id,
+                        new_account=account,
+                        username=username,
+                        request_method=request.method,
+                    )
                 customer = IdentityHeaderMiddleware.create_customer(account, org_id, request.method)
             except OperationalError as err:
                 LOG.error("IdentityHeaderMiddleware exception: %s", err)
