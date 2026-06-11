@@ -6,11 +6,11 @@ from api.iam.models import Customer
 from api.iam.models import User
 from api.iam.serializers import create_schema_name
 
-OLD_ORG_ID  = "11111111_test"
-NEW_ORG_ID  = "22222222_test"
+OLD_ORG_ID = "11111111_test"
+NEW_ORG_ID = "22222222_test"
 NEW_ACCOUNT = "66666666"
-USERNAME    = "test-user-refresh"
-EMAIL       = "test-user@example.com"
+USERNAME = "test-user-refresh"
+EMAIL = "test-user@example.com"
 
 print("=== Stage refresh: new identity arrives (same username, new org_id) ===")
 print(f"  old org_id -> new org_id : {OLD_ORG_ID} -> {NEW_ORG_ID}")
