@@ -26,7 +26,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.common import RH_IDENTITY_HEADER
-from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
@@ -514,7 +513,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
 
     FLAG = "cost-management.backend.auto-heal-org-mismatch"
 
-    def _make_old_user(self, username="rapidast-security", old_org_id="111_test"):
+    def _make_old_user(self, username="foobar-user", old_org_id="111_test"):
         from api.iam.models import Customer
 
         customer = Customer.objects.create(
@@ -533,8 +532,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
         test_org_ids = ["111_test", "222_test"]
         with _conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM api_user WHERE customer_id IN "
-                "(SELECT id FROM api_customer WHERE org_id = ANY(%s))",
+                "DELETE FROM api_user WHERE customer_id IN (SELECT id FROM api_customer WHERE org_id = ANY(%s))",
                 [test_org_ids],
             )
             cur.execute("DELETE FROM api_customer WHERE org_id = ANY(%s)", [test_org_ids])
@@ -549,13 +547,13 @@ class HandleOrgIdMismatchTest(IamTestCase):
             old_user=old_user,
             new_org_id="222_test",
             new_account="66666666",
-            username="rapidast-security",
+            username="foobar-user",
             request_method="POST",
         )
 
         old_user.refresh_from_db()
-        self.assertEqual(old_user.username, "old-rapidast-security")
-        self.assertFalse(User.objects.filter(username="rapidast-security").exists())
+        self.assertEqual(old_user.username, "old-foobar-user")
+        self.assertFalse(User.objects.filter(username="foobar-user").exists())
 
     @patch("koku.middleware.UNLEASH_CLIENT")
     def test_auto_heal_disabled_no_rename(self, mock_unleash):
@@ -567,7 +565,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
             old_user=old_user,
             new_org_id="222_test",
             new_account="66666666",
-            username="rapidast-security",
+            username="foobar-user",
             request_method="POST",
         )
 
@@ -584,7 +582,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
             old_user=old_user,
             new_org_id="222_test",
             new_account="66666666",
-            username="rapidast-security",
+            username="foobar-user",
             request_method="GET",
         )
 
@@ -601,7 +599,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
             old_user=old_user,
             new_org_id="222_test",
             new_account="66666666",
-            username="rapidast-security",
+            username="foobar-user",
             request_method="HEAD",
         )
 
@@ -615,7 +613,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
         old_user = self._make_old_user(username="rapidast-security", old_org_id="111_test")
         # Pre-occupy 'old-rapidast-security' with a dummy user on the same customer.
         User.objects.create(
-            username="old-rapidast-security",
+            username="old-foobar-user",
             email="other@example.com",
             customer=old_user.customer,
         )
@@ -624,12 +622,12 @@ class HandleOrgIdMismatchTest(IamTestCase):
             old_user=old_user,
             new_org_id="222_test",
             new_account="66666666",
-            username="rapidast-security",
+            username="foobar-user",
             request_method="POST",
         )
 
         old_user.refresh_from_db()
-        self.assertEqual(old_user.username, "old-rapidast-security-1")
+        self.assertEqual(old_user.username, "old-foobar-user-1")
 
     @patch("koku.middleware.UNLEASH_CLIENT")
     def test_auto_heal_logs_warning(self, mock_unleash):
@@ -642,7 +640,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
                 old_user=old_user,
                 new_org_id="222_test",
                 new_account="66666666",
-                username="rapidast-security",
+                username="foobar-user",
                 request_method="POST",
             )
 

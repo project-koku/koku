@@ -332,6 +332,15 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         new_username = f"old-{username}"
         counter = 1
         while User.objects.filter(username=new_username).exists():
+            if counter > 10:
+                LOG.error(
+                    log_json(
+                        msg="Unable to find available username after 10 retries",
+                        username=username,
+                        counter=counter,
+                    )
+                )
+                return
             new_username = f"old-{username}-{counter}"
             counter += 1
 

@@ -11,8 +11,7 @@ TEST_SCHEMAS = [f"org{o}" for o in TEST_ORG_IDS]
 
 with connection.cursor() as cur:
     cur.execute(
-        "DELETE FROM api_user WHERE customer_id IN "
-        "(SELECT id FROM api_customer WHERE org_id = ANY(%s))",
+        "DELETE FROM api_user WHERE customer_id IN (SELECT id FROM api_customer WHERE org_id = ANY(%s))",
         [TEST_ORG_IDS],
     )
     users = cur.rowcount
