@@ -4,6 +4,9 @@
 -- Returns rows where RatesToUsage aggregates differ from daily summary.
 -- Used in integration tests with known-good cost model configurations.
 --
+-- Covers both usage-rate rows (monthly_cost_type IS NULL) and
+-- tag-rate rows (monthly_cost_type = 'Tag').
+--
 -- If this returns any rows, the aggregation logic has a bug.
 --
 -- R13: The daily summary does not have label_hash, so we compute it
@@ -61,7 +64,7 @@ LEFT JOIN (
   AND COALESCE(lids.node, '')                  = COALESCE(agg.node, '')
   AND COALESCE(lids.data_source, '')           = COALESCE(agg.data_source, '')
   AND COALESCE(lids.persistentvolumeclaim, '') = COALESCE(agg.persistentvolumeclaim, '')
-  AND md5(COALESCE(lids.pod_labels::text, '') || '|' || COALESCE(lids.volume_labels::text, '') || '|' || COALESCE(lids.all_labels::text, ''))
+  AND encode(sha256(decode(COALESCE(lids.pod_labels::text, '') || '|' || COALESCE(lids.volume_labels::text, '') || '|' || COALESCE(lids.all_labels::text, ''), 'escape')), 'hex')
       = agg.label_hash
   AND COALESCE(lids.cost_model_rate_type, '') = COALESCE(agg.cost_model_rate_type, '')
   AND COALESCE(lids.monthly_cost_type, '')    = COALESCE(agg.monthly_cost_type, '')
@@ -70,7 +73,7 @@ WHERE lids.usage_start >= {{start_date}}
   AND lids.source_uuid = {{source_uuid}}
   AND lids.report_period_id = {{report_period_id}}
   AND lids.cost_model_rate_type IN ('Infrastructure', 'Supplementary')
-  AND lids.monthly_cost_type IS NULL
+  AND (lids.monthly_cost_type IS NULL OR lids.monthly_cost_type = 'Tag')
   -- 1e-15 matches calculated_cost decimal_places=15; differences below this are rounding noise.
   AND (
        ABS(COALESCE(lids.cost_model_cpu_cost, 0)    - COALESCE(agg.total_cpu_cost, 0))    > 0.000000000000001

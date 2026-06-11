@@ -39,6 +39,7 @@ from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import RatesToUsage
 
 LOG = logging.getLogger(__name__)
 
@@ -259,75 +260,35 @@ class OCPReportDBAccessorTest(MasuTestCase):
                                 entry.get("cost") or 0,
                             )
 
-                    # call populate monthly tag_cost with the rates defined above
+                    RatesToUsage.objects.filter(cluster_id=self.cluster_id).delete()
+
                     acc.populate_tag_usage_costs(
                         infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
                     )
 
-                    # get the three querysets to be evaluated based on the pod_labels after the update
-                    banking_qset = (
-                        OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            pod_labels__contains={"app": "banking"},
-                            monthly_cost_type="Tag",
-                        )
-                        .values("usage_start")
-                        .annotate(
-                            cost=Sum(cost_term),
-                            usage=Sum(usage_fields[1]),
-                        )
-                    )
-                    mobile_qset = (
-                        OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id, pod_labels__contains={"app": "mobile"}, monthly_cost_type="Tag"
-                        )
-                        .values("usage_start")
-                        .annotate(
-                            cost=Sum(cost_term),
-                            usage=Sum(usage_fields[1]),
-                        )
-                    )
-                    weather_qset = (
-                        OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            pod_labels__contains={"app": "weather"},
-                            monthly_cost_type="Tag",
-                        )
-                        .values("usage_start")
-                        .annotate(
-                            cost=Sum(cost_term),
-                            usage=Sum(usage_fields[1]),
-                        )
-                    )
-
-                    # update the querysets stored in mapper
-                    mapper = {"banking": banking_qset, "mobile": mobile_qset, "weather": weather_qset}
-                    # get the values from after the call and store them in the dictionary
-                    post_results_dict = defaultdict(dict)
-                    for word, qset in mapper.items():
-                        for entry in qset:
-                            post_results_dict[word][entry.get("usage_start")] = (
-                                entry.get("usage") or 0,
-                                entry.get("cost") or 0,
-                            )
-
-                    # assert that after the update, the appropriate values were added to each usage_cost
-                    # the date check ensures that only entries after start date were updated and the ones
-                    # outside the start and end date are not updated
                     for value, rate in rate_costs.get(cost).get("app").items():
+                        rtu_qset = (
+                            RatesToUsage.objects.filter(
+                                cluster_id=self.cluster_id,
+                                monthly_cost_type="Tag",
+                                cost_model_rate_type=usage_type,
+                                pod_labels__contains={"app": value},
+                            )
+                            .values("usage_start")
+                            .annotate(cost=Sum("calculated_cost"))
+                        )
+                        rtu_costs = {entry["usage_start"]: float(entry["cost"]) for entry in rtu_qset}
+
                         for day, vals in initial_results_dict.get(value).items():
                             with self.subTest(
                                 msg=f"Metric: {cost}, Value: {value}, usage_type: {usage_type}, id: {day}"
                             ):
                                 if day >= start_date.date():
-                                    expected_diff = float(vals[0] * rate)
+                                    expected_cost = float(vals[0] * rate)
                                 else:
-                                    expected_diff = 0
-                                post_record = post_results_dict.get(value, {}).get(day, {})
-                                actual_diff = 0
-                                if post_record:
-                                    actual_diff = float(post_record[1] - vals[1])
-                                self.assertAlmostEqual(actual_diff, expected_diff)
+                                    expected_cost = 0
+                                actual_cost = rtu_costs.get(day, 0)
+                                self.assertAlmostEqual(actual_cost, expected_cost)
 
     def test_populate_tag_based_default_usage_costs(self):  # noqa: C901
         """Test that the usage costs are updated correctly when default tag values are passed in."""
@@ -418,79 +379,40 @@ class OCPReportDBAccessorTest(MasuTestCase):
                                 entry.get("cost") or 0,
                             )
 
-                    # call populate monthly tag_cost with the rates defined above
+                    RatesToUsage.objects.filter(cluster_id=self.cluster_id).delete()
+
                     acc.populate_tag_usage_default_costs(
                         infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
                     )
 
-                    # get the three querysets to be evaluated based on the pod_labels after the update
-                    banking_qset = (
-                        OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            pod_labels__contains={"app": "banking"},
-                            monthly_cost_type="Tag",
-                        )
-                        .values("usage_start")
-                        .annotate(
-                            cost=Sum(cost_term),
-                            usage=Sum(usage_fields[1]),
-                        )
-                    )
-                    mobile_qset = (
-                        OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id, pod_labels__contains={"app": "mobile"}, monthly_cost_type="Tag"
-                        )
-                        .values("usage_start")
-                        .annotate(
-                            cost=Sum(cost_term),
-                            usage=Sum(usage_fields[1]),
-                        )
-                    )
-                    weather_qset = (
-                        OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            pod_labels__contains={"app": "weather"},
-                            monthly_cost_type="Tag",
-                        )
-                        .values("usage_start")
-                        .annotate(
-                            cost=Sum(cost_term),
-                            usage=Sum(usage_fields[1]),
-                        )
-                    )
-
-                    # update the querysets stored in mapper
-                    mapper = {"banking": banking_qset, "mobile": mobile_qset, "weather": weather_qset}
-                    # get the values from after the call and store them in the dictionary
-                    post_results_dict = defaultdict(dict)
-                    for word, qset in mapper.items():
-                        for entry in qset:
-                            post_results_dict[word][entry.get("usage_start")] = (
-                                entry.get("usage") or 0,
-                                entry.get("cost") or 0,
+                    tag_values = ["banking", "mobile", "weather"]
+                    for value in tag_values:
+                        rtu_qset = (
+                            RatesToUsage.objects.filter(
+                                cluster_id=self.cluster_id,
+                                monthly_cost_type="Tag",
+                                cost_model_rate_type=usage_type,
+                                pod_labels__contains={"app": value},
                             )
+                            .values("usage_start")
+                            .annotate(cost=Sum("calculated_cost"))
+                        )
+                        rtu_costs = {entry["usage_start"]: float(entry["cost"]) for entry in rtu_qset}
 
-                    # assert that after the update, the appropriate values were added to each usage_cost
-                    # the date check ensures that only entries after start date were updated and the ones
-                    # outside the start and end date are not updated
-                    for value in mapper:
                         for day, vals in initial_results_dict.get(value).items():
                             with self.subTest(
                                 msg=f"Metric: {cost}, Value: {value}, usage_type: {usage_type}, day: {day}"
                             ):
                                 if value == "banking" or value == "mobile":
-                                    expected_diff = 0
+                                    expected_cost = 0
                                 else:
                                     if day >= start_date.date():
                                         rate = rate_costs.get(cost).get("app").get("default_value")
-                                        expected_diff = float(vals[0] * rate)
+                                        expected_cost = float(vals[0] * rate)
                                     else:
-                                        expected_diff = 0
-                                post_record = post_results_dict.get(value, {}).get(day, {})
-                                actual_diff = 0
-                                if post_record:
-                                    actual_diff = float(post_record[1] - vals[1])
-                                self.assertAlmostEqual(actual_diff, expected_diff)
+                                        expected_cost = 0
+                                actual_cost = rtu_costs.get(day, 0)
+                                self.assertAlmostEqual(actual_cost, expected_cost)
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, OCPUsageLineItemDailySummary)

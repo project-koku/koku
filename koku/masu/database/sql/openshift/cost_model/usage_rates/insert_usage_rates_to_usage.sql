@@ -68,9 +68,9 @@ base AS (
         lids.pod_labels,
         lids.volume_labels,
         lids.all_labels,
-        md5(COALESCE(lids.pod_labels::text, '')
+        encode(sha256(decode(COALESCE(lids.pod_labels::text, '')
             || '|' || COALESCE(lids.volume_labels::text, '')
-            || '|' || COALESCE(lids.all_labels::text, '')) AS label_hash,
+            || '|' || COALESCE(lids.all_labels::text, ''), 'escape')), 'hex') AS label_hash,
         lids.cost_category_id,
 
         sum(coalesce(lids.pod_usage_cpu_core_hours, 0)) AS cpu_usage_hours,
