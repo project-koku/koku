@@ -644,7 +644,27 @@ class HandleOrgIdMismatchTest(IamTestCase):
                 request_method="POST",
             )
 
-        self.assertTrue(any("Org ID mismatch detected" in line for line in cm.output))
+        self.assertTrue(any("Org ID" in line and "mismatch detected" in line for line in cm.output))
+
+    @patch("koku.middleware.UNLEASH_CLIENT")
+    def test_account_id_mismatch_triggers_rename(self, mock_unleash):
+        """Flag ON + account_id mismatch (org_id unchanged): old user is renamed."""
+        mock_unleash.is_enabled.return_value = True
+        old_user = self._make_old_user()
+        old_user.customer.account_id = "77777777"
+        old_user.customer.save()
+
+        IdentityHeaderMiddleware._handle_org_id_mismatch(
+            old_user=old_user,
+            new_org_id="111_test",  # SAME org_id
+            new_account="88888888",  # DIFFERENT account_id
+            username="foobar-user",
+            request_method="POST",
+        )
+
+        old_user.refresh_from_db()
+        self.assertEqual(old_user.username, "old-foobar-user")
+        self.assertFalse(User.objects.filter(username="foobar-user").exists())
 
 
 class RequestTimingMiddlewareTest(IamTestCase):

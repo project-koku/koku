@@ -277,8 +277,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
     def _handle_org_id_mismatch(old_user, new_org_id, new_account, username, request_method):
         """Detect and optionally self-heal a username collision after a Stage environment refresh.
 
-        After a Stage refresh the same username reappears with a new org_id.  The stale api_user
-        row blocks any future attempt to persist a User with the same username (UNIQUE constraint).
+        After a Stage refresh the same username reappears with a new org_id and/or account_id.
+        The stale api_user row blocks any future attempt to persist a User with the same username
+        (UNIQUE constraint).
 
         If the Unleash flag 'cost-management.backend.auto-heal-org-mismatch' is enabled the old
         user is renamed to 'old-<username>' (with a numeric suffix to avoid secondary collisions).
@@ -290,6 +291,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         Runbook: https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/docs/operations/sync-org-id-after-stage-refresh.md
         """
         old_org_id = old_user.customer.org_id
+        old_account = old_user.customer.account_id
 
         auto_heal = UNLEASH_CLIENT.is_enabled(
             "cost-management.backend.auto-heal-org-mismatch",
@@ -298,9 +300,10 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 
         LOG.warning(
             log_json(
-                msg="Org ID mismatch detected for user after environment refresh",
+                msg="Org ID or Account ID mismatch detected for user after environment refresh",
                 username=username,
                 old_org_id=old_org_id,
+                old_account=old_account,
                 new_org_id=new_org_id,
                 new_account=new_account,
                 auto_heal_enabled=auto_heal,
@@ -310,10 +313,12 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         if not auto_heal:
             LOG.error(
                 log_json(
-                    msg="Org ID mismatch: auto-heal disabled, manual intervention required",
+                    msg="Org/Account ID mismatch: auto-heal disabled, manual intervention required",
                     username=username,
                     old_org_id=old_org_id,
+                    old_account=old_account,
                     new_org_id=new_org_id,
+                    new_account=new_account,
                     feature_flag="cost-management.backend.auto-heal-org-mismatch",
                 )
             )
@@ -348,11 +353,13 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         old_user.save()
         LOG.info(
             log_json(
-                msg="Org ID mismatch: renamed stale user to free username (COST-7342)",
+                msg="Org/Account ID mismatch: renamed stale user to free username (COST-7342)",
                 old_username=username,
                 new_username=new_username,
                 old_org_id=old_org_id,
+                old_account=old_account,
                 new_org_id=new_org_id,
+                new_account=new_account,
             )
         )
 
@@ -439,14 +446,22 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     customer = IdentityHeaderMiddleware.customer_cache[org_id]
             except Customer.DoesNotExist:
                 old_user = User.objects.filter(username=username).first()
-                if old_user and old_user.customer and old_user.customer.org_id != org_id:
-                    IdentityHeaderMiddleware._handle_org_id_mismatch(
-                        old_user=old_user,
-                        new_org_id=org_id,
-                        new_account=account,
-                        username=username,
-                        request_method=request.method,
+                if old_user and old_user.customer:
+                    org_mismatch = old_user.customer.org_id != org_id
+                    # account_id can be None for incomplete user records, only check if both are present
+                    account_mismatch = (
+                        old_user.customer.account_id
+                        and account
+                        and old_user.customer.account_id != account
                     )
+                    if org_mismatch or account_mismatch:
+                        IdentityHeaderMiddleware._handle_org_id_mismatch(
+                            old_user=old_user,
+                            new_org_id=org_id,
+                            new_account=account,
+                            username=username,
+                            request_method=request.method,
+                        )
                 customer = IdentityHeaderMiddleware.create_customer(account, org_id, request.method)
             except OperationalError as err:
                 LOG.error("IdentityHeaderMiddleware exception: %s", err)
