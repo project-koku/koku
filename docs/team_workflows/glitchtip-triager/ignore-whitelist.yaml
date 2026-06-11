@@ -1,4 +1,38 @@
-# GlitchTip Triager — ignore whitelist
-# Add rules here for known-noise issues that should not be triaged.
-# Match fields: issue_id, culprit, metadata.type, message_contains (list, all must match)
-rules: []
+# GlitchTip alerts the team treats as expected / not actionable.
+# Matched issues are skipped entirely: no PR.
+# Team-maintained — the agent reads this file; it does not edit it.
+# Keep patterns specific to avoid hiding real regressions.
+
+version: 1
+
+rules:
+  # Provider delete races with ingress report FK (stage cleanup)
+  - id: provider-delete-ingress-fk
+    reason: "Expected stage noise when delete_source races with reporting_ingressreports FK"
+    match:
+      metadata.type: IntegrityError
+      culprit: sources.tasks.delete_source
+      message_contains:
+        - 'update or delete on table "api_provider" violates foreign key constraint'
+        - reporting_ingressrep
+
+  # External / upstream HTTP failures (not koku code bugs)
+  - id: external-http-502
+    reason: "Upstream 502 / gateway errors outside koku control"
+    match:
+      message_contains:
+        - "502 Bad Gateway"
+        - "503 Service Unavailable"
+
+  - id: external-http-eof
+    reason: "Transient network EOF to external services"
+    match:
+      message_contains:
+        - ": EOF"
+        - "Connection reset by peer"
+
+  # Explicit issue IDs (use sparingly — prefer pattern rules above)
+  - id: known-issue-4010016
+    reason: "Team confirmed normal for stage provider delete flow (pilot)"
+    match:
+      issue_id: "4010016"
