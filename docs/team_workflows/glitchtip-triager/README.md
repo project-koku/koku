@@ -2,7 +2,7 @@
 
 ## What it does
 
-An AI agent on [Ambient Code](https://github.com/ambient-code/platform) that polls unresolved GlitchTip issues for `insights-hccm-stage`, classifies them, and (when safe) opens a **draft PR** on `project-koku/koku`.
+An AI agent on [Ambient Code](https://github.com/ambient-code/platform) that **once per week** polls unresolved GlitchTip issues for `insights-hccm-stage`, classifies them, and (when safe) opens a **draft PR** on `project-koku/koku`.
 
 Unlike the CI Triager, this agent **may push branches and open PRs**.
 
@@ -58,13 +58,28 @@ Optional overrides:
 
 ### Schedule
 
-- **Session type:** Scheduled (daily)
+- **Session type:** Scheduled — **once per week**
+- **Cron example:** `0 8 * * 1` (Mondays 08:00 UTC — adjust in AC UI as needed)
 - **Workspace:** `koku`
 - **Branch:** `main`
+
+Each weekly run may examine up to 3 issues and open at most 1 draft PR (defaults).
 
 ## Processed ledger (`glitchtip-processed.json`)
 
 **Default location:** `/workspace/artifacts/glitchtip-processed.json` in the Ambient Code workspace — **not** committed to this repo.
+
+### Why not commit it to `main`?
+
+| Problem | What happens |
+|---------|----------------|
+| **Bot commits on `main`** | Every weekly run adds a commit only to update state — noisy history, no human review, blurs “code” vs “automation state”. |
+| **Needs push without a PR** | The agent would push directly to `main` after each run, bypassing the same review flow you require for real fixes. |
+| **Merge conflicts** | Two runs or a human edit touching the same JSON → failed pushes or accidental overwrites. |
+| **Wrong tool for the job** | Git tracks **intentional** team changes (prompt, whitelist). Processed IDs are **runtime cache** — like CI logs, not source code. |
+| **Weekly schedule + GitHub checks** | With Step 3b (open PR + remote branch), duplicate PRs are caught even if the ledger resets once in a while. |
+
+Committing processed state is a workaround when AC artifacts do not persist. Prefer fixing artifact persistence; use GitHub duplicate checks as the primary safety net.
 
 | Store in AC artifacts | Store in repo |
 |-------------------------|---------------|
@@ -74,7 +89,7 @@ Optional overrides:
 
 **Recommendation:** keep the ledger in **AC artifacts** and ensure the workspace **persists** `/workspace/artifacts/`. Duplicate PR prevention relies primarily on **GitHub pre-flight checks** (open PR, remote branch) documented in [`prompt.md`](prompt.md).
 
-Do **not** commit live processed state to `main`. If persistence is broken, fix AC workspace storage — do not work around it with daily JSON commits.
+Do **not** commit live processed state to `main`. If persistence is broken, fix AC workspace storage — do not work around it with weekly JSON commits on `main`.
 
 ## Guardrails (summary)
 
