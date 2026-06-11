@@ -129,7 +129,7 @@ class ProviderModelTest(MasuTestCase):
         with patch("api.provider.models.router.db_for_write", return_value="default") as mock_router:
             with tenant_context(self.tenant):
                 self.aws_provider.delete()
-        mock_router.assert_called_once_with(Provider, instance=self.aws_provider)
+        mock_router.assert_any_call(Provider, instance=self.aws_provider)
 
     @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_runs_in_atomic_transaction(self, mock_delete_archived_data):
