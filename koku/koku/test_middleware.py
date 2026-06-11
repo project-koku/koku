@@ -664,6 +664,46 @@ class HandleOrgIdMismatchTest(IamTestCase):
         self.assertEqual(old_user.username, "old-foobar-user")
         self.assertFalse(User.objects.filter(username="foobar-user").exists())
 
+    @patch("koku.middleware.UNLEASH_CLIENT")
+    def test_middleware_detects_and_handles_org_id_mismatch(self, mock_unleash):
+        """Integration test: middleware detects mismatch in process_request and calls handler."""
+        from api.iam.models import Customer
+
+        mock_unleash.is_enabled.return_value = True
+
+        # Create old user with old org_id
+        old_customer = Customer.objects.create(
+            org_id="old_org_123", account_id="old_account", schema_name="orgold_org_123"
+        )
+        old_user = User.objects.create(
+            username="test_user_integration", email="test@example.com", customer=old_customer
+        )
+
+        # Simulate new request with SAME username but DIFFERENT org_id
+        new_identity = {
+            "identity": {
+                "account_number": "new_account_456",
+                "org_id": "new_org_789",
+                "type": "User",
+                "user": {"username": "test_user_integration", "email": "test@example.com", "is_org_admin": True},
+            },
+            "entitlements": {"cost_management": {"is_entitled": True}},
+        }
+        mock_request = Mock(
+            path="/api/v1/tags/aws/",
+            META={"HTTP_X_RH_IDENTITY": RH_IDENTITY_HEADER(new_identity), "QUERY_STRING": ""},
+            method="POST",
+        )
+
+        middleware = IdentityHeaderMiddleware(Mock())
+
+        # This should detect the mismatch and call _handle_org_id_mismatch
+        middleware.process_request(mock_request)
+
+        # Verify old user was renamed
+        old_user.refresh_from_db()
+        self.assertEqual(old_user.username, "old-test_user_integration")
+
 
 class RequestTimingMiddlewareTest(IamTestCase):
     """Tests against the koku tenant middleware."""
