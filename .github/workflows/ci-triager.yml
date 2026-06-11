@@ -1,17 +1,17 @@
 name: CI Triager
 
 on:
-  # Catches GitHub Actions CI failures (Sanity, Units, Coverage).
-  # workflow_run fires once when the entire CI workflow completes — no debounce needed.
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-
-  # Catches external check failures (Konflux koku-ci, koku-pr, Codecov, Snyk...).
-  # GitHub Actions check runs do NOT trigger this event (GitHub limitation),
-  # so there is no overlap with workflow_run above.
-  check_run:
-    types: [completed]
+  # Temporarily disabled: the Ambient Code Public API Gateway has a bug where
+  # initialPrompt is not forwarded to the backend, causing sessions to be created
+  # with no prompt. A fix is pending in RedHatInsights/ambient-code-platform#83.
+  # Re-enable triggers below once that fix is deployed.
+  #
+  # workflow_run:
+  #   workflows: ["CI"]
+  #   types: [completed]
+  #
+  # check_run:
+  #   types: [completed]
 
   workflow_dispatch:
     inputs:
