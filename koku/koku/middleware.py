@@ -28,7 +28,6 @@ from prometheus_client import Counter
 
 from api.common import log_json
 from api.common import RH_IDENTITY_HEADER
-from koku.feature_flags import UNLEASH_CLIENT
 from api.common.pagination import EmptyResultsSetPagination
 from api.iam.models import Customer
 from api.iam.models import Tenant
@@ -37,6 +36,7 @@ from api.iam.serializers import create_schema_name
 from api.iam.serializers import extract_header
 from api.utils import DateHelper
 from koku.cache import CacheEnum
+from koku.feature_flags import UNLEASH_CLIENT
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
@@ -288,7 +288,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         If the flag is disabled an error is logged for manual SRE intervention.
 
         See: https://redhat.atlassian.net/browse/COST-7342
-        Runbook: https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/docs/operations/sync-org-id-after-stage-refresh.md
+        Runbook: https://gitlab.cee.redhat.com/cost-management/service-docs
+                 /-/blob/main/docs/operations/sync-org-id-after-stage-refresh.md
         """
         old_org_id = old_user.customer.org_id
         old_account = old_user.customer.account_id

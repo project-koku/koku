@@ -2,7 +2,8 @@
 # Reproduces what IdentityHeaderMiddleware.process_request() does, then attempts
 # to persist a User — which fails with an IntegrityError due to the UNIQUE
 # constraint on api_user.username.
-from api.iam.models import Customer, User
+from api.iam.models import Customer
+from api.iam.models import User
 from api.iam.serializers import create_schema_name
 
 OLD_ORG_ID  = "11111111_test"

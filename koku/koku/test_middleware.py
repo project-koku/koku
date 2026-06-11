@@ -26,6 +26,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.common import RH_IDENTITY_HEADER
+from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
@@ -514,8 +515,6 @@ class HandleOrgIdMismatchTest(IamTestCase):
     FLAG = "cost-management.backend.auto-heal-org-mismatch"
 
     def _make_old_user(self, username="foobar-user", old_org_id="111_test"):
-        from api.iam.models import Customer
-
         customer = Customer.objects.create(
             org_id=old_org_id,
             account_id="55555555",
@@ -526,7 +525,6 @@ class HandleOrgIdMismatchTest(IamTestCase):
 
     def tearDown(self):
         super().tearDown()
-        from api.iam.models import Customer
         from django.db import connection as _conn
 
         test_org_ids = ["111_test", "222_test"]
