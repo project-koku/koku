@@ -74,7 +74,11 @@ class ReportManifestDBAccessor:
         """Update the number of files for manifest."""
         if manifest_id:
             with transaction.atomic():  # prevent collisions
-                manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+                try:
+                    manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+                except CostUsageReportManifest.DoesNotExist:
+                    LOG.warning(log_json(msg="manifest not found, skipping state update", manifest_id=manifest_id))
+                    return
                 if manifest:
                     time_now = timezone.now()
                     if not manifest.state:

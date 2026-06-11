@@ -70,8 +70,12 @@ class AzureClientFactory:
             storage_account_keys = self.storage_client.storage_accounts.list_keys(
                 resource_group_name, storage_account_name
             )
-            # Add check for keys and a get value
-            key = storage_account_keys.keys[0]
+            # azure-mgmt-storage >=25 exposes keys as keys_property (.keys is dict.keys())
+            if hasattr(storage_account_keys, "keys_property"):
+                account_keys = storage_account_keys.keys_property
+            else:
+                account_keys = storage_account_keys.keys
+            key = account_keys[0]
 
             connect_str = (
                 f"DefaultEndpointsProtocol=https;"
