@@ -57,19 +57,21 @@ Read `AGENTS.md` when you need architecture context:
 ### Step 0: Bootstrap state file
 
 ```bash
-PROCESSED="${GLITCHTIP_PROCESSED_FILE:-/workspace/artifacts/glitchtip-processed.json}"
+export PROCESSED="${GLITCHTIP_PROCESSED_FILE:-/workspace/artifacts/glitchtip-processed.json}"
 mkdir -p "$(dirname "$PROCESSED")"
 [ -f "$PROCESSED" ] || echo '{"issues":[]}' > "$PROCESSED"
 
-MIN_EVENTS="${GLITCHTIP_MIN_EVENTS:-2}"
-MAX_ISSUES="${GLITCHTIP_MAX_ISSUES_PER_RUN:-3}"
-MAX_PRS="${GLITCHTIP_MAX_PRS_PER_RUN:-1}"
-PRS_OPENED=0
-AUTH="Authorization: Bearer $GLITCHTIP_TOKEN"
-BASE="$GLITCHTIP_BASE_URL"
-ORG="$GLITCHTIP_ORG"
-PROJ="$GLITCHTIP_PROJECT"
+export MIN_EVENTS="${GLITCHTIP_MIN_EVENTS:-2}"
+export MAX_ISSUES="${GLITCHTIP_MAX_ISSUES_PER_RUN:-3}"
+export MAX_PRS="${GLITCHTIP_MAX_PRS_PER_RUN:-1}"
+export PRS_OPENED=0
+export AUTH="Authorization: Bearer $GLITCHTIP_TOKEN"
+export BASE="$GLITCHTIP_BASE_URL"
+export ORG="$GLITCHTIP_ORG"
+export PROJ="$GLITCHTIP_PROJECT"
 ```
+
+Python heredocs below use `<<'PY'` (quoted delimiter — no bash `$` expansion). Read bootstrap values via `os.environ`.
 
 If the user message starts with `MANUAL TEST:` and contains an issue ID:
 
@@ -84,14 +86,15 @@ Skip when `MANUAL TEST:` specifies an issue ID — fetch that issue directly in 
 curl -s -H "$AUTH" -H "Content-Type: application/json" \
   "$BASE/api/0/projects/$ORG/$PROJ/issues/?query=is:unresolved" \
   | python3 -c "
-import json
+import json, os
 
 raw = json.load(__import__('sys').stdin)
 issues = raw if isinstance(raw, list) else raw.get('results', raw)
-processed = json.load(open('$PROCESSED'))
+processed_path = os.environ.get('PROCESSED', '/workspace/artifacts/glitchtip-processed.json')
+processed = json.load(open(processed_path))
 seen = {str(e.get('issueId')) for e in processed.get('issues', []) if e.get('issueId')}
-min_events = int('$MIN_EVENTS')
-max_issues = int('$MAX_ISSUES')
+min_events = int(os.environ.get('MIN_EVENTS', 2))
+max_issues = int(os.environ.get('MAX_ISSUES', 3))
 
 candidates = []
 for i in issues:
@@ -120,7 +123,7 @@ If the list is empty, stop with a short summary: no new issues to triage.
 ### Step 2: Fetch issue and latest event
 
 ```bash
-ISSUE_ID="<id>"
+export ISSUE_ID="<id>"
 
 curl -s -H "$AUTH" \
   "$BASE/api/0/organizations/$ORG/issues/$ISSUE_ID/" \
@@ -137,12 +140,15 @@ Extract stack frames from the event when present. If `events/latest` is empty, u
 
 ```bash
 python3 <<'PY'
-import json, yaml, sys
+import json, os, sys, yaml
 
-issue_id = "$ISSUE_ID"
-with open("/tmp/glitchtip-issue-$ISSUE_ID.json") as f:
+issue_id = os.environ.get("ISSUE_ID", "")
+if not issue_id:
+    print("ERROR: ISSUE_ID not set", file=sys.stderr)
+    sys.exit(1)
+with open(f"/tmp/glitchtip-issue-{issue_id}.json") as f:
     issue = json.load(f)
-with open("/tmp/glitchtip-event-$ISSUE_ID.json") as f:
+with open(f"/tmp/glitchtip-event-{issue_id}.json") as f:
     event = json.load(f)
 meta = event.get("metadata") or issue.get("metadata") or {}
 msg = (event.get("message") or meta.get("value") or issue.get("title") or "").lower()
@@ -190,13 +196,14 @@ Document classification and one-line rationale before acting.
 Do **not** open a PR if **any** check below fails. Record `duplicate_pr_avoided` and explain in the run summary.
 
 ```bash
-ISSUE_ID="<id>"
-
 python3 <<'PY'
-import json, subprocess, sys
+import json, os, subprocess, sys
 
-issue_id = "$ISSUE_ID"
-processed_path = "$PROCESSED"
+issue_id = os.environ.get("ISSUE_ID", "")
+processed_path = os.environ.get("PROCESSED", "/workspace/artifacts/glitchtip-processed.json")
+if not issue_id:
+    print("ERROR: ISSUE_ID not set", file=sys.stderr)
+    sys.exit(1)
 data = json.load(open(processed_path))
 for entry in data.get("issues", []):
     if str(entry.get("issueId")) == issue_id and entry.get("prUrl"):
