@@ -1630,6 +1630,48 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     )
                     mock_trino_exec.assert_not_called()
 
+    def test_gpu_sql_template_includes_unmatched_models_with_zero_cost(self):
+        """COST-7243: GPU models without a matching rate must NOT be filtered out.
+
+        When value_rates is defined (per-model rates in the cost model) but a GPU
+        model has no matching entry, the SQL must still insert a row for it with
+        calculated_cost = 0.  Previously the template added a WHERE filter that
+        silently dropped those rows.
+        """
+        from jinjasql import JinjaSql
+
+        sql_template = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/monthly_cost_gpu.sql")
+        sql_template = sql_template.decode("utf-8")
+
+        params = {
+            "schema": "test_schema",
+            "cost_model_id": "00000000-0000-0000-0000-000000000001",
+            "report_period_id": 1,
+            "source_uuid": "00000000-0000-0000-0000-000000000002",
+            "start_date": "2024-01-01",
+            "end_date": "2024-01-31",
+            "year": "2024",
+            "month": "01",
+            "cluster_id": "'test-cluster'",
+            "cluster_alias": "'test-alias'",
+            "tag_key": "nvidia",
+            "rate_type": "'gpu_distributed'",
+            "metric_type": "'OCP_GPU_MONTH'",
+            "custom_name": "'custom'",
+            "amortized_denominator": 31,
+            "rate_uuid": "00000000-0000-0000-0000-000000000003",
+            # value_rates with one known model — other GPU models are unmatched
+            "value_rates": {"A100": 5000},
+            # no default_rate — this is the case that previously caused rows to vanish
+        }
+
+        rendered_sql, _ = JinjaSql(param_style="named").prepare_query(sql_template, params)
+
+        # The restricting WHERE filter must be absent — unmatched models must pass through
+        self.assertNotIn("gpu.gpu_model_name = 'A100'", rendered_sql.split("WHERE")[1] if "WHERE" in rendered_sql else rendered_sql)
+        # The CASE must fall back to 0 for unmatched models (ELSE 0)
+        self.assertIn("ELSE 0", rendered_sql)
+
 
 @override_settings(ONPREM=False)
 class OCPReportDBAccessorGPUUITest(MasuTestCase):
