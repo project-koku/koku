@@ -6,6 +6,7 @@
 from prometheus_client import CollectorRegistry
 from prometheus_client import Counter
 from prometheus_client import Gauge
+from prometheus_client import Histogram
 from prometheus_client import multiprocess
 
 
@@ -174,6 +175,21 @@ QUEUES = {
     "subs_transmission": SUBS_TRANSMISSION_BACKLOG,
 }
 
+RTU_POPULATE_DURATION = Histogram(
+    "rtu_populate_duration_seconds",
+    "Time to populate usage rates_to_usage rows",
+    ["provider_type"],
+)
+RTU_AGGREGATE_DURATION = Histogram(
+    "rtu_aggregate_duration_seconds",
+    "Time to aggregate rates_to_usage into daily summary",
+    ["provider_type"],
+)
+RTU_MARKUP_DURATION = Histogram(
+    "rtu_markup_duration_seconds",
+    "Time to populate markup rates_to_usage rows",
+    ["provider_type"],
+)
 SOURCES_KAFKA_LOOP_RETRY = Counter("sources_kafka_retry_errors", "Number of sources kafka retry errors")
 
 SOURCES_PROVIDER_OP_RETRY_LOOP_COUNTER = Counter(
