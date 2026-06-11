@@ -4,6 +4,7 @@
 #
 """Updates report summary tables in the database with charge information."""
 import logging
+import time
 from decimal import Decimal
 
 from django.utils import timezone
@@ -17,6 +18,9 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor import COST_BREAKDOWN_RTU_UNLEASH_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.prometheus_stats import RTU_AGGREGATE_DURATION
+from masu.prometheus_stats import RTU_MARKUP_DURATION
+from masu.prometheus_stats import RTU_POPULATE_DURATION
 from masu.util.common import filter_dictionary
 from masu.util.common import SummaryRangeConfig
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
@@ -58,6 +62,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         self._tag_default_supplementary_rates = {}
         self.metric_to_tag_params_map = {}
         self._price_list_effective_on = None
+        self._rate_info_map = {}
 
     def _load_rates(self, price_list_effective_on):
         """Load rates from the effective price list for the given billing date."""
@@ -74,6 +79,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
             self.metric_to_tag_params_map = cost_model_accessor.metric_to_tag_params_map
             self._price_list_effective_on = cost_model_accessor.price_list_effective_on
+            self._rate_info_map = cost_model_accessor.rate_info_map
 
     def _ensure_rates_to_usage_partitions(self, start_date, end_date):
         """Create monthly partitions for rates_to_usage on demand."""
@@ -324,6 +330,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 )
 
                 amortized_rate = get_amortized_monthly_cost_model_rate(rate, start_date)
+                rate_info = self._rate_info_map.get((rate_term, rate_type, ""), {}) if rate_type else {}
                 report_accessor.populate_monthly_cost_sql(
                     cost_type,
                     rate_type,
@@ -332,6 +339,9 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     end_date,
                     self._distribution,
                     self._provider_uuid,
+                    cost_model_id=self._cost_model_id,
+                    rate_uuid=rate_info.get("rate_uuid"),
+                    custom_name=rate_info.get("custom_name"),
                 )
 
     def _update_monthly_tag_based_cost(self, start_date, end_date):  # noqa: C901
@@ -381,6 +391,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     )
 
                     for tag_key, case_statements in per_tag_key_case_statements.items():
+                        rate_info = self._rate_info_map.get((monthly_cost_metric, cost_model_cost_type, tag_key), {})
                         report_accessor.populate_tag_cost_sql(
                             openshift_resource_type,
                             cost_model_cost_type,
@@ -390,6 +401,9 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                             end_date,
                             self._distribution,
                             self._provider_uuid,
+                            cost_model_id=self._cost_model_id,
+                            rate_uuid=rate_info.get("rate_uuid"),
+                            custom_name=rate_info.get("custom_name"),
                         )
 
     def _update_node_hour_tag_based_cost(self, start_date, end_date):
@@ -424,6 +438,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     rates, default_rates, start_date
                 )
                 for tag_key, case_statements in per_tag_key_case_statements.items():
+                    rate_info = self._rate_info_map.get(
+                        (
+                            metric_constants.OCP_NODE_CORE_HOUR,
+                            cost_model_cost_type,
+                            tag_key,
+                        ),
+                        {},
+                    )
                     report_accessor.populate_tag_cost_sql(
                         "Node_Core_Hour",
                         cost_model_cost_type,
@@ -433,6 +455,9 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                         end_date,
                         self._distribution,
                         self._provider_uuid,
+                        cost_model_id=self._cost_model_id,
+                        rate_uuid=rate_info.get("rate_uuid"),
+                        custom_name=rate_info.get("custom_name"),
                     )
 
     def _update_usage_costs(self, start_date, end_date):
@@ -500,6 +525,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
 
             self._ensure_rates_to_usage_partitions(start_date, end_date)
 
+            t0 = time.monotonic()
             report_accessor.populate_usage_rates_to_usage(
                 start_date,
                 end_date,
@@ -507,6 +533,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 report_period_id,
                 self._cost_model_id,
             )
+            RTU_POPULATE_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
 
     def _aggregate_rates_to_daily_summary(self, start_date, end_date):
         """Aggregate RatesToUsage rows into daily summary cost columns."""
@@ -533,9 +560,11 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     )
                 )
                 return
+            t0 = time.monotonic()
             report_accessor.aggregate_rates_to_daily_summary(
                 start_date, end_date, self._provider.uuid, report_period.id
             )
+            RTU_AGGREGATE_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
 
     def _cleanup_stale_rtu_costs(self, start_date, end_date):
         """Remove stale cost-model rows when the cost model has been deleted.
@@ -606,6 +635,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     end_date,
                     self._provider.uuid,
                     report_period_id,
+                    cost_model_id=self._cost_model_id,
+                    rate_info_map=self._rate_info_map,
                 )
 
     def _update_markup_cost(self, start_date, end_date):
@@ -646,6 +677,16 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 )
             )
             accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
+            if self._cost_model_id:
+                t0 = time.monotonic()
+                accessor.populate_markup_rates_to_usage(
+                    start_date,
+                    end_date,
+                    self._provider_uuid,
+                    self._cluster_id,
+                    self._cost_model_id,
+                )
+                RTU_MARKUP_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
         LOG.info(
             log_json(
                 msg="finished updating markup costs",
@@ -661,23 +702,35 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
     def _update_tag_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary tag based usage costs."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
+            report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            report_period_id = report_period.id if report_period else None
             report_accessor.populate_tag_usage_costs(
                 self._tag_infra_rates,
                 self._tag_supplementary_rates,
                 start_date,
                 end_date,
                 self._cluster_id,
+                cost_model_id=self._cost_model_id,
+                rate_info_map=self._rate_info_map,
+                source_uuid=self._provider.uuid,
+                report_period_id=report_period_id,
             )
 
     def _update_tag_usage_default_costs(self, start_date, end_date):
         """Update infrastructure and supplementary tag based usage costs based on default values."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
+            report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            report_period_id = report_period.id if report_period else None
             report_accessor.populate_tag_usage_default_costs(
                 self._tag_default_infra_rates,
                 self._tag_default_supplementary_rates,
                 start_date,
                 end_date,
                 self._cluster_id,
+                cost_model_id=self._cost_model_id,
+                rate_info_map=self._rate_info_map,
+                source_uuid=self._provider.uuid,
+                report_period_id=report_period_id,
             )
 
     def _delete_tag_usage_costs(self, start_date, end_date, source_uuid):
@@ -737,6 +790,12 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
     def update_summary_cost_model_costs(self, summary_range: SummaryRangeConfig) -> None:
         """Update the OCP summary table with the charge information.
 
+        Phase 3 converted all monthly/tag/VM SQL to INSERT into rates_to_usage,
+        so all cost types now require the RTU pipeline.  The feature flag is
+        checked and a warning is emitted when it is OFF, but the RTU path runs
+        unconditionally because aggregation (which rebuilds daily-summary from
+        RTU) would otherwise discard any legacy direct-written rows.
+
         Args:
             start_date (str, Optional) - Start date of range to update derived cost.
             end_date (str, Optional) - End date of range to update derived cost.
@@ -771,26 +830,41 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             rtu_enabled = is_feature_flag_enabled_by_schema(
                 self._schema, COST_BREAKDOWN_RTU_UNLEASH_FLAG, dev_fallback=True
             )
-            if rtu_enabled:
-                if self._cost_model_id and not no_effective_pl:
-                    self._update_usage_rates_to_usage(start_date, end_date)
-                    self._aggregate_rates_to_daily_summary(start_date, end_date)
-                    self._update_vm_usage_costs(start_date, end_date)
-                elif self._cost_model_id:
-                    LOG.info(
-                        log_json(
-                            msg="no effective price list for billing month, cleaning stale RTU rows",
-                            provider_uuid=self._provider_uuid,
-                            start_date=start_date,
-                        )
+            if not rtu_enabled:
+                LOG.warning(
+                    log_json(
+                        msg="COST_BREAKDOWN_RTU_UNLEASH_FLAG is OFF; Phase 3 SQL requires "
+                        "RTU pipeline, overriding to use RTU path for all cost types",
+                        provider_uuid=self._provider_uuid,
+                        schema=self._schema,
                     )
-                    self._cleanup_stale_rtu_costs(start_date, end_date)
-                else:
-                    self._cleanup_stale_rtu_costs(start_date, end_date)
+                )
+
+            LOG.info(
+                log_json(
+                    msg="RTU pipeline path selected",
+                    rtu_enabled=rtu_enabled,
+                    cost_model_id=str(self._cost_model_id) if self._cost_model_id else None,
+                    provider_uuid=self._provider_uuid,
+                )
+            )
+
+            if self._cost_model_id and not no_effective_pl:
+                self._update_usage_rates_to_usage(start_date, end_date)
+            elif self._cost_model_id:
+                LOG.info(
+                    log_json(
+                        msg="no effective price list for billing month, cleaning stale RTU rows",
+                        provider_uuid=self._provider_uuid,
+                        start_date=start_date,
+                    )
+                )
+                self._cleanup_stale_rtu_costs(start_date, end_date)
             else:
-                self._update_usage_costs(start_date, end_date)
-            self._update_markup_cost(start_date, end_date)
+                self._cleanup_stale_rtu_costs(start_date, end_date)
+
             self._update_monthly_cost(start_date, end_date)
+
             if self._tag_infra_rates != {} or self._tag_supplementary_rates != {}:
                 self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
                 self._update_tag_usage_costs(start_date, end_date)
@@ -808,8 +882,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                         self._provider.uuid,
                         self.metric_to_tag_params_map,
                         cluster_params,
+                        cost_model_id=self._cost_model_id,
+                        rate_info_map=self._rate_info_map,
                     )
             if not (self._tag_infra_rates or self._tag_supplementary_rates):
                 self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
+
+            self._update_vm_usage_costs(start_date, end_date)
+            self._aggregate_rates_to_daily_summary(start_date, end_date)
+            self._update_markup_cost(start_date, end_date)
 
         self.distribute_costs_and_update_ui_summary(summary_range)

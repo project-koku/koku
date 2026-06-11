@@ -272,8 +272,9 @@ class Provider(models.Model):
 
     def set_data_updated_timestamp(self):
         """Set the data updated timestamp to the current time."""
-        self.data_updated_timestamp = timezone.now()
-        self.save(update_fields=["data_updated_timestamp"])
+        now = timezone.now()
+        self.data_updated_timestamp = now
+        Provider.objects.filter(pk=self.pk).update(data_updated_timestamp=now)
 
     def set_infrastructure(self, infra):
         """Set the infrastructure."""
