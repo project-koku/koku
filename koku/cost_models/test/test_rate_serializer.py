@@ -3,13 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for RateSerializer rate_id and custom_name output."""
-from unittest import TestCase
 from uuid import uuid4
 
+from api.iam.test.iam_test_case import IamTestCase
 from cost_models.serializers import RateSerializer
 
 
-class RateSerializerToRepresentationTest(TestCase):
+class RateSerializerToRepresentationTest(IamTestCase):
     """Tests for RateSerializer.to_representation with rate_id and custom_name."""
 
     def test_tiered_rate_includes_rate_id(self):
