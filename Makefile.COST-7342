@@ -1,0 +1,98 @@
+# Makefile.COST-7342 — Reproduce the org_id mismatch bug after a Stage refresh
+#
+# Prerequisites: koku dev environment running (use the main Makefile).
+#   make docker-up-min        # or: make docker-reinitdb
+#
+# Reproduce the bug (fully repeatable):
+#   make -f Makefile.COST-7342 reproduce
+#
+# Reproduce and then apply the manual runbook fix:
+#   make -f Makefile.COST-7342 reproduce-with-fix
+
+SHELL   := /bin/bash
+DOCKER  := $(shell which docker 2>/dev/null || which podman 2>/dev/null)
+SCRIPTS := scripts/COST-7342
+
+# Runs a Python script inside the koku-server container via the Django shell.
+# Usage: $(RUN) <script.py>
+RUN = $(DOCKER) exec -i koku_server python koku/manage.py shell <
+
+API_BASE := http://localhost:8000/api/cost-management/v1
+
+# ==============================================================================
+# Targets
+# ==============================================================================
+
+.PHONY: help reproduce reproduce-with-fix \
+        clean create-old-identity show-state trigger-bug manual-fix verify-fix \
+        gen-headers test-curl-old test-curl-new
+
+help:
+	@echo ""
+	@echo "COST-7342 — org_id mismatch reproduction (requires koku-server running)"
+	@echo ""
+	@echo "  reproduce           clean → setup → trigger bug  (fully repeatable)"
+	@echo "  reproduce-with-fix  clean → setup → trigger bug → fix → verify"
+	@echo ""
+	@echo "  clean               Remove all test data (safe to run at any time)"
+	@echo "  create-old-identity Insert pre-refresh Customer/User/Tenant"
+	@echo "  show-state          Dump test Customers, Users, Tenants from DB"
+	@echo "  trigger-bug         Simulate Stage refresh; shows the IntegrityError"
+	@echo "  manual-fix          Runbook Option A: rename old user to old-<username>"
+	@echo "  verify-fix          show-state after fix (confirms username is free)"
+	@echo ""
+	@echo "  gen-headers         Print base64 x-rh-identity headers for curl"
+	@echo "  test-curl-old       HTTP request with old identity"
+	@echo "  test-curl-new       HTTP request with new identity (triggers bug or fix)"
+	@echo ""
+	@echo "  Environment: use the main Makefile — e.g. 'make docker-up-min'"
+	@echo ""
+
+# --- composite flows (both fully repeatable) ----------------------------------
+
+reproduce: clean create-old-identity show-state trigger-bug
+
+reproduce-with-fix: clean create-old-identity trigger-bug manual-fix verify-fix
+
+# --- individual steps ---------------------------------------------------------
+
+clean:
+	@echo "--- Removing test data ---"
+	$(RUN) $(SCRIPTS)/clean.py
+
+create-old-identity:
+	@echo "--- Creating pre-refresh Customer / User / Tenant ---"
+	$(RUN) $(SCRIPTS)/create_old_identity.py
+
+show-state:
+	@echo "--- DB state (test data only) ---"
+	$(RUN) $(SCRIPTS)/show_state.py
+
+trigger-bug:
+	@echo "--- Simulating Stage refresh ---"
+	$(RUN) $(SCRIPTS)/trigger_bug.py
+
+manual-fix:
+	@echo "--- Applying manual fix (runbook Option A) ---"
+	$(RUN) $(SCRIPTS)/manual_fix.py
+
+verify-fix: show-state
+	@echo ""
+	@echo "Username 'test-user-refresh' should be absent from the Users list above."
+
+# --- HTTP-level (curl) testing ------------------------------------------------
+
+gen-headers:
+	$(RUN) $(SCRIPTS)/gen_headers.py
+
+test-curl-old:
+	$(eval _H  := $(shell $(RUN) $(SCRIPTS)/gen_headers.py 2>/dev/null))
+	$(eval _OH := $(subst OLD_HEADER=,,$(filter OLD_HEADER=%,$(_H))))
+	@echo "--- Request with OLD identity ---"
+	@curl -s -w "\nHTTP %{http_code}\n" -H "x-rh-identity: $(_OH)" $(API_BASE)/status/
+
+test-curl-new:
+	$(eval _H  := $(shell $(RUN) $(SCRIPTS)/gen_headers.py 2>/dev/null))
+	$(eval _NH := $(subst NEW_HEADER=,,$(filter NEW_HEADER=%,$(_H))))
+	@echo "--- Request with NEW identity (post-refresh) ---"
+	@curl -s -w "\nHTTP %{http_code}\n" -H "x-rh-identity: $(_NH)" $(API_BASE)/status/
