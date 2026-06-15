@@ -322,10 +322,8 @@ class SyncRateTableTest(IamTestCase):
             with self.assertRaises(CostModelException):
                 self._create_cost_model(rates)
 
-    def test_update_with_nonexistent_rate_id_raises_exception(self):
-        """Test that a valid UUID not belonging to this price list raises CostModelException."""
-        from cost_models.cost_model_manager import CostModelException
-
+    def test_update_with_nonexistent_rate_id_falls_back(self):
+        """SI-11: A nonexistent rate_id must fall back to custom_name, not raise."""
         with tenant_context(self.tenant):
             rates = [
                 {
@@ -345,9 +343,10 @@ class SyncRateTableTest(IamTestCase):
                     "rate_id": fake_uuid,
                 }
             ]
-            with self.assertRaises(CostModelException):
-                with patch("cost_models.cost_model_manager.update_cost_model_costs"):
-                    manager.update(rates=updated_rates)
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+                manager.update(rates=updated_rates)
+            mapping = PriceListCostModelMap.objects.get(cost_model=cm)
+            self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 1)
 
     def test_update_by_rate_id_preserves_uuid_across_rename(self):
         """Test that matching by rate_id preserves UUID even when custom_name changes."""
@@ -421,3 +420,32 @@ class SyncRateTableTest(IamTestCase):
             rate = Rate.objects.get(uuid=cpu_rate.uuid)
             self.assertEqual(rate.uuid, cpu_rate.uuid)
             self.assertEqual(rate.custom_name, "wrong-name-but-rate-id-wins")
+
+    def test_update_with_nonexistent_rate_id_falls_back_to_custom_name(self):
+        """SI-11: A valid UUID not matching any Rate row must fall back to custom_name matching.
+
+        This prevents 400 errors when the UI round-trips a stale rate_id.
+        """
+        with tenant_context(self.tenant):
+            rates = [
+                {
+                    "metric": {"name": self.metric},
+                    "tiered_rates": self.tiered_rates,
+                    "cost_type": "Infrastructure",
+                }
+            ]
+            cm = self._create_cost_model(rates)
+            mapping = PriceListCostModelMap.objects.get(cost_model=cm)
+            manager = CostModelManager(cost_model_uuid=cm.uuid)
+            updated_rates = [
+                {
+                    "metric": {"name": self.metric},
+                    "tiered_rates": [{"unit": "USD", "value": 0.77}],
+                    "cost_type": "Infrastructure",
+                    "rate_id": str(uuid4()),
+                }
+            ]
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+                manager.update(rates=updated_rates)
+            rate = Rate.objects.get(price_list=mapping.price_list)
+            self.assertEqual(rate.default_rate, Decimal("0.77"))
