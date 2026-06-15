@@ -661,7 +661,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
         )
 
         old_user.refresh_from_db()
-        self.assertEqual(old_user.username, "old-foobar-user")
+        self.assertRegex(old_user.username, r"^old-foobar-user-\d{8}T\d{6}$")
         self.assertFalse(User.objects.filter(username="foobar-user").exists())
 
     @patch("koku.middleware.UNLEASH_CLIENT")
@@ -702,7 +702,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
 
         # Verify old user was renamed
         old_user.refresh_from_db()
-        self.assertEqual(old_user.username, "old-test_user_integration")
+        self.assertRegex(old_user.username, r"^old-test_user_integration-\d{8}T\d{6}$")
 
 
 class RequestTimingMiddlewareTest(IamTestCase):
