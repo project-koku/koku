@@ -405,8 +405,8 @@ class RateSerializer(serializers.Serializer):
         """
         for field_name in ("rate_id", "custom_name"):
             data.pop(field_name, None)
-        metric = data.get("metric", {})
-        new_metric = {"name": metric.get("name")}
+        metric = data.get("metric") or {}
+        new_metric = {"name": metric.get("name") if isinstance(metric, dict) else None}
         data["metric"] = new_metric
         return data
 

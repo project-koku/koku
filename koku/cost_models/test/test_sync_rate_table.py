@@ -449,3 +449,37 @@ class SyncRateTableTest(IamTestCase):
                 manager.update(rates=updated_rates)
             rate = Rate.objects.get(price_list=mapping.price_list)
             self.assertEqual(rate.default_rate, Decimal("0.77"))
+
+    def test_update_without_custom_name_preserves_uuid(self):
+        """SI-11: Update without custom_name must match existing rate by generated name.
+
+        When the serializer strips custom_name from input, the sync logic must
+        regenerate the same deterministic name and match the existing rate,
+        preserving the Rate UUID instead of deleting and recreating.
+        """
+        with tenant_context(self.tenant):
+            rates = [
+                {
+                    "metric": {"name": self.metric},
+                    "tiered_rates": self.tiered_rates,
+                    "cost_type": "Infrastructure",
+                }
+            ]
+            cm = self._create_cost_model(rates)
+            mapping = PriceListCostModelMap.objects.get(cost_model=cm)
+            original_rate = Rate.objects.get(price_list=mapping.price_list)
+            original_uuid = original_rate.uuid
+
+            manager = CostModelManager(cost_model_uuid=cm.uuid)
+            updated_rates = [
+                {
+                    "metric": {"name": self.metric},
+                    "tiered_rates": [{"unit": "USD", "value": 0.55}],
+                    "cost_type": "Infrastructure",
+                }
+            ]
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+                manager.update(rates=updated_rates)
+            rate = Rate.objects.get(price_list=mapping.price_list)
+            self.assertEqual(rate.uuid, original_uuid)
+            self.assertEqual(rate.default_rate, Decimal("0.55"))

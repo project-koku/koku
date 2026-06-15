@@ -142,7 +142,7 @@ def _classify_incoming_rates(rates_data, existing_by_uuid, existing_by_name, all
     to_update = []
     to_create_data = []
 
-    used_names = all_existing_names | {rd.get("custom_name", "") for rd in rates_data if rd.get("custom_name")}
+    used_names = {rd.get("custom_name", "") for rd in rates_data if rd.get("custom_name")}
 
     for rate_data in rates_data:
         rate_id = rate_data.get("rate_id")
@@ -156,6 +156,7 @@ def _classify_incoming_rates(rates_data, existing_by_uuid, existing_by_name, all
                 rate_obj = existing_by_uuid[rate_uuid]
                 incoming_ids.add(rate_uuid)
                 to_update.append((rate_obj, rate_data))
+                used_names.add(rate_obj.custom_name)
                 continue
             LOG.warning("rate_id %s not found; falling back to custom_name matching", rate_id)
 
