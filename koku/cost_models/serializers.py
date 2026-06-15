@@ -403,8 +403,7 @@ class RateSerializer(serializers.Serializer):
         because validate_cost_type has a non-standard signature (2 args) that
         DRF's field-level validation would call incorrectly.
         """
-        for field_name in ("rate_id", "custom_name"):
-            data.pop(field_name, None)
+        data.pop("rate_id", None)
         metric = data.get("metric") or {}
         new_metric = {"name": metric.get("name") if isinstance(metric, dict) else None}
         data["metric"] = new_metric

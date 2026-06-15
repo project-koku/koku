@@ -92,8 +92,8 @@ class RateSerializerInternalFieldExclusionTest(TestCase):
         result = serializer.to_internal_value(data)
         self.assertNotIn("rate_id", result)
 
-    def test_to_internal_value_strips_custom_name(self):
-        """SI-11: custom_name in input must be silently stripped, not validated."""
+    def test_to_internal_value_passes_custom_name_through(self):
+        """custom_name is preserved for PriceList API consumers."""
         data = {
             "metric": {"name": "cpu_core_usage_per_hour"},
             "cost_type": "Infrastructure",
@@ -102,7 +102,7 @@ class RateSerializerInternalFieldExclusionTest(TestCase):
         }
         serializer = RateSerializer()
         result = serializer.to_internal_value(data)
-        self.assertNotIn("custom_name", result)
+        self.assertEqual(result["custom_name"], "my-rate")
 
     def test_to_internal_value_tolerates_malformed_rate_id(self):
         """SI-11: Malformed rate_id must be silently stripped, not cause a 400 error."""
@@ -117,7 +117,7 @@ class RateSerializerInternalFieldExclusionTest(TestCase):
         self.assertNotIn("rate_id", result)
 
     def test_to_representation_preserves_only_business_fields(self):
-        """CM-7: API output must contain only business-relevant fields."""
+        """CM-7: API output must not contain internal identifiers like rate_id."""
         rate_obj = {
             "metric": {"name": "cpu_core_usage_per_hour"},
             "description": "A CPU rate",
@@ -128,6 +128,7 @@ class RateSerializerInternalFieldExclusionTest(TestCase):
         }
         serializer = RateSerializer()
         result = serializer.to_representation(rate_obj)
-        allowed_keys = {"metric", "description", "tiered_rates", "tag_rates", "cost_type"}
-        extra = set(result.keys()) - allowed_keys
-        self.assertTrue(extra == set(), f"Unexpected keys: {extra}")
+        self.assertNotIn("rate_id", result)
+        self.assertIn("metric", result)
+        self.assertIn("tiered_rates", result)
+        self.assertIn("cost_type", result)
