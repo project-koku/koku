@@ -7,6 +7,8 @@ import binascii
 import logging
 import threading
 import time
+from datetime import datetime
+from datetime import timezone
 from http import HTTPStatus
 from json.decoder import JSONDecodeError
 
@@ -282,8 +284,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         (UNIQUE constraint).
 
         If the Unleash flag 'cost-management.backend.auto-heal-org-mismatch' is enabled the old
-        user is renamed to 'old-<username>' (with a numeric suffix to avoid secondary collisions).
-        The rename is skipped on GET/HEAD requests — same pattern as create_customer().
+        user is renamed to 'old-<username>-<UTC timestamp>' to guarantee uniqueness across
+        multiple Stage refreshes.  The rename is skipped on GET/HEAD requests.
 
         If the flag is disabled an error is logged for manual SRE intervention.
 
@@ -335,20 +337,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             )
             return
 
-        new_username = f"old-{username}"
-        counter = 1
-        while User.objects.filter(username=new_username).exists():
-            if counter > 10:
-                LOG.error(
-                    log_json(
-                        msg="Unable to find available username after 10 retries",
-                        username=username,
-                        counter=counter,
-                    )
-                )
-                return
-            new_username = f"old-{username}-{counter}"
-            counter += 1
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        new_username = f"old-{username}-{timestamp}"
 
         old_user.username = new_username
         old_user.save()

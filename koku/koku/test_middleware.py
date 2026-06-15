@@ -537,7 +537,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
 
     @patch("koku.middleware.UNLEASH_CLIENT")
     def test_auto_heal_renames_old_user(self, mock_unleash):
-        """Flag ON + POST: old user is renamed, username is freed."""
+        """Flag ON + POST: old user is renamed with timestamp suffix, username is freed."""
         mock_unleash.is_enabled.return_value = True
         old_user = self._make_old_user()
 
@@ -550,7 +550,8 @@ class HandleOrgIdMismatchTest(IamTestCase):
         )
 
         old_user.refresh_from_db()
-        self.assertEqual(old_user.username, "old-foobar-user")
+        self.assertTrue(old_user.username.startswith("old-foobar-user-"))
+        self.assertRegex(old_user.username, r"^old-foobar-user-\d{8}T\d{6}$")
         self.assertFalse(User.objects.filter(username="foobar-user").exists())
 
     @patch("koku.middleware.UNLEASH_CLIENT")
@@ -605,11 +606,10 @@ class HandleOrgIdMismatchTest(IamTestCase):
         self.assertEqual(old_user.username, "foobar-user")
 
     @patch("koku.middleware.UNLEASH_CLIENT")
-    def test_username_collision_uses_counter_suffix(self, mock_unleash):
-        """If 'old-<username>' is already taken, fall back to 'old-<username>-1'."""
+    def test_timestamp_suffix_avoids_collisions(self, mock_unleash):
+        """Timestamp suffix ensures uniqueness even if old-<username> already exists."""
         mock_unleash.is_enabled.return_value = True
         old_user = self._make_old_user(username="rapidast-security", old_org_id="111_test")
-        # Pre-occupy 'old-rapidast-security' with a dummy user on the same customer.
         User.objects.create(
             username="old-foobar-user",
             email="other@example.com",
@@ -625,7 +625,7 @@ class HandleOrgIdMismatchTest(IamTestCase):
         )
 
         old_user.refresh_from_db()
-        self.assertEqual(old_user.username, "old-foobar-user-1")
+        self.assertRegex(old_user.username, r"^old-foobar-user-\d{8}T\d{6}$")
 
     @patch("koku.middleware.UNLEASH_CLIENT")
     def test_auto_heal_logs_warning(self, mock_unleash):
