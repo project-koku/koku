@@ -213,8 +213,6 @@ class RateSerializer(serializers.Serializer):
     DECIMALS = ("value", "usage_start", "usage_end")
     RATE_TYPES = ("tiered_rates", "tag_rates")
 
-    rate_id = serializers.UUIDField(required=False, allow_null=True)
-    custom_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
     metric = serializers.DictField(required=True)
     cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
     description = serializers.CharField(allow_blank=True, max_length=500, required=False)
@@ -378,11 +376,6 @@ class RateSerializer(serializers.Serializer):
             "description": rate_obj.get("description", ""),
         }
 
-        if "rate_id" in rate_obj:
-            out["rate_id"] = rate_obj["rate_id"]
-        if "custom_name" in rate_obj:
-            out["custom_name"] = rate_obj["custom_name"]
-
         tiered_rates = rate_obj.get("tiered_rates", [])
         if tiered_rates:
             for rates in tiered_rates:
@@ -405,22 +398,13 @@ class RateSerializer(serializers.Serializer):
     def to_internal_value(self, data):
         """Convert the JSON representation of rate to DB representation.
 
-        Validates rate_id and custom_name via their declared fields, then
-        returns the original data dict with the metric normalized. We cannot
-        call super().to_internal_value() because validate_cost_type has a
-        non-standard signature (2 args) that DRF's field-level validation
-        would call incorrectly.
+        Silently strips internal enrichment fields (rate_id, custom_name) that
+        the UI may round-trip back. We cannot call super().to_internal_value()
+        because validate_cost_type has a non-standard signature (2 args) that
+        DRF's field-level validation would call incorrectly.
         """
-        errors = {}
         for field_name in ("rate_id", "custom_name"):
-            value = data.get(field_name)
-            if value is not None:
-                try:
-                    self.fields[field_name].run_validation(value)
-                except serializers.ValidationError as e:
-                    errors[field_name] = e.detail
-        if errors:
-            raise serializers.ValidationError(errors)
+            data.pop(field_name, None)
         metric = data.get("metric", {})
         new_metric = {"name": metric.get("name")}
         data["metric"] = new_metric
@@ -613,12 +597,6 @@ class CostModelSerializer(BaseSerializer):
                 tag_rates.append(rate)
         if tag_rates:
             CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
-        explicit_names = [r.get("custom_name") for r in validated_rates if r.get("custom_name")]
-        dupes = {n for n in explicit_names if explicit_names.count(n) > 1}
-        if dupes:
-            raise serializers.ValidationError(
-                f"Duplicate custom_name values in a single request are not allowed: {sorted(dupes)}"
-            )
         return validated_rates
 
     def validate_distribution(self, distribution):
