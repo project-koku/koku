@@ -85,7 +85,7 @@ SELECT
     wc.custom_name,
     wc.metric_type,
     wc.cost_model_rate_type,
-    {{distribution_tag}},
+    {{cost_model_rate_type}},
     CASE WHEN {{distribution}} = 'cpu' THEN
         CASE WHEN d.usage_cpu_sum <= 0 THEN 0
              ELSE (nu.ns_cpu / d.usage_cpu_sum) * wc.rate_cost
