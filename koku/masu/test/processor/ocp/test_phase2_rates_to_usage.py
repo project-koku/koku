@@ -1425,7 +1425,7 @@ class TestPriceListValidityGuard(_ReportPeriodMixin, MasuTestCase):
         mock_dist.assert_called()
         mock_vm.assert_called()
         mock_monthly.assert_called()
-        mock_markup.assert_called()
+        mock_markup.assert_not_called()
 
     # TC-7492-02: RTU still called when price_list_effective_on is None (feature flag disabled)
     @_make_orchestration_patches(rtu_enabled=True)
