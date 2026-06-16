@@ -589,12 +589,6 @@ class CostModelSerializer(BaseSerializer):
 
     def validate_rates(self, rates):
         """Run validation for rates."""
-        explicit_names = [r.get("custom_name") for r in rates if r.get("custom_name")]
-        dupes = {n for n in explicit_names if explicit_names.count(n) > 1}
-        if dupes:
-            raise serializers.ValidationError(
-                f"Duplicate custom_name values in a single request are not allowed: {sorted(dupes)}"
-            )
         validated_rates = []
         tag_rates = []
         for rate in rates:
@@ -605,6 +599,12 @@ class CostModelSerializer(BaseSerializer):
                 tag_rates.append(rate)
         if tag_rates:
             CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
+        explicit_names = [r.get("custom_name") for r in rates if r.get("custom_name")]
+        dupes = {n for n in explicit_names if explicit_names.count(n) > 1}
+        if dupes:
+            raise serializers.ValidationError(
+                f"Duplicate custom_name values in a single request are not allowed: {sorted(dupes)}"
+            )
         return validated_rates
 
     def validate_distribution(self, distribution):
