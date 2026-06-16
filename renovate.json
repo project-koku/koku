@@ -26,7 +26,8 @@
                 "lockFileMaintenance"
             ],
             "addLabels": [
-                "smoke-tests"
+                "smoke-tests",
+                "dependencies"
             ]
         },
         {
