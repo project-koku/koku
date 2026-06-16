@@ -65,8 +65,5 @@ class Migration(migrations.Migration):
                 "ordering": ["currency_code"],
             },
         ),
-    ]
-
-    operations.append(
         migrations.RunPython(code=seed_enabled_currencies, reverse_code=migrations.RunPython.noop),
-    )
+    ]
