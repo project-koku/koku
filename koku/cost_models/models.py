@@ -197,3 +197,14 @@ class PriceListCostModelMap(models.Model):
     cost_model = models.ForeignKey("CostModel", on_delete=models.CASCADE, related_name="price_list_maps")
 
     priority = models.PositiveIntegerField()
+
+
+class EnabledCurrency(models.Model):
+    """Per-tenant enabled currencies: presence in this table means the currency is enabled."""
+
+    class Meta:
+        db_table = "enabled_currency"
+        ordering = ["currency_code"]
+
+    currency_code = models.CharField(max_length=5, unique=True)
+    created_timestamp = models.DateTimeField(auto_now_add=True)
