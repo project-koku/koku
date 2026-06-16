@@ -202,8 +202,8 @@ class ProviderManager:
                     LOG.warning(
                         log_json(
                             msg="missing infrastructure source for provider",
-                            provider_uuid=self.model.uuid,
-                            infrastructure_provider_uuid=infrastructure_provider_id,
+                            provider_uuid=str(self.model.uuid),
+                            infrastructure_provider_uuid=str(infrastructure_provider_id),
                         )
                     )
                     return {}
