@@ -213,6 +213,7 @@ class RateSerializer(serializers.Serializer):
     DECIMALS = ("value", "usage_start", "usage_end")
     RATE_TYPES = ("tiered_rates", "tag_rates")
 
+    custom_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
     metric = serializers.DictField(required=True)
     cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
     description = serializers.CharField(allow_blank=True, max_length=500, required=False)
@@ -375,6 +376,8 @@ class RateSerializer(serializers.Serializer):
             "metric": {"name": rate_obj.get("metric", {}).get("name")},
             "description": rate_obj.get("description", ""),
         }
+        if "custom_name" in rate_obj:
+            out["custom_name"] = rate_obj["custom_name"]
 
         tiered_rates = rate_obj.get("tiered_rates", [])
         if tiered_rates:

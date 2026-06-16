@@ -101,8 +101,8 @@ class RateIntegrationTest(IamTestCase):
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
     @patch("cost_models.cost_model_manager.update_cost_model_costs")
-    def test_to_representation_excludes_internal_fields(self, mock_task, mock_flag):
-        """SC-8: API output must not include rate_id or custom_name."""
+    def test_to_representation_excludes_rate_id_includes_custom_name(self, mock_task, mock_flag):
+        """SC-8: API output must not include rate_id but must include custom_name."""
         with tenant_context(self.tenant):
             data = self._build_cost_model_data()
             serializer = CostModelSerializer(data=data, context=self.request_context)
@@ -114,7 +114,7 @@ class RateIntegrationTest(IamTestCase):
             rates = output.get("rates", [])
             self.assertTrue(len(rates) > 0)
             self.assertNotIn("rate_id", rates[0])
-            self.assertNotIn("custom_name", rates[0])
+            self.assertIn("custom_name", rates[0])
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
     @patch("cost_models.cost_model_manager.update_cost_model_costs")
@@ -207,8 +207,8 @@ class RateIntegrationTest(IamTestCase):
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
     @patch("cost_models.cost_model_manager.update_cost_model_costs")
-    def test_api_response_does_not_expose_internal_identifiers(self, mock_task, mock_flag):
-        """SC-8: API response must not contain rate_id or custom_name."""
+    def test_api_response_does_not_expose_rate_id(self, mock_task, mock_flag):
+        """SC-8: API response must not contain rate_id but must include custom_name."""
         with tenant_context(self.tenant):
             data = self._build_cost_model_data()
             serializer = CostModelSerializer(data=data, context=self.request_context)
@@ -221,7 +221,7 @@ class RateIntegrationTest(IamTestCase):
             self.assertTrue(len(rates) > 0)
             for rate in rates:
                 self.assertNotIn("rate_id", rate, "Internal DB PK must not leak to API consumers")
-                self.assertNotIn("custom_name", rate, "Internal enrichment field must not leak to API consumers")
+                self.assertIn("custom_name", rate, "custom_name should be visible to UI consumers")
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
     @patch("cost_models.cost_model_manager.update_cost_model_costs")

@@ -41,7 +41,7 @@ class RateSerializerToRepresentationTest(TestCase):
         self.assertEqual(result["metric"], {"name": "cpu_core_usage_per_hour"})
         self.assertEqual(result["description"], "orphan rate")
         self.assertNotIn("rate_id", result)
-        self.assertNotIn("custom_name", result)
+        self.assertEqual(result["custom_name"], "cpu-infra")
         self.assertNotIn("tiered_rates", result)
         self.assertNotIn("tag_rates", result)
         self.assertNotIn("cost_type", result)
@@ -67,8 +67,8 @@ class RateSerializerInternalFieldExclusionTest(TestCase):
         result = serializer.to_representation(rate_obj)
         self.assertNotIn("rate_id", result)
 
-    def test_to_representation_excludes_custom_name(self):
-        """SC-8: custom_name (internal enrichment field) must not appear in API output."""
+    def test_to_representation_includes_custom_name(self):
+        """custom_name must appear in API output for UI consumers."""
         rate_obj = {
             "metric": {"name": "cpu_core_usage_per_hour"},
             "description": "",
@@ -78,7 +78,7 @@ class RateSerializerInternalFieldExclusionTest(TestCase):
         }
         serializer = RateSerializer()
         result = serializer.to_representation(rate_obj)
-        self.assertNotIn("custom_name", result)
+        self.assertEqual(result["custom_name"], "cpu-usage-infra")
 
     def test_to_internal_value_strips_rate_id(self):
         """SI-11: rate_id in input must be silently stripped, not validated."""
@@ -129,6 +129,7 @@ class RateSerializerInternalFieldExclusionTest(TestCase):
         serializer = RateSerializer()
         result = serializer.to_representation(rate_obj)
         self.assertNotIn("rate_id", result)
+        self.assertEqual(result["custom_name"], "cpu-infra")
         self.assertIn("metric", result)
         self.assertIn("tiered_rates", result)
         self.assertIn("cost_type", result)
