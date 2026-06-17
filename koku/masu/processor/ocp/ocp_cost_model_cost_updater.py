@@ -807,9 +807,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                         accessor.populate_ui_summary_tables(month_range, self._provider_uuid)
                     LOG.info(log_json(msg="phase4: atomic block complete", context=month_ctx))
             except Exception:
-                LOG.exception(
-                    log_json(msg="phase4: distribute_costs_and_update_ui_summary FAILED", context=month_ctx)
-                )
+                LOG.exception(log_json(msg="phase4: distribute_costs_and_update_ui_summary FAILED", context=month_ctx))
                 raise
 
             with OCPReportDBAccessor(self._schema) as accessor:
