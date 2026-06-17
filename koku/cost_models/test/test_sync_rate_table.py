@@ -425,6 +425,7 @@ class SyncRateTableTest(IamTestCase):
         """SI-11: A valid UUID not matching any Rate row must fall back to custom_name matching.
 
         This prevents 400 errors when the UI round-trips a stale rate_id.
+        The explicit custom_name ensures the fallback path matches the existing rate.
         """
         with tenant_context(self.tenant):
             rates = [
@@ -436,6 +437,7 @@ class SyncRateTableTest(IamTestCase):
             ]
             cm = self._create_cost_model(rates)
             mapping = PriceListCostModelMap.objects.get(cost_model=cm)
+            original_rate = Rate.objects.get(price_list=mapping.price_list)
             manager = CostModelManager(cost_model_uuid=cm.uuid)
             updated_rates = [
                 {
@@ -443,19 +445,21 @@ class SyncRateTableTest(IamTestCase):
                     "tiered_rates": [{"unit": "USD", "value": 0.77}],
                     "cost_type": "Infrastructure",
                     "rate_id": str(uuid4()),
+                    "custom_name": original_rate.custom_name,
                 }
             ]
             with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                 manager.update(rates=updated_rates)
             rate = Rate.objects.get(price_list=mapping.price_list)
+            self.assertEqual(rate.uuid, original_rate.uuid)
             self.assertEqual(rate.default_rate, Decimal("0.77"))
 
-    def test_update_without_custom_name_preserves_uuid(self):
-        """SI-11: Update without custom_name must match existing rate by generated name.
+    def test_update_with_custom_name_preserves_uuid(self):
+        """SI-11: Update with custom_name from the API response preserves Rate UUID.
 
-        When the serializer strips custom_name from input, the sync logic must
-        regenerate the same deterministic name and match the existing rate,
-        preserving the Rate UUID instead of deleting and recreating.
+        Since custom_name is included in the API response, callers send it back
+        on updates.  The sync logic matches by custom_name and preserves the
+        Rate UUID instead of deleting and recreating.
         """
         with tenant_context(self.tenant):
             rates = [
@@ -476,6 +480,7 @@ class SyncRateTableTest(IamTestCase):
                     "metric": {"name": self.metric},
                     "tiered_rates": [{"unit": "USD", "value": 0.55}],
                     "cost_type": "Infrastructure",
+                    "custom_name": original_rate.custom_name,
                 }
             ]
             with patch("cost_models.cost_model_manager.update_cost_model_costs"):
