@@ -124,6 +124,24 @@ class ProviderModelTest(MasuTestCase):
         logging.disable(logging.CRITICAL)
 
     @patch("masu.celery.tasks.delete_archived_data")
+    def test_delete_uses_correct_db_router_hint(self, mock_delete_archived_data):
+        """Assert db_for_write is called with instance= hint (not isinstance=)."""
+        with patch("api.provider.models.router.db_for_write", return_value="default") as mock_router:
+            with tenant_context(self.tenant):
+                self.aws_provider.delete()
+        mock_router.assert_any_call(Provider, instance=self.aws_provider)
+
+    @patch("masu.celery.tasks.delete_archived_data")
+    def test_delete_runs_in_atomic_transaction(self, mock_delete_archived_data):
+        """Assert cascade delete runs inside a transaction.atomic block."""
+        with patch("api.provider.models.transaction.atomic") as mock_atomic:
+            mock_atomic.return_value.__enter__ = lambda s: s
+            mock_atomic.return_value.__exit__ = lambda s, *a: False
+            with tenant_context(self.tenant):
+                self.aws_provider.delete()
+        mock_atomic.assert_called_once_with(using="default")
+
+    @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_all_providers_from_queryset(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is called upon queryset delete."""
         mock_delete_archived_data.reset_mock()
