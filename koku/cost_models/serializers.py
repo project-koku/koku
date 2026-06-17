@@ -401,12 +401,15 @@ class RateSerializer(serializers.Serializer):
     def to_internal_value(self, data):
         """Convert the JSON representation of rate to DB representation.
 
-        Silently strips internal enrichment fields (rate_id, custom_name) that
-        the UI may round-trip back. We cannot call super().to_internal_value()
-        because validate_cost_type has a non-standard signature (2 args) that
-        DRF's field-level validation would call incorrectly.
+        Silently strips rate_id (internal enrichment field) that the UI may
+        round-trip back. We cannot call super().to_internal_value() because
+        validate_cost_type has a non-standard signature (2 args) that DRF's
+        field-level validation would call incorrectly.
         """
         data.pop("rate_id", None)
+        custom_name = data.get("custom_name")
+        if custom_name is not None and len(custom_name) > 50:
+            raise serializers.ValidationError({"custom_name": "Ensure this field has no more than 50 characters."})
         metric = data.get("metric") or {}
         new_metric = {"name": metric.get("name") if isinstance(metric, dict) else None}
         data["metric"] = new_metric
