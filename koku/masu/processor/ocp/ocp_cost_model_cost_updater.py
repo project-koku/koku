@@ -787,17 +787,30 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         outside the atomic block so the completion marker persists even if
         a subsequent month's atomic block fails.
         """
+        log_ctx = {"provider_uuid": self._provider_uuid, "schema": self._schema}
         self._ensure_rates_to_usage_partitions(summary_range.start_date, summary_range.end_date)
         for month_range in summary_range.iter_summary_range_by_month():
-            with transaction.atomic():
-                with OCPReportDBAccessor(self._schema) as accessor:
-                    month_range = accessor.populate_distributed_cost_sql(
-                        month_range, self._provider_uuid, self._distribution_info
-                    )
-                self._aggregate_rates_to_daily_summary(month_range.start_date, month_range.end_date)
-                self._update_markup_cost(month_range.start_date, month_range.end_date)
-                with OCPReportDBAccessor(self._schema) as accessor:
-                    accessor.populate_ui_summary_tables(month_range, self._provider_uuid)
+            month_ctx = {**log_ctx, "start_date": str(month_range.start_date), "end_date": str(month_range.end_date)}
+            try:
+                with transaction.atomic():
+                    LOG.info(log_json(msg="phase4: starting distribute", context=month_ctx))
+                    with OCPReportDBAccessor(self._schema) as accessor:
+                        month_range = accessor.populate_distributed_cost_sql(
+                            month_range, self._provider_uuid, self._distribution_info
+                        )
+                    LOG.info(log_json(msg="phase4: starting aggregate", context=month_ctx))
+                    self._aggregate_rates_to_daily_summary(month_range.start_date, month_range.end_date)
+                    LOG.info(log_json(msg="phase4: starting markup", context=month_ctx))
+                    self._update_markup_cost(month_range.start_date, month_range.end_date)
+                    LOG.info(log_json(msg="phase4: starting ui_summary", context=month_ctx))
+                    with OCPReportDBAccessor(self._schema) as accessor:
+                        accessor.populate_ui_summary_tables(month_range, self._provider_uuid)
+                    LOG.info(log_json(msg="phase4: atomic block complete", context=month_ctx))
+            except Exception:
+                LOG.exception(
+                    log_json(msg="phase4: distribute_costs_and_update_ui_summary FAILED", context=month_ctx)
+                )
+                raise
 
             with OCPReportDBAccessor(self._schema) as accessor:
                 if report_period := accessor.report_periods_for_provider_uuid(
