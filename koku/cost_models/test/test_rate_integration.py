@@ -79,7 +79,8 @@ class RateIntegrationTest(IamTestCase):
             cost_model = serializer.save()
 
             mapping = PriceListCostModelMap.objects.get(cost_model=cost_model)
-            original_uuid = Rate.objects.get(price_list=mapping.price_list).uuid
+            original_rate = Rate.objects.get(price_list=mapping.price_list)
+            original_uuid = original_rate.uuid
             cost_model.refresh_from_db()
 
             update_data = self._build_cost_model_data(
@@ -88,6 +89,7 @@ class RateIntegrationTest(IamTestCase):
                         "metric": {"name": self.ocp_metric},
                         "tiered_rates": [{"unit": "USD", "value": 0.50}],
                         "cost_type": "Infrastructure",
+                        "custom_name": original_rate.custom_name,
                     }
                 ]
             )
