@@ -788,22 +788,23 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         a subsequent month's atomic block fails.
         """
         self._ensure_rates_to_usage_partitions(summary_range.start_date, summary_range.end_date)
-        with OCPReportDBAccessor(self._schema) as accessor:
-            for month_range in summary_range.iter_summary_range_by_month():
-                with transaction.atomic():
+        for month_range in summary_range.iter_summary_range_by_month():
+            with transaction.atomic():
+                with OCPReportDBAccessor(self._schema) as accessor:
                     month_range = accessor.populate_distributed_cost_sql(
                         month_range, self._provider_uuid, self._distribution_info
                     )
-                    self._aggregate_rates_to_daily_summary(month_range.start_date, month_range.end_date)
-                    self._update_markup_cost(month_range.start_date, month_range.end_date)
+                self._aggregate_rates_to_daily_summary(month_range.start_date, month_range.end_date)
+                self._update_markup_cost(month_range.start_date, month_range.end_date)
+                with OCPReportDBAccessor(self._schema) as accessor:
                     accessor.populate_ui_summary_tables(month_range, self._provider_uuid)
 
-                with schema_context(self._schema):
-                    if report_period := accessor.report_periods_for_provider_uuid(
-                        self._provider_uuid, month_range.summary_start
-                    ):
-                        report_period.derived_cost_datetime = timezone.now()
-                        report_period.save()
+            with OCPReportDBAccessor(self._schema) as accessor:
+                if report_period := accessor.report_periods_for_provider_uuid(
+                    self._provider_uuid, month_range.summary_start
+                ):
+                    report_period.derived_cost_datetime = timezone.now()
+                    report_period.save()
 
     def update_summary_cost_model_costs(self, summary_range: SummaryRangeConfig) -> None:
         """Update the OCP summary table with the charge information.
