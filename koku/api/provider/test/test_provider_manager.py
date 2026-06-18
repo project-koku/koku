@@ -765,6 +765,38 @@ class ProviderManagerTest(IamTestCase):
             self.assertEqual(infrastructure_info.get("type", ""), Provider.PROVIDER_AZURE)
             self.assertEqual(infrastructure_info.get("uuid", ""), azure_provider.uuid)
 
+    def test_ocp_infrastructure_type_missing_linked_source(self):
+        """Test that missing infrastructure source rows are handled gracefully."""
+        cloud_authentication = ProviderAuthentication.objects.create(
+            credentials={"role_arn": f"arn:aws:iam::123456789012:role/{uuid4()}"}
+        )
+        ocp_authentication = ProviderAuthentication.objects.create(credentials={"cluster_id": f"cluster-{uuid4()}"})
+
+        with patch("masu.celery.tasks.check_report_updates"):
+            cloud_provider = Provider.objects.create(
+                name="awsprovider-missing-source",
+                type=Provider.PROVIDER_AWS_LOCAL,
+                created_by=self.user,
+                customer=self.customer,
+                authentication=cloud_authentication,
+            )
+            infrastructure = ProviderInfrastructureMap.objects.create(
+                infrastructure_type=Provider.PROVIDER_AWS,
+                infrastructure_provider=cloud_provider,
+            )
+            provider = Provider.objects.create(
+                name="ocpprovidername-missing-source",
+                type=Provider.PROVIDER_OCP,
+                created_by=self.user,
+                customer=self.customer,
+                authentication=ocp_authentication,
+                infrastructure=infrastructure,
+            )
+
+        manager = ProviderManager(provider.uuid)
+        infrastructure_info = manager.get_infrastructure_info()
+        self.assertEqual(infrastructure_info, {})
+
     def test_ocp_infrastructure_type(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
         credentials = {"cluster_id": "cluster_id_1001"}
