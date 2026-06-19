@@ -8,6 +8,7 @@ from django.test.utils import override_settings
 
 from koku.reportdb_accessor import get_report_db_accessor
 from koku.reportdb_accessor_postgres import PostgresReportDBAccessor
+from koku.reportdb_accessor_trino import TrinoReportDBAccessor
 
 
 class TestGetReportDBAccessor(TestCase):
@@ -191,3 +192,34 @@ class TestPostgresReportDBAccessor(TestCase):
         )
         self.assertIn("DELETE FROM", sql)
         self.assertIn("ocp_source", sql)
+
+
+class TestTrinoReportDBAccessor(TestCase):
+    """Test TrinoReportDBAccessor methods."""
+
+    def setUp(self):
+        self.accessor = TrinoReportDBAccessor()
+        self.schema_name = "test_schema"
+        self.source_uuid = "12345678-1234-1234-1234-123456789012"
+
+    def test_get_expired_data_ocp_sql_for_day_partitioned_table(self):
+        """Test expired data SQL generation for day-partitioned tables."""
+        sql = self.accessor.get_expired_data_ocp_sql(
+            self.schema_name,
+            "managed_reporting_ocpawscostlineitem_project_daily_summary",
+            "ocp_source",
+            "2024-01-01",
+        )
+        self.assertIn("day as day", sql)
+        self.assertIn("concat(year, '-', month, '-', day)", sql)
+
+    def test_get_expired_data_ocp_sql_for_month_partitioned_table(self):
+        """Test expired data SQL generation for month-partitioned tables."""
+        sql = self.accessor.get_expired_data_ocp_sql(
+            self.schema_name,
+            "managed_gcp_openshift_disk_capacities_temp",
+            "ocp_source",
+            "2024-01-01",
+        )
+        self.assertNotIn("day as day", sql)
+        self.assertIn("concat(year, '-', month, '-01')", sql)

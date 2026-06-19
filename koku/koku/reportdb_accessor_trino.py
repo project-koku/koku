@@ -13,6 +13,13 @@ from koku.reportdb_accessor import ReportDBAccessor
 
 LOG = logging.getLogger(__name__)
 
+MONTH_PARTITIONED_MANAGED_TABLES = {
+    "managed_aws_openshift_disk_capacities_temp",
+    "managed_azure_openshift_disk_capacities_temp",
+    "managed_gcp_openshift_disk_capacities_temp",
+    "managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+}
+
 
 class TrinoReportDBAccessor(ReportDBAccessor):
     """Trino implementation of report database accessor."""
@@ -145,19 +152,26 @@ WHERE {partition_column} = '{provider_uuid}'"""
 
     def get_expired_data_ocp_sql(self, schema_name: str, table_name: str, source_column: str, expired_date: str):
         """Generate Trino SQL to find expired partitions."""
+        if table_name in MONTH_PARTITIONED_MANAGED_TABLES:
+            day_select_sql = ""
+            partition_date_sql = "cast(date_parse(concat(year, '-', month, '-01'), '%Y-%m-%d') as date)"
+        else:
+            day_select_sql = "day as day,"
+            partition_date_sql = "cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date)"
+
         return f"""
-SELECT partitions.year, partitions.month, partitions.source
-FROM (
-    SELECT year as year,
-        month as month,
-        day as day,
-        cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date) as partition_date,
-        {source_column} as source
-    FROM  "{table_name}$partitions"
-) as partitions
-WHERE partitions.partition_date < DATE '{expired_date}'
-GROUP BY partitions.year, partitions.month, partitions.source
-"""
+            SELECT partitions.year, partitions.month, partitions.source
+            FROM (
+                SELECT year as year,
+                    month as month,
+                    {day_select_sql}
+                    {partition_date_sql} as partition_date,
+                    {source_column} as source
+                FROM  "{table_name}$partitions"
+            ) as partitions
+            WHERE partitions.partition_date < DATE '{expired_date}'
+            GROUP BY partitions.year, partitions.month, partitions.source
+        """
 
     def get_check_source_in_partitions_sql(self, schema_name: str, table_name: str, source_uuid: str):
         """Generate Trino SQL to check if source exists in table partitions."""
