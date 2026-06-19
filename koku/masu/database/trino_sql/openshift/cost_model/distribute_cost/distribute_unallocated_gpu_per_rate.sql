@@ -74,7 +74,7 @@ SELECT
     nsp.node,
     gc.custom_name,
     gc.metric_type,
-    gc.cost_model_rate_type,
+    {{cost_model_rate_type}},
     {{cost_model_rate_type}},
     MAX(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost)
 FROM gpu_rtu_cost gc
@@ -91,3 +91,32 @@ JOIN total_usage tu
 GROUP BY nsp.usage_start, nsp.node, nsp.namespace,
          gc.source_uuid, gc.custom_name, gc.metric_type, gc.cost_model_rate_type
 HAVING MAX(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost) != 0;
+
+-- Negate source: offset GPU unallocated costs so the net distributed total is zero.
+INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage (
+    uuid, report_period_id, source_uuid, usage_start, usage_end,
+    cluster_id, cluster_alias, namespace,
+    cost_model_rate_type,
+    monthly_cost_type, distributed_cost
+)
+SELECT
+    uuid(),
+    rtu.report_period_id,
+    rtu.source_uuid,
+    rtu.usage_start,
+    rtu.usage_start,
+    rtu.cluster_id,
+    MAX(rtu.cluster_alias),
+    'GPU unallocated',
+    {{cost_model_rate_type}},
+    {{cost_model_rate_type}},
+    -SUM(COALESCE(rtu.calculated_cost, 0))
+FROM postgres.{{schema | sqlsafe}}.rates_to_usage rtu
+WHERE rtu.usage_start >= DATE({{start_date}})
+    AND rtu.usage_start <= DATE({{end_date}})
+    AND rtu.source_uuid = CAST({{source_uuid}} AS UUID)
+    AND rtu.namespace = 'GPU unallocated'
+    AND rtu.monthly_cost_type IS NULL
+GROUP BY rtu.report_period_id, rtu.source_uuid, rtu.usage_start,
+         rtu.cluster_id
+HAVING SUM(COALESCE(rtu.calculated_cost, 0)) != 0;

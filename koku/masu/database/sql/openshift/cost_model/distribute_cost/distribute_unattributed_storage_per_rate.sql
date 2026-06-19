@@ -82,7 +82,7 @@ SELECT
     nu.cost_category_id,
     sc.custom_name,
     sc.metric_type,
-    sc.cost_model_rate_type,
+    {{cost_model_rate_type}},
     {{cost_model_rate_type}},
     CASE WHEN {{distribution}} = 'cpu' THEN
         CASE WHEN d.usage_cpu_sum <= 0 THEN 0
@@ -107,3 +107,33 @@ WHERE CASE WHEN {{distribution}} = 'cpu' THEN
                ELSE (nu.ns_memory / d.usage_memory_sum) * sc.rate_cost
           END
       END != 0;
+
+-- Negate source: offset Storage unattributed costs so the net distributed total is zero.
+INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
+    uuid, report_period_id, source_uuid, usage_start, usage_end,
+    cluster_id, cluster_alias, namespace,
+    cost_model_rate_type,
+    monthly_cost_type, distributed_cost
+)
+SELECT
+    uuid_generate_v4(),
+    rtu.report_period_id,
+    rtu.source_uuid,
+    rtu.usage_start,
+    rtu.usage_start,
+    rtu.cluster_id,
+    MAX(rtu.cluster_alias),
+    'Storage unattributed',
+    {{cost_model_rate_type}},
+    {{cost_model_rate_type}},
+    -SUM(COALESCE(rtu.calculated_cost, 0))
+FROM {{schema | sqlsafe}}.rates_to_usage rtu
+WHERE rtu.usage_start >= {{start_date}}::date
+    AND rtu.usage_start <= {{end_date}}::date
+    AND rtu.report_period_id = {{report_period_id}}
+    AND rtu.source_uuid = {{source_uuid}}::uuid
+    AND rtu.namespace = 'Storage unattributed'
+    AND rtu.monthly_cost_type IS NULL
+GROUP BY rtu.report_period_id, rtu.source_uuid, rtu.usage_start,
+         rtu.cluster_id
+HAVING SUM(COALESCE(rtu.calculated_cost, 0)) != 0;
