@@ -93,6 +93,8 @@ GROUP BY nsp.usage_start, nsp.node, nsp.namespace,
 HAVING MAX(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost) != 0;
 
 -- Negate source: offset GPU unallocated costs so the net distributed total is zero.
+-- Must negate cost-model costs (from RTU) AND infrastructure/markup costs (from
+-- daily_summary) so the API's cost_total + gpu_distributed sums to zero.
 INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace,
@@ -101,23 +103,49 @@ INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage (
 )
 SELECT
     uuid(),
-    rtu.report_period_id,
-    rtu.source_uuid,
-    rtu.usage_start,
-    rtu.usage_start,
-    rtu.cluster_id,
-    MAX(rtu.cluster_alias),
+    rtu_agg.report_period_id,
+    rtu_agg.source_uuid,
+    rtu_agg.usage_start,
+    rtu_agg.usage_start,
+    rtu_agg.cluster_id,
+    rtu_agg.cluster_alias,
     'GPU unallocated',
     '', '',
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    -SUM(COALESCE(rtu.calculated_cost, 0))
-FROM postgres.{{schema | sqlsafe}}.rates_to_usage rtu
-WHERE rtu.usage_start >= DATE({{start_date}})
-    AND rtu.usage_start <= DATE({{end_date}})
-    AND rtu.source_uuid = CAST({{source_uuid}} AS UUID)
-    AND rtu.namespace = 'GPU unallocated'
-    AND rtu.monthly_cost_type IS NULL
-GROUP BY rtu.report_period_id, rtu.source_uuid, rtu.usage_start,
-         rtu.cluster_id
-HAVING SUM(COALESCE(rtu.calculated_cost, 0)) != 0;
+    -(rtu_agg.cost_model_total + COALESCE(infra_agg.infra_total, CAST(0 AS DECIMAL)))
+FROM (
+    SELECT
+        rtu.report_period_id,
+        rtu.source_uuid,
+        rtu.usage_start,
+        rtu.cluster_id,
+        MAX(rtu.cluster_alias) AS cluster_alias,
+        SUM(COALESCE(rtu.calculated_cost, CAST(0 AS DECIMAL))) AS cost_model_total
+    FROM postgres.{{schema | sqlsafe}}.rates_to_usage rtu
+    WHERE rtu.usage_start >= DATE({{start_date}})
+        AND rtu.usage_start <= DATE({{end_date}})
+        AND rtu.source_uuid = CAST({{source_uuid}} AS UUID)
+        AND rtu.namespace = 'GPU unallocated'
+        AND rtu.monthly_cost_type IS NULL
+    GROUP BY rtu.report_period_id, rtu.source_uuid, rtu.usage_start,
+             rtu.cluster_id
+    HAVING SUM(COALESCE(rtu.calculated_cost, CAST(0 AS DECIMAL))) != CAST(0 AS DECIMAL)
+) rtu_agg
+LEFT JOIN (
+    SELECT
+        lids.usage_start,
+        lids.cluster_id,
+        SUM(
+            COALESCE(lids.infrastructure_raw_cost, CAST(0 AS DECIMAL)) +
+            COALESCE(lids.infrastructure_markup_cost, CAST(0 AS DECIMAL))
+        ) AS infra_total
+    FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+    WHERE lids.usage_start >= DATE({{start_date}})
+        AND lids.usage_start <= DATE({{end_date}})
+        AND lids.namespace = 'GPU unallocated'
+        AND lids.cost_model_rate_type IS NULL
+    GROUP BY lids.usage_start, lids.cluster_id
+) infra_agg
+    ON rtu_agg.usage_start = infra_agg.usage_start
+    AND rtu_agg.cluster_id = infra_agg.cluster_id;

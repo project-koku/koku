@@ -113,6 +113,8 @@ WHERE CASE WHEN {{distribution}} = 'cpu' THEN
       END != 0;
 
 -- Negate source: offset Platform-category namespace costs so the net distributed total is zero.
+-- Must negate cost-model costs (from RTU) AND infrastructure/markup costs (from
+-- daily_summary) so the API's cost_total + platform_distributed sums to zero.
 INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace,
@@ -121,27 +123,60 @@ INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
 )
 SELECT
     uuid_generate_v4(),
-    rtu.report_period_id,
-    rtu.source_uuid,
-    rtu.usage_start,
-    rtu.usage_start,
-    rtu.cluster_id,
-    MAX(rtu.cluster_alias),
-    rtu.namespace,
-    MAX(rtu.cost_category_id),
+    rtu_agg.report_period_id,
+    rtu_agg.source_uuid,
+    rtu_agg.usage_start,
+    rtu_agg.usage_start,
+    rtu_agg.cluster_id,
+    rtu_agg.cluster_alias,
+    rtu_agg.namespace,
+    rtu_agg.cost_category_id,
     '', '',
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    -SUM(COALESCE(rtu.calculated_cost, 0))
-FROM {{schema | sqlsafe}}.rates_to_usage rtu
-JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
-    ON rtu.cost_category_id = cat.id
-WHERE rtu.usage_start >= {{start_date}}::date
-    AND rtu.usage_start <= {{end_date}}::date
-    AND rtu.report_period_id = {{report_period_id}}
-    AND rtu.source_uuid = {{source_uuid}}::uuid
-    AND cat.name = 'Platform'
-    AND rtu.monthly_cost_type IS NULL
-GROUP BY rtu.report_period_id, rtu.source_uuid, rtu.usage_start,
-         rtu.cluster_id, rtu.namespace
-HAVING SUM(COALESCE(rtu.calculated_cost, 0)) != 0;
+    -(rtu_agg.cost_model_total + COALESCE(infra_agg.infra_total, 0))
+FROM (
+    SELECT
+        rtu.report_period_id,
+        rtu.source_uuid,
+        rtu.usage_start,
+        rtu.cluster_id,
+        rtu.namespace,
+        MAX(rtu.cluster_alias) AS cluster_alias,
+        MAX(rtu.cost_category_id) AS cost_category_id,
+        SUM(COALESCE(rtu.calculated_cost, 0)) AS cost_model_total
+    FROM {{schema | sqlsafe}}.rates_to_usage rtu
+    JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
+        ON rtu.cost_category_id = cat.id
+    WHERE rtu.usage_start >= {{start_date}}::date
+        AND rtu.usage_start <= {{end_date}}::date
+        AND rtu.report_period_id = {{report_period_id}}
+        AND rtu.source_uuid = {{source_uuid}}::uuid
+        AND cat.name = 'Platform'
+        AND rtu.monthly_cost_type IS NULL
+    GROUP BY rtu.report_period_id, rtu.source_uuid, rtu.usage_start,
+             rtu.cluster_id, rtu.namespace
+    HAVING SUM(COALESCE(rtu.calculated_cost, 0)) != 0
+) rtu_agg
+LEFT JOIN (
+    SELECT
+        lids.namespace,
+        lids.usage_start,
+        lids.cluster_id,
+        SUM(
+            COALESCE(lids.infrastructure_raw_cost, 0) +
+            COALESCE(lids.infrastructure_markup_cost, 0)
+        ) AS infra_total
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+    JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
+        ON lids.cost_category_id = cat.id
+    WHERE lids.usage_start >= {{start_date}}::date
+        AND lids.usage_start <= {{end_date}}::date
+        AND lids.report_period_id = {{report_period_id}}
+        AND cat.name = 'Platform'
+        AND lids.cost_model_rate_type IS NULL
+    GROUP BY lids.namespace, lids.usage_start, lids.cluster_id
+) infra_agg
+    ON rtu_agg.namespace = infra_agg.namespace
+    AND rtu_agg.usage_start = infra_agg.usage_start
+    AND rtu_agg.cluster_id = infra_agg.cluster_id;
