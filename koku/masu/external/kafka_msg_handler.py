@@ -15,6 +15,7 @@ import time
 import traceback
 from datetime import datetime
 from pathlib import Path
+from tarfile import FilterError
 from tarfile import ReadError
 from tarfile import TarFile
 
@@ -29,6 +30,7 @@ from django.db import InterfaceError
 from django.db import OperationalError
 from django.db import transaction
 from kombu.exceptions import OperationalError as KombuOperationalError
+from pydantic import ValidationError
 
 import masu.util.ocp.ocp_data_validator  # noqa: F401
 from api.common import log_json
@@ -310,32 +312,55 @@ def download_payload(request_id, url, context):
     return temp_file
 
 
-def extract_payload_contents(request_id, tarball_path, context):
-    """Extract the payload contents into a temporary location."""
-    # Extract tarball into temp directory
-
+def read_manifest_from_tarball(request_id, tarball_path, context) -> utils.Manifest:
+    """Read and validate manifest.json from a tarball without extracting archive members."""
     if not os.path.isfile(tarball_path):
         msg = f"Unable to find tar file {tarball_path}."
         LOG.warning(log_json(request_id, msg=msg, context=context))
         raise KafkaMsgHandlerError("Extraction failure, file not found.")
 
     try:
-        mytar = TarFile.open(tarball_path, mode="r:gz")
-        mytar.extractall(path=tarball_path.parent)
-        files = mytar.getnames()
-        manifest_path = [manifest for manifest in files if "manifest.json" in manifest]
-    except (ReadError, EOFError, OSError) as error:
+        with TarFile.open(tarball_path, mode="r:gz") as mytar:
+            manifest_member = utils.get_manifest_member_name(mytar.getnames())
+            manifest_file = mytar.extractfile(manifest_member)
+            if manifest_file is None:
+                raise KafkaMsgHandlerError("No manifest found in payload.")
+            return utils.Manifest.model_validate_json(manifest_file.read())
+    except (ReadError, EOFError, OSError, ValueError) as error:
+        msg = f"Unable to read manifest from tar file {tarball_path}. Reason: {str(error)}"
+        LOG.warning(log_json(request_id, msg=msg, context=context))
+        raise KafkaMsgHandlerError("Extraction failure.") from error
+    except ValidationError as error:
+        msg = f"Invalid manifest in tar file {tarball_path}."
+        LOG.warning(log_json(request_id, msg=msg, context=context))
+        raise KafkaMsgHandlerError("Extraction failure.") from error
+
+
+def extract_tarball_to_directory(request_id, tarball_path, context) -> list[str]:
+    """Extract tarball members into the tarball parent directory using PEP 706 data filter."""
+    try:
+        with TarFile.open(tarball_path, mode="r:gz") as mytar:
+            mytar.extractall(path=tarball_path.parent, filter="data")
+            return mytar.getnames()
+    except (ReadError, EOFError, OSError, FilterError) as error:
         msg = f"Unable to untar file {tarball_path}. Reason: {str(error)}"
         LOG.warning(log_json(request_id, msg=msg, context=context))
         shutil.rmtree(tarball_path.parent)
-        raise KafkaMsgHandlerError("Extraction failure.")
+        raise KafkaMsgHandlerError("Extraction failure.") from error
 
-    if not manifest_path:
+
+def extract_payload_contents(request_id, tarball_path, context):
+    """Extract the payload contents into a temporary location."""
+    payload_files = extract_tarball_to_directory(request_id, tarball_path, context)
+    try:
+        manifest_path = utils.get_manifest_member_name(payload_files)
+    except ValueError as error:
         msg = "No manifest found in payload."
         LOG.warning(log_json(request_id, msg=msg, context=context))
-        raise KafkaMsgHandlerError("No manifest found in payload.")
+        shutil.rmtree(tarball_path.parent)
+        raise KafkaMsgHandlerError("No manifest found in payload.") from error
 
-    return manifest_path[0], files
+    return manifest_path, payload_files
 
 
 def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
@@ -353,22 +378,24 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     2. *.csv - Actual usage report for the cluster.  Format is:
         Format is: <uuid>_report_name.csv
 
-    Once the files are extracted:
-    1. Provider account is retrieved for the cluster id.  If no account is found we return.
-    2. Manifest database record is created which will establish the assembly_id and number of files
-    3. Report stats database record is created and is used as a filter to determine if the file
+    Once the files are downloaded:
+    1. manifest.json is read and validated from the archive before any files are extracted.
+    2. Provider account is retrieved for the cluster id.  If no account is found we return.
+    3. Archive members are extracted using the tarfile data filter (PEP 706).
+    4. Manifest database record is created which will establish the assembly_id and number of files
+    5. Report stats database record is created and is used as a filter to determine if the file
        has already been processed.
-    4. All report files that have not been processed will have the local path to that report file
+    6. All report files that have not been processed will have the local path to that report file
        added to the report_meta context dictionary for that file.
-    5. Report file context dictionaries that require processing is added to a list which will be
+    7. Report file context dictionaries that require processing is added to a list which will be
        passed to the report processor.  All context from report_meta is used by the processor.
     """
     payload_path = download_payload(request_id, url, context)
-    manifest_path, payload_files = extract_payload_contents(request_id, payload_path, context)
-
-    # Open manifest.json file and build the payload dictionary.
-    full_manifest_path = Path(payload_path.parent, manifest_path)
-    manifest = utils.parse_manifest(full_manifest_path.parent)
+    try:
+        manifest = read_manifest_from_tarball(request_id, payload_path, context)
+    except KafkaMsgHandlerError:
+        shutil.rmtree(payload_path.parent)
+        raise
 
     context |= {
         "request_id": request_id,
@@ -428,6 +455,10 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
         shutil.rmtree(payload_path.parent)
         return None, manifest.uuid
 
+    payload_files = extract_tarball_to_directory(request_id, payload_path, context)
+    manifest_path = utils.get_manifest_member_name(payload_files)
+    full_manifest_path = utils.resolve_path_within_base(payload_path.parent, manifest_path)
+
     payload = utils.PayloadInfo(
         request_id=request_id,
         manifest=manifest,
@@ -443,11 +474,13 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(manifest.date)
-    destination_dir = Path(Config.INSIGHTS_LOCAL_REPORT_DIR, manifest.cluster_id, usage_month)
+    destination_dir = utils.resolve_path_within_base(
+        Config.INSIGHTS_LOCAL_REPORT_DIR, manifest.cluster_id, usage_month
+    )
     os.makedirs(destination_dir, exist_ok=True)
 
     # Copy manifest
-    manifest_destination_path = Path(destination_dir, full_manifest_path.name)
+    manifest_destination_path = destination_dir / full_manifest_path.name
     shutil.copy(full_manifest_path, manifest_destination_path)
 
     # Save Manifest
@@ -459,7 +492,9 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     manifest_ros_files = manifest.resource_optimization_files
     manifest_files = manifest.files
     ros_reports = [
-        (ros_file, payload_path.with_name(ros_file)) for ros_file in manifest_ros_files if ros_file in payload_files
+        (ros_file, utils.resolve_path_within_base(payload_path.parent, ros_file))
+        for ros_file in manifest_ros_files
+        if ros_file in payload_files
     ]
     ros_processor = ROSReportShipper(payload, b64_identity, context)
     try:
@@ -475,8 +510,8 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     }
     for report_file in manifest_files:
         current_meta = manifest.model_dump() | extra_meta_needed_to_process_reports
-        payload_source_path = Path(payload_path.parent, report_file)
-        payload_destination_path = Path(destination_dir, report_file)
+        payload_source_path = utils.resolve_path_within_base(payload_path.parent, report_file)
+        payload_destination_path = utils.resolve_path_within_base(destination_dir, report_file)
         try:
             shutil.copy(payload_source_path, payload_destination_path)
             current_meta["current_file"] = payload_destination_path

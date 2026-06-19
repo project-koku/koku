@@ -6,6 +6,7 @@
 import json
 import logging
 import os
+import re
 from datetime import datetime
 from datetime import UTC
 from decimal import Decimal
@@ -38,6 +39,36 @@ from masu.util.common import trino_table_exists
 from masu.util.ocp.operator_versions import OPERATOR_VERSIONS
 
 LOG = logging.getLogger(__name__)
+
+MANIFEST_JSON = "manifest.json"
+_UNSAFE_PATH_COMPONENT_RE = re.compile(r"[/\\]|\.\.")
+
+
+def validate_safe_path_component(value: str, field_name: str = "path") -> str:
+    """Reject path separators and parent-directory references in a single path component."""
+    if not value or value in (".", ".."):
+        raise ValueError(f"Invalid {field_name}: must be a non-empty safe path component")
+    if _UNSAFE_PATH_COMPONENT_RE.search(value) or os.path.basename(value) != value:
+        raise ValueError(f"Invalid {field_name}: path separators are not allowed")
+    return value
+
+
+def resolve_path_within_base(base_dir: os.PathLike | str, *relative_parts: str) -> Path:
+    """Resolve a path and ensure it remains within the given base directory."""
+    base = Path(base_dir).resolve()
+    path = base.joinpath(*relative_parts).resolve()
+    try:
+        path.relative_to(base)
+    except ValueError as err:
+        raise ValueError(f"Path {path} escapes base directory {base}") from err
+    return path
+
+
+def get_manifest_member_name(member_names: list[str]) -> str:
+    """Return the manifest.json member name from an archive member list."""
+    if MANIFEST_JSON in member_names:
+        return MANIFEST_JSON
+    raise ValueError("No manifest found in payload")
 
 
 class OCPReportTypes(Enum):
@@ -399,6 +430,16 @@ class Manifest(BaseModel):
     def get_operator_version(cls, value: str, info: ValidationInfo) -> str:
         v = info.data["version"]
         return OPERATOR_VERSIONS.get(v, v)
+
+    @field_validator("cluster_id", mode="after")
+    @classmethod
+    def validate_cluster_id_path(cls, value: str) -> str:
+        return validate_safe_path_component(value, "cluster_id")
+
+    @field_validator("files", "resource_optimization_files", mode="after")
+    @classmethod
+    def validate_manifest_file_names(cls, value: list[str]) -> list[str]:
+        return [validate_safe_path_component(file_name, "file name") for file_name in value]
 
     @model_validator(mode="after")
     def validate_start_and_end(self) -> Self:
