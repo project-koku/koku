@@ -69,14 +69,39 @@ export PGPASSWORD="${DATABASE_PASSWORD}"
 export PGPORT="${POSTGRES_SQL_SERVICE_PORT}"
 export PGHOST="${POSTGRES_SQL_SERVICE_HOST}"
 export PGUSER="${DATABASE_USER}"
+export PGDATABASE="${DATABASE_NAME:-postgres}"
 OS="$(uname)"
 export OS
 
 export S3_ACCESS_KEY="${S3_ACCESS_KEY}"
 export S3_SECRET_KEY="${S3_SECRET}"
 export S3_BUCKET_NAME="${S3_BUCKET_NAME_OCP_INGRESS-ocp-ingress}"
-export MINIO_UPLOAD="${S3_ENDPOINT-http://localhost:9000}"
 
+# nise runs on the host; map in-container S4 endpoint to the host-published port.
+MINIO_UPLOAD="${S3_ENDPOINT-http://localhost:9000}"
+MINIO_UPLOAD="${MINIO_UPLOAD/koku-s4/localhost}"
+MINIO_UPLOAD="${MINIO_UPLOAD/koku-minio/localhost}"
+MINIO_UPLOAD="${MINIO_UPLOAD/http:\/\/s4:/http:\/\/localhost:}"
+# S4 RGW listens on 7480 inside the container; compose maps host 9000 -> 7480.
+if [[ "${MINIO_UPLOAD}" == *localhost* && "${MINIO_UPLOAD}" == *:7480* ]]; then
+    MINIO_UPLOAD="${MINIO_UPLOAD/:7480/:9000}"
+fi
+export MINIO_UPLOAD
+log-debug "MINIO_UPLOAD=${MINIO_UPLOAD}"
+
+
+check-test-customer() {
+  local provider_count
+  provider_count=$(psql --no-password -t -c "SELECT COUNT(*) FROM public.api_provider;" | tr -d '[:space:]')
+  if [[ -z "${provider_count}" || "${provider_count}" -eq 0 ]]; then
+    log-err "No test providers found in the database."
+    log-err "Run 'make create-test-customer' first, then retry load-test-customer-data."
+    exit 1
+  fi
+  log-info "Found ${provider_count} test provider(s) in the database."
+}
+
+check-test-customer
 
 log-info "Calculating dates..."
 if [[ $OS = "Darwin" ]]; then
@@ -91,23 +116,34 @@ log-debug "END_DATE=${END_DATE}"
 
 
 check-api-status() {
-  # API status validation.
+  # API status validation with retries (masu may restart after create-test-customer).
   #
   # Args: ($1) - server name
   #       ($2) - URL to status endpoint
   #
   local _server_name=$1
   local _status_url=$2
+  local max_retries=12
+  local wait_seconds=5
+  local attempt=1
+  local check=""
 
   log-info "Checking that $_server_name is up and running..."
-  CHECK=$(curl --connect-timeout 20 -s -w "%{http_code}\n" -L "${_status_url}" -o /dev/null)
-  if [[ $CHECK != 200 ]];then
-      log-err "$_server_name is not available at: $_status_url"
-      log-err "exiting..."
-      exit 1
-  else
-    log-info "$_server_name is up and running"
-  fi
+  while [[ $attempt -le $max_retries ]]; do
+    check=$(curl --connect-timeout 10 -s -w "%{http_code}" -L "${_status_url}" -o /dev/null 2>/dev/null || echo "000")
+    if [[ "$check" == 200 ]]; then
+      log-info "$_server_name is up and running"
+      return 0
+    fi
+    if [[ $attempt -lt $max_retries ]]; then
+      log-info "$_server_name not ready (HTTP ${check}); retrying in ${wait_seconds}s (${attempt}/${max_retries})"
+      sleep "$wait_seconds"
+    fi
+    attempt=$((attempt + 1))
+  done
+  log-err "$_server_name is not available at: $_status_url (last HTTP ${check})"
+  log-err "exiting..."
+  exit 1
 }
 
 add_cost_models() {

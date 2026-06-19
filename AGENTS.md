@@ -122,7 +122,7 @@ Most features require changes that work in **both** execution paths. Choose your
 - Good for: OCP features, API changes, cost model logic
 
 **SaaS/Cloud mode** (PostgreSQL + Trino):
-- Requires Trino + Hive Metastore + MinIO
+- Requires Trino + Hive Metastore + S4
 - Processes all provider types
 - Uses `trino_sql/` for aggregation, `sql/` for summaries
 - Good for: Cloud provider features, Parquet processing, full integration tests
@@ -150,7 +150,7 @@ Most features require changes that work in **both** execution paths. Choose your
 | Database       | PostgreSQL with `django-tenants` (schema-per-tenant) | `docker-compose.yml` |
 | Task Queue     | Celery + Redis/Valkey broker                      | `Pipfile`      |
 | Caching        | Redis (django-redis) — default, api, rbac, worker | —              |
-| Object Storage | S3/MinIO (CSV/Parquet files)                      | —              |
+| Object Storage | S3/S4 (CSV/Parquet files)                        | —              |
 | Analytics      | Trino (Hive catalog) — cloud only                 | `docker-compose.yml` |
 | Feature Flags  | Unleash                                           | —              |
 | Python         | See `.python-version` or `Pipfile`                | `Pipfile`      |
@@ -686,7 +686,7 @@ SET search_path TO org1234567;
 | `DATABASE_PASSWORD`            | `postgres`    | Database password    |
 | `DEVELOPMENT`                  | `True`        | Dev middleware       |
 | `KEEPDB`                       | `True`        | Preserve test DB     |
-| `S3_ENDPOINT`                  | MinIO URL     | Object storage       |
+| `S3_ENDPOINT`                  | S4 URL        | Object storage       |
 | `API_PATH_PREFIX`              | `/api/cost-management` | API URL prefix |
 
 ### Docker Compose Services
@@ -701,7 +701,7 @@ SET search_path TO org1234567;
 | `koku-beat`      | —     | Celery beat scheduler          |
 | `trino`          | 8080  | Analytics SQL engine           |
 | `hive-metastore` | 9083  | Hive metastore for Trino       |
-| `minio`          | 9000  | S3-compatible object storage   |
+| `s4`             | 9000 (S3 API), 5000 (UI) | S3-compatible object storage |
 | `unleash`        | 4242  | Feature flag server            |
 | `grafana`        | 3001  | Monitoring dashboards          |
 | `pgadmin`        | 8432  | Database admin UI              |
@@ -742,7 +742,7 @@ development and testing, generate fake data, and verify the UI end-to-end.
 ### Step 1: Start Backend Services
 
 The minimal on-prem stack needs: `db`, `valkey`, `unleash`, `koku-server`,
-`masu-server`, `koku-worker`, `koku-beat`. MinIO is needed only during OCP data
+`masu-server`, `koku-worker`, `koku-beat`. S4 is needed only during OCP data
 ingestion (see Step 3).
 
 ```bash
@@ -752,14 +752,14 @@ cd $KOKU_ROOT  # or your koku repo path
 grep -q USER_ID .env || echo "USER_ID=$(id -u)" >> .env
 grep -q GROUP_ID .env || echo "GROUP_ID=$(id -g)" >> .env
 
-# Start core services (no Trino, no MinIO yet)
+# Start core services (no Trino, no S4 yet)
 docker compose up -d db valkey unleash koku-server masu-server koku-worker koku-beat
 ```
 
 **Common port conflicts:**
 - Port `15432` (db): Check for stale test containers: `podman ps -a | grep 15432`
-- Port `9000` (MinIO): Conflicts with the frontend dev server. Stop the frontend
-  before starting MinIO, and stop MinIO before restarting the frontend.
+- Port `9000` (S4 S3 API): Conflicts with the frontend dev server. Stop the frontend
+  before starting S4, and stop S4 before restarting the frontend.
 
 Wait for services to be healthy:
 
@@ -806,25 +806,17 @@ docker compose exec db psql -U postgres -d postgres -c "
 
 ### Step 3: Generate and Ingest OCP Test Data
 
-OCP data flows through MinIO. The nise tool generates realistic usage CSVs.
+OCP data flows through S4 (S3-compatible local object storage). The nise tool generates realistic usage CSVs.
 
-#### 3a. Start MinIO (temporarily stop the frontend if it's on port 9000)
+#### 3a. Start S4 (temporarily stop the frontend if it's on port 9000)
 
 ```bash
 # Kill frontend if running on port 9000
 lsof -ti :9000 | xargs kill 2>/dev/null
 
-# Start MinIO and create buckets
-docker compose up -d minio
+# Start S4 and create buckets
+docker compose up -d s4 create-s3-buckets
 sleep 3
-
-docker run --rm --network koku_default --entrypoint sh minio/mc:latest -c "
-  mc alias set local http://koku-minio:9000 kokuminioaccess kokuminiosecret &&
-  mc mb --ignore-existing local/ocp-ingress &&
-  mc mb --ignore-existing local/koku-bucket &&
-  mc anonymous set public local/ocp-ingress &&
-  mc anonymous set public local/koku-bucket
-"
 ```
 
 #### 3b. Generate OCP data with nise
@@ -840,8 +832,8 @@ cd $WORKSPACE/nise  # sibling to koku repo
 # Example: start_date: 2026-01-18, end_date: 2026-02-17
 
 # Generate OCP data to a local directory
-S3_ACCESS_KEY=kokuminioaccess \
-S3_SECRET_KEY=kokuminiosecret \
+S3_ACCESS_KEY=s4admin \
+S3_SECRET_KEY=s4secret \
 S3_BUCKET_NAME=ocp-ingress \
 .venv/bin/nise report ocp \
   --static-report-file /tmp/ocp_static_data.yml \
@@ -859,9 +851,9 @@ S3_BUCKET_NAME=ocp-ingress \
 | Azure | `nise report azure` | `--static-report-file`, `--azure-container-name LOCAL_DIR`, `--azure-report-name NAME` |
 | GCP | `nise report gcp` | `--static-report-file`, `--gcp-bucket-name LOCAL_DIR`, `-r` |
 
-**Nise environment variables** (required for MinIO upload):
-- `S3_ACCESS_KEY` — MinIO access key (`kokuminioaccess`)
-- `S3_SECRET_KEY` — MinIO secret key (`kokuminiosecret`)
+**Nise environment variables** (required for S3 upload):
+- `S3_ACCESS_KEY` — S4 access key (`s4admin`)
+- `S3_SECRET_KEY` — S4 secret key (`s4secret`)
 - `S3_BUCKET_NAME` — Target bucket (`ocp-ingress`)
 
 **Nise example YAMLs** (`$WORKSPACE/nise/examples/`):
@@ -873,7 +865,7 @@ S3_BUCKET_NAME=ocp-ingress \
 The koku repo also has templates under `dev/scripts/nise_ymls/` with Jinja2 date
 placeholders, rendered by `dev/scripts/render_nise_yamls.py`.
 
-#### 3c. Package and upload OCP data to MinIO
+#### 3c. Package and upload OCP data to S4
 
 ```bash
 PAYLOAD=$(python3 -c "import uuid; print(uuid.uuid4().hex)")
@@ -885,18 +877,26 @@ tar czf /tmp/${PAYLOAD}.2026_01.tar.gz .
 cd /tmp/nise_ocp_output/my-ocp-cluster-1/20260201-20260301
 tar czf /tmp/${PAYLOAD}.2026_02.tar.gz .
 
-# Upload to MinIO (key names must NOT have .tar.gz extension)
+# Upload to S4 (key names must NOT have .tar.gz extension)
 docker run --rm --network koku_default \
+  -e AWS_ACCESS_KEY_ID=s4admin \
+  -e AWS_SECRET_ACCESS_KEY=s4secret \
   -v /tmp/${PAYLOAD}.2026_01.tar.gz:/data/${PAYLOAD}.2026_01 \
   -v /tmp/${PAYLOAD}.2026_02.tar.gz:/data/${PAYLOAD}.2026_02 \
-  --entrypoint sh minio/mc:latest -c "
-    mc alias set local http://koku-minio:9000 kokuminioaccess kokuminiosecret &&
-    mc cp /data/${PAYLOAD}.2026_01 local/ocp-ingress/${PAYLOAD}.2026_01 &&
-    mc cp /data/${PAYLOAD}.2026_02 local/ocp-ingress/${PAYLOAD}.2026_02
-  "
+  amazon/aws-cli:latest \
+  --endpoint-url http://koku-s4:7480 \
+  s3 cp /data/${PAYLOAD}.2026_01 s3://ocp-ingress/${PAYLOAD}.2026_01
+
+docker run --rm --network koku_default \
+  -e AWS_ACCESS_KEY_ID=s4admin \
+  -e AWS_SECRET_ACCESS_KEY=s4secret \
+  -v /tmp/${PAYLOAD}.2026_02.tar.gz:/data/${PAYLOAD}.2026_02 \
+  amazon/aws-cli:latest \
+  --endpoint-url http://koku-s4:7480 \
+  s3 cp /data/${PAYLOAD}.2026_02 s3://ocp-ingress/${PAYLOAD}.2026_02
 ```
 
-**CRITICAL:** The MinIO object key must match exactly what the `ingest_ocp_payload`
+**CRITICAL:** The S4 object key must match exactly what the `ingest_ocp_payload`
 endpoint expects: `{payload_name}.{YYYY_MM}` — **no `.tar.gz` extension**. The Masu
 download code constructs a presigned URL using the payload name directly as the key.
 
@@ -926,10 +926,10 @@ docker compose logs --since=2m koku-worker 2>&1 | grep -iE "summary|rows|complet
 
 Ingestion is complete when you see `manifest marked complete` in the worker logs.
 
-#### 3f. Stop MinIO after ingestion
+#### 3f. Stop S4 after ingestion
 
 ```bash
-docker compose stop minio
+docker compose stop s4
 ```
 
 ### SaaS Mode (Trino Stack)
@@ -945,13 +945,13 @@ cd $KOKU_ROOT
 make docker-up-min-trino
 
 # Or manually:
-docker compose up -d db valkey minio trino hive-metastore koku-server masu-server koku-worker koku-beat
+docker compose up -d db valkey s4 trino hive-metastore koku-server masu-server koku-worker koku-beat
 ```
 
 This starts additional services:
 - **Trino** (port 8080) — SQL analytics engine for Parquet aggregation
 - **Hive Metastore** (port 9083) — Schema registry for Trino
-- **MinIO** (port 9000) — S3-compatible storage for Parquet files
+- **S4** (port 9000 S3 API, port 5000 UI) — S3-compatible storage for Parquet files
 
 #### Generate AWS/Azure/GCP Test Data
 
@@ -1079,8 +1079,8 @@ The frontend starts at `http://localhost:9000/`. The webpack dev server proxies
 - The proxy must NOT rewrite the path — the backend expects the full
   `/api/cost-management/v1/...` prefix
 
-**Port 9000 conflict with MinIO:** The frontend and MinIO both use port 9000.
-Never run them simultaneously. Stop MinIO before starting the frontend, and
+**Port 9000 conflict with S4:** The frontend and S4 S3 API both use port 9000.
+Never run them simultaneously. Stop S4 before starting the frontend, and
 vice versa.
 
 ### Step 7: Verify Data in the API
@@ -1109,7 +1109,7 @@ All endpoints are on the Masu server (`http://localhost:5042/api/cost-management
 
 | Endpoint | Method | Purpose | Key params |
 |----------|--------|---------|------------|
-| `ingest_ocp_payload/` | GET | Trigger OCP data ingestion from MinIO | `org_id`, `payload_name` |
+| `ingest_ocp_payload/` | GET | Trigger OCP data ingestion from S3 | `org_id`, `payload_name` |
 | `download/` | GET | Trigger provider data download | `provider_uuid` |
 | `update_cost_model_costs/` | GET | Re-apply cost model rates | `provider_uuid`, `schema` |
 | `enabled_tags/` | POST | Enable tag keys for filtering | `schema`, `tag_keys`, `provider_type`, `action` |
@@ -1160,9 +1160,9 @@ docker compose up -d db valkey unleash koku-server masu-server koku-worker koku-
 
 # 2. Generate + ingest OCP data (stop frontend first if running)
 lsof -ti :9000 | xargs kill 2>/dev/null
-docker compose up -d minio
-# ... (generate nise data, upload to MinIO, trigger ingest — see Steps 3a-3e)
-docker compose stop minio
+docker compose up -d s4
+# ... (generate nise data, upload to S4, trigger ingest — see Steps 3a-3e)
+docker compose stop s4
 
 # 3. Start frontend
 cd $WORKSPACE/koku-ui
@@ -1177,15 +1177,15 @@ API_PROXY_URL=http://localhost:8000 API_TOKEN=$IDENTITY npm run start --workspac
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `address already in use :15432` | Stale test DB container | `podman stop koku-test-db` |
-| `address already in use :9000` | Frontend or MinIO conflict | Kill the other process: `lsof -ti :9000 \| xargs kill` |
-| MinIO `404 Not Found` on ingest | Object key has `.tar.gz` extension | Upload without extension: key must be `payload.YYYY_MM` not `payload.YYYY_MM.tar.gz` |
-| Nise exits silently (code 0, no output) | Missing env vars for MinIO upload | Set `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_NAME` before running nise |
+| `address already in use :9000` | Frontend or S4 conflict | Kill the other process: `lsof -ti :9000 \| xargs kill` |
+| S3 `404 Not Found` on ingest | Object key has `.tar.gz` extension | Upload without extension: key must be `payload.YYYY_MM` not `payload.YYYY_MM.tar.gz` |
+| Nise exits silently (code 0, no output) | Missing env vars for S3 upload | Set `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_NAME` before running nise |
 | All costs `0.00` but usage non-zero | Cost model has empty `rates: []` | Update cost model with actual rates via API (Step 5) |
 | `NotImplementedError: ...write_to_self_hosted_table` | AWS/Azure/GCP data in on-prem mode | On-prem only supports OCP data; use Trino stack for cloud providers |
 | `operator does not exist: text ->> unknown` | GPU cost model SQL bug in on-prem | Use OCP data without GPU nodes (nise `ocp_on_aws` examples have no GPUs) |
 | API returns `403 Forbidden` | Wrong identity header | Use `account_number: "10001"`, `org_id: "1234567"` (matches test customer) |
 | Frontend proxy returns `404` | `pathRewrite` strips API prefix | Remove `pathRewrite` from `webpack.config.ts` — backend expects full `/api/cost-management/v1/` path |
-| `mc: config is not a recognized command` | Old MinIO `mc` CLI version | Use `mc alias set` instead of `mc config host add` |
+| `mc: config is not a recognized command` | Old `mc` CLI version | Use `mc alias set` instead of `mc config host add` |
 | API returns correct data but UI shows stale values | Django `cache_page` + browser HTTP cache | Flush server cache: `docker exec koku_valkey redis-cli FLUSHALL`, then hard-refresh browser (`Ctrl+Shift+R`) |
 | Breakdown values are cluster-wide instead of per-project | `_breakdown_query_filter` missing entity filter | Fixed: `_apply_entity_scope()` now checks `group_by`, `filter`, and `exact:` prefixed variants |
 

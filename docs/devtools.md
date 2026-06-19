@@ -73,9 +73,9 @@ After the files are converted they are then sent up to an S3 bucket. During runt
 Trino Specific Env Vars
 ```
 S3_BUCKET_NAME=koku-bucket
-S3_ENDPOINT=http://kokuminio:9000
-S3_ACCESS_KEY=kokuminioaccess
-S3_SECRET=kokuminiosecret
+S3_ENDPOINT=http://koku-s4:7480
+S3_ACCESS_KEY=s4admin
+S3_SECRET=s4secret
 TRINO_DATE_STEP=31
 ```
 
@@ -128,18 +128,21 @@ Notice how an `external_location` is not present in the return. That means the h
 Our Trino migrations are run using the `migrate_trino.py` script, and this script contains checks and balances regarding managed and external tables. Therefore, when new trino tables are added to the project, the corresponding list of external vs managed tables should be updated with the new table name.
 
 
-## MinIO
-MinIO is the file storage location we use locally. Since, we query the parquet files based off the S3 path, we use this tool locally to see the csv & parquet files are in their expected place. It will also allow you to download them.
+## S4 (local S3 object storage)
 
-Minio UI:
+S4 is the file storage location we use locally. Since we query the parquet files based off the S3 path, we use this tool locally to see the csv & parquet files are in their expected place. It will also allow you to download them.
 
-- http://127.0.0.1:9090/minio/
+S4 web UI:
 
-The username & password is set inside of the .env file
+- http://127.0.0.1:5000/
+
+The username & password is set inside of the `.env` file
 ```
-S3_ACCESS_KEY=kokuminioaccess
-S3_SECRET=kokuminiosecret
+S3_ACCESS_KEY=s4admin
+S3_SECRET=s4secret
 ```
+
+S3 API endpoint (host): `http://localhost:9000` (mapped from container port 7480).
 
 ## Trino Coordinator
 
