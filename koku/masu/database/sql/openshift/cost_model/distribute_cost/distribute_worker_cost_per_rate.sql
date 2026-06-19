@@ -82,7 +82,7 @@ SELECT
     nu.namespace,
     nu.node,
     nu.cost_category_id,
-    wc.custom_name,
+    COALESCE(wc.custom_name, ''),
     wc.metric_type,
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
@@ -114,7 +114,7 @@ WHERE CASE WHEN {{distribution}} = 'cpu' THEN
 INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace,
-    cost_model_rate_type,
+    custom_name, cost_model_rate_type,
     monthly_cost_type, distributed_cost
 )
 SELECT
@@ -126,6 +126,7 @@ SELECT
     rtu.cluster_id,
     MAX(rtu.cluster_alias),
     'Worker unallocated',
+    '',
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
     -SUM(COALESCE(rtu.calculated_cost, 0))

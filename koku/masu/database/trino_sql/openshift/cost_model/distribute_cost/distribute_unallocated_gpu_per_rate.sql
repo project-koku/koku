@@ -72,7 +72,7 @@ SELECT
     MAX(gc.cluster_alias),
     nsp.namespace,
     nsp.node,
-    gc.custom_name,
+    COALESCE(gc.custom_name, ''),
     gc.metric_type,
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
@@ -96,7 +96,7 @@ HAVING MAX(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate
 INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace,
-    cost_model_rate_type,
+    custom_name, cost_model_rate_type,
     monthly_cost_type, distributed_cost
 )
 SELECT
@@ -108,6 +108,7 @@ SELECT
     rtu.cluster_id,
     MAX(rtu.cluster_alias),
     'GPU unallocated',
+    '',
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
     -SUM(COALESCE(rtu.calculated_cost, 0))
