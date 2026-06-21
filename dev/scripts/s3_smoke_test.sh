@@ -383,10 +383,14 @@ test_presigned_urls() {
     fi
 
     # Presigned URLs are exercised from the host; use the host-reachable endpoint.
-    # shellcheck disable=SC2086
-    if ! S3_ENDPOINT="${S3_HOST_ENDPOINT}" S3_ACCESS_KEY="${S3_ACCESS_KEY}" S3_SECRET="${S3_SECRET}" \
-        AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION}" OCP_BUCKET="${OCP_BUCKET}" \
-        run_python_presigned "${python_cmd}" - <<'PY'
+    if ! (
+        export S3_ENDPOINT="${S3_HOST_ENDPOINT}"
+        export S3_ACCESS_KEY="${S3_ACCESS_KEY}"
+        export S3_SECRET="${S3_SECRET}"
+        export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION}"
+        export OCP_BUCKET="${OCP_BUCKET}"
+        run_python_presigned "${python_cmd}" -
+    ) <<'PY'
 import os
 import sys
 

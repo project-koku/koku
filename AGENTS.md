@@ -1185,7 +1185,6 @@ API_PROXY_URL=http://localhost:8000 API_TOKEN=$IDENTITY npm run start --workspac
 | `operator does not exist: text ->> unknown` | GPU cost model SQL bug in on-prem | Use OCP data without GPU nodes (nise `ocp_on_aws` examples have no GPUs) |
 | API returns `403 Forbidden` | Wrong identity header | Use `account_number: "10001"`, `org_id: "1234567"` (matches test customer) |
 | Frontend proxy returns `404` | `pathRewrite` strips API prefix | Remove `pathRewrite` from `webpack.config.ts` — backend expects full `/api/cost-management/v1/` path |
-| `mc: config is not a recognized command` | Old `mc` CLI version | Use `mc alias set` instead of `mc config host add` |
 | API returns correct data but UI shows stale values | Django `cache_page` + browser HTTP cache | Flush server cache: `docker exec koku_valkey redis-cli FLUSHALL`, then hard-refresh browser (`Ctrl+Shift+R`) |
 | Breakdown values are cluster-wide instead of per-project | `_breakdown_query_filter` missing entity filter | Fixed: `_apply_entity_scope()` now checks `group_by`, `filter`, and `exact:` prefixed variants |
 
