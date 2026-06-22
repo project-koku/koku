@@ -161,12 +161,12 @@ WHERE CASE WHEN {{distribution}} = 'cpu' THEN
           END
       END != 0;
 
--- Negate source: for each Platform namespace, negate its cost-model total plus
--- infrastructure costs from daily_summary. This ensures each Platform namespace
--- fully zeroes out in the API's cost.total computation.
+-- Negate source: per-node negation for each Platform namespace.
+-- Includes infrastructure costs from daily_summary. Per-node granularity
+-- avoids NULL node ("No-node") entries in the API.
 INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
-    cluster_id, cluster_alias, namespace,
+    cluster_id, cluster_alias, namespace, node,
     cost_category_id, custom_name, metric_type, cost_model_rate_type,
     monthly_cost_type, distributed_cost
 )
@@ -179,6 +179,7 @@ SELECT
     rtu_agg.cluster_id,
     rtu_agg.cluster_alias,
     rtu_agg.namespace,
+    rtu_agg.node,
     rtu_agg.cost_category_id,
     '', '',
     {{cost_model_rate_type}},
@@ -191,6 +192,7 @@ FROM (
         rtu.usage_start,
         rtu.cluster_id,
         rtu.namespace,
+        rtu.node,
         MAX(rtu.cluster_alias) AS cluster_alias,
         MAX(rtu.cost_category_id) AS cost_category_id,
         SUM(COALESCE(rtu.calculated_cost, 0)) AS cost_model_total
@@ -207,13 +209,14 @@ FROM (
             'unattributed_storage', 'unattributed_network'
         ))
     GROUP BY rtu.report_period_id, rtu.source_uuid, rtu.usage_start,
-             rtu.cluster_id, rtu.namespace
+             rtu.cluster_id, rtu.namespace, rtu.node
 ) rtu_agg
 LEFT JOIN (
     SELECT
         lids.usage_start,
         lids.cluster_id,
         lids.namespace,
+        lids.node,
         SUM(
             COALESCE(lids.infrastructure_raw_cost, 0) +
             COALESCE(lids.infrastructure_markup_cost, 0)
@@ -226,11 +229,12 @@ LEFT JOIN (
         AND lids.report_period_id = {{report_period_id}}
         AND cat.name = 'Platform'
         AND lids.cost_model_rate_type IS NULL
-    GROUP BY lids.usage_start, lids.cluster_id, lids.namespace
+    GROUP BY lids.usage_start, lids.cluster_id, lids.namespace, lids.node
 ) pi_ns
     ON pi_ns.usage_start = rtu_agg.usage_start
     AND pi_ns.cluster_id = rtu_agg.cluster_id
     AND pi_ns.namespace = rtu_agg.namespace
+    AND pi_ns.node IS NOT DISTINCT FROM rtu_agg.node
 WHERE EXISTS (
     SELECT 1 FROM {{schema | sqlsafe}}.rates_to_usage dist
     WHERE dist.monthly_cost_type = {{cost_model_rate_type}}

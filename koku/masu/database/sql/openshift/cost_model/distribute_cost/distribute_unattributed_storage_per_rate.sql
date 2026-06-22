@@ -155,33 +155,74 @@ WHERE CASE WHEN {{distribution}} = 'cpu' THEN
           END
       END != 0;
 
--- Negate source: derive negation from the distributed output rows just inserted.
--- Because the distribution above includes infrastructure costs via scaling,
--- the derived sum automatically covers both cost-model and infrastructure.
+-- Negate source: per-node negation of Storage unattributed costs.
+-- Includes infrastructure costs from daily_summary. Per-node granularity
+-- avoids NULL node ("No-node") entries in the API.
 INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
-    cluster_id, cluster_alias, namespace,
+    cluster_id, cluster_alias, namespace, node,
     custom_name, metric_type, cost_model_rate_type,
     monthly_cost_type, distributed_cost
 )
 SELECT
     uuid_generate_v4(),
-    MAX(rtu.report_period_id),
-    rtu.source_uuid,
-    rtu.usage_start,
-    rtu.usage_start,
-    rtu.cluster_id,
-    MAX(rtu.cluster_alias),
+    src.report_period_id,
+    src.source_uuid,
+    src.usage_start,
+    src.usage_start,
+    src.cluster_id,
+    src.cluster_alias,
     'Storage unattributed',
+    src.node,
     '', '',
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    -SUM(rtu.distributed_cost)
-FROM {{schema | sqlsafe}}.rates_to_usage rtu
-WHERE rtu.usage_start >= {{start_date}}::date
-    AND rtu.usage_start <= {{end_date}}::date
-    AND rtu.source_uuid = {{source_uuid}}::uuid
-    AND rtu.monthly_cost_type = {{cost_model_rate_type}}
-    AND rtu.namespace != 'Storage unattributed'
-GROUP BY rtu.source_uuid, rtu.usage_start, rtu.cluster_id
-HAVING SUM(rtu.distributed_cost) != 0;
+    -(src.cost_model_total + COALESCE(infra.infra_total, 0))
+FROM (
+    SELECT
+        MAX(rtu.report_period_id) AS report_period_id,
+        rtu.source_uuid,
+        rtu.usage_start,
+        rtu.cluster_id,
+        rtu.node,
+        MAX(rtu.cluster_alias) AS cluster_alias,
+        SUM(COALESCE(rtu.calculated_cost, 0)) AS cost_model_total
+    FROM {{schema | sqlsafe}}.rates_to_usage rtu
+    WHERE rtu.usage_start >= {{start_date}}::date
+        AND rtu.usage_start <= {{end_date}}::date
+        AND rtu.source_uuid = {{source_uuid}}::uuid
+        AND rtu.namespace = 'Storage unattributed'
+        AND (rtu.monthly_cost_type IS NULL OR rtu.monthly_cost_type NOT IN (
+            'worker_distributed', 'platform_distributed', 'gpu_distributed',
+            'unattributed_storage', 'unattributed_network'
+        ))
+    GROUP BY rtu.source_uuid, rtu.usage_start, rtu.cluster_id, rtu.node
+) src
+LEFT JOIN (
+    SELECT
+        lids.usage_start,
+        lids.cluster_id,
+        lids.node,
+        SUM(
+            COALESCE(lids.infrastructure_raw_cost, 0) +
+            COALESCE(lids.infrastructure_markup_cost, 0)
+        ) AS infra_total
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+    WHERE lids.usage_start >= {{start_date}}::date
+        AND lids.usage_start <= {{end_date}}::date
+        AND lids.report_period_id = {{report_period_id}}
+        AND lids.namespace = 'Storage unattributed'
+        AND lids.cost_model_rate_type IS NULL
+    GROUP BY lids.usage_start, lids.cluster_id, lids.node
+) infra
+    ON src.usage_start = infra.usage_start
+    AND src.cluster_id = infra.cluster_id
+    AND src.node IS NOT DISTINCT FROM infra.node
+WHERE EXISTS (
+    SELECT 1 FROM {{schema | sqlsafe}}.rates_to_usage dist
+    WHERE dist.monthly_cost_type = {{cost_model_rate_type}}
+    AND dist.source_uuid = src.source_uuid
+    AND dist.usage_start = src.usage_start
+    AND dist.cluster_id = src.cluster_id
+)
+AND (src.cost_model_total + COALESCE(infra.infra_total, 0)) != 0;
