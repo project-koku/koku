@@ -1212,6 +1212,26 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 self.assertEqual(len(log.output), 2)
                 self.assertIn("cluster is using basic auth", log.output[1])
 
+    def test_extract_payload_contents_no_manifest_raises(self):
+        """Test that extract_payload_contents raises KafkaMsgHandlerError when no manifest.json is in the tarball.
+
+        Covers the ValueError branch in extract_payload_contents (lines 361-365) where
+        get_manifest_member_name raises because no manifest.json member was extracted.
+        """
+        tar_bytes_io = io.BytesIO()
+        with tarfile.open(fileobj=tar_bytes_io, mode="w") as tar:
+            content = b"usage,data\n"
+            info = tarfile.TarInfo(name="report.csv")
+            info.size = len(content)
+            tar.addfile(info, io.BytesIO(content))
+        tar_bytes_io.seek(0)
+        gz_bytes_io = io.BytesIO()
+        with gzip.GzipFile(fileobj=gz_bytes_io, mode="wb") as gz:
+            gz.write(tar_bytes_io.read())
+        tarball_path = write_tarball_to_tmpdir(gz_bytes_io.getvalue(), self)
+        with self.assertRaises(KafkaMsgHandlerError):
+            msg_handler.extract_payload_contents("test_request_id", tarball_path, {})
+
     def test_create_cost_and_usage_report_manifest(self):
         manifest = Path("koku/masu/test/data/ocp/payload2/manifest.json")
         report_meta = utils.parse_manifest(manifest.parent)
@@ -1426,6 +1446,51 @@ class KafkaMsgHandlerTest(MasuTestCase):
             tarball_path.write_bytes(gz_bytes_io.getvalue())
             with self.assertRaises(KafkaMsgHandlerError):
                 msg_handler.read_manifest_from_tarball("test_request_id", tarball_path, {})
+
+    def test_read_manifest_from_tarball_file_not_found(self):
+        """Test that a non-existent tarball path raises KafkaMsgHandlerError."""
+        with self.assertRaises(KafkaMsgHandlerError):
+            msg_handler.read_manifest_from_tarball(
+                "test_request_id",
+                Path("/nonexistent/path/payload.tar.gz"),
+                {},
+            )
+
+    def test_read_manifest_from_tarball_invalid_manifest_schema(self):
+        """Test that valid JSON that fails the Manifest Pydantic schema raises KafkaMsgHandlerError.
+
+        In Pydantic v2, ValidationError is not a subclass of ValueError, so it is caught by
+        the dedicated ``except ValidationError`` block (lines 337-340) rather than the
+        (ReadError, EOFError, OSError, ValueError) block above it.
+        """
+        # Missing required 'uuid' field → Pydantic raises ValidationError, not ValueError
+        invalid_manifest = {"cluster_id": "my-cluster", "date": "2024-01-01T00:00:00+00:00"}
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tarball_path = Path(tmp_dir, "payload.tar.gz")
+            tarball_path.write_bytes(build_test_tarball_bytes(invalid_manifest))
+            with self.assertRaises(KafkaMsgHandlerError):
+                msg_handler.read_manifest_from_tarball("test_request_id", tarball_path, {})
+
+    def test_handle_message_download_failure_returns_failure_status(self):
+        """Test that handle_message returns FAILURE_CONFIRM_STATUS when download_payload raises.
+
+        Covers the except Exception block in handle_message (lines 594-598) where any unexpected
+        error during download (network failure, permission error, etc.) is caught and results in
+        FAILURE_CONFIRM_STATUS rather than propagating the exception to the caller.
+        """
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC,
+            "http://insights-upload.com/quarantine/file_to_validate",
+            {"org_id": self.org_id},
+        )
+        with patch(
+            "masu.external.kafka_msg_handler.download_payload",
+            side_effect=Exception("unexpected network error"),
+        ):
+            status, report_metas, manifest_uuid = msg_handler.handle_message(hccm_msg)
+            self.assertEqual(status, msg_handler.FAILURE_CONFIRM_STATUS)
+            self.assertIsNone(report_metas)
+            self.assertIsNone(manifest_uuid)
 
     def test_handle_message_cleans_up_temp_dir_on_unexpected_exception(self):
         """Test that handle_message removes the temp directory when extract_payload raises unexpectedly."""
