@@ -73,8 +73,8 @@ export PGDATABASE="${DATABASE_NAME:-postgres}"
 OS="$(uname)"
 export OS
 
-export S3_ACCESS_KEY="${S3_ACCESS_KEY}"
-export S3_SECRET_KEY="${S3_SECRET}"
+export S3_ACCESS_KEY="${S3_ACCESS_KEY:-s4admin}"
+export S3_SECRET_KEY="${S3_SECRET:-s4secret}"
 export S3_BUCKET_NAME="${S3_BUCKET_NAME_OCP_INGRESS-ocp-ingress}"
 
 # nise runs on the host; map in-container S4 endpoint to the host-published port.

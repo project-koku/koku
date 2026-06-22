@@ -124,7 +124,7 @@ To add test sources and data:
     make create-test-customer
     make load-test-customer-data # Optional parameters: start={start_date} end={end_date} test_source=AWS
 
-The S4 web UI will be available at [http://127.0.0.1:5000/](http://127.0.0.1:5000/). Use the `S3_ACCESS_KEY` and `S3_SECRET` set in your `.env` file as login credentials (defaults: `s4admin` / `s4secret`).
+The S4 web UI will be available at [http://127.0.0.1:5002/](http://127.0.0.1:5002/). Use the `S3_ACCESS_KEY` and `S3_SECRET` set in your `.env` file as login credentials (defaults: `s4admin` / `s4secret`).
 
 The Trinio UI will be available at http://127.0.0.1:8080/ui/. Details can be found there on queries. This is particularly useful for troubleshooting failures.
 

@@ -134,7 +134,7 @@ S4 is the file storage location we use locally. Since we query the parquet files
 
 S4 web UI:
 
-- http://127.0.0.1:5000/
+- http://127.0.0.1:5002/
 
 The username & password is set inside of the `.env` file
 ```
