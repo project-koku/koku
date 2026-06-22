@@ -160,18 +160,18 @@ WHERE {partition_column} = '{provider_uuid}'"""
             partition_date_sql = "cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date)"
 
         return f"""
-            SELECT partitions.year, partitions.month, partitions.source
-            FROM (
-                SELECT year as year,
-                    month as month,
-                    {day_select_sql}
-                    {partition_date_sql} as partition_date,
-                    {source_column} as source
-                FROM  "{table_name}$partitions"
-            ) as partitions
-            WHERE partitions.partition_date < DATE '{expired_date}'
-            GROUP BY partitions.year, partitions.month, partitions.source
-        """
+SELECT partitions.year, partitions.month, partitions.source
+FROM (
+    SELECT year as year,
+        month as month,
+        {day_select_sql}
+        {partition_date_sql} as partition_date,
+        {source_column} as source
+    FROM  "{table_name}$partitions"
+) as partitions
+WHERE partitions.partition_date < DATE '{expired_date}'
+GROUP BY partitions.year, partitions.month, partitions.source
+"""
 
     def get_check_source_in_partitions_sql(self, schema_name: str, table_name: str, source_uuid: str):
         """Generate Trino SQL to check if source exists in table partitions."""
