@@ -2,6 +2,10 @@
 -- Reads per-rate costs from RTU (Platform category), distributes
 -- proportionally to non-Platform namespaces by CPU/memory hours,
 -- writes distributed rows back to RTU with monthly_cost_type = 'platform_distributed'.
+--
+-- Infrastructure costs (OCP-on-cloud matching) live in daily_summary, not RTU.
+-- They are distributed proportionally across rates via a scaling factor so
+-- Platform namespaces fully zero out (infra + cost_model = 0).
 WITH platform_rtu_cost AS (
     SELECT
         rtu.usage_start,
@@ -25,6 +29,32 @@ WITH platform_rtu_cost AS (
         ))
     GROUP BY rtu.usage_start, rtu.source_uuid, rtu.cluster_id,
              rtu.custom_name, rtu.metric_type, rtu.cost_model_rate_type
+),
+platform_infra AS (
+    SELECT
+        lids.usage_start,
+        lids.cluster_id,
+        SUM(
+            COALESCE(lids.infrastructure_raw_cost, 0) +
+            COALESCE(lids.infrastructure_markup_cost, 0)
+        ) AS infra_total
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+    JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
+        ON lids.cost_category_id = cat.id
+    WHERE lids.usage_start >= {{start_date}}::date
+        AND lids.usage_start <= {{end_date}}::date
+        AND lids.report_period_id = {{report_period_id}}
+        AND cat.name = 'Platform'
+        AND lids.cost_model_rate_type IS NULL
+    GROUP BY lids.usage_start, lids.cluster_id
+),
+platform_total_rate AS (
+    SELECT
+        usage_start,
+        cluster_id,
+        SUM(rate_cost) AS total_rate_cost
+    FROM platform_rtu_cost
+    GROUP BY usage_start, cluster_id
 ),
 denominator AS (
     SELECT
@@ -94,10 +124,16 @@ SELECT
     CASE WHEN {{distribution}} = 'cpu' THEN
         CASE WHEN d.usage_cpu_sum <= 0 THEN 0
              ELSE (nu.ns_cpu / d.usage_cpu_sum) * pc.rate_cost
+                  * CASE WHEN pt.total_rate_cost > 0
+                         THEN (pt.total_rate_cost + COALESCE(pi.infra_total, 0)) / pt.total_rate_cost
+                         ELSE 1 END
         END
     ELSE
         CASE WHEN d.usage_memory_sum <= 0 THEN 0
              ELSE (nu.ns_memory / d.usage_memory_sum) * pc.rate_cost
+                  * CASE WHEN pt.total_rate_cost > 0
+                         THEN (pt.total_rate_cost + COALESCE(pi.infra_total, 0)) / pt.total_rate_cost
+                         ELSE 1 END
         END
     END
 FROM platform_rtu_cost pc
@@ -105,19 +141,29 @@ JOIN denominator d
     ON d.usage_start = pc.usage_start AND d.cluster_id = pc.cluster_id
 JOIN namespace_usage nu
     ON nu.usage_start = pc.usage_start AND nu.cluster_id = pc.cluster_id
+LEFT JOIN platform_infra pi
+    ON pi.usage_start = pc.usage_start AND pi.cluster_id = pc.cluster_id
+LEFT JOIN platform_total_rate pt
+    ON pt.usage_start = pc.usage_start AND pt.cluster_id = pc.cluster_id
 WHERE CASE WHEN {{distribution}} = 'cpu' THEN
           CASE WHEN d.usage_cpu_sum <= 0 THEN 0
                ELSE (nu.ns_cpu / d.usage_cpu_sum) * pc.rate_cost
+                    * CASE WHEN pt.total_rate_cost > 0
+                           THEN (pt.total_rate_cost + COALESCE(pi.infra_total, 0)) / pt.total_rate_cost
+                           ELSE 1 END
           END
       ELSE
           CASE WHEN d.usage_memory_sum <= 0 THEN 0
                ELSE (nu.ns_memory / d.usage_memory_sum) * pc.rate_cost
+                    * CASE WHEN pt.total_rate_cost > 0
+                           THEN (pt.total_rate_cost + COALESCE(pi.infra_total, 0)) / pt.total_rate_cost
+                           ELSE 1 END
           END
       END != 0;
 
--- Negate source: derive negation from the distributed output rows just inserted.
--- Sums distributed_cost of platform_distributed rows and inserts exact negative
--- per source namespace, guaranteeing algebraic zero-sum.
+-- Negate source: for each Platform namespace, negate its cost-model total plus
+-- infrastructure costs from daily_summary. This ensures each Platform namespace
+-- fully zeroes out in the API's cost.total computation.
 INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace,
@@ -137,7 +183,7 @@ SELECT
     '', '',
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    -rtu_agg.cost_model_total
+    -(rtu_agg.cost_model_total + COALESCE(pi_ns.infra_total, 0))
 FROM (
     SELECT
         rtu.report_period_id,
@@ -162,12 +208,34 @@ FROM (
         ))
     GROUP BY rtu.report_period_id, rtu.source_uuid, rtu.usage_start,
              rtu.cluster_id, rtu.namespace
-    HAVING SUM(COALESCE(rtu.calculated_cost, 0)) != 0
 ) rtu_agg
+LEFT JOIN (
+    SELECT
+        lids.usage_start,
+        lids.cluster_id,
+        lids.namespace,
+        SUM(
+            COALESCE(lids.infrastructure_raw_cost, 0) +
+            COALESCE(lids.infrastructure_markup_cost, 0)
+        ) AS infra_total
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+    JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
+        ON lids.cost_category_id = cat.id
+    WHERE lids.usage_start >= {{start_date}}::date
+        AND lids.usage_start <= {{end_date}}::date
+        AND lids.report_period_id = {{report_period_id}}
+        AND cat.name = 'Platform'
+        AND lids.cost_model_rate_type IS NULL
+    GROUP BY lids.usage_start, lids.cluster_id, lids.namespace
+) pi_ns
+    ON pi_ns.usage_start = rtu_agg.usage_start
+    AND pi_ns.cluster_id = rtu_agg.cluster_id
+    AND pi_ns.namespace = rtu_agg.namespace
 WHERE EXISTS (
     SELECT 1 FROM {{schema | sqlsafe}}.rates_to_usage dist
     WHERE dist.monthly_cost_type = {{cost_model_rate_type}}
     AND dist.source_uuid = rtu_agg.source_uuid
     AND dist.usage_start = rtu_agg.usage_start
     AND dist.cluster_id = rtu_agg.cluster_id
-);
+)
+AND (rtu_agg.cost_model_total + COALESCE(pi_ns.infra_total, 0)) != 0;

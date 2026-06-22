@@ -2,6 +2,10 @@
 -- Reads per-rate costs from RTU (Worker unallocated namespace), distributes
 -- proportionally to non-Worker namespaces by CPU/memory hours (Pod data_source),
 -- writes distributed rows back to RTU with monthly_cost_type = 'worker_distributed'.
+--
+-- Infrastructure costs (OCP-on-cloud matching) live in daily_summary, not RTU.
+-- They are distributed proportionally across rates via a scaling factor so the
+-- Worker unallocated namespace fully zeroes out (infra + cost_model = 0).
 WITH worker_rtu_cost AS (
     SELECT
         rtu.usage_start,
@@ -23,6 +27,30 @@ WITH worker_rtu_cost AS (
         ))
     GROUP BY rtu.usage_start, rtu.source_uuid, rtu.cluster_id,
              rtu.custom_name, rtu.metric_type, rtu.cost_model_rate_type
+),
+worker_infra AS (
+    SELECT
+        lids.usage_start,
+        lids.cluster_id,
+        SUM(
+            COALESCE(lids.infrastructure_raw_cost, 0) +
+            COALESCE(lids.infrastructure_markup_cost, 0)
+        ) AS infra_total
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+    WHERE lids.usage_start >= {{start_date}}::date
+        AND lids.usage_start <= {{end_date}}::date
+        AND lids.report_period_id = {{report_period_id}}
+        AND lids.namespace = 'Worker unallocated'
+        AND lids.cost_model_rate_type IS NULL
+    GROUP BY lids.usage_start, lids.cluster_id
+),
+worker_total_rate AS (
+    SELECT
+        usage_start,
+        cluster_id,
+        SUM(rate_cost) AS total_rate_cost
+    FROM worker_rtu_cost
+    GROUP BY usage_start, cluster_id
 ),
 denominator AS (
     SELECT
@@ -92,10 +120,16 @@ SELECT
     CASE WHEN {{distribution}} = 'cpu' THEN
         CASE WHEN d.usage_cpu_sum <= 0 THEN 0
              ELSE (nu.ns_cpu / d.usage_cpu_sum) * wc.rate_cost
+                  * CASE WHEN wt.total_rate_cost > 0
+                         THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
+                         ELSE 1 END
         END
     ELSE
         CASE WHEN d.usage_memory_sum <= 0 THEN 0
              ELSE (nu.ns_memory / d.usage_memory_sum) * wc.rate_cost
+                  * CASE WHEN wt.total_rate_cost > 0
+                         THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
+                         ELSE 1 END
         END
     END
 FROM worker_rtu_cost wc
@@ -103,19 +137,31 @@ JOIN denominator d
     ON d.usage_start = wc.usage_start AND d.cluster_id = wc.cluster_id
 JOIN namespace_usage nu
     ON nu.usage_start = wc.usage_start AND nu.cluster_id = wc.cluster_id
+LEFT JOIN worker_infra wi
+    ON wi.usage_start = wc.usage_start AND wi.cluster_id = wc.cluster_id
+LEFT JOIN worker_total_rate wt
+    ON wt.usage_start = wc.usage_start AND wt.cluster_id = wc.cluster_id
 WHERE CASE WHEN {{distribution}} = 'cpu' THEN
           CASE WHEN d.usage_cpu_sum <= 0 THEN 0
                ELSE (nu.ns_cpu / d.usage_cpu_sum) * wc.rate_cost
+                    * CASE WHEN wt.total_rate_cost > 0
+                           THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
+                           ELSE 1 END
           END
       ELSE
           CASE WHEN d.usage_memory_sum <= 0 THEN 0
                ELSE (nu.ns_memory / d.usage_memory_sum) * wc.rate_cost
+                    * CASE WHEN wt.total_rate_cost > 0
+                           THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
+                           ELSE 1 END
           END
       END != 0;
 
 -- Negate source: derive negation from the distributed output rows just inserted.
 -- Sums distributed_cost of worker_distributed rows and inserts exact negative,
--- guaranteeing algebraic zero-sum.
+-- guaranteeing algebraic zero-sum. Because the distribution above includes
+-- infrastructure costs via scaling, this derived sum automatically covers both
+-- cost-model and infrastructure components.
 INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace,

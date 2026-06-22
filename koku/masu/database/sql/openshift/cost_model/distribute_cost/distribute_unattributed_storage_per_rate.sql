@@ -2,6 +2,10 @@
 -- Reads per-rate costs from RTU (Storage unattributed namespace), distributes
 -- proportionally to non-Storage namespaces by CPU/memory hours (cross-cluster, daily),
 -- writes distributed rows back to RTU with monthly_cost_type = 'unattributed_storage'.
+--
+-- Infrastructure costs (OCP-on-cloud matching) live in daily_summary, not RTU.
+-- They are distributed proportionally across rates via a scaling factor so the
+-- Storage unattributed namespace fully zeroes out (infra + cost_model = 0).
 WITH storage_rtu_cost AS (
     SELECT
         rtu.usage_start,
@@ -23,6 +27,30 @@ WITH storage_rtu_cost AS (
         ))
     GROUP BY rtu.usage_start, rtu.source_uuid, rtu.cluster_id,
              rtu.custom_name, rtu.metric_type, rtu.cost_model_rate_type
+),
+storage_infra AS (
+    SELECT
+        lids.usage_start,
+        lids.cluster_id,
+        SUM(
+            COALESCE(lids.infrastructure_raw_cost, 0) +
+            COALESCE(lids.infrastructure_markup_cost, 0)
+        ) AS infra_total
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+    WHERE lids.usage_start >= {{start_date}}::date
+        AND lids.usage_start <= {{end_date}}::date
+        AND lids.report_period_id = {{report_period_id}}
+        AND lids.namespace = 'Storage unattributed'
+        AND lids.cost_model_rate_type IS NULL
+    GROUP BY lids.usage_start, lids.cluster_id
+),
+storage_total_rate AS (
+    SELECT
+        usage_start,
+        cluster_id,
+        SUM(rate_cost) AS total_rate_cost
+    FROM storage_rtu_cost
+    GROUP BY usage_start, cluster_id
 ),
 denominator AS (
     SELECT
@@ -90,10 +118,16 @@ SELECT
     CASE WHEN {{distribution}} = 'cpu' THEN
         CASE WHEN d.usage_cpu_sum <= 0 THEN 0
              ELSE (nu.ns_cpu / d.usage_cpu_sum) * sc.rate_cost
+                  * CASE WHEN st.total_rate_cost > 0
+                         THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
+                         ELSE 1 END
         END
     ELSE
         CASE WHEN d.usage_memory_sum <= 0 THEN 0
              ELSE (nu.ns_memory / d.usage_memory_sum) * sc.rate_cost
+                  * CASE WHEN st.total_rate_cost > 0
+                         THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
+                         ELSE 1 END
         END
     END
 FROM storage_rtu_cost sc
@@ -101,19 +135,29 @@ JOIN denominator d
     ON d.usage_start = sc.usage_start AND d.cluster_id = sc.cluster_id
 JOIN namespace_usage nu
     ON nu.usage_start = sc.usage_start AND nu.cluster_id = sc.cluster_id
+LEFT JOIN storage_infra si
+    ON si.usage_start = sc.usage_start AND si.cluster_id = sc.cluster_id
+LEFT JOIN storage_total_rate st
+    ON st.usage_start = sc.usage_start AND st.cluster_id = sc.cluster_id
 WHERE CASE WHEN {{distribution}} = 'cpu' THEN
           CASE WHEN d.usage_cpu_sum <= 0 THEN 0
                ELSE (nu.ns_cpu / d.usage_cpu_sum) * sc.rate_cost
+                    * CASE WHEN st.total_rate_cost > 0
+                           THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
+                           ELSE 1 END
           END
       ELSE
           CASE WHEN d.usage_memory_sum <= 0 THEN 0
                ELSE (nu.ns_memory / d.usage_memory_sum) * sc.rate_cost
+                    * CASE WHEN st.total_rate_cost > 0
+                           THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
+                           ELSE 1 END
           END
       END != 0;
 
 -- Negate source: derive negation from the distributed output rows just inserted.
--- Sums distributed_cost of unattributed_storage rows and inserts exact negative,
--- guaranteeing algebraic zero-sum.
+-- Because the distribution above includes infrastructure costs via scaling,
+-- the derived sum automatically covers both cost-model and infrastructure.
 INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace,
