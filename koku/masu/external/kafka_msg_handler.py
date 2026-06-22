@@ -73,6 +73,7 @@ LOG = logging.getLogger(__name__)
 SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
 MANIFEST_ACCESSOR = ReportManifestDBAccessor()
+_MAX_MANIFEST_BYTES = 10 * 1_024 * 1_024  # 10 MB — orders of magnitude above any real manifest
 
 
 class KafkaMsgHandlerError(Exception):
@@ -325,7 +326,10 @@ def read_manifest_from_tarball(request_id, tarball_path, context) -> utils.Manif
             manifest_file = mytar.extractfile(manifest_member)
             if manifest_file is None:
                 raise KafkaMsgHandlerError("No manifest found in payload.")
-            return utils.Manifest.model_validate_json(manifest_file.read())
+            manifest_data = manifest_file.read(_MAX_MANIFEST_BYTES + 1)
+            if len(manifest_data) > _MAX_MANIFEST_BYTES:
+                raise ValueError(f"manifest.json exceeds maximum allowed size of {_MAX_MANIFEST_BYTES} bytes")
+            return utils.Manifest.model_validate_json(manifest_data)
     except (ReadError, EOFError, OSError, ValueError) as error:
         msg = f"Unable to read manifest from tar file {tarball_path}. Reason: {str(error)}"
         LOG.warning(log_json(request_id, msg=msg, context=context))
@@ -363,7 +367,7 @@ def extract_payload_contents(request_id, tarball_path, context):
     return manifest_path, payload_files
 
 
-def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
+def extract_payload(payload_path, request_id, b64_identity, context):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
 
@@ -390,13 +394,7 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     7. Report file context dictionaries that require processing is added to a list which will be
        passed to the report processor.  All context from report_meta is used by the processor.
     """
-    payload_path = download_payload(request_id, url, context)
-    try:
-        manifest = read_manifest_from_tarball(request_id, payload_path, context)
-    except KafkaMsgHandlerError:
-        shutil.rmtree(payload_path.parent)
-        raise
-
+    manifest = read_manifest_from_tarball(request_id, payload_path, context)
     context |= {
         "request_id": request_id,
         "cluster_id": manifest.cluster_id,
@@ -590,19 +588,31 @@ def handle_message(kmsg):
         return FAILURE_CONFIRM_STATUS, None, None
 
     try:
+        msg = f"Downloading Payload for msg: {str(value)}"
+        LOG.info(log_json(request_id, msg=msg, context=context))
+        payload_path = download_payload(request_id, value["url"], context)
+    except Exception as error:
+        traceback.print_exc()
+        msg = f"Unable to download payload. Error: {type(error).__name__}: {error}"
+        LOG.warning(log_json(request_id, msg=msg, context=context))
+        return FAILURE_CONFIRM_STATUS, None, None
+
+    try:
         msg = f"Extracting Payload for msg: {str(value)}"
         LOG.info(log_json(request_id, msg=msg, context=context))
-        report_metas, manifest_uuid = extract_payload(value["url"], request_id, value["b64_identity"], context)
+        report_metas, manifest_uuid = extract_payload(payload_path, request_id, value["b64_identity"], context)
         return SUCCESS_CONFIRM_STATUS, report_metas, manifest_uuid
     except (OperationalError, InterfaceError) as error:
         close_and_set_db_connection()
         msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
         LOG.warning(log_json(request_id, msg=msg, context=context))
+        shutil.rmtree(payload_path.parent, ignore_errors=True)
         raise KafkaMsgHandlerError(msg) from error
     except Exception as error:  # noqa
         traceback.print_exc()
         msg = f"Unable to extract payload. Error: {type(error).__name__}: {error}"
         LOG.warning(log_json(request_id, msg=msg, context=context))
+        shutil.rmtree(payload_path.parent, ignore_errors=True)
         return FAILURE_CONFIRM_STATUS, None, None
 
 

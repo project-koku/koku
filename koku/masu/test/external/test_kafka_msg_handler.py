@@ -1493,6 +1493,52 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with self.assertRaises(KafkaMsgHandlerError):
                 msg_handler.read_manifest_from_tarball("test_request_id", tarball_path, {})
 
+    def test_read_manifest_from_tarball_rejects_oversized_manifest(self):
+        """Test that a manifest.json exceeding _MAX_MANIFEST_BYTES raises KafkaMsgHandlerError."""
+        oversized_content = b"x" * (msg_handler._MAX_MANIFEST_BYTES + 1)
+        tar_bytes_io = io.BytesIO()
+        with tarfile.open(fileobj=tar_bytes_io, mode="w") as tar:
+            member_info = tarfile.TarInfo(name="manifest.json")
+            member_info.size = len(oversized_content)
+            tar.addfile(member_info, io.BytesIO(oversized_content))
+        tar_bytes_io.seek(0)
+        gz_bytes_io = io.BytesIO()
+        with gzip.GzipFile(fileobj=gz_bytes_io, mode="wb") as gz:
+            gz.write(tar_bytes_io.read())
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tarball_path = Path(tmp_dir, "payload.tar.gz")
+            tarball_path.write_bytes(gz_bytes_io.getvalue())
+            with self.assertRaises(KafkaMsgHandlerError):
+                msg_handler.read_manifest_from_tarball("test_request_id", tarball_path, {})
+
+    def test_extract_payload_cleans_up_temp_dir_on_unexpected_exception(self):
+        """Test that the temp directory is removed even when an unexpected exception occurs mid-processing."""
+        manifest_dict = json.loads(Path("koku/masu/test/data/ocp/payload2/manifest.json").read_text())
+        manifest_dict["cluster_id"] = self.ocp_cluster_id
+        payload_bytes = build_test_tarball_bytes(manifest_dict)
+        payload_url = "http://insights-upload.com/quarantine/file_to_validate"
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=payload_bytes)
+            with tempfile.TemporaryDirectory() as fake_data_dir:
+                with (
+                    patch.object(Config, "DATA_DIR", fake_data_dir),
+                    patch(
+                        "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                        side_effect=RuntimeError("unexpected DB failure"),
+                    ),
+                ):
+                    with self.assertRaises(RuntimeError):
+                        msg_handler.extract_payload(
+                            payload_url,
+                            "test_request_id",
+                            "fake_identity",
+                            {"account": "1234", "org_id": self.org_id},
+                        )
+                    self.assertFalse(
+                        any(Path(fake_data_dir).iterdir()),
+                        "Temp directory was not cleaned up after unexpected exception",
+                    )
+
     def test_extract_payload_unknown_cluster_does_not_extract_archive_members(self):
         """Test unrecognized cluster payloads do not extract tarball members to disk."""
         manifest_dict = json.loads(Path("koku/masu/test/data/ocp/payload2/manifest.json").read_text())
