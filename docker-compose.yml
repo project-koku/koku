@@ -660,7 +660,7 @@ services:
     image: quay.io/rh-aiservices-bu/s4:0.3.2-2
     ports:
       - "9000:7480"
-      - "5000:5000"
+      - "5002:5000"
     volumes:
       - koku-s4-data:/var/lib/ceph/radosgw
     depends_on:
@@ -749,8 +749,6 @@ services:
       - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
       - ./dev/containers/trino/data:/data/trino/data
       - ./dev/containers/trino/logs:/data/trino/logs
-    links:
-      - hive-metastore
     depends_on:
       - hive-metastore
     healthcheck:
