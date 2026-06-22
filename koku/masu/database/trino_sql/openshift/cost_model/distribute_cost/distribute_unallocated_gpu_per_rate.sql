@@ -19,13 +19,16 @@ WITH gpu_rtu_cost AS (
         rtu.custom_name,
         rtu.metric_type,
         rtu.cost_model_rate_type,
-        SUM(COALESCE(rtu.calculated_cost, 0)) AS rate_cost
+        SUM(COALESCE(rtu.calculated_cost, CAST(0 AS DECIMAL))) AS rate_cost
     FROM postgres.{{schema | sqlsafe}}.rates_to_usage rtu
     WHERE rtu.usage_start >= DATE({{start_date}})
         AND rtu.usage_start <= DATE({{end_date}})
         AND rtu.source_uuid = CAST({{source_uuid}} AS UUID)
         AND rtu.namespace = 'GPU unallocated'
-        AND rtu.monthly_cost_type IS NULL
+        AND (rtu.monthly_cost_type IS NULL OR rtu.monthly_cost_type NOT IN (
+            'worker_distributed', 'platform_distributed', 'gpu_distributed',
+            'unattributed_storage', 'unattributed_network'
+        ))
     GROUP BY rtu.usage_start, rtu.source_uuid, rtu.cluster_id, rtu.cluster_alias,
              rtu.report_period_id, rtu.node,
              rtu.custom_name, rtu.metric_type, rtu.cost_model_rate_type

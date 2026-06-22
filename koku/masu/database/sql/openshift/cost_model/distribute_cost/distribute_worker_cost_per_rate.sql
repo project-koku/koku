@@ -17,7 +17,10 @@ WITH worker_rtu_cost AS (
         AND rtu.report_period_id = {{report_period_id}}
         AND rtu.source_uuid = {{source_uuid}}::uuid
         AND rtu.namespace = 'Worker unallocated'
-        AND rtu.monthly_cost_type IS NULL
+        AND (rtu.monthly_cost_type IS NULL OR rtu.monthly_cost_type NOT IN (
+            'worker_distributed', 'platform_distributed', 'gpu_distributed',
+            'unattributed_storage', 'unattributed_network'
+        ))
     GROUP BY rtu.usage_start, rtu.source_uuid, rtu.cluster_id,
              rtu.custom_name, rtu.metric_type, rtu.cost_model_rate_type
 ),
