@@ -20,23 +20,12 @@ from rest_framework.decorators import permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from sqlparse import format as format_sql
-from sqlparse.exceptions import SQLParseError
 
 from .db_performance import DBPerformanceStats
 from koku.configurator import CONFIGURATOR
 
 
 LOG = logging.getLogger(__name__)
-
-
-def _safe_format_sql(sql: str) -> str:
-    """Format SQL for display; return the original string if sqlparse cannot handle it."""
-    try:
-        return format_sql(sql, reindent=True, indent_realigned=True, keyword_case="upper")
-    except SQLParseError:
-        LOG.debug("sqlparse could not format statement; returning unformatted SQL")
-        return sql
-
 
 MY_PATH = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(MY_PATH, "templates")
@@ -274,9 +263,12 @@ def lockinfo(request):
                     + f'current activity for pids {rec["_raw_blocked_pid"]}, '
                     + f'{rec["_raw_blocking_pid"]}">{rec["_raw_blocked_pid"]}</a>'
                 )
-            rec["blocked_statement"] = _safe_format_sql(rec["blocked_statement"])
-            rec["blckng_proc_curr_stmt"] = _safe_format_sql(rec["blckng_proc_curr_stmt"])
-
+            rec["blocked_statement"] = format_sql(
+                rec["blocked_statement"], reindent=True, indent_realigned=True, keyword_case="upper"
+            )
+            rec["blckng_proc_curr_stmt"] = format_sql(
+                rec["blckng_proc_curr_stmt"], reindent=True, indent_realigned=True, keyword_case="upper"
+            )
     page_header = "Lock Information"
     db_options = make_db_options(databases, selected_db, request, "lock_info")
     return HttpResponse(
@@ -316,7 +308,7 @@ def stat_statements(request):
         for rec in data:
             set_null_display(rec)
             rec["_attrs"] = {"query": 'class="pre monospace"'}
-            rec["query"] = _safe_format_sql(rec["query"])
+            rec["query"] = format_sql(rec["query"], reindent=True, indent_realigned=True, keyword_case="upper")
             for col in ("min_exec_time", "mean_exec_time", "max_exec_time"):
                 attrs = ['class="sans"']
                 if rec[col] > query_bad_threshold:
@@ -402,7 +394,7 @@ def stat_activity(request):
             set_null_display(rec)
             rec["_raw_backend_pid"] = rec["backend_pid"]
             rec["_attrs"] = rec_attrs
-            rec["query"] = _safe_format_sql(rec["query"])
+            rec["query"] = format_sql(rec["query"], reindent=True, indent_realigned=True, keyword_case="upper")
 
     fields = tuple(f for f in data[0] if not f.startswith("_")) if data else ()
 
