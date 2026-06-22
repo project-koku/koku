@@ -6,6 +6,7 @@
 import datetime
 from unittest.mock import Mock
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 
 from django.conf import settings
 from django.db import connection
@@ -491,6 +492,15 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
 
         p.refresh_from_db()
         self.assertIsNone(p.infrastructure)
+
+    def test_get_infra_map_from_providers_handles_does_not_exist(self):
+        """Test race where provider.infrastructure FK target disappears during access."""
+        provider = self.baker.make("Provider", type=Provider.PROVIDER_OCP)
+        updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=provider, manifest=None)
+
+        with patch.object(Provider, "infrastructure", new_callable=PropertyMock) as mock_infrastructure:
+            mock_infrastructure.side_effect = ProviderInfrastructureMap.DoesNotExist
+            self.assertEqual(updater.get_infra_map_from_providers(), {})
 
     def test_set_provider_infra_map(self):
         """Test set_provider_infra_map."""

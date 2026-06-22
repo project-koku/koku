@@ -272,8 +272,9 @@ class Provider(models.Model):
 
     def set_data_updated_timestamp(self):
         """Set the data updated timestamp to the current time."""
-        self.data_updated_timestamp = timezone.now()
-        self.save(update_fields=["data_updated_timestamp"])
+        now = timezone.now()
+        self.data_updated_timestamp = now
+        Provider.objects.filter(pk=self.pk).update(data_updated_timestamp=now)
 
     def set_infrastructure(self, infra):
         """Set the infrastructure."""
@@ -287,19 +288,24 @@ class Provider(models.Model):
 
     def delete(self, *args, **kwargs):
         if self.customer:
-            using = router.db_for_write(self.__class__, isinstance=self)
+            using = router.db_for_write(self.__class__, instance=self)
             with schema_context(self.customer.schema_name):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
                 _type = self.type.lower()
                 self._normalized_type = _type.removesuffix("-local")
-                self._cascade_delete()
-                LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
-                LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table}")
-                self._delete_from_target(
-                    {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
-                    target_values=[self.pk],
-                )
-                LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table} COMPLETE")
+                with transaction.atomic(using=using):
+                    # Lock api_provider row so concurrent FK inserts (e.g. IngressReports) block
+                    # until the delete commits. of=("self",) avoids "FOR UPDATE on nullable outer
+                    # join" caused by ProviderObjectsManager.get_queryset() → select_related().
+                    Provider.objects.using(using).select_for_update(of=("self",)).get(pk=self.pk)
+                    self._cascade_delete()
+                    LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
+                    LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table}")
+                    self._delete_from_target(
+                        {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
+                        target_values=[self.pk],
+                    )
+                    LOG.info(f"PROVIDER {self.name} ({self.pk}) DELETING FROM {self._meta.db_table} COMPLETE")
                 post_delete.send(sender=self.__class__, instance=self, using=using)
         else:
             LOG.warning("Customer link cannot be found! Using ORM delete!")
