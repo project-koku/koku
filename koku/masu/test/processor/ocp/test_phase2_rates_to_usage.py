@@ -2080,7 +2080,10 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
     """Test distribute_costs_and_update_ui_summary internal ordering (D1/D2).
 
     Patches at the accessor boundary rather than mocking the whole method,
-    verifying per-month order: distribute -> aggregate -> markup -> ui.
+    verifying per-month order: markup(daily_summary) -> distribute -> aggregate -> markup(full) -> ui.
+
+    The pre-distribution populate_markup_cost call is tested separately;
+    these tests verify the tracked major-step sequence.
     """
 
     def _make_summary_range(self):

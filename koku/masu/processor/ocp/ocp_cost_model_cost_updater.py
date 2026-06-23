@@ -776,15 +776,33 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
     def distribute_costs_and_update_ui_summary(self, summary_range: SummaryRangeConfig):
         """Distribute per-rate costs, aggregate, apply markup, and update UI summaries.
 
-        Phase 4 order per month: distribute -> aggregate -> markup -> UI summary.
+        Phase 4 order per month: markup(daily_summary) -> distribute -> aggregate -> markup(full) -> UI summary.
+
+        Markup must run on daily_summary BEFORE distribution because the
+        distribution SQL reads infrastructure_markup_cost from daily_summary.
+        Without pre-applying markup, infrastructure_markup_cost is 0 and
+        OCP-on-cloud infrastructure costs are under-distributed (only raw cost
+        is distributed, not raw + markup).  The ORM UPDATE is idempotent so
+        running it again after aggregation is safe.
+
+        RTU markup rows (populate_markup_rates_to_usage) are created only in
+        the post-aggregation _update_markup_cost call to avoid double-counting
+        in the distribution source CTEs.
+
         Distribution runs per-month so report_period_id resolves correctly for
         each month in a multi-month range.
 
         Each step uses its own OCPReportDBAccessor context to avoid nested
         schema context managers corrupting the PostgreSQL search_path.
         """
+        markup_pct = self._get_markup_percentage()
         self._ensure_rates_to_usage_partitions(summary_range.start_date, summary_range.end_date)
         for month_range in summary_range.iter_summary_range_by_month():
+            if markup_pct:
+                with OCPReportDBAccessor(self._schema) as accessor:
+                    accessor.populate_markup_cost(
+                        markup_pct, month_range.start_date, month_range.end_date, self._cluster_id
+                    )
             with OCPReportDBAccessor(self._schema) as accessor:
                 month_range = accessor.populate_distributed_cost_sql(
                     month_range, self._provider_uuid, self._distribution_info
@@ -800,6 +818,19 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 ):
                     report_period.derived_cost_datetime = timezone.now()
                     report_period.save()
+
+    def _get_markup_percentage(self):
+        """Return the markup percentage as a Decimal, or None if no markup configured."""
+        with CostModelDBAccessor(
+            self._schema, self._provider_uuid, price_list_effective_on=None
+        ) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            if not markup:
+                return None
+            value = Decimal(markup.get("value", 0))
+            if not value:
+                return None
+            return value / 100
 
     def update_summary_cost_model_costs(self, summary_range: SummaryRangeConfig) -> None:
         """Update the OCP summary table with the charge information.

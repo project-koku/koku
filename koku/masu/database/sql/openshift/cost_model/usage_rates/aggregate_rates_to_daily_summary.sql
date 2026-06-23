@@ -137,6 +137,34 @@ GROUP BY
 
 -- Step 3: INSERT monthly/tag-cost aggregation (monthly_cost_type IS NOT NULL)
 -- These are synthetic cost rows that don't need base-row capacity columns.
+--
+-- For source-namespace negation rows (namespace = 'Network unattributed' or
+-- 'Storage unattributed'), the distribution SQL puts -(cost_model + infra)
+-- into distributed_cost. But the API multiplies infrastructure_raw_cost by
+-- infra_exchange_rate (currency conversion) while distributed_cost is taken
+-- as-is.  This mismatch leaves a residual of infra * (exchange_rate - 1).
+--
+-- Fix: split the infra portion out of distributed_cost into
+-- infrastructure_raw_cost / infrastructure_markup_cost (with raw_currency)
+-- so the API's exchange-rate annotation cancels the base-row infra correctly.
+WITH source_ns_infra AS (
+    SELECT
+        lids.usage_start,
+        lids.cluster_id,
+        lids.node,
+        lids.namespace,
+        SUM(COALESCE(lids.infrastructure_raw_cost, 0)) AS infra_raw,
+        SUM(COALESCE(lids.infrastructure_markup_cost, 0)) AS infra_markup,
+        MAX(lids.raw_currency) AS raw_currency
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+    WHERE lids.usage_start >= {{start_date}}
+      AND lids.usage_start <= {{end_date}}
+      AND lids.source_uuid = {{source_uuid}}
+      AND lids.report_period_id = {{report_period_id}}
+      AND lids.namespace IN ('Network unattributed', 'Storage unattributed')
+      AND lids.cost_model_rate_type IS NULL
+    GROUP BY lids.usage_start, lids.cluster_id, lids.node, lids.namespace
+)
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid, report_period_id, cluster_id, cluster_alias, namespace, node,
     usage_start, usage_end, data_source, source_uuid,
@@ -145,8 +173,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cost_category_id, cost_model_rate_type,
     cost_model_cpu_cost, cost_model_memory_cost, cost_model_volume_cost,
     cost_model_gpu_cost,
+    infrastructure_raw_cost,
+    infrastructure_markup_cost,
     distributed_cost,
-    monthly_cost_type
+    monthly_cost_type,
+    raw_currency
 )
 SELECT
     uuid_generate_v4(),
@@ -169,9 +200,18 @@ SELECT
     SUM(CASE WHEN rtu.metric_type = 'memory'  THEN rtu.calculated_cost ELSE 0 END),
     SUM(CASE WHEN rtu.metric_type = 'storage' THEN rtu.calculated_cost ELSE 0 END),
     SUM(CASE WHEN rtu.metric_type = 'gpu'     THEN rtu.calculated_cost ELSE 0 END),
-    SUM(COALESCE(rtu.distributed_cost, 0)),
-    rtu.monthly_cost_type
+    CASE WHEN sni.infra_raw IS NOT NULL THEN -sni.infra_raw ELSE 0 END,
+    CASE WHEN sni.infra_markup IS NOT NULL THEN -sni.infra_markup ELSE 0 END,
+    SUM(COALESCE(rtu.distributed_cost, 0))
+        + COALESCE(sni.infra_raw, 0) + COALESCE(sni.infra_markup, 0),
+    rtu.monthly_cost_type,
+    sni.raw_currency
 FROM {{schema | sqlsafe}}.rates_to_usage rtu
+LEFT JOIN source_ns_infra sni
+    ON  rtu.usage_start = sni.usage_start
+    AND rtu.cluster_id  = sni.cluster_id
+    AND rtu.node IS NOT DISTINCT FROM sni.node
+    AND rtu.namespace   = sni.namespace
 WHERE rtu.usage_start >= {{start_date}}
   AND rtu.usage_start <= {{end_date}}
   AND rtu.source_uuid = {{source_uuid}}
@@ -190,4 +230,7 @@ GROUP BY
     rtu.label_hash,
     rtu.cost_category_id,
     rtu.cost_model_rate_type,
-    rtu.monthly_cost_type;
+    rtu.monthly_cost_type,
+    sni.infra_raw,
+    sni.infra_markup,
+    sni.raw_currency;
