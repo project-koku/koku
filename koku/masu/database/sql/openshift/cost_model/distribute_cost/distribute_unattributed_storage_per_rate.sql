@@ -268,19 +268,14 @@ LEFT JOIN (
     ON src.usage_start = infra.usage_start
     AND src.cluster_id = infra.cluster_id
     AND src.node IS NOT DISTINCT FROM infra.node
-WHERE EXISTS (
-    SELECT 1 FROM {{schema | sqlsafe}}.rates_to_usage dist
-    WHERE dist.monthly_cost_type = {{cost_model_rate_type}}
-    AND dist.source_uuid = src.source_uuid
-    AND dist.usage_start = src.usage_start
-    AND dist.cluster_id = src.cluster_id
-)
-AND (src.cost_model_total + COALESCE(infra.infra_total, 0)) != 0
+WHERE (src.cost_model_total + COALESCE(infra.infra_total, 0)) != 0
 
 UNION ALL
 
 -- Infra-only fallback negation: negate per-node infrastructure costs when
 -- no cost model RTU rows exist for Storage unattributed (markup-only cost model).
+-- No distribution-row guard needed: this SQL only runs when distribution is
+-- enabled in the cost model (checked by populate_distributed_cost_sql).
 SELECT
     uuid_generate_v4(),
     MAX(lids.report_period_id),
@@ -313,13 +308,6 @@ AND NOT EXISTS (
             'worker_distributed', 'platform_distributed', 'gpu_distributed',
             'unattributed_storage', 'unattributed_network'
         ))
-)
-AND EXISTS (
-    SELECT 1 FROM {{schema | sqlsafe}}.rates_to_usage dist
-    WHERE dist.monthly_cost_type = {{cost_model_rate_type}}
-    AND dist.source_uuid = {{source_uuid}}::uuid
-    AND dist.usage_start = lids.usage_start
-    AND dist.cluster_id = lids.cluster_id
 )
 GROUP BY lids.usage_start, lids.cluster_id, lids.node
 HAVING SUM(

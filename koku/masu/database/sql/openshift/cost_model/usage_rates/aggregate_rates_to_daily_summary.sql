@@ -139,10 +139,10 @@ GROUP BY
 -- These are synthetic cost rows that don't need base-row capacity columns.
 --
 -- raw_currency is set to cost_model_currency for distribution rows
--- (unattributed_network, unattributed_storage) because the distribution SQL
--- converts infra amounts to the cost model's currency.  The API's
--- infra_exchange_rate annotation uses raw_currency to convert distributed_cost
--- from cost_model_currency to the user's requested currency.
+-- (unattributed_network, unattributed_storage) when infra costs were
+-- currency-converted.  When source infra rows have raw_currency IS NULL
+-- (common for OCP-on-cloud), cost_model_currency is passed as NULL so
+-- the API applies the same default exchange rate (1) as the original rows.
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid, report_period_id, cluster_id, cluster_alias, namespace, node,
     usage_start, usage_end, data_source, source_uuid,
