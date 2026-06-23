@@ -153,7 +153,54 @@ WHERE CASE WHEN {{distribution}} = 'cpu' THEN
                            THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
                            ELSE 1 END
           END
-      END != 0;
+      END != 0
+
+UNION ALL
+
+-- Infra-only fallback: when cost model rates produce zero costs for Network
+-- unattributed (no pod usage in that namespace), distribute infrastructure
+-- costs directly. Guards: total_rate_cost IS NULL (no RTU rows) or <= 0.
+SELECT
+    uuid_generate_v4(),
+    nu.report_period_id,
+    {{source_uuid}}::uuid,
+    nu.usage_start,
+    nu.usage_start,
+    nu.cluster_id,
+    nu.cluster_alias,
+    nu.namespace,
+    nu.node,
+    nu.cost_category_id,
+    '', '',
+    {{cost_model_rate_type}},
+    {{cost_model_rate_type}},
+    CASE WHEN {{distribution}} = 'cpu' THEN
+        CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+             ELSE (nu.ns_cpu / d.usage_cpu_sum) * ni.infra_total
+        END
+    ELSE
+        CASE WHEN d.usage_memory_sum <= 0 THEN 0
+             ELSE (nu.ns_memory / d.usage_memory_sum) * ni.infra_total
+        END
+    END
+FROM network_infra ni
+JOIN denominator d
+    ON d.usage_start = ni.usage_start AND d.cluster_id = ni.cluster_id
+JOIN namespace_usage nu
+    ON nu.usage_start = ni.usage_start AND nu.cluster_id = ni.cluster_id
+LEFT JOIN network_total_rate nt
+    ON nt.usage_start = ni.usage_start AND nt.cluster_id = ni.cluster_id
+WHERE (nt.total_rate_cost IS NULL OR nt.total_rate_cost <= 0)
+AND ni.infra_total != 0
+AND CASE WHEN {{distribution}} = 'cpu' THEN
+        CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+             ELSE (nu.ns_cpu / d.usage_cpu_sum) * ni.infra_total
+        END
+    ELSE
+        CASE WHEN d.usage_memory_sum <= 0 THEN 0
+             ELSE (nu.ns_memory / d.usage_memory_sum) * ni.infra_total
+        END
+    END != 0;
 
 -- Negate source: per-node negation of Network unattributed costs.
 -- Includes infrastructure costs from daily_summary. Per-node granularity
@@ -225,4 +272,54 @@ WHERE EXISTS (
     AND dist.usage_start = src.usage_start
     AND dist.cluster_id = src.cluster_id
 )
-AND (src.cost_model_total + COALESCE(infra.infra_total, 0)) != 0;
+AND (src.cost_model_total + COALESCE(infra.infra_total, 0)) != 0
+
+UNION ALL
+
+-- Infra-only fallback negation: negate per-node infrastructure costs when
+-- no cost model RTU rows exist for Network unattributed (markup-only cost model).
+SELECT
+    uuid_generate_v4(),
+    MAX(lids.report_period_id),
+    {{source_uuid}}::uuid,
+    lids.usage_start,
+    lids.usage_start,
+    lids.cluster_id,
+    MAX(lids.cluster_alias),
+    'Network unattributed',
+    lids.node,
+    '', '',
+    {{cost_model_rate_type}},
+    {{cost_model_rate_type}},
+    -SUM(
+        COALESCE(lids.infrastructure_raw_cost, 0) +
+        COALESCE(lids.infrastructure_markup_cost, 0)
+    )
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+WHERE lids.usage_start >= {{start_date}}::date
+    AND lids.usage_start <= {{end_date}}::date
+    AND lids.report_period_id = {{report_period_id}}
+    AND lids.namespace = 'Network unattributed'
+    AND lids.cost_model_rate_type IS NULL
+AND NOT EXISTS (
+    SELECT 1 FROM {{schema | sqlsafe}}.rates_to_usage rtu
+    WHERE rtu.usage_start = lids.usage_start
+        AND rtu.source_uuid = {{source_uuid}}::uuid
+        AND rtu.namespace = 'Network unattributed'
+        AND (rtu.monthly_cost_type IS NULL OR rtu.monthly_cost_type NOT IN (
+            'worker_distributed', 'platform_distributed', 'gpu_distributed',
+            'unattributed_storage', 'unattributed_network'
+        ))
+)
+AND EXISTS (
+    SELECT 1 FROM {{schema | sqlsafe}}.rates_to_usage dist
+    WHERE dist.monthly_cost_type = {{cost_model_rate_type}}
+    AND dist.source_uuid = {{source_uuid}}::uuid
+    AND dist.usage_start = lids.usage_start
+    AND dist.cluster_id = lids.cluster_id
+)
+GROUP BY lids.usage_start, lids.cluster_id, lids.node
+HAVING SUM(
+    COALESCE(lids.infrastructure_raw_cost, 0) +
+    COALESCE(lids.infrastructure_markup_cost, 0)
+) != 0;
