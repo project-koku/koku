@@ -98,6 +98,28 @@ class TrinoUITest(MasuTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.trino.requests")
+    def test_trino_ui_query_service_with_query_id_filter(self, mock_requests, _):
+        """Test GET trino_ui endpoint query_id filtering for query service."""
+        query_id = "20260623_205832_82190_3bma3"
+        trino_queries = [
+            {"queryId": "20260623_200000_00000_aaaaa", "state": "FINISHED"},
+            {"queryId": query_id, "state": "FAILED"},
+        ]
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = trino_queries
+        mock_requests.get.return_value = mock_response
+
+        params = {"api_service": "query", "query_id": query_id}
+        url = f"{reverse('trino_ui')}?{urlencode(params)}"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, mock_response.status_code)
+        self.assertEqual(response.data.get("api_service_name"), "query")
+        self.assertEqual(response.data.get("trino_response"), [{"queryId": query_id, "state": "FAILED"}])
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.trino.requests")
     def test_trino_ui_invalid_or_no_api_service(self, mock_requests, _):
         """Test the GET trino_ui endpoint with no api service parameter."""
         invalid_api_services = ["invalid", "", "random", "test"]
