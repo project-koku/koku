@@ -4,8 +4,12 @@
 -- writes distributed rows back to RTU with monthly_cost_type = 'unattributed_network'.
 --
 -- Infrastructure costs (OCP-on-cloud matching) live in daily_summary, not RTU.
--- They are distributed proportionally across rates via a scaling factor so the
--- Network unattributed namespace fully zeroes out (infra + cost_model = 0).
+-- They are converted from raw_currency to cost_model_currency using
+-- infra_to_cm_rate before inclusion, so distributed_cost is denominated
+-- entirely in the cost model's currency.  The API's infra_exchange_rate
+-- annotation converts from cost_model_currency to the user's requested currency.
+--
+-- Parameters (additional): infra_to_cm_rate, cost_model_currency
 WITH network_rtu_cost AS (
     SELECT
         rtu.usage_start,
@@ -35,7 +39,7 @@ network_infra AS (
         SUM(
             COALESCE(lids.infrastructure_raw_cost, 0) +
             COALESCE(lids.infrastructure_markup_cost, 0)
-        ) AS infra_total
+        ) * {{infra_to_cm_rate}} AS infra_total
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
     WHERE lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
@@ -253,7 +257,7 @@ LEFT JOIN (
         SUM(
             COALESCE(lids.infrastructure_raw_cost, 0) +
             COALESCE(lids.infrastructure_markup_cost, 0)
-        ) AS infra_total
+        ) * {{infra_to_cm_rate}} AS infra_total
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
     WHERE lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
@@ -294,7 +298,7 @@ SELECT
     -SUM(
         COALESCE(lids.infrastructure_raw_cost, 0) +
         COALESCE(lids.infrastructure_markup_cost, 0)
-    )
+    ) * {{infra_to_cm_rate}}
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
 WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date

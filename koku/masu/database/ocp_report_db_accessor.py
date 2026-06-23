@@ -10,6 +10,7 @@ import logging
 import os
 import pkgutil
 import uuid
+from decimal import Decimal
 from uuid import uuid4
 
 from dateutil.parser import parse
@@ -663,6 +664,8 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         summary_range: SummaryRangeConfig,
         provider_uuid: uuid.UUID,
         distribution_info: dict,
+        infra_to_cm_rate: Decimal = Decimal(1),
+        cost_model_currency: str = "USD",
     ) -> SummaryRangeConfig:
         """
         Populate the distribution cost model options.
@@ -672,6 +675,8 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             end_date (datetime, str): The end_date to calculate monthly_cost.
             distribution: Choice of monthly distribution ex. memory
             provider_uuid (str): The str of the provider UUID
+            infra_to_cm_rate: Exchange rate from infra raw_currency to cost_model_currency.
+            cost_model_currency: The cost model's currency code.
         """
 
         distribution_configs = {
@@ -786,6 +791,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 )
                 continue
             sql_params["distribution"] = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
+            if cost_model_key in (metric_constants.NETWORK_UNATTRIBUTED, metric_constants.STORAGE_UNATTRIBUTED):
+                sql_params["infra_to_cm_rate"] = float(infra_to_cm_rate)
+                sql_params["cost_model_currency"] = cost_model_currency
             sql = pkgutil.get_data("masu.database", config.get_full_path())
             sql = sql.decode("utf-8")
             log_msg = f"distributing {cost_model_key}"
@@ -1231,7 +1239,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         LOG.info(log_json(msg="populating markup rates_to_usage", context=sql_params))
         self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
 
-    def aggregate_rates_to_daily_summary(self, start_date, end_date, source_uuid, report_period_id):
+    def aggregate_rates_to_daily_summary(
+        self, start_date, end_date, source_uuid, report_period_id, cost_model_currency="USD"
+    ):
         """Aggregate RatesToUsage rows into daily summary cost columns."""
 
         table_name = self._table_map["line_item_daily_summary"]
@@ -1246,6 +1256,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "end_date": end_date,
             "source_uuid": source_uuid,
             "report_period_id": report_period_id,
+            "cost_model_currency": cost_model_currency,
         }
         LOG.info(log_json(msg="aggregating rates_to_usage → daily summary", context=sql_params))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")

@@ -536,7 +536,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             )
             RTU_POPULATE_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
 
-    def _aggregate_rates_to_daily_summary(self, start_date, end_date):
+    def _aggregate_rates_to_daily_summary(self, start_date, end_date, cost_model_currency="USD"):
         """Aggregate RatesToUsage rows into daily summary cost columns."""
         if not self._cost_model_id:
             LOG.debug(
@@ -563,7 +563,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 return
             t0 = time.monotonic()
             report_accessor.aggregate_rates_to_daily_summary(
-                start_date, end_date, self._provider_uuid, report_period.id
+                start_date, end_date, self._provider_uuid, report_period.id, cost_model_currency
             )
             RTU_AGGREGATE_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
 
@@ -773,6 +773,64 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 },
             )
 
+    def _get_infra_to_cm_rate(self, cost_model_currency, start_date, end_date):
+        """Return the exchange rate from infrastructure raw_currency to cost_model_currency.
+
+        Queries distinct raw_currency from unattributed namespace rows in daily_summary.
+        If infra currency matches cost model currency (or no infra exists), returns 1.
+        """
+        if not cost_model_currency:
+            return Decimal(1)
+
+        with schema_context(self._schema):
+            infra_currencies = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    source_uuid=self._provider_uuid,
+                    usage_start__gte=start_date,
+                    usage_start__lte=end_date,
+                    namespace__in=["Network unattributed", "Storage unattributed"],
+                    cost_model_rate_type__isnull=True,
+                    raw_currency__isnull=False,
+                )
+                .values_list("raw_currency", flat=True)
+                .distinct()
+            )
+            infra_currencies = list(infra_currencies)
+
+        if not infra_currencies or all(c == cost_model_currency for c in infra_currencies):
+            return Decimal(1)
+
+        infra_currency = infra_currencies[0]
+        if infra_currency == cost_model_currency:
+            return Decimal(1)
+
+        from api.currency.models import ExchangeRateDictionary
+
+        exchange_dict = ExchangeRateDictionary.objects.first()
+        if not exchange_dict or not exchange_dict.currency_exchange_dictionary:
+            LOG.warning(
+                log_json(
+                    msg="no exchange rate dictionary found, defaulting infra_to_cm_rate to 1",
+                    infra_currency=infra_currency,
+                    cost_model_currency=cost_model_currency,
+                )
+            )
+            return Decimal(1)
+
+        rates = exchange_dict.currency_exchange_dictionary
+        rate = rates.get(infra_currency, {}).get(cost_model_currency)
+        if rate is None:
+            LOG.warning(
+                log_json(
+                    msg="exchange rate not found, defaulting to 1",
+                    infra_currency=infra_currency,
+                    cost_model_currency=cost_model_currency,
+                )
+            )
+            return Decimal(1)
+
+        return Decimal(str(rate))
+
     def distribute_costs_and_update_ui_summary(self, summary_range: SummaryRangeConfig):
         """Distribute per-rate costs, aggregate, apply markup, and update UI summaries.
 
@@ -796,6 +854,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         schema context managers corrupting the PostgreSQL search_path.
         """
         markup_pct = self._get_markup_percentage()
+        cost_model_currency = self._cost_model.currency if self._cost_model else "USD"
         self._ensure_rates_to_usage_partitions(summary_range.start_date, summary_range.end_date)
         for month_range in summary_range.iter_summary_range_by_month():
             if markup_pct:
@@ -803,11 +862,20 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     accessor.populate_markup_cost(
                         markup_pct, month_range.start_date, month_range.end_date, self._cluster_id
                     )
+            infra_to_cm_rate = self._get_infra_to_cm_rate(
+                cost_model_currency, month_range.start_date, month_range.end_date
+            )
             with OCPReportDBAccessor(self._schema) as accessor:
                 month_range = accessor.populate_distributed_cost_sql(
-                    month_range, self._provider_uuid, self._distribution_info
+                    month_range,
+                    self._provider_uuid,
+                    self._distribution_info,
+                    infra_to_cm_rate=infra_to_cm_rate,
+                    cost_model_currency=cost_model_currency,
                 )
-            self._aggregate_rates_to_daily_summary(month_range.start_date, month_range.end_date)
+            self._aggregate_rates_to_daily_summary(
+                month_range.start_date, month_range.end_date, cost_model_currency
+            )
             self._update_markup_cost(month_range.start_date, month_range.end_date)
             with OCPReportDBAccessor(self._schema) as accessor:
                 accessor.populate_ui_summary_tables(month_range, self._provider_uuid)
