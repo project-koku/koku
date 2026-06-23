@@ -707,12 +707,12 @@ class CostModelSerializer(BaseSerializer):
             source_type = SOURCE_TYPE_MAP[source_type]
         rep["source_type"] = source_type
 
-        rep["source_uuids"] = rep.get("provider_uuids", [])
         if rep.get("provider_uuids"):
             del rep["provider_uuids"]
         cm_uuid = cost_model_obj.uuid
-        source_uuids = CostModelManager(cm_uuid).get_provider_names_uuids()
-        rep.update({"sources": source_uuids})
+        sources = CostModelManager(cm_uuid).get_provider_names_uuids()
+        rep["source_uuids"] = [source["uuid"] for source in sources]
+        rep["sources"] = sources
 
         price_list_maps = cost_model_obj.price_list_maps.all()
         rep["price_lists"] = [
