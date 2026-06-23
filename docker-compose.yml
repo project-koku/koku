@@ -682,14 +682,19 @@ services:
       - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY:-s4admin}
       - AWS_SECRET_ACCESS_KEY=${S3_SECRET:-s4secret}
       - AWS_DEFAULT_REGION=us-east-1
-    entrypoint: >
-      /bin/sh -c "
-      ENDPOINT=http://koku-s4:7480;
-      aws --endpoint-url $$ENDPOINT s3 mb s3://koku-bucket 2>/dev/null || true;
-      aws --endpoint-url $$ENDPOINT s3 mb s3://ocp-ingress 2>/dev/null || true;
-      aws --endpoint-url $$ENDPOINT s3 mb s3://metastore 2>/dev/null || true;
-      echo 'Buckets ready';
-      "
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        ENDPOINT=http://koku-s4:7480
+        for bucket in koku-bucket ocp-ingress metastore; do
+          if aws --endpoint-url "$$ENDPOINT" s3api head-bucket --bucket "$$bucket" >/dev/null 2>&1; then
+            echo "Bucket $$bucket already exists"
+          else
+            aws --endpoint-url "$$ENDPOINT" s3 mb "s3://$$bucket"
+          fi
+        done
+        echo Buckets ready
 
   hive-metastore:
     container_name: hive-metastore
