@@ -32,6 +32,7 @@ from koku.trino_database import retry
 from koku.trino_database import TrinoHiveMetastoreError
 from koku.trino_database import TrinoNoSuchKeyError
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
+from masu.processor.parquet.summary_sql_metadata import trino_safe_array_literal
 
 LOG = logging.getLogger(__name__)
 
@@ -333,4 +334,4 @@ class ReportDBAccessorBase:
         matched_tags_sql = matched_tags_sql.decode("utf-8")
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matched_tag_params))
         matched_tags_result = self._execute_trino_multipart_sql_query(matched_tags_sql, bind_params=matched_tag_params)
-        return matched_tags_result[0][0]
+        return trino_safe_array_literal(matched_tags_result[0][0] or [])

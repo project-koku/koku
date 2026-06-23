@@ -27,7 +27,6 @@ from koku.configurator import CONFIGURATOR
 
 LOG = logging.getLogger(__name__)
 
-
 MY_PATH = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(MY_PATH, "templates")
 
@@ -270,7 +269,6 @@ def lockinfo(request):
             rec["blckng_proc_curr_stmt"] = format_sql(
                 rec["blckng_proc_curr_stmt"], reindent=True, indent_realigned=True, keyword_case="upper"
             )
-
     page_header = "Lock Information"
     db_options = make_db_options(databases, selected_db, request, "lock_info")
     return HttpResponse(

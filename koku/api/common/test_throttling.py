@@ -78,6 +78,21 @@ class OcpTagQueryThrottleGetCacheKeyTest(TestCase):
         self.assertIsNone(throttle.get_cache_key(request, None))
 
     @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_cache_key_inverted_dates_returns_key(self, mock_flag):
+        """Inverted dates (end_date < start_date) are treated as heavy; throttle must apply."""
+        throttle = OcpTagQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "org11748336"
+        request.query_params = {
+            "group_by[tag:bhf_pod_name]": "*",
+            "start_date": "2026-06-16",
+            "end_date": "2026-06-15",
+        }
+        key = throttle.get_cache_key(request, None)
+        self.assertIsNotNone(key, "Inverted date range must be treated as heavy and trigger throttle")
+        self.assertEqual(key, "tag_query_throttle:org11748336")
+
+    @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
     def test_get_cache_key_success_returns_key(self, mock_flag):
         """When all conditions pass, return cache key."""
         throttle = OcpTagQueryThrottle()
@@ -111,6 +126,11 @@ class OcpTagQueryThrottleGetDateRangeDaysTest(TestCase):
         """Invalid date strings raise ValueError/TypeError; return 0."""
         params = {"start_date": "not-a-date", "end_date": "2024-12-31"}
         self.assertEqual(OcpTagQueryThrottle._get_date_range_days(params), 0)
+
+    def test_inverted_dates_returns_negative(self):
+        """When end_date is before start_date, return a negative number of days."""
+        params = {"start_date": "2026-06-16", "end_date": "2026-06-15"}
+        self.assertLess(OcpTagQueryThrottle._get_date_range_days(params), 0)
 
 
 class AwsTagQueryThrottleGetCacheKeyTest(TestCase):
