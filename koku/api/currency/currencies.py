@@ -67,6 +67,12 @@ CURRENCIES = [
         "description": "GBP (\u00a3) - British Pound",
     },
     {
+        "code": "GHS",
+        "name": "Ghanaian Cedi",
+        "symbol": "\u20b5",
+        "description": "GHS (\u20b5) - Ghanaian Cedi",
+    },
+    {
         "code": "HKD",
         "name": "Hong Kong Dollar",
         "symbol": "HK$",

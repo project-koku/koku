@@ -337,3 +337,28 @@ class DistributionConfigTest(MasuTestCase):
             requires_full_month=True,
         )
         self.assertTrue(config.requires_full_month)
+
+    def test_validate_safe_path_component_rejects_traversal(self):
+        """Test path component validation rejects separators and parent references."""
+        with self.assertRaises(ValueError):
+            utils.validate_safe_path_component("../cluster", "cluster_id")
+        with self.assertRaises(ValueError):
+            utils.validate_safe_path_component("cluster/nested", "cluster_id")
+
+    def test_manifest_rejects_unsafe_cluster_id_and_file_names(self):
+        """Test manifest model rejects unsafe cluster_id and file paths."""
+        manifest_data = ManifestFactory.build().model_dump()
+        manifest_data["cluster_id"] = "../../evil"
+        with self.assertRaises(ValidationError):
+            utils.Manifest.model_validate(manifest_data)
+
+        manifest_data = ManifestFactory.build().model_dump()
+        manifest_data["files"] = ["../report.csv"]
+        with self.assertRaises(ValidationError):
+            utils.Manifest.model_validate(manifest_data)
+
+    def test_resolve_path_within_base_rejects_escape(self):
+        """Test resolved paths must remain within the base directory."""
+        with tempfile.TemporaryDirectory() as base_dir:
+            with self.assertRaises(ValueError):
+                utils.resolve_path_within_base(base_dir, "..", "escape.txt")

@@ -1191,6 +1191,30 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         LOG.info(log_json(msg="populating rates_to_usage (single-pass)", context=sql_params))
         self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
 
+    def populate_markup_rates_to_usage(self, start_date, end_date, source_uuid, cluster_id, cost_model_id):
+        """Write markup costs as RatesToUsage rows with metric_type='markup'.
+
+        Reads from infrastructure_markup_cost on daily summary (set by
+        populate_markup_cost ORM UPDATE) and inserts per-row markup
+        entries into rates_to_usage for the breakdown tree.
+        report_period_id is read from lids.report_period_id, not passed as a bind.
+        """
+        sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/usage_rates/insert_markup_rates_to_usage.sql",
+        )
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "start_date": DateHelper().parse_to_date(start_date),
+            "end_date": DateHelper().parse_to_date(end_date),
+            "schema": self.schema,
+            "source_uuid": source_uuid,
+            "cluster_id": cluster_id,
+            "cost_model_id": cost_model_id,
+        }
+        LOG.info(log_json(msg="populating markup rates_to_usage", context=sql_params))
+        self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
+
     def aggregate_rates_to_daily_summary(self, start_date, end_date, source_uuid, report_period_id):
         """Aggregate RatesToUsage rows into daily summary cost columns."""
 
@@ -1228,7 +1252,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             self._table_map["line_item_daily_summary"],
             sql,
             sql_params,
-            operation="SELECT",
+            operation="VALIDATION_QUERY",
         )
 
     def populate_tag_usage_costs(  # noqa: C901

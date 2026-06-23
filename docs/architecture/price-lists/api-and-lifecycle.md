@@ -85,8 +85,8 @@ Unknown `filter[...]` keys → **400**.
 - **Write**: optional `price_list_uuids` — ordered list; position `i` maps
   to `priority = i + 1` in
   [`attach_price_lists_to_cost_model`](../../../koku/cost_models/price_list_manager.py).
-- **Read**: `price_lists` array of `{uuid, name, priority}` from
-  `cost_model.price_list_maps`.
+- **Read**: `price_lists` array of `{uuid, name, priority, version, enabled}` from
+  `cost_model.price_list_maps` (same `version` / `enabled` fields as the price list API).
 
 On **create**, after [`CostModelManager.create`](../../../koku/cost_models/cost_model_manager.py),
 if `price_list_uuids` was sent, attachments are applied in the same request.

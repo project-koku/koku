@@ -4,6 +4,7 @@
 #
 """Updates report summary tables in the database with charge information."""
 import logging
+import time
 from decimal import Decimal
 
 from django.utils import timezone
@@ -17,6 +18,9 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor import COST_BREAKDOWN_RTU_UNLEASH_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.prometheus_stats import RTU_AGGREGATE_DURATION
+from masu.prometheus_stats import RTU_MARKUP_DURATION
+from masu.prometheus_stats import RTU_POPULATE_DURATION
 from masu.util.common import filter_dictionary
 from masu.util.common import SummaryRangeConfig
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
@@ -521,6 +525,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
 
             self._ensure_rates_to_usage_partitions(start_date, end_date)
 
+            t0 = time.monotonic()
             report_accessor.populate_usage_rates_to_usage(
                 start_date,
                 end_date,
@@ -528,6 +533,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 report_period_id,
                 self._cost_model_id,
             )
+            RTU_POPULATE_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
 
     def _aggregate_rates_to_daily_summary(self, start_date, end_date):
         """Aggregate RatesToUsage rows into daily summary cost columns."""
@@ -554,9 +560,11 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     )
                 )
                 return
+            t0 = time.monotonic()
             report_accessor.aggregate_rates_to_daily_summary(
                 start_date, end_date, self._provider.uuid, report_period.id
             )
+            RTU_AGGREGATE_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
 
     def _cleanup_stale_rtu_costs(self, start_date, end_date):
         """Remove stale cost-model rows when the cost model has been deleted.
@@ -669,6 +677,16 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 )
             )
             accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
+            if self._cost_model_id:
+                t0 = time.monotonic()
+                accessor.populate_markup_rates_to_usage(
+                    start_date,
+                    end_date,
+                    self._provider_uuid,
+                    self._cluster_id,
+                    self._cost_model_id,
+                )
+                RTU_MARKUP_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
         LOG.info(
             log_json(
                 msg="finished updating markup costs",

@@ -4,6 +4,7 @@
 #
 """Test the Price List views."""
 import logging
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from django.urls import reverse
@@ -12,6 +13,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.metrics import constants as metric_constants
 from cost_models.models import CostModel
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
@@ -673,3 +675,610 @@ class PriceListViewTests(IamTestCase):
         dup_url = reverse("price-lists-duplicate", kwargs={"uuid": "00000000-0000-0000-0000-000000000099"})
         response = self.client.post(dup_url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class PriceListRatesUnitTest(IamTestCase):
+    """T1 Unit tests for RateFilter, lazy sync, and response building (TC-100..TC-117)."""
+
+    DIVERSE_RATES = [
+        {
+            "metric": {"name": "cpu_core_usage_per_hour"},
+            "custom_name": "CPU Usage Rate",
+            "tiered_rates": [{"value": "1.50", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}],
+            "cost_type": "Infrastructure",
+        },
+        {
+            "metric": {"name": "cpu_core_request_per_hour"},
+            "custom_name": "CPU Request Rate",
+            "tiered_rates": [{"value": "2.00", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}],
+            "cost_type": "Supplementary",
+        },
+        {
+            "metric": {"name": "memory_gb_usage_per_hour"},
+            "custom_name": "Memory Usage Rate",
+            "tiered_rates": [{"value": "0.50", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}],
+            "cost_type": "Infrastructure",
+        },
+        {
+            "metric": {"name": "storage_gb_usage_per_month"},
+            "custom_name": "Storage Usage Rate",
+            "tiered_rates": [{"value": "0.10", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}],
+            "cost_type": "Supplementary",
+        },
+        {
+            "metric": {"name": "node_cost_per_month"},
+            "custom_name": "Node Count Rate",
+            "tiered_rates": [{"value": "100.00", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}],
+            "cost_type": "Infrastructure",
+        },
+        {
+            "metric": {"name": "cpu_core_usage_per_hour"},
+            "custom_name": "CPU Tag Rate",
+            "tag_rates": {
+                "tag_key": "environment",
+                "tag_values": [
+                    {"tag_value": "production", "value": "3.00", "unit": "USD", "default": False, "description": ""}
+                ],
+            },
+            "cost_type": "Supplementary",
+        },
+    ]
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        logging.disable(0)
+
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient()
+
+    def _create_diverse_price_list(self):
+        """Create a price list with diverse rates via API."""
+        url = reverse("price-lists-list")
+        data = {
+            "name": "Diverse Rates PL",
+            "description": "Price list with diverse rate types",
+            "currency": "USD",
+            "effective_start_date": "2026-01-01",
+            "effective_end_date": "2026-12-31",
+            "rates": self.DIVERSE_RATES,
+        }
+        response = self.client.post(url, data=data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        return response.data["uuid"]
+
+    def _get_rate_queryset(self, pl_uuid):
+        """Get Rate queryset for a price list within tenant context."""
+        with tenant_context(self.tenant):
+            return Rate.objects.filter(price_list_id=pl_uuid)
+
+    def _apply_rate_filter(self, pl_uuid, query_string, schema_name=None):
+        """Instantiate RateFilter with proper form initialization and return filtered qs."""
+        from django.http import QueryDict
+
+        from cost_models.price_list_view import RateFilter
+
+        qs = Rate.objects.filter(price_list_id=pl_uuid)
+        request = MagicMock()
+        request.query_params = QueryDict(query_string)
+        if schema_name:
+            request.user.customer.schema_name = schema_name
+        f = RateFilter(data={}, queryset=qs, request=request)
+        f.form.is_valid()
+        return f.filter_queryset(qs), f, request
+
+    # --- TC-100: RateFilter metric_type filters queryset ---
+
+    def test_rate_filter_metric_type_filters_queryset(self):
+        """TC-100/BAC-31: RateFilter with metric_type=cpu returns only CPU Rate rows."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            result, _, _ = self._apply_rate_filter(pl_uuid, "filter[metric_type]=cpu")
+            self.assertTrue(result.exists())
+            for rate in result:
+                self.assertEqual(rate.metric_type, "cpu")
+
+    # --- TC-101: RateFilter metric_type case insensitive ---
+
+    def test_rate_filter_metric_type_case_insensitive(self):
+        """TC-101/BAC-31: metric_type=CPU matches cpu stored value."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            result, _, _ = self._apply_rate_filter(pl_uuid, "filter[metric_type]=CPU")
+            self.assertTrue(result.exists())
+            for rate in result:
+                self.assertEqual(rate.metric_type, "cpu")
+
+    # --- TC-102: RateFilter name icontains ---
+
+    def test_rate_filter_name_icontains(self):
+        """TC-102/BAC-33: name=usage returns rates with 'usage' in custom_name."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            result, _, _ = self._apply_rate_filter(pl_uuid, "filter[name]=usage")
+            self.assertTrue(result.exists())
+            for rate in result:
+                self.assertIn("usage", rate.custom_name.lower())
+
+    # --- TC-103: RateFilter name partial match ---
+
+    def test_rate_filter_name_partial_match(self):
+        """TC-103/BAC-33: name=CPU matches 'CPU Usage Rate' and 'CPU Request Rate'."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            result, _, _ = self._apply_rate_filter(pl_uuid, "filter[name]=CPU")
+            self.assertGreaterEqual(result.count(), 2)
+
+    # --- TC-104: RateFilter cost_type iexact ---
+
+    def test_rate_filter_cost_type_iexact(self):
+        """TC-104/BAC-34: cost_type=infrastructure matches 'Infrastructure'."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            result, _, _ = self._apply_rate_filter(pl_uuid, "filter[cost_type]=infrastructure")
+            self.assertTrue(result.exists())
+            for rate in result:
+                self.assertEqual(rate.cost_type, "Infrastructure")
+
+    # --- TC-105: RateFilter measurement maps to metrics ---
+
+    def test_rate_filter_measurement_maps_to_metrics(self):
+        """TC-105/BAC-32: filter_measurement with 'usage' returns rates with usage metrics."""
+        pl_uuid = self._create_diverse_price_list()
+        usage_metrics = {"cpu_core_usage_per_hour", "memory_gb_usage_per_hour", "storage_gb_usage_per_month"}
+        with tenant_context(self.tenant):
+            result, _, _ = self._apply_rate_filter(pl_uuid, "filter[measurement]=usage", schema_name=self.schema_name)
+            self.assertTrue(result.exists())
+            for rate in result:
+                self.assertIn(rate.metric, usage_metrics)
+
+    # --- TC-106: RateFilter measurement case insensitive ---
+
+    def test_rate_filter_measurement_case_insensitive(self):
+        """TC-106/BAC-32: filter_measurement with 'USAGE' matches same as 'usage'."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            result_lower, _, _ = self._apply_rate_filter(
+                pl_uuid, "filter[measurement]=usage", schema_name=self.schema_name
+            )
+            result_upper, _, _ = self._apply_rate_filter(
+                pl_uuid, "filter[measurement]=USAGE", schema_name=self.schema_name
+            )
+            uuids_lower = set(result_lower.values_list("uuid", flat=True))
+            uuids_upper = set(result_upper.values_list("uuid", flat=True))
+            self.assertEqual(uuids_lower, uuids_upper)
+
+    # --- TC-107: RateFilter measurement unknown returns empty ---
+
+    def test_rate_filter_measurement_unknown_returns_empty(self):
+        """TC-107/BAC-32: filter_measurement with 'invalid' returns empty queryset."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            result, _, _ = self._apply_rate_filter(
+                pl_uuid, "filter[measurement]=invalid", schema_name=self.schema_name
+            )
+            self.assertEqual(result.count(), 0)
+
+    # --- TC-108: RateFilter measurement uses schema-aware map ---
+
+    @patch("cost_models.price_list_view.metric_constants.get_cost_model_metrics_map")
+    def test_rate_filter_measurement_uses_schema_aware_map(self, mock_get_map):
+        """TC-108/BAC-48: filter_measurement calls get_cost_model_metrics_map(schema=schema)."""
+        mock_get_map.return_value = metric_constants.COST_MODEL_METRIC_MAP
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            self._apply_rate_filter(pl_uuid, "filter[measurement]=usage", schema_name=self.schema_name)
+            mock_get_map.assert_called_with(schema=self.schema_name)
+
+    # --- TC-109: RateFilter multi-value OR CSV ---
+
+    def test_rate_filter_multi_value_or_csv(self):
+        """TC-109/BAC-35: metric_type=cpu,memory returns both CPU and memory rates."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            result, _, _ = self._apply_rate_filter(pl_uuid, "filter[metric_type]=cpu,memory")
+            types = set(result.values_list("metric_type", flat=True))
+            self.assertIn("cpu", types)
+            self.assertIn("memory", types)
+
+    # --- TC-110: RateFilter multi-value OR repeated params ---
+
+    def test_rate_filter_multi_value_or_repeated(self):
+        """TC-110/BAC-35: metric_type=cpu&metric_type=memory returns both types."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            result, _, _ = self._apply_rate_filter(pl_uuid, "filter[metric_type]=cpu&filter[metric_type]=memory")
+            types = set(result.values_list("metric_type", flat=True))
+            self.assertIn("cpu", types)
+            self.assertIn("memory", types)
+
+    # --- TC-111: RateFilter combined fields AND ---
+
+    def test_rate_filter_combined_fields_and(self):
+        """TC-111/BAC-36: metric_type=cpu + cost_type=Infrastructure returns intersection."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            result, _, _ = self._apply_rate_filter(pl_uuid, "filter[metric_type]=cpu&filter[cost_type]=Infrastructure")
+            self.assertTrue(result.exists())
+            for rate in result:
+                self.assertEqual(rate.metric_type, "cpu")
+                self.assertEqual(rate.cost_type, "Infrastructure")
+
+    # --- TC-112: _ensure_rate_sync triggers when rate_id missing ---
+
+    @patch("cost_models.price_list_view.sync_rate_table")
+    def test_ensure_rate_sync_triggers_when_rate_id_missing(self, mock_sync):
+        """TC-112/BAC-44: _ensure_rate_sync calls sync_rate_table when JSON lacks rate_id."""
+        from cost_models.price_list_view import PriceListViewSet
+
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            pl = PriceList.objects.get(uuid=pl_uuid)
+            for entry in pl.rates:
+                entry.pop("rate_id", None)
+            pl.save(update_fields=["rates"])
+            pl.refresh_from_db()
+
+        view = PriceListViewSet()
+        with tenant_context(self.tenant):
+            pl = PriceList.objects.get(uuid=pl_uuid)
+            view._ensure_rate_sync(pl)
+            mock_sync.assert_called_once()
+
+    # --- TC-113: _ensure_rate_sync skips when rate_id present ---
+
+    @patch("cost_models.price_list_view.sync_rate_table")
+    def test_ensure_rate_sync_skips_when_rate_id_present(self, mock_sync):
+        """TC-113/BAC-44: _ensure_rate_sync does NOT call sync_rate_table when all entries have rate_id."""
+        from cost_models.price_list_view import PriceListViewSet
+
+        pl_uuid = self._create_diverse_price_list()
+        view = PriceListViewSet()
+        with tenant_context(self.tenant):
+            pl = PriceList.objects.get(uuid=pl_uuid)
+            self.assertTrue(all("rate_id" in e for e in pl.rates))
+            view._ensure_rate_sync(pl)
+            mock_sync.assert_not_called()
+
+    # --- TC-114: _ensure_rate_sync skips empty rates ---
+
+    @patch("cost_models.price_list_view.sync_rate_table")
+    def test_ensure_rate_sync_skips_empty_rates(self, mock_sync):
+        """TC-114/BAC-44: _ensure_rate_sync returns immediately for empty/None rates."""
+        from cost_models.price_list_view import PriceListViewSet
+
+        view = PriceListViewSet()
+        pl = MagicMock()
+        pl.rates = []
+        view._ensure_rate_sync(pl)
+        mock_sync.assert_not_called()
+
+        pl.rates = None
+        view._ensure_rate_sync(pl)
+        mock_sync.assert_not_called()
+
+    # --- TC-115: _build_rate_response enriches labels ---
+
+    def test_build_rate_response_enriches_labels(self):
+        """TC-115/BAC-49: _build_rate_response adds label_metric, label_measurement, label_measurement_unit."""
+        from cost_models.price_list_view import PriceListViewSet
+
+        pl_uuid = self._create_diverse_price_list()
+        view = PriceListViewSet()
+        with tenant_context(self.tenant):
+            pl = PriceList.objects.get(uuid=pl_uuid)
+            filtered_qs = Rate.objects.filter(price_list=pl)
+            result = view._build_rate_response(pl, filtered_qs, self.schema_name)
+
+        self.assertTrue(len(result) > 0)
+        for rate_dict in result:
+            metric = rate_dict.get("metric", {})
+            self.assertIn("label_metric", metric, f"Missing label_metric in {rate_dict}")
+            self.assertIn("label_measurement", metric, f"Missing label_measurement in {rate_dict}")
+            self.assertIn("label_measurement_unit", metric, f"Missing label_measurement_unit in {rate_dict}")
+
+    # --- TC-116: _build_rate_response includes tiered_rates from JSON ---
+
+    def test_build_rate_response_includes_tiered_rates_from_json(self):
+        """TC-116/BAC-49: Result includes full tiered_rates ladder from JSON cross-reference."""
+        from cost_models.price_list_view import PriceListViewSet
+
+        pl_uuid = self._create_diverse_price_list()
+        view = PriceListViewSet()
+        with tenant_context(self.tenant):
+            pl = PriceList.objects.get(uuid=pl_uuid)
+            tiered_rate = Rate.objects.filter(price_list=pl, tag_key="")
+            result = view._build_rate_response(pl, tiered_rate, self.schema_name)
+
+        tiered_results = [r for r in result if "tiered_rates" in r]
+        self.assertTrue(len(tiered_results) > 0, "No tiered rates found in response")
+        for rate_dict in tiered_results:
+            self.assertIsInstance(rate_dict["tiered_rates"], list)
+            self.assertTrue(len(rate_dict["tiered_rates"]) > 0)
+
+    # --- TC-117: _build_rate_response includes tag_rates from JSON ---
+
+    def test_build_rate_response_includes_tag_rates_from_json(self):
+        """TC-117/BAC-42: Result includes full tag_rates structure from JSON cross-reference."""
+        from cost_models.price_list_view import PriceListViewSet
+
+        pl_uuid = self._create_diverse_price_list()
+        view = PriceListViewSet()
+        with tenant_context(self.tenant):
+            pl = PriceList.objects.get(uuid=pl_uuid)
+            tag_rate = Rate.objects.filter(price_list=pl).exclude(tag_key="")
+            self.assertTrue(tag_rate.exists(), "No tag rate rows found")
+            result = view._build_rate_response(pl, tag_rate, self.schema_name)
+
+        tag_results = [r for r in result if "tag_rates" in r]
+        self.assertTrue(len(tag_results) > 0, "No tag rates found in response")
+        for rate_dict in tag_results:
+            self.assertIn("tag_key", rate_dict["tag_rates"])
+            self.assertIn("tag_values", rate_dict["tag_rates"])
+
+
+class PriceListRatesIntegrationTest(IamTestCase):
+    """T2 Integration tests: full HTTP wiring for the rates sub-endpoint (TC-120..TC-126)."""
+
+    DIVERSE_RATES = PriceListRatesUnitTest.DIVERSE_RATES
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        logging.disable(0)
+
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient()
+
+    def _create_diverse_price_list(self):
+        """Create a price list with diverse rates via API and return its UUID."""
+        url = reverse("price-lists-list")
+        data = {
+            "name": "Integration PL",
+            "description": "For integration tests",
+            "currency": "USD",
+            "effective_start_date": "2026-01-01",
+            "effective_end_date": "2026-12-31",
+            "rates": self.DIVERSE_RATES,
+        }
+        response = self.client.post(url, data=data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        return response.data["uuid"]
+
+    # --- TC-120: Rates endpoint returns paginated envelope ---
+
+    def test_rates_endpoint_returns_paginated_envelope(self):
+        """TC-120/BAC-37: GET /price-lists/{uuid}/rates/ returns {meta, links, data}."""
+        pl_uuid = self._create_diverse_price_list()
+        url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("meta", response.data)
+        self.assertIn("links", response.data)
+        self.assertIn("data", response.data)
+        self.assertEqual(response.data["meta"]["count"], len(self.DIVERSE_RATES))
+
+    # --- TC-121: Rates endpoint filters by metric_type via HTTP ---
+
+    def test_rates_endpoint_filters_metric_type_via_http(self):
+        """TC-121/BAC-31: HTTP filter[metric_type]=cpu returns only CPU rates."""
+        pl_uuid = self._create_diverse_price_list()
+        url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        response = self.client.get(url, {"filter[metric_type]": "cpu"}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        for rate in response.data["data"]:
+            self.assertEqual(rate["metric_type"], "cpu")
+        self.assertGreater(len(response.data["data"]), 0)
+
+    # --- TC-122: Rates endpoint respects limit/offset pagination ---
+
+    def test_rates_endpoint_respects_pagination(self):
+        """TC-122/BAC-37: limit=2&offset=0 returns at most 2 rates."""
+        pl_uuid = self._create_diverse_price_list()
+        url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        response = self.client.get(url, {"limit": "2", "offset": "0"}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertLessEqual(len(response.data["data"]), 2)
+        self.assertEqual(response.data["meta"]["count"], len(self.DIVERSE_RATES))
+
+    # --- TC-123: Rates endpoint supports order_by ---
+
+    def test_rates_endpoint_supports_order_by(self):
+        """TC-123/BAC-38: order_by[name]=asc returns rates sorted by custom_name."""
+        pl_uuid = self._create_diverse_price_list()
+        url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        response = self.client.get(url, {"order_by[name]": "asc"}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = [r["custom_name"] for r in response.data["data"]]
+        self.assertEqual(names, sorted(names))
+
+    # --- TC-124: Lazy sync triggered via HTTP when rate_id missing ---
+
+    @patch("cost_models.price_list_view.sync_rate_table")
+    def test_lazy_sync_triggered_via_http(self, mock_sync):
+        """TC-124/BAC-44: HTTP request triggers sync when JSON lacks rate_id."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            pl = PriceList.objects.get(uuid=pl_uuid)
+            for entry in pl.rates:
+                entry.pop("rate_id", None)
+            pl.save(update_fields=["rates"])
+
+        url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        self.client.get(url, **self.headers)
+        mock_sync.assert_called_once()
+
+    # --- TC-125: cost_model list filter via HTTP ---
+
+    def test_cost_model_list_filter_via_http(self):
+        """TC-125/BAC-50: filter[cost_model]=<uuid> returns only matching price lists."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            cost_model = CostModel.objects.first()
+            PriceListCostModelMap.objects.create(
+                price_list_id=pl_uuid,
+                cost_model=cost_model,
+                priority=1,
+            )
+
+        url = reverse("price-lists-list")
+        response = self.client.get(url, {"filter[cost_model]": str(cost_model.uuid)}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        uuids = [r["uuid"] for r in results]
+        self.assertIn(pl_uuid, uuids)
+
+    # --- TC-126: cost_model filter deduplication ---
+
+    def test_cost_model_filter_no_duplicates(self):
+        """TC-126/BAC-50: Multiple cost model maps do not produce duplicate price list rows."""
+        pl_uuid = self._create_diverse_price_list()
+        with tenant_context(self.tenant):
+            cost_models = list(CostModel.objects.all()[:2])
+            for idx, cm in enumerate(cost_models):
+                PriceListCostModelMap.objects.create(
+                    price_list_id=pl_uuid,
+                    cost_model=cm,
+                    priority=idx + 1,
+                )
+
+        url = reverse("price-lists-list")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        uuids = [r["uuid"] for r in results]
+        self.assertEqual(len(uuids), len(set(uuids)), "Duplicate price lists in response")
+
+
+class PriceListRatesBehavioralTest(IamTestCase):
+    """T3 Behavioral tests: error paths and edge cases (TC-140..TC-144)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        logging.disable(0)
+
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient()
+
+    def _create_empty_price_list(self):
+        """Create a price list with no rates."""
+        url = reverse("price-lists-list")
+        data = {
+            "name": "Empty PL",
+            "description": "No rates",
+            "currency": "USD",
+            "effective_start_date": "2026-01-01",
+            "effective_end_date": "2026-12-31",
+            "rates": [],
+        }
+        response = self.client.post(url, data=data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        return response.data["uuid"]
+
+    # --- TC-140: Invalid filter param returns 400 ---
+
+    def test_invalid_filter_param_returns_400(self):
+        """TC-140/SI-10: filter[invalid_field]=x returns 400."""
+        url = reverse("price-lists-list")
+        data = {
+            "name": "PL for 400 test",
+            "description": "test",
+            "currency": "USD",
+            "effective_start_date": "2026-01-01",
+            "effective_end_date": "2026-12-31",
+            "rates": [
+                {
+                    "metric": {"name": "cpu_core_usage_per_hour"},
+                    "tiered_rates": [
+                        {"value": "1.00", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}
+                    ],
+                    "cost_type": "Infrastructure",
+                }
+            ],
+        }
+        create_resp = self.client.post(url, data=data, format="json", **self.headers)
+        self.assertEqual(create_resp.status_code, status.HTTP_201_CREATED)
+        pl_uuid = create_resp.data["uuid"]
+
+        rates_url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        response = self.client.get(rates_url, {"filter[bogus]": "x"}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # --- TC-141: Nonexistent price list returns 404 ---
+
+    def test_rates_nonexistent_price_list_returns_404(self):
+        """TC-141/AC-6: GET /price-lists/<bad-uuid>/rates/ returns 404."""
+        url = reverse("price-lists-rates", kwargs={"uuid": "00000000-0000-0000-0000-000000000099"})
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    # --- TC-142: Rates endpoint has RBAC permission configured ---
+
+    def test_rates_endpoint_has_rbac_permission(self):
+        """TC-142/AC-6: PriceListViewSet has CostModelsAccessPermission configured."""
+        from api.common.permissions.cost_models_access import CostModelsAccessPermission
+        from cost_models.price_list_view import PriceListViewSet
+
+        self.assertIn(CostModelsAccessPermission, PriceListViewSet.permission_classes)
+
+    # --- TC-143: Empty price list rates returns empty data ---
+
+    def test_rates_empty_price_list_returns_empty(self):
+        """TC-143/BAC-40: A price list with no rates returns {data: [], meta: {count: 0}}."""
+        pl_uuid = self._create_empty_price_list()
+        url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["data"], [])
+        self.assertEqual(response.data["meta"]["count"], 0)
+
+    # --- TC-144: cost_model filter with non-matching UUID returns no results ---
+
+    def test_cost_model_filter_no_match_returns_empty(self):
+        """TC-144/BAC-50: cost_model filter with unassigned UUID returns 0 price lists."""
+        url = reverse("price-lists-list")
+        response = self.client.get(url, {"filter[cost_model]": "00000000-0000-0000-0000-000000000099"}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("data", response.data.get("results", []))
+        self.assertEqual(len(results), 0)
+
+    # --- TC-145: cost_model filter with malformed UUID returns 400 ---
+
+    def test_cost_model_filter_malformed_uuid_returns_400(self):
+        """TC-145/SI-10: filter[cost_model]=not-a-uuid returns 400, not 500."""
+        url = reverse("price-lists-list")
+        response = self.client.get(url, {"filter[cost_model]": "not-a-uuid"}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # --- TC-146: rates endpoint rejects unknown top-level params ---
+
+    def test_rates_unknown_top_level_param_returns_400(self):
+        """TC-146/SI-10: GET /rates/?bogus=bogus returns 400."""
+        url = reverse("price-lists-list")
+        data = {
+            "name": "PL for param test",
+            "description": "test",
+            "currency": "USD",
+            "effective_start_date": "2026-01-01",
+            "effective_end_date": "2026-12-31",
+            "rates": [
+                {
+                    "metric": {"name": "cpu_core_usage_per_hour"},
+                    "tiered_rates": [
+                        {"value": "1.00", "unit": "USD", "usage": {"usage_start": None, "usage_end": None}}
+                    ],
+                    "cost_type": "Infrastructure",
+                }
+            ],
+        }
+        create_resp = self.client.post(url, data=data, format="json", **self.headers)
+        self.assertEqual(create_resp.status_code, status.HTTP_201_CREATED)
+        pl_uuid = create_resp.data["uuid"]
+
+        rates_url = reverse("price-lists-rates", kwargs={"uuid": pl_uuid})
+        response = self.client.get(rates_url, {"bogus": "bogus"}, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
