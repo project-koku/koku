@@ -96,14 +96,18 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             if isinstance(start_date, str):
                 start_date = parse(start_date)
             report_date = start_date.replace(day=1)
-            report_periods = report_periods.filter(report_period_start=report_date).first()
+            report_periods = report_periods.filter(
+                report_period_start=report_date
+            ).first()
         return report_periods
 
     def get_report_periods_before_date(self, date):
         """Get the report periods with report period before provided date."""
         return OCPUsageReportPeriod.objects.filter(report_period_start__lte=date)
 
-    def populate_ui_summary_tables(self, summary_range: SummaryRangeConfig, source_uuid, tables=UI_SUMMARY_TABLES):
+    def populate_ui_summary_tables(
+        self, summary_range: SummaryRangeConfig, source_uuid, tables=UI_SUMMARY_TABLES
+    ):
         """Populate our UI summary tables (formerly materialized views)."""
         sql_params = {
             "start_date": summary_range.start_date,
@@ -112,9 +116,13 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "source_uuid": source_uuid,
         }
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"sql/openshift/ui_summary/{table_name}.sql")
+            sql = pkgutil.get_data(
+                "masu.database", f"sql/openshift/ui_summary/{table_name}.sql"
+            )
             sql = sql.decode("utf-8")
-            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
+            self._prepare_and_execute_raw_sql_query(
+                table_name, sql, sql_params, operation="DELETE/INSERT"
+            )
 
         # Trino Queries:
         start_date = DateHelper().parse_to_date(sql_params["start_date"])
@@ -122,7 +130,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params["month"] = start_date.strftime("%m")
 
         self._populate_gpu_ui_summary_table_with_usage_only(sql_params)
-        if summary_range.summarize_previous_month and not summary_range.is_current_month:
+        if (
+            summary_range.summarize_previous_month
+            and not summary_range.is_current_month
+        ):
             # Don't resummarize virtualization UI table if we are summarizing previous month
             return
         self._populate_virtualization_ui_summary_table(sql_params)
@@ -143,7 +154,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             from reporting.provider.ocp.self_hosted_models import OCPGPUUsageLineItem
 
             with schema_context(self.schema):
-                gpu_data_exists = OCPGPUUsageLineItem.objects.filter(source=source_uuid).exists()
+                gpu_data_exists = OCPGPUUsageLineItem.objects.filter(
+                    source=source_uuid
+                ).exists()
             if not gpu_data_exists:
                 return
         else:
@@ -166,10 +179,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         cost_model_accessor = CostModelDBAccessor(
             self.schema,
             sql_params.get("source_uuid"),
-            price_list_effective_on=DateHelper().parse_to_date(sql_params.get("start_date")),
+            price_list_effective_on=DateHelper().parse_to_date(
+                sql_params.get("start_date")
+            ),
         )
         # Check to see if the cost model is set up to give cost
-        if cost_model_accessor.metric_to_tag_params_map.get(metric_constants.OCP_GPU_MONTH):
+        if cost_model_accessor.metric_to_tag_params_map.get(
+            metric_constants.OCP_GPU_MONTH
+        ):
             return
 
         cluster_id = get_cluster_id_from_provider(sql_params.get("source_uuid"))
@@ -201,9 +218,13 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             )
         else:
             # SaaS: execute via Trino
-            self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
+            self._execute_trino_multipart_sql_query(
+                populate_gpu_usage_info, bind_params=sql_params
+            )
 
-    def _reporting_period_has_gpu_data(self, source_uuid: uuid.UUID, start_date) -> bool:
+    def _reporting_period_has_gpu_data(
+        self, source_uuid: uuid.UUID, start_date
+    ) -> bool:
         """
         Return True if the cluster/source has GPU data for the given reporting period.
 
@@ -270,7 +291,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             return
         # create the temp table
         sql_params["uuid"] = str(uuid4().hex)
-        create_temp_table_sql = pkgutil.get_data("masu.database", "sql/openshift/create_virtualization_tmp_table.sql")
+        create_temp_table_sql = pkgutil.get_data(
+            "masu.database", "sql/openshift/create_virtualization_tmp_table.sql"
+        )
         create_temp_table_sql = create_temp_table_sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(
             "create temp virtualization table",
@@ -299,13 +322,21 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             f"{self.get_sql_folder_name()}/openshift/{population_temp_table_file}",
         )
         populate_temp_table_sql = populate_temp_table_sql.decode("utf8")
-        self._execute_trino_multipart_sql_query(populate_temp_table_sql, bind_params=sql_params)
+        self._execute_trino_multipart_sql_query(
+            populate_temp_table_sql, bind_params=sql_params
+        )
         # populate vm UI table
-        sql = pkgutil.get_data("masu.database", f"sql/openshift/ui_summary/{VM_UI_SUMMARY_TABLE}.sql")
+        sql = pkgutil.get_data(
+            "masu.database", f"sql/openshift/ui_summary/{VM_UI_SUMMARY_TABLE}.sql"
+        )
         sql = sql.decode("utf-8")
-        self._prepare_and_execute_raw_sql_query(VM_UI_SUMMARY_TABLE, sql, sql_params, operation="DELETE/INSERT")
+        self._prepare_and_execute_raw_sql_query(
+            VM_UI_SUMMARY_TABLE, sql, sql_params, operation="DELETE/INSERT"
+        )
 
-    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
+    def update_line_item_daily_summary_with_tag_mapping(
+        self, start_date, end_date, report_period_ids=None
+    ):
         """Maps child keys to parent key.
         Args:
             start_date (datetime.date) The date to start mapping keys
@@ -316,11 +347,15 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         """
         with schema_context(self.schema):
             # Early return check to see if they have any tag mappings set.
-            if not TagMapping.objects.filter(child__provider_type=Provider.PROVIDER_OCP).exists():
+            if not TagMapping.objects.filter(
+                child__provider_type=Provider.PROVIDER_OCP
+            ).exists():
                 LOG.debug("No tag mappings for OCP.")
                 return
         table_name = self._table_map["line_item_daily_summary"]
-        sql = pkgutil.get_data("masu.database", "sql/openshift/ocp_tag_mapping_update_daily_summary.sql")
+        sql = pkgutil.get_data(
+            "masu.database", "sql/openshift/ocp_tag_mapping_update_daily_summary.sql"
+        )
         sql = sql.decode("utf-8")
         sql_params = {
             "start_date": start_date,
@@ -330,7 +365,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
-    def get_ocp_infrastructure_map_trino(self, start_date, end_date, **kwargs):  # noqa: C901
+    def get_ocp_infrastructure_map_trino(
+        self, start_date, end_date, **kwargs
+    ):  # noqa: C901
         """Get the OCP on infrastructure map.
 
         Args:
@@ -352,7 +389,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         check_azure = False
         check_gcp = False
 
-        if not self.table_exists_trino(TRINO_LINE_ITEM_TABLE_DAILY_MAP.get("pod_usage")):
+        if not self.table_exists_trino(
+            TRINO_LINE_ITEM_TABLE_DAILY_MAP.get("pod_usage")
+        ):
             return {}
         if aws_provider_uuid or ocp_provider_uuid:
             check_aws = self.table_exists_trino(AWS_TRINO_LINE_ITEM_DAILY_TABLE)
@@ -457,7 +496,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "table": table,
         }
         LOG.info(log_json(msg="deleting Hive partitions by source", context=ctx))
-        sql = get_report_db_accessor().get_delete_by_source_sql(self.schema, table, partition_column, provider_uuid)
+        sql = get_report_db_accessor().get_delete_by_source_sql(
+            self.schema, table, partition_column, provider_uuid
+        )
         self._execute_trino_raw_sql_query(
             sql,
             log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
@@ -484,9 +525,13 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             for model in get_self_hosted_models():
                 # Staging table uses source_uuid, line item tables use source
                 if model == OCPUsageLineItemDailySummaryStaging:
-                    deleted_count, _ = model.objects.filter(source_uuid=provider_uuid_str).delete()
+                    deleted_count, _ = model.objects.filter(
+                        source_uuid=provider_uuid_str
+                    ).delete()
                 else:
-                    deleted_count, _ = model.objects.filter(source=provider_uuid_str).delete()
+                    deleted_count, _ = model.objects.filter(
+                        source=provider_uuid_str
+                    ).delete()
 
                 if deleted_count:
                     LOG.info(
@@ -523,7 +568,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             source_column=source_column,
             expired_date=date_str,
         )
-        return self._execute_trino_raw_sql_query(sql, log_ref="finding expired partitions")
+        return self._execute_trino_raw_sql_query(
+            sql, log_ref="finding expired partitions"
+        )
 
     def populate_line_item_daily_summary_table_trino(
         self, start_date, end_date, report_period_id, cluster_id, cluster_alias, source
@@ -546,7 +593,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         start_date = DateHelper().parse_to_date(start_date)
         end_date = DateHelper().parse_to_date(end_date)
 
-        storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
+        storage_exists = trino_table_exists(
+            self.schema, "openshift_storage_usage_line_items_daily"
+        )
 
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
@@ -612,7 +661,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         )
         LOG.info(log_json(msg=f"finished updating {table_name}", context=ctx))
 
-    def populate_volume_label_summary_table(self, report_period_ids, start_date, end_date):
+    def populate_volume_label_summary_table(
+        self, report_period_ids, start_date, end_date
+    ):
         """Populate the OCP volume label summary table."""
         table_name = self._table_map["volume_label_summary"]
 
@@ -758,7 +809,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                     sql_params["start_date"] = summary_range.start_of_month
                     sql_params["end_date"] = summary_range.end_of_month
 
-            report_period = self.report_periods_for_provider_uuid(provider_uuid, sql_params["start_date"])
+            report_period = self.report_periods_for_provider_uuid(
+                provider_uuid, sql_params["start_date"]
+            )
             if not report_period:
                 msg = f"no report period for OCP provider, skipping {cost_model_key} distribution update"
                 context = {
@@ -772,12 +825,17 @@ AND (month = {{month_no_zero}} OR month = {{month}})
 
             self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
             self._delete_distributed_rtu_rows(sql_params, cost_model_key)
-            populate = distribution_info.get(cost_model_key, config.distribute_by_default)
+            populate = distribution_info.get(
+                cost_model_key, config.distribute_by_default
+            )
             if not populate:
                 continue
             # Gate: skip GPU distribution if cluster has no GPU data for the period
-            if cost_model_key == metric_constants.GPU_UNALLOCATED and not self._reporting_period_has_gpu_data(
-                provider_uuid, sql_params["start_date"]
+            if (
+                cost_model_key == metric_constants.GPU_UNALLOCATED
+                and not self._reporting_period_has_gpu_data(
+                    provider_uuid, sql_params["start_date"]
+                )
             ):
                 msg = "Skipping GPU full-month summary: no GPU data for cluster"
                 LOG.info(
@@ -790,8 +848,13 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                     )
                 )
                 continue
-            sql_params["distribution"] = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
-            if cost_model_key in (metric_constants.NETWORK_UNATTRIBUTED, metric_constants.STORAGE_UNATTRIBUTED):
+            sql_params["distribution"] = distribution_info.get(
+                "distribution_type", DEFAULT_DISTRIBUTION_TYPE
+            )
+            if cost_model_key in (
+                metric_constants.NETWORK_UNATTRIBUTED,
+                metric_constants.STORAGE_UNATTRIBUTED,
+            ):
                 sql_params["infra_to_cm_rate"] = float(infra_to_cm_rate)
                 sql_params["cost_model_currency"] = cost_model_currency
             sql = pkgutil.get_data("masu.database", config.get_full_path())
@@ -802,7 +865,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             # Execute using appropriate query engine
             if config.is_trino:
                 # Check if required table exists before executing Trino query
-                if config.has_table_requirement and not config.table_exists(self.schema):
+                if config.has_table_requirement and not config.table_exists(
+                    self.schema
+                ):
                     msg = (
                         f"Skipping {cost_model_key} distribution - "
                         f"required table '{config.required_table}' does not exist"
@@ -822,7 +887,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 sql_params["month"] = start_date_parsed.strftime("%m")
                 self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
             else:
-                self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
+                self._prepare_and_execute_raw_sql_query(
+                    table_name, sql, sql_params, operation=f"INSERT: {log_msg}"
+                )
 
         return summary_range
 
@@ -832,7 +899,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "sql/openshift/cost_model/delete_monthly_cost_model_rate_type.sql",
         )
         delete_sql = delete_sql.decode("utf-8")
-        LOG.info(log_json(msg=f"removing {cost_model_key} distribution", context=sql_params))
+        LOG.info(
+            log_json(msg=f"removing {cost_model_key} distribution", context=sql_params)
+        )
         self._prepare_and_execute_raw_sql_query(
             self._table_map["line_item_daily_summary"],
             delete_sql,
@@ -847,7 +916,12 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "sql/openshift/cost_model/distribute_cost/delete_distributed_rates_to_usage.sql",
         )
         delete_sql = delete_sql.decode("utf-8")
-        LOG.info(log_json(msg=f"removing {cost_model_key} RTU distribution rows", context=sql_params))
+        LOG.info(
+            log_json(
+                msg=f"removing {cost_model_key} RTU distribution rows",
+                context=sql_params,
+            )
+        )
         self._prepare_and_execute_raw_sql_query(
             "rates_to_usage",
             delete_sql,
@@ -856,7 +930,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         )
 
     def _delete_monthly_cost_model_data(self, sql_params, ctx):
-        delete_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/delete_monthly_cost.sql")
+        delete_sql = pkgutil.get_data(
+            "masu.database", "sql/openshift/cost_model/delete_monthly_cost.sql"
+        )
         delete_sql = delete_sql.decode("utf-8")
         if sql_params.get("rate_type"):
             LOG.info(log_json(msg="removing monthly costs", context=ctx))
@@ -870,7 +946,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         )
 
     @staticmethod
-    def _get_routing_metric_type(cost_type=None, distribution=None, usage_type=None, metric_name=None):
+    def _get_routing_metric_type(
+        cost_type=None, distribution=None, usage_type=None, metric_name=None
+    ):
         """Map cost parameters to the aggregation routing bucket.
 
         The aggregation SQL routes ``calculated_cost`` into daily-summary
@@ -927,7 +1005,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             distribution: Choice of monthly distribution ex. memory
             provider_uuid (str): The str of the provider UUID
         """
-        if cost_type == "OCP_VM_CORE" and not trino_table_exists(self.schema, "openshift_vm_usage_line_items"):
+        if cost_type == "OCP_VM_CORE" and not trino_table_exists(
+            self.schema, "openshift_vm_usage_line_items"
+        ):
             return
         cost_type_file_mapping = {
             "Node": "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql",
@@ -939,7 +1019,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         }
         cost_type_file = cost_type_file_mapping.get(cost_type)
         if not cost_type_file:
-            LOG.warning(f"Invalid cost_type: {cost_type} for OCP provider. Skipping populate_monthly_cost_sql update")
+            LOG.warning(
+                f"Invalid cost_type: {cost_type} for OCP provider. Skipping populate_monthly_cost_sql update"
+            )
             return
 
         table_name = self._table_map["line_item_daily_summary"]
@@ -990,7 +1072,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "cost_model_id": cost_model_id,
             "rate_uuid": rate_uuid,
             "custom_name": custom_name or cost_type,
-            "metric_type": self._get_routing_metric_type(cost_type=cost_type, distribution=distribution),
+            "metric_type": self._get_routing_metric_type(
+                cost_type=cost_type, distribution=distribution
+            ),
         }
         insert_sql = pkgutil.get_data("masu.database", cost_type_file)
         insert_sql = insert_sql.decode("utf-8")
@@ -1001,7 +1085,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             sql_params["month"] = start_date.strftime("%m")
             self._execute_trino_multipart_sql_query(insert_sql, bind_params=sql_params)
         else:
-            self._prepare_and_execute_raw_sql_query(table_name, insert_sql, sql_params, operation="INSERT")
+            self._prepare_and_execute_raw_sql_query(
+                table_name, insert_sql, sql_params, operation="INSERT"
+            )
 
     def populate_tag_cost_sql(
         self,
@@ -1046,7 +1132,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         labels = case_dict.get("labels")
 
         if "Node" in cost_type:
-            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/node_cost_by_tag.sql")
+            sql = pkgutil.get_data(
+                "masu.database", "sql/openshift/cost_model/node_cost_by_tag.sql"
+            )
         elif cost_type == "PVC":
             sql = pkgutil.get_data(
                 "masu.database",
@@ -1071,17 +1159,23 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "cost_model_id": cost_model_id,
             "rate_uuid": rate_uuid,
             "custom_name": custom_name or cost_type,
-            "metric_type": self._get_routing_metric_type(cost_type=cost_type, distribution=distribution),
+            "metric_type": self._get_routing_metric_type(
+                cost_type=cost_type, distribution=distribution
+            ),
         }
 
         if case_dict.get("unallocated"):
-            unallocated_cpu_case, unallocated_memory_case, unallocated_volume_case = case_dict.get("unallocated")
+            unallocated_cpu_case, unallocated_memory_case, unallocated_volume_case = (
+                case_dict.get("unallocated")
+            )
             sql_params["unallocated_cost_model_cpu_cost"] = unallocated_cpu_case
             sql_params["unallocated_cost_model_memory_cost"] = unallocated_memory_case
             sql_params["unallocated_cost_model_volume_cost"] = unallocated_volume_case
 
         LOG.info(log_json(msg="populating tag costs", context=ctx))
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+        self._prepare_and_execute_raw_sql_query(
+            table_name, sql, sql_params, operation="INSERT"
+        )
 
     def populate_vm_usage_costs(
         self,
@@ -1096,7 +1190,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
     ):
         if not vm_usage_rates:
             return
-        vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
+        vm_table_exists = trino_table_exists(
+            self.schema, "openshift_vm_usage_line_items"
+        )
         rate_info_map = rate_info_map or {}
         vm_usage_metadata = {
             metric_constants.OCP_VM_HOUR: {
@@ -1132,7 +1228,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             if metric_params := metadata.get("metric_params"):
                 context_params.update(metric_params)
             sql_params = param_builder.build_parameters(context_params=context_params)
-            sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
+            sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode(
+                "utf-8"
+            )
             LOG.info(log_json(msg=metadata["log_msg"], context=sql_params))
             self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
@@ -1172,7 +1270,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             # We cleared out existing data, but there is no new to calculate.
             return
 
-        sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/usage_costs.sql")
+        sql = pkgutil.get_data(
+            "masu.database", "sql/openshift/cost_model/usage_costs.sql"
+        )
 
         sql = sql.decode("utf-8")
         sql_params = {
@@ -1188,9 +1288,13 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             sql_params[metric] = rates.get(metric, 0)
 
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+        self._prepare_and_execute_raw_sql_query(
+            table_name, sql, sql_params, operation="INSERT"
+        )
 
-    def populate_usage_rates_to_usage(self, start_date, end_date, provider_uuid, report_period_id, cost_model_id):
+    def populate_usage_rates_to_usage(
+        self, start_date, end_date, provider_uuid, report_period_id, cost_model_id
+    ):
         """Delete stale rows and insert per-rate cost rows into rates_to_usage (single-pass).
 
         All rate values (including cluster_cost_per_hour) are read from
@@ -1212,10 +1316,16 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "cost_model_id": cost_model_id,
         }
 
-        LOG.info(log_json(msg="populating rates_to_usage (single-pass)", context=sql_params))
-        self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
+        LOG.info(
+            log_json(msg="populating rates_to_usage (single-pass)", context=sql_params)
+        )
+        self._prepare_and_execute_raw_sql_query(
+            "rates_to_usage", sql, sql_params, operation="INSERT"
+        )
 
-    def populate_markup_rates_to_usage(self, start_date, end_date, source_uuid, cluster_id, cost_model_id):
+    def populate_markup_rates_to_usage(
+        self, start_date, end_date, source_uuid, cluster_id, cost_model_id
+    ):
         """Write markup costs as RatesToUsage rows with metric_type='markup'.
 
         Reads from infrastructure_markup_cost on daily summary (set by
@@ -1237,10 +1347,17 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "cost_model_id": cost_model_id,
         }
         LOG.info(log_json(msg="populating markup rates_to_usage", context=sql_params))
-        self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
+        self._prepare_and_execute_raw_sql_query(
+            "rates_to_usage", sql, sql_params, operation="INSERT"
+        )
 
     def aggregate_rates_to_daily_summary(
-        self, start_date, end_date, source_uuid, report_period_id, cost_model_currency="USD"
+        self,
+        start_date,
+        end_date,
+        source_uuid,
+        report_period_id,
+        cost_model_currency="USD",
     ):
         """Aggregate RatesToUsage rows into daily summary cost columns."""
 
@@ -1258,10 +1375,18 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "report_period_id": report_period_id,
             "cost_model_currency": cost_model_currency,
         }
-        LOG.info(log_json(msg="aggregating rates_to_usage → daily summary", context=sql_params))
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+        LOG.info(
+            log_json(
+                msg="aggregating rates_to_usage → daily summary", context=sql_params
+            )
+        )
+        self._prepare_and_execute_raw_sql_query(
+            table_name, sql, sql_params, operation="INSERT"
+        )
 
-    def validate_rates_against_daily_summary(self, start_date, end_date, source_uuid, report_period_id):
+    def validate_rates_against_daily_summary(
+        self, start_date, end_date, source_uuid, report_period_id
+    ):
         """CI-only: return diff rows between RTU aggregates and daily summary. Empty = correct."""
         sql = pkgutil.get_data(
             "masu.database",
@@ -1298,8 +1423,12 @@ AND (month = {{month_no_zero}} OR month = {{month}})
 
         Called once per (metric, tag_key, tag_value) combination.
         """
-        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys())
-        supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys())
+        infrastructure_rates = filter_dictionary(
+            infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys()
+        )
+        supplementary_rates = filter_dictionary(
+            supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys()
+        )
         rate_types = [
             {
                 "rates": infrastructure_rates,
@@ -1329,7 +1458,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 table_name = self._table_map["line_item_daily_summary"]
                 rate_info = rate_info_map.get((metric, cost_type_label, ""), {})
                 for tag_key in tags:
-                    tag_rate_info = rate_info_map.get((metric, cost_type_label, tag_key), rate_info)
+                    tag_rate_info = rate_info_map.get(
+                        (metric, cost_type_label, tag_key), rate_info
+                    )
                     tag_vals = tags.get(tag_key, {})
                     value_names = list(tag_vals.keys())
                     for val_name in value_names:
@@ -1354,8 +1485,14 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                             "report_period_id": report_period_id,
                         }
                         ctx = self.extract_context_from_sql_params(sql_params)
-                        LOG.info(log_json(msg="running populate_tag_usage_costs SQL", context=ctx))
-                        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
+                        LOG.info(
+                            log_json(
+                                msg="running populate_tag_usage_costs SQL", context=ctx
+                            )
+                        )
+                        self._prepare_and_execute_raw_sql_query(
+                            table_name, sql, sql_params
+                        )
 
     def populate_tag_usage_default_costs(  # noqa: C901
         self,
@@ -1370,8 +1507,12 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         report_period_id=None,
     ):
         """Insert per-rate default tag-based usage costs into rates_to_usage."""
-        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys())
-        supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys())
+        infrastructure_rates = filter_dictionary(
+            infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys()
+        )
+        supplementary_rates = filter_dictionary(
+            supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys()
+        )
         rate_types = [
             {
                 "rates": infrastructure_rates,
@@ -1411,7 +1552,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                     for value_to_skip in value_names:
                         key_value_pair.append(json.dumps({tag_key: value_to_skip}))
                     json.dumps(key_value_pair)
-                    tag_rate_info = rate_info_map.get((metric, cost_type_label, tag_key), rate_info)
+                    tag_rate_info = rate_info_map.get(
+                        (metric, cost_type_label, tag_key), rate_info
+                    )
                     sql = pkgutil.get_data("masu.database", sql_file)
                     sql = sql.decode("utf-8")
                     sql_params = {
@@ -1440,7 +1583,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                     )
                     self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
-    def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
+    def populate_openshift_cluster_information_tables(
+        self, provider, cluster_id, cluster_alias, start_date, end_date
+    ):
         """Populate the cluster, node, PVC, and project tables for the cluster."""
         cluster_table = self.populate_cluster_table(provider, cluster_id, cluster_alias)
 
@@ -1484,7 +1629,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         elif cluster.cluster_alias != cluster_alias:
             cluster.cluster_alias = cluster_alias
             cluster.save()
-            msg = "updated cluster entry with new cluster alias in reporting_ocp_clusters"
+            msg = (
+                "updated cluster entry with new cluster alias in reporting_ocp_clusters"
+            )
 
         LOG.info(
             log_json(
@@ -1566,7 +1713,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
 
                 except IntegrityError as e:
                     LOG.warning(
-                        log_json(msg="IntegrityError raised when creating pvc", pvc=pvc),
+                        log_json(
+                            msg="IntegrityError raised when creating pvc", pvc=pvc
+                        ),
                         exc_info=e,
                     )
 
@@ -1601,11 +1750,15 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "end": end_date,
             "provider_uuid": source_uuid,
         }
-        return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_nodes_trino")
+        return self._execute_trino_raw_sql_query(
+            sql, context=context, log_ref="get_nodes_trino"
+        )
 
     def get_pvcs_trino(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
-        if not trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily"):
+        if not trino_table_exists(
+            self.schema, "openshift_storage_usage_line_items_daily"
+        ):
             return []
         sql = get_report_db_accessor().get_pvcs_query_sql(
             schema_name=self.schema,
@@ -1621,7 +1774,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "end": end_date,
             "provider_uuid": source_uuid,
         }
-        return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_pvcs_trino")
+        return self._execute_trino_raw_sql_query(
+            sql, context=context, log_ref="get_pvcs_trino"
+        )
 
     def get_projects_trino(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
@@ -1639,7 +1794,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "end": end_date,
             "provider_uuid": source_uuid,
         }
-        projects = self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_projects_trino")
+        projects = self._execute_trino_raw_sql_query(
+            sql, context=context, log_ref="get_projects_trino"
+        )
 
         return [project[0] for project in projects]
 
@@ -1650,7 +1807,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
     def get_nodes_for_cluster(self, cluster_pk):
         """Get all nodes for an OCP cluster."""
         nodes = (
-            OCPNode.objects.filter(cluster_id=cluster_pk).exclude(node__exact="").values_list("node", "resource_id")
+            OCPNode.objects.filter(cluster_id=cluster_pk)
+            .exclude(node__exact="")
+            .values_list("node", "resource_id")
         )
         nodes = [(node[0], node[1]) for node in nodes]
         return nodes
@@ -1660,14 +1819,18 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         pvcs = (
             OCPPVC.objects.filter(cluster_id=cluster_pk)
             .exclude(persistent_volume__exact="")
-            .values_list("persistent_volume", "persistent_volume_claim", "csi_volume_handle")
+            .values_list(
+                "persistent_volume", "persistent_volume_claim", "csi_volume_handle"
+            )
         )
         pvcs = [(pvc[0], pvc[1], pvc[2]) for pvc in pvcs]
         return pvcs
 
     def get_projects_for_cluster(self, cluster_pk):
         """Get all nodes for an OCP cluster."""
-        projects = OCPProject.objects.filter(cluster_id=cluster_pk).values_list("project")
+        projects = OCPProject.objects.filter(cluster_id=cluster_pk).values_list(
+            "project"
+        )
         projects = [project[0] for project in projects]
         return projects
 
@@ -1688,14 +1851,18 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                     "resource_ids": [node[1] for node in nodes_tuple],
                     "persistent_volumes": [pvc[0] for pvc in pvc_tuple],
                     "persistent_volume_claims": [pvc[1] for pvc in pvc_tuple],
-                    "csi_volume_handle": [pvc[2] for pvc in pvc_tuple if pvc[2] is not None],
+                    "csi_volume_handle": [
+                        pvc[2] for pvc in pvc_tuple if pvc[2] is not None
+                    ],
                     "projects": [project for project in project_tuple],
                 }
             )
 
         return topology_list
 
-    def get_filtered_openshift_topology_for_multiple_providers(self, provider_uuids, start_date, end_date):
+    def get_filtered_openshift_topology_for_multiple_providers(
+        self, provider_uuids, start_date, end_date
+    ):
         """Return a dictionary with 1 or more Clusters topology."""
         topology_list = []
         for provider_uuid in provider_uuids:
@@ -1715,7 +1882,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
 
         return topology_list
 
-    def delete_infrastructure_raw_cost_from_daily_summary(self, provider_uuid, report_period_id, start_date, end_date):
+    def delete_infrastructure_raw_cost_from_daily_summary(
+        self, provider_uuid, report_period_id, start_date, end_date
+    ):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
         ctx = {
             "schema": self.schema,
@@ -1725,7 +1894,11 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "table_name": table_name,
             "report_period_id": report_period_id,
         }
-        LOG.info(log_json(msg="removing infrastructure raw cast from daily summary", context=ctx))
+        LOG.info(
+            log_json(
+                msg="removing infrastructure raw cast from daily summary", context=ctx
+            )
+        )
         sql = f"""
             DELETE FROM {self.schema}.reporting_ocpusagelineitem_daily_summary
             WHERE usage_start >= '{start_date}'::date
@@ -1772,7 +1945,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 **sql_params,
             )
         )
-        script_file_name = f"reporting_ocpallcostlineitem_project_daily_summary_{platform.lower()}.sql"
+        script_file_name = (
+            f"reporting_ocpallcostlineitem_project_daily_summary_{platform.lower()}.sql"
+        )
         script_file_path = f"{self.OCP_ON_ALL_SQL_PATH}{script_file_name}"
         self._execute_processing_script("masu.database", script_file_path, sql_params)
 
@@ -1783,15 +1958,23 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 **sql_params,
             )
         )
-        script_file_name = f"reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
+        script_file_name = (
+            f"reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
+        )
         script_file_path = f"{self.OCP_ON_ALL_SQL_PATH}{script_file_name}"
         self._execute_processing_script("masu.database", script_file_path, sql_params)
 
     def populate_ocp_on_all_ui_summary_tables(self, sql_params):
         for perspective in OCP_ON_ALL_PERSPECTIVES:
-            LOG.info(log_json(msg=f"populating {perspective._meta.db_table}", **sql_params))
-            script_file_path = f"{self.OCP_ON_ALL_SQL_PATH}{perspective._meta.db_table}.sql"
-            self._execute_processing_script("masu.database", script_file_path, sql_params)
+            LOG.info(
+                log_json(msg=f"populating {perspective._meta.db_table}", **sql_params)
+            )
+            script_file_path = (
+                f"{self.OCP_ON_ALL_SQL_PATH}{perspective._meta.db_table}.sql"
+            )
+            self._execute_processing_script(
+                "masu.database", script_file_path, sql_params
+            )
 
     def get_max_min_timestamp_from_parquet(self, source_uuid, start_date, end_date):
         """Get the max and min timestamps for parquet data given a date range"""
@@ -1813,8 +1996,16 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             sql, context=context, log_ref="get_max_min_timestamp_from_parquet"
         )
         minim, maxim = timestamps[0]
-        minim = parse(str(minim)) if minim else datetime.datetime(start_date.year, start_date.month, start_date.day)
-        maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)
+        minim = (
+            parse(str(minim))
+            if minim
+            else datetime.datetime(start_date.year, start_date.month, start_date.day)
+        )
+        maxim = (
+            parse(str(maxim))
+            if maxim
+            else datetime.datetime(end_date.year, end_date.month, end_date.day)
+        )
         return minim, maxim
 
     def populate_tag_based_costs(  # noqa: C901
@@ -1840,8 +2031,12 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "amortized_denominator": DateHelper().days_in_month(start_date),
             "cost_type": "Tag",
         }
-        vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
-        gpu_table_exists = trino_table_exists(self.schema, "openshift_gpu_usage_line_items_daily")
+        vm_table_exists = trino_table_exists(
+            self.schema, "openshift_vm_usage_line_items"
+        )
+        gpu_table_exists = trino_table_exists(
+            self.schema, "openshift_gpu_usage_line_items_daily"
+        )
         requires_vm_table = [
             metric_constants.OCP_VM_CORE_HOUR,
             metric_constants.OCP_VM_CORE_MONTH,
@@ -1926,12 +2121,20 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 context_params["cost_model_id"] = cost_model_id
                 context_params["rate_uuid"] = rate_info.get("rate_uuid")
                 context_params["custom_name"] = rate_info.get("custom_name", name)
-                context_params["metric_type"] = self._get_routing_metric_type(metric_name=name)
-                final_sql_params = param_builder.build_parameters(context_params=context_params)
-                sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
+                context_params["metric_type"] = self._get_routing_metric_type(
+                    metric_name=name
+                )
+                final_sql_params = param_builder.build_parameters(
+                    context_params=context_params
+                )
+                sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode(
+                    "utf-8"
+                )
                 LOG.info(log_json(msg=metadata["log_msg"], context=context_params))
                 if self.get_sql_folder_name() in metadata["file_path"]:
-                    self._execute_trino_multipart_sql_query(sql, bind_params=final_sql_params)
+                    self._execute_trino_multipart_sql_query(
+                        sql, bind_params=final_sql_params
+                    )
                 else:
                     self._prepare_and_execute_raw_sql_query(
                         self._table_map["line_item_daily_summary"],
