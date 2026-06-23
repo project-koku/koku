@@ -38,11 +38,12 @@ gpu_model_map AS (
         node,
         all_labels->>'gpu-model' AS gpu_model,
         usage_start
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+    FROM {{schema | sqlsafe}}.rates_to_usage
     WHERE namespace = 'GPU unallocated'
       AND usage_start >= DATE({{start_date}})
       AND usage_start <= DATE({{end_date}})
       AND source_uuid = {{source_uuid}}::uuid
+      AND metric_type = 'gpu'
     GROUP BY node, all_labels->>'gpu-model', usage_start
 ),
 namespace_usage_information AS (
