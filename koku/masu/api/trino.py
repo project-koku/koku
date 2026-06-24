@@ -34,7 +34,8 @@ def _filter_trino_queries_by_id(trino_response, query_id):
         queries = trino_response.get("queries")
         if isinstance(queries, list):
             return {**trino_response, "queries": [query for query in queries if _matches_query_id(query)]}
-        return trino_response if _matches_query_id(trino_response) else {}
+        if "queryId" in trino_response:
+            return trino_response if _matches_query_id(trino_response) else {}
 
     return trino_response
 
