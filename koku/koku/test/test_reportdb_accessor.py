@@ -210,8 +210,8 @@ class TestTrinoReportDBAccessor(TestCase):
             "ocp_source",
             "2024-01-01",
         )
-        self.assertIn("day as day", sql)
-        self.assertIn("concat(year, '-', month, '-', day)", sql)
+        self.assertNotIn("day as day", sql)
+        self.assertIn("concat(year, '-', month, '-01')", sql)
 
     def test_get_expired_data_ocp_sql_for_month_partitioned_table(self):
         """Test expired data SQL generation for month-partitioned tables."""
