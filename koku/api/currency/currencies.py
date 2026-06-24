@@ -69,8 +69,8 @@ CURRENCIES = [
     {
         "code": "GHS",
         "name": "Ghanaian Cedi",
-        "symbol": "\u20b5",
-        "description": "GHS (\u20b5) - Ghanaian Cedi",
+        "symbol": "GH\u20b5",
+        "description": "GHS (GH\u20b5) - Ghanaian Cedi",
     },
     {
         "code": "HKD",
@@ -117,8 +117,8 @@ CURRENCIES = [
     {
         "code": "SEK",
         "name": "Swedish Krona",
-        "symbol": "SEK",
-        "description": "SEK (SEK) - Swedish Krona",
+        "symbol": "kr",
+        "description": "SEK (kr) - Swedish Krona",
     },
     {
         "code": "SGD",
