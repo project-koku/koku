@@ -840,6 +840,24 @@ class TestSkipPaths(MasuTestCase):
         mock_execute.assert_not_called()
         self.assertTrue(any("skipping rates_to_usage aggregation" in msg for msg in cm.output))
 
+    # TC-48b: RTU aggregate forwards cost_model_currency to accessor
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.aggregate_rates_to_daily_summary")
+    def test_rtu_aggregate_forwards_cost_model_currency(self, mock_agg):
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        dh = DateHelper()
+        updater._aggregate_rates_to_daily_summary(dh.this_month_start, dh.this_month_end, "NOK")
+        mock_agg.assert_called_once()
+        self.assertEqual(mock_agg.call_args[0][4], "NOK")
+
+    # TC-48c: RTU aggregate passes None as cost_model_currency when no infra currency
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.aggregate_rates_to_daily_summary")
+    def test_rtu_aggregate_passes_none_currency(self, mock_agg):
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        dh = DateHelper()
+        updater._aggregate_rates_to_daily_summary(dh.this_month_start, dh.this_month_end, None)
+        mock_agg.assert_called_once()
+        self.assertIsNone(mock_agg.call_args[0][4])
+
     # TC-49: RTU insert skips when no cost_model_id
     @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
@@ -2103,6 +2121,216 @@ class TestPrometheusTimingWrappers(_ReportPeriodMixin, MasuTestCase):
         self.assertGreaterEqual(observed_duration, 0, "Duration must be non-negative")
 
 
+class TestGetInfraToCmRate(_ReportPeriodMixin, MasuTestCase):
+    """Test _get_infra_to_cm_rate return values and has_infra_currency flag."""
+
+    def _make_updater(self):
+        return OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+
+    def test_no_cost_model_currency(self):
+        """Returns (1, False) when cost_model_currency is empty/None."""
+        updater = self._make_updater()
+        dh = DateHelper()
+        rate, has_infra = updater._get_infra_to_cm_rate(None, dh.this_month_start, dh.this_month_end)
+        self.assertEqual(rate, Decimal(1))
+        self.assertFalse(has_infra)
+
+        rate, has_infra = updater._get_infra_to_cm_rate("", dh.this_month_start, dh.this_month_end)
+        self.assertEqual(rate, Decimal(1))
+        self.assertFalse(has_infra)
+
+    def test_no_infra_currencies_returns_false(self):
+        """When no unattributed rows have raw_currency, returns (1, False)."""
+        updater = self._make_updater()
+        dh = DateHelper()
+        rate, has_infra = updater._get_infra_to_cm_rate("USD", dh.this_month_start, dh.this_month_end)
+        self.assertEqual(rate, Decimal(1))
+        self.assertFalse(has_infra)
+
+    def test_infra_currency_matches_cost_model(self):
+        """When infra raw_currency matches cost_model_currency, returns (1, True)."""
+        updater = self._make_updater()
+        dh = DateHelper()
+        with schema_context(self.schema):
+            OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=dh.this_month_start,
+            ).exclude(namespace__in=["Network unattributed", "Storage unattributed"]).update(
+                namespace="Network unattributed",
+                cost_model_rate_type=None,
+                raw_currency="USD",
+            )
+        rate, has_infra = updater._get_infra_to_cm_rate("USD", dh.this_month_start, dh.this_month_end)
+        self.assertEqual(rate, Decimal(1))
+        self.assertTrue(has_infra)
+
+    def test_infra_currency_differs_no_exchange_dict(self):
+        """When currencies differ but no ExchangeRateDictionary exists, returns (1, True)."""
+        updater = self._make_updater()
+        dh = DateHelper()
+        with schema_context(self.schema):
+            OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=dh.this_month_start,
+            ).exclude(namespace__in=["Network unattributed", "Storage unattributed"]).update(
+                namespace="Network unattributed",
+                cost_model_rate_type=None,
+                raw_currency="EUR",
+            )
+        with patch("api.currency.models.ExchangeRateDictionary") as mock_erd:
+            mock_erd.objects.first.return_value = None
+            rate, has_infra = updater._get_infra_to_cm_rate("USD", dh.this_month_start, dh.this_month_end)
+        self.assertEqual(rate, Decimal(1))
+        self.assertTrue(has_infra)
+
+    def test_infra_currency_differs_with_exchange_rate(self):
+        """When currencies differ and exchange rate exists, returns (rate, True)."""
+        updater = self._make_updater()
+        dh = DateHelper()
+        with schema_context(self.schema):
+            OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=dh.this_month_start,
+            ).exclude(namespace__in=["Network unattributed", "Storage unattributed"]).update(
+                namespace="Network unattributed",
+                cost_model_rate_type=None,
+                raw_currency="EUR",
+            )
+        mock_dict = type(
+            "MockDict",
+            (),
+            {
+                "currency_exchange_dictionary": {"EUR": {"USD": 1.08}},
+            },
+        )()
+        with patch("api.currency.models.ExchangeRateDictionary") as mock_erd:
+            mock_erd.objects.first.return_value = mock_dict
+            rate, has_infra = updater._get_infra_to_cm_rate("USD", dh.this_month_start, dh.this_month_end)
+        self.assertEqual(rate, Decimal("1.08"))
+        self.assertTrue(has_infra)
+
+    def test_exchange_rate_not_found_for_pair(self):
+        """When exchange dict exists but rate for currency pair is missing, returns (1, True)."""
+        updater = self._make_updater()
+        dh = DateHelper()
+        with schema_context(self.schema):
+            OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=dh.this_month_start,
+            ).exclude(namespace__in=["Network unattributed", "Storage unattributed"]).update(
+                namespace="Network unattributed",
+                cost_model_rate_type=None,
+                raw_currency="JPY",
+            )
+        mock_dict = type(
+            "MockDict",
+            (),
+            {
+                "currency_exchange_dictionary": {"EUR": {"USD": 1.08}},
+            },
+        )()
+        with patch("api.currency.models.ExchangeRateDictionary") as mock_erd:
+            mock_erd.objects.first.return_value = mock_dict
+            rate, has_infra = updater._get_infra_to_cm_rate("USD", dh.this_month_start, dh.this_month_end)
+        self.assertEqual(rate, Decimal(1))
+        self.assertTrue(has_infra)
+
+
+class TestGetMarkupPercentage(_ReportPeriodMixin, MasuTestCase):
+    """Test _get_markup_percentage extracts markup from cost model correctly."""
+
+    def test_returns_decimal_percentage(self):
+        """Markup value 10 -> 0.1 (divided by 100)."""
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        result = updater._get_markup_percentage()
+        if updater._cost_model:
+            from masu.database.cost_model_db_accessor import CostModelDBAccessor
+
+            with CostModelDBAccessor(self.schema, self.ocp_provider_uuid, price_list_effective_on=None) as acc:
+                markup = acc.markup
+            if markup and markup.get("value"):
+                self.assertEqual(result, Decimal(str(markup["value"])) / 100)
+            else:
+                self.assertIsNone(result)
+        else:
+            self.assertIsNone(result)
+
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_returns_none_when_no_markup(self, mock_accessor_cls):
+        """Returns None when cost model has no markup configured."""
+        mock_acc = mock_accessor_cls.return_value.__enter__.return_value
+        mock_acc.markup = None
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        result = updater._get_markup_percentage()
+        self.assertIsNone(result)
+
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_returns_none_when_markup_value_zero(self, mock_accessor_cls):
+        """Returns None when markup value is 0."""
+        mock_acc = mock_accessor_cls.return_value.__enter__.return_value
+        mock_acc.markup = {"value": 0, "unit": "percent"}
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        result = updater._get_markup_percentage()
+        self.assertIsNone(result)
+
+
+class TestDistributionRawCurrency(_ReportPeriodMixin, MasuTestCase):
+    """Test that distribute_costs_and_update_ui_summary passes correct raw_currency to aggregation."""
+
+    def _make_summary_range(self):
+        dh = DateHelper()
+        return SummaryRangeConfig(
+            schema=self.schema,
+            provider_uuid=self.ocp_provider_uuid,
+            start_date=dh.this_month_start,
+            end_date=dh.this_month_end,
+            cost_model_update=True,
+        )
+
+    @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
+    @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
+    @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
+    @patch.object(OCPCostModelCostUpdater, "_get_infra_to_cm_rate")
+    def test_has_infra_currency_passes_cost_model_currency(
+        self, mock_rate, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions
+    ):
+        """When has_infra_currency=True, aggregation receives cost_model_currency."""
+        mock_rate.return_value = (Decimal("0.103"), True)
+        mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        sr = self._make_summary_range()
+        updater.distribute_costs_and_update_ui_summary(sr)
+
+        agg_call = mock_agg.call_args
+        self.assertIsNotNone(agg_call)
+        cost_model_currency = updater._cost_model.currency if updater._cost_model else "USD"
+        self.assertEqual(agg_call[0][2], cost_model_currency)
+
+    @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
+    @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
+    @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
+    @patch.object(OCPCostModelCostUpdater, "_get_infra_to_cm_rate")
+    def test_no_infra_currency_passes_none(
+        self, mock_rate, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions
+    ):
+        """When has_infra_currency=False, aggregation receives None (raw_currency stays NULL)."""
+        mock_rate.return_value = (Decimal(1), False)
+        mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        sr = self._make_summary_range()
+        updater.distribute_costs_and_update_ui_summary(sr)
+
+        agg_call = mock_agg.call_args
+        self.assertIsNotNone(agg_call)
+        self.assertIsNone(agg_call[0][2])
+
+
 class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
     """Test distribute_costs_and_update_ui_summary internal ordering (D1/D2).
 
@@ -2163,6 +2391,25 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
         updater.distribute_costs_and_update_ui_summary(sr)
 
         mock_dist_sql.assert_called_once()
+
+    @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
+    @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
+    @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
+    def test_distribute_forwards_infra_rate_and_currency(
+        self, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions
+    ):
+        """populate_distributed_cost_sql receives infra_to_cm_rate and cost_model_currency kwargs."""
+        mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        sr = self._make_summary_range()
+        updater.distribute_costs_and_update_ui_summary(sr)
+
+        _, kwargs = mock_dist_sql.call_args
+        self.assertIn("infra_to_cm_rate", kwargs)
+        self.assertIn("cost_model_currency", kwargs)
 
     @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
