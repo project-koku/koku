@@ -96,7 +96,9 @@ This will explain how to start the server and its dependencies using Docker (or 
 
         make docker-logs
 
-With all containers running any source added will be processed by saving CSV files in local S4 object storage and storing Parquet files there. The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
+With all containers running any source added will be processed by saving CSV files in local S4 object storage (`ocp-ingress` bucket) and storing Parquet files in MinIO (`koku-bucket`). The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
+
+> **Hybrid object storage:** S4 handles OCP ingress uploads (port 9000). MinIO handles the Trino/Hive parquet warehouse (port 9001) because S4 cannot yet store Trino's long nested S3 keys. See [docs/devtools.md](docs/devtools.md#s4-local-s3-object-storage).
 
 ##### Multi-Worker Support
 
@@ -125,6 +127,12 @@ To add test sources and data:
     make load-test-customer-data # Optional parameters: start={start_date} end={end_date} test_source=AWS
 
 The S4 web UI will be available at [http://127.0.0.1:5002/](http://127.0.0.1:5002/). Use the `S3_ACCESS_KEY` and `S3_SECRET` set in your `.env` file as login credentials (defaults: `s4admin` / `s4secret`).
+
+MinIO console (parquet warehouse): [http://127.0.0.1:9091/](http://127.0.0.1:9091/) — login with `TRINO_S3_ACCESS_KEY` / `TRINO_S3_SECRET` (defaults: `kokuminioaccess` / `kokuminiosecret`).
+
+Verify both backends after `make docker-up-min-trino-no-build`:
+
+    make s3-hybrid-verify
 
 The Trinio UI will be available at http://127.0.0.1:8080/ui/. Details can be found there on queries. This is particularly useful for troubleshooting failures.
 

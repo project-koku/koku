@@ -76,7 +76,7 @@ help:
 	@echo "--- Commands using local services ---"
 	@echo "  delete-testing                        Delete stale files/subdirectories from the testing directory."
 	@echo "  delete-trino                          Delete stale files/subdirectories from the trino data directory."
-	@echo "  delete-trino-data                     Delete old trino data from the local S4 koku-bucket."
+	@echo "  delete-trino-data                     Delete local S4 volume and MinIO parquet data."
 	@echo "  delete-redis-cache                    Flushes cache keys inside of the redis container."
 	@echo "  delete-valkey-cache                   Flushes cache keys inside of the valkey container."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
@@ -142,6 +142,7 @@ help:
 	@echo "  docker-down                          shut down all containers"
 	@echo "  docker-up-min-trino                 start minimum targets for Trino usage"
 	@echo "  docker-up-min-trino-no-build        start minimum targets for Trino usage without building koku base"
+	@echo "  s3-hybrid-verify                    verify S4 + MinIO hybrid object storage (after trino stack is up)"
 	@echo "  docker-up-min-with-subs             run database, koku/masu servers, worker and subs worker"
 	@echo "  docker-up-min-with-subs-no-build        run database, koku/masu servers, worker and subs worker without building koku base"
 	@echo "  docker-trino-down-all               Tear down Trino and Koku containers"
@@ -385,11 +386,16 @@ docker-up-db:
 
 .PHONY: trino-stack-up
 trino-stack-up:
-	$(DOCKER_COMPOSE) up -d s4
-	$(DOCKER_COMPOSE) up -d --wait --no-deps s4
+	$(DOCKER_COMPOSE) up -d s4 minio
+	$(DOCKER_COMPOSE) up -d --wait --no-deps s4 minio
 	$(DOCKER_COMPOSE) run --rm --no-deps create-s3-buckets
+	$(DOCKER_COMPOSE) run --rm --no-deps create-minio-buckets
 	$(DOCKER_COMPOSE) up -d hive-metastore trino
 	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
+
+.PHONY: s3-hybrid-verify
+s3-hybrid-verify:
+	$(SCRIPTDIR)/s3_hybrid_verify.sh
 
 docker-up-kafka:
 	$(DOCKER_COMPOSE) up -d kafka-zookeeper kafka
@@ -404,7 +410,7 @@ docker-up-onprem: docker-build docker-up-onprem-no-build
 docker-up-onprem-no-build: docker-host-dir-setup docker-up-db docker-up-kafka
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-server masu-server koku-worker koku-beat koku-listener sources-client
 	@echo "Stopping SaaS-only services..."
-	-$(DOCKER_COMPOSE) stop trino hive-metastore s4 subs-worker create-s3-buckets 2>/dev/null || true
+	-$(DOCKER_COMPOSE) stop trino hive-metastore s4 minio subs-worker create-s3-buckets create-minio-buckets 2>/dev/null || true
 	@echo "On-prem environment ready (core + kafka, no Trino/S3)"
 
 docker-up-db-monitor:

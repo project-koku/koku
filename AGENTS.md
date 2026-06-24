@@ -686,7 +686,8 @@ SET search_path TO org1234567;
 | `DATABASE_PASSWORD`            | `postgres`    | Database password    |
 | `DEVELOPMENT`                  | `True`        | Dev middleware       |
 | `KEEPDB`                       | `True`        | Preserve test DB     |
-| `S3_ENDPOINT`                  | S4 URL        | Object storage       |
+| `S3_ENDPOINT`                  | S4 URL        | OCP ingress (masu, host scripts) |
+| `TRINO_S3_ENDPOINT`            | MinIO URL     | Parquet warehouse (worker, Trino, Hive) |
 | `API_PATH_PREFIX`              | `/api/cost-management` | API URL prefix |
 
 ### Docker Compose Services
@@ -701,7 +702,8 @@ SET search_path TO org1234567;
 | `koku-beat`      | —     | Celery beat scheduler          |
 | `trino`          | 8080  | Analytics SQL engine           |
 | `hive-metastore` | 9083  | Hive metastore for Trino       |
-| `s4`             | 9000 (S3 API), 5002 (UI) | S3-compatible object storage |
+| `s4`             | 9000 (S3 API), 5002 (UI) | OCP ingress (`ocp-ingress` bucket) |
+| `minio`          | 9001 (S3 API), 9091 (console) | Trino parquet warehouse (`koku-bucket`) |
 | `unleash`        | 4242  | Feature flag server            |
 | `grafana`        | 3001  | Monitoring dashboards          |
 | `pgadmin`        | 8432  | Database admin UI              |

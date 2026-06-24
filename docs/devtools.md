@@ -73,9 +73,10 @@ After the files are converted they are then sent up to an S3 bucket. During runt
 Trino Specific Env Vars
 ```
 S3_BUCKET_NAME=koku-bucket
-S3_ENDPOINT=http://koku-s4:7480
-S3_ACCESS_KEY=s4admin
-S3_SECRET=s4secret
+# Parquet warehouse (MinIO — not S4; see hybrid setup below)
+TRINO_S3_ENDPOINT=http://koku-minio:9000
+TRINO_S3_ACCESS_KEY=kokuminioaccess
+TRINO_S3_SECRET=kokuminiosecret
 TRINO_DATE_STEP=31
 ```
 
@@ -130,7 +131,7 @@ Our Trino migrations are run using the `migrate_trino.py` script, and this scrip
 
 ## S4 (local S3 object storage)
 
-S4 is the file storage location we use locally. Since we query the parquet files based off the S3 path, we use this tool locally to see the csv & parquet files are in their expected place. It will also allow you to download them.
+S4 is the primary local S3-compatible store for OCP ingress uploads and other short-key operations.
 
 S4 web UI:
 
@@ -143,6 +144,30 @@ S3_SECRET=s4secret
 ```
 
 S3 API endpoint (host): `http://localhost:9000` (mapped from container port 7480).
+
+### Hybrid setup: S4 + MinIO (Trino parquet)
+
+Trino and Hive write **long, nested S3 object keys** when committing partitioned Parquet files. S4's underlying Ceph RGW POSIX driver maps each key to a single filesystem name and returns `errno 36: File name too long` for keys Trino produces. Until that is fixed upstream, local dev uses a **hybrid** layout:
+
+| Backend | Host port | Buckets | Used by |
+|---------|-----------|---------|---------|
+| **S4** | 9000 (API), 5002 (UI) | `ocp-ingress` | Masu OCP ingest, nise uploads, presigned URLs |
+| **MinIO** | 9001 (API), 9091 (console) | `koku-bucket`, `metastore` | Celery worker parquet upload, Trino, Hive metastore |
+
+Docker Compose sets `S3_ENDPOINT` to S4 for `masu-server` and `TRINO_S3_ENDPOINT` to MinIO for `koku-worker`, `trino`, and `hive-metastore`. No application code changes are required.
+
+Verify both backends after starting the Trino stack:
+
+```bash
+make docker-up-min-trino-no-build
+make s3-hybrid-verify
+```
+
+The verify script checks short-key CRUD on each store and confirms that a Trino-shaped long key **fails on S4** and **succeeds on MinIO**.
+
+MinIO console: http://127.0.0.1:9091/ — credentials from `TRINO_S3_ACCESS_KEY` / `TRINO_S3_SECRET` in `.env` (defaults: `kokuminioaccess` / `kokuminiosecret`).
+
+When S4 fixes long-key support, remove the MinIO services and point Trino back to S4 to complete the migration.
 
 ## Trino Coordinator
 
