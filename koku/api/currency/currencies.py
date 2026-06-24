@@ -45,14 +45,14 @@ CURRENCIES = [
     {
         "code": "CZK",
         "name": "Czech Koruna",
-        "symbol": "CZK",
-        "description": "CZK (CZK) - Czech Koruna",
+        "symbol": "Kč",
+        "description": "CZK (Kč) - Czech Koruna",
     },
     {
         "code": "DKK",
         "name": "Danish Krone",
-        "symbol": "DKK",
-        "description": "DKK (DKK) - Danish Krone",
+        "symbol": "kr",
+        "description": "DKK (kr) - Danish Krone",
     },
     {
         "code": "EUR",
@@ -99,8 +99,8 @@ CURRENCIES = [
     {
         "code": "NOK",
         "name": "Norwegian Krone",
-        "symbol": "NOK",
-        "description": "NOK (NOK) - Norwegian Krone",
+        "symbol": "kr",
+        "description": "NOK (kr) - Norwegian Krone",
     },
     {
         "code": "NZD",
