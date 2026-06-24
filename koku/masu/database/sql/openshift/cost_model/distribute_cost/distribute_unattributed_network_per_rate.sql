@@ -134,7 +134,7 @@ SELECT
                          ELSE 1 END
         END
     END,
-    {{cost_model_id}}
+    {{cost_model_id}}::uuid
 FROM network_rtu_cost nc
 JOIN denominator d
     ON d.usage_start = nc.usage_start AND d.cluster_id = nc.cluster_id
@@ -188,7 +188,7 @@ SELECT
              ELSE (nu.ns_memory / d.usage_memory_sum) * ni.infra_total
         END
     END,
-    {{cost_model_id}}
+    {{cost_model_id}}::uuid
 FROM network_infra ni
 JOIN denominator d
     ON d.usage_start = ni.usage_start AND d.cluster_id = ni.cluster_id
@@ -231,7 +231,7 @@ SELECT
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
     -(src.cost_model_total + COALESCE(infra.infra_total, 0)),
-    {{cost_model_id}}
+    {{cost_model_id}}::uuid
 FROM (
     SELECT
         MAX(rtu.report_period_id) AS report_period_id,
@@ -297,7 +297,7 @@ SELECT
         COALESCE(lids.infrastructure_raw_cost, 0) +
         COALESCE(lids.infrastructure_markup_cost, 0)
     ) * {{infra_to_cm_rate}},
-    {{cost_model_id}}
+    {{cost_model_id}}::uuid
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
 WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date

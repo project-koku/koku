@@ -132,7 +132,7 @@ SELECT
                          ELSE 1 END
         END
     END,
-    {{cost_model_id}}
+    {{cost_model_id}}::uuid
 FROM worker_rtu_cost wc
 JOIN denominator d
     ON d.usage_start = wc.usage_start AND d.cluster_id = wc.cluster_id
@@ -182,7 +182,7 @@ SELECT
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
     -(src.cost_model_total + COALESCE(infra.infra_total, 0)),
-    {{cost_model_id}}
+    {{cost_model_id}}::uuid
 FROM (
     SELECT
         MAX(rtu.report_period_id) AS report_period_id,

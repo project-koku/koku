@@ -136,7 +136,7 @@ SELECT
                          ELSE 1 END
         END
     END,
-    {{cost_model_id}}
+    {{cost_model_id}}::uuid
 FROM platform_rtu_cost pc
 JOIN denominator d
     ON d.usage_start = pc.usage_start AND d.cluster_id = pc.cluster_id
@@ -186,7 +186,7 @@ SELECT
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
     -(rtu_agg.cost_model_total + COALESCE(pi_ns.infra_total, 0)),
-    {{cost_model_id}}
+    {{cost_model_id}}::uuid
 FROM (
     SELECT
         rtu.report_period_id,

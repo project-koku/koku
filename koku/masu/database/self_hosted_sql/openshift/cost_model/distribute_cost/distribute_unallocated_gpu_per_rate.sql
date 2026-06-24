@@ -81,7 +81,7 @@ SELECT
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
     MAX(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost),
-    {{cost_model_id}}
+    {{cost_model_id}}::uuid
 FROM gpu_rtu_cost gc
 JOIN gpu_model_map gm
     ON gm.node = gc.node AND gm.usage_start = gc.usage_start
@@ -120,7 +120,7 @@ SELECT
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
     -SUM(rtu.distributed_cost),
-    {{cost_model_id}}
+    {{cost_model_id}}::uuid
 FROM {{schema | sqlsafe}}.rates_to_usage rtu
 WHERE rtu.usage_start >= DATE({{start_date}})
     AND rtu.usage_start <= DATE({{end_date}})
