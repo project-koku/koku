@@ -101,7 +101,7 @@ INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace, node,
     cost_category_id, custom_name, metric_type, cost_model_rate_type,
-    monthly_cost_type, distributed_cost
+    monthly_cost_type, distributed_cost, cost_model_id
 )
 SELECT
     uuid_generate_v4(),
@@ -132,7 +132,8 @@ SELECT
                          THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
                          ELSE 1 END
         END
-    END
+    END,
+    {{cost_model_id}}
 FROM storage_rtu_cost sc
 JOIN denominator d
     ON d.usage_start = sc.usage_start AND d.cluster_id = sc.cluster_id
@@ -185,7 +186,8 @@ SELECT
         CASE WHEN d.usage_memory_sum <= 0 THEN 0
              ELSE (nu.ns_memory / d.usage_memory_sum) * si.infra_total
         END
-    END
+    END,
+    {{cost_model_id}}
 FROM storage_infra si
 JOIN denominator d
     ON d.usage_start = si.usage_start AND d.cluster_id = si.cluster_id
@@ -212,7 +214,7 @@ INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace, node,
     custom_name, metric_type, cost_model_rate_type,
-    monthly_cost_type, distributed_cost
+    monthly_cost_type, distributed_cost, cost_model_id
 )
 SELECT
     uuid_generate_v4(),
@@ -227,7 +229,8 @@ SELECT
     '', '',
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    -(src.cost_model_total + COALESCE(infra.infra_total, 0))
+    -(src.cost_model_total + COALESCE(infra.infra_total, 0)),
+    {{cost_model_id}}
 FROM (
     SELECT
         MAX(rtu.report_period_id) AS report_period_id,
@@ -292,7 +295,8 @@ SELECT
     -SUM(
         COALESCE(lids.infrastructure_raw_cost, 0) +
         COALESCE(lids.infrastructure_markup_cost, 0)
-    ) * {{infra_to_cm_rate}}
+    ) * {{infra_to_cm_rate}},
+    {{cost_model_id}}
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
 WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date

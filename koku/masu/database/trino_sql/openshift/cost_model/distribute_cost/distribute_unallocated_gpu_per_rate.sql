@@ -6,7 +6,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace, node,
     custom_name, metric_type, cost_model_rate_type,
-    monthly_cost_type, distributed_cost
+    monthly_cost_type, distributed_cost, cost_model_id
 )
 WITH gpu_rtu_cost AS (
     SELECT
@@ -80,7 +80,8 @@ SELECT
     gc.metric_type,
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    MAX(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost)
+    MAX(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost),
+    {{cost_model_id}}
 FROM gpu_rtu_cost gc
 JOIN gpu_model_map gm
     ON gm.node = gc.node AND gm.usage_start = gc.usage_start
@@ -103,7 +104,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace, node,
     custom_name, metric_type, cost_model_rate_type,
-    monthly_cost_type, distributed_cost
+    monthly_cost_type, distributed_cost, cost_model_id
 )
 SELECT
     uuid(),
@@ -118,7 +119,8 @@ SELECT
     '', '',
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    -SUM(rtu.distributed_cost)
+    -SUM(rtu.distributed_cost),
+    {{cost_model_id}}
 FROM postgres.{{schema | sqlsafe}}.rates_to_usage rtu
 WHERE rtu.usage_start >= DATE({{start_date}})
     AND rtu.usage_start <= DATE({{end_date}})

@@ -100,7 +100,7 @@ INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace, node,
     cost_category_id, custom_name, metric_type, cost_model_rate_type,
-    monthly_cost_type, distributed_cost
+    monthly_cost_type, distributed_cost, cost_model_id
 )
 SELECT
     uuid_generate_v4(),
@@ -131,7 +131,8 @@ SELECT
                          THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
                          ELSE 1 END
         END
-    END
+    END,
+    {{cost_model_id}}
 FROM worker_rtu_cost wc
 JOIN denominator d
     ON d.usage_start = wc.usage_start AND d.cluster_id = wc.cluster_id
@@ -165,7 +166,7 @@ INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace, node,
     custom_name, metric_type, cost_model_rate_type,
-    monthly_cost_type, distributed_cost
+    monthly_cost_type, distributed_cost, cost_model_id
 )
 SELECT
     uuid_generate_v4(),
@@ -180,7 +181,8 @@ SELECT
     '', '',
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    -(src.cost_model_total + COALESCE(infra.infra_total, 0))
+    -(src.cost_model_total + COALESCE(infra.infra_total, 0)),
+    {{cost_model_id}}
 FROM (
     SELECT
         MAX(rtu.report_period_id) AS report_period_id,

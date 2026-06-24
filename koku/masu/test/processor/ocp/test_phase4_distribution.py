@@ -70,14 +70,14 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
 
     def _seed_and_distribute(self):
         """Ensure RTU usage rows exist and run per-rate distribution."""
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
-        if not updater._cost_model_id:
+        self._updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not self._updater._cost_model_id:
             self.skipTest("No cost model for OCP provider")
-        updater._load_rates(self.start_date)
-        if not (updater._infra_rates or updater._supplementary_rates):
+        self._updater._load_rates(self.start_date)
+        if not (self._updater._infra_rates or self._updater._supplementary_rates):
             self.skipTest("No rates loaded for OCP provider")
 
-        updater._update_usage_rates_to_usage(self.start_date, self.end_date)
+        self._updater._update_usage_rates_to_usage(self.start_date, self.end_date)
 
         with schema_context(self.schema):
             usage_count = RatesToUsage.objects.filter(
@@ -96,7 +96,12 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         }
         summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
         with OCPReportDBAccessor(self.schema) as accessor:
-            accessor.populate_distributed_cost_sql(summary_range, self.provider_uuid, distribution_info)
+            accessor.populate_distributed_cost_sql(
+                summary_range,
+                self.provider_uuid,
+                distribution_info,
+                cost_model_id=self._updater._cost_model_id,
+            )
 
     def _distributed_qs(self, distribution_type=None):
         """QuerySet for distributed RTU rows in the test window."""
@@ -337,7 +342,12 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         }
         summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
         with OCPReportDBAccessor(self.schema) as accessor:
-            accessor.populate_distributed_cost_sql(summary_range, self.provider_uuid, distribution_info)
+            accessor.populate_distributed_cost_sql(
+                summary_range,
+                self.provider_uuid,
+                distribution_info,
+                cost_model_id=self._updater._cost_model_id,
+            )
 
         with schema_context(self.schema):
             post_count = self._distributed_qs(dist_type).count()
@@ -430,7 +440,12 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         }
         summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
         with OCPReportDBAccessor(self.schema) as accessor:
-            accessor.populate_distributed_cost_sql(summary_range, self.provider_uuid, distribution_info)
+            accessor.populate_distributed_cost_sql(
+                summary_range,
+                self.provider_uuid,
+                distribution_info,
+                cost_model_id=self._updater._cost_model_id,
+            )
 
         with schema_context(self.schema):
             new_sum = self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
@@ -443,3 +458,20 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
             places=10,
             msg="Re-run should produce same total distributed cost",
         )
+
+    # ------------------------------------------------------------------
+    # Assertion 11: Distribution rows carry cost_model_id
+    # ------------------------------------------------------------------
+    def test_distribution_rows_have_cost_model_id(self):
+        """Distribution RTU rows must have cost_model_id set (not NULL)."""
+        with schema_context(self.schema):
+            dist_rows = self._distributed_qs()
+            if not dist_rows.exists():
+                self.skipTest("No distributed rows in test data")
+            null_cm_rows = dist_rows.filter(cost_model__isnull=True)
+            null_types = list(null_cm_rows.values_list("monthly_cost_type", flat=True).distinct())
+            self.assertEqual(
+                null_cm_rows.count(),
+                0,
+                f"Distribution rows with NULL cost_model_id found for types: {null_types}",
+            )

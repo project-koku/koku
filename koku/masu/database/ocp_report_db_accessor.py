@@ -666,6 +666,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         distribution_info: dict,
         infra_to_cm_rate: Decimal = Decimal(1),
         cost_model_currency: str = "USD",
+        cost_model_id=None,
     ) -> SummaryRangeConfig:
         """
         Populate the distribution cost model options.
@@ -716,6 +717,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 "schema": self.schema,
                 "source_uuid": provider_uuid,
                 "cost_model_rate_type": config.cost_model_rate_type,
+                "cost_model_id": cost_model_id,
             }
             # Handle distributions that require full month data
             if config.requires_full_month:

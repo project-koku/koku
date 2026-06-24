@@ -887,6 +887,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     self._distribution_info,
                     infra_to_cm_rate=infra_to_cm_rate,
                     cost_model_currency=cost_model_currency,
+                    cost_model_id=self._cost_model_id,
                 )
             distribution_raw_currency = cost_model_currency if has_infra_currency else None
             self._aggregate_rates_to_daily_summary(
