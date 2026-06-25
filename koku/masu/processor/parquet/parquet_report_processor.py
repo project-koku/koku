@@ -34,6 +34,7 @@ from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
 from masu.util.gcp.gcp_post_processor import GCPPostProcessor
+from masu.util.ocp.common import deduplicate_s3_objects_by_metadata
 from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
 from reporting.ingress.models import IngressReports
@@ -422,6 +423,9 @@ class ParquetReportProcessor:
                     )
                 )
                 raise ParquetReportProcessorError(msg)
+
+            if self.provider_type == Provider.PROVIDER_OCP:
+                self._deduplicate_after_write(Path(csv_filename))
         return True
 
     def create_parquet_table(self, column_names, daily=False):
@@ -747,6 +751,37 @@ class ParquetReportProcessor:
                 raise ReportsAlreadyProcessed
 
         delete_s3_objects(self.tracing_id, to_delete, self.error_context)
+
+    def _deduplicate_after_write(self, filename):
+        """Post-write dedup: detect and remove duplicate parquet files from concurrent payloads.
+
+        After writing parquet files to S3, re-scan all three parquet paths for files
+        matching the same day (reportdatestart) and remove files from the superseded
+        manifest. Both concurrent workers converge deterministically on the same winner.
+        """
+        file_meta = self.ocp_files_to_process.get(filename.stem, {})
+        reportnumhours = file_meta.get("meta_reportnumhours")
+        reportdatestart = file_meta.get("meta_reportdatestart")
+        if reportnumhours is None or reportdatestart is None:
+            return
+
+        s3_paths = [
+            self.parquet_path_s3,
+            self.parquet_daily_path_s3,
+            self.parquet_ocp_on_cloud_path_s3,
+        ]
+
+        keys_to_delete = deduplicate_s3_objects_by_metadata(
+            request_id=self.tracing_id,
+            s3_paths=s3_paths,
+            current_manifest_id=str(self.manifest_id),
+            current_reportnumhours=reportnumhours,
+            reportdatestart=reportdatestart,
+            context=self.error_context,
+        )
+
+        if keys_to_delete:
+            delete_s3_objects(self.tracing_id, keys_to_delete, self.error_context)
 
     def handle_daily_frames_postgres(self, daily_frames, metadata):
         """Handle daily frames in postgres (on-prem only).
