@@ -97,6 +97,8 @@ SELECT
                 THEN CAST(gpu.mig_slice_count AS decimal(24,9)) / CAST(gpu.gpu_max_slices AS decimal(24,9))
                 ELSE 1.0
             END
+        {%- else %}
+        ELSE 0
         {%- endif %}
     END AS calculated_cost,
     {%- elif default_rate is defined %}
@@ -120,14 +122,6 @@ WHERE gpu.usage_start >= DATE({{start_date}})
   AND gpu.year = {{year}}
   AND gpu.month = {{month}}
   AND gpu.gpu_vendor_name = '{{tag_key | sqlsafe}}'
-  {%- if value_rates is defined %}
-  AND (
-      {%- for value, value_rate in value_rates.items() %}
-      {%- if not loop.first %} OR {%- endif %}
-      gpu.gpu_model_name = '{{value | sqlsafe}}'
-      {%- endfor %}
-  )
-  {%- endif %}
 RETURNING 1;
 
 INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
@@ -196,14 +190,6 @@ WITH cte_unutilized_uptime_hours AS (
             AND gpu.usage_start >= DATE({{start_date}})
             AND gpu.usage_start <= DATE({{end_date}})
             AND gpu.gpu_vendor_name = '{{tag_key | sqlsafe}}'
-            {%- if value_rates is defined %}
-            AND (
-                {%- for value, value_rate in value_rates.items() %}
-                {%- if not loop.first %} OR {%- endif %}
-                gpu.gpu_model_name = '{{value | sqlsafe}}'
-                {%- endfor %}
-            )
-            {%- endif %}
         GROUP BY gpu.node, gpu.gpu_model_name, gpu.usage_start
     ) AS gpu
         ON gpu.node = node_ut.node
@@ -258,6 +244,8 @@ SELECT
         {%- endfor %}
         {%- if default_rate is defined %}
         ELSE (CAST({{default_rate}} AS decimal(24,9)) / CAST({{amortized_denominator}} * 24 * hrs.max_slices_per_gpu AS decimal(24,9))) * hrs.unutilized_uptime
+        {%- else %}
+        ELSE 0
         {%- endif %}
     END AS calculated_cost,
     {%- elif default_rate is defined %}

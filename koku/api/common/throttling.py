@@ -122,8 +122,10 @@ class OcpTagQueryThrottle(BaseTagQueryThrottle):
         return bool(keys)
 
     def _is_heavy_query(self, query_params):
-        """OCP: heavy when start_date/end_date range >= DAYS_RANGE_LIMIT."""
-        return self._get_date_range_days(query_params) >= self.DAYS_RANGE_LIMIT
+        """OCP: heavy when start_date/end_date range >= DAYS_RANGE_LIMIT or dates are inverted."""
+        days = self._get_date_range_days(query_params)
+        # Inverted dates (end_date < start_date) are malformed requests; treat as heavy.
+        return days < 0 or days >= self.DAYS_RANGE_LIMIT
 
     @staticmethod
     def _get_date_range_days(query_params):
