@@ -45,14 +45,14 @@ CURRENCIES = [
     {
         "code": "CZK",
         "name": "Czech Koruna",
-        "symbol": "CZK",
-        "description": "CZK (CZK) - Czech Koruna",
+        "symbol": "Kč",
+        "description": "CZK (Kč) - Czech Koruna",
     },
     {
         "code": "DKK",
         "name": "Danish Krone",
-        "symbol": "DKK",
-        "description": "DKK (DKK) - Danish Krone",
+        "symbol": "kr",
+        "description": "DKK (kr) - Danish Krone",
     },
     {
         "code": "EUR",
@@ -69,8 +69,8 @@ CURRENCIES = [
     {
         "code": "GHS",
         "name": "Ghanaian Cedi",
-        "symbol": "\u20b5",
-        "description": "GHS (\u20b5) - Ghanaian Cedi",
+        "symbol": "GH\u20b5",
+        "description": "GHS (GH\u20b5) - Ghanaian Cedi",
     },
     {
         "code": "HKD",
@@ -99,8 +99,8 @@ CURRENCIES = [
     {
         "code": "NOK",
         "name": "Norwegian Krone",
-        "symbol": "NOK",
-        "description": "NOK (NOK) - Norwegian Krone",
+        "symbol": "kr",
+        "description": "NOK (kr) - Norwegian Krone",
     },
     {
         "code": "NZD",
@@ -117,8 +117,8 @@ CURRENCIES = [
     {
         "code": "SEK",
         "name": "Swedish Krona",
-        "symbol": "SEK",
-        "description": "SEK (SEK) - Swedish Krona",
+        "symbol": "kr",
+        "description": "SEK (kr) - Swedish Krona",
     },
     {
         "code": "SGD",
