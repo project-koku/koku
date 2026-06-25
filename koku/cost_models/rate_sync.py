@@ -151,21 +151,23 @@ def _classify_incoming_rates(rates_data, existing_by_uuid, existing_by_name, all
             try:
                 rate_uuid = uuid.UUID(str(rate_id))
             except (ValueError, AttributeError):
-                raise ValueError(f"Invalid rate_id: {rate_id}")
-            if rate_uuid not in existing_by_uuid:
-                raise ValueError(f"Invalid rate_id: {rate_id}")
-            rate_obj = existing_by_uuid[rate_uuid]
-            incoming_ids.add(rate_uuid)
+                raise ValueError(f"Invalid rate_id format: {rate_id}")
+            if rate_uuid in existing_by_uuid:
+                rate_obj = existing_by_uuid[rate_uuid]
+                incoming_ids.add(rate_uuid)
+                to_update.append((rate_obj, rate_data))
+                used_names.add(rate_obj.custom_name)
+                continue
+            LOG.warning("rate_id %s not found; falling back to custom_name matching", rate_id)
+
+        custom_name = _resolve_custom_name(rate_data, used_names)
+        used_names.add(custom_name)
+        if custom_name in existing_by_name:
+            rate_obj = existing_by_name[custom_name]
+            incoming_ids.add(rate_obj.uuid)
             to_update.append((rate_obj, rate_data))
         else:
-            custom_name = _resolve_custom_name(rate_data, used_names)
-            used_names.add(custom_name)
-            if custom_name in existing_by_name:
-                rate_obj = existing_by_name[custom_name]
-                incoming_ids.add(rate_obj.uuid)
-                to_update.append((rate_obj, rate_data))
-            else:
-                to_create_data.append(rate_data)
+            to_create_data.append(rate_data)
 
     return incoming_ids, to_update, to_create_data
 
