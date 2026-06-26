@@ -9,6 +9,8 @@ from django.views.decorators.cache import cache_page
 from rest_framework.routers import DefaultRouter
 
 from api.common.deprecate_view import SunsetView
+from api.settings.currency_views import CurrencySettingsView
+from api.settings.currency_views import EnabledCurrencyView
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
@@ -422,6 +424,16 @@ urlpatterns = [
         "settings/aws_category_keys/disable/",
         SettingsDisableAWSCategoryKeyView.as_view(),
         name="settings-aws-category-keys-disable",
+    ),
+    path(
+        "settings/currency/",
+        CurrencySettingsView.as_view(),
+        name="currency-list",
+    ),
+    path(
+        "settings/currency/enabled/<str:code>/",
+        EnabledCurrencyView.as_view(),
+        name="currency-enabled-detail",
     ),
     path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),

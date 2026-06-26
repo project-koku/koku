@@ -16,7 +16,7 @@ from requests.exceptions import RetryError
 from urllib3.util.retry import Retry
 
 from api.common import log_json
-from api.currency.currencies import VALID_CURRENCIES
+from api.currency.currencies import is_valid_iso_currency
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
 from api.iam.models import Tenant
@@ -302,7 +302,7 @@ def get_daily_currency_rates():
     rates = data["rates"]
     # Update conversion rates in database
     for curr_type in rates.keys():
-        if curr_type.upper() in VALID_CURRENCIES:
+        if is_valid_iso_currency(curr_type):
             value = rates[curr_type]
             try:
                 exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
