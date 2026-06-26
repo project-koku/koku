@@ -6,7 +6,6 @@
 from unittest import TestCase
 from uuid import uuid4
 
-from api.iam.test.iam_test_case import IamTestCase
 from cost_models.serializers import RateSerializer
 
 
