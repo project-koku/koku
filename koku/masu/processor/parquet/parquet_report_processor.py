@@ -759,6 +759,8 @@ class ParquetReportProcessor:
         matching the same day (reportdatestart) and remove files from the superseded
         manifest. Both concurrent workers converge deterministically on the same winner.
         """
+        if not self.ocp_files_to_process:
+            return
         file_meta = self.ocp_files_to_process.get(filename.stem, {})
         reportnumhours = file_meta.get("meta_reportnumhours")
         reportdatestart = file_meta.get("meta_reportdatestart")
