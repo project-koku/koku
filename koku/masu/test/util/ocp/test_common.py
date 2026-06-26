@@ -503,7 +503,8 @@ class TestDeduplicateS3ObjectsByMetadata(MasuTestCase):
                 "label": "single manifest, no duplicates",
                 "s3_objects": [
                     self._make_s3_obj_summary(
-                        "file1.parquet", {"manifestid": "100", "reportnumhours": "24", "reportdatestart": day}
+                        f"pod_usage.{day}.100.0_0.parquet",
+                        {"manifestid": "100", "reportnumhours": "24", "reportdatestart": day},
                     ),
                 ],
                 "current_id": "100",
@@ -514,24 +515,27 @@ class TestDeduplicateS3ObjectsByMetadata(MasuTestCase):
                 "label": "current wins with more hours",
                 "s3_objects": [
                     self._make_s3_obj_summary(
-                        "ours.parquet", {"manifestid": "200", "reportnumhours": "24", "reportdatestart": day}
+                        f"pod_usage.{day}.200.0_0.parquet",
+                        {"manifestid": "200", "reportnumhours": "24", "reportdatestart": day},
                     ),
                     self._make_s3_obj_summary(
-                        "theirs.parquet", {"manifestid": "100", "reportnumhours": "18", "reportdatestart": day}
+                        f"pod_usage.{day}.100.0_0.parquet",
+                        {"manifestid": "100", "reportnumhours": "18", "reportdatestart": day},
                     ),
                 ],
                 "current_id": "200",
                 "current_hours": "24",
-                "expected": ["theirs.parquet"],
+                "expected": [f"pod_usage.{day}.100.0_0.parquet"],
             },
             {
-                "label": "different day filtered out, no conflict",
+                "label": "different day filtered out by key pre-check, no conflict",
                 "s3_objects": [
                     self._make_s3_obj_summary(
-                        "ours.parquet", {"manifestid": "200", "reportnumhours": "24", "reportdatestart": day}
+                        f"pod_usage.{day}.200.0_0.parquet",
+                        {"manifestid": "200", "reportnumhours": "24", "reportdatestart": day},
                     ),
                     self._make_s3_obj_summary(
-                        "other_day.parquet",
+                        "pod_usage.2026-01-16.100.0_0.parquet",
                         {"manifestid": "100", "reportnumhours": "18", "reportdatestart": "2026-01-16"},
                     ),
                 ],
@@ -543,9 +547,13 @@ class TestDeduplicateS3ObjectsByMetadata(MasuTestCase):
                 "label": "missing manifestid ignored, no conflict",
                 "s3_objects": [
                     self._make_s3_obj_summary(
-                        "valid.parquet", {"manifestid": "200", "reportnumhours": "24", "reportdatestart": day}
+                        f"pod_usage.{day}.200.0_0.parquet",
+                        {"manifestid": "200", "reportnumhours": "24", "reportdatestart": day},
                     ),
-                    self._make_s3_obj_summary("orphan.parquet", {"reportnumhours": "18", "reportdatestart": day}),
+                    self._make_s3_obj_summary(
+                        f"pod_usage.{day}.orphan.0_0.parquet",
+                        {"reportnumhours": "18", "reportdatestart": day},
+                    ),
                 ],
                 "current_id": "200",
                 "current_hours": "24",
@@ -571,17 +579,20 @@ class TestDeduplicateS3ObjectsByMetadata(MasuTestCase):
         mock_get.side_effect = [
             [
                 self._make_s3_obj_summary(
-                    "hourly/ours.parquet", {"manifestid": "200", "reportnumhours": "24", "reportdatestart": day}
+                    f"hourly/pod_usage.{day}.200.0_0.parquet",
+                    {"manifestid": "200", "reportnumhours": "24", "reportdatestart": day},
                 )
             ],
             [
                 self._make_s3_obj_summary(
-                    "daily/theirs.parquet", {"manifestid": "100", "reportnumhours": "18", "reportdatestart": day}
+                    f"daily/pod_usage.{day}.100.0_daily_0.parquet",
+                    {"manifestid": "100", "reportnumhours": "18", "reportdatestart": day},
                 )
             ],
             [
                 self._make_s3_obj_summary(
-                    "cloud/theirs2.parquet", {"manifestid": "100", "reportnumhours": "18", "reportdatestart": day}
+                    f"cloud/openshift.{day}.100.0_daily_0.parquet",
+                    {"manifestid": "100", "reportnumhours": "18", "reportdatestart": day},
                 )
             ],
         ]
@@ -592,7 +603,10 @@ class TestDeduplicateS3ObjectsByMetadata(MasuTestCase):
             current_reportnumhours="24",
             reportdatestart=day,
         )
-        self.assertCountEqual(result, ["daily/theirs.parquet", "cloud/theirs2.parquet"])
+        self.assertCountEqual(
+            result,
+            [f"daily/pod_usage.{day}.100.0_daily_0.parquet", f"cloud/openshift.{day}.100.0_daily_0.parquet"],
+        )
 
     def test_dedup_early_returns(self):
         """Test cases that return early without scanning S3."""

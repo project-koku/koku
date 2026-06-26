@@ -22,6 +22,12 @@ class TestParquetPostWriteDedup(MasuTestCase):
 
     def setUp(self):
         super().setUp()
+        self.detect_patcher = patch(
+            "masu.processor.parquet.parquet_report_processor.ocp_detect_type",
+            return_value=("pod_usage", None),
+        )
+        self.detect_patcher.start()
+        self.addCleanup(self.detect_patcher.stop)
         self.manifest_id = CostUsageReportManifest.objects.filter(cluster_id__isnull=False).first().id
         self.report_name = Path("koku-1.csv.gz")
         self.report_path = f"/my/assembly/{self.report_name}"
@@ -116,6 +122,12 @@ class TestConvertToParquetDedupHook(MasuTestCase):
 
     def setUp(self):
         super().setUp()
+        self.detect_patcher = patch(
+            "masu.processor.parquet.parquet_report_processor.ocp_detect_type",
+            return_value=("pod_usage", None),
+        )
+        self.detect_patcher.start()
+        self.addCleanup(self.detect_patcher.stop)
         self.manifest_id = CostUsageReportManifest.objects.filter(cluster_id__isnull=False).first().id
         self.report_name = Path("koku-1.csv.gz")
         self.report_path = f"/my/assembly/{self.report_name}"

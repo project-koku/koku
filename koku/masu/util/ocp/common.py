@@ -777,7 +777,7 @@ def select_manifests_to_delete(
     Returns:
         S3 keys of the superseded files to delete. Empty list if no duplicates exist.
     """
-    if len(manifest_groups) <= 1:
+    if len(manifest_groups) <= 1 or current_manifest_id not in manifest_groups:
         return []
 
     # Two-pass approach: first check if we lose to any manifest,
@@ -788,9 +788,14 @@ def select_manifests_to_delete(
         other_hours = safe_str_int_conversion(objects[0]["reportnumhours"])
         if other_hours is None:
             continue
-        if other_hours > current_reportnumhours or (
-            other_hours == current_reportnumhours and other_manifest_id > current_manifest_id
-        ):
+        other_id_int = safe_str_int_conversion(other_manifest_id)
+        current_id_int = safe_str_int_conversion(current_manifest_id)
+        is_other_id_greater = (
+            other_id_int > current_id_int
+            if other_id_int is not None and current_id_int is not None
+            else other_manifest_id > current_manifest_id
+        )
+        if other_hours > current_reportnumhours or (other_hours == current_reportnumhours and is_other_id_greater):
             # We are superseded — delete only our own files
             our_objects = manifest_groups.get(current_manifest_id, [])
             return [obj["key"] for obj in our_objects]
@@ -824,6 +829,8 @@ def _collect_s3_objects_for_day(
             continue
         try:
             for obj_summary in _get_s3_objects(s3_path):
+                if reportdatestart not in obj_summary.key:
+                    continue
                 existing_object = obj_summary.Object()
                 obj_date = existing_object.metadata.get("reportdatestart")
                 if obj_date != reportdatestart:
