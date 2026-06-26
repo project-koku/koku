@@ -38,6 +38,7 @@ METASTORE_BUCKET="${S3_METASTORE_BUCKET:-metastore}"
 # Map common compose service names to localhost (port must match compose publish).
 normalize_host_endpoint() {
     local endpoint=$1
+    endpoint="${endpoint/koku-s4-proxy/localhost}"
     endpoint="${endpoint/koku-s4/localhost}"
     endpoint="${endpoint/koku-minio/localhost}"
     endpoint="${endpoint/http:\/\/s4/http:\/\/localhost}"

@@ -79,6 +79,7 @@ export S3_BUCKET_NAME="${S3_BUCKET_NAME_OCP_INGRESS-ocp-ingress}"
 
 # nise runs on the host; map in-container S4 endpoint to the host-published port.
 MINIO_UPLOAD="${S3_ENDPOINT-http://localhost:9000}"
+MINIO_UPLOAD="${MINIO_UPLOAD/koku-s4-proxy/localhost}"
 MINIO_UPLOAD="${MINIO_UPLOAD/koku-s4/localhost}"
 MINIO_UPLOAD="${MINIO_UPLOAD/koku-minio/localhost}"
 MINIO_UPLOAD="${MINIO_UPLOAD/http:\/\/s4:/http:\/\/localhost:}"

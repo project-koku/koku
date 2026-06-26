@@ -14,7 +14,7 @@ from urllib.parse import urlencode
 from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
-import urllib3
+from aiohttp import ClientSession
 from aiohttp import web
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
@@ -26,7 +26,6 @@ from s4_path_proxy.mapper import load_path_maps
 from s4_path_proxy.mapper import PathMaps
 
 LOG = logging.getLogger(__name__)
-HTTP = urllib3.PoolManager()
 
 S3_NS = "http://s3.amazonaws.com/doc/2006-03-01/"
 COPY_SOURCE_RE = re.compile(r"^/?([^/]+)/(.+)$")
@@ -57,6 +56,34 @@ RESPONSE_STRIP = {
 
 def _register_namespace() -> None:
     ET.register_namespace("", S3_NS)
+
+
+_register_namespace()
+
+
+def _set_header(headers: dict[str, str], name: str, value: str) -> None:
+    for key in list(headers):
+        if key.lower() == name.lower():
+            del headers[key]
+    headers[name] = value
+
+
+def _remove_header(headers: dict[str, str], name: str) -> None:
+    for key in list(headers):
+        if key.lower() == name.lower():
+            del headers[key]
+
+
+def _is_bulk_delete_request(method: str, query: str) -> bool:
+    if method != "POST":
+        return False
+    if query == "delete" or query.startswith("delete="):
+        return True
+    return any(key == "delete" for key, _ in parse_qsl(query, keep_blank_values=True))
+
+
+def _is_list_objects_request(method: str, bucket: str | None, key: str) -> bool:
+    return method == "GET" and bucket is not None and not key
 
 
 def _local_name(tag: str) -> str:
@@ -180,7 +207,6 @@ class S3PathProxy:
         self.backend_url = backend_url.rstrip("/")
         self.credentials = Credentials(access_key, secret_key)
         self.region = region
-        _register_namespace()
 
     def _backend_target_url(
         self,
@@ -233,12 +259,15 @@ class S3PathProxy:
                 len(outbound_body),
             )
 
-        if request.headers.get("x-amz-copy-source"):
-            outbound_headers["x-amz-copy-source"] = _encode_copy_source(
-                request.headers["x-amz-copy-source"], self.maps
+        copy_source = request.headers.get("x-amz-copy-source")
+        if copy_source:
+            _set_header(
+                outbound_headers,
+                "x-amz-copy-source",
+                _encode_copy_source(copy_source, self.maps),
             )
 
-        if request.method == "POST" and "delete" in parse_qsl(query):
+        if _is_bulk_delete_request(request.method, query):
             outbound_body = _rewrite_delete_body(body, self.maps, encode=True)
 
         backend_url = self._backend_target_url(bucket, key, query, encode=True)
@@ -251,15 +280,14 @@ class S3PathProxy:
             backend_url,
         )
 
-        backend_response = HTTP.request(
+        session: ClientSession = request.app["http_session"]
+        async with session.request(
             request.method,
             backend_url,
-            body=outbound_body if outbound_body else None,
+            data=outbound_body if outbound_body else None,
             headers=signed_headers,
-            preload_content=False,
-        )
-        try:
-            response_body = backend_response.read()
+        ) as backend_response:
+            response_body = await backend_response.read()
             response_headers = {k: v for k, v in backend_response.headers.items() if k.lower() not in RESPONSE_STRIP}
 
             if backend_response.status >= 400:
@@ -271,12 +299,16 @@ class S3PathProxy:
                     response_body[:500],
                 )
 
-            if request.method == "GET" and "list-type=2" in query and backend_response.status == 200:
+            if _is_list_objects_request(request.method, bucket, key) and backend_response.status == 200:
                 response_body = _rewrite_list_xml(response_body, self.maps)
+                _remove_header(response_headers, "content-length")
 
-            if backend_response.headers.get("x-amz-copy-source"):
-                response_headers["x-amz-copy-source"] = _decode_copy_source(
-                    backend_response.headers["x-amz-copy-source"], self.maps
+            copy_source_resp = backend_response.headers.get("x-amz-copy-source")
+            if copy_source_resp:
+                _set_header(
+                    response_headers,
+                    "x-amz-copy-source",
+                    _decode_copy_source(copy_source_resp, self.maps),
                 )
 
             return web.Response(
@@ -284,8 +316,6 @@ class S3PathProxy:
                 status=backend_response.status,
                 headers=response_headers,
             )
-        finally:
-            backend_response.release_conn()
 
 
 def create_app(
@@ -304,6 +334,15 @@ def create_app(
 
     proxy = S3PathProxy(maps, backend_url, access_key, secret_key, region)
     app = web.Application(client_max_size=1024**3)
+
+    async def on_startup(_app: web.Application) -> None:
+        _app["http_session"] = ClientSession()
+
+    async def on_cleanup(_app: web.Application) -> None:
+        await _app["http_session"].close()
+
+    app.on_startup.append(on_startup)
+    app.on_cleanup.append(on_cleanup)
 
     async def health(_request: web.Request) -> web.Response:
         return web.Response(text="ok")
