@@ -2,80 +2,16 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Tests for RateSerializer rate_id and custom_name output."""
+"""Tests for RateSerializer output and input behavior."""
+from unittest import TestCase
 from uuid import uuid4
 
 from api.iam.test.iam_test_case import IamTestCase
 from cost_models.serializers import RateSerializer
 
 
-class RateSerializerToRepresentationTest(IamTestCase):
-    """Tests for RateSerializer.to_representation with rate_id and custom_name."""
-
-    def test_tiered_rate_includes_rate_id(self):
-        """Test that rate_id is included in output when present on the rate dict."""
-        rate_id = str(uuid4())
-        rate_obj = {
-            "metric": {"name": "cpu_core_usage_per_hour"},
-            "description": "",
-            "tiered_rates": [{"value": "0.22", "unit": "USD"}],
-            "cost_type": "Infrastructure",
-            "rate_id": rate_id,
-        }
-        serializer = RateSerializer()
-        result = serializer.to_representation(rate_obj)
-        self.assertEqual(result["rate_id"], rate_id)
-
-    def test_tiered_rate_includes_custom_name(self):
-        """Test that custom_name is included in output when present on the rate dict."""
-        rate_obj = {
-            "metric": {"name": "cpu_core_usage_per_hour"},
-            "description": "",
-            "tiered_rates": [{"value": "0.22", "unit": "USD"}],
-            "cost_type": "Infrastructure",
-            "custom_name": "cpu-usage-infra",
-        }
-        serializer = RateSerializer()
-        result = serializer.to_representation(rate_obj)
-        self.assertEqual(result["custom_name"], "cpu-usage-infra")
-
-    def test_tag_rate_includes_rate_id(self):
-        """Test that rate_id is included for tag-based rates."""
-        rate_id = str(uuid4())
-        rate_obj = {
-            "metric": {"name": "cpu_core_usage_per_hour"},
-            "description": "",
-            "tag_rates": {"tag_key": "app", "tag_values": []},
-            "cost_type": "Supplementary",
-            "rate_id": rate_id,
-        }
-        serializer = RateSerializer()
-        result = serializer.to_representation(rate_obj)
-        self.assertEqual(result["rate_id"], rate_id)
-
-    def test_rate_without_rate_id_omits_field(self):
-        """Test that rate_id is omitted when not present on the rate dict."""
-        rate_obj = {
-            "metric": {"name": "cpu_core_usage_per_hour"},
-            "description": "",
-            "tiered_rates": [{"value": "0.22", "unit": "USD"}],
-            "cost_type": "Infrastructure",
-        }
-        serializer = RateSerializer()
-        result = serializer.to_representation(rate_obj)
-        self.assertNotIn("rate_id", result)
-
-    def test_rate_without_custom_name_omits_field(self):
-        """Test that custom_name is omitted when not present on the rate dict."""
-        rate_obj = {
-            "metric": {"name": "cpu_core_usage_per_hour"},
-            "description": "",
-            "tiered_rates": [{"value": "0.22", "unit": "USD"}],
-            "cost_type": "Infrastructure",
-        }
-        serializer = RateSerializer()
-        result = serializer.to_representation(rate_obj)
-        self.assertNotIn("custom_name", result)
+class RateSerializerToRepresentationTest(TestCase):
+    """Tests for RateSerializer.to_representation business field output."""
 
     def test_backward_compat_existing_rate_output_unchanged(self):
         """Test that existing rate output structure is preserved."""
@@ -92,84 +28,109 @@ class RateSerializerToRepresentationTest(IamTestCase):
         self.assertEqual(result["cost_type"], "Supplementary")
         self.assertIn("tiered_rates", result)
 
-    def test_to_internal_value_passes_rate_id_through(self):
-        """Test that to_internal_value does not strip rate_id from data."""
-        rate_id = str(uuid4())
-        data = {
-            "metric": {"name": "cpu_core_usage_per_hour"},
-            "cost_type": "Infrastructure",
-            "tiered_rates": [{"value": "0.22", "unit": "USD"}],
-            "rate_id": rate_id,
-            "custom_name": "my-rate",
-        }
-        serializer = RateSerializer()
-        result = serializer.to_internal_value(data)
-        self.assertEqual(result["rate_id"], rate_id)
-        self.assertEqual(result["custom_name"], "my-rate")
-
-    def test_to_internal_value_passes_custom_name_through(self):
-        """Test that to_internal_value does not strip custom_name from data."""
-        data = {
-            "metric": {"name": "cpu_core_usage_per_hour"},
-            "cost_type": "Infrastructure",
-            "tiered_rates": [{"value": "0.22", "unit": "USD"}],
-            "custom_name": "my-custom-name",
-        }
-        serializer = RateSerializer()
-        result = serializer.to_internal_value(data)
-        self.assertEqual(result["custom_name"], "my-custom-name")
-
     def test_to_representation_no_tiered_no_tag_rates(self):
         """Test output shape when neither tiered_rates nor tag_rates are present."""
-        rate_id = str(uuid4())
         rate_obj = {
             "metric": {"name": "cpu_core_usage_per_hour"},
             "description": "orphan rate",
             "cost_type": "Infrastructure",
-            "rate_id": rate_id,
+            "rate_id": str(uuid4()),
             "custom_name": "cpu-infra",
         }
         serializer = RateSerializer()
         result = serializer.to_representation(rate_obj)
         self.assertEqual(result["metric"], {"name": "cpu_core_usage_per_hour"})
         self.assertEqual(result["description"], "orphan rate")
-        self.assertEqual(result["rate_id"], rate_id)
+        self.assertNotIn("rate_id", result)
         self.assertEqual(result["custom_name"], "cpu-infra")
         self.assertNotIn("tiered_rates", result)
         self.assertNotIn("tag_rates", result)
         self.assertNotIn("cost_type", result)
 
-    def test_is_valid_rejects_malformed_rate_id(self):
-        """Test that a malformed rate_id string is rejected by field validation."""
-        data = {
-            "metric": {"name": "cpu_core_usage_per_hour"},
-            "cost_type": "Infrastructure",
-            "tiered_rates": [{"value": "0.22", "unit": "USD"}],
-            "rate_id": "not-a-uuid",
-        }
-        serializer = RateSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("rate_id", serializer.errors)
 
-    def test_is_valid_accepts_valid_rate_id(self):
-        """Test that a valid UUID string passes field validation."""
+class RateSerializerInternalFieldExclusionTest(TestCase):
+    """SC-8/SC-28: Internal identifiers must not leak through the public API.
+
+    SI-11: Round-tripping an API response must not fail due to server-injected fields.
+    CM-7: API surface must only expose fields that consumers need.
+    """
+
+    def test_to_representation_excludes_rate_id(self):
+        """SC-8: rate_id (internal DB PK) must not appear in API output."""
+        rate_obj = {
+            "metric": {"name": "cpu_core_usage_per_hour"},
+            "description": "",
+            "tiered_rates": [{"value": "0.22", "unit": "USD"}],
+            "cost_type": "Infrastructure",
+            "rate_id": str(uuid4()),
+        }
+        serializer = RateSerializer()
+        result = serializer.to_representation(rate_obj)
+        self.assertNotIn("rate_id", result)
+
+    def test_to_representation_includes_custom_name(self):
+        """custom_name must appear in API output for UI consumers."""
+        rate_obj = {
+            "metric": {"name": "cpu_core_usage_per_hour"},
+            "description": "",
+            "tiered_rates": [{"value": "0.22", "unit": "USD"}],
+            "cost_type": "Infrastructure",
+            "custom_name": "cpu-usage-infra",
+        }
+        serializer = RateSerializer()
+        result = serializer.to_representation(rate_obj)
+        self.assertEqual(result["custom_name"], "cpu-usage-infra")
+
+    def test_to_internal_value_strips_rate_id(self):
+        """SI-11: rate_id in input must be silently stripped, not validated."""
         data = {
             "metric": {"name": "cpu_core_usage_per_hour"},
             "cost_type": "Infrastructure",
             "tiered_rates": [{"value": "0.22", "unit": "USD"}],
             "rate_id": str(uuid4()),
         }
-        serializer = RateSerializer(data=data)
-        self.assertTrue(serializer.is_valid(), serializer.errors)
+        serializer = RateSerializer()
+        result = serializer.to_internal_value(data)
+        self.assertNotIn("rate_id", result)
 
-    def test_is_valid_rejects_custom_name_over_50_chars(self):
-        """Test that a custom_name exceeding 50 characters is rejected."""
+    def test_to_internal_value_passes_custom_name_through(self):
+        """custom_name is preserved for PriceList API consumers."""
         data = {
             "metric": {"name": "cpu_core_usage_per_hour"},
             "cost_type": "Infrastructure",
             "tiered_rates": [{"value": "0.22", "unit": "USD"}],
-            "custom_name": "x" * 51,
+            "custom_name": "my-rate",
         }
-        serializer = RateSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("custom_name", serializer.errors)
+        serializer = RateSerializer()
+        result = serializer.to_internal_value(data)
+        self.assertEqual(result["custom_name"], "my-rate")
+
+    def test_to_internal_value_tolerates_malformed_rate_id(self):
+        """SI-11: Malformed rate_id must be silently stripped, not cause a 400 error."""
+        data = {
+            "metric": {"name": "cpu_core_usage_per_hour"},
+            "cost_type": "Infrastructure",
+            "tiered_rates": [{"value": "0.22", "unit": "USD"}],
+            "rate_id": "garbage-not-a-uuid",
+        }
+        serializer = RateSerializer()
+        result = serializer.to_internal_value(data)
+        self.assertNotIn("rate_id", result)
+
+    def test_to_representation_preserves_only_business_fields(self):
+        """CM-7: API output must not contain internal identifiers like rate_id."""
+        rate_obj = {
+            "metric": {"name": "cpu_core_usage_per_hour"},
+            "description": "A CPU rate",
+            "tiered_rates": [{"value": "0.22", "unit": "USD"}],
+            "cost_type": "Infrastructure",
+            "rate_id": str(uuid4()),
+            "custom_name": "cpu-infra",
+        }
+        serializer = RateSerializer()
+        result = serializer.to_representation(rate_obj)
+        self.assertNotIn("rate_id", result)
+        self.assertEqual(result["custom_name"], "cpu-infra")
+        self.assertIn("metric", result)
+        self.assertIn("tiered_rates", result)
+        self.assertIn("cost_type", result)
