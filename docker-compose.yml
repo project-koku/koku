@@ -98,7 +98,7 @@ services:
       - DISABLE_ROS_MSG=${DISABLE_ROS_MSG-True}
       - S3_BUCKET_NAME_OCP_INGRESS=${S3_BUCKET_NAME_OCP_INGRESS-ocp-ingress}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
-      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-s4:7480}
+      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-s4-proxy:7480}
       - S3_ACCESS_KEY
       - S3_SECRET
       - DJANGO_READ_DOT_ENV_FILE=True
@@ -186,7 +186,7 @@ services:
       - ENABLE_SUBS_PROVIDER_TYPES=${ENABLE_SUBS_PROVIDER_TYPES}
       - DISABLE_ROS_MSG=${DISABLE_ROS_MSG-True}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
-      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-s4:7480}
+      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-s4-proxy:7480}
       - S3_ACCESS_KEY
       - S3_SECRET
       - DATA_DIR=${DATA_DIR-/testing/data}
@@ -292,7 +292,7 @@ services:
       - INITIAL_INGEST_NUM_MONTHS=1
       - PYTHONPATH=/koku/koku
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
-      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-s4:7480}
+      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-s4-proxy:7480}
       - S3_ACCESS_KEY
       - S3_SECRET
       - TRINO_HOST=${TRINO_HOST-trino}
@@ -353,7 +353,7 @@ services:
       - ENABLE_SUBS_DEBUG=${ENABLE_SUBS_DEBUG-False}
       - ENABLE_SUBS_PROVIDER_TYPES=${ENABLE_SUBS_PROVIDER_TYPES}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
-      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-s4:7480}
+      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-s4-proxy:7480}
       - S3_ACCESS_KEY
       - S3_SECRET
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID-}
@@ -658,8 +658,9 @@ services:
   s4:
     container_name: koku-s4
     image: quay.io/rh-aiservices-bu/s4:0.3.2-2
+    # S3 API: use koku-s4-proxy on host port 9000, or direct backend on 9001.
     ports:
-      - "9000:7480"
+      - "9001:7480"
       - "5002:5000"
     volumes:
       - koku-s4-data:/var/lib/ceph/radosgw
@@ -673,10 +674,36 @@ services:
       retries: 30
       start_period: 15s
 
+  s4-path-proxy:
+    container_name: koku-s4-proxy
+    build:
+      context: ./dev/containers/s4-path-proxy
+    ports:
+      - "9000:7480"
+    environment:
+      - S4_BACKEND_URL=http://koku-s4:7480
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-s4admin}
+      - S3_SECRET=${S3_SECRET:-s4secret}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - LOG_LEVEL=${S4_PROXY_LOG_LEVEL:-INFO}
+    depends_on:
+      s4:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:7480/healthz'').read()"',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
   create-s3-buckets:
     image: amazon/aws-cli:latest
     depends_on:
-      s4:
+      s4-path-proxy:
         condition: service_healthy
     environment:
       - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY:-s4admin}
@@ -686,7 +713,7 @@ services:
       - /bin/sh
       - -ec
       - |
-        ENDPOINT=http://koku-s4:7480
+        ENDPOINT=http://koku-s4-proxy:7480
         for bucket in koku-bucket ocp-ingress metastore; do
           if aws --endpoint-url "$$ENDPOINT" s3api head-bucket --bucket "$$bucket" >/dev/null 2>&1; then
             echo "Bucket $$bucket already exists"
@@ -703,7 +730,7 @@ services:
       - 9083:8000
     environment:
       - HIVE_LOGLEVEL=INFO
-      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-s4:7480}
+      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-s4-proxy:7480}
       - S3_ACCESS_KEY=${S3_ACCESS_KEY-s4admin}
       - S3_SECRET=${S3_SECRET-s4secret}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
@@ -720,6 +747,8 @@ services:
         condition: service_started
       s4:
         condition: service_healthy
+      s4-path-proxy:
+        condition: service_healthy
 
   trino:
     container_name: trino
@@ -733,7 +762,7 @@ services:
       - LOCAL=TRUE
       - TRINO_LOG_LEVEL=${LOG_LEVEL-INFO}
       - TRINO_S3A_OR_S3=${TRINO_S3A_OR_S3-s3a}
-      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-s4:7480}
+      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-s4-proxy:7480}
       - S3_ACCESS_KEY=${S3_ACCESS_KEY:-s4admin}
       - S3_SECRET=${S3_SECRET:-s4secret}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-s4admin}

@@ -385,8 +385,8 @@ docker-up-db:
 
 .PHONY: trino-stack-up
 trino-stack-up:
-	$(DOCKER_COMPOSE) up -d s4
-	$(DOCKER_COMPOSE) up -d --wait --no-deps s4
+	$(DOCKER_COMPOSE) up -d s4 s4-path-proxy
+	$(DOCKER_COMPOSE) up -d --wait --no-deps s4 s4-path-proxy
 	$(DOCKER_COMPOSE) run --rm --no-deps create-s3-buckets
 	$(DOCKER_COMPOSE) up -d hive-metastore trino
 	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
@@ -404,7 +404,7 @@ docker-up-onprem: docker-build docker-up-onprem-no-build
 docker-up-onprem-no-build: docker-host-dir-setup docker-up-db docker-up-kafka
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-server masu-server koku-worker koku-beat koku-listener sources-client
 	@echo "Stopping SaaS-only services..."
-	-$(DOCKER_COMPOSE) stop trino hive-metastore s4 subs-worker create-s3-buckets 2>/dev/null || true
+	-$(DOCKER_COMPOSE) stop trino hive-metastore s4 s4-path-proxy subs-worker create-s3-buckets 2>/dev/null || true
 	@echo "On-prem environment ready (core + kafka, no Trino/S3)"
 
 docker-up-db-monitor:

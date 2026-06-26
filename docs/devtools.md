@@ -73,7 +73,7 @@ After the files are converted they are then sent up to an S3 bucket. During runt
 Trino Specific Env Vars
 ```
 S3_BUCKET_NAME=koku-bucket
-S3_ENDPOINT=http://koku-s4:7480
+S3_ENDPOINT=http://koku-s4-proxy:7480
 S3_ACCESS_KEY=s4admin
 S3_SECRET=s4secret
 TRINO_DATE_STEP=31
@@ -127,6 +127,8 @@ Notice how an `external_location` is not present in the return. That means the h
 
 Our Trino migrations are run using the `migrate_trino.py` script, and this script contains checks and balances regarding managed and external tables. Therefore, when new trino tables are added to the project, the corresponding list of external vs managed tables should be updated with the new table name.
 
+**S4 path proxy:** When you add or rename a Hive **managed** table (entries in `MANAGED_TABLES` inside `migrate_trino_tables.py`), also add the table name to `dev/containers/s4-path-proxy/path_maps.yaml` under `tables` with the next unused numeric id. The proxy shortens `data/<schema>.db/<table>/…` object keys so Ceph flat filenames stay within the 255-character limit. See [S4 path proxy](#s4-path-proxy) below.
+
 
 ## S4 (local S3 object storage)
 
@@ -142,7 +144,48 @@ S3_ACCESS_KEY=s4admin
 S3_SECRET=s4secret
 ```
 
-S3 API endpoint (host): `http://localhost:9000` (mapped from container port 7480).
+S3 API endpoint (host): `http://localhost:9000` (S4 path proxy, mapped from container port 7480).
+
+Direct S4 backend (short on-disk paths, debugging only): `http://localhost:9001`.
+
+### S4 path proxy
+
+Local S4 (Ceph RGW) stores each object key as a **single flat filename**. Long Hive warehouse paths from Trino (for example `data/org1234567.db/managed_azure_openshift_daily_temp/source=…/ocp_source=…/year=…/day=…/<file>`) can exceed the 255-character limit and fail with “file name too long.”
+
+The **s4-path-proxy** service sits in front of S4 and is transparent to Koku and Trino:
+
+- Clients always use the **logical** long paths (unchanged SQL, Hive metastore, and application code).
+- The proxy rewrites keys to **short numeric segments** on `PUT`/`GET`/`LIST`/`DELETE` before they reach S4.
+
+Configuration: [`dev/containers/s4-path-proxy/path_maps.yaml`](../dev/containers/s4-path-proxy/path_maps.yaml)
+
+| Map | Example logical | Stored on S4 |
+|-----|-----------------|--------------|
+| `schema_paths` | `data/org1234567.db` | `1` |
+| `schema_path_pattern` | `data/org7654321.db` | `o7654321` |
+| `tables` | `managed_aws_openshift_daily_temp` | `1` (segment after schema) |
+
+**When to update the map**
+
+1. Adding a Hive managed table → add to `MANAGED_TABLES` in `migrate_trino_tables.py` **and** `tables` in `path_maps.yaml`.
+2. Adding a dev/test schema warehouse path → add under `schema_paths` (or rely on `schema_path_pattern` for `data/org<digits>.db`).
+
+**Tests**
+
+```bash
+# Unit tests run during image build (docker compose build s4-path-proxy).
+# To run them locally without rebuilding:
+cd dev/containers/s4-path-proxy && pip install -r requirements.txt && pytest -q
+
+# Integration (proxy + S4 running)
+docker compose up -d s4 s4-path-proxy
+./dev/scripts/s3_smoke_test.sh
+./dev/scripts/s4_long_key_test.sh
+```
+
+The S4 web UI shows **physical** (short) paths on disk, not the logical paths Trino uses.
+
+**OCP-cloud local test:** Start the Trino stack (`make docker-up-min-trino-no-build`), ingest AWS/Azure/GCP local provider data, and trigger download/summarization for an OCP-on-cloud provider pair. Watch `koku-worker` and `trino` logs for S3 write errors.
 
 ## Trino Coordinator
 

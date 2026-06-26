@@ -50,7 +50,9 @@ EXTERNAL_TABLES = {
     "openshift_gpu_usage_line_items_daily",
 }
 
-# Managed tables should be altered not dropped as we will lose all of the data
+# Managed tables should be altered not dropped as we will lose all of the data.
+# When adding a managed table, also add it to dev/containers/s4-path-proxy/path_maps.yaml
+# (see docs/devtools.md — S4 path proxy).
 MANAGED_TABLES = {
     "managed_aws_openshift_daily_temp",
     "managed_aws_openshift_disk_capacities_temp",
