@@ -807,9 +807,10 @@ class CostModelSerializerTest(IamTestCase):
     def test_invalid_currency(self):
         """Test failure while handling invalid cost_type."""
         self.ocp_data["currency"] = "invalid"
-        serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_tiered_not_matching_currency(self):
         """Test if tiered rates do not match currency raises a validation error."""
