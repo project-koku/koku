@@ -118,21 +118,21 @@ SELECT
     sc.metric_type,
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    CASE WHEN {{distribution}} = 'cpu' THEN
-        CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-             ELSE (nu.ns_cpu / d.usage_cpu_sum) * sc.rate_cost
-                  * CASE WHEN st.total_rate_cost > 0
-                         THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
-                         ELSE 1 END
-        END
-    ELSE
-        CASE WHEN d.usage_memory_sum <= 0 THEN 0
-             ELSE (nu.ns_memory / d.usage_memory_sum) * sc.rate_cost
-                  * CASE WHEN st.total_rate_cost > 0
-                         THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
-                         ELSE 1 END
-        END
+    {% if distribution == 'cpu' %}
+    CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+         ELSE (nu.ns_cpu / d.usage_cpu_sum) * sc.rate_cost
+              * CASE WHEN st.total_rate_cost > 0
+                     THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
+                     ELSE 1 END
     END,
+    {% else %}
+    CASE WHEN d.usage_memory_sum <= 0 THEN 0
+         ELSE (nu.ns_memory / d.usage_memory_sum) * sc.rate_cost
+              * CASE WHEN st.total_rate_cost > 0
+                     THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
+                     ELSE 1 END
+    END,
+    {% endif %}
     {{cost_model_id}}::uuid
 FROM storage_rtu_cost sc
 JOIN denominator d
@@ -143,21 +143,21 @@ LEFT JOIN storage_infra si
     ON si.usage_start = sc.usage_start AND si.cluster_id = sc.cluster_id
 LEFT JOIN storage_total_rate st
     ON st.usage_start = sc.usage_start AND st.cluster_id = sc.cluster_id
-WHERE CASE WHEN {{distribution}} = 'cpu' THEN
-          CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-               ELSE (nu.ns_cpu / d.usage_cpu_sum) * sc.rate_cost
-                    * CASE WHEN st.total_rate_cost > 0
-                           THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
-                           ELSE 1 END
-          END
-      ELSE
-          CASE WHEN d.usage_memory_sum <= 0 THEN 0
-               ELSE (nu.ns_memory / d.usage_memory_sum) * sc.rate_cost
-                    * CASE WHEN st.total_rate_cost > 0
-                           THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
-                           ELSE 1 END
-          END
+{% if distribution == 'cpu' %}
+WHERE CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+           ELSE (nu.ns_cpu / d.usage_cpu_sum) * sc.rate_cost
+                * CASE WHEN st.total_rate_cost > 0
+                       THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
+                       ELSE 1 END
       END != 0
+{% else %}
+WHERE CASE WHEN d.usage_memory_sum <= 0 THEN 0
+           ELSE (nu.ns_memory / d.usage_memory_sum) * sc.rate_cost
+                * CASE WHEN st.total_rate_cost > 0
+                       THEN (st.total_rate_cost + COALESCE(si.infra_total, 0)) / st.total_rate_cost
+                       ELSE 1 END
+      END != 0
+{% endif %}
 
 UNION ALL
 
@@ -178,15 +178,15 @@ SELECT
     '', '',
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    CASE WHEN {{distribution}} = 'cpu' THEN
-        CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-             ELSE (nu.ns_cpu / d.usage_cpu_sum) * si.infra_total
-        END
-    ELSE
-        CASE WHEN d.usage_memory_sum <= 0 THEN 0
-             ELSE (nu.ns_memory / d.usage_memory_sum) * si.infra_total
-        END
+    {% if distribution == 'cpu' %}
+    CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+         ELSE (nu.ns_cpu / d.usage_cpu_sum) * si.infra_total
     END,
+    {% else %}
+    CASE WHEN d.usage_memory_sum <= 0 THEN 0
+         ELSE (nu.ns_memory / d.usage_memory_sum) * si.infra_total
+    END,
+    {% endif %}
     {{cost_model_id}}::uuid
 FROM storage_infra si
 JOIN denominator d
@@ -197,15 +197,15 @@ LEFT JOIN storage_total_rate st
     ON st.usage_start = si.usage_start AND st.cluster_id = si.cluster_id
 WHERE (st.total_rate_cost IS NULL OR st.total_rate_cost <= 0)
 AND si.infra_total != 0
-AND CASE WHEN {{distribution}} = 'cpu' THEN
-        CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-             ELSE (nu.ns_cpu / d.usage_cpu_sum) * si.infra_total
-        END
-    ELSE
-        CASE WHEN d.usage_memory_sum <= 0 THEN 0
-             ELSE (nu.ns_memory / d.usage_memory_sum) * si.infra_total
-        END
+{% if distribution == 'cpu' %}
+AND CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+         ELSE (nu.ns_cpu / d.usage_cpu_sum) * si.infra_total
     END != 0;
+{% else %}
+AND CASE WHEN d.usage_memory_sum <= 0 THEN 0
+         ELSE (nu.ns_memory / d.usage_memory_sum) * si.infra_total
+    END != 0;
+{% endif %}
 
 -- Negate source: per-node negation of Storage unattributed costs.
 -- Includes infrastructure costs from daily_summary. Per-node granularity
