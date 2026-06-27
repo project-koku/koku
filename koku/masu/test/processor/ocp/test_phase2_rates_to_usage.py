@@ -18,6 +18,7 @@ R20: TestOrchestrationOrder
 """
 from decimal import Decimal
 from functools import wraps
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from django.db.models import Sum
@@ -2289,16 +2290,19 @@ class TestDistributionRawCurrency(_ReportPeriodMixin, MasuTestCase):
 
     @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
-    @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
-    @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
     @patch.object(OCPCostModelCostUpdater, "_get_infra_to_cm_rate")
     def test_has_infra_currency_passes_cost_model_currency(
-        self, mock_rate, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions
+        self, mock_rate, mock_rp, mock_agg, mock_markup, mock_dist_sql, mock_markup_rtu, mock_ui, mock_partitions
     ):
         """When has_infra_currency=True, aggregation receives cost_model_currency."""
         mock_rate.return_value = (Decimal("0.103"), True)
         mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+        mock_rp.return_value = MagicMock(id=1)
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
@@ -2307,20 +2311,23 @@ class TestDistributionRawCurrency(_ReportPeriodMixin, MasuTestCase):
         agg_call = mock_agg.call_args
         self.assertIsNotNone(agg_call)
         cost_model_currency = updater._cost_model.currency if updater._cost_model else "USD"
-        self.assertEqual(agg_call[0][2], cost_model_currency)
+        self.assertEqual(agg_call[0][4], cost_model_currency)
 
     @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
-    @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
-    @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
     @patch.object(OCPCostModelCostUpdater, "_get_infra_to_cm_rate")
     def test_no_infra_currency_passes_none(
-        self, mock_rate, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions
+        self, mock_rate, mock_rp, mock_agg, mock_markup, mock_dist_sql, mock_markup_rtu, mock_ui, mock_partitions
     ):
         """When has_infra_currency=False, aggregation receives None (raw_currency stays NULL)."""
         mock_rate.return_value = (Decimal(1), False)
         mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+        mock_rp.return_value = MagicMock(id=1)
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
@@ -2328,7 +2335,7 @@ class TestDistributionRawCurrency(_ReportPeriodMixin, MasuTestCase):
 
         agg_call = mock_agg.call_args
         self.assertIsNotNone(agg_call)
-        self.assertIsNone(agg_call[0][2])
+        self.assertIsNone(agg_call[0][4])
 
 
 class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
@@ -2353,12 +2360,17 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
 
     @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
-    @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
-    @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
-    def test_phase4_per_month_order(self, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions):
-        """Per-month order must be: distribute -> aggregate -> markup -> ui."""
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
+    def test_phase4_per_month_order(
+        self, mock_rp, mock_agg, mock_markup, mock_dist_sql, mock_markup_rtu, mock_ui, mock_partitions
+    ):
+        """Per-month order must be: markup -> distribute -> aggregate -> markup -> ui."""
         call_order = []
+        mock_rp.return_value = MagicMock(id=1)
         mock_dist_sql.side_effect = lambda sr, *a, **kw: (
             call_order.append("dist"),
             sr,
@@ -2373,18 +2385,23 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
 
         self.assertEqual(
             call_order,
-            ["dist", "agg", "markup", "ui"],
-            f"Expected [dist, agg, markup, ui] but got {call_order}",
+            ["markup", "dist", "agg", "markup", "ui"],
+            f"Expected [markup, dist, agg, markup, ui] but got {call_order}",
         )
 
     @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
-    @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
-    @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
-    def test_distribute_calls_dist_entry_point(self, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions):
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
+    def test_distribute_calls_dist_entry_point(
+        self, mock_rp, mock_agg, mock_markup, mock_dist_sql, mock_markup_rtu, mock_ui, mock_partitions
+    ):
         """distribute_costs_and_update_ui_summary invokes accessor.populate_distributed_cost_sql."""
         mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+        mock_rp.return_value = MagicMock(id=1)
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
@@ -2394,14 +2411,17 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
 
     @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
-    @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
-    @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
     def test_distribute_forwards_infra_rate_and_currency(
-        self, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions
+        self, mock_rp, mock_agg, mock_markup, mock_dist_sql, mock_markup_rtu, mock_ui, mock_partitions
     ):
         """populate_distributed_cost_sql receives infra_to_cm_rate and cost_model_currency kwargs."""
         mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+        mock_rp.return_value = MagicMock(id=1)
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
@@ -2413,14 +2433,17 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
 
     @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
-    @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
-    @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
     def test_derived_cost_datetime_updated_after_pipeline(
-        self, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions
+        self, mock_rp, mock_agg, mock_markup, mock_dist_sql, mock_markup_rtu, mock_ui, mock_partitions
     ):
         """D1: derived_cost_datetime is updated even after nested accessors reset schema."""
         mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+        mock_rp.return_value = MagicMock(id=1)
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()

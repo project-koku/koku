@@ -513,9 +513,9 @@ class TestBreakdownSQLFixes(_ReportPeriodMixin, MasuTestCase):
             "worker_cost": True,
         }
         summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
-        with patch(
-            "masu.database.ocp_report_db_accessor.trino_table_exists",
-            return_value=False,
+        with (
+            patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False),
+            patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False),
         ):
             with OCPReportDBAccessor(self.schema) as accessor:
                 accessor.populate_distributed_cost_sql(
@@ -631,9 +631,9 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
             "worker_cost": True,
         }
         summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
-        with patch(
-            "masu.database.ocp_report_db_accessor.trino_table_exists",
-            return_value=False,
+        with (
+            patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False),
+            patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False),
         ):
             with OCPReportDBAccessor(self.schema) as accessor:
                 accessor.populate_distributed_cost_sql(
@@ -793,9 +793,9 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
             pre_totals = self._breakdown_qs().aggregate(cv=Sum("cost_value"), dc=Sum("distributed_cost"))
 
         summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
-        with patch(
-            "masu.database.ocp_report_db_accessor.trino_table_exists",
-            return_value=False,
+        with (
+            patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False),
+            patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False),
         ):
             with OCPReportDBAccessor(self.schema) as accessor:
                 accessor.populate_ui_summary_tables(
