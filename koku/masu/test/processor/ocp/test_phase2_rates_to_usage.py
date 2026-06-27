@@ -2437,13 +2437,11 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.aggregate_rates_to_daily_summary")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
     def test_derived_cost_datetime_updated_after_pipeline(
-        self, mock_rp, mock_agg, mock_markup, mock_dist_sql, mock_markup_rtu, mock_ui, mock_partitions
+        self, mock_agg, mock_markup, mock_dist_sql, mock_markup_rtu, mock_ui, mock_partitions
     ):
         """D1: derived_cost_datetime is updated even after nested accessors reset schema."""
         mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
-        mock_rp.return_value = MagicMock(id=1)
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
