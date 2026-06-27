@@ -119,21 +119,21 @@ SELECT
     nc.metric_type,
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    CASE WHEN {{distribution}} = 'cpu' THEN
-        CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-             ELSE (nu.ns_cpu / d.usage_cpu_sum) * nc.rate_cost
-                  * CASE WHEN nt.total_rate_cost > 0
-                         THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
-                         ELSE 1 END
-        END
-    ELSE
-        CASE WHEN d.usage_memory_sum <= 0 THEN 0
-             ELSE (nu.ns_memory / d.usage_memory_sum) * nc.rate_cost
-                  * CASE WHEN nt.total_rate_cost > 0
-                         THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
-                         ELSE 1 END
-        END
+    {% if distribution == 'cpu' %}
+    CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+         ELSE (nu.ns_cpu / d.usage_cpu_sum) * nc.rate_cost
+              * CASE WHEN nt.total_rate_cost > 0
+                     THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
+                     ELSE 1 END
     END,
+    {% else %}
+    CASE WHEN d.usage_memory_sum <= 0 THEN 0
+         ELSE (nu.ns_memory / d.usage_memory_sum) * nc.rate_cost
+              * CASE WHEN nt.total_rate_cost > 0
+                     THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
+                     ELSE 1 END
+    END,
+    {% endif %}
     {{cost_model_id}}::uuid
 FROM network_rtu_cost nc
 JOIN denominator d
@@ -144,21 +144,21 @@ LEFT JOIN network_infra ni
     ON ni.usage_start = nc.usage_start AND ni.cluster_id = nc.cluster_id
 LEFT JOIN network_total_rate nt
     ON nt.usage_start = nc.usage_start AND nt.cluster_id = nc.cluster_id
-WHERE CASE WHEN {{distribution}} = 'cpu' THEN
-          CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-               ELSE (nu.ns_cpu / d.usage_cpu_sum) * nc.rate_cost
-                    * CASE WHEN nt.total_rate_cost > 0
-                           THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
-                           ELSE 1 END
-          END
-      ELSE
-          CASE WHEN d.usage_memory_sum <= 0 THEN 0
-               ELSE (nu.ns_memory / d.usage_memory_sum) * nc.rate_cost
-                    * CASE WHEN nt.total_rate_cost > 0
-                           THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
-                           ELSE 1 END
-          END
+{% if distribution == 'cpu' %}
+WHERE CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+           ELSE (nu.ns_cpu / d.usage_cpu_sum) * nc.rate_cost
+                * CASE WHEN nt.total_rate_cost > 0
+                       THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
+                       ELSE 1 END
       END != 0
+{% else %}
+WHERE CASE WHEN d.usage_memory_sum <= 0 THEN 0
+           ELSE (nu.ns_memory / d.usage_memory_sum) * nc.rate_cost
+                * CASE WHEN nt.total_rate_cost > 0
+                       THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
+                       ELSE 1 END
+      END != 0
+{% endif %}
 
 UNION ALL
 
@@ -179,15 +179,15 @@ SELECT
     '', '',
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    CASE WHEN {{distribution}} = 'cpu' THEN
-        CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-             ELSE (nu.ns_cpu / d.usage_cpu_sum) * ni.infra_total
-        END
-    ELSE
-        CASE WHEN d.usage_memory_sum <= 0 THEN 0
-             ELSE (nu.ns_memory / d.usage_memory_sum) * ni.infra_total
-        END
+    {% if distribution == 'cpu' %}
+    CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+         ELSE (nu.ns_cpu / d.usage_cpu_sum) * ni.infra_total
     END,
+    {% else %}
+    CASE WHEN d.usage_memory_sum <= 0 THEN 0
+         ELSE (nu.ns_memory / d.usage_memory_sum) * ni.infra_total
+    END,
+    {% endif %}
     {{cost_model_id}}::uuid
 FROM network_infra ni
 JOIN denominator d
@@ -198,15 +198,15 @@ LEFT JOIN network_total_rate nt
     ON nt.usage_start = ni.usage_start AND nt.cluster_id = ni.cluster_id
 WHERE (nt.total_rate_cost IS NULL OR nt.total_rate_cost <= 0)
 AND ni.infra_total != 0
-AND CASE WHEN {{distribution}} = 'cpu' THEN
-        CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-             ELSE (nu.ns_cpu / d.usage_cpu_sum) * ni.infra_total
-        END
-    ELSE
-        CASE WHEN d.usage_memory_sum <= 0 THEN 0
-             ELSE (nu.ns_memory / d.usage_memory_sum) * ni.infra_total
-        END
+{% if distribution == 'cpu' %}
+AND CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+         ELSE (nu.ns_cpu / d.usage_cpu_sum) * ni.infra_total
     END != 0;
+{% else %}
+AND CASE WHEN d.usage_memory_sum <= 0 THEN 0
+         ELSE (nu.ns_memory / d.usage_memory_sum) * ni.infra_total
+    END != 0;
+{% endif %}
 
 -- Negate source: per-node negation of Network unattributed costs.
 -- Includes infrastructure costs from daily_summary. Per-node granularity

@@ -14,6 +14,7 @@ See docs/architecture/cost-breakdown/phased-delivery.md § Concern 1 Resolution.
 See docs/architecture/cost-breakdown/risk-register.md § R18.
 """
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.db.models import Q
 from django.db.models import Sum
@@ -72,7 +73,9 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
 
     def _seed_and_distribute(self):
         """Ensure RTU usage rows exist and run per-rate distribution."""
-        self._updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        self._updater = OCPCostModelCostUpdater(
+            schema=self.schema, provider=self.ocp_provider
+        )
         if not self._updater._cost_model_id:
             self.skipTest("No cost model for OCP provider")
         self._updater._load_rates(self.start_date)
@@ -96,7 +99,9 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
             "platform_cost": True,
             "worker_cost": True,
         }
-        summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
+        summary_range = SummaryRangeConfig(
+            start_date=self.start_date, end_date=self.end_date
+        )
         with OCPReportDBAccessor(self.schema) as accessor:
             accessor.populate_distributed_cost_sql(
                 summary_range,
@@ -149,16 +154,24 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            days = self._distributed_qs(dist_type).values_list("usage_start", flat=True).distinct()[:3]
+            days = (
+                self._distributed_qs(dist_type)
+                .values_list("usage_start", flat=True)
+                .distinct()[:3]
+            )
             for day in days:
                 day_rows = self._distributed_qs(dist_type).filter(usage_start=day)
                 rates = day_rows.values_list("custom_name", flat=True).distinct()
                 for rate_name in rates:
                     rate_rows = day_rows.filter(custom_name=rate_name)
-                    total = rate_rows.aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+                    total = rate_rows.aggregate(t=Sum("distributed_cost"))[
+                        "t"
+                    ] or Decimal(0)
                     if total == 0:
                         continue
-                    ns_totals = rate_rows.values("namespace").annotate(ns_total=Sum("distributed_cost"))
+                    ns_totals = rate_rows.values("namespace").annotate(
+                        ns_total=Sum("distributed_cost")
+                    )
                     for entry in ns_totals:
                         proportion = entry["ns_total"] / total
                         self.assertGreaterEqual(proportion, Decimal(0))
@@ -183,7 +196,9 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                 .values("usage_start", "namespace")
                 .annotate(ns_dist=Sum("distributed_cost"))
             )
-            ns_lookup = {(r["usage_start"], r["namespace"]): r["ns_dist"] for r in totals_by_ns}
+            ns_lookup = {
+                (r["usage_start"], r["namespace"]): r["ns_dist"] for r in totals_by_ns
+            }
             for entry in totals_by_rate:
                 key = (entry["usage_start"], entry["namespace"])
                 ns_total = ns_lookup.get(key, Decimal(0))
@@ -203,7 +218,9 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
 
         with schema_context(self.schema):
             source_rates = set(
-                self._source_qs(dist_type).values_list("custom_name", "metric_type", "cost_model_rate_type").distinct()
+                self._source_qs(dist_type)
+                .values_list("custom_name", "metric_type", "cost_model_rate_type")
+                .distinct()
             )
             if not source_rates:
                 self.skipTest("No source rows for platform distribution")
@@ -233,7 +250,9 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                 monthly_cost_type__isnull=False,
                 distributed_cost=0,
             ).count()
-            self.assertEqual(zero_rows, 0, "Distribution should not produce zero-cost rows")
+            self.assertEqual(
+                zero_rows, 0, "Distribution should not produce zero-cost rows"
+            )
 
     # ------------------------------------------------------------------
     # Assertion 5: Independent cross-check (Option 2 formula)
@@ -244,7 +263,11 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            day = self._distributed_qs(dist_type).values_list("usage_start", flat=True).first()
+            day = (
+                self._distributed_qs(dist_type)
+                .values_list("usage_start", flat=True)
+                .first()
+            )
             if not day:
                 self.skipTest("No distributed rows")
 
@@ -294,8 +317,12 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            total_distributed = self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
-            total_source = self._source_qs(dist_type).aggregate(t=Sum("calculated_cost"))["t"] or Decimal(0)
+            total_distributed = self._distributed_qs(dist_type).aggregate(
+                t=Sum("distributed_cost")
+            )["t"] or Decimal(0)
+            total_source = self._source_qs(dist_type).aggregate(
+                t=Sum("calculated_cost")
+            )["t"] or Decimal(0)
             if total_source == 0:
                 self.skipTest("No source cost to distribute")
 
@@ -335,14 +362,18 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
 
         with schema_context(self.schema):
             pre_count = self._distributed_qs(dist_type).count()
-            pre_sum = self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"]
+            pre_sum = self._distributed_qs(dist_type).aggregate(
+                t=Sum("distributed_cost")
+            )["t"]
 
         distribution_info = {
             "distribution_type": "cpu",
             "platform_cost": True,
             "worker_cost": True,
         }
-        summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
+        summary_range = SummaryRangeConfig(
+            start_date=self.start_date, end_date=self.end_date
+        )
         with OCPReportDBAccessor(self.schema) as accessor:
             accessor.populate_distributed_cost_sql(
                 summary_range,
@@ -353,9 +384,13 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
 
         with schema_context(self.schema):
             post_count = self._distributed_qs(dist_type).count()
-            post_sum = self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"]
+            post_sum = self._distributed_qs(dist_type).aggregate(
+                t=Sum("distributed_cost")
+            )["t"]
 
-        self.assertEqual(pre_count, post_count, "Idempotency: row count changed after re-run")
+        self.assertEqual(
+            pre_count, post_count, "Idempotency: row count changed after re-run"
+        )
         self.assertAlmostEqual(
             float(pre_sum or 0),
             float(post_sum or 0),
@@ -372,7 +407,11 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            day = self._distributed_qs(dist_type).values_list("usage_start", flat=True).first()
+            day = (
+                self._distributed_qs(dist_type)
+                .values_list("usage_start", flat=True)
+                .first()
+            )
             if not day:
                 self.skipTest("No distributed rows")
 
@@ -420,7 +459,9 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            original_sum = self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+            original_sum = self._distributed_qs(dist_type).aggregate(
+                t=Sum("distributed_cost")
+            )["t"] or Decimal(0)
             original_count = self._distributed_qs(dist_type).count()
 
             RatesToUsage.objects.filter(
@@ -440,7 +481,9 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
             "platform_cost": True,
             "worker_cost": True,
         }
-        summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
+        summary_range = SummaryRangeConfig(
+            start_date=self.start_date, end_date=self.end_date
+        )
         with OCPReportDBAccessor(self.schema) as accessor:
             accessor.populate_distributed_cost_sql(
                 summary_range,
@@ -450,10 +493,14 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
             )
 
         with schema_context(self.schema):
-            new_sum = self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+            new_sum = self._distributed_qs(dist_type).aggregate(
+                t=Sum("distributed_cost")
+            )["t"] or Decimal(0)
             new_count = self._distributed_qs(dist_type).count()
 
-        self.assertEqual(original_count, new_count, "Re-run should produce same row count")
+        self.assertEqual(
+            original_count, new_count, "Re-run should produce same row count"
+        )
         self.assertAlmostEqual(
             float(original_sum),
             float(new_sum),
@@ -471,7 +518,9 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
             if not dist_rows.exists():
                 self.skipTest("No distributed rows in test data")
             null_cm_rows = dist_rows.filter(cost_model__isnull=True)
-            null_types = list(null_cm_rows.values_list("monthly_cost_type", flat=True).distinct())
+            null_types = list(
+                null_cm_rows.values_list("monthly_cost_type", flat=True).distinct()
+            )
             self.assertEqual(
                 null_cm_rows.count(),
                 0,
@@ -499,7 +548,9 @@ class TestBreakdownSQLFixes(_ReportPeriodMixin, MasuTestCase):
             TestBreakdownSQLFixes._populated = True
 
     def _seed_and_populate(self):
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        updater = OCPCostModelCostUpdater(
+            schema=self.schema, provider=self.ocp_provider
+        )
         if not updater._cost_model_id:
             self.skipTest("No cost model for OCP provider")
         updater._load_rates(self.start_date)
@@ -511,19 +562,25 @@ class TestBreakdownSQLFixes(_ReportPeriodMixin, MasuTestCase):
             "platform_cost": True,
             "worker_cost": True,
         }
-        summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
-        with OCPReportDBAccessor(self.schema) as accessor:
-            accessor.populate_distributed_cost_sql(
-                summary_range,
-                self.provider_uuid,
-                distribution_info,
-                cost_model_id=updater._cost_model_id,
-            )
-            accessor.populate_ui_summary_tables(
-                summary_range,
-                self.provider_uuid,
-                tables=["reporting_ocp_cost_breakdown_p"],
-            )
+        summary_range = SummaryRangeConfig(
+            start_date=self.start_date, end_date=self.end_date
+        )
+        with patch(
+            "masu.database.ocp_report_db_accessor.trino_table_exists",
+            return_value=False,
+        ):
+            with OCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_distributed_cost_sql(
+                    summary_range,
+                    self.provider_uuid,
+                    distribution_info,
+                    cost_model_id=updater._cost_model_id,
+                )
+                accessor.populate_ui_summary_tables(
+                    summary_range,
+                    self.provider_uuid,
+                    tables=["reporting_ocp_cost_breakdown_p"],
+                )
 
     def test_raw_currency_date_scoped(self):
         """B1: raw_currency in breakdown rows comes from date-scoped subquery."""
@@ -611,7 +668,9 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
 
     def _seed_rtu_and_populate_breakdown(self):
         """Run cost model updater then populate breakdown table."""
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        updater = OCPCostModelCostUpdater(
+            schema=self.schema, provider=self.ocp_provider
+        )
         if not updater._cost_model_id:
             self.skipTest("No cost model for OCP provider")
         updater._load_rates(self.start_date)
@@ -625,19 +684,25 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
             "platform_cost": True,
             "worker_cost": True,
         }
-        summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
-        with OCPReportDBAccessor(self.schema) as accessor:
-            accessor.populate_distributed_cost_sql(
-                summary_range,
-                self.provider_uuid,
-                distribution_info,
-                cost_model_id=updater._cost_model_id,
-            )
-            accessor.populate_ui_summary_tables(
-                summary_range,
-                self.provider_uuid,
-                tables=["reporting_ocp_cost_breakdown_p"],
-            )
+        summary_range = SummaryRangeConfig(
+            start_date=self.start_date, end_date=self.end_date
+        )
+        with patch(
+            "masu.database.ocp_report_db_accessor.trino_table_exists",
+            return_value=False,
+        ):
+            with OCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_distributed_cost_sql(
+                    summary_range,
+                    self.provider_uuid,
+                    distribution_info,
+                    cost_model_id=updater._cost_model_id,
+                )
+                accessor.populate_ui_summary_tables(
+                    summary_range,
+                    self.provider_uuid,
+                    tables=["reporting_ocp_cost_breakdown_p"],
+                )
 
     def _breakdown_qs(self, **extra_filters):
         return OCPCostUIBreakDownP.objects.filter(
@@ -710,8 +775,15 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
     def test_every_child_has_valid_parent_path(self):
         """Non-root nodes must reference a parent_path that exists as a path."""
         with schema_context(self.schema):
-            all_paths = set(self._breakdown_qs().values_list("path", flat=True).distinct())
-            non_root = self._breakdown_qs().exclude(depth=1).values_list("parent_path", flat=True).distinct()
+            all_paths = set(
+                self._breakdown_qs().values_list("path", flat=True).distinct()
+            )
+            non_root = (
+                self._breakdown_qs()
+                .exclude(depth=1)
+                .values_list("parent_path", flat=True)
+                .distinct()
+            )
             orphan_parents = set(non_root) - all_paths
         self.assertEqual(
             orphan_parents,
@@ -733,12 +805,12 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
                 total_cv=Sum("cost_value"),
                 total_dc=Sum("distributed_cost"),
             )
-            project_leaf_sum = self._breakdown_qs(depth=4, top_category="project").aggregate(total=Sum("cost_value"))[
-                "total"
-            ] or Decimal(0)
-            overhead_leaf_sum = self._breakdown_qs(depth=5, top_category="overhead").aggregate(
-                total=Sum("distributed_cost")
-            )["total"] or Decimal(0)
+            project_leaf_sum = self._breakdown_qs(
+                depth=4, top_category="project"
+            ).aggregate(total=Sum("cost_value"))["total"] or Decimal(0)
+            overhead_leaf_sum = self._breakdown_qs(
+                depth=5, top_category="overhead"
+            ).aggregate(total=Sum("distributed_cost"))["total"] or Decimal(0)
 
         root_cv = root["total_cv"] or Decimal(0)
         root_dc = root["total_dc"] or Decimal(0)
@@ -762,7 +834,9 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
     def test_top_category_values(self):
         """top_category must be one of: project, overhead, total."""
         with schema_context(self.schema):
-            categories = set(self._breakdown_qs().values_list("top_category", flat=True).distinct())
+            categories = set(
+                self._breakdown_qs().values_list("top_category", flat=True).distinct()
+            )
         allowed = {"project", "overhead", "total"}
         unexpected = categories - allowed
         self.assertEqual(
@@ -781,19 +855,29 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
         """
         with schema_context(self.schema):
             pre_count = self._breakdown_qs().count()
-            pre_totals = self._breakdown_qs().aggregate(cv=Sum("cost_value"), dc=Sum("distributed_cost"))
-
-        summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
-        with OCPReportDBAccessor(self.schema) as accessor:
-            accessor.populate_ui_summary_tables(
-                summary_range,
-                self.provider_uuid,
-                tables=["reporting_ocp_cost_breakdown_p"],
+            pre_totals = self._breakdown_qs().aggregate(
+                cv=Sum("cost_value"), dc=Sum("distributed_cost")
             )
+
+        summary_range = SummaryRangeConfig(
+            start_date=self.start_date, end_date=self.end_date
+        )
+        with patch(
+            "masu.database.ocp_report_db_accessor.trino_table_exists",
+            return_value=False,
+        ):
+            with OCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_ui_summary_tables(
+                    summary_range,
+                    self.provider_uuid,
+                    tables=["reporting_ocp_cost_breakdown_p"],
+                )
 
         with schema_context(self.schema):
             post_count = self._breakdown_qs().count()
-            post_totals = self._breakdown_qs().aggregate(cv=Sum("cost_value"), dc=Sum("distributed_cost"))
+            post_totals = self._breakdown_qs().aggregate(
+                cv=Sum("cost_value"), dc=Sum("distributed_cost")
+            )
 
         self.assertEqual(pre_count, post_count, "Idempotency: row count changed")
         self.assertAlmostEqual(

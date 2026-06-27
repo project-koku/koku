@@ -117,21 +117,21 @@ SELECT
     wc.metric_type,
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    CASE WHEN {{distribution}} = 'cpu' THEN
-        CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-             ELSE (nu.ns_cpu / d.usage_cpu_sum) * wc.rate_cost
-                  * CASE WHEN wt.total_rate_cost > 0
-                         THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
-                         ELSE 1 END
-        END
-    ELSE
-        CASE WHEN d.usage_memory_sum <= 0 THEN 0
-             ELSE (nu.ns_memory / d.usage_memory_sum) * wc.rate_cost
-                  * CASE WHEN wt.total_rate_cost > 0
-                         THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
-                         ELSE 1 END
-        END
+    {% if distribution == 'cpu' %}
+    CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+         ELSE (nu.ns_cpu / d.usage_cpu_sum) * wc.rate_cost
+              * CASE WHEN wt.total_rate_cost > 0
+                     THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
+                     ELSE 1 END
     END,
+    {% else %}
+    CASE WHEN d.usage_memory_sum <= 0 THEN 0
+         ELSE (nu.ns_memory / d.usage_memory_sum) * wc.rate_cost
+              * CASE WHEN wt.total_rate_cost > 0
+                     THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
+                     ELSE 1 END
+    END,
+    {% endif %}
     {{cost_model_id}}::uuid
 FROM worker_rtu_cost wc
 JOIN denominator d
@@ -142,21 +142,21 @@ LEFT JOIN worker_infra wi
     ON wi.usage_start = wc.usage_start AND wi.cluster_id = wc.cluster_id
 LEFT JOIN worker_total_rate wt
     ON wt.usage_start = wc.usage_start AND wt.cluster_id = wc.cluster_id
-WHERE CASE WHEN {{distribution}} = 'cpu' THEN
-          CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-               ELSE (nu.ns_cpu / d.usage_cpu_sum) * wc.rate_cost
-                    * CASE WHEN wt.total_rate_cost > 0
-                           THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
-                           ELSE 1 END
-          END
-      ELSE
-          CASE WHEN d.usage_memory_sum <= 0 THEN 0
-               ELSE (nu.ns_memory / d.usage_memory_sum) * wc.rate_cost
-                    * CASE WHEN wt.total_rate_cost > 0
-                           THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
-                           ELSE 1 END
-          END
+{% if distribution == 'cpu' %}
+WHERE CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+           ELSE (nu.ns_cpu / d.usage_cpu_sum) * wc.rate_cost
+                * CASE WHEN wt.total_rate_cost > 0
+                       THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
+                       ELSE 1 END
       END != 0;
+{% else %}
+WHERE CASE WHEN d.usage_memory_sum <= 0 THEN 0
+           ELSE (nu.ns_memory / d.usage_memory_sum) * wc.rate_cost
+                * CASE WHEN wt.total_rate_cost > 0
+                       THEN (wt.total_rate_cost + COALESCE(wi.infra_total, 0)) / wt.total_rate_cost
+                       ELSE 1 END
+      END != 0;
+{% endif %}
 
 -- Negate source: per-node negation of Worker unallocated costs.
 -- Computes per-node cost-model total from source RTU + per-node infrastructure

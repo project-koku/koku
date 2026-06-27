@@ -121,21 +121,21 @@ SELECT
     pc.metric_type,
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    CASE WHEN {{distribution}} = 'cpu' THEN
-        CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-             ELSE (nu.ns_cpu / d.usage_cpu_sum) * pc.rate_cost
-                  * CASE WHEN pt.total_rate_cost > 0
-                         THEN (pt.total_rate_cost + COALESCE(pi.infra_total, 0)) / pt.total_rate_cost
-                         ELSE 1 END
-        END
-    ELSE
-        CASE WHEN d.usage_memory_sum <= 0 THEN 0
-             ELSE (nu.ns_memory / d.usage_memory_sum) * pc.rate_cost
-                  * CASE WHEN pt.total_rate_cost > 0
-                         THEN (pt.total_rate_cost + COALESCE(pi.infra_total, 0)) / pt.total_rate_cost
-                         ELSE 1 END
-        END
+    {% if distribution == 'cpu' %}
+    CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+         ELSE (nu.ns_cpu / d.usage_cpu_sum) * pc.rate_cost
+              * CASE WHEN pt.total_rate_cost > 0
+                     THEN (pt.total_rate_cost + COALESCE(pi.infra_total, 0)) / pt.total_rate_cost
+                     ELSE 1 END
     END,
+    {% else %}
+    CASE WHEN d.usage_memory_sum <= 0 THEN 0
+         ELSE (nu.ns_memory / d.usage_memory_sum) * pc.rate_cost
+              * CASE WHEN pt.total_rate_cost > 0
+                     THEN (pt.total_rate_cost + COALESCE(pi.infra_total, 0)) / pt.total_rate_cost
+                     ELSE 1 END
+    END,
+    {% endif %}
     {{cost_model_id}}::uuid
 FROM platform_rtu_cost pc
 JOIN denominator d
@@ -146,21 +146,21 @@ LEFT JOIN platform_infra pi
     ON pi.usage_start = pc.usage_start AND pi.cluster_id = pc.cluster_id
 LEFT JOIN platform_total_rate pt
     ON pt.usage_start = pc.usage_start AND pt.cluster_id = pc.cluster_id
-WHERE CASE WHEN {{distribution}} = 'cpu' THEN
-          CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-               ELSE (nu.ns_cpu / d.usage_cpu_sum) * pc.rate_cost
-                    * CASE WHEN pt.total_rate_cost > 0
-                           THEN (pt.total_rate_cost + COALESCE(pi.infra_total, 0)) / pt.total_rate_cost
-                           ELSE 1 END
-          END
-      ELSE
-          CASE WHEN d.usage_memory_sum <= 0 THEN 0
-               ELSE (nu.ns_memory / d.usage_memory_sum) * pc.rate_cost
-                    * CASE WHEN pt.total_rate_cost > 0
-                           THEN (pt.total_rate_cost + COALESCE(pi.infra_total, 0)) / pt.total_rate_cost
-                           ELSE 1 END
-          END
+{% if distribution == 'cpu' %}
+WHERE CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+           ELSE (nu.ns_cpu / d.usage_cpu_sum) * pc.rate_cost
+                * CASE WHEN pt.total_rate_cost > 0
+                       THEN (pt.total_rate_cost + COALESCE(pi.infra_total, 0)) / pt.total_rate_cost
+                       ELSE 1 END
       END != 0;
+{% else %}
+WHERE CASE WHEN d.usage_memory_sum <= 0 THEN 0
+           ELSE (nu.ns_memory / d.usage_memory_sum) * pc.rate_cost
+                * CASE WHEN pt.total_rate_cost > 0
+                       THEN (pt.total_rate_cost + COALESCE(pi.infra_total, 0)) / pt.total_rate_cost
+                       ELSE 1 END
+      END != 0;
+{% endif %}
 
 -- Negate source: per-node negation for each Platform namespace.
 -- Includes infrastructure costs from daily_summary. Per-node granularity
