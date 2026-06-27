@@ -1726,6 +1726,15 @@
                                 "cluster"
                             ]
                         }
+                    },
+                    {
+                        "name": "query_id",
+                        "in": "query",
+                        "description": "Optional Trino query id to filter results when api_service is query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -2189,7 +2198,17 @@
                         "type": "string"
                     },
                     "trino_response": {
-                        "type": "object"
+                        "oneOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "object"
+                                }
+                            }
+                        ]
                     }
                 }
             },
