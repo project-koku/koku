@@ -847,11 +847,7 @@ def _collect_s3_objects_for_day(
         except (EndpointConnectionError, ClientError) as err:
             LOG.warning(
                 log_json(
-                    request_id,
-                    msg="post-write dedup: unable to list s3 objects",
-                    context=context,
-                    s3_path=s3_path,
-                    bucket=settings.S3_BUCKET_NAME,
+                    request_id, msg="post-write dedup: unable to list s3 objects", context=context, s3_path=s3_path
                 ),
                 exc_info=err,
             )
