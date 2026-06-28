@@ -157,13 +157,13 @@ class TestConvertToParquetDedupHook(MasuTestCase):
             context=context,
         )
 
-    @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor._deduplicate_after_write")
-    @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet")
-    @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.create_daily_parquet")
     @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor._delete_old_data")
-    def test_hook_scenarios(self, mock_delete_old, mock_daily, mock_convert, mock_dedup):
+    @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.create_daily_parquet")
+    @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet")
+    @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor._deduplicate_after_write")
+    def test_hook_scenarios(self, mock_dedup, mock_convert, *args):
         """Test that the dedup hook fires for OCP and not for other providers."""
-        mock_convert.return_value = ("base", ["col1"], [None], True)
+        mock_convert.return_value = ("base", ["col1"], [], True)
         aws_manifest_id = CostUsageReportManifest.objects.filter(cluster_id__isnull=True).first().id
 
         test_matrix = [

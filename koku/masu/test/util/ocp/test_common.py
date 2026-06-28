@@ -488,9 +488,9 @@ class TestDeduplicateS3ObjectsByMetadata(MasuTestCase):
 
     @staticmethod
     def _make_s3_obj_summary(key, metadata):
-        """Helper: create a mock S3 ObjectSummary."""
+        """Helper: create a mock S3 ObjectSummary with .key on summary and .Object() for metadata."""
         obj = Mock(key=key, metadata=metadata)
-        summary = Mock()
+        summary = Mock(key=key)
         summary.Object.return_value = obj
         return summary
 
