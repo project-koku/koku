@@ -112,6 +112,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "source_uuid": source_uuid,
         }
         for table_name in tables:
+            if table_name == VM_UI_SUMMARY_TABLE:
+                continue
             sql = pkgutil.get_data("masu.database", f"sql/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
