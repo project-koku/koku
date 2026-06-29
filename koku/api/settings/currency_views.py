@@ -23,6 +23,8 @@ from api.currency.currencies import is_valid_iso_currency
 from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
+from cost_models.models import StaticExchangeRate
+from cost_models.static_exchange_rate_serializer import StaticExchangeRateSerializer
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.user_settings.models import UserSettings
 
@@ -42,6 +44,11 @@ class CurrencySettingsView(APIView):
         enabled_codes = get_enabled_currency_codes()
         dynamic_codes = get_dynamic_rate_currencies()
 
+        static_rates = StaticExchangeRate.objects.all()
+        rates_by_base = {}
+        for rate in static_rates:
+            rates_by_base.setdefault(rate.base_currency, []).append(rate)
+
         enabled_filter = request.query_params.get("enabled")
         if enabled_filter is not None and enabled_filter.lower() in ("true", "1"):
             sorted_codes = sorted(enabled_codes)
@@ -57,6 +64,7 @@ class CurrencySettingsView(APIView):
             info = get_currency_info(code)
             info["enabled"] = code in enabled_codes
             info["has_dynamic_rate"] = code.lower() in dynamic_codes
+            info["static_rates"] = StaticExchangeRateSerializer(rates_by_base.get(code, []), many=True).data
             result.append(info)
 
         search_term = request.query_params.get("search", "").strip().upper()
