@@ -665,3 +665,42 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         self.assertEqual(mock_load_rates.call_count, len(months))
         for month_range, call_args in zip(months, mock_load_rates.call_args_list):
             self.assertEqual(call_args[0][0], month_range.start_date)
+
+    @patch(
+        "masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema",
+        return_value=True,
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cost_model_cost_updater."
+        "OCPCostModelCostUpdater.distribute_costs_and_update_ui_summary"
+    )
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._cleanup_stale_rtu_costs")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._update_usage_rates_to_usage")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._load_rates")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_update_summary_cost_model_deleted_race(
+        self, mock_cost_accessor, mock_load_rates, mock_rtu, mock_cleanup, mock_distribute, mock_ff
+    ):
+        """Cost model deleted between __init__ and SQL INSERT should not raise IntegrityError."""
+        import uuid
+        from unittest.mock import MagicMock
+
+        fake_uuid = uuid.uuid4()
+        mock_cost_accessor.return_value.__enter__.return_value.cost_model = MagicMock(uuid=fake_uuid)
+        mock_cost_accessor.return_value.__enter__.return_value.rate_info_map = {}
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._cost_model_id = fake_uuid
+
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
+        summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
+
+        # Simulate the cost model being deleted before update_summary_cost_model_costs runs.
+        # CostModel.objects.filter(uuid=fake_uuid).exists() returns False because the UUID
+        # was never actually created in the DB.
+        updater.update_summary_cost_model_costs(summary_range)
+
+        # cost_model_id should be cleared so no FK-referencing INSERT is attempted.
+        self.assertIsNone(updater._cost_model_id)
+        mock_rtu.assert_not_called()

@@ -13,6 +13,7 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.metrics import constants as metric_constants
+from cost_models.models import CostModel
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -949,6 +950,18 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             end_date = month_range.end_date
 
             self._load_rates(start_date)
+
+            # Guard against race: cost model deleted between __init__ and SQL INSERT.
+            if self._cost_model_id and not CostModel.objects.filter(uuid=self._cost_model_id).exists():
+                LOG.warning(
+                    log_json(
+                        msg="cost model deleted before rates_to_usage insert; cleaning stale rows",
+                        cost_model_id=str(self._cost_model_id),
+                        provider_uuid=self._provider_uuid,
+                        start_date=start_date,
+                    )
+                )
+                self._cost_model_id = None
 
             no_effective_pl = self._price_list_effective_on is not None and not (
                 self._infra_rates
