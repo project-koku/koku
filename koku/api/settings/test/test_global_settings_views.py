@@ -298,11 +298,12 @@ class DateRangeOptionsViewTest(_EnsureDataRetentionRoute, IamTestCase):
             TenantSettings.objects.create(data_retention_months=months)
 
     def test_base_options_always_present(self):
-        """Base options are always returned regardless of retention."""
+        """Base and tail options are always returned regardless of retention."""
         self._set_retention(3)
         response = self.client.get(self.url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        for opt in ["month_to_date", "previous_month", "last_2_months", "last_3_months", "custom"]:
+        expected_opts = DateRangeOptionsView._BASE_OPTIONS + DateRangeOptionsView._TAIL_OPTIONS
+        for opt in expected_opts:
             self.assertIn(opt, response.data["options"])
 
     def test_last_6_months_absent_when_retention_below_6(self):

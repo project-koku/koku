@@ -116,13 +116,20 @@ class GlobalSettingsView(APIView):
 
     permission_classes = [SettingsAccessPermission]
 
+    @staticmethod
+    def _is_env_retention_locked():
+        """Return True when RETAIN_NUM_MONTHS is set to a non-default value."""
+        env_val = os.environ.get("RETAIN_NUM_MONTHS")
+        if env_val is None:
+            return False
+        try:
+            return int(env_val) != DEFAULT_RETAIN_NUM_MONTHS
+        except (ValueError, TypeError):
+            return True
+
     def get(self, request):
         schema = request.user.customer.schema_name
-        env_val = os.environ.get("RETAIN_NUM_MONTHS")
-        try:
-            env_override = env_val is not None and int(env_val) != DEFAULT_RETAIN_NUM_MONTHS
-        except (ValueError, TypeError):
-            env_override = True
+        env_override = self._is_env_retention_locked()
         effective = get_data_retention_months(schema)
         if effective is None:
             return Response(
@@ -139,12 +146,7 @@ class GlobalSettingsView(APIView):
         )
 
     def put(self, request):
-        env_val = os.environ.get("RETAIN_NUM_MONTHS")
-        try:
-            env_locked = env_val is not None and int(env_val) != DEFAULT_RETAIN_NUM_MONTHS
-        except (ValueError, TypeError):
-            env_locked = True
-        if env_locked:
+        if self._is_env_retention_locked():
             return Response(
                 {
                     "error": (
