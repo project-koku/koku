@@ -17,9 +17,9 @@
 --   cost_model_id
 
 DELETE FROM {{schema | sqlsafe}}.rates_to_usage
-WHERE usage_start >= {{start_date}}
-  AND usage_start <= {{end_date}}
-  AND source_uuid = {{source_uuid}}
+WHERE usage_start >= {{start_date}}::date
+  AND usage_start <= {{end_date}}::date
+  AND source_uuid = {{source_uuid}}::uuid
   AND report_period_id = {{report_period_id}}
   AND monthly_cost_type IS NULL
   AND metric_type != 'markup';
