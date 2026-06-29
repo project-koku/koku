@@ -28,49 +28,50 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             "created_timestamp",
             "updated_timestamp",
         ]
-        read_only_fields = ["uuid", "created_timestamp", "updated_timestamp"]
+        read_only_fields = ["uuid", "name", "created_timestamp", "updated_timestamp"]
+
+    def _validate_currency_code(self, value):
+        code = value.upper()
+        if not is_valid_iso_currency(code):
+            raise serializers.ValidationError(f'"{code}" is not a valid ISO 4217 currency.')
+        return code
 
     def validate_base_currency(self, value):
-        code = value.upper()
-        if not is_valid_iso_currency(code):
-            raise serializers.ValidationError(f'"{code}" is not a valid ISO 4217 currency.')
-        return code
+        return self._validate_currency_code(value)
 
     def validate_target_currency(self, value):
-        code = value.upper()
-        if not is_valid_iso_currency(code):
-            raise serializers.ValidationError(f'"{code}" is not a valid ISO 4217 currency.')
-        return code
+        return self._validate_currency_code(value)
 
     def validate(self, attrs):
-        base = attrs.get("base_currency") or (self.instance and self.instance.base_currency)
-        target = attrs.get("target_currency") or (self.instance and self.instance.target_currency)
-        start = attrs.get("start_date") or (self.instance and self.instance.start_date)
-        end = attrs.get("end_date") or (self.instance and self.instance.end_date)
+        base = attrs.get("base_currency")
+        target = attrs.get("target_currency")
+        start = attrs.get("start_date")
+        end = attrs.get("end_date")
 
-        if base and target and base == target:
+        if base == target:
             raise serializers.ValidationError("base_currency and target_currency must be different.")
 
-        if start and end and end < start:
+        if end < start:
             raise serializers.ValidationError("end_date must be on or after start_date.")
 
         today = timezone.now().date()
         current_month_start = today.replace(day=1)
-        if start and start < current_month_start:
+        if start < current_month_start:
             raise serializers.ValidationError("Cannot create or edit rates for past months.")
 
-        if start and end and base and target:
-            overlapping = StaticExchangeRate.objects.filter(
-                base_currency=base,
-                target_currency=target,
-                start_date__lte=end,
-                end_date__gte=start,
+        overlapping = StaticExchangeRate.objects.filter(
+            base_currency=base,
+            target_currency=target,
+            start_date__lte=end,
+            end_date__gte=start,
+        )
+        if self.instance:
+            overlapping = overlapping.exclude(pk=self.instance.pk)
+        overlap = overlapping.first()
+        if overlap:
+            raise serializers.ValidationError(
+                f"Overlaps with existing rate {overlap.base_currency}-{overlap.target_currency} "
+                f"({overlap.start_date} to {overlap.end_date})."
             )
-            if self.instance:
-                overlapping = overlapping.exclude(pk=self.instance.pk)
-            if overlapping.exists():
-                raise serializers.ValidationError(
-                    "An overlapping rate already exists for this currency pair and date range."
-                )
 
         return attrs
