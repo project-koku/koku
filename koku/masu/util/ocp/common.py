@@ -22,7 +22,6 @@ import pandas as pd
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
-from django.conf import settings
 from pydantic import AfterValidator
 from pydantic import BaseModel
 from pydantic import BeforeValidator

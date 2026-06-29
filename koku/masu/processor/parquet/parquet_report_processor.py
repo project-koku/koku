@@ -688,12 +688,6 @@ class ParquetReportProcessor:
         ):
             return
 
-        # TEMPORARY: bypass pre-write dedup for OCP to verify post-write dedup (COST-7469)
-        if self.provider_type == Provider.PROVIDER_OCP:
-            LOG.info(log_json(msg="COST-7469 TEST: skipping pre-write dedup for OCP", context=self._context))
-            manifest_accessor.mark_s3_parquet_cleared(manifest, parquet_cleared_key)
-            return
-
         if settings.ONPREM:
             self._delete_old_data_postgres(filename)
         else:
