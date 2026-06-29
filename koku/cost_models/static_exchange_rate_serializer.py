@@ -42,6 +42,11 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
     def validate_target_currency(self, value):
         return self._validate_currency_code(value)
 
+    def validate_exchange_rate(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Exchange rate must be strictly positive.")
+        return value
+
     def validate(self, attrs):
         base = attrs.get("base_currency")
         target = attrs.get("target_currency")

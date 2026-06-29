@@ -44,7 +44,7 @@ class StaticExchangeRateListView(APIView):
                 end_date=str(instance.end_date),
             )
         )
-        return Response(StaticExchangeRateSerializer(instance).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class StaticExchangeRateDetailView(APIView):
@@ -78,7 +78,7 @@ class StaticExchangeRateDetailView(APIView):
                 pair=instance.name,
             )
         )
-        return Response(StaticExchangeRateSerializer(instance).data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @method_decorator(never_cache)
     def delete(self, request, *args, **kwargs):
