@@ -28,7 +28,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             "created_timestamp",
             "updated_timestamp",
         ]
-        read_only_fields = ["uuid", "name", "created_timestamp", "updated_timestamp"]
+        read_only_fields = ["uuid", "created_timestamp", "updated_timestamp"]
 
     def _validate_currency_code(self, value):
         code = value.upper()
