@@ -3,8 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializers for StaticExchangeRate CRUD."""
-from datetime import date
-
+from django.utils import timezone
 from rest_framework import serializers
 
 from api.currency.currencies import is_valid_iso_currency
@@ -55,7 +54,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         if start and end and end < start:
             raise serializers.ValidationError("end_date must be on or after start_date.")
 
-        today = date.today()
+        today = timezone.now().date()
         current_month_start = today.replace(day=1)
         if start and start < current_month_start:
             raise serializers.ValidationError("Cannot create or edit rates for past months.")

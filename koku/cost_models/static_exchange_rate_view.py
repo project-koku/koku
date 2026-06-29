@@ -4,11 +4,12 @@
 #
 """Views for StaticExchangeRate CRUD."""
 import logging
-from datetime import date
 
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -62,13 +63,10 @@ class StaticExchangeRateDetailView(APIView):
     def put(self, request, *args, **kwargs):
         instance = self._get_object(kwargs["uuid"])
 
-        today = date.today()
+        today = timezone.now().date()
         current_month_start = today.replace(day=1)
         if instance.start_date < current_month_start:
-            return Response(
-                {"error": "Cannot edit rates for past months."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ValidationError({"error": "Cannot edit rates for past months."})
 
         serializer = StaticExchangeRateSerializer(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -86,13 +84,10 @@ class StaticExchangeRateDetailView(APIView):
     def delete(self, request, *args, **kwargs):
         instance = self._get_object(kwargs["uuid"])
 
-        today = date.today()
+        today = timezone.now().date()
         current_month_start = today.replace(day=1)
         if instance.start_date < current_month_start:
-            return Response(
-                {"error": "Cannot delete rates for past months."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ValidationError({"error": "Cannot delete rates for past months."})
 
         LOG.info(
             log_json(
