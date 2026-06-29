@@ -60,6 +60,12 @@ class StaticExchangeRateListViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             self.assertEqual(StaticExchangeRate.objects.count(), 1)
+            db_rate = StaticExchangeRate.objects.get(uuid=data["uuid"])
+            self.assertEqual(db_rate.base_currency, "USD")
+            self.assertEqual(db_rate.target_currency, "GBP")
+            self.assertEqual(str(db_rate.exchange_rate), "0.790000000000000")
+            self.assertEqual(db_rate.start_date, today.replace(day=1))
+            self.assertEqual(db_rate.end_date, today.replace(day=28))
 
     def test_create_same_currency_pair_rejected(self):
         payload = {
