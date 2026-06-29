@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializers for StaticExchangeRate CRUD."""
+import calendar
+
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -45,6 +47,17 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
     def validate_exchange_rate(self, value):
         if value <= 0:
             raise serializers.ValidationError("Exchange rate must be strictly positive.")
+        return value
+
+    def validate_start_date(self, value):
+        if value.day != 1:
+            raise serializers.ValidationError("start_date must be the first day of a month.")
+        return value
+
+    def validate_end_date(self, value):
+        last_day = calendar.monthrange(value.year, value.month)[1]
+        if value.day != last_day:
+            raise serializers.ValidationError("end_date must be the last day of a month.")
         return value
 
     def validate(self, attrs):
