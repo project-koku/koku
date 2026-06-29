@@ -208,3 +208,37 @@ class EnabledCurrency(models.Model):
 
     currency_code = models.CharField(max_length=5, unique=True)
     created_timestamp = models.DateTimeField(auto_now_add=True)
+
+
+class StaticExchangeRate(models.Model):
+    """User-defined exchange rates with validity periods."""
+
+    class Meta:
+        db_table = "static_exchange_rate"
+        ordering = ["-start_date"]
+        unique_together = [("base_currency", "target_currency", "start_date", "end_date")]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(end_date__gte=models.F("start_date")),
+                name="static_rate_end_gte_start",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["base_currency", "target_currency"],
+                name="static_rate_pair_idx",
+            ),
+        ]
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    base_currency = models.CharField(max_length=5)
+    target_currency = models.CharField(max_length=5)
+    exchange_rate = models.DecimalField(max_digits=33, decimal_places=15)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    created_timestamp = models.DateTimeField(auto_now_add=True)
+    updated_timestamp = models.DateTimeField(auto_now=True)
+
+    @property
+    def name(self):
+        return f"{self.base_currency}-{self.target_currency}"
