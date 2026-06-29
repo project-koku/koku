@@ -20,7 +20,9 @@ DELETE FROM {{schema | sqlsafe}}.rates_to_usage
 WHERE usage_start >= {{start_date}}
   AND usage_start <= {{end_date}}
   AND source_uuid = {{source_uuid}}
-  AND report_period_id = {{report_period_id}};
+  AND report_period_id = {{report_period_id}}
+  AND monthly_cost_type IS NULL
+  AND metric_type != 'markup';
 
 WITH cost_model_info AS (
     SELECT coalesce(cm.distribution_info->>'distribution_type', cm.distribution, 'cpu') AS distribution
