@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for StaticExchangeRate CRUD views."""
+import uuid
 from datetime import date
 
 from django.urls import reverse
@@ -210,14 +211,10 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_delete_nonexistent_returns_404(self):
-        import uuid
-
         response = self.client.delete(self._url(uuid.uuid4()), **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_update_nonexistent_returns_404(self):
-        import uuid
-
         today = timezone.now().date()
         payload = {
             "base_currency": "USD",
