@@ -6,6 +6,7 @@
 from datetime import date
 
 from django.urls import reverse
+from django.utils import timezone
 from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -29,14 +30,14 @@ class StaticExchangeRateListViewTest(IamTestCase):
             "base_currency": "USD",
             "target_currency": "EUR",
             "exchange_rate": "0.920000000000000",
-            "start_date": date.today().replace(day=1),
-            "end_date": date.today().replace(day=28),
+            "start_date": timezone.now().date().replace(day=1),
+            "end_date": timezone.now().date().replace(day=28),
         }
         defaults.update(kwargs)
         return StaticExchangeRate.objects.create(**defaults)
 
     def test_create_rate(self):
-        today = date.today()
+        today = timezone.now().date()
         payload = {
             "base_currency": "USD",
             "target_currency": "GBP",
@@ -46,8 +47,16 @@ class StaticExchangeRateListViewTest(IamTestCase):
         }
         response = self.client.post(self.url, payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["name"], "USD-GBP")
-        self.assertIn("uuid", response.data)
+        data = response.data
+        self.assertIn("uuid", data)
+        self.assertEqual(data["name"], "USD-GBP")
+        self.assertEqual(data["base_currency"], "USD")
+        self.assertEqual(data["target_currency"], "GBP")
+        self.assertEqual(data["exchange_rate"], "0.790000000000000")
+        self.assertEqual(data["start_date"], today.replace(day=1).isoformat())
+        self.assertEqual(data["end_date"], today.replace(day=28).isoformat())
+        self.assertIn("created_timestamp", data)
+        self.assertIn("updated_timestamp", data)
 
         with tenant_context(self.tenant):
             self.assertEqual(StaticExchangeRate.objects.count(), 1)
@@ -57,8 +66,8 @@ class StaticExchangeRateListViewTest(IamTestCase):
             "base_currency": "USD",
             "target_currency": "USD",
             "exchange_rate": 1.0,
-            "start_date": date.today().replace(day=1).isoformat(),
-            "end_date": date.today().replace(day=28).isoformat(),
+            "start_date": timezone.now().date().replace(day=1).isoformat(),
+            "end_date": timezone.now().date().replace(day=28).isoformat(),
         }
         response = self.client.post(self.url, payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -68,14 +77,14 @@ class StaticExchangeRateListViewTest(IamTestCase):
             "base_currency": "ZZZ",
             "target_currency": "EUR",
             "exchange_rate": 1.0,
-            "start_date": date.today().replace(day=1).isoformat(),
-            "end_date": date.today().replace(day=28).isoformat(),
+            "start_date": timezone.now().date().replace(day=1).isoformat(),
+            "end_date": timezone.now().date().replace(day=28).isoformat(),
         }
         response = self.client.post(self.url, payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_end_before_start_rejected(self):
-        today = date.today()
+        today = timezone.now().date()
         payload = {
             "base_currency": "USD",
             "target_currency": "EUR",
@@ -98,7 +107,7 @@ class StaticExchangeRateListViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_overlapping_range_rejected(self):
-        today = date.today()
+        today = timezone.now().date()
         start = today.replace(day=1)
         end = today.replace(day=28)
 
@@ -130,8 +139,8 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
             "base_currency": "USD",
             "target_currency": "EUR",
             "exchange_rate": "0.920000000000000",
-            "start_date": date.today().replace(day=1),
-            "end_date": date.today().replace(day=28),
+            "start_date": timezone.now().date().replace(day=1),
+            "end_date": timezone.now().date().replace(day=28),
         }
         defaults.update(kwargs)
         return StaticExchangeRate.objects.create(**defaults)
@@ -198,8 +207,8 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
             "base_currency": "USD",
             "target_currency": "EUR",
             "exchange_rate": 0.95,
-            "start_date": date.today().replace(day=1).isoformat(),
-            "end_date": date.today().replace(day=28).isoformat(),
+            "start_date": timezone.now().date().replace(day=1).isoformat(),
+            "end_date": timezone.now().date().replace(day=28).isoformat(),
         }
         response = self.client.put(self._url(uuid.uuid4()), payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

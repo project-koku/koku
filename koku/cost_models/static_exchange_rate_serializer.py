@@ -62,7 +62,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         today = timezone.now().date()
         current_month_start = today.replace(day=1)
         if start < current_month_start:
-            raise serializers.ValidationError("Cannot create or edit rates for past months.")
+            raise serializers.ValidationError("start_date cannot be in a past month.")
 
         overlapping = StaticExchangeRate.objects.filter(
             base_currency=base,
