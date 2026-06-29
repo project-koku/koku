@@ -4,6 +4,7 @@
 #
 """Views for currency list and enablement."""
 import logging
+from collections import defaultdict
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
@@ -44,10 +45,12 @@ class CurrencySettingsView(APIView):
         enabled_codes = get_enabled_currency_codes()
         dynamic_codes = get_dynamic_rate_currencies()
 
-        serialized_rates = StaticExchangeRateSerializer(StaticExchangeRate.objects.all(), many=True).data
-        rates_by_base = {}
+        static_rates = StaticExchangeRate.objects.all()
+        serialized_rates = StaticExchangeRateSerializer(static_rates, many=True).data
+        rates_by_base = defaultdict(list)
         for rate in serialized_rates:
-            rates_by_base.setdefault(rate["base_currency"], []).append(rate)
+            code = rate["base_currency"]
+            rates_by_base[code].append(rate)
 
         enabled_filter = request.query_params.get("enabled")
         if enabled_filter is not None and enabled_filter.lower() in ("true", "1"):
