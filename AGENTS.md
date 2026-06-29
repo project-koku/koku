@@ -686,7 +686,8 @@ SET search_path TO org1234567;
 | `DATABASE_PASSWORD`            | `postgres`    | Database password    |
 | `DEVELOPMENT`                  | `True`        | Dev middleware       |
 | `KEEPDB`                       | `True`        | Preserve test DB     |
-| `S3_ENDPOINT`                  | `http://koku-s4-proxy:7480` (containers) / omit for host default `localhost:9000` | Object storage (see `.env.example`) |
+| `S4_PROXY_ENDPOINT`            | `http://koku-s4-proxy:7480` | S3 API URL for Docker Compose services |
+| `S3_ENDPOINT`                  | `http://localhost:9000` (host) | Host scripts; use real AWS URL in production |
 | `S3_ACCESS_KEY` / `S3_SECRET`  | `s4admin` / `s4secret` | S4 credentials |
 | `API_PATH_PREFIX`              | `/api/cost-management` | API URL prefix |
 
@@ -814,8 +815,8 @@ OCP data flows through S4 (S3-compatible local object storage). The nise tool ge
 #### 3a. Start S4 (temporarily stop the frontend if it's on port 9000)
 
 OCP ingestion requires `s4`, `s4-path-proxy`, and the S3 buckets. Containers talk to
-`koku-s4-proxy:7480` via `S3_ENDPOINT`; host-side scripts (nise, `aws` CLI) use
-`http://localhost:9000`.
+`koku-s4-proxy:7480` via `S4_PROXY_ENDPOINT`; host-side scripts (nise, `aws` CLI) use
+`S3_ENDPOINT` or default to `http://localhost:9000`.
 
 ```bash
 # Kill frontend if running on port 9000
@@ -1197,7 +1198,7 @@ API_PROXY_URL=http://localhost:8000 API_TOKEN=$IDENTITY npm run start --workspac
 | `address already in use :9000` | Frontend or `s4-path-proxy` conflict | Kill the other process: `lsof -ti :9000 \| xargs kill`, or `docker compose stop s4-path-proxy` |
 | S3 `404 Not Found` on ingest | Object key has `.tar.gz` extension | Upload without extension: key must be `payload.YYYY_MM` not `payload.YYYY_MM.tar.gz` |
 | `make_bucket failed` / `InvalidAccessKeyId` | Wrong S3 credentials in `.env` | Use `S3_ACCESS_KEY=s4admin` and `S3_SECRET=s4secret` (not legacy MinIO keys) |
-| OCP ingest fails / cannot resolve `koku-s4-proxy` | `s4-path-proxy` not running | Run `make trino-stack-up` (starts proxy + creates buckets) |
+| OCP ingest fails / cannot resolve `koku-s4-proxy` | `s4-path-proxy` not running, or `S3_ENDPOINT` set to Docker hostname on host | Run `make trino-stack-up`; use `S4_PROXY_ENDPOINT` for Docker and omit `S3_ENDPOINT` (or `localhost:9000`) for host |
 | Nise exits silently (code 0, no output) | Missing env vars for S3 upload | Set `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_NAME` before running nise |
 | All costs `0.00` but usage non-zero | Cost model has empty `rates: []` | Update cost model with actual rates via API (Step 5) |
 | `NotImplementedError: ...write_to_self_hosted_table` | AWS/Azure/GCP data in on-prem mode | On-prem only supports OCP data; use Trino stack for cloud providers |

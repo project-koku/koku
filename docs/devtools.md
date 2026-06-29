@@ -73,7 +73,8 @@ After the files are converted they are then sent up to an S3 bucket. During runt
 Trino Specific Env Vars
 ```
 S3_BUCKET_NAME=koku-bucket
-S3_ENDPOINT=http://koku-s4-proxy:7480
+S4_PROXY_ENDPOINT=http://koku-s4-proxy:7480
+S3_ENDPOINT=http://localhost:9000
 S3_ACCESS_KEY=s4admin
 S3_SECRET=s4secret
 TRINO_DATE_STEP=31

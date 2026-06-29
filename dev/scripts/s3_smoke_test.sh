@@ -8,7 +8,7 @@
 # Backend-agnostic: configure via environment variables. Works against S4 or any S3-compatible store.
 #
 # Usage:
-#   export S3_ENDPOINT=http://localhost:9000
+#   export S3_ENDPOINT=http://localhost:9000   # host; omit to use this default
 #   export S3_ACCESS_KEY=s4admin
 #   export S3_SECRET=s4secret
 #   ./dev/scripts/s3_smoke_test.sh
@@ -257,7 +257,6 @@ check_endpoint_reachable() {
 }
 
 python_for_presigned_test() {
-    # Prefer the active venv/python — avoid 'pipenv run' reloading .env (S3_ENDPOINT=koku-s4).
     if [[ -n "${VIRTUAL_ENV:-}" ]] && command -v python &>/dev/null; then
         echo python
     elif command -v python3 &>/dev/null; then
