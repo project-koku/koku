@@ -39,6 +39,7 @@ from api.views import CostGroupsAddView
 from api.views import CostGroupsRemoveView
 from api.views import CostGroupsView
 from api.views import CostModelResourceTypesView
+from api.views import DateRangeOptionsView
 from api.views import GCPAccountView
 from api.views import GCPCostForecastView
 from api.views import GCPCostView
@@ -575,11 +576,19 @@ urlpatterns = [
     path("settings/", SunsetView, name="settings"),
 ]
 if settings.ONPREM:
-    # data-retention must precede the <str:setting> catch-all to avoid shadowing
+    # data-retention and date-range-options must precede the <str:setting> catch-all to avoid shadowing
     for _i, _p in enumerate(urlpatterns):
         if getattr(_p, "name", None) == "get-account-setting":
             urlpatterns.insert(
                 _i, path("account-settings/data-retention/", GlobalSettingsView.as_view(), name="data-retention")
+            )
+            urlpatterns.insert(
+                _i,
+                path(
+                    "account-settings/date-range-options/",
+                    DateRangeOptionsView.as_view(),
+                    name="date-range-options",
+                ),
             )
             break
     else:

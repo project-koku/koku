@@ -36,6 +36,7 @@ from api.utils import get_cost_type
 from api.utils import get_currency
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from koku.settings import DEFAULT_RETAIN_NUM_MONTHS
 from reporting.tenant_settings.models import TenantSettings
 
 
@@ -117,17 +118,33 @@ class GlobalSettingsView(APIView):
 
     def get(self, request):
         schema = request.user.customer.schema_name
-        env_override = os.environ.get("RETAIN_NUM_MONTHS") is not None
+        env_val = os.environ.get("RETAIN_NUM_MONTHS")
+        try:
+            env_override = env_val is not None and int(env_val) != DEFAULT_RETAIN_NUM_MONTHS
+        except (ValueError, TypeError):
+            env_override = True
         effective = get_data_retention_months(schema)
         if effective is None:
             return Response(
                 {"error": "Unable to read retention settings."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-        return Response({"data_retention_months": effective, "env_override": env_override})
+        return Response(
+            {
+                "data_retention_months": effective,
+                "env_override": env_override,
+                "min_retention_months": TenantSettings.MIN_RETENTION_MONTHS,
+                "max_retention_months": TenantSettings.MAX_RETENTION_MONTHS,
+            }
+        )
 
     def put(self, request):
-        if os.environ.get("RETAIN_NUM_MONTHS") is not None:
+        env_val = os.environ.get("RETAIN_NUM_MONTHS")
+        try:
+            env_locked = env_val is not None and int(env_val) != DEFAULT_RETAIN_NUM_MONTHS
+        except (ValueError, TypeError):
+            env_locked = True
+        if env_locked:
             return Response(
                 {
                     "error": (
@@ -152,6 +169,40 @@ class GlobalSettingsView(APIView):
                 settings_row.save()
         invalidate_view_cache_for_tenant_and_all_source_types(schema)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DateRangeOptionsView(APIView):
+    """Returns the date-range preset options available for the current tenant retention (ONPREM only)."""
+
+    permission_classes = [SettingsAccessPermission]
+
+    _BASE_OPTIONS = [
+        "month_to_date",
+        "previous_month",
+        "previous_month_and_month_to_date",
+        "last_2_months",
+        "last_3_months",
+    ]
+    _CONDITIONAL_OPTIONS = [
+        (6, "last_6_months"),
+        (12, "last_12_months"),
+    ]
+    _TAIL_OPTIONS = ["maximum", "custom"]
+
+    def get(self, request):
+        schema = request.user.customer.schema_name
+        retention = get_data_retention_months(schema)
+        if retention is None:
+            return Response(
+                {"error": "Unable to read retention settings."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        options = list(self._BASE_OPTIONS)
+        for threshold, option in self._CONDITIONAL_OPTIONS:
+            if retention >= threshold:
+                options.append(option)
+        options.extend(self._TAIL_OPTIONS)
+        return Response({"options": options})
 
 
 class UserCostTypeSettings(APIView):
