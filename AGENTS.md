@@ -686,7 +686,8 @@ SET search_path TO org1234567;
 | `DATABASE_PASSWORD`            | `postgres`    | Database password    |
 | `DEVELOPMENT`                  | `True`        | Dev middleware       |
 | `KEEPDB`                       | `True`        | Preserve test DB     |
-| `S3_ENDPOINT`                  | S4 URL        | Object storage       |
+| `S3_ENDPOINT`                  | `http://koku-s4-proxy:7480` (containers) / omit for host default `localhost:9000` | Object storage (see `.env.example`) |
+| `S3_ACCESS_KEY` / `S3_SECRET`  | `s4admin` / `s4secret` | S4 credentials |
 | `API_PATH_PREFIX`              | `/api/cost-management` | API URL prefix |
 
 ### Docker Compose Services
@@ -701,7 +702,8 @@ SET search_path TO org1234567;
 | `koku-beat`      | —     | Celery beat scheduler          |
 | `trino`          | 8080  | Analytics SQL engine           |
 | `hive-metastore` | 9083  | Hive metastore for Trino       |
-| `s4`             | 9000 (S3 API), 5002 (UI) | S3-compatible object storage |
+| `s4-path-proxy`  | 9000 (S3 API proxy) | Path proxy for S3 API (shortens Hive warehouse keys) |
+| `s4`             | 9001 (S3 backend), 5002 (UI) | S3-compatible object storage backend |
 | `unleash`        | 4242  | Feature flag server            |
 | `grafana`        | 3001  | Monitoring dashboards          |
 | `pgadmin`        | 8432  | Database admin UI              |
@@ -758,8 +760,9 @@ docker compose up -d db valkey unleash koku-server masu-server koku-worker koku-
 
 **Common port conflicts:**
 - Port `15432` (db): Check for stale test containers: `podman ps -a | grep 15432`
-- Port `9000` (S4 S3 API): Conflicts with the frontend dev server. Stop the frontend
-  before starting S4, and stop S4 before restarting the frontend.
+- Port `9000` (`s4-path-proxy` S3 API): Conflicts with the frontend dev server. Stop the
+  frontend before starting the S4 stack, and stop `s4-path-proxy` before restarting the
+  frontend. Stopping `s4` alone does **not** release port 9000.
 
 Wait for services to be healthy:
 
@@ -810,13 +813,21 @@ OCP data flows through S4 (S3-compatible local object storage). The nise tool ge
 
 #### 3a. Start S4 (temporarily stop the frontend if it's on port 9000)
 
+OCP ingestion requires `s4`, `s4-path-proxy`, and the S3 buckets. Containers talk to
+`koku-s4-proxy:7480` via `S3_ENDPOINT`; host-side scripts (nise, `aws` CLI) use
+`http://localhost:9000`.
+
 ```bash
 # Kill frontend if running on port 9000
 lsof -ti :9000 | xargs kill 2>/dev/null
 
-# Start S4 and create buckets
-docker compose up -d s4 create-s3-buckets
-sleep 3
+# Start S4, path proxy, and create buckets (preferred)
+make trino-stack-up
+
+# Or manually:
+# docker compose up -d s4 s4-path-proxy
+# docker compose up -d --wait --no-deps s4 s4-path-proxy
+# docker compose run --rm --no-deps create-s3-buckets
 ```
 
 #### 3b. Generate OCP data with nise
@@ -884,7 +895,7 @@ docker run --rm --network koku_default \
   -v /tmp/${PAYLOAD}.2026_01.tar.gz:/data/${PAYLOAD}.2026_01 \
   -v /tmp/${PAYLOAD}.2026_02.tar.gz:/data/${PAYLOAD}.2026_02 \
   amazon/aws-cli:latest \
-  --endpoint-url http://koku-s4:7480 \
+  --endpoint-url http://koku-s4-proxy:7480 \
   s3 cp /data/${PAYLOAD}.2026_01 s3://ocp-ingress/${PAYLOAD}.2026_01
 
 docker run --rm --network koku_default \
@@ -892,7 +903,7 @@ docker run --rm --network koku_default \
   -e AWS_SECRET_ACCESS_KEY=s4secret \
   -v /tmp/${PAYLOAD}.2026_02.tar.gz:/data/${PAYLOAD}.2026_02 \
   amazon/aws-cli:latest \
-  --endpoint-url http://koku-s4:7480 \
+  --endpoint-url http://koku-s4-proxy:7480 \
   s3 cp /data/${PAYLOAD}.2026_02 s3://ocp-ingress/${PAYLOAD}.2026_02
 ```
 
@@ -929,6 +940,10 @@ Ingestion is complete when you see `manifest marked complete` in the worker logs
 #### 3f. Stop S4 after ingestion
 
 ```bash
+# Frees port 9000 for the frontend (s4 alone does not bind 9000)
+docker compose stop s4-path-proxy
+
+# Optional: stop the S4 backend and UI as well
 docker compose stop s4
 ```
 
@@ -944,14 +959,16 @@ cd $KOKU_ROOT
 # Start the full stack with Trino
 make docker-up-min-trino
 
-# Or manually:
-docker compose up -d db valkey s4 trino hive-metastore koku-server masu-server koku-worker koku-beat
+# Or manually (includes S4 path proxy and bucket creation):
+make trino-stack-up
+docker compose up -d koku-server masu-server koku-worker koku-beat
 ```
 
 This starts additional services:
 - **Trino** (port 8080) — SQL analytics engine for Parquet aggregation
 - **Hive Metastore** (port 9083) — Schema registry for Trino
-- **S4** (port 9000 S3 API, port 5002 UI) — S3-compatible storage for Parquet files
+- **s4-path-proxy** (port 9000) — S3 API proxy used by workers and host uploads
+- **S4** (port 9001 S3 backend, port 5002 UI) — S3-compatible storage backend
 
 #### Generate AWS/Azure/GCP Test Data
 
@@ -1079,9 +1096,9 @@ The frontend starts at `http://localhost:9000/`. The webpack dev server proxies
 - The proxy must NOT rewrite the path — the backend expects the full
   `/api/cost-management/v1/...` prefix
 
-**Port 9000 conflict with S4:** The frontend and S4 S3 API both use port 9000.
-Never run them simultaneously. Stop S4 before starting the frontend, and
-vice versa.
+**Port 9000 conflict with S4:** The frontend and `s4-path-proxy` both use port 9000.
+Never run them simultaneously. Stop `s4-path-proxy` before starting the frontend, and
+vice versa. Stopping `s4` alone does not release port 9000.
 
 ### Step 7: Verify Data in the API
 
@@ -1160,9 +1177,9 @@ docker compose up -d db valkey unleash koku-server masu-server koku-worker koku-
 
 # 2. Generate + ingest OCP data (stop frontend first if running)
 lsof -ti :9000 | xargs kill 2>/dev/null
-docker compose up -d s4
+make trino-stack-up
 # ... (generate nise data, upload to S4, trigger ingest — see Steps 3a-3e)
-docker compose stop s4
+docker compose stop s4-path-proxy
 
 # 3. Start frontend
 cd $WORKSPACE/koku-ui
@@ -1177,8 +1194,10 @@ API_PROXY_URL=http://localhost:8000 API_TOKEN=$IDENTITY npm run start --workspac
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `address already in use :15432` | Stale test DB container | `podman stop koku-test-db` |
-| `address already in use :9000` | Frontend or S4 conflict | Kill the other process: `lsof -ti :9000 \| xargs kill` |
+| `address already in use :9000` | Frontend or `s4-path-proxy` conflict | Kill the other process: `lsof -ti :9000 \| xargs kill`, or `docker compose stop s4-path-proxy` |
 | S3 `404 Not Found` on ingest | Object key has `.tar.gz` extension | Upload without extension: key must be `payload.YYYY_MM` not `payload.YYYY_MM.tar.gz` |
+| `make_bucket failed` / `InvalidAccessKeyId` | Wrong S3 credentials in `.env` | Use `S3_ACCESS_KEY=s4admin` and `S3_SECRET=s4secret` (not legacy MinIO keys) |
+| OCP ingest fails / cannot resolve `koku-s4-proxy` | `s4-path-proxy` not running | Run `make trino-stack-up` (starts proxy + creates buckets) |
 | Nise exits silently (code 0, no output) | Missing env vars for S3 upload | Set `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_NAME` before running nise |
 | All costs `0.00` but usage non-zero | Cost model has empty `rates: []` | Update cost model with actual rates via API (Step 5) |
 | `NotImplementedError: ...write_to_self_hosted_table` | AWS/Azure/GCP data in on-prem mode | On-prem only supports OCP data; use Trino stack for cloud providers |

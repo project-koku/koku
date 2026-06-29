@@ -126,6 +126,8 @@ To add test sources and data:
 
 The S4 web UI will be available at [http://127.0.0.1:5002/](http://127.0.0.1:5002/). Use the `S3_ACCESS_KEY` and `S3_SECRET` set in your `.env` file as login credentials (defaults: `s4admin` / `s4secret`).
 
+The S3 API (used by nise and OCP ingestion) is exposed at [http://127.0.0.1:9000/](http://127.0.0.1:9000/) via `s4-path-proxy`. `make docker-up-min` starts the proxy, S4 backend, and creates required buckets automatically.
+
 The Trinio UI will be available at http://127.0.0.1:8080/ui/. Details can be found there on queries. This is particularly useful for troubleshooting failures.
 
 Access the Trino CLI using the following command:
