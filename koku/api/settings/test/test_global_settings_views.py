@@ -111,6 +111,14 @@ class GlobalSettingsViewTest(_EnsureDataRetentionRoute, IamTestCase):
         self.assertEqual(response.data["data_retention_months"], DEFAULT_RETAIN_NUM_MONTHS)
         self.assertFalse(response.data["env_override"])
 
+    def test_get_env_override_true_when_env_is_invalid(self):
+        """When RETAIN_NUM_MONTHS is set to a non-integer, env_override is True."""
+        with patch("api.settings.views.get_data_retention_months", return_value=4):
+            with patch.dict("os.environ", {"RETAIN_NUM_MONTHS": "abc"}):
+                response = self.client.get(self.url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["env_override"])
+
     def test_get_returns_503_on_db_error(self):
         """GET returns 503 when the helper returns None (DB error)."""
         with patch("api.settings.views.get_data_retention_months", return_value=None):
@@ -173,6 +181,13 @@ class GlobalSettingsViewTest(_EnsureDataRetentionRoute, IamTestCase):
     def test_put_blocked_when_env_differs_from_default(self):
         """PUT returns 403 when RETAIN_NUM_MONTHS is set to a non-default value (COST-7728)."""
         with patch.dict("os.environ", {"RETAIN_NUM_MONTHS": "24"}):
+            data = {"data_retention_months": 6}
+            response = self.client.put(self.url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_put_blocked_when_env_is_invalid(self):
+        """PUT returns 403 when RETAIN_NUM_MONTHS is set to a non-integer value."""
+        with patch.dict("os.environ", {"RETAIN_NUM_MONTHS": "abc"}):
             data = {"data_retention_months": 6}
             response = self.client.put(self.url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
