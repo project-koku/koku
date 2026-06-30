@@ -87,12 +87,6 @@ class OCPReportDBCleaner:
             if not simulate:
                 cascade_delete(usage_period_objs.query.model, usage_period_objs)
 
-                # RatesToUsage.report_period_id is an IntegerField (not a FK),
-                # so cascade_delete above does not touch it.
-                from reporting.provider.ocp.models import RatesToUsage
-
-                RatesToUsage.objects.filter(source_uuid=provider_uuid).delete()
-
                 # For on-prem, also delete from self-hosted tables
                 if settings.ONPREM:
                     accessor.delete_self_hosted_data_by_source(provider_uuid)

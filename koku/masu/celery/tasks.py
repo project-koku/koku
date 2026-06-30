@@ -245,15 +245,6 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
             for table, partition_column in TRINO_MANAGED_TABLES.items():
                 accessor.delete_hive_partitions_by_source(table, partition_column, provider_uuid)
 
-        # rates_to_usage is a PostgreSQL table in both modes and uses a bare
-        # UUIDField for source_uuid (no FK cascade), so clean it up explicitly.
-        from reporting.provider.ocp.models import RatesToUsage
-
-        with schema_context(schema_name):
-            deleted, _ = RatesToUsage.objects.filter(source_uuid=provider_uuid).delete()
-            if deleted:
-                LOG.info("Deleted %d rates_to_usage rows for provider %s", deleted, provider_uuid)
-
 
 # This task will process the autovacuum tuning as a background process
 @celery_app.task(name="masu.celery.tasks.autovacuum_tune_schemas", queue=DEFAULT)
