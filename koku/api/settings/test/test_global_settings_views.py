@@ -15,7 +15,6 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
-from api.settings.views import DateRangeOptionsView
 from api.settings.views import GlobalSettingsView
 from koku.settings import DEFAULT_RETAIN_NUM_MONTHS
 from masu.config import Config
@@ -28,7 +27,7 @@ def _env_without_retain():
 
 
 class _EnsureDataRetentionRoute:
-    """Mixin that injects the data-retention and date-range-options URLs when ONPREM is not set."""
+    """Mixin that injects the data-retention URL when ONPREM is not set."""
 
     @classmethod
     def setUpClass(cls):
@@ -45,14 +44,6 @@ class _EnsureDataRetentionRoute:
                             "account-settings/data-retention/",
                             GlobalSettingsView.as_view(),
                             name="data-retention",
-                        ),
-                    )
-                    api_urls.urlpatterns.insert(
-                        i,
-                        path(
-                            "account-settings/date-range-options/",
-                            DateRangeOptionsView.as_view(),
-                            name="date-range-options",
                         ),
                     )
                     break
@@ -274,71 +265,3 @@ class GlobalSettingsViewRBACTest(_EnsureDataRetentionRoute, IamTestCase):
         data = {"data_retention_months": 6}
         response = APIClient().put(self.url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-
-class DateRangeOptionsViewTest(_EnsureDataRetentionRoute, IamTestCase):
-    """Tests for the date-range-options GET endpoint."""
-
-    def setUp(self):
-        super().setUp()
-        self.client = APIClient()
-        self.url = reverse("date-range-options")
-        self._env_patcher = patch.dict(os.environ, _env_without_retain(), clear=True)
-        self._env_patcher.start()
-        with schema_context(self.schema_name):
-            TenantSettings.objects.all().delete()
-
-    def tearDown(self):
-        self._env_patcher.stop()
-        super().tearDown()
-
-    def _set_retention(self, months):
-        with schema_context(self.schema_name):
-            TenantSettings.objects.all().delete()
-            TenantSettings.objects.create(data_retention_months=months)
-
-    def test_base_options_always_present(self):
-        """Base and tail options are always returned regardless of retention."""
-        self._set_retention(3)
-        response = self.client.get(self.url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected_opts = DateRangeOptionsView._BASE_OPTIONS + DateRangeOptionsView._TAIL_OPTIONS
-        for opt in expected_opts:
-            self.assertIn(opt, response.data["options"])
-
-    def test_last_6_months_absent_when_retention_below_6(self):
-        """last_6_months is not returned when retention < 6."""
-        self._set_retention(3)
-        response = self.client.get(self.url, **self.headers)
-        self.assertNotIn("last_6_months", response.data["options"])
-        self.assertNotIn("last_12_months", response.data["options"])
-
-    def test_last_6_months_present_when_retention_equals_6(self):
-        """last_6_months appears when retention == 6."""
-        self._set_retention(6)
-        response = self.client.get(self.url, **self.headers)
-        self.assertIn("last_6_months", response.data["options"])
-        self.assertNotIn("last_12_months", response.data["options"])
-
-    def test_both_conditional_options_present_when_retention_12(self):
-        """Both last_6_months and last_12_months appear when retention == 12."""
-        self._set_retention(12)
-        response = self.client.get(self.url, **self.headers)
-        self.assertIn("last_6_months", response.data["options"])
-        self.assertIn("last_12_months", response.data["options"])
-
-    def test_option_order_respects_prd(self):
-        """Options are returned in PRD order: base → conditional → tail."""
-        self._set_retention(12)
-        response = self.client.get(self.url, **self.headers)
-        opts = response.data["options"]
-        self.assertLess(opts.index("last_3_months"), opts.index("last_6_months"))
-        self.assertLess(opts.index("last_6_months"), opts.index("last_12_months"))
-        self.assertLess(opts.index("last_12_months"), opts.index("maximum"))
-        self.assertEqual(opts[-1], "custom")
-
-    def test_db_error_returns_503(self):
-        """Returns 503 when get_data_retention_months returns None."""
-        with patch("api.settings.views.get_data_retention_months", return_value=None):
-            response = self.client.get(self.url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)

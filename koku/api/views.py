@@ -87,7 +87,6 @@ from api.settings.tags.view import SettingsDisableTagView
 from api.settings.tags.view import SettingsEnableTagView
 from api.settings.tags.view import SettingsTagView
 from api.settings.views import AccountSettings
-from api.settings.views import DateRangeOptionsView
 from api.settings.views import GlobalSettingsView
 from api.settings.views import UserCostTypeSettings
 from api.status.views import StatusView

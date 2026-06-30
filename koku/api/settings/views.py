@@ -173,40 +173,6 @@ class GlobalSettingsView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class DateRangeOptionsView(APIView):
-    """Returns the date-range preset options available for the current tenant retention (ONPREM only)."""
-
-    permission_classes = [SettingsAccessPermission]
-
-    _BASE_OPTIONS = [
-        "month_to_date",
-        "previous_month",
-        "previous_month_and_month_to_date",
-        "last_2_months",
-        "last_3_months",
-    ]
-    _CONDITIONAL_OPTIONS = [
-        (6, "last_6_months"),
-        (12, "last_12_months"),
-    ]
-    _TAIL_OPTIONS = ["maximum", "custom"]
-
-    def get(self, request):
-        schema = request.user.customer.schema_name
-        retention = get_data_retention_months(schema)
-        if retention is None:
-            return Response(
-                {"error": "Unable to read retention settings."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-        options = list(self._BASE_OPTIONS)
-        for threshold, option in self._CONDITIONAL_OPTIONS:
-            if retention >= threshold:
-                options.append(option)
-        options.extend(self._TAIL_OPTIONS)
-        return Response({"options": options})
-
-
 class UserCostTypeSettings(APIView):
     """Settings views for user cost_type."""
 
