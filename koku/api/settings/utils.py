@@ -296,13 +296,17 @@ def set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
 def get_data_retention_months(schema_name: str) -> "int | None":
     """Return the effective data-retention period for the given tenant.
 
-    Priority: env var > DB > Config default.
+    Priority: env var (only when set to a non-default value) > DB > Config default.
     Returns None on DB read failure (caller should skip purge).
     """
+    from koku.settings import DEFAULT_RETAIN_NUM_MONTHS
+
     env_val = os.environ.get("RETAIN_NUM_MONTHS")
     if env_val is not None:
         try:
-            return int(env_val)
+            parsed = int(env_val)
+            if parsed != DEFAULT_RETAIN_NUM_MONTHS:
+                return parsed
         except (ValueError, TypeError):
             LOG.error("RETAIN_NUM_MONTHS env var is not a valid integer: %r", env_val)
             return None

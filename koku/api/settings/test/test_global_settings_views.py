@@ -104,12 +104,15 @@ class GlobalSettingsViewTest(_EnsureDataRetentionRoute, IamTestCase):
         self.assertTrue(response.data["env_override"])
 
     def test_get_env_override_false_when_env_equals_default(self):
-        """When RETAIN_NUM_MONTHS equals the Config default, env_override is False (COST-7728)."""
+        """When RETAIN_NUM_MONTHS equals the Config default, env_override is False
+        and the DB value is used instead of the env var (COST-7728)."""
+        with schema_context(self.schema_name):
+            TenantSettings.objects.create(data_retention_months=6)
         with patch.dict("os.environ", {"RETAIN_NUM_MONTHS": str(DEFAULT_RETAIN_NUM_MONTHS)}):
             response = self.client.get(self.url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["data_retention_months"], DEFAULT_RETAIN_NUM_MONTHS)
         self.assertFalse(response.data["env_override"])
+        self.assertEqual(response.data["data_retention_months"], 6)
 
     def test_get_env_override_true_when_env_is_invalid(self):
         """When RETAIN_NUM_MONTHS is set to a non-integer, env_override is True."""
