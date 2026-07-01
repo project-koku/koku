@@ -90,12 +90,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         source = self.provider_uuid
         with self.accessor as acc:
             acc.populate_line_item_daily_summary_table_trino(
-                start_date,
-                end_date,
-                report_period_id,
-                cluster_id,
-                cluster_alias,
-                source,
+                start_date, end_date, report_period_id, cluster_id, cluster_alias, source
             )
             mock_execute.assert_called()
 
@@ -129,12 +124,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_sql_query.side_effect = TrinoStatementExecError("SELECT * from table", 1, {}, trino_error)
 
             acc.populate_line_item_daily_summary_table_trino(
-                start_date,
-                end_date,
-                report_period_id,
-                cluster_id,
-                cluster_alias,
-                source,
+                start_date, end_date, report_period_id, cluster_id, cluster_alias, source
             )
 
         self.assertIn(
@@ -170,12 +160,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_sql_query.side_effect = TrinoStatementExecError("SELECT * from table", 1, {}, trino_error)
 
             acc.populate_line_item_daily_summary_table_trino(
-                start_date,
-                end_date,
-                report_period_id,
-                cluster_id,
-                cluster_alias,
-                source,
+                start_date, end_date, report_period_id, cluster_id, cluster_alias, source
             )
 
     def test_populate_tag_based_usage_costs(self):  # noqa: C901
@@ -191,18 +176,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
             "cpu_core_usage_per_hour": ["cpu", "pod_usage_cpu_core_hours"],
             "cpu_core_request_per_hour": ["cpu", "pod_request_cpu_core_hours"],
             "memory_gb_usage_per_hour": ["memory", "pod_usage_memory_gigabyte_hours"],
-            "memory_gb_request_per_hour": [
-                "memory",
-                "pod_request_memory_gigabyte_hours",
-            ],
-            "storage_gb_usage_per_month": [
-                "storage",
-                "persistentvolumeclaim_usage_gigabyte_months",
-            ],
-            "storage_gb_request_per_month": [
-                "storage",
-                "volume_request_storage_gigabyte_months",
-            ],
+            "memory_gb_request_per_hour": ["memory", "pod_request_memory_gigabyte_hours"],
+            "storage_gb_usage_per_month": ["storage", "persistentvolumeclaim_usage_gigabyte_months"],
+            "storage_gb_request_per_month": ["storage", "volume_request_storage_gigabyte_months"],
         }
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
@@ -239,8 +215,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     # get the three querysets to be evaluated based on the pod_labels
                     banking_qset = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            pod_labels__contains={"app": "banking"},
+                            cluster_id=self.cluster_id, pod_labels__contains={"app": "banking"}
                         )
                         .values("usage_start")
                         .annotate(
@@ -250,8 +225,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     )
                     mobile_qset = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            pod_labels__contains={"app": "mobile"},
+                            cluster_id=self.cluster_id, pod_labels__contains={"app": "mobile"}
                         )
                         .values("usage_start")
                         .annotate(
@@ -261,8 +235,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     )
                     weather_qset = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            pod_labels__contains={"app": "weather"},
+                            cluster_id=self.cluster_id, pod_labels__contains={"app": "weather"}
                         )
                         .values("usage_start")
                         .annotate(
@@ -290,11 +263,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     RatesToUsage.objects.filter(cluster_id=self.cluster_id).delete()
 
                     acc.populate_tag_usage_costs(
-                        infrastructure_rates,
-                        supplementary_rates,
-                        start_date,
-                        end_date,
-                        self.cluster_id,
+                        infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
                     )
 
                     for value, rate in rate_costs.get(cost).get("app").items():
@@ -328,18 +297,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
             "cpu_core_usage_per_hour": ["cpu", "pod_usage_cpu_core_hours"],
             "cpu_core_request_per_hour": ["cpu", "pod_request_cpu_core_hours"],
             "memory_gb_usage_per_hour": ["memory", "pod_usage_memory_gigabyte_hours"],
-            "memory_gb_request_per_hour": [
-                "memory",
-                "pod_request_memory_gigabyte_hours",
-            ],
-            "storage_gb_usage_per_month": [
-                "storage",
-                "persistentvolumeclaim_usage_gigabyte_months",
-            ],
-            "storage_gb_request_per_month": [
-                "storage",
-                "volume_request_storage_gigabyte_months",
-            ],
+            "memory_gb_request_per_hour": ["memory", "pod_request_memory_gigabyte_hours"],
+            "storage_gb_usage_per_month": ["storage", "persistentvolumeclaim_usage_gigabyte_months"],
+            "storage_gb_request_per_month": ["storage", "volume_request_storage_gigabyte_months"],
         }
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
@@ -367,10 +327,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     """
 
                     rate_costs[cost] = {
-                        "app": {
-                            "default_value": random.randrange(1, 100),
-                            "defined_keys": ["mobile", "banking"],
-                        }
+                        "app": {"default_value": random.randrange(1, 100), "defined_keys": ["mobile", "banking"]}
                     }
                     # define the arguments for the function based on what usage type needs to be tested
                     if usage_type == "Infrastructure":
@@ -382,8 +339,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     # get the three querysets to be evaluated based on the pod_labels
                     banking_qset = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            pod_labels__contains={"app": "banking"},
+                            cluster_id=self.cluster_id, pod_labels__contains={"app": "banking"}
                         )
                         .values("usage_start")
                         .annotate(
@@ -393,8 +349,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     )
                     mobile_qset = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            pod_labels__contains={"app": "mobile"},
+                            cluster_id=self.cluster_id, pod_labels__contains={"app": "mobile"}
                         )
                         .values("usage_start")
                         .annotate(
@@ -404,8 +359,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     )
                     weather_qset = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            pod_labels__contains={"app": "weather"},
+                            cluster_id=self.cluster_id, pod_labels__contains={"app": "weather"}
                         )
                         .values("usage_start")
                         .annotate(
@@ -416,11 +370,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
                     # populate a results dictionary for each item in the querysets using the cost before the update
                     initial_results_dict = defaultdict(dict)
-                    mapper = {
-                        "banking": banking_qset,
-                        "mobile": mobile_qset,
-                        "weather": weather_qset,
-                    }
+                    mapper = {"banking": banking_qset, "mobile": mobile_qset, "weather": weather_qset}
                     for word, qset in mapper.items():
                         for entry in qset:
                             # For each label, by date store the usage, cost
@@ -432,11 +382,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     RatesToUsage.objects.filter(cluster_id=self.cluster_id).delete()
 
                     acc.populate_tag_usage_default_costs(
-                        infrastructure_rates,
-                        supplementary_rates,
-                        start_date,
-                        end_date,
-                        self.cluster_id,
+                        infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
                     )
 
                     tag_values = ["banking", "mobile", "weather"]
@@ -536,9 +482,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with self.accessor as acc:
             cluster = acc.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
             OCPPVC.objects.get_or_create(
-                persistent_volume_claim=pvcs[0],
-                persistent_volume=volumes[0],
-                cluster=cluster,
+                persistent_volume_claim=pvcs[0], persistent_volume=volumes[0], cluster=cluster
             )
             acc.populate_openshift_cluster_information_tables(
                 self.aws_provider, cluster_id, cluster_alias, start_date, end_date
@@ -641,9 +585,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         with self.accessor as acc:
             cluster = OCPCluster(
-                cluster_id=cluster_id,
-                cluster_alias=cluster_alias,
-                provider_id=self.gcp_provider_uuid,
+                cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=self.gcp_provider_uuid
             )
             cluster.save()
             topology = acc.get_filtered_openshift_topology_for_multiple_providers(
@@ -666,18 +608,12 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with self.accessor as acc:
             cluster = acc.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
             node = OCPNode.objects.create(
-                node=node_info[0],
-                resource_id=node_info[1],
-                node_capacity_cpu_cores=node_info[2],
-                cluster=cluster,
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             )
             self.assertIsNone(node.node_role)
             acc.populate_node_table(cluster, [node_info])
             node = OCPNode.objects.get(
-                node=node_info[0],
-                resource_id=node_info[1],
-                node_capacity_cpu_cores=node_info[2],
-                cluster=cluster,
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             )
             self.assertEqual(node.node_role, node_info[3])
 
@@ -699,10 +635,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.assertIsNone(node.architecture)
             acc.populate_node_table(cluster, [node_info])
             node = OCPNode.objects.get(
-                node=node_info[0],
-                resource_id=node_info[1],
-                node_capacity_cpu_cores=node_info[2],
-                cluster=cluster,
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             )
             self.assertEqual(node.architecture, node_info[4])
 
@@ -727,9 +660,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             acc.populate_cluster_table(self.aws_provider, cluster_id, "cluster_alias")
             # Forcefully create a second entry
             OCPCluster.objects.get_or_create(
-                cluster_id=cluster_id,
-                cluster_alias=self.aws_provider.name,
-                provider_id=self.aws_provider_uuid,
+                cluster_id=cluster_id, cluster_alias=self.aws_provider.name, provider_id=self.aws_provider_uuid
             )
             acc.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
             clusters = OCPCluster.objects.filter(cluster_id=cluster_id)
@@ -746,25 +677,16 @@ class OCPReportDBAccessorTest(MasuTestCase):
             cluster = acc.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
             acc.populate_node_table(cluster, [node_info])
             node_count = OCPNode.objects.filter(
-                node=node_info[0],
-                resource_id=node_info[1],
-                node_capacity_cpu_cores=node_info[2],
-                cluster=cluster,
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             ).count()
             self.assertEqual(node_count, 1)
             acc.populate_node_table(cluster, [node_info])
             node_count = OCPNode.objects.filter(
-                node=node_info[0],
-                resource_id=node_info[1],
-                node_capacity_cpu_cores=node_info[2],
-                cluster=cluster,
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             ).count()
             self.assertEqual(node_count, 1)
 
-    @patch(
-        "reporting.provider.ocp.models.OCPPVC.objects.create",
-        side_effect=IntegrityError,
-    )
+    @patch("reporting.provider.ocp.models.OCPPVC.objects.create", side_effect=IntegrityError)
     @patch("masu.database.ocp_report_db_accessor.LOG.warning")
     def test_populate_pvc_table_handles_integrity_error(self, mock_log, mock_create):
         """Test that populating OCPPVC table handles IntegrityError exception."""
@@ -790,18 +712,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
             report_period = acc.report_periods_for_provider_uuid(self.ocpaws_provider_uuid, start_date)
             report_period_id = report_period.id
             count = OCPUsageLineItemDailySummary.objects.filter(
-                report_period_id=report_period_id,
-                usage_start__gte=start_date,
-                infrastructure_raw_cost__gt=0,
+                report_period_id=report_period_id, usage_start__gte=start_date, infrastructure_raw_cost__gt=0
             ).count()
             self.assertNotEqual(count, 0)
             acc.delete_infrastructure_raw_cost_from_daily_summary(
                 self.ocpaws_provider_uuid, report_period_id, start_date, end_date
             )
             count = OCPUsageLineItemDailySummary.objects.filter(
-                report_period_id=report_period_id,
-                usage_start__gte=start_date,
-                infrastructure_raw_cost__gt=0,
+                report_period_id=report_period_id, usage_start__gte=start_date, infrastructure_raw_cost__gt=0
             ).count()
             self.assertEqual(count, 0)
 
@@ -937,21 +855,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 "return": ["2022-04-01", "2022-04-30"],
                 "expected": (datetime(2022, 4, 1), datetime(2022, 4, 30)),
             },
-            {
-                "name": "none-dates",
-                "return": [None, None],
-                "expected": (start_date, end_date),
-            },
+            {"name": "none-dates", "return": [None, None], "expected": (start_date, end_date)},
             {
                 "name": "none-start-date",
                 "return": [None, "2022-04-30"],
                 "expected": (start_date, datetime(2022, 4, 30)),
             },
-            {
-                "name": "none-end-date",
-                "return": ["2022-04-01", None],
-                "expected": (datetime(2022, 4, 1), end_date),
-            },
+            {"name": "none-end-date", "return": ["2022-04-01", None], "expected": (datetime(2022, 4, 1), end_date)},
         ]
 
         for test in table:
@@ -1061,15 +971,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Test that updating monthly costs without a matching report period no longer throws an error"""
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             with self.accessor as acc:
-                acc.populate_monthly_cost_sql(
-                    "Fake",
-                    "",
-                    "",
-                    self.start_date,
-                    self.start_date,
-                    "",
-                    self.provider_uuid,
-                )
+                acc.populate_monthly_cost_sql("Fake", "", "", self.start_date, self.start_date, "", self.provider_uuid)
                 self.assertIn("Skipping populate_monthly_cost_sql update", logger.output[0])
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
@@ -1122,41 +1024,16 @@ class OCPReportDBAccessorTest(MasuTestCase):
             "source_uuid": self.ocp_test_provider_uuid,
             "populate": True,
         }
-        delete_monthly = [
-            get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"),
-            default_sql_params,
-        ]
-        delete_rtu = [
-            get_pkgutil_values("distribute_cost/delete_distributed_rates_to_usage.sql"),
-            default_sql_params,
-        ]
         side_effect = [
-            delete_monthly,
-            delete_rtu,
-            [
-                get_pkgutil_values("distribute_cost/distribute_platform_cost_per_rate.sql"),
-                default_sql_params,
-            ],
-            delete_monthly,
-            delete_rtu,
-            [
-                get_pkgutil_values("distribute_cost/distribute_worker_cost_per_rate.sql"),
-                default_sql_params,
-            ],
-            delete_monthly,
-            delete_rtu,
-            [
-                get_pkgutil_values("distribute_cost/distribute_unattributed_storage_per_rate.sql"),
-                default_sql_params,
-            ],
-            delete_monthly,
-            delete_rtu,
-            [
-                get_pkgutil_values("distribute_cost/distribute_unattributed_network_per_rate.sql"),
-                default_sql_params,
-            ],
-            delete_monthly,
-            delete_rtu,
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_platform_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_worker_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_unattributed_storage_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_unattributed_network_cost.sql"), default_sql_params],
+            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
         ]
         mock_jinja = Mock()
         mock_jinja.side_effect = side_effect
@@ -1196,11 +1073,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     acc.populate_distributed_cost_sql(
                         summary_range,
                         self.ocp_test_provider_uuid,
-                        {
-                            "worker_cost": True,
-                            "platform_cost": True,
-                            "gpu_unallocated": True,
-                        },
+                        {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
                     )
 
                     # Validate that standard SQL distributions (Platform/Worker) still run
@@ -1212,25 +1085,19 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     # Double check the specific GPU SQL file was never requested
                     gpu_call = call(
                         masu_database,
-                        "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                        "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
                     )
                     self.assertNotIn(gpu_call, mock_data_get.call_args_list)
 
     @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data",
-        return_value=True,
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data", return_value=True
     )
     @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_distributed_cost_sql_gpu_runs_prev_month_on_second_of_month(
-        self,
-        mock_trino_execute,
-        mock_sql_execute,
-        mock_data_get,
-        mock_table_exists,
-        mock_has_gpu_data,
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists, mock_has_gpu_data
     ):
         """Test that GPU distribution runs for previous month only on the second of the month."""
         start_date = self.dh.this_month_start.date()
@@ -1257,14 +1124,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
             )
             self.assertIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_called()
 
     @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data",
-        return_value=True,
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data", return_value=True
     )
     @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
@@ -1307,7 +1173,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # GPU should NOT run — already finalized
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
             )
             self.assertNotIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_not_called()
@@ -1316,8 +1182,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_sql_execute.assert_called()
 
     @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data",
-        return_value=True,
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data", return_value=True
     )
     @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
@@ -1360,26 +1225,20 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # GPU SHOULD run — not yet finalized
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
             )
             self.assertIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_called()
 
     @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data",
-        return_value=True,
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data", return_value=True
     )
     @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_natural_finalization_not_affected_by_guard(
-        self,
-        mock_trino_execute,
-        mock_sql_execute,
-        mock_data_get,
-        mock_table_exists,
-        mock_has_gpu_data,
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists, mock_has_gpu_data
     ):
         """Test that natural finalization (previous month data) bypasses the guard entirely."""
         start_date = self.dh.last_month_start.date()
@@ -1397,26 +1256,20 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # Natural path (is_current_month=False) should ALWAYS run GPU distribution
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
             )
             self.assertIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_called()
 
     @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data",
-        return_value=False,
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data", return_value=False
     )
     @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_distributed_cost_sql_skips_gpu_full_month_when_no_gpu_data(
-        self,
-        mock_trino_execute,
-        mock_sql_execute,
-        mock_data_get,
-        mock_table_exists,
-        mock_has_gpu_data,
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists, mock_has_gpu_data
     ):
         """Test that GPU distribution is skipped when cluster has no GPU data (day 2)."""
         start_date = self.dh.this_month_start.date()
@@ -1443,25 +1296,19 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
             )
             self.assertNotIn(gpu_call, mock_data_get.call_args_list)
 
     @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data",
-        return_value=True,
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data", return_value=True
     )
     @patch("masu.util.ocp.common.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_distributed_cost_sql_gpu_runs_for_previous_month(
-        self,
-        mock_trino_execute,
-        mock_sql_execute,
-        mock_data_get,
-        mock_table_exists,
-        mock_has_gpu_data,
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists, mock_has_gpu_data
     ):
         """Test that GPU distribution runs when directly processing a previous month."""
         start_date = self.dh.last_month_start.date()
@@ -1478,7 +1325,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
             )
             self.assertIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_called()
@@ -1489,12 +1336,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
     def test_populate_distributed_cost_sql_gpu_skipped_no_prev_report_period(
-        self,
-        mock_report_periods,
-        mock_trino_execute,
-        mock_sql_execute,
-        mock_data_get,
-        mock_table_exists,
+        self, mock_report_periods, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
     ):
         """Test that GPU distribution is skipped when no report period exists for previous month."""
         start_date = self.dh.this_month_start.date()
@@ -1529,7 +1371,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # GPU should NOT be called since no report period exists for previous month
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost.sql",
             )
             self.assertNotIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_not_called()
@@ -1579,8 +1421,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             tested = False
             distinct_values = (
                 OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start__gte=self.dh.this_month_start,
-                    usage_start__lte=self.dh.today,
+                    usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
                 )
                 .values_list(f"volume_labels__{parent_key}", flat=True)
                 .distinct()
@@ -1612,11 +1453,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Test monthly populated of vm count tag based costs."""
         test_mapping = {
             metric_constants.OCP_VM_MONTH: [
-                {
-                    "rate_type": "Supplementary",
-                    "tag_key": "group",
-                    "value_rates": {"Engineering": 0.05},
-                }
+                {"rate_type": "Supplementary", "tag_key": "group", "value_rates": {"Engineering": 0.05}}
             ]
         }
         with self.accessor as acc:
@@ -1636,20 +1473,12 @@ class OCPReportDBAccessorTest(MasuTestCase):
         cluster_params = {"cluster_id": "test", "cluster_alias": "test"}
         test_mapping = {
             metric_constants.OCP_VM_HOUR: [
-                {
-                    "rate_type": "Supplementary",
-                    "tag_key": "group",
-                    "value_rates": {"Engineering": 0.05},
-                }
+                {"rate_type": "Supplementary", "tag_key": "group", "value_rates": {"Engineering": 0.05}}
             ]
         }
         with self.accessor as acc:
             acc.populate_tag_based_costs(
-                self.start_date,
-                self.dh.this_month_end,
-                self.ocp_provider_uuid,
-                test_mapping,
-                cluster_params,
+                self.start_date, self.dh.this_month_end, self.ocp_provider_uuid, test_mapping, cluster_params
             )
             mock_trino.assert_called()
 
@@ -1683,10 +1512,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         mock_gpu_populate.assert_called_once()
         mock_virt_populate.assert_not_called()
 
-    @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino",
-        return_value=False,
-    )
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
     def test__populate_virtualization_ui_summary_table_no_trino_schema(self, mock_psql, mock_schema_exists):
         """Test that sql is not run when the trino schema does not exist."""
@@ -1694,14 +1520,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             acc._populate_virtualization_ui_summary_table({})
             mock_psql.assert_not_called()
 
-    @patch(
-        "masu.database.ocp_report_db_accessor.trino_table_exists",
-        return_value=[True, False],
-    )
-    @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino",
-        return_value=True,
-    )
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=[True, False])
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
     def test__populate_virtualization_ui_summary_table_no_trino_table(self, mock_psql, *args):
         """Test that sql is not run when the trino table does not exist."""
@@ -1709,14 +1529,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             acc._populate_virtualization_ui_summary_table({})
             mock_psql.assert_not_called()
 
-    @patch(
-        "masu.database.ocp_report_db_accessor.trino_table_exists",
-        return_value=[True, True],
-    )
-    @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino",
-        return_value=True,
-    )
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=[True, True])
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
     def test__populate_virtualization_ui_summary_table_no_sql_param(self, mock_psql, *args):
         """Test that sql is not run when sql params are not provided."""
@@ -1724,14 +1538,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             acc._populate_virtualization_ui_summary_table({})
             mock_psql.assert_not_called()
 
-    @patch(
-        "masu.database.ocp_report_db_accessor.trino_table_exists",
-        return_value=[True, True],
-    )
-    @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino",
-        return_value=True,
-    )
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=[True, True])
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
     @patch(
         "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query",
         side_effect=Exception,
@@ -1768,10 +1576,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             mock_trino_exec.assert_called()
 
-    @patch(
-        "masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema",
-        return_value=False,
-    )
+    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_gpu_cost_model_disabled_by_unleash(self, mock_trino_exec, mock_trino_exists, mock_feature_flag):
@@ -1868,9 +1673,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         # The CASE must fall back to 0 for unmatched models (ELSE 0)
         self.assertIn("ELSE 0", rendered_sql)
 
-    def test_self_hosted_gpu_sql_template_includes_unmatched_models_with_zero_cost(
-        self,
-    ):
+    def test_self_hosted_gpu_sql_template_includes_unmatched_models_with_zero_cost(self):
         """COST-7243: on-prem (self-hosted/PG) GPU template must not filter unmatched models."""
         from jinjasql import JinjaSql
 
@@ -2212,10 +2015,7 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
             mock_psql_exec.assert_not_called()
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino",
-        return_value=True,
-    )
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_virtualization_ui_summary_table_uses_source_in_trino_table(
@@ -2233,10 +2033,7 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
             mock_trino_sql.assert_called()
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    @patch(
-        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino",
-        return_value=True,
-    )
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_virtualization_ui_summary_table_vm_table_not_in_source(
