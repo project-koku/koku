@@ -24,12 +24,16 @@ def _make_deadlock_operational_error():
     driver exception is wrapped in django.db.utils.OperationalError with __cause__
     set to the original driver exception.
     """
+    # Mirrors real Postgres formatting: the second "Process" line of a multi-line
+    # DETAIL is indented to align under the first. A prior version of this mock
+    # omitted the indentation, which masked a bug where ExtendedDeadlockDetected's
+    # regex failed to parse the (very common) indented, real-world message shape.
     deadlock = DeadlockDetected(
         "deadlock detected"
         + os.linesep
-        + "DETAIL: Process 12  transaction 34  blocked by process 56"
+        + "DETAIL:  Process 12 waits for ShareLock on transaction 34; blocked by process 56."
         + os.linesep
-        + "Process 56  transaction 78  blocked by process 12"
+        + "        Process 56 waits for ShareLock on transaction 78; blocked by process 12."
         + os.linesep
     )
     django_exc = OperationalError(str(deadlock))
