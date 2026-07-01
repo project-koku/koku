@@ -62,12 +62,6 @@ class StaticExchangeRateDetailView(APIView):
     @method_decorator(never_cache)
     def put(self, request, *args, **kwargs):
         instance = self._get_object(kwargs["uuid"])
-
-        today = timezone.now().date()
-        current_month_start = today.replace(day=1)
-        if instance.start_date < current_month_start:
-            raise ValidationError({"error": "Cannot edit rates for past months."})
-
         serializer = StaticExchangeRateSerializer(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
@@ -86,8 +80,11 @@ class StaticExchangeRateDetailView(APIView):
 
         today = timezone.now().date()
         current_month_start = today.replace(day=1)
-        if instance.start_date < current_month_start:
-            raise ValidationError({"error": "Cannot delete rates for past months."})
+        if instance.end_date < current_month_start:
+            raise ValidationError(
+                f"This rate ended on {instance.end_date} and all its months have been finalized. "
+                "Finalized rates cannot be deleted."
+            )
 
         LOG.info(
             log_json(

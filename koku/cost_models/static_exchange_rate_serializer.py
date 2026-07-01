@@ -4,6 +4,7 @@
 #
 """Serializers for StaticExchangeRate CRUD."""
 import calendar
+from datetime import timedelta
 
 from django.utils import timezone
 from rest_framework import serializers
@@ -60,6 +61,27 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("end_date must be the last day of a month.")
         return value
 
+    def _validate_update(self, start, end, current_month_start):
+        """Validate constraints specific to updating an existing rate."""
+        if self.instance.end_date < current_month_start:
+            raise serializers.ValidationError(
+                f"This rate ended on {self.instance.end_date} and all its months have been finalized. "
+                "To set a new rate, create a new record starting from the current month."
+            )
+        has_finalized_months = self.instance.start_date < current_month_start
+        if has_finalized_months:
+            if start != self.instance.start_date:
+                raise serializers.ValidationError(
+                    "start_date cannot be changed because this rate has finalized months. "
+                    "Shrink the end_date instead, then create a new rate for the remaining period."
+                )
+            min_end_date = current_month_start - timedelta(days=1)
+            if end < min_end_date:
+                raise serializers.ValidationError(
+                    "end_date cannot be earlier than the previous month when shrinking a finalized rate."
+                )
+        return has_finalized_months
+
     def validate(self, attrs):
         base = attrs.get("base_currency")
         target = attrs.get("target_currency")
@@ -74,7 +96,11 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
 
         today = timezone.now().date()
         current_month_start = today.replace(day=1)
-        if start < current_month_start:
+        has_finalized_months = False
+        if self.instance:
+            has_finalized_months = self._validate_update(start, end, current_month_start)
+
+        if not has_finalized_months and start < current_month_start:
             raise serializers.ValidationError("start_date cannot be in a past month.")
 
         overlapping = StaticExchangeRate.objects.filter(
