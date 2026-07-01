@@ -16,7 +16,7 @@ from requests.exceptions import RetryError
 from urllib3.util.retry import Retry
 
 from api.common import log_json
-from api.currency.currencies import VALID_CURRENCIES
+from api.currency.currencies import is_valid_iso_currency
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
 from api.iam.models import Tenant
@@ -99,7 +99,7 @@ def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
         raise TypeError("purge_trino_files() %s", ", ".join(messages))
 
     if settings.SKIP_MINIO_DATA_DELETION:
-        LOG.info("Skipping purge_trino_files. MinIO in use.")
+        LOG.info("Skipping purge_trino_files. Local S4 data deletion disabled.")
         return
     else:
         message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
@@ -200,7 +200,7 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
         raise TypeError("delete_archived_data() %s", ", ".join(messages))
 
     if settings.SKIP_MINIO_DATA_DELETION:
-        LOG.info("Skipping delete_archived_data. MinIO in use.")
+        LOG.info("Skipping delete_archived_data. Local S4 data deletion disabled.")
         return
     else:
         message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
@@ -293,7 +293,7 @@ def get_daily_currency_rates():
     rates = data["rates"]
     # Update conversion rates in database
     for curr_type in rates.keys():
-        if curr_type.upper() in VALID_CURRENCIES:
+        if is_valid_iso_currency(curr_type):
             value = rates[curr_type]
             try:
                 exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())

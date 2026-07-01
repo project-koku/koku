@@ -96,7 +96,7 @@ This will explain how to start the server and its dependencies using Docker (or 
 
         make docker-logs
 
-With all containers running any source added will be processed by saving CSV files in MinIO and storing Parquet files in MinIO. The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
+With all containers running any source added will be processed by saving CSV files in local S4 object storage and storing Parquet files there. The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
 
 ##### Multi-Worker Support
 
@@ -124,7 +124,9 @@ To add test sources and data:
     make create-test-customer
     make load-test-customer-data # Optional parameters: start={start_date} end={end_date} test_source=AWS
 
-The MinIO UI will be available at http://127.0.0.1:9090/minio/. Use the `S3_ACCESS_KEY` and `S3_SECRET` set in your `.env` file as login credentials.
+The S4 web UI will be available at [http://127.0.0.1:5002/](http://127.0.0.1:5002/). Use the `S3_ACCESS_KEY` and `S3_SECRET` set in your `.env` file as login credentials (defaults: `s4admin` / `s4secret`).
+
+The S3 API (used by nise and OCP ingestion) is exposed at [http://127.0.0.1:9000/](http://127.0.0.1:9000/) via `s4-path-proxy`. `make docker-up-min` starts the proxy, S4 backend, and creates required buckets automatically.
 
 The Trinio UI will be available at http://127.0.0.1:8080/ui/. Details can be found there on queries. This is particularly useful for troubleshooting failures.
 

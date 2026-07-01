@@ -144,14 +144,16 @@ AND day = '{day}'"""
 WHERE {partition_column} = '{provider_uuid}'"""
 
     def get_expired_data_ocp_sql(self, schema_name: str, table_name: str, source_column: str, expired_date: str):
-        """Generate Trino SQL to find expired partitions."""
+        """Generate Trino SQL to find expired partitions at month granularity.
+
+        We anchor to day `01` so this query does not rely on a day partition column.
+        """
         return f"""
 SELECT partitions.year, partitions.month, partitions.source
 FROM (
     SELECT year as year,
         month as month,
-        day as day,
-        cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date) as partition_date,
+        cast(date_parse(concat(year, '-', month, '-01'), '%Y-%m-%d') as date) as partition_date,
         {source_column} as source
     FROM  "{table_name}$partitions"
 ) as partitions
