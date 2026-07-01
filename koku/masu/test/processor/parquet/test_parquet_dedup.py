@@ -161,32 +161,44 @@ class TestConvertToParquetDedupHook(MasuTestCase):
     @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.create_daily_parquet")
     @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet")
     @patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor._deduplicate_after_write")
-    def test_hook_scenarios(self, mock_dedup, mock_convert, *args):
+    @patch("masu.processor.parquet.parquet_report_processor.is_feature_flag_enabled_by_schema")
+    def test_hook_scenarios(self, mock_flag, mock_dedup, mock_convert, *args):
         """Test that the dedup hook fires for OCP and not for other providers."""
         mock_convert.return_value = ("base", ["col1"], [], True)
         aws_manifest_id = CostUsageReportManifest.objects.filter(cluster_id__isnull=True).first().id
 
         test_matrix = [
             {
-                "label": "OCP SaaS calls dedup",
+                "label": "OCP SaaS with flag enabled calls dedup",
                 "provider_uuid": self.ocp_provider_uuid,
                 "provider_type": Provider.PROVIDER_OCP,
                 "onprem": False,
+                "flag_enabled": True,
                 "expect_called": True,
             },
             {
-                "label": "OCP on-prem calls dedup (no-op, no S3 parquet files exist)",
+                "label": "OCP SaaS with flag disabled skips dedup",
+                "provider_uuid": self.ocp_provider_uuid,
+                "provider_type": Provider.PROVIDER_OCP,
+                "onprem": False,
+                "flag_enabled": False,
+                "expect_called": False,
+            },
+            {
+                "label": "OCP on-prem with flag enabled calls dedup (no-op, no S3 parquet files exist)",
                 "provider_uuid": self.ocp_provider_uuid,
                 "provider_type": Provider.PROVIDER_OCP,
                 "onprem": True,
+                "flag_enabled": True,
                 "expect_called": True,
             },
             {
-                "label": "AWS SaaS skips dedup",
+                "label": "AWS SaaS skips dedup regardless of flag",
                 "provider_uuid": self.aws_provider_uuid,
                 "provider_type": Provider.PROVIDER_AWS_LOCAL,
                 "manifest_id": aws_manifest_id,
                 "onprem": False,
+                "flag_enabled": True,
                 "expect_called": False,
                 "extra_context": {
                     "ocp_files_to_process": None,
@@ -200,6 +212,7 @@ class TestConvertToParquetDedupHook(MasuTestCase):
                 override_settings(ONPREM=scenario["onprem"]),
             ):
                 mock_dedup.reset_mock()
+                mock_flag.return_value = scenario["flag_enabled"]
                 processor = self._make_processor(
                     scenario["provider_uuid"],
                     scenario["provider_type"],
