@@ -296,7 +296,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.api: {
@@ -310,7 +310,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.rbac: {
@@ -322,7 +322,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.worker: {
