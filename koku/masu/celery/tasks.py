@@ -99,7 +99,7 @@ def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
         raise TypeError("purge_trino_files() %s", ", ".join(messages))
 
     if settings.SKIP_MINIO_DATA_DELETION:
-        LOG.info("Skipping purge_trino_files. MinIO in use.")
+        LOG.info("Skipping purge_trino_files. Local S4 data deletion disabled.")
         return
     else:
         message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
@@ -200,7 +200,7 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
         raise TypeError("delete_archived_data() %s", ", ".join(messages))
 
     if settings.SKIP_MINIO_DATA_DELETION:
-        LOG.info("Skipping delete_archived_data. MinIO in use.")
+        LOG.info("Skipping delete_archived_data. Local S4 data deletion disabled.")
         return
     else:
         message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
