@@ -2464,3 +2464,121 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
                 rp.derived_cost_datetime,
                 "derived_cost_datetime should be set after pipeline run",
             )
+
+
+class TestRTUCapacityColumns(_ReportPeriodMixin, MasuTestCase):
+    """RTU denormalized capacity columns (Option C perf fix).
+
+    insert_usage_rates_to_usage.sql must populate node_capacity_* and
+    cluster_capacity_* on usage-cost RTU rows so aggregate_rates_to_daily_summary.sql
+    can read capacity directly off RatesToUsage instead of re-JOINing to the daily
+    summary via an expensive IS NOT DISTINCT FROM JOIN. See
+    docs risk-register.md R3 (row explosion) and RC3 (aggregation JOIN cost).
+    """
+
+    def _seed_usage_rtu(self):
+        rp = self._get_report_period()
+        start_date = rp.report_period_start.date()
+        end_date = DateHelper().month_end(rp.report_period_start).date()
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not updater._cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        updater._load_rates(start_date)
+        updater._update_usage_rates_to_usage(start_date, end_date)
+        return start_date, end_date
+
+    # RED: node_capacity_cpu_core_hours is populated (non-NULL) on usage-cost RTU rows
+    def test_node_capacity_cpu_core_hours_populated_on_usage_rows(self):
+        start_date, end_date = self._seed_usage_rtu()
+        with schema_context(self.schema):
+            usage_rows = RatesToUsage.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                metric_type__in=["cpu", "memory", "storage"],
+                monthly_cost_type__isnull=True,
+                node__isnull=False,
+            )
+            total = usage_rows.count()
+            populated = usage_rows.filter(node_capacity_cpu_core_hours__isnull=False).count()
+        self.assertGreater(total, 0, "Seed produced no usage RTU rows with a node")
+        self.assertEqual(
+            populated,
+            total,
+            "All usage-cost RTU rows with a node must have node_capacity_cpu_core_hours populated",
+        )
+
+    # RED: capacity values on RTU match MAX(capacity) over the exact same
+    # (usage_start, node, namespace, data_source, pvc) group that
+    # insert_usage_rates_to_usage.sql's `base` CTE aggregates over. Capacity is
+    # not guaranteed to be identical across different namespaces/data_sources
+    # on the same node in synthetic test fixtures, so the comparison must
+    # mirror the production GROUP BY exactly rather than assume a global
+    # per-node-per-day constant.
+    def test_rtu_capacity_matches_daily_summary(self):
+        from django.db.models import Max
+
+        start_date, end_date = self._seed_usage_rtu()
+        with schema_context(self.schema):
+            rtu_row = (
+                RatesToUsage.objects.filter(
+                    source_uuid=self.ocp_provider_uuid,
+                    usage_start__gte=start_date,
+                    usage_start__lte=end_date,
+                    metric_type__in=["cpu", "memory", "storage"],
+                    monthly_cost_type__isnull=True,
+                    node__isnull=False,
+                    node_capacity_cpu_core_hours__isnull=False,
+                )
+                .order_by("usage_start", "node")
+                .first()
+            )
+            self.assertIsNotNone(rtu_row, "No populated usage RTU row found to compare")
+            expected = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start=rtu_row.usage_start,
+                node=rtu_row.node,
+                namespace=rtu_row.namespace,
+                data_source=rtu_row.data_source,
+                persistentvolumeclaim=rtu_row.persistentvolumeclaim,
+                cost_model_rate_type__isnull=True,
+            ).aggregate(
+                node_capacity_cpu_core_hours=Max("node_capacity_cpu_core_hours"),
+                cluster_capacity_cpu_core_hours=Max("cluster_capacity_cpu_core_hours"),
+            )
+        self.assertIsNotNone(
+            expected["node_capacity_cpu_core_hours"], "No matching daily summary rows found for comparison"
+        )
+        self.assertEqual(
+            rtu_row.node_capacity_cpu_core_hours,
+            expected["node_capacity_cpu_core_hours"],
+            "RTU node_capacity_cpu_core_hours must match MAX(...) over the same base-CTE group",
+        )
+        self.assertEqual(
+            rtu_row.cluster_capacity_cpu_core_hours,
+            expected["cluster_capacity_cpu_core_hours"],
+            "RTU cluster_capacity_cpu_core_hours must match MAX(...) over the same base-CTE group",
+        )
+
+    # RED: aggregation carries capacity from RTU into daily summary without the base JOIN
+    def test_aggregation_populates_capacity_from_rtu(self):
+        start_date, end_date = self._seed_usage_rtu()
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        updater._aggregate_rates_to_daily_summary(start_date, end_date)
+
+        with schema_context(self.schema):
+            agg_rows = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                cost_model_rate_type__in=["Infrastructure", "Supplementary"],
+                node__isnull=False,
+            )
+            total = agg_rows.count()
+            with_capacity = agg_rows.filter(node_capacity_cpu_core_hours__isnull=False).count()
+        self.assertGreater(total, 0, "Aggregation produced no cost-model rows with a node")
+        self.assertEqual(
+            with_capacity,
+            total,
+            "Aggregated cost-model daily summary rows must retain node capacity via RTU",
+        )

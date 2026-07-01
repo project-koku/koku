@@ -113,7 +113,21 @@ base AS (
         sum(coalesce(lids.pod_effective_usage_memory_gigabyte_hours, 0)) AS mem_effective_hours,
 
         sum(coalesce(lids.persistentvolumeclaim_usage_gigabyte_months, 0)) AS storage_usage_months,
-        sum(coalesce(lids.volume_request_storage_gigabyte_months, 0)) AS storage_request_months
+        sum(coalesce(lids.volume_request_storage_gigabyte_months, 0)) AS storage_request_months,
+
+        -- Denormalized capacity + metadata (Option C perf fix): stored on RTU
+        -- so the aggregation step can read them directly instead of
+        -- re-JOINing to the daily summary via an expensive IS NOT DISTINCT
+        -- FROM JOIN.
+        max(lids.node_capacity_cpu_cores) AS node_capacity_cpu_cores,
+        max(lids.node_capacity_cpu_core_hours) AS node_capacity_cpu_core_hours,
+        max(lids.node_capacity_memory_gigabytes) AS node_capacity_memory_gigabytes,
+        max(lids.node_capacity_memory_gigabyte_hours) AS node_capacity_memory_gigabyte_hours,
+        max(lids.cluster_capacity_cpu_core_hours) AS cluster_capacity_cpu_core_hours,
+        max(lids.cluster_capacity_memory_gigabyte_hours) AS cluster_capacity_memory_gigabyte_hours,
+        max(lids.resource_id) AS resource_id,
+        max(lids.persistentvolume) AS persistentvolume,
+        max(lids.storageclass) AS storageclass
 
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
     CROSS JOIN cost_model_info cmi
@@ -165,7 +179,11 @@ INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     usage_start, usage_end, node, namespace, cluster_id, cluster_alias,
     data_source, persistentvolumeclaim, pod_labels, volume_labels, all_labels,
     label_hash, custom_name, metric_type, cost_model_rate_type,
-    monthly_cost_type, calculated_cost, cost_category_id, rate_id
+    monthly_cost_type, calculated_cost, cost_category_id, rate_id,
+    node_capacity_cpu_cores, node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabytes, node_capacity_memory_gigabyte_hours,
+    cluster_capacity_cpu_core_hours, cluster_capacity_memory_gigabyte_hours,
+    resource_id, persistentvolume, storageclass
 )
 
 -- Component 1: cpu_core_usage_per_hour
@@ -173,7 +191,11 @@ SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uui
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
     b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     COALESCE(rn.custom_name, rn.metric), rn.metric_type, rn.cost_type,
-    NULL, b.cpu_usage_hours * rn.default_rate, b.cost_category_id, rn.rate_uuid
+    NULL, b.cpu_usage_hours * rn.default_rate, b.cost_category_id, rn.rate_uuid,
+    b.node_capacity_cpu_cores, b.node_capacity_cpu_core_hours,
+    b.node_capacity_memory_gigabytes, b.node_capacity_memory_gigabyte_hours,
+    b.cluster_capacity_cpu_core_hours, b.cluster_capacity_memory_gigabyte_hours,
+    b.resource_id, b.persistentvolume, b.storageclass
 FROM base b INNER JOIN rate_names rn ON rn.metric = 'cpu_core_usage_per_hour'
 
 UNION ALL
@@ -183,7 +205,11 @@ SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uui
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
     b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     COALESCE(rn.custom_name, rn.metric), rn.metric_type, rn.cost_type,
-    NULL, b.cpu_request_hours * rn.default_rate, b.cost_category_id, rn.rate_uuid
+    NULL, b.cpu_request_hours * rn.default_rate, b.cost_category_id, rn.rate_uuid,
+    b.node_capacity_cpu_cores, b.node_capacity_cpu_core_hours,
+    b.node_capacity_memory_gigabytes, b.node_capacity_memory_gigabyte_hours,
+    b.cluster_capacity_cpu_core_hours, b.cluster_capacity_memory_gigabyte_hours,
+    b.resource_id, b.persistentvolume, b.storageclass
 FROM base b INNER JOIN rate_names rn ON rn.metric = 'cpu_core_request_per_hour'
 
 UNION ALL
@@ -193,7 +219,11 @@ SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uui
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
     b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     COALESCE(rn.custom_name, rn.metric), rn.metric_type, rn.cost_type,
-    NULL, b.cpu_effective_hours * rn.default_rate, b.cost_category_id, rn.rate_uuid
+    NULL, b.cpu_effective_hours * rn.default_rate, b.cost_category_id, rn.rate_uuid,
+    b.node_capacity_cpu_cores, b.node_capacity_cpu_core_hours,
+    b.node_capacity_memory_gigabytes, b.node_capacity_memory_gigabyte_hours,
+    b.cluster_capacity_cpu_core_hours, b.cluster_capacity_memory_gigabyte_hours,
+    b.resource_id, b.persistentvolume, b.storageclass
 FROM base b INNER JOIN rate_names rn ON rn.metric = 'cpu_core_effective_usage_per_hour'
 
 UNION ALL
@@ -205,7 +235,11 @@ SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uui
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
     b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     COALESCE(rn.custom_name, rn.metric), 'cpu', rn.cost_type,
-    NULL, b.node_alloc_basis * rn.default_rate, b.cost_category_id, rn.rate_uuid
+    NULL, b.node_alloc_basis * rn.default_rate, b.cost_category_id, rn.rate_uuid,
+    b.node_capacity_cpu_cores, b.node_capacity_cpu_core_hours,
+    b.node_capacity_memory_gigabytes, b.node_capacity_memory_gigabyte_hours,
+    b.cluster_capacity_cpu_core_hours, b.cluster_capacity_memory_gigabyte_hours,
+    b.resource_id, b.persistentvolume, b.storageclass
 FROM base b INNER JOIN rate_names rn ON rn.metric = 'node_core_cost_per_hour'
 
 UNION ALL
@@ -216,7 +250,11 @@ SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uui
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
     b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     COALESCE(rn.custom_name, rn.metric), 'cpu', rn.cost_type,
-    NULL, b.cluster_alloc_basis * rn.default_rate, b.cost_category_id, rn.rate_uuid
+    NULL, b.cluster_alloc_basis * rn.default_rate, b.cost_category_id, rn.rate_uuid,
+    b.node_capacity_cpu_cores, b.node_capacity_cpu_core_hours,
+    b.node_capacity_memory_gigabytes, b.node_capacity_memory_gigabyte_hours,
+    b.cluster_capacity_cpu_core_hours, b.cluster_capacity_memory_gigabyte_hours,
+    b.resource_id, b.persistentvolume, b.storageclass
 FROM base b INNER JOIN rate_names rn ON rn.metric = 'cluster_core_cost_per_hour'
 
 UNION ALL
@@ -234,7 +272,11 @@ SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uui
         THEN b.cluster_hourly_cpu_fraction * rn.default_rate
         ELSE b.cluster_hourly_mem_fraction * rn.default_rate
     END,
-    b.cost_category_id, rn.rate_uuid
+    b.cost_category_id, rn.rate_uuid,
+    b.node_capacity_cpu_cores, b.node_capacity_cpu_core_hours,
+    b.node_capacity_memory_gigabytes, b.node_capacity_memory_gigabyte_hours,
+    b.cluster_capacity_cpu_core_hours, b.cluster_capacity_memory_gigabyte_hours,
+    b.resource_id, b.persistentvolume, b.storageclass
 FROM base b INNER JOIN rate_names rn ON rn.metric = 'cluster_cost_per_hour'
 
 UNION ALL
@@ -244,7 +286,11 @@ SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uui
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
     b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     COALESCE(rn.custom_name, rn.metric), rn.metric_type, rn.cost_type,
-    NULL, b.mem_usage_hours * rn.default_rate, b.cost_category_id, rn.rate_uuid
+    NULL, b.mem_usage_hours * rn.default_rate, b.cost_category_id, rn.rate_uuid,
+    b.node_capacity_cpu_cores, b.node_capacity_cpu_core_hours,
+    b.node_capacity_memory_gigabytes, b.node_capacity_memory_gigabyte_hours,
+    b.cluster_capacity_cpu_core_hours, b.cluster_capacity_memory_gigabyte_hours,
+    b.resource_id, b.persistentvolume, b.storageclass
 FROM base b INNER JOIN rate_names rn ON rn.metric = 'memory_gb_usage_per_hour'
 
 UNION ALL
@@ -254,7 +300,11 @@ SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uui
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
     b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     COALESCE(rn.custom_name, rn.metric), rn.metric_type, rn.cost_type,
-    NULL, b.mem_request_hours * rn.default_rate, b.cost_category_id, rn.rate_uuid
+    NULL, b.mem_request_hours * rn.default_rate, b.cost_category_id, rn.rate_uuid,
+    b.node_capacity_cpu_cores, b.node_capacity_cpu_core_hours,
+    b.node_capacity_memory_gigabytes, b.node_capacity_memory_gigabyte_hours,
+    b.cluster_capacity_cpu_core_hours, b.cluster_capacity_memory_gigabyte_hours,
+    b.resource_id, b.persistentvolume, b.storageclass
 FROM base b INNER JOIN rate_names rn ON rn.metric = 'memory_gb_request_per_hour'
 
 UNION ALL
@@ -264,7 +314,11 @@ SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uui
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
     b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     COALESCE(rn.custom_name, rn.metric), rn.metric_type, rn.cost_type,
-    NULL, b.mem_effective_hours * rn.default_rate, b.cost_category_id, rn.rate_uuid
+    NULL, b.mem_effective_hours * rn.default_rate, b.cost_category_id, rn.rate_uuid,
+    b.node_capacity_cpu_cores, b.node_capacity_cpu_core_hours,
+    b.node_capacity_memory_gigabytes, b.node_capacity_memory_gigabyte_hours,
+    b.cluster_capacity_cpu_core_hours, b.cluster_capacity_memory_gigabyte_hours,
+    b.resource_id, b.persistentvolume, b.storageclass
 FROM base b INNER JOIN rate_names rn ON rn.metric = 'memory_gb_effective_usage_per_hour'
 
 UNION ALL
@@ -274,7 +328,11 @@ SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uui
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
     b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     COALESCE(rn.custom_name, rn.metric), rn.metric_type, rn.cost_type,
-    NULL, b.storage_usage_months * rn.default_rate, b.cost_category_id, rn.rate_uuid
+    NULL, b.storage_usage_months * rn.default_rate, b.cost_category_id, rn.rate_uuid,
+    b.node_capacity_cpu_cores, b.node_capacity_cpu_core_hours,
+    b.node_capacity_memory_gigabytes, b.node_capacity_memory_gigabyte_hours,
+    b.cluster_capacity_cpu_core_hours, b.cluster_capacity_memory_gigabyte_hours,
+    b.resource_id, b.persistentvolume, b.storageclass
 FROM base b INNER JOIN rate_names rn ON rn.metric = 'storage_gb_usage_per_month'
 
 UNION ALL
@@ -284,6 +342,10 @@ SELECT uuid_generate_v4(), {{cost_model_id}}, {{report_period_id}}, {{source_uui
     b.usage_start, b.usage_start, b.node, b.namespace, b.cluster_id, b.cluster_alias,
     b.data_source, b.persistentvolumeclaim, b.pod_labels, b.volume_labels, b.all_labels, b.label_hash,
     COALESCE(rn.custom_name, rn.metric), rn.metric_type, rn.cost_type,
-    NULL, b.storage_request_months * rn.default_rate, b.cost_category_id, rn.rate_uuid
+    NULL, b.storage_request_months * rn.default_rate, b.cost_category_id, rn.rate_uuid,
+    b.node_capacity_cpu_cores, b.node_capacity_cpu_core_hours,
+    b.node_capacity_memory_gigabytes, b.node_capacity_memory_gigabyte_hours,
+    b.cluster_capacity_cpu_core_hours, b.cluster_capacity_memory_gigabyte_hours,
+    b.resource_id, b.persistentvolume, b.storageclass
 FROM base b INNER JOIN rate_names rn ON rn.metric = 'storage_gb_request_per_month'
 ;

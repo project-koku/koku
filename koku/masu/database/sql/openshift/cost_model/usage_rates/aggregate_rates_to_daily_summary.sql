@@ -4,8 +4,13 @@
 -- Runs AFTER all per-rate INSERTs (usage, monthly, tag) and AFTER
 -- cost distribution (Phase 4 re-ordered: distribute -> aggregate -> markup).
 --
--- Block 1: Aggregates usage-cost RTU rows (monthly_cost_type IS NULL)
---   with a base-row JOIN for capacity columns not stored in RTU.
+-- Block 1: Aggregates usage-cost RTU rows (monthly_cost_type IS NULL).
+--   Capacity columns are read directly from RatesToUsage (denormalized at
+--   insert time by insert_usage_rates_to_usage.sql) instead of re-JOINing to
+--   the daily summary. That JOIN required 4 nullable-column IS NOT DISTINCT
+--   FROM predicates (node, data_source, persistentvolumeclaim, cost_category_id)
+--   which Postgres cannot use a B-tree index for, making it the single most
+--   expensive step in the cost-model pipeline (see risk-register.md RC3).
 -- Block 2: Aggregates monthly/tag-cost RTU rows (monthly_cost_type IS NOT NULL)
 --   without a base-row JOIN since these are synthetic cost rows.
 --
@@ -22,46 +27,11 @@ WHERE usage_start >= {{start_date}}
   AND cost_model_rate_type IN ('Infrastructure', 'Supplementary');
 
 -- Step 2: INSERT usage-cost aggregation (monthly_cost_type IS NULL)
-WITH base AS (
-    SELECT
-        lids.usage_start,
-        lids.cluster_id,
-        lids.node,
-        lids.namespace,
-        lids.data_source,
-        lids.persistentvolumeclaim,
-        encode(sha256(decode(COALESCE(lids.pod_labels::text, '')
-            || '|' || COALESCE(lids.volume_labels::text, '')
-            || '|' || COALESCE(lids.all_labels::text, ''), 'escape')), 'hex') AS label_hash,
-        lids.cost_category_id,
-        max(lids.resource_id) AS resource_id,
-        max(lids.persistentvolume) AS persistentvolume,
-        max(lids.storageclass) AS storageclass,
-        max(lids.node_capacity_cpu_cores) AS node_capacity_cpu_cores,
-        max(lids.node_capacity_cpu_core_hours) AS node_capacity_cpu_core_hours,
-        max(lids.node_capacity_memory_gigabytes) AS node_capacity_memory_gigabytes,
-        max(lids.node_capacity_memory_gigabyte_hours) AS node_capacity_memory_gigabyte_hours,
-        max(lids.cluster_capacity_cpu_core_hours) AS cluster_capacity_cpu_core_hours,
-        max(lids.cluster_capacity_memory_gigabyte_hours) AS cluster_capacity_memory_gigabyte_hours
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
-    WHERE lids.usage_start >= {{start_date}}
-      AND lids.usage_start <= {{end_date}}
-      AND lids.source_uuid = {{source_uuid}}
-      AND lids.report_period_id = {{report_period_id}}
-      AND lids.namespace IS NOT NULL
-      AND lids.cost_model_rate_type IS NULL
-    GROUP BY
-        lids.usage_start,
-        lids.cluster_id,
-        lids.node,
-        lids.namespace,
-        lids.data_source,
-        lids.persistentvolumeclaim,
-        lids.pod_labels,
-        lids.volume_labels,
-        lids.all_labels,
-        lids.cost_category_id
-)
+--
+-- No JOIN back to the daily summary: resource_id, persistentvolume,
+-- storageclass, and all capacity columns are read directly from RatesToUsage,
+-- which insert_usage_rates_to_usage.sql denormalizes onto every usage-cost
+-- row at insert time (see Option C in risk-register.md RC3).
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid, report_period_id, cluster_id, cluster_alias, namespace, node,
     resource_id,
@@ -82,23 +52,23 @@ SELECT
     rtu.cluster_alias,
     rtu.namespace,
     rtu.node,
-    MAX(base.resource_id),
+    MAX(rtu.resource_id),
     rtu.usage_start,
     rtu.usage_start + interval '1 day' AS usage_end,
     rtu.data_source,
     rtu.source_uuid,
     rtu.persistentvolumeclaim,
-    MAX(base.persistentvolume),
-    MAX(base.storageclass),
+    MAX(rtu.persistentvolume),
+    MAX(rtu.storageclass),
     MIN(rtu.pod_labels::text)::jsonb AS pod_labels,
     MIN(rtu.volume_labels::text)::jsonb AS volume_labels,
     MIN(rtu.all_labels::text)::jsonb AS all_labels,
-    MAX(base.node_capacity_cpu_cores),
-    MAX(base.node_capacity_cpu_core_hours),
-    MAX(base.node_capacity_memory_gigabytes),
-    MAX(base.node_capacity_memory_gigabyte_hours),
-    MAX(base.cluster_capacity_cpu_core_hours),
-    MAX(base.cluster_capacity_memory_gigabyte_hours),
+    MAX(rtu.node_capacity_cpu_cores),
+    MAX(rtu.node_capacity_cpu_core_hours),
+    MAX(rtu.node_capacity_memory_gigabytes),
+    MAX(rtu.node_capacity_memory_gigabyte_hours),
+    MAX(rtu.cluster_capacity_cpu_core_hours),
+    MAX(rtu.cluster_capacity_memory_gigabyte_hours),
     rtu.cost_category_id,
     rtu.cost_model_rate_type,
     SUM(CASE WHEN rtu.metric_type = 'cpu'     THEN rtu.calculated_cost ELSE 0 END),
@@ -106,15 +76,6 @@ SELECT
     SUM(CASE WHEN rtu.metric_type = 'storage' THEN rtu.calculated_cost ELSE 0 END),
     SUM(COALESCE(rtu.distributed_cost, 0))
 FROM {{schema | sqlsafe}}.rates_to_usage rtu
-LEFT JOIN base
-    ON  rtu.usage_start              = base.usage_start
-    AND rtu.cluster_id               = base.cluster_id
-    AND rtu.node         IS NOT DISTINCT FROM base.node
-    AND rtu.namespace                = base.namespace
-    AND rtu.data_source  IS NOT DISTINCT FROM base.data_source
-    AND rtu.persistentvolumeclaim IS NOT DISTINCT FROM base.persistentvolumeclaim
-    AND rtu.label_hash               = base.label_hash
-    AND rtu.cost_category_id IS NOT DISTINCT FROM base.cost_category_id
 WHERE rtu.usage_start >= {{start_date}}
   AND rtu.usage_start <= {{end_date}}
   AND rtu.source_uuid = {{source_uuid}}
