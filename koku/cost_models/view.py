@@ -180,6 +180,12 @@ class CostModelViewSet(viewsets.ModelViewSet):
             raise CostModelQueryException(err)
         else:
             manager.update_provider_uuids([])
+        # Null out the cost_model FK on rates_to_usage before deletion. Django's Collector
+        # does not reliably SET NULL on PostgreSQL partitioned tables, causing an FK violation
+        # at commit time (GlitchTip INSIGHTS-HCCM-STAGE-5I4).
+        from reporting.provider.ocp.models import RatesToUsage
+
+        RatesToUsage.objects.filter(cost_model_id=uuidParam).update(cost_model=None)
         return super().destroy(request=request, args=args, kwargs=kwargs)
 
     @method_decorator(never_cache)
