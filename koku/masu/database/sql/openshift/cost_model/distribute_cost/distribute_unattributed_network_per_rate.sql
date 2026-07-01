@@ -56,48 +56,61 @@ network_total_rate AS (
     FROM network_rtu_cost
     GROUP BY usage_start, cluster_id
 ),
+-- denominator/namespace_usage (all-data-source variant) are materialized once
+-- per populate_distributed_cost_sql() call by create_distribution_temp_tables.sql
+-- and shared with distribute_unattributed_storage_per_rate.sql (Option B perf
+-- fix: avoids re-scanning reporting_ocpusagelineitem_daily_summary per distribution type).
 denominator AS (
-    SELECT
-        lids.usage_start,
-        lids.cluster_id,
-        SUM(lids.pod_effective_usage_cpu_core_hours) AS usage_cpu_sum,
-        SUM(lids.pod_effective_usage_memory_gigabyte_hours) AS usage_memory_sum
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
-        ON lids.cost_category_id = cat.id
-    WHERE lids.usage_start >= {{start_date}}::date
-        AND lids.usage_start <= {{end_date}}::date
-        AND lids.report_period_id = {{report_period_id}}
-        AND lids.namespace != 'Storage unattributed'
-        AND lids.namespace != 'Network unattributed'
-        AND lids.namespace != 'Worker unallocated'
-        AND (lids.cost_category_id IS NULL OR cat.name != 'Platform')
-    GROUP BY lids.usage_start, lids.cluster_id
+    SELECT * FROM tmp_dist_denominator_all
 ),
 namespace_usage AS (
+    SELECT * FROM tmp_dist_namespace_usage_all
+),
+-- Phase 1 (Option D perf fix, RC1 row amplification): compute each
+-- namespace's TOTAL distributed cost exactly once (N_namespaces rows), doing
+-- the expensive join against namespace_usage/denominator a single time
+-- instead of once per rate. Mathematically identical to the pre-Option-D
+-- per-rate formula: (ns_cpu/usage_cpu_sum) * rate_cost * scaling, since
+-- total_rate_cost cancels out when Phase 2 re-multiplies by
+-- (rate_cost / total_rate_cost).
+namespace_totals AS (
     SELECT
-        lids.usage_start,
-        lids.cluster_id,
-        lids.namespace,
-        lids.node,
-        MAX(lids.report_period_id) AS report_period_id,
-        MAX(lids.cluster_alias) AS cluster_alias,
-        MAX(lids.cost_category_id) AS cost_category_id,
-        SUM(lids.pod_effective_usage_cpu_core_hours) AS ns_cpu,
-        SUM(lids.pod_effective_usage_memory_gigabyte_hours) AS ns_memory
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
-        ON lids.cost_category_id = cat.id
-    WHERE lids.usage_start >= {{start_date}}::date
-        AND lids.usage_start <= {{end_date}}::date
-        AND lids.report_period_id = {{report_period_id}}
-        AND lids.namespace IS NOT NULL
-        AND lids.namespace != 'Storage unattributed'
-        AND lids.namespace != 'Network unattributed'
-        AND lids.namespace != 'Worker unallocated'
-        AND (lids.cost_category_id IS NULL OR cat.name != 'Platform')
-    GROUP BY lids.usage_start, lids.cluster_id, lids.namespace, lids.node
+        nu.usage_start,
+        nu.cluster_id,
+        nu.namespace,
+        nu.node,
+        nu.report_period_id,
+        nu.cluster_alias,
+        nu.cost_category_id,
+        {% if distribution == 'cpu' %}
+        CASE WHEN d.usage_cpu_sum <= 0 OR nt.total_rate_cost IS NULL THEN 0
+             ELSE (nu.ns_cpu / d.usage_cpu_sum) * nt.total_rate_cost
+                  * CASE WHEN nt.total_rate_cost > 0
+                         THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
+                         ELSE 1 END
+        END
+        {% else %}
+        CASE WHEN d.usage_memory_sum <= 0 OR nt.total_rate_cost IS NULL THEN 0
+             ELSE (nu.ns_memory / d.usage_memory_sum) * nt.total_rate_cost
+                  * CASE WHEN nt.total_rate_cost > 0
+                         THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
+                         ELSE 1 END
+        END
+        {% endif %}
+        AS total_distributed
+    FROM namespace_usage nu
+    JOIN denominator d
+        ON d.usage_start = nu.usage_start AND d.cluster_id = nu.cluster_id
+    JOIN network_total_rate nt
+        ON nt.usage_start = nu.usage_start AND nt.cluster_id = nu.cluster_id
+    LEFT JOIN network_infra ni
+        ON ni.usage_start = nu.usage_start AND ni.cluster_id = nu.cluster_id
 )
+-- Phase 2 (Option D perf fix): fan namespace_totals (N_namespaces rows) back
+-- out to per-rate rows (N_rates x N_namespaces) via a cheap join against the
+-- small network_rtu_cost/network_total_rate CTEs only — namespace_usage and
+-- denominator (the large, daily_summary-derived relations) are never touched
+-- again here.
 INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace, node,
@@ -106,59 +119,27 @@ INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
 )
 SELECT
     uuid_generate_v4(),
-    nu.report_period_id,
+    ntot.report_period_id,
     nc.source_uuid,
-    nu.usage_start,
-    nu.usage_start,
-    nu.cluster_id,
-    nu.cluster_alias,
-    nu.namespace,
-    nu.node,
-    nu.cost_category_id,
+    ntot.usage_start,
+    ntot.usage_start,
+    ntot.cluster_id,
+    ntot.cluster_alias,
+    ntot.namespace,
+    ntot.node,
+    ntot.cost_category_id,
     COALESCE(nc.custom_name, ''),
     nc.metric_type,
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    {% if distribution == 'cpu' %}
-    CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-         ELSE (nu.ns_cpu / d.usage_cpu_sum) * nc.rate_cost
-              * CASE WHEN nt.total_rate_cost > 0
-                     THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
-                     ELSE 1 END
-    END,
-    {% else %}
-    CASE WHEN d.usage_memory_sum <= 0 THEN 0
-         ELSE (nu.ns_memory / d.usage_memory_sum) * nc.rate_cost
-              * CASE WHEN nt.total_rate_cost > 0
-                     THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
-                     ELSE 1 END
-    END,
-    {% endif %}
+    CASE WHEN nt.total_rate_cost > 0 THEN ntot.total_distributed * (nc.rate_cost / nt.total_rate_cost) ELSE 0 END,
     {{cost_model_id}}::uuid
-FROM network_rtu_cost nc
-JOIN denominator d
-    ON d.usage_start = nc.usage_start AND d.cluster_id = nc.cluster_id
-JOIN namespace_usage nu
-    ON nu.usage_start = nc.usage_start AND nu.cluster_id = nc.cluster_id
-LEFT JOIN network_infra ni
-    ON ni.usage_start = nc.usage_start AND ni.cluster_id = nc.cluster_id
-LEFT JOIN network_total_rate nt
-    ON nt.usage_start = nc.usage_start AND nt.cluster_id = nc.cluster_id
-{% if distribution == 'cpu' %}
-WHERE CASE WHEN d.usage_cpu_sum <= 0 THEN 0
-           ELSE (nu.ns_cpu / d.usage_cpu_sum) * nc.rate_cost
-                * CASE WHEN nt.total_rate_cost > 0
-                       THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
-                       ELSE 1 END
-      END != 0
-{% else %}
-WHERE CASE WHEN d.usage_memory_sum <= 0 THEN 0
-           ELSE (nu.ns_memory / d.usage_memory_sum) * nc.rate_cost
-                * CASE WHEN nt.total_rate_cost > 0
-                       THEN (nt.total_rate_cost + COALESCE(ni.infra_total, 0)) / nt.total_rate_cost
-                       ELSE 1 END
-      END != 0
-{% endif %}
+FROM namespace_totals ntot
+JOIN network_rtu_cost nc
+    ON nc.usage_start = ntot.usage_start AND nc.cluster_id = ntot.cluster_id
+JOIN network_total_rate nt
+    ON nt.usage_start = ntot.usage_start AND nt.cluster_id = ntot.cluster_id
+WHERE CASE WHEN nt.total_rate_cost > 0 THEN ntot.total_distributed * (nc.rate_cost / nt.total_rate_cost) ELSE 0 END != 0
 
 UNION ALL
 
@@ -271,7 +252,11 @@ LEFT JOIN (
 ) infra
     ON src.usage_start = infra.usage_start
     AND src.cluster_id = infra.cluster_id
-    AND src.node IS NOT DISTINCT FROM infra.node
+    -- COALESCE instead of IS NOT DISTINCT FROM (Option E perf fix): node is
+    -- occasionally NULL for cluster-level rows, but "= " with NULL-safe
+    -- sentinels lets the planner use a regular equality (index-eligible) join
+    -- instead of the non-mergejoinable IS NOT DISTINCT FROM operator.
+    AND COALESCE(src.node, '') = COALESCE(infra.node, '')
 WHERE (src.cost_model_total + COALESCE(infra.infra_total, 0)) != 0
 
 UNION ALL

@@ -1130,7 +1130,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
             get_pkgutil_values("distribute_cost/delete_distributed_rates_to_usage.sql"),
             default_sql_params,
         ]
+        create_temp_tables = [
+            get_pkgutil_values("distribute_cost/create_distribution_temp_tables.sql"),
+            default_sql_params,
+        ]
         side_effect = [
+            # populate_distributed_cost_sql materializes the shared
+            # denominator/namespace_usage temp tables once, before the
+            # per-distribution-type loop (Option B perf fix).
+            create_temp_tables,
             delete_monthly,
             delete_rtu,
             [

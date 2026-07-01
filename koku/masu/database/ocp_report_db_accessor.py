@@ -710,6 +710,16 @@ AND (month = {{month_no_zero}} OR month = {{month}})
 
         table_name = self._table_map["line_item_daily_summary"]
         dh = DateHelper()
+        report_period_for_temp_tables = self.report_periods_for_provider_uuid(provider_uuid, summary_range.start_date)
+        if report_period_for_temp_tables:
+            self._create_distribution_temp_tables(
+                {
+                    "schema": self.schema,
+                    "start_date": summary_range.start_date,
+                    "end_date": summary_range.end_date,
+                    "report_period_id": report_period_for_temp_tables.id,
+                }
+            )
         for cost_model_key, config in distribution_configs.items():
             sql_params = {
                 "start_date": summary_range.start_date,
@@ -843,6 +853,24 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             delete_sql,
             sql_params,
             operation="DELETE",
+        )
+
+    def _create_distribution_temp_tables(self, sql_params):
+        """Materialize the denominator/namespace_usage aggregates shared by the
+        four per-rate distribution SQL files (Option B perf fix), so
+        populate_distributed_cost_sql's loop scans
+        reporting_ocpusagelineitem_daily_summary twice instead of four times.
+        """
+        sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/distribute_cost/create_distribution_temp_tables.sql",
+        )
+        sql = sql.decode("utf-8")
+        self._prepare_and_execute_raw_sql_query(
+            "rates_to_usage",
+            sql,
+            sql_params,
+            operation="CREATE TEMP TABLE: distribution denominator/namespace_usage",
         )
 
     def _delete_distributed_rtu_rows(self, sql_params, cost_model_key):
