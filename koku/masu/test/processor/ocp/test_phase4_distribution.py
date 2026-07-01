@@ -518,9 +518,9 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                     continue
 
                 with schema_context(self.schema):
-                    total_distributed = (
-                        self._recipient_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
-                    )
+                    total_distributed = self._recipient_qs(dist_type).aggregate(t=Sum("distributed_cost"))[
+                        "t"
+                    ] or Decimal(0)
                     total_source = self._source_qs(dist_type).aggregate(t=Sum("calculated_cost"))["t"] or Decimal(0)
                     if total_source == 0:
                         continue

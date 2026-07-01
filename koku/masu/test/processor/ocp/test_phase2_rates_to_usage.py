@@ -2274,6 +2274,20 @@ class TestGetMarkupPercentage(_ReportPeriodMixin, MasuTestCase):
         result = updater._get_markup_percentage()
         self.assertIsNone(result)
 
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_returns_none_when_markup_value_is_none(self, mock_accessor_cls):
+        """Returns None (not a TypeError) when markup dict has an explicit null value.
+
+        `markup.get("value", 0)` only falls back to the default when the key is
+        absent -- if the key exists with a JSON `null` value, `.get()` returns
+        `None`, and `Decimal(None)` raises `TypeError`.
+        """
+        mock_acc = mock_accessor_cls.return_value.__enter__.return_value
+        mock_acc.markup = {"value": None, "unit": "percent"}
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        result = updater._get_markup_percentage()
+        self.assertIsNone(result)
+
 
 class TestDistributionRawCurrency(_ReportPeriodMixin, MasuTestCase):
     """Test that distribute_costs_and_update_ui_summary passes correct raw_currency to aggregation."""

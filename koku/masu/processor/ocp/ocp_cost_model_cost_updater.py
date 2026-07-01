@@ -932,7 +932,10 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             markup = cost_model_accessor.markup
             if not markup:
                 return None
-            value = Decimal(markup.get("value", 0))
+            raw_value = markup.get("value")
+            if not raw_value:
+                return None
+            value = Decimal(str(raw_value))
             if not value:
                 return None
             return value / 100
