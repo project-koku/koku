@@ -785,6 +785,19 @@ class ParquetReportProcessor:
         if keys_to_delete:
             delete_s3_objects(self.tracing_id, keys_to_delete, self.error_context)
 
+        LOG.info(
+            log_json(
+                self.tracing_id,
+                msg="OCP parquet post-write dedup complete",
+                context=self.error_context,
+                manifest_id=str(self.manifest_id),
+                report_type=self.report_type,
+                reportdatestart=reportdatestart,
+                reportnumhours=reportnumhours,
+                files_deleted=len(keys_to_delete),
+            )
+        )
+
     def handle_daily_frames_postgres(self, daily_frames, metadata):
         """Handle daily frames in postgres (on-prem only).
 

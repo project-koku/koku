@@ -781,6 +781,7 @@ def select_manifests_to_delete(
 
     # Two-pass approach: first check if we lose to any manifest,
     # then collect superseded keys only if we're the winner.
+    winner_manifest_id = None
     for other_manifest_id, objects in manifest_groups.items():
         if other_manifest_id == current_manifest_id:
             continue
@@ -795,19 +796,43 @@ def select_manifests_to_delete(
             else other_manifest_id > current_manifest_id
         )
         if other_hours > current_reportnumhours or (other_hours == current_reportnumhours and is_other_id_greater):
-            # We are superseded — delete only our own files
+            winner_manifest_id = other_manifest_id
             our_objects = manifest_groups.get(current_manifest_id, [])
-            return [obj["key"] for obj in our_objects]
+            our_keys = [obj["key"] for obj in our_objects]
+            LOG.info(
+                log_json(
+                    msg="OCP parquet dedup: current manifest superseded",
+                    current_manifest_id=current_manifest_id,
+                    current_hours=current_reportnumhours,
+                    winner_manifest_id=winner_manifest_id,
+                    winner_hours=other_hours,
+                    files_to_delete=len(our_keys),
+                )
+            )
+            return our_keys
 
     # We are the winner — collect all superseded manifests' files
     keys_to_delete = []
+    superseded = {}
     for other_manifest_id, objects in manifest_groups.items():
         if other_manifest_id == current_manifest_id:
             continue
         other_hours = safe_str_int_conversion(objects[0]["reportnumhours"])
         if other_hours is None:
             continue
-        keys_to_delete.extend(obj["key"] for obj in objects)
+        other_keys = [obj["key"] for obj in objects]
+        superseded[other_manifest_id] = {"hours": other_hours, "files": len(other_keys)}
+        keys_to_delete.extend(other_keys)
+
+    LOG.info(
+        log_json(
+            msg="OCP parquet dedup post-write winner selection complete",
+            current_manifest_id=current_manifest_id,
+            superseded_manifests=superseded,
+            current_hours=current_reportnumhours,
+            files_to_delete=len(keys_to_delete),
+        )
+    )
 
     return keys_to_delete
 
@@ -881,34 +906,22 @@ def deduplicate_s3_objects_by_metadata(
     if manifest_groups is None:
         return []
 
-    scan_log = log_json(
-        request_id,
-        msg="post-write dedup: S3 scan results",
-        context=context,
-        reportdatestart=reportdatestart,
-        num_manifests_found=len(manifest_groups),
-        manifest_ids=list(manifest_groups.keys()),
-        files_per_manifest={mid: len(objs) for mid, objs in manifest_groups.items()},
-        current_manifest_id=current_manifest_id,
-        current_hours=int_current_hours,
-    )
-    if len(manifest_groups) > 1:
-        LOG.info(scan_log)
-    else:
-        LOG.debug(scan_log)
-
     keys_to_delete = select_manifests_to_delete(manifest_groups, current_manifest_id, int_current_hours)
 
-    if keys_to_delete:
-        LOG.info(
-            log_json(
-                request_id,
-                msg="post-write dedup: identified superseded files for removal",
-                context=context,
-                num_files=len(keys_to_delete),
-                current_manifest_id=current_manifest_id,
-                keys_to_delete=keys_to_delete,
-            )
+    collected_objects = sum(len(objs) for objs in manifest_groups.values())
+    LOG.info(
+        log_json(
+            request_id,
+            msg="OCP parquet dedup post-write day-level S3 scan complete",
+            context=context,
+            s3_paths=s3_paths,
+            reportdatestart=reportdatestart,
+            current_manifest_id=current_manifest_id,
+            current_hours=int_current_hours,
+            manifest_ids=list(manifest_groups.keys()),
+            objects_found=collected_objects,
+            keys_to_delete=len(keys_to_delete),
         )
+    )
 
     return keys_to_delete
