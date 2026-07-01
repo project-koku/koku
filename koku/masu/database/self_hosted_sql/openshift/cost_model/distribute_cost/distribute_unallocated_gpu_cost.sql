@@ -10,7 +10,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     node,
     source_uuid,
     cost_model_rate_type,
-    distributed_cost
+    distributed_cost,
+    pod_labels,
+    volume_labels,
+    all_labels
 )
 WITH unattributed_gpu_cost as (
     SELECT
@@ -64,7 +67,10 @@ SELECT
     {{source_uuid}}::uuid,
     {{cost_model_rate_type}},
     -- Distribute using slice-hours ratio: namespace_slice_hours / total_slice_hours * unallocated_cost
-    max(nsp_usage.pod_usage_slice_hours / NULLIF(total_usage.total_slice_hours, 0) * unattributed.gpu_unallocated_cost) as distributed_cost
+    max(nsp_usage.pod_usage_slice_hours / NULLIF(total_usage.total_slice_hours, 0) * unattributed.gpu_unallocated_cost) as distributed_cost,
+    NULL::jsonb as pod_labels,
+    NULL::jsonb as volume_labels,
+    NULL::jsonb as all_labels
 FROM namespace_usage_information as nsp_usage
 JOIN unattributed_gpu_cost as unattributed
     ON unattributed.node = nsp_usage.node
@@ -90,7 +96,10 @@ SELECT
     unalloc.node,
     {{source_uuid}}::uuid,
     {{cost_model_rate_type}},
-    0 - unalloc.cost_model_gpu_cost as distributed_cost
+    0 - unalloc.cost_model_gpu_cost as distributed_cost,
+    unalloc.pod_labels,
+    unalloc.volume_labels,
+    unalloc.all_labels
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as unalloc
 WHERE unalloc.namespace = 'GPU unallocated'
     AND unalloc.data_source = 'GPU'

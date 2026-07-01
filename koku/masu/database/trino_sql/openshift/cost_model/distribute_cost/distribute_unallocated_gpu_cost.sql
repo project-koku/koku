@@ -10,7 +10,10 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     node,
     source_uuid,
     cost_model_rate_type,
-    distributed_cost
+    distributed_cost,
+    pod_labels,
+    volume_labels,
+    all_labels
 )
 WITH unattributed_gpu_cost as (
     SELECT
@@ -59,7 +62,10 @@ SELECT
     nsp_usage.node,
     CAST({{source_uuid}} AS UUID),
     {{cost_model_rate_type}},
-    max(nsp_usage.pod_usage_slice_hours / NULLIF(total_usage.total_slice_hours, 0) * unattributed.gpu_unallocated_cost) as distributed_cost
+    max(nsp_usage.pod_usage_slice_hours / NULLIF(total_usage.total_slice_hours, 0) * unattributed.gpu_unallocated_cost) as distributed_cost,
+    CAST(NULL AS varchar) as pod_labels,
+    CAST(NULL AS varchar) as volume_labels,
+    CAST(NULL AS varchar) as all_labels
 FROM namespace_usage_information as nsp_usage
 JOIN unattributed_gpu_cost as unattributed
     ON unattributed.node = nsp_usage.node
@@ -85,7 +91,10 @@ SELECT
     unalloc.node,
     CAST({{source_uuid}} AS UUID),
     {{cost_model_rate_type}},
-    0 - unalloc.cost_model_gpu_cost as distributed_cost
+    0 - unalloc.cost_model_gpu_cost as distributed_cost,
+    CAST(unalloc.pod_labels AS varchar) as pod_labels,
+    CAST(unalloc.volume_labels AS varchar) as volume_labels,
+    CAST(unalloc.all_labels AS varchar) as all_labels
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as unalloc
 WHERE unalloc.namespace = 'GPU unallocated'
     AND unalloc.data_source = 'GPU'

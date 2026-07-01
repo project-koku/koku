@@ -24,6 +24,9 @@ WITH cte_narrow_dataset as (
         lids.node_capacity_memory_gigabyte_hours,
         lids.cluster_capacity_cpu_core_hours,
         lids.cluster_capacity_memory_gigabyte_hours,
+        lids.pod_labels,
+        lids.volume_labels,
+        lids.all_labels,
         lids.raw_currency
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
@@ -96,6 +99,9 @@ cte_line_items as (
                     COALESCE(cost_model_volume_cost, 0)
                 )
         END AS distributed_cost,
+        filtered.pod_labels,
+        filtered.volume_labels,
+        filtered.all_labels,
         max(cost_category_id) as cost_category_id,
         max(raw_currency) as raw_currency
     FROM cte_narrow_dataset as filtered
@@ -105,7 +111,7 @@ cte_line_items as (
         ON udps.usage_start = filtered.usage_start
         AND udps.cluster_id = filtered.cluster_id
     WHERE filtered.namespace IS NOT NULL
-    GROUP BY filtered.usage_start, filtered.node, filtered.namespace, filtered.cluster_id, cost_category_id, filtered.data_source
+    GROUP BY filtered.usage_start, filtered.node, filtered.namespace, filtered.cluster_id, cost_category_id, filtered.data_source, filtered.pod_labels, filtered.volume_labels, filtered.all_labels
 )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
@@ -127,6 +133,9 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     source_uuid,
     cost_model_rate_type,
     distributed_cost,
+    pod_labels,
+    volume_labels,
+    all_labels,
     cost_category_id,
     raw_currency
 )
@@ -150,6 +159,9 @@ SELECT
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
     {{cost_model_rate_type}} as cost_model_rate_type,
     ctl.distributed_cost,
+    ctl.pod_labels,
+    ctl.volume_labels,
+    ctl.all_labels,
     ctl.cost_category_id,
     ctl.raw_currency
 FROM cte_line_items as ctl
