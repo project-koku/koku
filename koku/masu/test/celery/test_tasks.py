@@ -167,7 +167,7 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
 
-        self.assertIn("Skipping delete_archived_data. MinIO in use.", captured_logs.output[0])
+        self.assertIn("Skipping delete_archived_data. Local S4 data deletion disabled.", captured_logs.output[0])
 
     @patch("masu.celery.tasks.OCPReportDBAccessor.delete_hive_partitions_by_source")
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
