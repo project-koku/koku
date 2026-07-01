@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 "db_table": "monthly_exchange_rate",
-                "unique_together": {("effective_date", "base_currency", "target_currency")},
+                "unique_together": {("base_currency", "target_currency", "effective_date")},
             },
         ),
     ]

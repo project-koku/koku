@@ -258,7 +258,7 @@ class MonthlyExchangeRate(models.Model):
 
     class Meta:
         db_table = "monthly_exchange_rate"
-        unique_together = ("effective_date", "base_currency", "target_currency")
+        unique_together = ("base_currency", "target_currency", "effective_date")
 
     effective_date = models.DateField()
     base_currency = models.CharField(max_length=5)
