@@ -932,7 +932,8 @@ def update_cost_model_costs(  # noqa: C901
 
     """
     task_name = "masu.processor.tasks.update_cost_model_costs"
-    cache_args = [schema_name, provider_uuid, start_date, end_date]
+    # Only key on schema + provider so overlapping date ranges serialize instead of deadlocking on rates_to_usage
+    cache_args = [schema_name, provider_uuid]
     if not synchronous:
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
