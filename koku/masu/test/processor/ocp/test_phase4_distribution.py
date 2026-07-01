@@ -55,8 +55,6 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
     per-rate proportional correctness. Mirrors phased-delivery.md assertions 1-10.
     """
 
-    _distribution_seeded = False
-
     def setUp(self):
         super().setUp()
         self.dh = DateHelper()
@@ -67,9 +65,13 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         self.end_date = end.date() if hasattr(end, "date") else end
         self.provider_uuid = self.ocp_provider.uuid
 
-        if not TestDistributionIntegration._distribution_seeded:
-            self._seed_and_distribute()
-            TestDistributionIntegration._distribution_seeded = True
+        # NOTE: Django's TestCase wraps each test method in its own transaction
+        # that is rolled back afterward, so seeded data cannot be shared across
+        # tests via a class-level "seeded once" flag (a prior version of this
+        # class did that and silently self-skipped every test after the first,
+        # since the flag survived the rollback but the data did not). Reseed
+        # fresh on every test.
+        self._seed_and_distribute()
 
     def _seed_and_distribute(self):
         """Ensure RTU usage rows exist and run per-rate distribution."""
@@ -107,7 +109,14 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
             )
 
     def _distributed_qs(self, distribution_type=None):
-        """QuerySet for distributed RTU rows in the test window."""
+        """QuerySet for distributed RTU rows in the test window.
+
+        Includes BOTH recipient rows (positive, added to non-Platform/non-Worker
+        namespaces) AND negation rows (negative, removing the cost from the
+        source namespace/category). See distribute_*_per_rate.sql: negation
+        rows are written with custom_name='' and are negative by design —
+        callers that want recipient-only rows should use `_recipient_qs`.
+        """
         qs = RatesToUsage.objects.filter(
             source_uuid=self.provider_uuid,
             usage_start__gte=self.start_date,
@@ -119,11 +128,25 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
             qs = qs.filter(monthly_cost_type=distribution_type)
         return qs
 
+    def _recipient_qs(self, distribution_type=None):
+        """QuerySet for recipient-only distributed RTU rows (excludes negation rows).
+
+        The per-rate distribution SQL (distribute_*_per_rate.sql) writes two kinds
+        of rows per distribution: recipient rows (custom_name set to the source
+        rate's name, distributed_cost > 0) and a single negation row per
+        (namespace, node) that removes the redistributed cost from the source
+        side (custom_name='', distributed_cost < 0 by design). Assertions about
+        "distributed cost" in the recipient sense must exclude negation rows.
+        """
+        return self._distributed_qs(distribution_type).exclude(custom_name="")
+
     def _source_qs(self, distribution_type):
         """QuerySet for source RTU rows that were distributed."""
         source_filters = {
             "platform_distributed": Q(cost_category__name="Platform"),
             "worker_distributed": Q(namespace="Worker unallocated"),
+            "unattributed_storage": Q(namespace="Storage unattributed"),
+            "unattributed_network": Q(namespace="Network unattributed"),
         }
         filt = source_filters.get(distribution_type)
         if not filt:
@@ -198,22 +221,26 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
     # Assertion 3: No orphaned distributed rows
     # ------------------------------------------------------------------
     def test_03_no_orphaned_distributed_rows(self):
-        """Every distributed RTU row traces to a valid source rate identity."""
+        """Every distributed RTU row traces to a valid source rate identity.
+
+        Recipient rows are matched on (custom_name, metric_type) only:
+        distribute_platform_cost_per_rate.sql intentionally overwrites
+        cost_model_rate_type on distributed rows to the distribution type
+        (e.g. 'platform_distributed') rather than the source rate's original
+        cost type ('Infrastructure'/'Supplementary'), so that column can never
+        match between source and distributed rows and must be excluded from
+        the identity check. Negation rows (custom_name='') are excluded via
+        `_recipient_qs` since they don't trace to a single rate identity.
+        """
         dist_type = "platform_distributed"
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            source_rates = set(
-                self._source_qs(dist_type).values_list("custom_name", "metric_type", "cost_model_rate_type").distinct()
-            )
+            source_rates = set(self._source_qs(dist_type).values_list("custom_name", "metric_type").distinct())
             if not source_rates:
                 self.skipTest("No source rows for platform distribution")
 
-            dist_rates = set(
-                self._distributed_qs(dist_type)
-                .values_list("custom_name", "metric_type", "cost_model_rate_type")
-                .distinct()
-            )
+            dist_rates = set(self._recipient_qs(dist_type).values_list("custom_name", "metric_type").distinct())
             orphans = dist_rates - source_rates
             self.assertEqual(
                 len(orphans),
@@ -290,36 +317,47 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
     # Assertion 6: Cost conservation
     # ------------------------------------------------------------------
     def test_06_cost_conservation(self):
-        """Total distributed cost equals total source calculated_cost."""
+        """Total recipient-distributed cost equals total source calculated_cost.
+
+        Recipient rows (positive, cost moved TO other namespaces) and negation
+        rows (negative, cost removed FROM the Platform source) are a
+        double-entry pair that nets to ~0 by design, so conservation must be
+        checked against recipient-only cost (`_recipient_qs`), not the
+        recipient+negation total (`_distributed_qs`).
+
+        Values here can be very large (test fixtures use randomly generated
+        usage-hour magnitudes), so an absolute-places comparison is unreliable
+        at scale; compare with a relative tolerance instead.
+        """
         dist_type = "platform_distributed"
         self._skip_if_no_distributed(dist_type)
 
         with schema_context(self.schema):
-            total_distributed = self._distributed_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+            total_distributed = self._recipient_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
             total_source = self._source_qs(dist_type).aggregate(t=Sum("calculated_cost"))["t"] or Decimal(0)
             if total_source == 0:
                 self.skipTest("No source cost to distribute")
 
-            self.assertAlmostEqual(
-                float(total_distributed),
-                float(total_source),
-                places=2,
-                msg="Cost conservation: total distributed != total source cost",
+            relative_diff = abs(total_distributed - total_source) / abs(total_source)
+            self.assertLessEqual(
+                relative_diff,
+                Decimal("0.0001"),
+                f"Cost conservation: total recipient-distributed ({total_distributed}) "
+                f"!= total source cost ({total_source})",
             )
 
     # ------------------------------------------------------------------
     # Assertion 7: Sign invariant
     # ------------------------------------------------------------------
     def test_07_sign_invariant(self):
-        """All distributed_cost values for recipient rows are positive."""
+        """All distributed_cost values for recipient rows are positive.
+
+        Negation rows (custom_name='') are excluded: they are negative by
+        design (they remove the redistributed cost from the source side) and
+        are not "recipient" rows.
+        """
         with schema_context(self.schema):
-            negative_count = RatesToUsage.objects.filter(
-                source_uuid=self.provider_uuid,
-                usage_start__gte=self.start_date,
-                usage_start__lte=self.end_date,
-                monthly_cost_type__isnull=False,
-                distributed_cost__lt=0,
-            ).count()
+            negative_count = self._recipient_qs().filter(distributed_cost__lt=0).count()
             self.assertEqual(
                 negative_count,
                 0,
@@ -461,6 +499,90 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
             places=10,
             msg="Re-run should produce same total distributed cost",
         )
+
+    # ------------------------------------------------------------------
+    # Assertion 11: Two-phase rewrite (Option D) algebraic equivalence,
+    # for ALL FOUR distribution types (assertions 1-10 above only exercise
+    # platform_distributed). Verifies that splitting the per-namespace total
+    # (Phase 1) back into per-rate rows (Phase 2) reproduces the same
+    # per-rate proportional cross-check and cost conservation invariants as
+    # the original single-phase per-rate formula, for both the "Pod" CTE
+    # family (platform/worker) and the "all data source" CTE family
+    # (storage/network).
+    # ------------------------------------------------------------------
+    def test_11_two_phase_rewrite_equivalence_all_distribution_types(self):
+        """Cross-check formula + cost conservation hold for every distribution type."""
+        for dist_type in ("platform_distributed", "worker_distributed", "unattributed_storage"):
+            with self.subTest(dist_type=dist_type):
+                if not self._skip_if_no_distributed_type(dist_type):
+                    continue
+
+                with schema_context(self.schema):
+                    total_distributed = (
+                        self._recipient_qs(dist_type).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+                    )
+                    total_source = self._source_qs(dist_type).aggregate(t=Sum("calculated_cost"))["t"] or Decimal(0)
+                    if total_source == 0:
+                        continue
+
+                    # Cost conservation: recipient-only distributed cost tracks
+                    # the source cost within a small relative tolerance (Option D
+                    # is an algebraic rearrangement, so this must still hold).
+                    relative_diff = abs(total_distributed - total_source) / abs(total_source)
+                    self.assertLessEqual(
+                        relative_diff,
+                        Decimal("0.0001"),
+                        f"[{dist_type}] recipient-distributed ({total_distributed}) "
+                        f"!= source cost ({total_source})",
+                    )
+
+                    # Cross-check (Option 2 formula): per-rate distributed_cost for
+                    # a namespace equals (rate_cost / total_source_cost) * ns_total.
+                    day = self._recipient_qs(dist_type).values_list("usage_start", flat=True).first()
+                    if not day:
+                        continue
+                    source_by_rate = dict(
+                        self._source_qs(dist_type)
+                        .filter(usage_start=day)
+                        .values("custom_name")
+                        .annotate(cost=Sum("calculated_cost"))
+                        .values_list("custom_name", "cost")
+                    )
+                    total_source_day = sum(source_by_rate.values())
+                    if total_source_day == 0:
+                        continue
+                    ns_totals = dict(
+                        self._recipient_qs(dist_type)
+                        .filter(usage_start=day)
+                        .values("namespace")
+                        .annotate(ns_total=Sum("distributed_cost"))
+                        .values_list("namespace", "ns_total")
+                    )
+                    for rate_name, rate_cost in source_by_rate.items():
+                        rate_rows = (
+                            self._recipient_qs(dist_type)
+                            .filter(usage_start=day, custom_name=rate_name)
+                            .values("namespace")
+                            .annotate(actual=Sum("distributed_cost"))
+                        )
+                        rate_share = rate_cost / total_source_day
+                        for entry in rate_rows:
+                            ns_total = ns_totals.get(entry["namespace"], Decimal(0))
+                            expected = rate_share * ns_total
+                            self.assertAlmostEqual(
+                                float(entry["actual"]),
+                                float(expected),
+                                places=4,
+                                msg=(
+                                    f"[{dist_type}] Option 2 cross-check failed for "
+                                    f"rate={rate_name}, ns={entry['namespace']}"
+                                ),
+                            )
+
+    def _skip_if_no_distributed_type(self, dist_type):
+        """Like _skip_if_no_distributed but usable inside a subTest (no self.skipTest)."""
+        with schema_context(self.schema):
+            return self._recipient_qs(dist_type).exists()
 
     # ------------------------------------------------------------------
     # Assertion 11: Distribution rows carry cost_model_id
