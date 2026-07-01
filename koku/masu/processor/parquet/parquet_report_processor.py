@@ -20,6 +20,8 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_POST_WRITE_PARQUET_DEDUP_FLAG
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
@@ -424,7 +426,9 @@ class ParquetReportProcessor:
                 )
                 raise ParquetReportProcessorError(msg)
 
-            if self.provider_type == Provider.PROVIDER_OCP:
+            if self.provider_type == Provider.PROVIDER_OCP and is_feature_flag_enabled_by_schema(
+                self.schema_name, OCP_POST_WRITE_PARQUET_DEDUP_FLAG
+            ):
                 self._deduplicate_after_write(Path(csv_filename))
         return True
 
