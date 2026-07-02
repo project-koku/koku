@@ -427,7 +427,7 @@ class ParquetReportProcessor:
                 raise ParquetReportProcessorError(msg)
 
             if self.provider_type == Provider.PROVIDER_OCP and is_feature_flag_enabled_by_schema(
-                self.schema_name, OCP_POST_WRITE_PARQUET_DEDUP_FLAG
+                self.schema_name, OCP_POST_WRITE_PARQUET_DEDUP_FLAG, dev_fallback=True
             ):
                 self._deduplicate_after_write(Path(csv_filename))
         return True
