@@ -19,6 +19,8 @@ from typing import Literal
 from typing import Self
 
 import pandas as pd
+from botocore.exceptions import ClientError
+from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
 from pydantic import AfterValidator
 from pydantic import BaseModel
@@ -35,6 +37,8 @@ from api.common import log_json
 from api.provider.models import Provider
 from api.provider.models import Sources
 from api.utils import DateHelper as dh
+from masu.util.aws.common import _get_s3_objects
+from masu.util.aws.common import safe_str_int_conversion
 from masu.util.common import trino_table_exists
 from masu.util.ocp.operator_versions import OPERATOR_VERSIONS
 
@@ -745,3 +749,179 @@ class DistributionConfig(BaseModel):
         if not self.has_table_requirement:
             return True
         return trino_table_exists(schema, self.required_table)
+
+
+def select_manifests_to_delete(
+    manifest_groups: dict[str, list[dict]],
+    current_manifest_id: str,
+    current_reportnumhours: int,
+) -> list[str]:
+    """Determine which OCP parquet files to delete when multiple manifests overlap on the same day.
+
+    When concurrent payloads write parquet files for the same (source, date, report_type),
+    this function decides which manifest's files are superseded. The rules are deterministic
+    so that any worker evaluating the same S3 state will reach the same conclusion:
+
+      1. The manifest with more reportnumhours is retained (more complete hourly coverage).
+      2. If hours are equal, the higher manifestid string is retained as a stable tiebreaker.
+      3. The calling manifest's files are never treated as competitors — only as the
+         current worker's contribution to be retained or superseded.
+
+    Args:
+        manifest_groups: S3 objects grouped by manifestid. Each value is a list of
+            dicts with "key" (S3 key) and "reportnumhours" (str or None).
+        current_manifest_id: The manifest ID of the calling worker.
+        current_reportnumhours: The hour count for the calling worker's payload.
+
+    Returns:
+        S3 keys of the superseded files to delete. Empty list if no duplicates exist.
+    """
+    if len(manifest_groups) <= 1 or current_manifest_id not in manifest_groups:
+        return []
+
+    # Two-pass approach: first check if we lose to any manifest,
+    # then collect superseded keys only if we're the winner.
+    winner_manifest_id = None
+    for other_manifest_id, objects in manifest_groups.items():
+        if other_manifest_id == current_manifest_id:
+            continue
+        other_hours = safe_str_int_conversion(objects[0]["reportnumhours"])
+        if other_hours is None:
+            continue
+        other_id_int = safe_str_int_conversion(other_manifest_id)
+        current_id_int = safe_str_int_conversion(current_manifest_id)
+        is_other_id_greater = (
+            other_id_int > current_id_int
+            if other_id_int is not None and current_id_int is not None
+            else other_manifest_id > current_manifest_id
+        )
+        if other_hours > current_reportnumhours or (other_hours == current_reportnumhours and is_other_id_greater):
+            winner_manifest_id = other_manifest_id
+            our_objects = manifest_groups.get(current_manifest_id, [])
+            our_keys = [obj["key"] for obj in our_objects]
+            LOG.info(
+                log_json(
+                    msg="OCP parquet dedup: current manifest superseded",
+                    current_manifest_id=current_manifest_id,
+                    current_hours=current_reportnumhours,
+                    winner_manifest_id=winner_manifest_id,
+                    winner_hours=other_hours,
+                    files_to_delete=len(our_keys),
+                )
+            )
+            return our_keys
+
+    # We are the winner — collect all superseded manifests' files
+    keys_to_delete = []
+    superseded = {}
+    for other_manifest_id, objects in manifest_groups.items():
+        if other_manifest_id == current_manifest_id:
+            continue
+        other_hours = safe_str_int_conversion(objects[0]["reportnumhours"])
+        if other_hours is None:
+            continue
+        other_keys = [obj["key"] for obj in objects]
+        superseded[other_manifest_id] = {"hours": other_hours, "files": len(other_keys)}
+        keys_to_delete.extend(other_keys)
+
+    LOG.info(
+        log_json(
+            msg="OCP parquet dedup post-write winner selection complete",
+            current_manifest_id=current_manifest_id,
+            superseded_manifests=superseded,
+            current_hours=current_reportnumhours,
+            files_to_delete=len(keys_to_delete),
+        )
+    )
+
+    return keys_to_delete
+
+
+def _collect_s3_objects_for_day(
+    s3_paths: list[str],
+    reportdatestart: str,
+    request_id: str,
+    context: dict,
+) -> dict[str, list[dict]] | None:
+    """Scan S3 paths and group objects by manifestid for a specific day.
+
+    Returns a dict of {manifestid: [{key, reportnumhours}]} or None on S3 error.
+    """
+    manifest_groups: dict[str, list[dict]] = {}
+    for s3_path in s3_paths:
+        if not s3_path:
+            continue
+        try:
+            for obj_summary in _get_s3_objects(s3_path):
+                if reportdatestart not in obj_summary.key:
+                    continue
+                existing_object = obj_summary.Object()
+                obj_date = existing_object.metadata.get("reportdatestart")
+                if obj_date != reportdatestart:
+                    continue
+                manifest_id = existing_object.metadata.get("manifestid")
+                if not manifest_id:
+                    continue
+                manifest_groups.setdefault(manifest_id, []).append(
+                    {
+                        "key": existing_object.key,
+                        "reportnumhours": existing_object.metadata.get("reportnumhours"),
+                    }
+                )
+        except (EndpointConnectionError, ClientError) as err:
+            LOG.warning(
+                log_json(
+                    request_id, msg="post-write dedup: unable to list s3 objects", context=context, s3_path=s3_path
+                ),
+                exc_info=err,
+            )
+            return None
+    return manifest_groups
+
+
+def deduplicate_s3_objects_by_metadata(
+    request_id: str,
+    s3_paths: list[str],
+    current_manifest_id: str,
+    current_reportnumhours: str,
+    reportdatestart: str,
+    context: dict | None = None,
+) -> list[str]:
+    """Post-write dedup: identify duplicate OCP parquet files for a single day.
+
+    Scans S3 paths for objects whose reportdatestart metadata matches the given
+    date, groups them by manifestid, then delegates to select_manifests_to_delete
+    for deterministic winner selection.
+
+    Returns a list of S3 keys that should be deleted (the superseded files).
+    """
+    if context is None:
+        context = {}
+
+    int_current_hours = safe_str_int_conversion(current_reportnumhours)
+    if int_current_hours is None:
+        return []
+
+    manifest_groups = _collect_s3_objects_for_day(s3_paths, reportdatestart, request_id, context)
+    if manifest_groups is None:
+        return []
+
+    keys_to_delete = select_manifests_to_delete(manifest_groups, current_manifest_id, int_current_hours)
+
+    collected_objects = sum(len(objs) for objs in manifest_groups.values())
+    LOG.info(
+        log_json(
+            request_id,
+            msg="OCP parquet dedup post-write day-level S3 scan complete",
+            context=context,
+            s3_paths=s3_paths,
+            reportdatestart=reportdatestart,
+            current_manifest_id=current_manifest_id,
+            current_hours=int_current_hours,
+            manifest_ids=list(manifest_groups.keys()),
+            objects_found=collected_objects,
+            keys_to_delete=len(keys_to_delete),
+        )
+    )
+
+    return keys_to_delete
