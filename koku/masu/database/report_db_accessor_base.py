@@ -25,6 +25,7 @@ from koku.cache import build_trino_schema_exists_key
 from koku.cache import build_trino_table_exists_key
 from koku.cache import get_value_from_cache
 from koku.cache import set_value_in_cache
+from koku.database_exc import ExtendedDeadlockDetected
 from koku.database_exc import get_extended_exception_by_type
 from koku.reportdb_accessor import get_report_db_accessor
 from koku.trino_database import extract_context_from_sql_params
@@ -104,8 +105,21 @@ class ReportDBAccessorBase:
         sql, sql_params = self.prepare_query(tmp_sql, tmp_sql_params)
         return self._execute_raw_sql_query(table, sql, bind_params=sql_params, operation=operation)
 
+    @retry(
+        retries=settings.DB_DEADLOCK_RETRIES,
+        retry_on=(ExtendedDeadlockDetected,),
+        max_wait=4,
+        log_message="Deadlock detected, retrying statement",
+    )
     def _execute_raw_sql_query(self, table, sql, bind_params=None, operation="UPDATE"):
-        """Run a SQL statement via a cursor. This also returns a result if the operation is VALIDATION_QUERY."""
+        """Run a SQL statement via a cursor. This also returns a result if the operation is VALIDATION_QUERY.
+
+        Postgres deadlocks are expected under concurrent writers (e.g. two providers under
+        the same tenant schema both updating `rates_to_usage`). The deadlock detector always
+        rolls one transaction back cleanly, so retrying the statement here is safe -- each call
+        runs as its own autocommitted unit of work (this method does not span a transaction.atomic()
+        block), and is the standard, Postgres-recommended way to handle a deadlock.
+        """
         LOG.info(log_json(msg=f"triggering {operation}", table=table))
         row_count = None
         result = None
