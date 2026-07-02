@@ -16,6 +16,7 @@ from rest_framework.test import APIClient
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
 from api.settings.views import GlobalSettingsView
+from koku.settings import DEFAULT_RETAIN_NUM_MONTHS
 from masu.config import Config
 from reporting.tenant_settings.models import TenantSettings
 
@@ -77,11 +78,13 @@ class GlobalSettingsViewTest(_EnsureDataRetentionRoute, IamTestCase):
     # ── GET ────────────────────────────────────────────────────
 
     def test_get_returns_default_when_no_row(self):
-        """GET with no TenantSettings row returns the Config default."""
+        """GET with no TenantSettings row returns the Config default and exposes min/max bounds."""
         response = self.client.get(self.url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["data_retention_months"], Config.MASU_RETAIN_NUM_MONTHS)
         self.assertFalse(response.data["env_override"])
+        self.assertEqual(response.data["min_retention_months"], TenantSettings.MIN_RETENTION_MONTHS)
+        self.assertEqual(response.data["max_retention_months"], TenantSettings.MAX_RETENTION_MONTHS)
 
     def test_get_returns_persisted_value(self):
         """GET returns the value from the DB when a row exists."""
@@ -92,12 +95,31 @@ class GlobalSettingsViewTest(_EnsureDataRetentionRoute, IamTestCase):
         self.assertEqual(response.data["data_retention_months"], 12)
         self.assertFalse(response.data["env_override"])
 
-    def test_get_env_override_takes_precedence(self):
-        """When RETAIN_NUM_MONTHS is set, GET returns env value + env_override=true."""
+    def test_get_env_override_true_when_env_differs_from_default(self):
+        """When RETAIN_NUM_MONTHS is set to a non-default value, env_override is True."""
         with patch.dict("os.environ", {"RETAIN_NUM_MONTHS": "24"}):
             response = self.client.get(self.url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["data_retention_months"], 24)
+        self.assertTrue(response.data["env_override"])
+
+    def test_get_env_override_false_when_env_equals_default(self):
+        """When RETAIN_NUM_MONTHS equals the Config default, env_override is False
+        and the DB value is used instead of the env var (COST-7728)."""
+        with schema_context(self.schema_name):
+            TenantSettings.objects.create(data_retention_months=6)
+        with patch.dict("os.environ", {"RETAIN_NUM_MONTHS": str(DEFAULT_RETAIN_NUM_MONTHS)}):
+            response = self.client.get(self.url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["env_override"])
+        self.assertEqual(response.data["data_retention_months"], 6)
+
+    def test_get_env_override_true_when_env_is_invalid(self):
+        """When RETAIN_NUM_MONTHS is set to a non-integer, env_override is True."""
+        with patch("api.settings.views.get_data_retention_months", return_value=4):
+            with patch.dict("os.environ", {"RETAIN_NUM_MONTHS": "abc"}):
+                response = self.client.get(self.url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data["env_override"])
 
     def test_get_returns_503_on_db_error(self):
@@ -159,12 +181,26 @@ class GlobalSettingsViewTest(_EnsureDataRetentionRoute, IamTestCase):
         response = self.client.put(self.url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_put_blocked_when_env_override(self):
-        """PUT returns 403 when RETAIN_NUM_MONTHS env var is set."""
+    def test_put_blocked_when_env_differs_from_default(self):
+        """PUT returns 403 when RETAIN_NUM_MONTHS is set to a non-default value (COST-7728)."""
         with patch.dict("os.environ", {"RETAIN_NUM_MONTHS": "24"}):
             data = {"data_retention_months": 6}
             response = self.client.put(self.url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_put_blocked_when_env_is_invalid(self):
+        """PUT returns 403 when RETAIN_NUM_MONTHS is set to a non-integer value."""
+        with patch.dict("os.environ", {"RETAIN_NUM_MONTHS": "abc"}):
+            data = {"data_retention_months": 6}
+            response = self.client.put(self.url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_put_allowed_when_env_equals_default(self):
+        """PUT is allowed when RETAIN_NUM_MONTHS equals the Config default (COST-7728)."""
+        with patch.dict("os.environ", {"RETAIN_NUM_MONTHS": str(DEFAULT_RETAIN_NUM_MONTHS)}):
+            data = {"data_retention_months": 6}
+            response = self.client.put(self.url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_put_single_row_invariant(self):
         """Multiple PUTs should not create multiple rows."""
