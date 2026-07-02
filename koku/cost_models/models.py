@@ -210,6 +210,11 @@ class EnabledCurrency(models.Model):
     created_timestamp = models.DateTimeField(auto_now_add=True)
 
 
+class RateType(models.TextChoices):
+    STATIC = "static", "Static"
+    DYNAMIC = "dynamic", "Dynamic"
+
+
 class StaticExchangeRate(models.Model):
     """User-defined exchange rates with validity periods."""
 
@@ -242,3 +247,23 @@ class StaticExchangeRate(models.Model):
     @property
     def name(self):
         return f"{self.base_currency}-{self.target_currency}"
+
+
+class MonthlyExchangeRate(models.Model):
+    """Single source of truth for exchange rates used in reports.
+
+    Stores both static and dynamic rates as per-pair rows, one row per month.
+    The query handler reads from this table for all months.
+    """
+
+    class Meta:
+        db_table = "monthly_exchange_rate"
+        unique_together = ("base_currency", "target_currency", "effective_date")
+
+    effective_date = models.DateField()
+    base_currency = models.CharField(max_length=5)
+    target_currency = models.CharField(max_length=5)
+    exchange_rate = models.DecimalField(max_digits=33, decimal_places=15)
+    rate_type = models.CharField(max_length=10, choices=RateType.choices)
+    created_timestamp = models.DateTimeField(auto_now_add=True)
+    updated_timestamp = models.DateTimeField(auto_now=True)
