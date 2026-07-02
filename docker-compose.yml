@@ -657,7 +657,7 @@ services:
 
   s4:
     container_name: koku-s4
-    image: quay.io/dnakabaa/s4:0.3.2-arm64
+    image: quay.io/rh-aiservices-bu/s4:0.3.2-2
     # S3 API: use koku-s4-proxy on host port 9000, or direct backend on 9001.
     ports:
       - "9001:7480"
