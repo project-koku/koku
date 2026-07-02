@@ -107,6 +107,8 @@ from api.views import SettingsTagView
 from api.views import StatusView
 from api.views import UserAccessView
 from api.views import UserCostTypeSettings
+from cost_models.static_exchange_rate_view import StaticExchangeRateDetailView
+from cost_models.static_exchange_rate_view import StaticExchangeRateListView
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import CacheEnum
@@ -434,6 +436,16 @@ urlpatterns = [
         "settings/currency/enabled/<str:code>/",
         EnabledCurrencyView.as_view(),
         name="currency-enabled-detail",
+    ),
+    path(
+        "settings/currency/static-rates/",
+        StaticExchangeRateListView.as_view(),
+        name="static-exchange-rate-list",
+    ),
+    path(
+        "settings/currency/static-rates/<uuid:uuid>/",
+        StaticExchangeRateDetailView.as_view(),
+        name="static-exchange-rate-detail",
     ),
     path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
