@@ -526,7 +526,7 @@ class SyncRateTableTest(IamTestCase):
             return queryset
 
         with (
-            patch("cost_models.rate_sync.RatesToUsage.objects.filter") as mock_rtu_filter,
+            patch("reporting.provider.ocp.models.RatesToUsage.objects.filter") as mock_rtu_filter,
             patch("cost_models.rate_sync.Rate.objects.filter", side_effect=filter_with_raw_delete),
         ):
             mock_rtu_filter.return_value.update.return_value = 0
