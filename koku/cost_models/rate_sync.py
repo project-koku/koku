@@ -12,6 +12,7 @@ from decimal import InvalidOperation
 from api.metrics.constants import COST_MODEL_METRIC_MAP
 from api.metrics.constants import UNLEASH_METRICS_GPU
 from cost_models.models import Rate
+from reporting.provider.ocp.models import RatesToUsage
 
 LOG = logging.getLogger(__name__)
 
@@ -194,6 +195,7 @@ def sync_rate_table(price_list, rates_data):
 
     to_delete_uuids = [uid for uid in existing_by_uuid if uid not in incoming_ids]
     if to_delete_uuids:
+        RatesToUsage.objects.filter(rate_id__in=to_delete_uuids).update(rate_id=None)
         deleted_count, _ = Rate.objects.filter(price_list=price_list, uuid__in=to_delete_uuids).delete()
         LOG.info(f"Deleted {deleted_count} stale Rate rows from PriceList {price_list.uuid}")
 

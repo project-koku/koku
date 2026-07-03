@@ -3,10 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for _sync_rate_table in CostModelManager."""
+from contextlib import contextmanager
 from decimal import Decimal
 from unittest.mock import patch
 from uuid import uuid4
 
+from django.db import connection
+from django.db import IntegrityError
+from django.db import transaction
 from django_tenants.utils import tenant_context
 
 from api.iam.models import Customer
@@ -14,9 +18,11 @@ from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
 from api.provider.models import Provider
+from api.utils import DateHelper
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import PriceListCostModelMap
 from cost_models.models import Rate
+from reporting.provider.ocp.models import RatesToUsage
 
 
 class SyncRateTableTest(IamTestCase):
@@ -40,6 +46,21 @@ class SyncRateTableTest(IamTestCase):
         manager = CostModelManager()
         with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             return manager.create(**data)
+
+    def _cpu_and_memory_rates(self):
+        """Return CPU + memory rate payloads for create/update tests."""
+        return [
+            {
+                "metric": {"name": self.metric},
+                "tiered_rates": self.tiered_rates,
+                "cost_type": "Infrastructure",
+            },
+            {
+                "metric": {"name": "memory_gb_usage_per_hour"},
+                "tiered_rates": [{"unit": "USD", "value": 0.10}],
+                "cost_type": "Supplementary",
+            },
+        ]
 
     def test_create_populates_rate_rows(self):
         """Test that create() with rates populates Rate table."""
@@ -488,3 +509,79 @@ class SyncRateTableTest(IamTestCase):
             rate = Rate.objects.get(price_list=mapping.price_list)
             self.assertEqual(rate.uuid, original_uuid)
             self.assertEqual(rate.default_rate, Decimal("0.55"))
+
+    def _force_immediate_fk_checks(self):
+        """FK constraints on rates_to_usage are DEFERRABLE; check them per statement."""
+        with connection.cursor() as cursor:
+            cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+
+    @contextmanager
+    def _broken_sync_delete_path(self):
+        """Simulate pre-fix sync_rate_table: skip RTU null + bulk delete without SET_NULL."""
+        real_filter = Rate.objects.filter
+
+        def filter_with_raw_delete(*args, **kwargs):
+            queryset = real_filter(*args, **kwargs)
+            queryset.delete = lambda: queryset._raw_delete(queryset.db)
+            return queryset
+
+        with (
+            patch("cost_models.rate_sync.RatesToUsage.objects.filter") as mock_rtu_filter,
+            patch("cost_models.rate_sync.Rate.objects.filter", side_effect=filter_with_raw_delete),
+        ):
+            mock_rtu_filter.return_value.update.return_value = 0
+            yield
+
+    def _setup_cm_with_rtu_on_memory_rate(self, calculated_cost=Decimal("1.23")):
+        """Create a cost model with CPU + memory rates and an RTU row on the memory rate."""
+        rates = self._cpu_and_memory_rates()
+        cm = self._create_cost_model(rates)
+        mapping = PriceListCostModelMap.objects.get(cost_model=cm)
+        pl = mapping.price_list
+        memory_rate = Rate.objects.get(
+            price_list=pl,
+            metric="memory_gb_usage_per_hour",
+        )
+        dh = DateHelper()
+        rtu_row = RatesToUsage.objects.create(
+            rate_id=memory_rate.uuid,
+            cost_model_id=cm.uuid,
+            source_uuid=uuid4(),
+            usage_start=dh.this_month_start,
+            usage_end=dh.this_month_start,
+            cluster_id="test-cluster",
+            custom_name=memory_rate.custom_name,
+            metric_type="memory",
+            cost_model_rate_type="Supplementary",
+            calculated_cost=calculated_cost,
+        )
+        return cm, pl, rtu_row, memory_rate, rates
+
+    def test_update_removes_rate_nulls_rtu_rate_id_when_referenced(self):
+        """COST-7736: stale Rate delete must null rates_to_usage.rate_id first."""
+        from cost_models.rate_sync import sync_rate_table
+
+        with tenant_context(self.tenant):
+            # Phase 1: reproduce IntegrityError when RTU.rate_id is not nulled first
+            cm, pl, _rtu_row, memory_rate, rates = self._setup_cm_with_rtu_on_memory_rate()
+            self._force_immediate_fk_checks()
+            with self.assertRaises(IntegrityError):
+                with transaction.atomic():
+                    with self._broken_sync_delete_path():
+                        sync_rate_table(pl, [rates[0]])
+
+            # Phase 2: fixed path succeeds - update removes rate, RTU.rate_id is null
+            cm, _pl, rtu_row, memory_rate, rates = self._setup_cm_with_rtu_on_memory_rate()
+            memory_rate_uuid = memory_rate.uuid
+            memory_custom_name = memory_rate.custom_name
+
+            manager = CostModelManager(cost_model_uuid=cm.uuid)
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+                manager.update(rates=[rates[0]])
+
+            self.assertFalse(Rate.objects.filter(uuid=memory_rate_uuid).exists())
+            self.assertTrue(RatesToUsage.objects.filter(uuid=rtu_row.uuid).exists())
+            rtu_row.refresh_from_db()
+            self.assertIsNone(rtu_row.rate_id)
+            self.assertEqual(rtu_row.calculated_cost, Decimal("1.23"))
+            self.assertEqual(rtu_row.custom_name, memory_custom_name)
