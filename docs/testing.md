@@ -185,9 +185,11 @@ Next, you should add/modify the following variables in the existing
 
     STORAGE_DRIVER=localdisk
     ASYNC_TEST_TIMEOUT=10
-    MINIO_DATA_DIR=/tmp/hccm/mnt/data
-    MINIO_CONFIG_DIR=/tmp/hccm/mnt/config
     INGRESS_VALID_TOPICS=testareno,advisor,hccm
+
+These variables apply to the ingress repository's `.env` only. Koku local
+object storage uses S4; see [README.md](../README.md) and
+[docs/devtools.md](devtools.md).
 
 Since both Ingress and Koku are ran locally via Docker compose files, we
 must ensure that all of the services are on the same network. We can do
