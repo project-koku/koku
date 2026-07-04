@@ -781,7 +781,6 @@ def select_manifests_to_delete(
 
     # Two-pass approach: first check if we lose to any manifest,
     # then collect superseded keys only if we're the winner.
-    winner_manifest_id = None
     for other_manifest_id, objects in manifest_groups.items():
         if other_manifest_id == current_manifest_id:
             continue
@@ -796,7 +795,6 @@ def select_manifests_to_delete(
             else other_manifest_id > current_manifest_id
         )
         if other_hours > current_reportnumhours or (other_hours == current_reportnumhours and is_other_id_greater):
-            winner_manifest_id = other_manifest_id
             our_objects = manifest_groups.get(current_manifest_id, [])
             our_keys = [obj["key"] for obj in our_objects]
             LOG.info(
@@ -804,7 +802,7 @@ def select_manifests_to_delete(
                     msg="OCP parquet dedup: current manifest superseded",
                     current_manifest_id=current_manifest_id,
                     current_hours=current_reportnumhours,
-                    winner_manifest_id=winner_manifest_id,
+                    winner_manifest_id=other_manifest_id,
                     winner_hours=other_hours,
                     files_to_delete=len(our_keys),
                 )
