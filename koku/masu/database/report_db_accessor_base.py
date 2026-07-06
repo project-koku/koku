@@ -29,6 +29,7 @@ from koku.database_exc import get_extended_exception_by_type
 from koku.reportdb_accessor import get_report_db_accessor
 from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
+from koku.trino_database import TrinoHiveCannotOpenSplitError
 from koku.trino_database import TrinoHiveMetastoreError
 from koku.trino_database import TrinoNoSuchKeyError
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
@@ -136,7 +137,7 @@ class ReportDBAccessorBase:
         )
         return results
 
-    @retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError))
+    @retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError, TrinoHiveCannotOpenSplitError))
     def _execute_trino_raw_sql_query_with_description(  # noqa: C901
         self,
         sql,

@@ -117,6 +117,10 @@ class TrinoHiveMetastoreError(KokuTrinoError):
     """Hive Metastore errors raised by Trino"""
 
 
+class TrinoHiveCannotOpenSplitError(KokuTrinoError):
+    """HIVE_CANNOT_OPEN_SPLIT errors — transient S3/storage read failures"""
+
+
 class TrinoQueryNotFoundError(KokuTrinoError):
     """Query not found (404) errors from Trino - typically temporary"""
 
@@ -224,7 +228,7 @@ def connect(**connect_args):
     return get_report_db_accessor().connect(**trino_connect_args)
 
 
-@retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError))
+@retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError, TrinoHiveCannotOpenSplitError))
 def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):  # noqa: C901
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
@@ -284,6 +288,13 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):  # 
 
                 if trino_exc.error_name == "HIVE_METASTORE_ERROR":
                     exc_to_raise = TrinoHiveMetastoreError(
+                        message=trino_exc.message,
+                        query_id=trino_exc.query_id,
+                        error_code=trino_exc.error_code,
+                    )
+
+                if trino_exc.error_name == "HIVE_CANNOT_OPEN_SPLIT":
+                    exc_to_raise = TrinoHiveCannotOpenSplitError(
                         message=trino_exc.message,
                         query_id=trino_exc.query_id,
                         error_code=trino_exc.error_code,
