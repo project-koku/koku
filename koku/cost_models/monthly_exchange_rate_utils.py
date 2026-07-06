@@ -143,8 +143,7 @@ def populate_dynamic_monthly_rates(code=None, month=None):
             inverse_pair = (target_cur, base_cur)
 
             dynamic_rates[forward_pair] = Decimal(str(rate))
-            if inverse_pair not in dynamic_rates:
-                dynamic_rates[inverse_pair] = Decimal(1) / Decimal(str(rate))
+            dynamic_rates.setdefault(inverse_pair, Decimal(1) / Decimal(str(rate)))
 
     # Exclude pairs that already have a static override for this month
     pairs_to_upsert = {pair: rate for pair, rate in dynamic_rates.items() if pair not in static_pairs}
