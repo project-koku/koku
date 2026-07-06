@@ -498,6 +498,7 @@ class TestCeleryTasks(MasuTestCase):
                 effective_date=current_month, base_currency="EUR", target_currency="USD"
             )
             self.assertEqual(inverse.rate_type, RateType.DYNAMIC)
+            self.assertEqual(inverse.exchange_rate, Decimal(1) / Decimal("0.87"))
 
     def test_populate_dynamic_monthly_rates_respects_static(self):
         """Test that populate does not overwrite static rates."""
