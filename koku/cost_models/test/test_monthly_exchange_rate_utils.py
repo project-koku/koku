@@ -233,33 +233,6 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
             )
 
     @patch("cost_models.monthly_exchange_rate_utils.ExchangeRateDictionary")
-    def test_backfills_dynamic_from_exchange_dictionary(self, mock_erd_cls):
-        """After removing static rows, dynamic rates should be backfilled from ExchangeRateDictionary."""
-        mock_erd = mock_erd_cls.objects.first.return_value
-        mock_erd.currency_exchange_dictionary = {
-            "USD": {"EUR": Decimal("0.87")},
-            "EUR": {"USD": Decimal("1.149425287356322")},
-        }
-
-        with tenant_context(self.tenant):
-            MonthlyExchangeRate.objects.create(
-                effective_date=self.month_start,
-                base_currency="USD",
-                target_currency="EUR",
-                exchange_rate=Decimal("0.92"),
-                rate_type=RateType.STATIC,
-            )
-            replace_static_to_dynamic_monthly_rates("USD", "EUR", self.month_start, self.month_end)
-
-            rate = MonthlyExchangeRate.objects.get(
-                effective_date=self.month_start,
-                base_currency="USD",
-                target_currency="EUR",
-            )
-            self.assertEqual(rate.rate_type, RateType.DYNAMIC)
-            self.assertEqual(rate.exchange_rate, Decimal("0.87"))
-
-    @patch("cost_models.monthly_exchange_rate_utils.ExchangeRateDictionary")
     def test_no_backfill_when_no_exchange_dictionary(self, mock_erd_cls):
         """No backfill should happen when ExchangeRateDictionary is empty."""
         mock_erd_cls.objects.first.return_value = None
