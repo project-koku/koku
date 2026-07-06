@@ -129,13 +129,13 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
 
 
 def sync_dynamic_monthly_rates(filter=None):
-    """Upsert dynamic MonthlyExchangeRate rows from the ExchangeRateDictionary.
+    """Sync dynamic MonthlyExchangeRate rows for enabled currencies.
+
+    Reads the latest rates from ExchangeRateDictionary and writes dynamic
+    MER rows for each enabled currency pair. Static overrides are preserved.
 
     When filter is provided, only pairs where at least one side is in the
     list are processed. When None, all enabled currency pairs are processed.
-
-    Synthesizes inverse rates (1/rate) when the dictionary does not include
-    them. Skips pairs that already have a static override for the month.
     """
     erd = ExchangeRateDictionary.objects.first()
     if not erd or not erd.currency_exchange_dictionary:
