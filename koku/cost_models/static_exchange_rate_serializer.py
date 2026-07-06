@@ -167,11 +167,11 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             upsert_static_monthly_rates(instance)
             schema_name = self.context["request"].user.customer.schema_name
             invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
-
-        LOG.info(
-            log_json(
-                msg="Static exchange rate updated with MonthlyExchangeRate rows",
-                pair=instance.name,
+            LOG.info(
+                log_json(
+                    msg="Static exchange rate updated with MonthlyExchangeRate rows",
+                    pair=instance.name,
+                )
             )
-        )
+
         return instance
