@@ -7,6 +7,7 @@ import logging
 from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
+from django.db.models import Q
 
 from api.common import log_json
 from api.currency.models import ExchangeRateDictionary
@@ -186,14 +187,12 @@ def remove_dynamic_rates_for_currency(currency_code):
     Static rows are preserved — the admin explicitly defined those and
     should remove them separately if needed.
     """
-    deleted, _ = MonthlyExchangeRate.objects.filter(
-        rate_type=RateType.DYNAMIC,
-        base_currency=currency_code,
-    ).delete()
-    deleted_target, _ = MonthlyExchangeRate.objects.filter(
-        rate_type=RateType.DYNAMIC,
-        target_currency=currency_code,
-    ).delete()
-    total = deleted + deleted_target
-    LOG.info(log_json(msg="Removed dynamic MER rows for disabled currency", currency=currency_code, deleted=total))
-    return total
+    deleted, _ = (
+        MonthlyExchangeRate.objects.filter(
+            rate_type=RateType.DYNAMIC,
+        )
+        .filter(Q(base_currency=currency_code) | Q(target_currency=currency_code))
+        .delete()
+    )
+    LOG.info(log_json(msg="Removed dynamic MER rows for disabled currency", currency=currency_code, deleted=deleted))
+    return deleted
