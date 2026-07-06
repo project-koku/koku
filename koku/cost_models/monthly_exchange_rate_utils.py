@@ -6,7 +6,6 @@
 import logging
 from decimal import Decimal
 
-from django.db import transaction
 from django.db.models import Q
 
 from api.common import log_json
@@ -148,15 +147,14 @@ def populate_dynamic_monthly_rates(code=None):
     pairs_to_upsert = {pair: rate for pair, rate in dynamic_rates.items() if pair not in static_pairs}
 
     count = 0
-    with transaction.atomic():
-        for (base_cur, target_cur), rate in pairs_to_upsert.items():
-            MonthlyExchangeRate.objects.update_or_create(
-                effective_date=current_month,
-                base_currency=base_cur,
-                target_currency=target_cur,
-                defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
-            )
-            count += 1
+    for (base_cur, target_cur), rate in pairs_to_upsert.items():
+        MonthlyExchangeRate.objects.update_or_create(
+            effective_date=current_month,
+            base_currency=base_cur,
+            target_currency=target_cur,
+            defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
+        )
+        count += 1
 
     return count
 
