@@ -95,8 +95,6 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
                 target_currency=base_currency,
                 rate_type=RateType.STATIC,
             ).delete()
-
-    for month_start in _iter_months(start_date, end_date):
         populate_dynamic_monthly_rates(code=base_currency, month=month_start)
 
 
