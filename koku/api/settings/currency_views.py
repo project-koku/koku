@@ -99,7 +99,7 @@ class EnabledCurrencyView(APIView):
         code = self._validate_code(kwargs["code"])
         _, created = EnabledCurrency.objects.get_or_create(currency_code=code)
         if created:
-            upsert_enabled_dynamic_exchange_rates(currency_codes=[code])
+            upsert_enabled_dynamic_exchange_rates(filter=[code])
             schema_name = request.user.customer.schema_name
             invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(log_json(msg="Currency enabled", currency=code))

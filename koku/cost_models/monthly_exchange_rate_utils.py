@@ -128,12 +128,11 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
                 )
 
 
-def upsert_enabled_dynamic_exchange_rates(currency_codes=None):
+def upsert_enabled_dynamic_exchange_rates(filter=None):
     """Upsert dynamic MonthlyExchangeRate rows from the ExchangeRateDictionary.
 
-    When currency_codes is provided, only pairs where at least one side is
-    in the list are processed. When None, all enabled currency pairs are
-    processed.
+    When filter is provided, only pairs where at least one side is in the
+    list are processed. When None, all enabled currency pairs are processed.
 
     Synthesizes inverse rates (1/rate) when the dictionary does not include
     them. Skips pairs that already have a static override for the month.
@@ -148,7 +147,7 @@ def upsert_enabled_dynamic_exchange_rates(currency_codes=None):
     if not enabled_codes:
         return 0
 
-    filter_codes = set(currency_codes) if currency_codes else None
+    filter_codes = set(filter) if filter else None
 
     static_pairs = set(
         MonthlyExchangeRate.objects.filter(
