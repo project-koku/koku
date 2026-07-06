@@ -129,14 +129,14 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
                 )
 
 
-def populate_dynamic_monthly_rates(filter=None):
+def populate_dynamic_monthly_rates(code=None):
     """Populate dynamic MonthlyExchangeRate rows for enabled currencies.
 
     Reads the latest rates from ExchangeRateDictionary and writes dynamic
     MER rows for each enabled currency pair. Static overrides are preserved.
 
-    When filter is provided, only pairs where at least one side is in the
-    list are processed. When None, all enabled currency pairs are processed.
+    When code is provided, only pairs involving that currency are processed.
+    When None, all enabled currency pairs are processed.
     """
     erd = ExchangeRateDictionary.objects.first()
     if not erd or not erd.currency_exchange_dictionary:
@@ -147,8 +147,6 @@ def populate_dynamic_monthly_rates(filter=None):
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     if not enabled_codes:
         return 0
-
-    filter_codes = set(filter) if filter else None
 
     static_pairs = set(
         MonthlyExchangeRate.objects.filter(
@@ -162,7 +160,7 @@ def populate_dynamic_monthly_rates(filter=None):
         for target_cur, rate in targets.items():
             if base_cur == target_cur or base_cur not in enabled_codes or target_cur not in enabled_codes:
                 continue
-            if filter_codes and not filter_codes.intersection((base_cur, target_cur)):
+            if code and code not in (base_cur, target_cur):
                 continue
             pairs_to_upsert[(base_cur, target_cur)] = Decimal(str(rate))
             pairs_to_upsert.setdefault((target_cur, base_cur), Decimal(1) / Decimal(str(rate)))
@@ -181,18 +179,15 @@ def populate_dynamic_monthly_rates(filter=None):
     return count
 
 
-def remove_dynamic_monthly_rates(filter=None):
+def remove_dynamic_monthly_rates(code=None):
     """Remove dynamic MonthlyExchangeRate rows. Static rows are always preserved.
 
-    When filter is provided, only rows where at least one side is in the
-    list are removed. When None, all dynamic rows are removed.
+    When code is provided, only rows involving that currency are removed.
+    When None, all dynamic rows are removed.
     """
     qs = MonthlyExchangeRate.objects.filter(rate_type=RateType.DYNAMIC)
-    if filter:
-        q = Q()
-        for code in filter:
-            q |= Q(base_currency=code) | Q(target_currency=code)
-        qs = qs.filter(q)
+    if code:
+        qs = qs.filter(Q(base_currency=code) | Q(target_currency=code))
     deleted, _ = qs.delete()
-    LOG.info(log_json(msg="Removed dynamic MER rows", filter=list(filter) if filter else "all", deleted=deleted))
+    LOG.info(log_json(msg="Removed dynamic MER rows", code=code or "all", deleted=deleted))
     return deleted

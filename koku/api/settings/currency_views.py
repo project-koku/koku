@@ -99,7 +99,7 @@ class EnabledCurrencyView(APIView):
         code = self._validate_code(kwargs["code"])
         _, created = EnabledCurrency.objects.get_or_create(currency_code=code)
         if created:
-            populate_dynamic_monthly_rates(filter=[code])
+            populate_dynamic_monthly_rates(code=code)
             schema_name = request.user.customer.schema_name
             invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(log_json(msg="Currency enabled", currency=code))
@@ -132,7 +132,7 @@ class EnabledCurrencyView(APIView):
             LOG.info(log_json(msg="Account currency reset to default", previous=code, new=KOKU_DEFAULT_CURRENCY))
 
         EnabledCurrency.objects.filter(currency_code=code).delete()
-        remove_dynamic_monthly_rates(filter=[code])
+        remove_dynamic_monthly_rates(code=code)
         schema_name = request.user.customer.schema_name
         invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(log_json(msg="Currency disabled", currency=code))
