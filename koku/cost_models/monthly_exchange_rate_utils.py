@@ -2,15 +2,20 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Utilities for managing MonthlyExchangeRate side effects of StaticExchangeRate operations."""
+"""Utilities for managing MonthlyExchangeRate side effects."""
+import logging
 from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
 
+from api.common import log_json
 from api.currency.models import ExchangeRateDictionary
+from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
+
+LOG = logging.getLogger(__name__)
 
 
 def _iter_months(start_date, end_date):
@@ -120,3 +125,62 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
                         "rate_type": RateType.DYNAMIC,
                     },
                 )
+
+
+def remove_dynamic_rates_for_currency(currency_code):
+    """Remove dynamic MER rows where the disabled currency is either base or target.
+
+    Static rows are preserved — the admin explicitly defined those and
+    should remove them separately if needed.
+    """
+    deleted, _ = MonthlyExchangeRate.objects.filter(
+        rate_type=RateType.DYNAMIC,
+        base_currency=currency_code,
+    ).delete()
+    deleted_target, _ = MonthlyExchangeRate.objects.filter(
+        rate_type=RateType.DYNAMIC,
+        target_currency=currency_code,
+    ).delete()
+    total = deleted + deleted_target
+    LOG.info(log_json(msg="Removed dynamic MER rows for disabled currency", currency=currency_code, deleted=total))
+    return total
+
+
+def populate_dynamic_rates_for_currency(currency_code, current_month):
+    """Create dynamic MER rows for a newly enabled currency using the ExchangeRateDictionary.
+
+    Only creates pairs where both sides are enabled. Skips pairs that
+    already have a static rate for the current month.
+    """
+    erd = ExchangeRateDictionary.objects.first()
+    if not erd or not erd.currency_exchange_dictionary:
+        return 0
+
+    enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+    exchange_dict = erd.currency_exchange_dictionary
+    static_pairs = set(
+        MonthlyExchangeRate.objects.filter(
+            effective_date=current_month,
+            rate_type=RateType.STATIC,
+        ).values_list("base_currency", "target_currency")
+    )
+
+    created = 0
+    for other_code in enabled_codes:
+        if other_code == currency_code:
+            continue
+        for base, target in [(currency_code, other_code), (other_code, currency_code)]:
+            if (base, target) in static_pairs:
+                continue
+            rate = exchange_dict.get(base, {}).get(target)
+            if rate is not None:
+                MonthlyExchangeRate.objects.update_or_create(
+                    effective_date=current_month,
+                    base_currency=base,
+                    target_currency=target,
+                    defaults={"exchange_rate": Decimal(str(rate)), "rate_type": RateType.DYNAMIC},
+                )
+                created += 1
+
+    LOG.info(log_json(msg="Populated dynamic MER rows for enabled currency", currency=currency_code, created=created))
+    return created
