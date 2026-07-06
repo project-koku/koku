@@ -151,15 +151,15 @@ def populate_dynamic_monthly_rates(code=None, month=None):
     return count
 
 
-def remove_dynamic_monthly_rates(code=None):
-    """Remove dynamic MonthlyExchangeRate rows. Static rows are always preserved.
+def remove_dynamic_monthly_rates(code):
+    """Remove dynamic MonthlyExchangeRate rows involving the given currency.
 
-    When code is provided, only rows involving that currency are removed.
-    When None, all dynamic rows are removed.
+    Static rows are always preserved.
     """
-    qs = MonthlyExchangeRate.objects.filter(rate_type=RateType.DYNAMIC)
-    if code:
-        qs = qs.filter(Q(base_currency=code) | Q(target_currency=code))
-    deleted, _ = qs.delete()
-    LOG.info(log_json(msg="Removed dynamic MonthlyExchangeRate rows", code=code or "all", deleted=deleted))
+    deleted, _ = (
+        MonthlyExchangeRate.objects.filter(rate_type=RateType.DYNAMIC)
+        .filter(Q(base_currency=code) | Q(target_currency=code))
+        .delete()
+    )
+    LOG.info(log_json(msg="Removed dynamic MonthlyExchangeRate rows", code=code, deleted=deleted))
     return deleted
