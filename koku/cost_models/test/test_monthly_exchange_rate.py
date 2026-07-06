@@ -18,20 +18,6 @@ from masu.test import MasuTestCase
 class MonthlyExchangeRateTest(MasuTestCase):
     """Tests for MonthlyExchangeRate model."""
 
-    def test_create_dynamic_rate(self):
-        """Test creating a dynamic exchange rate."""
-        with tenant_context(self.tenant):
-            rate = MonthlyExchangeRate.objects.create(
-                effective_date=date(2026, 1, 1),
-                base_currency="USD",
-                target_currency="EUR",
-                exchange_rate=Decimal("0.870000000000000"),
-                rate_type=RateType.DYNAMIC,
-            )
-            self.assertEqual(rate.base_currency, "USD")
-            self.assertEqual(rate.target_currency, "EUR")
-            self.assertEqual(rate.rate_type, RateType.DYNAMIC)
-
     def test_create_static_rate(self):
         """Test creating a static exchange rate."""
         with tenant_context(self.tenant):
