@@ -134,8 +134,10 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         instance = super().create(validated_data)
         upsert_static_monthly_rates(instance)
+        # Defer cache invalidation until after this atomic block commits,
+        # so concurrent requests don't re-cache stale data from an uncommitted transaction.
         schema_name = self.context["request"].user.customer.schema_name
-        invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+        transaction.on_commit(lambda: invalidate_view_cache_for_tenant_and_all_source_types(schema_name))
         LOG.info(
             log_json(
                 msg="Static exchange rate created with MonthlyExchangeRate rows",
@@ -169,7 +171,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         upsert_static_monthly_rates(instance)
 
         schema_name = self.context["request"].user.customer.schema_name
-        invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+        transaction.on_commit(lambda: invalidate_view_cache_for_tenant_and_all_source_types(schema_name))
         LOG.info(
             log_json(
                 msg="Static exchange rate updated with MonthlyExchangeRate rows",

@@ -95,7 +95,8 @@ class StaticExchangeRateDetailView(APIView):
         )
         pair_name = instance.name
         instance.delete()
-        invalidate_view_cache_for_tenant_and_all_source_types(request.user.customer.schema_name)
+        schema_name = request.user.customer.schema_name
+        transaction.on_commit(lambda: invalidate_view_cache_for_tenant_and_all_source_types(schema_name))
         LOG.info(
             log_json(
                 msg="Static exchange rate deleted",
