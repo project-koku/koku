@@ -133,7 +133,7 @@ def populate_dynamic_monthly_rates(code=None):
     """Populate dynamic MonthlyExchangeRate rows for enabled currencies.
 
     Reads the latest rates from ExchangeRateDictionary and writes dynamic
-    MER rows for each enabled currency pair. Static overrides are preserved.
+    MonthlyExchangeRate rows for each enabled currency pair. Static overrides are preserved.
 
     When code is provided, only pairs involving that currency are processed.
     When None, all enabled currency pairs are processed.
@@ -189,5 +189,5 @@ def remove_dynamic_monthly_rates(code=None):
     if code:
         qs = qs.filter(Q(base_currency=code) | Q(target_currency=code))
     deleted, _ = qs.delete()
-    LOG.info(log_json(msg="Removed dynamic MER rows", code=code or "all", deleted=deleted))
+    LOG.info(log_json(msg="Removed dynamic MonthlyExchangeRate rows", code=code or "all", deleted=deleted))
     return deleted

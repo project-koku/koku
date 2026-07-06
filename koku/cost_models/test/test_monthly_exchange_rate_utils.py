@@ -27,7 +27,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
             StaticExchangeRate.objects.all().delete()
 
     def test_single_month_creates_forward_and_inverse(self):
-        """A one-month static rate should create both forward and inverse MER rows."""
+        """A one-month static rate should create both forward and inverse MonthlyExchangeRate rows."""
         with tenant_context(self.tenant):
             static_rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
@@ -56,7 +56,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
             self.assertEqual(inverse.rate_type, RateType.STATIC)
 
     def test_multi_month_creates_rows_for_each_month(self):
-        """A multi-month static rate should create MER rows for each month."""
+        """A multi-month static rate should create MonthlyExchangeRate rows for each month."""
         with tenant_context(self.tenant):
             static_rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
@@ -75,7 +75,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
             self.assertEqual(dates, [date(2026, 7, 1), date(2026, 8, 1), date(2026, 9, 1)])
 
     def test_inverse_not_written_when_explicit_reverse_exists(self):
-        """Inverse MER should not be written when an explicit StaticExchangeRate defines the reverse."""
+        """Inverse row should not be written when an explicit StaticExchangeRate defines the reverse."""
         with tenant_context(self.tenant):
             StaticExchangeRate.objects.create(
                 base_currency="EUR",
@@ -102,7 +102,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
             )
 
     def test_overwrites_dynamic_with_static(self):
-        """Static upsert should overwrite existing dynamic MER rows."""
+        """Static upsert should overwrite existing dynamic MonthlyExchangeRate rows."""
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.create(
                 effective_date=date(2026, 7, 1),
@@ -152,7 +152,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
             StaticExchangeRate.objects.all().delete()
 
     def test_removes_static_rows(self):
-        """Removing a static rate should delete its MER rows."""
+        """Removing a static rate should delete its MonthlyExchangeRate rows."""
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.create(
                 effective_date=date(2026, 7, 1),

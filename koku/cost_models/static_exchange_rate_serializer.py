@@ -134,7 +134,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(
             log_json(
-                msg="Static exchange rate created with MER rows",
+                msg="Static exchange rate created with MonthlyExchangeRate rows",
                 pair=instance.name,
                 start=str(instance.start_date),
                 end=str(instance.end_date),
@@ -165,7 +165,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(
             log_json(
-                msg="Static exchange rate updated with MER rows",
+                msg="Static exchange rate updated with MonthlyExchangeRate rows",
                 pair=instance.name,
             )
         )
