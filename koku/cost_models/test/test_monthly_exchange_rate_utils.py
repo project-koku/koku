@@ -33,7 +33,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
             static_rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
                 target_currency="EUR",
-                exchange_rate=Decimal("0.920000000000000"),
+                exchange_rate=Decimal("0.92"),
                 start_date=date(2026, 7, 1),
                 end_date=date(2026, 7, 31),
             )
@@ -44,7 +44,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
                 base_currency="USD",
                 target_currency="EUR",
             )
-            self.assertEqual(forward.exchange_rate, Decimal("0.920000000000000"))
+            self.assertEqual(forward.exchange_rate, Decimal("0.92"))
             self.assertEqual(forward.rate_type, RateType.STATIC)
 
             inverse = MonthlyExchangeRate.objects.get(
@@ -52,7 +52,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
                 base_currency="EUR",
                 target_currency="USD",
             )
-            expected_inverse = Decimal(1) / Decimal("0.920000000000000")
+            expected_inverse = Decimal(1) / Decimal("0.92")
             self.assertAlmostEqual(float(inverse.exchange_rate), float(expected_inverse), places=10)
             self.assertEqual(inverse.rate_type, RateType.STATIC)
 
@@ -63,7 +63,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
             static_rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
                 target_currency="GBP",
-                exchange_rate=Decimal("0.780000000000000"),
+                exchange_rate=Decimal("0.78"),
                 start_date=current_month,
                 end_date=current_month.replace(month=current_month.month + 2),
             )
@@ -81,14 +81,14 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
             StaticExchangeRate.objects.create(
                 base_currency="EUR",
                 target_currency="USD",
-                exchange_rate=Decimal("1.100000000000000"),
+                exchange_rate=Decimal("1.10"),
                 start_date=date(2026, 7, 1),
                 end_date=date(2026, 7, 31),
             )
             static_rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
                 target_currency="EUR",
-                exchange_rate=Decimal("0.920000000000000"),
+                exchange_rate=Decimal("0.92"),
                 start_date=date(2026, 7, 1),
                 end_date=date(2026, 7, 31),
             )
@@ -109,13 +109,13 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
                 effective_date=date(2026, 7, 1),
                 base_currency="USD",
                 target_currency="EUR",
-                exchange_rate=Decimal("0.870000000000000"),
+                exchange_rate=Decimal("0.87"),
                 rate_type=RateType.DYNAMIC,
             )
             static_rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
                 target_currency="EUR",
-                exchange_rate=Decimal("0.920000000000000"),
+                exchange_rate=Decimal("0.92"),
                 start_date=date(2026, 7, 1),
                 end_date=date(2026, 7, 31),
             )
@@ -127,7 +127,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
                 target_currency="EUR",
             )
             self.assertEqual(rate.rate_type, RateType.STATIC)
-            self.assertEqual(rate.exchange_rate, Decimal("0.920000000000000"))
+            self.assertEqual(rate.exchange_rate, Decimal("0.92"))
 
     def test_zero_rate_raises_value_error(self):
         """A static rate with zero exchange_rate should raise ValueError."""
@@ -159,7 +159,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 effective_date=date(2026, 7, 1),
                 base_currency="USD",
                 target_currency="EUR",
-                exchange_rate=Decimal("0.920000000000000"),
+                exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
             remove_static_and_backfill_dynamic("USD", "EUR", date(2026, 7, 1), date(2026, 7, 31))
@@ -177,14 +177,14 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 effective_date=date(2026, 7, 1),
                 base_currency="USD",
                 target_currency="EUR",
-                exchange_rate=Decimal("0.920000000000000"),
+                exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
             MonthlyExchangeRate.objects.create(
                 effective_date=date(2026, 7, 1),
                 base_currency="EUR",
                 target_currency="USD",
-                exchange_rate=Decimal("1.086956521739130"),
+                exchange_rate=Decimal("1.08695652173913"),
                 rate_type=RateType.STATIC,
             )
             remove_static_and_backfill_dynamic("USD", "EUR", date(2026, 7, 1), date(2026, 7, 31))
@@ -199,7 +199,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
             StaticExchangeRate.objects.create(
                 base_currency="EUR",
                 target_currency="USD",
-                exchange_rate=Decimal("1.100000000000000"),
+                exchange_rate=Decimal("1.10"),
                 start_date=date(2026, 7, 1),
                 end_date=date(2026, 7, 31),
             )
@@ -207,14 +207,14 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 effective_date=date(2026, 7, 1),
                 base_currency="EUR",
                 target_currency="USD",
-                exchange_rate=Decimal("1.100000000000000"),
+                exchange_rate=Decimal("1.10"),
                 rate_type=RateType.STATIC,
             )
             MonthlyExchangeRate.objects.create(
                 effective_date=date(2026, 7, 1),
                 base_currency="USD",
                 target_currency="EUR",
-                exchange_rate=Decimal("0.920000000000000"),
+                exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
             remove_static_and_backfill_dynamic("USD", "EUR", date(2026, 7, 1), date(2026, 7, 31))
@@ -233,7 +233,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
         """After removing static rows, dynamic rates should be backfilled from ExchangeRateDictionary."""
         mock_erd = mock_erd_cls.objects.first.return_value
         mock_erd.currency_exchange_dictionary = {
-            "USD": {"EUR": Decimal("0.870000000000000")},
+            "USD": {"EUR": Decimal("0.87")},
             "EUR": {"USD": Decimal("1.149425287356322")},
         }
 
@@ -242,7 +242,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 effective_date=date(2026, 7, 1),
                 base_currency="USD",
                 target_currency="EUR",
-                exchange_rate=Decimal("0.920000000000000"),
+                exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
             remove_static_and_backfill_dynamic("USD", "EUR", date(2026, 7, 1), date(2026, 7, 31))
@@ -253,7 +253,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 target_currency="EUR",
             )
             self.assertEqual(rate.rate_type, RateType.DYNAMIC)
-            self.assertEqual(rate.exchange_rate, Decimal("0.870000000000000"))
+            self.assertEqual(rate.exchange_rate, Decimal("0.87"))
 
     @patch("cost_models.monthly_exchange_rate_utils.ExchangeRateDictionary")
     def test_no_backfill_when_no_exchange_dictionary(self, mock_erd_cls):
@@ -265,7 +265,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 effective_date=date(2026, 7, 1),
                 base_currency="USD",
                 target_currency="EUR",
-                exchange_rate=Decimal("0.920000000000000"),
+                exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
             remove_static_and_backfill_dynamic("USD", "EUR", date(2026, 7, 1), date(2026, 7, 31))
