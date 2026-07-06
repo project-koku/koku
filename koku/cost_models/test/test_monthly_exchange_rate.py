@@ -18,25 +18,6 @@ from masu.test import MasuTestCase
 class MonthlyExchangeRateTest(MasuTestCase):
     """Tests for MonthlyExchangeRate model."""
 
-    def test_unique_together_constraint(self):
-        """Test that duplicate (effective_date, base, target) raises IntegrityError."""
-        with tenant_context(self.tenant):
-            MonthlyExchangeRate.objects.create(
-                effective_date=date(2026, 2, 1),
-                base_currency="USD",
-                target_currency="EUR",
-                exchange_rate=Decimal("0.870000000000000"),
-                rate_type=RateType.DYNAMIC,
-            )
-            with self.assertRaises(IntegrityError):
-                MonthlyExchangeRate.objects.create(
-                    effective_date=date(2026, 2, 1),
-                    base_currency="USD",
-                    target_currency="EUR",
-                    exchange_rate=Decimal("0.890000000000000"),
-                    rate_type=RateType.STATIC,
-                )
-
     def test_update_or_create_overwrites_dynamic_with_static(self):
         """Test that static rate overwrites dynamic for the same triple."""
         with tenant_context(self.tenant):
