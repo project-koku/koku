@@ -110,15 +110,16 @@ def populate_dynamic_monthly_rates(code=None, month=None):
     When month is provided, writes for that specific month.
     When None, defaults to the current month.
     """
+    enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+    if not enabled_codes:
+        return 0
+
     erd = ExchangeRateDictionary.objects.first()
     if not erd or not erd.currency_exchange_dictionary:
         return 0
 
     exchange_dict = erd.currency_exchange_dictionary
     current_month = month or DateHelper().this_month_start.date()
-    enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
-    if not enabled_codes:
-        return 0
 
     static_pairs = set(
         MonthlyExchangeRate.objects.filter(
