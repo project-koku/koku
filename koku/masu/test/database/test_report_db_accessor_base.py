@@ -3,7 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the ReportDBAccessorBase utility object."""
+import ast
+import inspect
 import os
+import pathlib
+from unittest import TestCase
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -11,6 +15,7 @@ import psycopg2
 from django.db import OperationalError
 from psycopg2.errors import DeadlockDetected
 
+import masu
 from koku.cache import build_trino_schema_exists_key
 from koku.cache import build_trino_table_exists_key
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -184,3 +189,74 @@ class ReportDBAccessorBaseDeadlockRetryTest(MasuTestCase):
 
         self.assertEqual(cursor_mock.execute.call_count, 1)
         mock_sleep.assert_not_called()
+
+
+class RawSqlRetryIdempotencyGuardTest(TestCase):
+    """Guards the safety argument backing retry-on-deadlock in `_execute_raw_sql_query`.
+
+    That retry is only safe because every current call site executes the raw SQL
+    as an independent, autocommitted unit of work (Django's default AUTOCOMMIT=True;
+    no surrounding `transaction.atomic()`). Retrying is the standard Postgres-
+    recommended way to handle a deadlock in that shape, but if a future change wraps
+    a `_execute_raw_sql_query`/`_prepare_and_execute_raw_sql_query` call inside
+    `transaction.atomic()` alongside other statements, blindly retrying just the raw
+    SQL call on deadlock could silently replay only part of a larger unit of work
+    (raised in PR #6162 review). This is a static trip-wire, not a full guarantee:
+    it fails loudly if `transaction.atomic` is introduced into one of these files, so
+    a human re-verifies the safety argument rather than it silently rotting.
+    """
+
+    # All current subclasses of ReportDBAccessorBase (the only source of
+    # `_execute_raw_sql_query`/`_prepare_and_execute_raw_sql_query` calls in the codebase).
+    ACCESSOR_FILES = (
+        "database/report_db_accessor_base.py",
+        "database/aws_report_db_accessor.py",
+        "database/azure_report_db_accessor.py",
+        "database/gcp_report_db_accessor.py",
+        "database/ocp_report_db_accessor.py",
+    )
+
+    @staticmethod
+    def _is_transaction_atomic_attr(node):
+        return (
+            isinstance(node, ast.Attribute)
+            and node.attr == "atomic"
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "transaction"
+        )
+
+    @classmethod
+    def _is_transaction_atomic_usage(cls, node):
+        """True for `transaction.atomic` used as a `with` context manager or decorator.
+
+        Deliberately AST-based (not a text/substring search): this method's own
+        docstring mentions "transaction.atomic()" in prose, which would otherwise
+        be a false positive for a naive `"transaction.atomic" in content` check.
+        """
+        if isinstance(node, ast.Call):
+            node = node.func
+        return cls._is_transaction_atomic_attr(node)
+
+    def test_no_atomic_block_in_raw_sql_accessor_files(self):
+        masu_dir = pathlib.Path(inspect.getfile(masu)).resolve().parent
+        for relative_path in self.ACCESSOR_FILES:
+            path = masu_dir / relative_path
+            tree = ast.parse(path.read_text(), filename=str(path))
+            offending = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.With):
+                    offending.extend(
+                        item.context_expr
+                        for item in node.items
+                        if self._is_transaction_atomic_usage(item.context_expr)
+                    )
+                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    offending.extend(deco for deco in node.decorator_list if self._is_transaction_atomic_usage(deco))
+            self.assertFalse(
+                offending,
+                f"masu/{relative_path} now uses transaction.atomic() as a real `with` block or "
+                "decorator. Re-verify no _execute_raw_sql_query/_prepare_and_execute_raw_sql_query "
+                "call is nested inside it -- the deadlock-retry safety argument in "
+                "ReportDBAccessorBase._execute_raw_sql_query's docstring assumes these calls are "
+                "always independently autocommitted.",
+            )

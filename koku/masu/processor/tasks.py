@@ -932,8 +932,12 @@ def update_cost_model_costs(  # noqa: C901
 
     """
     task_name = "masu.processor.tasks.update_cost_model_costs"
-    # Only key on schema + provider so overlapping date ranges serialize instead of deadlocking on rates_to_usage
-    cache_args = [schema_name, provider_uuid]
+    # Include start_date/end_date so non-overlapping ranges (e.g. different months) for the
+    # same provider can run concurrently instead of queueing behind each other. The deadlock
+    # this key was previously narrowed to work around is fixed at the SQL layer instead (see
+    # insert_usage_rates_to_usage.sql's DELETE scope); retry-on-deadlock in
+    # _execute_raw_sql_query covers the residual risk from genuinely overlapping ranges.
+    cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
