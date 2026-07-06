@@ -20,6 +20,7 @@ from api.utils import DateHelper
 from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
+from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
@@ -481,8 +482,8 @@ class TestCeleryTasks(MasuTestCase):
 
         self.assertIsNone(result)
 
-    def test_upsert_tenant_dynamic_exchange_rates_creates_mer_rows(self):
-        """Test that _upsert_tenant_dynamic_exchange_rates creates MonthlyExchangeRate rows."""
+    def test_populate_dynamic_monthly_rates_creates_mer_rows(self):
+        """Test that populate_dynamic_monthly_rates creates MonthlyExchangeRate rows."""
         current_month = DateHelper().this_month_start.date()
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
@@ -493,9 +494,9 @@ class TestCeleryTasks(MasuTestCase):
         ExchangeRateDictionary.objects.all().delete()
         ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}})
 
-        tasks._upsert_tenant_dynamic_exchange_rates(self.schema)
-
         with tenant_context(self.tenant):
+            populate_dynamic_monthly_rates()
+
             mer = MonthlyExchangeRate.objects.get(
                 effective_date=current_month, base_currency="USD", target_currency="EUR"
             )
@@ -507,8 +508,8 @@ class TestCeleryTasks(MasuTestCase):
             )
             self.assertEqual(inverse.rate_type, RateType.DYNAMIC)
 
-    def test_upsert_tenant_dynamic_exchange_rates_respects_static(self):
-        """Test that dynamic upsert does not overwrite static rates."""
+    def test_populate_dynamic_monthly_rates_respects_static(self):
+        """Test that populate does not overwrite static rates."""
         current_month = DateHelper().this_month_start.date()
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
@@ -527,16 +528,16 @@ class TestCeleryTasks(MasuTestCase):
         ExchangeRateDictionary.objects.all().delete()
         ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}})
 
-        tasks._upsert_tenant_dynamic_exchange_rates(self.schema)
-
         with tenant_context(self.tenant):
+            populate_dynamic_monthly_rates()
+
             mer = MonthlyExchangeRate.objects.get(
                 effective_date=current_month, base_currency="USD", target_currency="EUR"
             )
             self.assertEqual(mer.rate_type, RateType.STATIC)
             self.assertEqual(mer.exchange_rate, Decimal("0.95"))
 
-    def test_upsert_tenant_dynamic_skips_disabled_currencies(self):
+    def test_populate_dynamic_monthly_rates_skips_disabled_currencies(self):
         """Test that currencies not in EnabledCurrency are skipped."""
         current_month = DateHelper().this_month_start.date()
         with tenant_context(self.tenant):
@@ -547,18 +548,17 @@ class TestCeleryTasks(MasuTestCase):
         ExchangeRateDictionary.objects.all().delete()
         ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0.87", "GBP": "0.78"}})
 
-        tasks._upsert_tenant_dynamic_exchange_rates(self.schema)
-
         with tenant_context(self.tenant):
+            populate_dynamic_monthly_rates()
+
             self.assertFalse(MonthlyExchangeRate.objects.filter(effective_date=current_month).exists())
 
-    def test_upsert_tenant_dynamic_no_enabled_currencies(self):
+    def test_populate_dynamic_monthly_rates_no_enabled_currencies(self):
         """Test that empty EnabledCurrency table causes early return."""
         current_month = DateHelper().this_month_start.date()
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
-
-        tasks._upsert_tenant_dynamic_exchange_rates(self.schema)
+            populate_dynamic_monthly_rates()
 
         with tenant_context(self.tenant):
             self.assertEqual(MonthlyExchangeRate.objects.filter(effective_date=current_month).count(), 0)
