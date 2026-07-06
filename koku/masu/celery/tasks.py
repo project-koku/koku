@@ -5,7 +5,6 @@
 """Asynchronous tasks."""
 import json
 import logging
-from decimal import Decimal
 
 import requests
 from botocore.exceptions import ClientError
@@ -28,9 +27,7 @@ from api.utils import DateHelper
 from common.queues import DownloadQueue
 from common.queues import PriorityQueue
 from common.queues import SummaryQueue
-from cost_models.models import EnabledCurrency
-from cost_models.models import MonthlyExchangeRate
-from cost_models.models import RateType
+from cost_models.monthly_exchange_rate_utils import upsert_dynamic_exchange_rates
 from koku import celery_app
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.notifications import NotificationService
@@ -312,41 +309,9 @@ def _fetch_and_store_exchange_rates(url):
 
 
 def _upsert_tenant_dynamic_exchange_rates(schema_name, exchange_dict, current_month):
-    """Upsert dynamic MonthlyExchangeRate rows for one tenant.
-
-    Only writes rates where both base and target currencies are enabled.
-    Synthesizes the inverse direction (1/rate) when the API dictionary
-    does not include it, mirroring the static-rate behavior.
-    """
+    """Upsert dynamic MonthlyExchangeRate rows for one tenant."""
     with schema_context(schema_name):
-        enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
-        if not enabled_codes:
-            return
-
-        static_pairs = set(
-            MonthlyExchangeRate.objects.filter(
-                effective_date=current_month,
-                rate_type=RateType.STATIC,
-            ).values_list("base_currency", "target_currency")
-        )
-
-        pairs_to_upsert = {}
-        for base_cur, targets in exchange_dict.items():
-            for target_cur, rate in targets.items():
-                if base_cur == target_cur or base_cur not in enabled_codes or target_cur not in enabled_codes:
-                    continue
-                pairs_to_upsert[(base_cur, target_cur)] = Decimal(str(rate))
-                pairs_to_upsert.setdefault((target_cur, base_cur), Decimal(1) / Decimal(str(rate)))
-
-        for (base_cur, target_cur), rate in pairs_to_upsert.items():
-            if (base_cur, target_cur) not in static_pairs:
-                MonthlyExchangeRate.objects.update_or_create(
-                    effective_date=current_month,
-                    base_currency=base_cur,
-                    target_currency=target_cur,
-                    defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
-                )
-
+        upsert_dynamic_exchange_rates(exchange_dict, current_month)
         invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
 
 

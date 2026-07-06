@@ -127,6 +127,51 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
                 )
 
 
+def upsert_dynamic_exchange_rates(exchange_dict, current_month, currency_code=None):
+    """Upsert dynamic MonthlyExchangeRate rows from an exchange rate dictionary.
+
+    When currency_code is provided, only pairs involving that currency are
+    processed (used by the enable-currency view). When None, all enabled
+    currency pairs are processed (used by the Celery task).
+
+    Synthesizes inverse rates (1/rate) when the dictionary does not include
+    them. Skips pairs that already have a static override for the month.
+    """
+    enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+    if not enabled_codes:
+        return 0
+
+    static_pairs = set(
+        MonthlyExchangeRate.objects.filter(
+            effective_date=current_month,
+            rate_type=RateType.STATIC,
+        ).values_list("base_currency", "target_currency")
+    )
+
+    pairs_to_upsert = {}
+    for base_cur, targets in exchange_dict.items():
+        for target_cur, rate in targets.items():
+            if base_cur == target_cur or base_cur not in enabled_codes or target_cur not in enabled_codes:
+                continue
+            if currency_code and currency_code not in (base_cur, target_cur):
+                continue
+            pairs_to_upsert[(base_cur, target_cur)] = Decimal(str(rate))
+            pairs_to_upsert.setdefault((target_cur, base_cur), Decimal(1) / Decimal(str(rate)))
+
+    count = 0
+    for (base_cur, target_cur), rate in pairs_to_upsert.items():
+        if (base_cur, target_cur) not in static_pairs:
+            MonthlyExchangeRate.objects.update_or_create(
+                effective_date=current_month,
+                base_currency=base_cur,
+                target_currency=target_cur,
+                defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
+            )
+            count += 1
+
+    return count
+
+
 def remove_dynamic_rates_for_currency(currency_code):
     """Remove dynamic MER rows where the disabled currency is either base or target.
 
@@ -144,43 +189,3 @@ def remove_dynamic_rates_for_currency(currency_code):
     total = deleted + deleted_target
     LOG.info(log_json(msg="Removed dynamic MER rows for disabled currency", currency=currency_code, deleted=total))
     return total
-
-
-def populate_dynamic_rates_for_currency(currency_code, current_month):
-    """Create dynamic MER rows for a newly enabled currency using the ExchangeRateDictionary.
-
-    Only creates pairs where both sides are enabled. Skips pairs that
-    already have a static rate for the current month.
-    """
-    erd = ExchangeRateDictionary.objects.first()
-    if not erd or not erd.currency_exchange_dictionary:
-        return 0
-
-    enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
-    exchange_dict = erd.currency_exchange_dictionary
-    static_pairs = set(
-        MonthlyExchangeRate.objects.filter(
-            effective_date=current_month,
-            rate_type=RateType.STATIC,
-        ).values_list("base_currency", "target_currency")
-    )
-
-    created = 0
-    for other_code in enabled_codes:
-        if other_code == currency_code:
-            continue
-        for base, target in [(currency_code, other_code), (other_code, currency_code)]:
-            if (base, target) in static_pairs:
-                continue
-            rate = exchange_dict.get(base, {}).get(target)
-            if rate is not None:
-                MonthlyExchangeRate.objects.update_or_create(
-                    effective_date=current_month,
-                    base_currency=base,
-                    target_currency=target,
-                    defaults={"exchange_rate": Decimal(str(rate)), "rate_type": RateType.DYNAMIC},
-                )
-                created += 1
-
-    LOG.info(log_json(msg="Populated dynamic MER rows for enabled currency", currency=currency_code, created=created))
-    return created

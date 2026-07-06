@@ -21,13 +21,14 @@ from api.currency.currencies import get_currency_info
 from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import get_enabled_currency_codes
 from api.currency.currencies import is_valid_iso_currency
+from api.currency.models import ExchangeRateDictionary
 from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
 from cost_models.models import StaticExchangeRate
-from cost_models.monthly_exchange_rate_utils import populate_dynamic_rates_for_currency
 from cost_models.monthly_exchange_rate_utils import remove_dynamic_rates_for_currency
+from cost_models.monthly_exchange_rate_utils import upsert_dynamic_exchange_rates
 from cost_models.static_exchange_rate_serializer import StaticExchangeRateSerializer
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.settings import KOKU_DEFAULT_CURRENCY
@@ -100,8 +101,10 @@ class EnabledCurrencyView(APIView):
         code = self._validate_code(kwargs["code"])
         _, created = EnabledCurrency.objects.get_or_create(currency_code=code)
         if created:
-            current_month = DateHelper().this_month_start.date()
-            populate_dynamic_rates_for_currency(code, current_month)
+            erd = ExchangeRateDictionary.objects.first()
+            if erd and erd.currency_exchange_dictionary:
+                current_month = DateHelper().this_month_start.date()
+                upsert_dynamic_exchange_rates(erd.currency_exchange_dictionary, current_month, currency_code=code)
             schema_name = request.user.customer.schema_name
             invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(log_json(msg="Currency enabled", currency=code))
