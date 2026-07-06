@@ -132,7 +132,7 @@ def populate_dynamic_monthly_rates(code=None, month=None):
     # For each direct rate (e.g. USD→EUR = 0.87), also synthesize the
     # inverse (EUR→USD = 1/0.87) unless the dictionary already provides
     # a direct rate for that direction.
-    candidates = {}
+    dynamic_rates = {}
     for base_cur, rates_by_target in exchange_dict.items():
         for target_cur, rate in rates_by_target.items():
             if base_cur == target_cur:
@@ -145,12 +145,12 @@ def populate_dynamic_monthly_rates(code=None, month=None):
             forward_pair = (base_cur, target_cur)
             inverse_pair = (target_cur, base_cur)
 
-            candidates[forward_pair] = Decimal(str(rate))
-            if inverse_pair not in candidates:
-                candidates[inverse_pair] = Decimal(1) / Decimal(str(rate))
+            dynamic_rates[forward_pair] = Decimal(str(rate))
+            if inverse_pair not in dynamic_rates:
+                dynamic_rates[inverse_pair] = Decimal(1) / Decimal(str(rate))
 
     # Exclude pairs that already have a static override for this month
-    pairs_to_upsert = {pair: rate for pair, rate in candidates.items() if pair not in static_pairs}
+    pairs_to_upsert = {pair: rate for pair, rate in dynamic_rates.items() if pair not in static_pairs}
 
     count = 0
     for (base_cur, target_cur), rate in pairs_to_upsert.items():
