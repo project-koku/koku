@@ -10,6 +10,7 @@ from django.db.models import Q
 from django_tenants.utils import tenant_context
 
 from api.currency.models import ExchangeRateDictionary
+from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
@@ -26,12 +27,14 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
         super().setUp()
         self.month_start = self.dh.this_month_start.date()
         self.month_end = self.dh.this_month_end.date()
+        ExchangeRateDictionary.objects.all().delete()
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.all().delete()
             StaticExchangeRate.objects.all().delete()
+            EnabledCurrency.objects.all().delete()
 
-    def test_single_month_creates_forward_and_inverse(self):
-        """A one-month static rate should create both forward and inverse MonthlyExchangeRate rows."""
+    def test_single_month_creates_forward_only(self):
+        """A one-month static rate should only create a forward STATIC MonthlyExchangeRate row."""
         with tenant_context(self.tenant):
             static_rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
@@ -50,14 +53,41 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
             self.assertEqual(forward.exchange_rate, Decimal("0.92"))
             self.assertEqual(forward.rate_type, RateType.STATIC)
 
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=self.month_start,
+                    base_currency="EUR",
+                    target_currency="USD",
+                ).exists(),
+                "Inverse should not be auto-created; dynamic rates are populated by the daily Celery task.",
+            )
+
+    def test_does_not_overwrite_existing_dynamic_inverse(self):
+        """Creating a static forward rate should not touch an existing dynamic inverse."""
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.month_start,
+                base_currency="EUR",
+                target_currency="USD",
+                exchange_rate=Decimal("1.15"),
+                rate_type=RateType.DYNAMIC,
+            )
+            static_rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.92"),
+                start_date=self.month_start,
+                end_date=self.month_end,
+            )
+            upsert_static_monthly_rates(static_rate)
+
             inverse = MonthlyExchangeRate.objects.get(
                 effective_date=self.month_start,
                 base_currency="EUR",
                 target_currency="USD",
             )
-            expected_inverse = Decimal(1) / Decimal("0.92")
-            self.assertAlmostEqual(float(inverse.exchange_rate), float(expected_inverse), places=10)
-            self.assertEqual(inverse.rate_type, RateType.STATIC)
+            self.assertEqual(inverse.exchange_rate, Decimal("1.15"))
+            self.assertEqual(inverse.rate_type, RateType.DYNAMIC)
 
     def test_multi_month_range_only_writes_current_month(self):
         """A multi-month static rate should only create a MonthlyExchangeRate row for the current month."""
@@ -77,8 +107,8 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
             self.assertEqual(months.count(), 1)
             self.assertEqual(months.first().effective_date, self.month_start)
 
-    def test_inverse_not_written_when_explicit_reverse_exists(self):
-        """Inverse row should not be written when an explicit StaticExchangeRate defines the reverse."""
+    def test_no_inverse_even_when_explicit_reverse_exists(self):
+        """No inverse row should be written even when a separate StaticExchangeRate defines the reverse."""
         with tenant_context(self.tenant):
             StaticExchangeRate.objects.create(
                 base_currency="EUR",

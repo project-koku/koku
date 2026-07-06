@@ -6,6 +6,7 @@
 import logging
 from decimal import Decimal
 
+from django.db import transaction
 from django.db.models import Q
 
 from api.common import log_json
@@ -30,12 +31,14 @@ def _explicit_static_rate_exists(base_currency, target_currency, month_start):
 
 
 def upsert_static_monthly_rates(static_rate):
-    """Upsert a MonthlyExchangeRate row for the current month, including the inverse direction.
+    """Upsert a MonthlyExchangeRate row for the current month.
 
     Only writes if the current month falls within the static rate's date range.
     Past and future months are not touched — each month is populated when it becomes current.
-    The inverse (1/rate) is written only when no explicit StaticExchangeRate defines the
-    reverse pair for this month.
+
+    The reverse direction uses dynamic rates unless the user has explicitly
+    defined a StaticExchangeRate for that direction. If no MonthlyExchangeRate row
+    exists for the inverse pair, dynamic rates are backfilled from ExchangeRateDictionary.
     """
     if static_rate.exchange_rate <= 0:
         raise ValueError(f"exchange_rate must be positive, got {static_rate.exchange_rate}")
@@ -54,25 +57,13 @@ def upsert_static_monthly_rates(static_rate):
         },
     )
 
-    if not _explicit_static_rate_exists(static_rate.target_currency, static_rate.base_currency, current_month):
-        inverse_rate = Decimal(1) / static_rate.exchange_rate
-        MonthlyExchangeRate.objects.update_or_create(
-            effective_date=current_month,
-            base_currency=static_rate.target_currency,
-            target_currency=static_rate.base_currency,
-            defaults={
-                "exchange_rate": inverse_rate,
-                "rate_type": RateType.STATIC,
-            },
-        )
-
 
 def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, start_date, end_date):
     """Remove static MonthlyExchangeRate rows for the current month and backfill with dynamic rates.
 
     Only acts if the current month falls within the given date range.
     Past and future months are not touched — past months are finalized and read-only.
-    Also removes the auto-generated inverse row unless an explicit StaticExchangeRate
+    Also removes any stale inverse static row unless an explicit StaticExchangeRate
     defines the reverse direction for this month.
     """
     current_month = DateHelper().this_month_start.date()
@@ -139,21 +130,33 @@ def populate_dynamic_monthly_rates(code=None):
             forward_pair = (base_cur, target_cur)
             inverse_pair = (target_cur, base_cur)
 
-            dynamic_rates[forward_pair] = Decimal(str(rate))
-            dynamic_rates.setdefault(inverse_pair, Decimal(1) / Decimal(str(rate)))
+            rate_dec = Decimal(str(rate))
+            if rate_dec <= 0:
+                LOG.warning(
+                    log_json(
+                        msg="Skipping non-positive rate from ExchangeRateDictionary",
+                        base_currency=base_cur,
+                        target_currency=target_cur,
+                        rate=str(rate),
+                    )
+                )
+                continue
+            dynamic_rates[forward_pair] = rate_dec
+            dynamic_rates.setdefault(inverse_pair, Decimal(1) / rate_dec)
 
     # Exclude pairs that already have a static override for this month
     pairs_to_upsert = {pair: rate for pair, rate in dynamic_rates.items() if pair not in static_pairs}
 
     count = 0
-    for (base_cur, target_cur), rate in pairs_to_upsert.items():
-        MonthlyExchangeRate.objects.update_or_create(
-            effective_date=current_month,
-            base_currency=base_cur,
-            target_currency=target_cur,
-            defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
-        )
-        count += 1
+    with transaction.atomic():
+        for (base_cur, target_cur), rate in pairs_to_upsert.items():
+            MonthlyExchangeRate.objects.update_or_create(
+                effective_date=current_month,
+                base_currency=base_cur,
+                target_currency=target_cur,
+                defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
+            )
+            count += 1
 
     return count
 
