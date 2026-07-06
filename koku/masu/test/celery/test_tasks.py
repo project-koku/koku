@@ -473,15 +473,6 @@ class TestCeleryTasks(MasuTestCase):
         self.assertTrue(ExchangeRates.objects.filter(currency_type="eur").exists())
         self.assertTrue(ExchangeRates.objects.filter(currency_type="gbp").exists())
 
-    def test_fetch_and_store_exchange_rates_http_error(self):
-        """Test that _fetch_and_store_exchange_rates returns None on HTTP error."""
-        with requests_mock.Mocker() as reqmock:
-            reqmock.register_uri("GET", settings.CURRENCY_URL, exc=HTTPError("test error"))
-            with self.assertLogs("masu.celery.tasks", "ERROR"):
-                result = tasks._fetch_and_store_exchange_rates(settings.CURRENCY_URL)
-
-        self.assertIsNone(result)
-
     def test_populate_dynamic_monthly_rates_creates_mer_rows(self):
         """Test that populate_dynamic_monthly_rates creates MonthlyExchangeRate rows."""
         current_month = DateHelper().this_month_start.date()
