@@ -135,19 +135,20 @@ def populate_dynamic_monthly_rates(code=None, month=None):
                 continue
             if code and code not in (base_cur, target_cur):
                 continue
-            pairs_to_upsert[(base_cur, target_cur)] = Decimal(str(rate))
-            pairs_to_upsert.setdefault((target_cur, base_cur), Decimal(1) / Decimal(str(rate)))
+            if (base_cur, target_cur) not in static_pairs:
+                pairs_to_upsert[(base_cur, target_cur)] = Decimal(str(rate))
+            if (target_cur, base_cur) not in static_pairs and (target_cur, base_cur) not in pairs_to_upsert:
+                pairs_to_upsert[(target_cur, base_cur)] = Decimal(1) / Decimal(str(rate))
 
     count = 0
     for (base_cur, target_cur), rate in pairs_to_upsert.items():
-        if (base_cur, target_cur) not in static_pairs:
-            MonthlyExchangeRate.objects.update_or_create(
-                effective_date=current_month,
-                base_currency=base_cur,
-                target_currency=target_cur,
-                defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
-            )
-            count += 1
+        MonthlyExchangeRate.objects.update_or_create(
+            effective_date=current_month,
+            base_currency=base_cur,
+            target_currency=target_cur,
+            defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
+        )
+        count += 1
 
     return count
 
