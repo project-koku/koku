@@ -128,17 +128,19 @@ def populate_dynamic_monthly_rates(code=None, month=None):
         ).values_list("base_currency", "target_currency")
     )
 
-    pairs_to_upsert = {}
+    candidates = {}
     for base_cur, targets in exchange_dict.items():
         for target_cur, rate in targets.items():
-            if base_cur == target_cur or base_cur not in enabled_codes or target_cur not in enabled_codes:
+            if base_cur == target_cur:
+                continue
+            if base_cur not in enabled_codes or target_cur not in enabled_codes:
                 continue
             if code and code not in (base_cur, target_cur):
                 continue
-            if (base_cur, target_cur) not in static_pairs:
-                pairs_to_upsert[(base_cur, target_cur)] = Decimal(str(rate))
-            if (target_cur, base_cur) not in static_pairs and (target_cur, base_cur) not in pairs_to_upsert:
-                pairs_to_upsert[(target_cur, base_cur)] = Decimal(1) / Decimal(str(rate))
+            candidates[(base_cur, target_cur)] = Decimal(str(rate))
+            candidates.setdefault((target_cur, base_cur), Decimal(1) / Decimal(str(rate)))
+
+    pairs_to_upsert = {pair: rate for pair, rate in candidates.items() if pair not in static_pairs}
 
     count = 0
     for (base_cur, target_cur), rate in pairs_to_upsert.items():
