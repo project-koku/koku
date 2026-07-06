@@ -74,10 +74,11 @@ def upsert_static_monthly_rates(static_rate):
 
 
 def remove_static_and_backfill_dynamic(base_currency, target_currency, start_date, end_date):
-    """Remove static rows for affected months and backfill with dynamic rates.
+    """Remove static rows for affected months and backfill dynamic rates for the current month.
 
     Also removes auto-generated inverse rows unless an explicit StaticExchangeRate
-    defines the reverse direction for that month.
+    defines the reverse direction for that month. Dynamic backfill only covers
+    the current month — past months are not backfilled.
     """
     MonthlyExchangeRate.objects.filter(
         effective_date__gte=start_date.replace(day=1),
