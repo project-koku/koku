@@ -67,7 +67,7 @@ def upsert_static_monthly_rates(static_rate):
         )
 
 
-def remove_static_and_backfill_dynamic(base_currency, target_currency, start_date, end_date):
+def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, start_date, end_date):
     """Remove static MonthlyExchangeRate rows for the current month and backfill with dynamic rates.
 
     Only acts if the current month falls within the given date range.
@@ -158,17 +158,16 @@ def populate_dynamic_monthly_rates(code=None):
     return count
 
 
-def remove_dynamic_monthly_rates(code):
-    """Remove dynamic MonthlyExchangeRate rows involving the given currency for the current month only.
+def remove_monthly_rates(code):
+    """Remove all MonthlyExchangeRate rows (dynamic and static) involving the given currency for the current month.
 
     Past months are finalized and read-only — only the current month is touched.
-    Static rows are always preserved.
     """
     current_month = DateHelper().this_month_start.date()
     deleted, _ = (
-        MonthlyExchangeRate.objects.filter(effective_date=current_month, rate_type=RateType.DYNAMIC)
+        MonthlyExchangeRate.objects.filter(effective_date=current_month)
         .filter(Q(base_currency=code) | Q(target_currency=code))
         .delete()
     )
-    LOG.info(log_json(msg="Removed dynamic MonthlyExchangeRate rows", code=code, deleted=deleted))
+    LOG.info(log_json(msg="Removed MonthlyExchangeRate rows", code=code, deleted=deleted))
     return deleted

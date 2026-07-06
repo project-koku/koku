@@ -18,7 +18,7 @@ from rest_framework.views import APIView
 from api.common import log_json
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from cost_models.models import StaticExchangeRate
-from cost_models.monthly_exchange_rate_utils import remove_static_and_backfill_dynamic
+from cost_models.monthly_exchange_rate_utils import replace_static_to_dynamic_monthly_rates
 from cost_models.static_exchange_rate_serializer import StaticExchangeRateSerializer
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 
@@ -87,7 +87,7 @@ class StaticExchangeRateDetailView(APIView):
         if instance.start_date < current_month_start:
             raise ValidationError("Rates with finalized months cannot be deleted.")
 
-        remove_static_and_backfill_dynamic(
+        replace_static_to_dynamic_monthly_rates(
             instance.base_currency,
             instance.target_currency,
             instance.start_date,

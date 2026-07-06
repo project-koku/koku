@@ -14,7 +14,7 @@ from rest_framework import serializers
 from api.common import log_json
 from api.currency.currencies import is_valid_iso_currency
 from cost_models.models import StaticExchangeRate
-from cost_models.monthly_exchange_rate_utils import remove_static_and_backfill_dynamic
+from cost_models.monthly_exchange_rate_utils import replace_static_to_dynamic_monthly_rates
 from cost_models.monthly_exchange_rate_utils import upsert_static_monthly_rates
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 
@@ -164,7 +164,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         # If scope changed, clean up old range and backfill with dynamic rates.
         # upsert_static_monthly_rates will then overwrite overlapping months with the new static values.
         if scope_changed:
-            remove_static_and_backfill_dynamic(old_base, old_target, old_start, old_end)
+            replace_static_to_dynamic_monthly_rates(old_base, old_target, old_start, old_end)
 
         upsert_static_monthly_rates(instance)
 

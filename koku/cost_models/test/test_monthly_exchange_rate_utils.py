@@ -7,12 +7,14 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
+from django.db.models import Q
 from django_tenants.utils import tenant_context
 
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
-from cost_models.monthly_exchange_rate_utils import remove_static_and_backfill_dynamic
+from cost_models.monthly_exchange_rate_utils import remove_monthly_rates
+from cost_models.monthly_exchange_rate_utils import replace_static_to_dynamic_monthly_rates
 from cost_models.monthly_exchange_rate_utils import upsert_static_monthly_rates
 from masu.test import MasuTestCase
 
@@ -144,7 +146,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
 
 
 class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
-    """Tests for remove_static_and_backfill_dynamic."""
+    """Tests for replace_static_to_dynamic_monthly_rates."""
 
     def setUp(self):
         super().setUp()
@@ -164,7 +166,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
-            remove_static_and_backfill_dynamic("USD", "EUR", self.month_start, self.month_end)
+            replace_static_to_dynamic_monthly_rates("USD", "EUR", self.month_start, self.month_end)
 
             self.assertFalse(
                 MonthlyExchangeRate.objects.filter(
@@ -189,7 +191,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 exchange_rate=Decimal("1.08695652173913"),
                 rate_type=RateType.STATIC,
             )
-            remove_static_and_backfill_dynamic("USD", "EUR", self.month_start, self.month_end)
+            replace_static_to_dynamic_monthly_rates("USD", "EUR", self.month_start, self.month_end)
 
             self.assertFalse(
                 MonthlyExchangeRate.objects.filter(effective_date=self.month_start, rate_type=RateType.STATIC).exists()
@@ -219,7 +221,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
-            remove_static_and_backfill_dynamic("USD", "EUR", self.month_start, self.month_end)
+            replace_static_to_dynamic_monthly_rates("USD", "EUR", self.month_start, self.month_end)
 
             self.assertTrue(
                 MonthlyExchangeRate.objects.filter(
@@ -247,7 +249,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
-            remove_static_and_backfill_dynamic("USD", "EUR", self.month_start, self.month_end)
+            replace_static_to_dynamic_monthly_rates("USD", "EUR", self.month_start, self.month_end)
 
             rate = MonthlyExchangeRate.objects.get(
                 effective_date=self.month_start,
@@ -270,6 +272,41 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
-            remove_static_and_backfill_dynamic("USD", "EUR", self.month_start, self.month_end)
+            replace_static_to_dynamic_monthly_rates("USD", "EUR", self.month_start, self.month_end)
 
             self.assertFalse(MonthlyExchangeRate.objects.filter(base_currency="USD", target_currency="EUR").exists())
+
+
+class RemoveMonthlyRatesTest(MasuTestCase):
+    """Tests for remove_monthly_rates."""
+
+    def setUp(self):
+        super().setUp()
+        self.month_start = self.dh.this_month_start.date()
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.all().delete()
+
+    def test_removes_both_static_and_dynamic_rows(self):
+        """Both static and dynamic rows involving the currency should be removed."""
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.month_start,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.87"),
+                rate_type=RateType.DYNAMIC,
+            )
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.month_start,
+                base_currency="EUR",
+                target_currency="USD",
+                exchange_rate=Decimal("1.15"),
+                rate_type=RateType.STATIC,
+            )
+            deleted = remove_monthly_rates("USD")
+            self.assertEqual(deleted, 2)
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(effective_date=self.month_start)
+                .filter(Q(base_currency="USD") | Q(target_currency="USD"))
+                .exists()
+            )

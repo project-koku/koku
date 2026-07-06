@@ -26,7 +26,7 @@ from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
 from cost_models.models import StaticExchangeRate
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
-from cost_models.monthly_exchange_rate_utils import remove_dynamic_monthly_rates
+from cost_models.monthly_exchange_rate_utils import remove_monthly_rates
 from cost_models.static_exchange_rate_serializer import StaticExchangeRateSerializer
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.settings import KOKU_DEFAULT_CURRENCY
@@ -132,7 +132,7 @@ class EnabledCurrencyView(APIView):
             LOG.info(log_json(msg="Account currency reset to default", previous=code, new=KOKU_DEFAULT_CURRENCY))
 
         EnabledCurrency.objects.filter(currency_code=code).delete()
-        remove_dynamic_monthly_rates(code=code)
+        remove_monthly_rates(code=code)
         schema_name = request.user.customer.schema_name
         invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(log_json(msg="Currency disabled", currency=code))
