@@ -148,9 +148,11 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
 
         instance = super().update(instance, validated_data)
 
-        current_scope = (instance.base_currency, instance.target_currency, instance.start_date, instance.end_date)
-        if previous_scope != current_scope:
-            prev_base, prev_target, prev_start, prev_end = previous_scope
+        prev_base, prev_target, prev_start, prev_end = previous_scope
+        currencies_changed = (prev_base, prev_target) != (instance.base_currency, instance.target_currency)
+        range_shrunk = prev_start < instance.start_date or prev_end > instance.end_date
+
+        if currencies_changed or range_shrunk:
             remove_static_and_backfill_dynamic(prev_base, prev_target, prev_start, prev_end)
 
         upsert_static_monthly_rates(instance)
