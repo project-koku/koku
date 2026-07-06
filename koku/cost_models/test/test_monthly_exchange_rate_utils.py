@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from django_tenants.utils import tenant_context
 
+from api.utils import DateHelper
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
@@ -55,24 +56,24 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
             self.assertAlmostEqual(float(inverse.exchange_rate), float(expected_inverse), places=10)
             self.assertEqual(inverse.rate_type, RateType.STATIC)
 
-    def test_multi_month_creates_rows_for_each_month(self):
-        """A multi-month static rate should create MonthlyExchangeRate rows for each month."""
+    def test_multi_month_range_only_writes_current_month(self):
+        """A multi-month static rate should only create a MonthlyExchangeRate row for the current month."""
         with tenant_context(self.tenant):
+            current_month = DateHelper().this_month_start.date()
             static_rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
                 target_currency="GBP",
                 exchange_rate=Decimal("0.780000000000000"),
-                start_date=date(2026, 7, 1),
-                end_date=date(2026, 9, 30),
+                start_date=current_month,
+                end_date=current_month.replace(month=current_month.month + 2),
             )
             upsert_static_monthly_rates(static_rate)
 
             months = MonthlyExchangeRate.objects.filter(base_currency="USD", target_currency="GBP").order_by(
                 "effective_date"
             )
-            self.assertEqual(months.count(), 3)
-            dates = list(months.values_list("effective_date", flat=True))
-            self.assertEqual(dates, [date(2026, 7, 1), date(2026, 8, 1), date(2026, 9, 1)])
+            self.assertEqual(months.count(), 1)
+            self.assertEqual(months.first().effective_date, current_month)
 
     def test_inverse_not_written_when_explicit_reverse_exists(self):
         """Inverse row should not be written when an explicit StaticExchangeRate defines the reverse."""
