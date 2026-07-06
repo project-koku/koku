@@ -6,7 +6,6 @@
 import logging
 from decimal import Decimal
 
-from dateutil.relativedelta import relativedelta
 from django.db.models import Q
 
 from api.common import log_json
@@ -20,15 +19,6 @@ from cost_models.models import StaticExchangeRate
 LOG = logging.getLogger(__name__)
 
 
-def _iter_months(start_date, end_date):
-    """Yield the first day of each month between start_date and end_date inclusive."""
-    current = start_date.replace(day=1)
-    end = end_date.replace(day=1)
-    while current <= end:
-        yield current
-        current += relativedelta(months=1)
-
-
 def _explicit_static_rate_exists(base_currency, target_currency, month_start):
     """Check if a StaticExchangeRate explicitly defines this direction covering the given month."""
     return StaticExchangeRate.objects.filter(
@@ -40,72 +30,69 @@ def _explicit_static_rate_exists(base_currency, target_currency, month_start):
 
 
 def upsert_static_monthly_rates(static_rate):
-    """Upsert MonthlyExchangeRate rows for the current month, including the inverse direction.
+    """Upsert a MonthlyExchangeRate row for the current month, including the inverse direction.
 
-    Past months are finalized and read-only — only the current month is written.
-    The forward direction is always written unconditionally. The inverse (1/rate)
-    is written only when no explicit StaticExchangeRate defines the reverse pair
-    for that month, ensuring explicit user-defined rates always take precedence.
+    Only writes if the current month falls within the static rate's date range.
+    Past and future months are not touched — each month is populated when it becomes current.
+    The inverse (1/rate) is written only when no explicit StaticExchangeRate defines the
+    reverse pair for this month.
     """
     if static_rate.exchange_rate <= 0:
         raise ValueError(f"exchange_rate must be positive, got {static_rate.exchange_rate}")
-    inverse_rate = Decimal(1) / static_rate.exchange_rate
-    current_month = DateHelper().this_month_start.date()
 
-    for month_start in _iter_months(static_rate.start_date, static_rate.end_date):
-        if month_start < current_month:
-            continue
+    current_month = DateHelper().this_month_start.date()
+    if current_month < static_rate.start_date.replace(day=1) or current_month > static_rate.end_date.replace(day=1):
+        return
+
+    MonthlyExchangeRate.objects.update_or_create(
+        effective_date=current_month,
+        base_currency=static_rate.base_currency,
+        target_currency=static_rate.target_currency,
+        defaults={
+            "exchange_rate": static_rate.exchange_rate,
+            "rate_type": RateType.STATIC,
+        },
+    )
+
+    if not _explicit_static_rate_exists(static_rate.target_currency, static_rate.base_currency, current_month):
+        inverse_rate = Decimal(1) / static_rate.exchange_rate
         MonthlyExchangeRate.objects.update_or_create(
-            effective_date=month_start,
-            base_currency=static_rate.base_currency,
-            target_currency=static_rate.target_currency,
+            effective_date=current_month,
+            base_currency=static_rate.target_currency,
+            target_currency=static_rate.base_currency,
             defaults={
-                "exchange_rate": static_rate.exchange_rate,
+                "exchange_rate": inverse_rate,
                 "rate_type": RateType.STATIC,
             },
         )
 
-        if not _explicit_static_rate_exists(static_rate.target_currency, static_rate.base_currency, month_start):
-            MonthlyExchangeRate.objects.update_or_create(
-                effective_date=month_start,
-                base_currency=static_rate.target_currency,
-                target_currency=static_rate.base_currency,
-                defaults={
-                    "exchange_rate": inverse_rate,
-                    "rate_type": RateType.STATIC,
-                },
-            )
-
 
 def remove_static_and_backfill_dynamic(base_currency, target_currency, start_date, end_date):
-    """Remove static rows for the current month and backfill with dynamic rates.
+    """Remove static MonthlyExchangeRate rows for the current month and backfill with dynamic rates.
 
-    Past months are finalized and read-only — only the current month is touched.
-    Also removes auto-generated inverse rows unless an explicit StaticExchangeRate
-    defines the reverse direction for that month.
+    Only acts if the current month falls within the given date range.
+    Past and future months are not touched — past months are finalized and read-only.
+    Also removes the auto-generated inverse row unless an explicit StaticExchangeRate
+    defines the reverse direction for this month.
     """
     current_month = DateHelper().this_month_start.date()
-    effective_start = max(start_date.replace(day=1), current_month)
-    effective_end = end_date.replace(day=1)
-    if effective_start > effective_end:
+    if current_month < start_date.replace(day=1) or current_month > end_date.replace(day=1):
         return
 
     MonthlyExchangeRate.objects.filter(
-        effective_date__gte=effective_start,
-        effective_date__lte=effective_end,
+        effective_date=current_month,
         base_currency=base_currency,
         target_currency=target_currency,
         rate_type=RateType.STATIC,
     ).delete()
 
-    for month_start in _iter_months(effective_start, end_date):
-        if not _explicit_static_rate_exists(target_currency, base_currency, month_start):
-            MonthlyExchangeRate.objects.filter(
-                effective_date=month_start,
-                base_currency=target_currency,
-                target_currency=base_currency,
-                rate_type=RateType.STATIC,
-            ).delete()
+    if not _explicit_static_rate_exists(target_currency, base_currency, current_month):
+        MonthlyExchangeRate.objects.filter(
+            effective_date=current_month,
+            base_currency=target_currency,
+            target_currency=base_currency,
+            rate_type=RateType.STATIC,
+        ).delete()
 
     populate_dynamic_monthly_rates(code=base_currency)
 
