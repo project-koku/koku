@@ -21,7 +21,6 @@ from api.currency.currencies import get_currency_info
 from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import get_enabled_currency_codes
 from api.currency.currencies import is_valid_iso_currency
-from api.currency.models import ExchangeRateDictionary
 from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
@@ -100,9 +99,7 @@ class EnabledCurrencyView(APIView):
         code = self._validate_code(kwargs["code"])
         _, created = EnabledCurrency.objects.get_or_create(currency_code=code)
         if created:
-            erd = ExchangeRateDictionary.objects.first()
-            if erd and erd.currency_exchange_dictionary:
-                upsert_dynamic_exchange_rates(erd.currency_exchange_dictionary, currency_codes=[code])
+            upsert_dynamic_exchange_rates(currency_codes=[code])
             schema_name = request.user.customer.schema_name
             invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(log_json(msg="Currency enabled", currency=code))

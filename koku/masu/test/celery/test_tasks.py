@@ -13,6 +13,7 @@ from django_tenants.utils import tenant_context
 from model_bakery import baker
 from requests.exceptions import HTTPError
 
+from api.currency.models import ExchangeRateDictionary
 from api.currency.models import ExchangeRates
 from api.models import Provider
 from api.utils import DateHelper
@@ -489,9 +490,10 @@ class TestCeleryTasks(MasuTestCase):
             EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="EUR")
 
-        exchange_dict = {"USD": {"EUR": Decimal("0.87"), "USD": Decimal("1.0")}}
+        ExchangeRateDictionary.objects.all().delete()
+        ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}})
 
-        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, exchange_dict)
+        tasks._upsert_tenant_dynamic_exchange_rates(self.schema)
 
         with tenant_context(self.tenant):
             mer = MonthlyExchangeRate.objects.get(
@@ -522,9 +524,10 @@ class TestCeleryTasks(MasuTestCase):
                 rate_type=RateType.STATIC,
             )
 
-        exchange_dict = {"USD": {"EUR": Decimal("0.87"), "USD": Decimal("1.0")}}
+        ExchangeRateDictionary.objects.all().delete()
+        ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}})
 
-        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, exchange_dict)
+        tasks._upsert_tenant_dynamic_exchange_rates(self.schema)
 
         with tenant_context(self.tenant):
             mer = MonthlyExchangeRate.objects.get(
@@ -541,9 +544,10 @@ class TestCeleryTasks(MasuTestCase):
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
 
-        exchange_dict = {"USD": {"EUR": Decimal("0.87"), "GBP": Decimal("0.78")}}
+        ExchangeRateDictionary.objects.all().delete()
+        ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0.87", "GBP": "0.78"}})
 
-        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, exchange_dict)
+        tasks._upsert_tenant_dynamic_exchange_rates(self.schema)
 
         with tenant_context(self.tenant):
             self.assertFalse(MonthlyExchangeRate.objects.filter(effective_date=current_month).exists())
@@ -554,7 +558,7 @@ class TestCeleryTasks(MasuTestCase):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
 
-        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, {})
+        tasks._upsert_tenant_dynamic_exchange_rates(self.schema)
 
         with tenant_context(self.tenant):
             self.assertEqual(MonthlyExchangeRate.objects.filter(effective_date=current_month).count(), 0)

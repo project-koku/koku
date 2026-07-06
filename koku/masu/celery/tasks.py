@@ -17,7 +17,6 @@ from urllib3.util.retry import Retry
 
 from api.common import log_json
 from api.currency.currencies import is_valid_iso_currency
-from api.currency.models import ExchangeRateDictionary
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
 from api.iam.models import Tenant
@@ -308,10 +307,10 @@ def _fetch_and_store_exchange_rates(url):
     return rate_metrics
 
 
-def _upsert_tenant_dynamic_exchange_rates(schema_name, exchange_dict):
+def _upsert_tenant_dynamic_exchange_rates(schema_name):
     """Upsert dynamic MonthlyExchangeRate rows for one tenant."""
     with schema_context(schema_name):
-        upsert_dynamic_exchange_rates(exchange_dict)
+        upsert_dynamic_exchange_rates()
         invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
 
 
@@ -327,9 +326,8 @@ def get_daily_currency_rates():
     if not rate_metrics:
         return {}
 
-    erd = ExchangeRateDictionary.objects.first()
     for tenant in Tenant.objects.exclude(schema_name="public"):
-        _upsert_tenant_dynamic_exchange_rates(tenant.schema_name, erd.currency_exchange_dictionary)
+        _upsert_tenant_dynamic_exchange_rates(tenant.schema_name)
 
     return rate_metrics
 
