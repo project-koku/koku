@@ -3,13 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for monthly_exchange_rate_utils MonthlyExchangeRate side effects."""
-from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 
 from django_tenants.utils import tenant_context
 
-from api.utils import DateHelper
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
@@ -23,6 +21,8 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
 
     def setUp(self):
         super().setUp()
+        self.month_start = self.dh.this_month_start.date()
+        self.month_end = self.dh.this_month_end.date()
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.all().delete()
             StaticExchangeRate.objects.all().delete()
@@ -34,13 +34,13 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
                 base_currency="USD",
                 target_currency="EUR",
                 exchange_rate=Decimal("0.92"),
-                start_date=date(2026, 7, 1),
-                end_date=date(2026, 7, 31),
+                start_date=self.month_start,
+                end_date=self.month_end,
             )
             upsert_static_monthly_rates(static_rate)
 
             forward = MonthlyExchangeRate.objects.get(
-                effective_date=date(2026, 7, 1),
+                effective_date=self.month_start,
                 base_currency="USD",
                 target_currency="EUR",
             )
@@ -48,7 +48,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
             self.assertEqual(forward.rate_type, RateType.STATIC)
 
             inverse = MonthlyExchangeRate.objects.get(
-                effective_date=date(2026, 7, 1),
+                effective_date=self.month_start,
                 base_currency="EUR",
                 target_currency="USD",
             )
@@ -59,13 +59,12 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
     def test_multi_month_range_only_writes_current_month(self):
         """A multi-month static rate should only create a MonthlyExchangeRate row for the current month."""
         with tenant_context(self.tenant):
-            current_month = DateHelper().this_month_start.date()
             static_rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
                 target_currency="GBP",
                 exchange_rate=Decimal("0.78"),
-                start_date=current_month,
-                end_date=current_month.replace(month=current_month.month + 2),
+                start_date=self.month_start,
+                end_date=self.month_start.replace(month=self.month_start.month + 2),
             )
             upsert_static_monthly_rates(static_rate)
 
@@ -73,7 +72,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
                 "effective_date"
             )
             self.assertEqual(months.count(), 1)
-            self.assertEqual(months.first().effective_date, current_month)
+            self.assertEqual(months.first().effective_date, self.month_start)
 
     def test_inverse_not_written_when_explicit_reverse_exists(self):
         """Inverse row should not be written when an explicit StaticExchangeRate defines the reverse."""
@@ -82,21 +81,21 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
                 base_currency="EUR",
                 target_currency="USD",
                 exchange_rate=Decimal("1.10"),
-                start_date=date(2026, 7, 1),
-                end_date=date(2026, 7, 31),
+                start_date=self.month_start,
+                end_date=self.month_end,
             )
             static_rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
                 target_currency="EUR",
                 exchange_rate=Decimal("0.92"),
-                start_date=date(2026, 7, 1),
-                end_date=date(2026, 7, 31),
+                start_date=self.month_start,
+                end_date=self.month_end,
             )
             upsert_static_monthly_rates(static_rate)
 
             self.assertFalse(
                 MonthlyExchangeRate.objects.filter(
-                    effective_date=date(2026, 7, 1),
+                    effective_date=self.month_start,
                     base_currency="EUR",
                     target_currency="USD",
                 ).exists()
@@ -106,7 +105,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
         """Static upsert should overwrite existing dynamic MonthlyExchangeRate rows."""
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.create(
-                effective_date=date(2026, 7, 1),
+                effective_date=self.month_start,
                 base_currency="USD",
                 target_currency="EUR",
                 exchange_rate=Decimal("0.87"),
@@ -116,13 +115,13 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
                 base_currency="USD",
                 target_currency="EUR",
                 exchange_rate=Decimal("0.92"),
-                start_date=date(2026, 7, 1),
-                end_date=date(2026, 7, 31),
+                start_date=self.month_start,
+                end_date=self.month_end,
             )
             upsert_static_monthly_rates(static_rate)
 
             rate = MonthlyExchangeRate.objects.get(
-                effective_date=date(2026, 7, 1),
+                effective_date=self.month_start,
                 base_currency="USD",
                 target_currency="EUR",
             )
@@ -136,8 +135,8 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
                 base_currency="USD",
                 target_currency="EUR",
                 exchange_rate=Decimal("0"),
-                start_date=date(2026, 7, 1),
-                end_date=date(2026, 7, 31),
+                start_date=self.month_start,
+                end_date=self.month_end,
             )
             with self.assertRaises(ValueError):
                 upsert_static_monthly_rates(static_rate)
@@ -148,6 +147,8 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
 
     def setUp(self):
         super().setUp()
+        self.month_start = self.dh.this_month_start.date()
+        self.month_end = self.dh.this_month_end.date()
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.all().delete()
             StaticExchangeRate.objects.all().delete()
@@ -156,13 +157,13 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
         """Removing a static rate should delete its MonthlyExchangeRate rows."""
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.create(
-                effective_date=date(2026, 7, 1),
+                effective_date=self.month_start,
                 base_currency="USD",
                 target_currency="EUR",
                 exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
-            remove_static_and_backfill_dynamic("USD", "EUR", date(2026, 7, 1), date(2026, 7, 31))
+            remove_static_and_backfill_dynamic("USD", "EUR", self.month_start, self.month_end)
 
             self.assertFalse(
                 MonthlyExchangeRate.objects.filter(
@@ -174,23 +175,23 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
         """Auto-generated inverse static rows should also be removed."""
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.create(
-                effective_date=date(2026, 7, 1),
+                effective_date=self.month_start,
                 base_currency="USD",
                 target_currency="EUR",
                 exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
             MonthlyExchangeRate.objects.create(
-                effective_date=date(2026, 7, 1),
+                effective_date=self.month_start,
                 base_currency="EUR",
                 target_currency="USD",
                 exchange_rate=Decimal("1.08695652173913"),
                 rate_type=RateType.STATIC,
             )
-            remove_static_and_backfill_dynamic("USD", "EUR", date(2026, 7, 1), date(2026, 7, 31))
+            remove_static_and_backfill_dynamic("USD", "EUR", self.month_start, self.month_end)
 
             self.assertFalse(
-                MonthlyExchangeRate.objects.filter(effective_date=date(2026, 7, 1), rate_type=RateType.STATIC).exists()
+                MonthlyExchangeRate.objects.filter(effective_date=self.month_start, rate_type=RateType.STATIC).exists()
             )
 
     def test_preserves_inverse_when_explicit_reverse_exists(self):
@@ -200,28 +201,28 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 base_currency="EUR",
                 target_currency="USD",
                 exchange_rate=Decimal("1.10"),
-                start_date=date(2026, 7, 1),
-                end_date=date(2026, 7, 31),
+                start_date=self.month_start,
+                end_date=self.month_end,
             )
             MonthlyExchangeRate.objects.create(
-                effective_date=date(2026, 7, 1),
+                effective_date=self.month_start,
                 base_currency="EUR",
                 target_currency="USD",
                 exchange_rate=Decimal("1.10"),
                 rate_type=RateType.STATIC,
             )
             MonthlyExchangeRate.objects.create(
-                effective_date=date(2026, 7, 1),
+                effective_date=self.month_start,
                 base_currency="USD",
                 target_currency="EUR",
                 exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
-            remove_static_and_backfill_dynamic("USD", "EUR", date(2026, 7, 1), date(2026, 7, 31))
+            remove_static_and_backfill_dynamic("USD", "EUR", self.month_start, self.month_end)
 
             self.assertTrue(
                 MonthlyExchangeRate.objects.filter(
-                    effective_date=date(2026, 7, 1),
+                    effective_date=self.month_start,
                     base_currency="EUR",
                     target_currency="USD",
                     rate_type=RateType.STATIC,
@@ -239,16 +240,16 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
 
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.create(
-                effective_date=date(2026, 7, 1),
+                effective_date=self.month_start,
                 base_currency="USD",
                 target_currency="EUR",
                 exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
-            remove_static_and_backfill_dynamic("USD", "EUR", date(2026, 7, 1), date(2026, 7, 31))
+            remove_static_and_backfill_dynamic("USD", "EUR", self.month_start, self.month_end)
 
             rate = MonthlyExchangeRate.objects.get(
-                effective_date=date(2026, 7, 1),
+                effective_date=self.month_start,
                 base_currency="USD",
                 target_currency="EUR",
             )
@@ -262,12 +263,12 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
 
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.create(
-                effective_date=date(2026, 7, 1),
+                effective_date=self.month_start,
                 base_currency="USD",
                 target_currency="EUR",
                 exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
-            remove_static_and_backfill_dynamic("USD", "EUR", date(2026, 7, 1), date(2026, 7, 31))
+            remove_static_and_backfill_dynamic("USD", "EUR", self.month_start, self.month_end)
 
             self.assertFalse(MonthlyExchangeRate.objects.filter(base_currency="USD", target_currency="EUR").exists())
