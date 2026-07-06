@@ -95,20 +95,18 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
                 target_currency=base_currency,
                 rate_type=RateType.STATIC,
             ).delete()
-        populate_dynamic_monthly_rates(code=base_currency, month=month_start)
+
+    populate_dynamic_monthly_rates(code=base_currency)
 
 
-def populate_dynamic_monthly_rates(code=None, month=None):
-    """Populate dynamic MonthlyExchangeRate rows for enabled currencies.
+def populate_dynamic_monthly_rates(code=None):
+    """Populate dynamic MonthlyExchangeRate rows for the current month.
 
     Reads the latest rates from ExchangeRateDictionary and writes dynamic
     MonthlyExchangeRate rows for each enabled currency pair. Static overrides are preserved.
 
     When code is provided, only pairs involving that currency are processed.
     When None, all enabled currency pairs are processed.
-
-    When month is provided, writes for that specific month.
-    When None, defaults to the current month.
     """
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     if not enabled_codes:
@@ -119,7 +117,7 @@ def populate_dynamic_monthly_rates(code=None, month=None):
         return 0
 
     exchange_dict = erd.currency_exchange_dictionary
-    current_month = month or DateHelper().this_month_start.date()
+    current_month = DateHelper().this_month_start.date()
 
     static_pairs = set(
         MonthlyExchangeRate.objects.filter(
