@@ -2,15 +2,23 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Serializers for StaticExchangeRate CRUD."""
+"""Serializers for StaticExchangeRate CRUD with MonthlyExchangeRate side effects."""
 import calendar
+import logging
 from datetime import timedelta
 
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
+from api.common import log_json
 from api.currency.currencies import is_valid_iso_currency
 from cost_models.models import StaticExchangeRate
+from cost_models.monthly_exchange_rate_utils import remove_static_and_backfill_dynamic
+from cost_models.monthly_exchange_rate_utils import upsert_static_monthly_rates
+from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
+
+LOG = logging.getLogger(__name__)
 
 
 class StaticExchangeRateSerializer(serializers.ModelSerializer):
@@ -117,3 +125,48 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        upsert_static_monthly_rates(instance)
+        schema_name = self.context["request"].user.customer.schema_name
+        invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+        LOG.info(
+            log_json(
+                msg="Static exchange rate created with MER rows",
+                pair=instance.name,
+                start=str(instance.start_date),
+                end=str(instance.end_date),
+            )
+        )
+        return instance
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        old_start = instance.start_date
+        old_end = instance.end_date
+        old_base = instance.base_currency
+        old_target = instance.target_currency
+
+        instance = super().update(instance, validated_data)
+
+        if (
+            old_base != instance.base_currency
+            or old_target != instance.target_currency
+            or old_start != instance.start_date
+            or old_end != instance.end_date
+        ):
+            remove_static_and_backfill_dynamic(old_base, old_target, old_start, old_end)
+
+        upsert_static_monthly_rates(instance)
+
+        schema_name = self.context["request"].user.customer.schema_name
+        invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+        LOG.info(
+            log_json(
+                msg="Static exchange rate updated with MER rows",
+                pair=instance.name,
+            )
+        )
+        return instance

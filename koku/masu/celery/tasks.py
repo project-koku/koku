@@ -5,6 +5,7 @@
 """Asynchronous tasks."""
 import json
 import logging
+from decimal import Decimal
 
 import requests
 from botocore.exceptions import ClientError
@@ -17,6 +18,7 @@ from urllib3.util.retry import Retry
 
 from api.common import log_json
 from api.currency.currencies import is_valid_iso_currency
+from api.currency.models import ExchangeRateDictionary
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
 from api.iam.models import Tenant
@@ -26,7 +28,11 @@ from api.utils import DateHelper
 from common.queues import DownloadQueue
 from common.queues import PriorityQueue
 from common.queues import SummaryQueue
+from cost_models.models import EnabledCurrency
+from cost_models.models import MonthlyExchangeRate
+from cost_models.models import RateType
 from koku import celery_app
+from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.notifications import NotificationService
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -263,12 +269,8 @@ def autovacuum_tune_schemas():
         autovacuum_tune_schema.delay(schema_name)
 
 
-@celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
-def get_daily_currency_rates():
-    """Task to get latest daily conversion rates."""
-    rate_metrics = {}
-
-    url = settings.CURRENCY_URL
+def _fetch_and_store_exchange_rates(url):
+    """Fetch exchange rates from the configured URL. Returns rate_metrics dict or None on failure."""
     retries = Retry(
         total=5,
         allowed_methods={"GET"},
@@ -278,33 +280,93 @@ def get_daily_currency_rates():
     session = requests.Session()
     session.mount("https://", HTTPAdapter(max_retries=retries))
 
-    # Retrieve conversion rates from URL
     try:
         response = session.get(url)
         response.raise_for_status()
     except (HTTPError, RetryError) as e:
         LOG.error(f"Couldn't pull latest conversion rates from {url}")
         LOG.error(e)
+        return None
 
-        return rate_metrics
-
+    rate_metrics = {}
     data = response.json()
-
     rates = data["rates"]
-    # Update conversion rates in database
-    for curr_type in rates.keys():
-        if is_valid_iso_currency(curr_type):
-            value = rates[curr_type]
-            try:
-                exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
-                LOG.info(f"Updating currency {curr_type} to {value}")
-            except ExchangeRates.DoesNotExist:
-                LOG.info(f"Creating the exchange rate {curr_type} to {value}")
-                exchange = ExchangeRates(currency_type=curr_type.lower())
-            rate_metrics[curr_type] = value
-            exchange.exchange_rate = value
-            exchange.save()
+    for curr_type, value in rates.items():
+        if not is_valid_iso_currency(curr_type):
+            LOG.warning(f"Skipping unsupported currency {curr_type}")
+            continue
+        if not value or value <= 0:
+            LOG.warning(f"Skipping currency {curr_type} with invalid rate {value}")
+            continue
+        try:
+            exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
+            LOG.info(f"Updating currency {curr_type} to {value}")
+        except ExchangeRates.DoesNotExist:
+            LOG.info(f"Creating the exchange rate {curr_type} to {value}")
+            exchange = ExchangeRates(currency_type=curr_type.lower())
+        rate_metrics[curr_type] = value
+        exchange.exchange_rate = value
+        exchange.save()
     exchange_dictionary(rate_metrics)
+    return rate_metrics
+
+
+def _upsert_tenant_dynamic_exchange_rates(schema_name, exchange_dict, current_month):
+    """Upsert dynamic MonthlyExchangeRate rows for one tenant.
+
+    Only writes rates where both base and target currencies are enabled.
+    Synthesizes the inverse direction (1/rate) when the API dictionary
+    does not include it, mirroring the static-rate behavior.
+    """
+    with schema_context(schema_name):
+        enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+        if not enabled_codes:
+            return
+
+        static_pairs = set(
+            MonthlyExchangeRate.objects.filter(
+                effective_date=current_month,
+                rate_type=RateType.STATIC,
+            ).values_list("base_currency", "target_currency")
+        )
+
+        pairs_to_upsert = {}
+        for base_cur, targets in exchange_dict.items():
+            for target_cur, rate in targets.items():
+                if base_cur == target_cur or base_cur not in enabled_codes or target_cur not in enabled_codes:
+                    continue
+                pairs_to_upsert[(base_cur, target_cur)] = Decimal(str(rate))
+                pairs_to_upsert.setdefault((target_cur, base_cur), Decimal(1) / Decimal(str(rate)))
+
+        for (base_cur, target_cur), rate in pairs_to_upsert.items():
+            if (base_cur, target_cur) not in static_pairs:
+                MonthlyExchangeRate.objects.update_or_create(
+                    effective_date=current_month,
+                    base_currency=base_cur,
+                    target_currency=target_cur,
+                    defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
+                )
+
+        invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+
+
+@celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
+def get_daily_currency_rates():
+    """Task to get latest daily conversion rates and upsert MonthlyExchangeRate per tenant."""
+    url = settings.CURRENCY_URL
+    if not url:
+        LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
+        return {}
+
+    rate_metrics = _fetch_and_store_exchange_rates(url)
+    if not rate_metrics:
+        return {}
+
+    erd = ExchangeRateDictionary.objects.first()
+    current_month = DateHelper().this_month_start.date()
+    for tenant in Tenant.objects.exclude(schema_name="public"):
+        _upsert_tenant_dynamic_exchange_rates(tenant.schema_name, erd.currency_exchange_dictionary, current_month)
+
     return rate_metrics
 
 

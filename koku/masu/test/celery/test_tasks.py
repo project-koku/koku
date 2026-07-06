@@ -1,6 +1,7 @@
 """Tests for celery tasks."""
 from collections import namedtuple
 from datetime import datetime
+from decimal import Decimal
 from unittest.mock import call
 from unittest.mock import patch
 
@@ -8,11 +9,16 @@ import faker
 import requests_mock
 from django.conf import settings
 from django.test import override_settings
+from django_tenants.utils import tenant_context
 from model_bakery import baker
 from requests.exceptions import HTTPError
 
 from api.currency.models import ExchangeRates
 from api.models import Provider
+from api.utils import DateHelper
+from cost_models.models import EnabledCurrency
+from cost_models.models import MonthlyExchangeRate
+from cost_models.models import RateType
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
@@ -451,3 +457,135 @@ class TestCeleryTasks(MasuTestCase):
         self.assertIsNone(result)
         self.assertIn("Unable to retrieve azure disk capacities", captured_logs.output[0])
         self.assertIn("Raised intentionally", captured_logs.output[0])
+
+    def test_fetch_and_store_exchange_rates_success(self):
+        """Test that _fetch_and_store_exchange_rates fetches, stores, and returns rates."""
+        mock_response = {"result": "success", "rates": {"EUR": 0.87, "GBP": 0.78}}
+        with requests_mock.Mocker() as reqmock:
+            reqmock.register_uri("GET", settings.CURRENCY_URL, json=mock_response)
+            result = tasks._fetch_and_store_exchange_rates(settings.CURRENCY_URL)
+
+        self.assertIsNotNone(result)
+        self.assertIn("EUR", result)
+        self.assertIn("GBP", result)
+        self.assertTrue(ExchangeRates.objects.filter(currency_type="eur").exists())
+        self.assertTrue(ExchangeRates.objects.filter(currency_type="gbp").exists())
+
+    def test_fetch_and_store_exchange_rates_http_error(self):
+        """Test that _fetch_and_store_exchange_rates returns None on HTTP error."""
+        with requests_mock.Mocker() as reqmock:
+            reqmock.register_uri("GET", settings.CURRENCY_URL, exc=HTTPError("test error"))
+            with self.assertLogs("masu.celery.tasks", "ERROR"):
+                result = tasks._fetch_and_store_exchange_rates(settings.CURRENCY_URL)
+
+        self.assertIsNone(result)
+
+    def test_upsert_tenant_dynamic_exchange_rates_creates_mer_rows(self):
+        """Test that _upsert_tenant_dynamic_exchange_rates creates MonthlyExchangeRate rows."""
+        current_month = DateHelper().this_month_start.date()
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+
+        exchange_dict = {"USD": {"EUR": Decimal("0.87"), "USD": Decimal("1.0")}}
+
+        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, exchange_dict, current_month)
+
+        with tenant_context(self.tenant):
+            mer = MonthlyExchangeRate.objects.get(
+                effective_date=current_month, base_currency="USD", target_currency="EUR"
+            )
+            self.assertEqual(mer.rate_type, RateType.DYNAMIC)
+            self.assertEqual(mer.exchange_rate, Decimal("0.87"))
+
+            inverse = MonthlyExchangeRate.objects.get(
+                effective_date=current_month, base_currency="EUR", target_currency="USD"
+            )
+            self.assertEqual(inverse.rate_type, RateType.DYNAMIC)
+
+    def test_upsert_tenant_dynamic_exchange_rates_respects_static(self):
+        """Test that dynamic upsert does not overwrite static rates."""
+        current_month = DateHelper().this_month_start.date()
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+
+            MonthlyExchangeRate.objects.create(
+                effective_date=current_month,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.95"),
+                rate_type=RateType.STATIC,
+            )
+
+        exchange_dict = {"USD": {"EUR": Decimal("0.87"), "USD": Decimal("1.0")}}
+
+        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, exchange_dict, current_month)
+
+        with tenant_context(self.tenant):
+            mer = MonthlyExchangeRate.objects.get(
+                effective_date=current_month, base_currency="USD", target_currency="EUR"
+            )
+            self.assertEqual(mer.rate_type, RateType.STATIC)
+            self.assertEqual(mer.exchange_rate, Decimal("0.95"))
+
+    def test_upsert_tenant_dynamic_skips_disabled_currencies(self):
+        """Test that currencies not in EnabledCurrency are skipped."""
+        current_month = DateHelper().this_month_start.date()
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+
+        exchange_dict = {"USD": {"EUR": Decimal("0.87"), "GBP": Decimal("0.78")}}
+
+        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, exchange_dict, current_month)
+
+        with tenant_context(self.tenant):
+            self.assertFalse(MonthlyExchangeRate.objects.filter(effective_date=current_month).exists())
+
+    def test_upsert_tenant_dynamic_no_enabled_currencies(self):
+        """Test that empty EnabledCurrency table causes early return."""
+        current_month = DateHelper().this_month_start.date()
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.all().delete()
+
+        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, {}, current_month)
+
+        with tenant_context(self.tenant):
+            self.assertEqual(MonthlyExchangeRate.objects.filter(effective_date=current_month).count(), 0)
+
+    @override_settings(CURRENCY_URL="")
+    def test_get_daily_currency_rates_no_url(self):
+        """Test that get_daily_currency_rates returns empty dict when CURRENCY_URL is empty."""
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            result = tasks.get_daily_currency_rates()
+
+        self.assertEqual(result, {})
+        self.assertIn("CURRENCY_URL not configured", str(captured_logs))
+
+    def test_get_daily_currency_rates_upserts_mer(self):
+        """Test end-to-end: get_daily_currency_rates fetches rates and upserts MER rows."""
+        current_month = DateHelper().this_month_start.date()
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.filter(effective_date=current_month).delete()
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="CAD")
+
+        mock_response = {"result": "success", "rates": {"USD": 1.0, "CAD": 1.25}}
+        with requests_mock.Mocker() as reqmock:
+            reqmock.register_uri("GET", settings.CURRENCY_URL, json=mock_response)
+            result = tasks.get_daily_currency_rates()
+
+        self.assertIn("CAD", result)
+        with tenant_context(self.tenant):
+            self.assertTrue(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=current_month, base_currency="USD", target_currency="CAD"
+                ).exists()
+            )
