@@ -128,7 +128,7 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
                 )
 
 
-def upsert_dynamic_exchange_rates(currency_codes=None):
+def upsert_enabled_dynamic_exchange_rates(currency_codes=None):
     """Upsert dynamic MonthlyExchangeRate rows from the ExchangeRateDictionary.
 
     When currency_codes is provided, only pairs where at least one side is
