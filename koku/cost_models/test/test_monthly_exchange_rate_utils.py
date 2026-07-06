@@ -4,12 +4,12 @@
 #
 """Tests for monthly_exchange_rate_utils MonthlyExchangeRate side effects."""
 from decimal import Decimal
-from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import Q
 from django_tenants.utils import tenant_context
 
+from api.currency.models import ExchangeRateDictionary
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
@@ -232,10 +232,9 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 ).exists()
             )
 
-    @patch("cost_models.monthly_exchange_rate_utils.ExchangeRateDictionary")
-    def test_no_backfill_when_no_exchange_dictionary(self, mock_erd_cls):
+    def test_no_backfill_when_no_exchange_dictionary(self):
         """No backfill should happen when ExchangeRateDictionary is empty."""
-        mock_erd_cls.objects.first.return_value = None
+        ExchangeRateDictionary.objects.all().delete()
 
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.create(
