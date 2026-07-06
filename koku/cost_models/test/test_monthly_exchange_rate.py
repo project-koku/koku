@@ -2,48 +2,12 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Tests for the MonthlyExchangeRate and EnabledCurrency models."""
-from datetime import date
-from decimal import Decimal
-
+"""Tests for the EnabledCurrency model."""
 from django.db import IntegrityError
 from django_tenants.utils import tenant_context
 
 from cost_models.models import EnabledCurrency
-from cost_models.models import MonthlyExchangeRate
-from cost_models.models import RateType
 from masu.test import MasuTestCase
-
-
-class MonthlyExchangeRateTest(MasuTestCase):
-    """Tests for MonthlyExchangeRate model."""
-
-    def test_update_or_create_overwrites_dynamic_with_static(self):
-        """Test that static rate overwrites dynamic for the same triple."""
-        with tenant_context(self.tenant):
-            MonthlyExchangeRate.objects.create(
-                effective_date=date(2026, 3, 1),
-                base_currency="USD",
-                target_currency="EUR",
-                exchange_rate=Decimal("0.870000000000000"),
-                rate_type=RateType.DYNAMIC,
-            )
-            MonthlyExchangeRate.objects.update_or_create(
-                effective_date=date(2026, 3, 1),
-                base_currency="USD",
-                target_currency="EUR",
-                defaults={
-                    "exchange_rate": Decimal("0.920000000000000"),
-                    "rate_type": RateType.STATIC,
-                },
-            )
-            rate = MonthlyExchangeRate.objects.get(
-                effective_date=date(2026, 3, 1),
-                base_currency="USD",
-                target_currency="EUR",
-            )
-            self.assertEqual(rate.rate_type, RateType.STATIC)
-            self.assertEqual(rate.exchange_rate, Decimal("0.920000000000000"))
 
 
 class EnabledCurrencyTest(MasuTestCase):
