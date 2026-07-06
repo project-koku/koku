@@ -74,7 +74,7 @@ def upsert_static_monthly_rates(static_rate):
 
 
 def remove_static_and_backfill_dynamic(base_currency, target_currency, start_date, end_date):
-    """Remove static rows for affected months and backfill with dynamic rates from ExchangeRateDictionary.
+    """Remove static rows for affected months and backfill with dynamic rates.
 
     Also removes auto-generated inverse rows unless an explicit StaticExchangeRate
     defines the reverse direction for that month.
@@ -96,40 +96,11 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
                 rate_type=RateType.STATIC,
             ).delete()
 
-    erd = ExchangeRateDictionary.objects.first()
-    if not erd or not erd.currency_exchange_dictionary:
-        return
-
-    exchange_dict = erd.currency_exchange_dictionary
-    rate = exchange_dict.get(base_currency, {}).get(target_currency)
-    if rate is not None:
-        for month_start in _iter_months(start_date, end_date):
-            MonthlyExchangeRate.objects.update_or_create(
-                effective_date=month_start,
-                base_currency=base_currency,
-                target_currency=target_currency,
-                defaults={
-                    "exchange_rate": rate,
-                    "rate_type": RateType.DYNAMIC,
-                },
-            )
-
-    inverse_rate = exchange_dict.get(target_currency, {}).get(base_currency)
-    if inverse_rate is not None:
-        for month_start in _iter_months(start_date, end_date):
-            if not _explicit_static_rate_exists(target_currency, base_currency, month_start):
-                MonthlyExchangeRate.objects.update_or_create(
-                    effective_date=month_start,
-                    base_currency=target_currency,
-                    target_currency=base_currency,
-                    defaults={
-                        "exchange_rate": inverse_rate,
-                        "rate_type": RateType.DYNAMIC,
-                    },
-                )
+    for month_start in _iter_months(start_date, end_date):
+        populate_dynamic_monthly_rates(code=base_currency, month=month_start)
 
 
-def populate_dynamic_monthly_rates(code=None):
+def populate_dynamic_monthly_rates(code=None, month=None):
     """Populate dynamic MonthlyExchangeRate rows for enabled currencies.
 
     Reads the latest rates from ExchangeRateDictionary and writes dynamic
@@ -137,13 +108,16 @@ def populate_dynamic_monthly_rates(code=None):
 
     When code is provided, only pairs involving that currency are processed.
     When None, all enabled currency pairs are processed.
+
+    When month is provided, writes for that specific month.
+    When None, defaults to the current month.
     """
     erd = ExchangeRateDictionary.objects.first()
     if not erd or not erd.currency_exchange_dictionary:
         return 0
 
     exchange_dict = erd.currency_exchange_dictionary
-    current_month = DateHelper().this_month_start.date()
+    current_month = month or DateHelper().this_month_start.date()
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     if not enabled_codes:
         return 0
