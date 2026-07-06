@@ -15,12 +15,30 @@
 -- Parameters:
 --   schema, start_date, end_date, source_uuid, report_period_id,
 --   cost_model_id
-
+--
+-- DELETE scope (COST-7249 deadlock fix, PR #6162): this must delete only the
+-- rows this phase (plus its co-located tag-based usage costs, which have no
+-- other dedicated delete in the pipeline) is about to repopulate:
+--   * cost_model_rate_type IN ('Infrastructure', 'Supplementary') -- excludes
+--     the 4 distributed-cost rate types (platform_distributed, etc.)
+--   * monthly_cost_type IS NULL (this phase's own rows) OR = 'Tag'
+--     (infrastructure/supplementary_tag_rates.sql + default_*_tag_rates.sql
+--     rows, which are inserted with no dedicated DELETE of their own)
+-- Monthly costs (Node/Cluster/Node_Core_Month/PVC/OCP_VM) are excluded: they
+-- are deleted+reinserted separately via _delete_monthly_cost_model_data,
+-- scoped per cost_type, before each populate_monthly_cost_sql call.
+-- A prior, unscoped version of this DELETE (bare usage_start/source_uuid/
+-- report_period_id, no type filter) wiped all 6 RTU cost types on every
+-- invocation, amplifying the per-invocation row-lock footprint far beyond
+-- what this phase rewrites -- the proximate cause of a production deadlock
+-- under concurrent same-provider overlapping-range invocations.
 DELETE FROM {{schema | sqlsafe}}.rates_to_usage
 WHERE usage_start >= {{start_date}}
   AND usage_start <= {{end_date}}
   AND source_uuid = {{source_uuid}}
-  AND report_period_id = {{report_period_id}};
+  AND report_period_id = {{report_period_id}}
+  AND cost_model_rate_type IN ('Infrastructure', 'Supplementary')
+  AND (monthly_cost_type IS NULL OR monthly_cost_type = 'Tag');
 
 WITH cost_model_info AS (
     SELECT coalesce(cm.distribution_info->>'distribution_type', cm.distribution, 'cpu') AS distribution

@@ -16,6 +16,7 @@ Tier 4 (E2E): TestRTUCostBreakdownAPI
 drift5-sql: TestRTURateResolution
 R20: TestOrchestrationOrder
 """
+import pkgutil
 from decimal import Decimal
 from functools import wraps
 from unittest.mock import MagicMock
@@ -481,6 +482,82 @@ class TestPopulateUsageRatesToUsage(_ReportPeriodMixin, MasuTestCase):
                 sql_params,
                 f"Per-metric param {rate_key} should not be in sql_params",
             )
+
+
+class TestUsageRatesDeleteScope(MasuTestCase):
+    """Regression tests for the Phase 2 DELETE scope (COST-7249 deadlock fix follow-up, PR #6162).
+
+    The original DELETE in insert_usage_rates_to_usage.sql scoped only by
+    usage_start/source_uuid/report_period_id, wiping rows for all 6 RTU cost types
+    (usage rates, monthly costs, VM costs, tag costs, and the 4 distributed-cost
+    types) on every invocation. That amplified the per-invocation row-lock
+    footprint far beyond what this phase actually rewrites, and was identified as
+    the proximate cause of the production deadlock on rates_to_usage (see PR
+    #6162's RCA). It must be narrowed to exactly the rows this phase is
+    responsible for repopulating.
+
+    Note the delete must still include tag-based usage costs (monthly_cost_type
+    = 'Tag'): infrastructure_tag_rates.sql / supplementary_tag_rates.sql /
+    default_infrastructure_tag_rates.sql / default_supplementary_tag_rates.sql
+    have no dedicated DELETE anywhere else in the pipeline (unlike monthly costs,
+    which are cleaned up per cost_type via _delete_monthly_cost_model_data). If
+    this DELETE stopped covering 'Tag' rows, every re-run (cost model update,
+    manual recompute) would duplicate tag-based costs instead of replacing them.
+    """
+
+    def _rendered_delete_statement(self):
+        from jinjasql import JinjaSql
+
+        sql_template = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/usage_rates/insert_usage_rates_to_usage.sql",
+        )
+        sql_template = sql_template.decode("utf-8")
+        params = {
+            "schema": "test_schema",
+            "start_date": "2024-01-01",
+            "end_date": "2024-01-31",
+            "source_uuid": "00000000-0000-0000-0000-000000000002",
+            "report_period_id": 1,
+            "cost_model_id": "00000000-0000-0000-0000-000000000001",
+        }
+        rendered_sql, _ = JinjaSql(param_style="named").prepare_query(sql_template, params)
+        # Strip `--` comment lines first: some contain literal semicolons in prose
+        # (e.g. "...fractions only;") that would otherwise truncate the split below.
+        code_only = "\n".join(line for line in rendered_sql.splitlines() if not line.strip().startswith("--"))
+        # DELETE is the first statement in the file, terminated by the first semicolon.
+        return code_only.split(";", 1)[0]
+
+    def test_delete_scoped_to_infrastructure_and_supplementary_rate_types(self):
+        """Must not delete monthly/VM/distributed cost_model_rate_type rows."""
+        delete_stmt = self._rendered_delete_statement()
+        self.assertIn("cost_model_rate_type", delete_stmt)
+        self.assertIn("Infrastructure", delete_stmt)
+        self.assertIn("Supplementary", delete_stmt)
+
+    def test_delete_excludes_monthly_cost_rows(self):
+        """Monthly costs (Node/Cluster/Node_Core_Month/PVC/OCP_VM) are deleted and
+        reinserted by their own dedicated call (_delete_monthly_cost_model_data,
+        scoped per cost_type) and must not be touched by this DELETE.
+        """
+        delete_stmt = self._rendered_delete_statement()
+        self.assertIn("monthly_cost_type", delete_stmt)
+        self.assertIn("IS NULL", delete_stmt)
+
+    def test_delete_still_covers_tag_based_rows(self):
+        """RTU tag-based usage costs (monthly_cost_type='Tag') have no dedicated
+        delete anywhere else in the pipeline -- see class docstring.
+        """
+        delete_stmt = self._rendered_delete_statement()
+        self.assertIn("Tag", delete_stmt)
+
+    def test_delete_does_not_reference_metric_type(self):
+        """Markup rows (metric_type='markup') are deleted+reinserted by their own
+        dedicated statement in insert_markup_rates_to_usage.sql and must not be
+        referenced by this DELETE's scoping.
+        """
+        delete_stmt = self._rendered_delete_statement()
+        self.assertNotIn("metric_type", delete_stmt)
 
 
 class TestAggregateRatesToDailySummary(_ReportPeriodMixin, MasuTestCase):
