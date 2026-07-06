@@ -6,6 +6,7 @@
 from decimal import Decimal
 from unittest.mock import patch
 
+from dateutil.relativedelta import relativedelta
 from django_tenants.utils import tenant_context
 
 from cost_models.models import MonthlyExchangeRate
@@ -64,7 +65,7 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
                 target_currency="GBP",
                 exchange_rate=Decimal("0.78"),
                 start_date=self.month_start,
-                end_date=self.month_start.replace(month=self.month_start.month + 2),
+                end_date=self.month_start + relativedelta(months=2),
             )
             upsert_static_monthly_rates(static_rate)
 
