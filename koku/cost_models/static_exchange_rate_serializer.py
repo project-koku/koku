@@ -144,35 +144,30 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        old_state = (
-            instance.base_currency,
-            instance.target_currency,
-            instance.start_date,
-            instance.end_date,
-            instance.exchange_rate,
-        )
+        old_base = instance.base_currency
+        old_target = instance.target_currency
+        old_start = instance.start_date
+        old_end = instance.end_date
+        old_rate = instance.exchange_rate
 
         instance = super().update(instance, validated_data)
 
-        new_state = (
-            instance.base_currency,
-            instance.target_currency,
-            instance.start_date,
-            instance.end_date,
-            instance.exchange_rate,
+        scope_changed = (
+            old_base != instance.base_currency
+            or old_target != instance.target_currency
+            or old_start != instance.start_date
+            or old_end != instance.end_date
         )
-        if old_state == new_state:
-            return instance
+        rate_changed = old_rate != instance.exchange_rate
 
-        old_base, old_target, old_start, old_end, _ = old_state
-        new_base, new_target, new_start, new_end, _ = new_state
-        if (old_base, old_target, old_start, old_end) != (new_base, new_target, new_start, new_end):
+        if scope_changed:
             remove_static_and_backfill_dynamic(old_base, old_target, old_start, old_end)
 
-        upsert_static_monthly_rates(instance)
+        if scope_changed or rate_changed:
+            upsert_static_monthly_rates(instance)
+            schema_name = self.context["request"].user.customer.schema_name
+            invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
 
-        schema_name = self.context["request"].user.customer.schema_name
-        invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(
             log_json(
                 msg="Static exchange rate updated with MonthlyExchangeRate rows",
