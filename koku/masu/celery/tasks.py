@@ -308,10 +308,10 @@ def _fetch_and_store_exchange_rates(url):
     return rate_metrics
 
 
-def _upsert_tenant_dynamic_exchange_rates(schema_name, exchange_dict, current_month):
+def _upsert_tenant_dynamic_exchange_rates(schema_name, exchange_dict):
     """Upsert dynamic MonthlyExchangeRate rows for one tenant."""
     with schema_context(schema_name):
-        upsert_dynamic_exchange_rates(exchange_dict, current_month)
+        upsert_dynamic_exchange_rates(exchange_dict)
         invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
 
 
@@ -328,9 +328,8 @@ def get_daily_currency_rates():
         return {}
 
     erd = ExchangeRateDictionary.objects.first()
-    current_month = DateHelper().this_month_start.date()
     for tenant in Tenant.objects.exclude(schema_name="public"):
-        _upsert_tenant_dynamic_exchange_rates(tenant.schema_name, erd.currency_exchange_dictionary, current_month)
+        _upsert_tenant_dynamic_exchange_rates(tenant.schema_name, erd.currency_exchange_dictionary)
 
     return rate_metrics
 

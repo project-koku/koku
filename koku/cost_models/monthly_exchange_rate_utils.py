@@ -10,6 +10,7 @@ from dateutil.relativedelta import relativedelta
 
 from api.common import log_json
 from api.currency.models import ExchangeRateDictionary
+from api.utils import DateHelper
 from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
@@ -127,7 +128,7 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
                 )
 
 
-def upsert_dynamic_exchange_rates(exchange_dict, current_month, currency_code=None):
+def upsert_dynamic_exchange_rates(exchange_dict, currency_code=None):
     """Upsert dynamic MonthlyExchangeRate rows from an exchange rate dictionary.
 
     When currency_code is provided, only pairs involving that currency are
@@ -137,6 +138,7 @@ def upsert_dynamic_exchange_rates(exchange_dict, current_month, currency_code=No
     Synthesizes inverse rates (1/rate) when the dictionary does not include
     them. Skips pairs that already have a static override for the month.
     """
+    current_month = DateHelper().this_month_start.date()
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     if not enabled_codes:
         return 0

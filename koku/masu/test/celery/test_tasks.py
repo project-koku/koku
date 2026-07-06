@@ -491,7 +491,7 @@ class TestCeleryTasks(MasuTestCase):
 
         exchange_dict = {"USD": {"EUR": Decimal("0.87"), "USD": Decimal("1.0")}}
 
-        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, exchange_dict, current_month)
+        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, exchange_dict)
 
         with tenant_context(self.tenant):
             mer = MonthlyExchangeRate.objects.get(
@@ -524,7 +524,7 @@ class TestCeleryTasks(MasuTestCase):
 
         exchange_dict = {"USD": {"EUR": Decimal("0.87"), "USD": Decimal("1.0")}}
 
-        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, exchange_dict, current_month)
+        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, exchange_dict)
 
         with tenant_context(self.tenant):
             mer = MonthlyExchangeRate.objects.get(
@@ -543,7 +543,7 @@ class TestCeleryTasks(MasuTestCase):
 
         exchange_dict = {"USD": {"EUR": Decimal("0.87"), "GBP": Decimal("0.78")}}
 
-        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, exchange_dict, current_month)
+        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, exchange_dict)
 
         with tenant_context(self.tenant):
             self.assertFalse(MonthlyExchangeRate.objects.filter(effective_date=current_month).exists())
@@ -554,7 +554,7 @@ class TestCeleryTasks(MasuTestCase):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
 
-        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, {}, current_month)
+        tasks._upsert_tenant_dynamic_exchange_rates(self.schema, {})
 
         with tenant_context(self.tenant):
             self.assertEqual(MonthlyExchangeRate.objects.filter(effective_date=current_month).count(), 0)
