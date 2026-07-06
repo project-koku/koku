@@ -144,14 +144,30 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        previous_scope = (instance.base_currency, instance.target_currency, instance.start_date, instance.end_date)
+        old_state = (
+            instance.base_currency,
+            instance.target_currency,
+            instance.start_date,
+            instance.end_date,
+            instance.exchange_rate,
+        )
 
         instance = super().update(instance, validated_data)
 
-        current_scope = (instance.base_currency, instance.target_currency, instance.start_date, instance.end_date)
-        if previous_scope != current_scope:
-            prev_base, prev_target, prev_start, prev_end = previous_scope
-            remove_static_and_backfill_dynamic(prev_base, prev_target, prev_start, prev_end)
+        new_state = (
+            instance.base_currency,
+            instance.target_currency,
+            instance.start_date,
+            instance.end_date,
+            instance.exchange_rate,
+        )
+        if old_state == new_state:
+            return instance
+
+        old_base, old_target, old_start, old_end, _ = old_state
+        new_base, new_target, new_start, new_end, _ = new_state
+        if (old_base, old_target, old_start, old_end) != (new_base, new_target, new_start, new_end):
+            remove_static_and_backfill_dynamic(old_base, old_target, old_start, old_end)
 
         upsert_static_monthly_rates(instance)
 
