@@ -41,7 +41,7 @@ def upsert_static_monthly_rates(static_rate):
         raise ValueError(f"exchange_rate must be positive, got {static_rate.exchange_rate}")
 
     current_month = DateHelper().this_month_start.date()
-    if current_month < static_rate.start_date.replace(day=1) or current_month > static_rate.end_date.replace(day=1):
+    if current_month < static_rate.start_date or current_month > static_rate.end_date:
         return
 
     MonthlyExchangeRate.objects.update_or_create(
@@ -76,7 +76,7 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
     defines the reverse direction for this month.
     """
     current_month = DateHelper().this_month_start.date()
-    if current_month < start_date.replace(day=1) or current_month > end_date.replace(day=1):
+    if current_month < start_date or current_month > end_date:
         return
 
     MonthlyExchangeRate.objects.filter(
