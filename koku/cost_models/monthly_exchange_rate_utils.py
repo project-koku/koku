@@ -40,8 +40,9 @@ def _explicit_static_rate_exists(base_currency, target_currency, month_start):
 
 
 def upsert_static_monthly_rates(static_rate):
-    """Upsert MonthlyExchangeRate rows for each month, including the inverse direction.
+    """Upsert MonthlyExchangeRate rows for the current month, including the inverse direction.
 
+    Past months are finalized and read-only — only the current month is written.
     The forward direction is always written unconditionally. The inverse (1/rate)
     is written only when no explicit StaticExchangeRate defines the reverse pair
     for that month, ensuring explicit user-defined rates always take precedence.
@@ -49,8 +50,11 @@ def upsert_static_monthly_rates(static_rate):
     if static_rate.exchange_rate <= 0:
         raise ValueError(f"exchange_rate must be positive, got {static_rate.exchange_rate}")
     inverse_rate = Decimal(1) / static_rate.exchange_rate
+    current_month = DateHelper().this_month_start.date()
 
     for month_start in _iter_months(static_rate.start_date, static_rate.end_date):
+        if month_start < current_month:
+            continue
         MonthlyExchangeRate.objects.update_or_create(
             effective_date=month_start,
             base_currency=static_rate.base_currency,
@@ -74,21 +78,27 @@ def upsert_static_monthly_rates(static_rate):
 
 
 def remove_static_and_backfill_dynamic(base_currency, target_currency, start_date, end_date):
-    """Remove static rows for affected months and backfill dynamic rates for the current month.
+    """Remove static rows for the current month and backfill with dynamic rates.
 
+    Past months are finalized and read-only — only the current month is touched.
     Also removes auto-generated inverse rows unless an explicit StaticExchangeRate
-    defines the reverse direction for that month. Dynamic backfill only covers
-    the current month — past months are not backfilled.
+    defines the reverse direction for that month.
     """
+    current_month = DateHelper().this_month_start.date()
+    effective_start = max(start_date.replace(day=1), current_month)
+    effective_end = end_date.replace(day=1)
+    if effective_start > effective_end:
+        return
+
     MonthlyExchangeRate.objects.filter(
-        effective_date__gte=start_date.replace(day=1),
-        effective_date__lte=end_date.replace(day=1),
+        effective_date__gte=effective_start,
+        effective_date__lte=effective_end,
         base_currency=base_currency,
         target_currency=target_currency,
         rate_type=RateType.STATIC,
     ).delete()
 
-    for month_start in _iter_months(start_date, end_date):
+    for month_start in _iter_months(effective_start, end_date):
         if not _explicit_static_rate_exists(target_currency, base_currency, month_start):
             MonthlyExchangeRate.objects.filter(
                 effective_date=month_start,
@@ -101,8 +111,9 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
 
 
 def populate_dynamic_monthly_rates(code=None):
-    """Populate dynamic MonthlyExchangeRate rows for the current month.
+    """Populate dynamic MonthlyExchangeRate rows for the current month only.
 
+    Past months are finalized and read-only — only the current month is written.
     Reads the latest rates from ExchangeRateDictionary and writes dynamic
     MonthlyExchangeRate rows for each enabled currency pair. Static overrides are preserved.
 
@@ -161,12 +172,14 @@ def populate_dynamic_monthly_rates(code=None):
 
 
 def remove_dynamic_monthly_rates(code):
-    """Remove dynamic MonthlyExchangeRate rows involving the given currency.
+    """Remove dynamic MonthlyExchangeRate rows involving the given currency for the current month only.
 
+    Past months are finalized and read-only — only the current month is touched.
     Static rows are always preserved.
     """
+    current_month = DateHelper().this_month_start.date()
     deleted, _ = (
-        MonthlyExchangeRate.objects.filter(rate_type=RateType.DYNAMIC)
+        MonthlyExchangeRate.objects.filter(effective_date=current_month, rate_type=RateType.DYNAMIC)
         .filter(Q(base_currency=code) | Q(target_currency=code))
         .delete()
     )

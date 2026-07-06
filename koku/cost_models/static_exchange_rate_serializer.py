@@ -69,7 +69,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("end_date must be the last day of a month.")
         return value
 
-    def _validate_update(self, start, end, current_month_start, has_finalized_months):
+    def _validate_update(self, base, target, start, end, current_month_start, has_finalized_months):
         """Validate constraints specific to updating an existing rate."""
         if self.instance.end_date < current_month_start:
             raise serializers.ValidationError(
@@ -77,6 +77,10 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
                 "To set a new rate, create a new record starting from the current month."
             )
         if has_finalized_months:
+            if base != self.instance.base_currency or target != self.instance.target_currency:
+                raise serializers.ValidationError(
+                    "Currencies cannot be changed because this rate has finalized months."
+                )
             if start != self.instance.start_date:
                 raise serializers.ValidationError(
                     "start_date cannot be changed because this rate has finalized months. "
@@ -104,7 +108,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         current_month_start = today.replace(day=1)
         has_finalized_months = self.instance and self.instance.start_date < current_month_start
         if self.instance:
-            self._validate_update(start, end, current_month_start, has_finalized_months)
+            self._validate_update(base, target, start, end, current_month_start, has_finalized_months)
 
         if not has_finalized_months and start < current_month_start:
             raise serializers.ValidationError("start_date cannot be in a past month.")
