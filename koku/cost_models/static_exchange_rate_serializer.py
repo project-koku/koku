@@ -149,6 +149,8 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         instance = super().update(instance, validated_data)
 
         current_scope = (instance.base_currency, instance.target_currency, instance.start_date, instance.end_date)
+        # If scope changed, clean up old range and backfill with dynamic rates.
+        # upsert_static_monthly_rates will then overwrite overlapping months with the new static values.
         if previous_scope != current_scope:
             remove_static_and_backfill_dynamic(*previous_scope)
 
