@@ -1,0 +1,20 @@
+# Generated with rpm-lockfile-prototype:
+# podman run --rm -v ${PWD}:/work:z localhost/rpm-lockfile-prototype:latest --outfile=rpms.lock.yaml rpms.in.yaml
+installWeakDeps: false
+contentOrigin:
+  repofiles:
+    - ./ubi.repo
+packages:
+  - python3.11
+  - python3.11-devel
+  - glibc-langpack-en
+  - gcc-c++
+  - shadow-utils
+arches:
+  - x86_64
+  - aarch64
+  - s390x
+  - ppc64le
+context:
+  containerfile:
+    file: Dockerfile
