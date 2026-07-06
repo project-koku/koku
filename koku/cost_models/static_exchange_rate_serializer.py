@@ -2,7 +2,7 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Serializers for StaticExchangeRate CRUD with MonthlyExchangeRate side effects."""
+"""Serializers for StaticExchangeRate CRUD."""
 import calendar
 import logging
 from datetime import timedelta

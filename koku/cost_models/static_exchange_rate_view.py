@@ -2,7 +2,7 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Views for StaticExchangeRate CRUD with MonthlyExchangeRate side effects."""
+"""Views for StaticExchangeRate CRUD."""
 import logging
 
 from django.db import transaction
