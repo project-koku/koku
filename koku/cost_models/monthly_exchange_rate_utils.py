@@ -128,12 +128,12 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
                 )
 
 
-def upsert_dynamic_exchange_rates(exchange_dict, currency_code=None):
+def upsert_dynamic_exchange_rates(exchange_dict, currency_codes=None):
     """Upsert dynamic MonthlyExchangeRate rows from an exchange rate dictionary.
 
-    When currency_code is provided, only pairs involving that currency are
-    processed (used by the enable-currency view). When None, all enabled
-    currency pairs are processed (used by the Celery task).
+    When currency_codes is provided, only pairs where at least one side is
+    in the list are processed. When None, all enabled currency pairs are
+    processed.
 
     Synthesizes inverse rates (1/rate) when the dictionary does not include
     them. Skips pairs that already have a static override for the month.
@@ -142,6 +142,8 @@ def upsert_dynamic_exchange_rates(exchange_dict, currency_code=None):
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     if not enabled_codes:
         return 0
+
+    filter_codes = set(currency_codes) if currency_codes else None
 
     static_pairs = set(
         MonthlyExchangeRate.objects.filter(
@@ -155,7 +157,7 @@ def upsert_dynamic_exchange_rates(exchange_dict, currency_code=None):
         for target_cur, rate in targets.items():
             if base_cur == target_cur or base_cur not in enabled_codes or target_cur not in enabled_codes:
                 continue
-            if currency_code and currency_code not in (base_cur, target_cur):
+            if filter_codes and not filter_codes.intersection((base_cur, target_cur)):
                 continue
             pairs_to_upsert[(base_cur, target_cur)] = Decimal(str(rate))
             pairs_to_upsert.setdefault((target_cur, base_cur), Decimal(1) / Decimal(str(rate)))

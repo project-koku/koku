@@ -102,7 +102,7 @@ class EnabledCurrencyView(APIView):
         if created:
             erd = ExchangeRateDictionary.objects.first()
             if erd and erd.currency_exchange_dictionary:
-                upsert_dynamic_exchange_rates(erd.currency_exchange_dictionary, currency_code=code)
+                upsert_dynamic_exchange_rates(erd.currency_exchange_dictionary, currency_codes=[code])
             schema_name = request.user.customer.schema_name
             invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(log_json(msg="Currency enabled", currency=code))
