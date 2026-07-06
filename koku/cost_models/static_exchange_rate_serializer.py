@@ -144,34 +144,23 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        old_base = instance.base_currency
-        old_target = instance.target_currency
-        old_start = instance.start_date
-        old_end = instance.end_date
-        old_rate = instance.exchange_rate
+        previous_scope = (instance.base_currency, instance.target_currency, instance.start_date, instance.end_date)
 
         instance = super().update(instance, validated_data)
 
-        scope_changed = (
-            old_base != instance.base_currency
-            or old_target != instance.target_currency
-            or old_start != instance.start_date
-            or old_end != instance.end_date
-        )
-        rate_changed = old_rate != instance.exchange_rate
+        current_scope = (instance.base_currency, instance.target_currency, instance.start_date, instance.end_date)
+        if previous_scope != current_scope:
+            prev_base, prev_target, prev_start, prev_end = previous_scope
+            remove_static_and_backfill_dynamic(prev_base, prev_target, prev_start, prev_end)
 
-        if scope_changed:
-            remove_static_and_backfill_dynamic(old_base, old_target, old_start, old_end)
+        upsert_static_monthly_rates(instance)
 
-        if scope_changed or rate_changed:
-            upsert_static_monthly_rates(instance)
-            schema_name = self.context["request"].user.customer.schema_name
-            invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
-            LOG.info(
-                log_json(
-                    msg="Static exchange rate updated with MonthlyExchangeRate rows",
-                    pair=instance.name,
-                )
+        schema_name = self.context["request"].user.customer.schema_name
+        invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+        LOG.info(
+            log_json(
+                msg="Static exchange rate updated with MonthlyExchangeRate rows",
+                pair=instance.name,
             )
-
+        )
         return instance
