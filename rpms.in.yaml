@@ -12,9 +12,6 @@ packages:
   - shadow-utils
 arches:
   - x86_64
-  - aarch64
-  - s390x
-  - ppc64le
 context:
   containerfile:
     file: Dockerfile
