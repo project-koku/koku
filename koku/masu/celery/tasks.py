@@ -26,7 +26,7 @@ from api.utils import DateHelper
 from common.queues import DownloadQueue
 from common.queues import PriorityQueue
 from common.queues import SummaryQueue
-from cost_models.monthly_exchange_rate_utils import sync_dynamic_monthly_rates
+from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
 from koku import celery_app
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.notifications import NotificationService
@@ -310,7 +310,7 @@ def _fetch_and_store_exchange_rates(url):
 def _upsert_tenant_dynamic_exchange_rates(schema_name):
     """Upsert dynamic MonthlyExchangeRate rows for one tenant."""
     with schema_context(schema_name):
-        sync_dynamic_monthly_rates()
+        populate_dynamic_monthly_rates()
         invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
 
 

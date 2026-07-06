@@ -129,8 +129,8 @@ def remove_static_and_backfill_dynamic(base_currency, target_currency, start_dat
                 )
 
 
-def sync_dynamic_monthly_rates(filter=None):
-    """Sync dynamic MonthlyExchangeRate rows for enabled currencies.
+def populate_dynamic_monthly_rates(filter=None):
+    """Populate dynamic MonthlyExchangeRate rows for enabled currencies.
 
     Reads the latest rates from ExchangeRateDictionary and writes dynamic
     MER rows for each enabled currency pair. Static overrides are preserved.
@@ -181,18 +181,18 @@ def sync_dynamic_monthly_rates(filter=None):
     return count
 
 
-def remove_dynamic_rates_for_currency(currency_code):
-    """Remove dynamic MER rows where the disabled currency is either base or target.
+def remove_dynamic_monthly_rates(filter=None):
+    """Remove dynamic MonthlyExchangeRate rows. Static rows are always preserved.
 
-    Static rows are preserved — the admin explicitly defined those and
-    should remove them separately if needed.
+    When filter is provided, only rows where at least one side is in the
+    list are removed. When None, all dynamic rows are removed.
     """
-    deleted, _ = (
-        MonthlyExchangeRate.objects.filter(
-            rate_type=RateType.DYNAMIC,
-        )
-        .filter(Q(base_currency=currency_code) | Q(target_currency=currency_code))
-        .delete()
-    )
-    LOG.info(log_json(msg="Removed dynamic MER rows for disabled currency", currency=currency_code, deleted=deleted))
+    qs = MonthlyExchangeRate.objects.filter(rate_type=RateType.DYNAMIC)
+    if filter:
+        q = Q()
+        for code in filter:
+            q |= Q(base_currency=code) | Q(target_currency=code)
+        qs = qs.filter(q)
+    deleted, _ = qs.delete()
+    LOG.info(log_json(msg="Removed dynamic MER rows", filter=list(filter) if filter else "all", deleted=deleted))
     return deleted
