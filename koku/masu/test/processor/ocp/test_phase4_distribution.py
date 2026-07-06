@@ -140,8 +140,34 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
         """
         return self._distributed_qs(distribution_type).exclude(custom_name="")
 
+    # Distribution monthly_cost_type values written by the distribute_*_per_rate.sql
+    # files themselves. A row bearing one of these is *output* of a distribution
+    # pass, never eligible input to another -- see the shared
+    # `monthly_cost_type IS NULL OR monthly_cost_type NOT IN (...)` guard repeated
+    # in each distribute_*_per_rate.sql source CTE.
+    _DISTRIBUTED_MONTHLY_COST_TYPES = (
+        "worker_distributed",
+        "platform_distributed",
+        "gpu_distributed",
+        "unattributed_storage",
+        "unattributed_network",
+    )
+
     def _source_qs(self, distribution_type):
-        """QuerySet for source RTU rows that were distributed."""
+        """QuerySet for source RTU rows that were distributed.
+
+        Must mirror the source CTE in distribute_*_per_rate.sql exactly: those
+        files pull from RTU rows where `monthly_cost_type IS NULL OR
+        monthly_cost_type NOT IN (<the 5 distributed types>)`, i.e. usage-cost
+        rows (monthly_cost_type IS NULL) *and* monthly-cost rows (Node/Cluster/
+        PVC/Tag, monthly_cost_type NOT NULL) are both valid distribution
+        sources -- only the distribution outputs themselves are excluded.
+        Filtering here on `monthly_cost_type__isnull=True` alone silently
+        undercounts whenever a Platform/Worker/Storage/Network-scoped
+        namespace carries monthly costs, understating `total_source_cost` in
+        test_05/test_11 and producing false "orphaned rate identity" positives
+        in test_03.
+        """
         source_filters = {
             "platform_distributed": Q(cost_category__name="Platform"),
             "worker_distributed": Q(namespace="Worker unallocated"),
@@ -156,8 +182,7 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
             source_uuid=self.provider_uuid,
             usage_start__gte=self.start_date,
             usage_start__lte=self.end_date,
-            monthly_cost_type__isnull=True,
-        )
+        ).exclude(monthly_cost_type__in=self._DISTRIBUTED_MONTHLY_COST_TYPES)
 
     def _skip_if_no_distributed(self, dist_type):
         with schema_context(self.schema):
@@ -443,10 +468,17 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                     continue
                 src_ratio = src_a / src_b
                 dst_ratio = dst_a / dst_b
+                # Relative (not absolute-places) tolerance: src_b can be a small
+                # monthly-cost rate relative to src_a, pushing the ratio itself into
+                # the billions. assertAlmostEqual(places=6) demands ~6 decimal
+                # digits *past* however many digits the ratio's integer part has,
+                # which exceeds float64's ~15-17 significant-digit budget once the
+                # ratio exceeds ~1e9 -- failing on float64 representation noise
+                # rather than a real proportionality mismatch.
                 self.assertAlmostEqual(
                     src_ratio,
                     dst_ratio,
-                    places=6,
+                    delta=abs(src_ratio) * 1e-6,
                     msg=f"Rates {r_a}/{r_b}: source ratio {src_ratio} != distributed ratio {dst_ratio}",
                 )
 

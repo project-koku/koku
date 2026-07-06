@@ -2658,11 +2658,21 @@ class TestRTUCapacityColumns(_ReportPeriodMixin, MasuTestCase):
         updater._aggregate_rates_to_daily_summary(start_date, end_date)
 
         with schema_context(self.schema):
+            # Scoped to monthly_cost_type IS NULL (usage-cost rows), matching the
+            # sibling RTU-side assertions above: monthly-cost rows (Node/Cluster/PVC)
+            # are a separate, synthetic cost category that never carries per-usage
+            # capacity data, by design (see aggregate_rates_to_daily_summary.sql
+            # Block 2). Without this filter, pre-existing monthly-cost fixture rows
+            # for this provider/period (seeded independently of this test's own
+            # _seed_usage_rtu() call, and out of scope for what this test exercises)
+            # would be counted as "missing capacity", which they're not expected to
+            # have in the first place.
             agg_rows = OCPUsageLineItemDailySummary.objects.filter(
                 source_uuid=self.ocp_provider_uuid,
                 usage_start__gte=start_date,
                 usage_start__lte=end_date,
                 cost_model_rate_type__in=["Infrastructure", "Supplementary"],
+                monthly_cost_type__isnull=True,
                 node__isnull=False,
             )
             total = agg_rows.count()
