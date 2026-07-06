@@ -128,10 +128,7 @@ def populate_dynamic_monthly_rates(code=None, month=None):
         ).values_list("base_currency", "target_currency")
     )
 
-    # Build candidate pairs from the exchange rate dictionary.
-    # For each direct rate (e.g. USD→EUR = 0.87), also synthesize the
-    # inverse (EUR→USD = 1/0.87) unless the dictionary already provides
-    # a direct rate for that direction.
+    # Collect rates and synthesize inverses when not already in the dictionary
     dynamic_rates = {}
     for base_cur, rates_by_target in exchange_dict.items():
         for target_cur, rate in rates_by_target.items():
