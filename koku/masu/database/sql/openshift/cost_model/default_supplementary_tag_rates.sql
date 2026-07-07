@@ -1,46 +1,61 @@
--- default_supplementary_tag_rates.sql (Phase 3: RTU INSERT)
---
--- Inserts per-rate tag-based usage costs into rates_to_usage for rows
--- matching a tag key but NOT any of the explicitly-rated tag values.
--- Supplementary cost_model_rate_type is hardcoded.
---
--- Parameters:
---   schema, start_date, end_date, cluster_id, rate, usage_type, metric,
---   tag_key, k_v_pair (list of defined pairs to exclude), labels_field,
---   cost_model_id, rate_uuid, custom_name, source_uuid, report_period_id
-
-INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
-    uuid, cost_model_id, report_period_id, source_uuid,
-    usage_start, usage_end, node, namespace, cluster_id, cluster_alias,
-    data_source, persistentvolumeclaim, pod_labels, volume_labels, all_labels,
-    label_hash, custom_name, metric_type, cost_model_rate_type,
-    monthly_cost_type, calculated_cost, cost_category_id, rate_id
-)
-SELECT uuid_generate_v4(),
-    {{cost_model_id}},
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+    uuid,
     report_period_id,
-    source_uuid,
-    usage_start,
-    usage_start,
-    node,
-    namespace,
     cluster_id,
     cluster_alias,
     data_source,
+    usage_start,
+    usage_end,
+    namespace,
+    node,
+    resource_id,
     persistentvolumeclaim,
-    {{labels_field | sqlsafe}} AS pod_labels,
-    {{labels_field | sqlsafe}} AS volume_labels,
-    {{labels_field | sqlsafe}} AS all_labels,
-    encode(sha256(decode(COALESCE({{labels_field | sqlsafe}}::text, '')
-        || '|' || COALESCE({{labels_field | sqlsafe}}::text, '')
-        || '|' || COALESCE({{labels_field | sqlsafe}}::text, ''), 'escape')), 'hex'),
-    {{custom_name}},
-    {{usage_type}},
-    'Supplementary',
-    'Tag',
-    coalesce({{rate}}::numeric * usage, 0.0),
-    cost_category_id,
-    {{rate_uuid}}
+    persistentvolume,
+    storageclass,
+    source_uuid,
+    cost_model_cpu_cost,
+    cost_model_memory_cost,
+    cost_model_volume_cost,
+    cost_model_rate_type,
+    {{labels_field | sqlsafe}},
+    all_labels,
+    monthly_cost_type,
+    cost_category_id
+)
+SELECT uuid_generate_v4() as uuid,
+    report_period_id,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    usage_start,
+    usage_start as usage_end,
+    namespace,
+    node,
+    resource_id,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    source_uuid,
+    CASE
+        WHEN {{usage_type}} = 'cpu'
+            THEN coalesce(({{rate}}::numeric * usage), 0.0)
+        ELSE 0.0
+    END as cost_model_cpu_cost,
+    CASE
+        WHEN {{usage_type}} = 'memory'
+            THEN coalesce(({{rate}}::numeric * usage), 0.0)
+        ELSE 0.0
+    END as cost_model_memory_cost,
+    CASE
+        WHEN {{usage_type}} = 'storage'
+            THEN coalesce(({{rate}}::numeric * usage), 0.0)
+        ELSE 0.0
+    END as cost_model_volume_cost,
+    'Supplementary' as cost_model_rate_type,
+    {{labels_field | sqlsafe}},
+    {{labels_field | sqlsafe}} as all_labels,
+    'Tag' as monthly_cost_type, -- We are borrowing the monthly field here, although this is a daily usage cost
+    cost_category_id
 FROM (
     SELECT lids.report_period_id,
         lids.cluster_id,
