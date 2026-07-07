@@ -382,6 +382,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
                                 entry.get("cost") or 0,
                             )
 
+                    # Clean up Tag rows created by prior loop iterations to avoid polluting initial values.
+                    OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id, monthly_cost_type="Tag"
+                    ).delete()
+
                     acc.populate_tag_usage_default_costs(
                         infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
                     )

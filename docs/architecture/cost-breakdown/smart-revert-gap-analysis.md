@@ -2,16 +2,15 @@
 
 **Branch:** `smart_revert_rtu` · 25 legacy/RTU file pairs analyzed across 3 SQL directories
 
-> **Summary:** Only 1 gap introduces materially different cost values on the legacy path — GAP-1, which affects
-> Trino/SaaS customers with monthly VM core tag-based rates. The remaining gaps are NULL-vs-omitted column
-> differences or a pre-existing cross-path inconsistency. All 9 PostgreSQL `sql/` pairs and the entire
-> on-prem `self_hosted_sql/` set are functionally clean.
+> **Summary:** No gaps introduce materially different cost values on the legacy path. All gaps are NULL-vs-omitted
+> column differences or a pre-existing cross-path inconsistency. All 9 PostgreSQL `sql/` pairs, the entire
+> on-prem `self_hosted_sql/` set, and all `trino_sql/` pairs are functionally clean on cost calculations.
 
 | Metric | Count |
 |---|---|
 | File pairs analyzed | 25 |
-| Clean — no functional gap | 20 |
-| Gaps found | 5 |
+| Clean — no functional gap | 21 |
+| Gaps found | 4 |
 
 ---
 
@@ -37,7 +36,7 @@ Each legacy file compared against its `*_rtu.sql` counterpart for filtering logi
 | `trino_sql/` | `monthly_cost_gpu.sql` | **Gap** | GAP-2 |
 | `trino_sql/` | `monthly_project_tag_based.sql` | **Gap** | GAP-3 |
 | `trino_sql/` | `monthly_vm_core.sql` | Clean | |
-| `trino_sql/` | `monthly_vm_core_tag_based.sql` | **Gap** | GAP-1 |
+| `trino_sql/` | `monthly_vm_core_tag_based.sql` | Clean | |
 | `self_hosted_sql/` | `hourly_cost_virtual_machine.sql` | Clean | |
 | `self_hosted_sql/` | `hourly_cost_vm_tag_based.sql` | Clean | |
 | `self_hosted_sql/` | `hourly_vm_core.sql` | Clean | |
@@ -50,22 +49,6 @@ Each legacy file compared against its `*_rtu.sql` counterpart for filtering logi
 ---
 
 ## Gaps — Detailed Analysis
-
-### GAP-1 — CRITICAL · `trino_sql/` · `monthly_vm_core_tag_based.sql`
-
-**Issue:** Different cost formula AND different source table vs RTU
-
-| | Legacy path | RTU path |
-|---|---|---|
-| Source table | `openshift_vm_usage_line_items` (non-daily, interval-level rows) | `openshift_vm_usage_line_items_daily` (daily aggregated rows) |
-| CTE | Computes `vm_interval_hours = sum(uptime_seconds) / 3600` | No `vm_interval_hours` in CTE |
-| Cost formula | `vm_cpu_cores × rate × vm_interval_hours` (time-weighted) | `(vm_cpu_cores × rate) / amortized_denominator` (daily amortized) |
-
-**Risk on legacy path:** Customers on SaaS/Trino with monthly VM core tag-based rates get materially different costs after revert. A VM running half the month would see ~50% of the RTU cost. On-prem (self-hosted) legacy already uses the correct amortized formula — only Trino is affected.
-
-**Affects:** SaaS (Trino)
-
----
 
 ### GAP-2 — MEDIUM · `trino_sql/ + self_hosted_sql/` · `monthly_cost_gpu.sql`
 
@@ -124,75 +107,21 @@ Each legacy file compared against its `*_rtu.sql` counterpart for filtering logi
 
 ---
 
-## GAP-1 Deep Dive — Cost Formula Comparison
-
-The only gap with materially different cost values. Relevant to customers with monthly VM core tag-based cost model rates on Trino/SaaS.
-
-### Legacy (`trino_sql/`) — time-weighted
-
-**Source table:** `openshift_vm_usage_line_items` (non-daily, interval-level rows)
-
-**CTE `vm_usage_summary`:**
-```sql
-sum(vm_uptime_total_seconds) / 3600
-  AS vm_interval_hours
-```
-
-**Cost formula:**
-```sql
-vm_cpu_cores
-  × rate
-  × vm_interval_hours
-```
-
-A VM running 12 h/day for 30 days = 360 `vm_interval_hours`. Cost is proportional to actual uptime — VMs that run part of the month pay proportionally less.
-
-### RTU variant + self-hosted legacy — amortized
-
-**Source table:** `openshift_vm_usage_line_items_daily` (daily aggregated rows)
-
-**CTE `vm_usage_summary`:**
-```sql
-vm_cpu_cores only
-  (no vm_interval_hours)
-```
-
-**Cost formula:**
-```sql
-(vm_cpu_cores × rate)
-  / amortized_denominator
-```
-
-Fixed daily slice: rate ÷ days_in_month per core per day. Cost is uniform across each day the VM appears regardless of actual uptime within that day.
-
-> **Note:** The self-hosted (on-prem) `monthly_vm_core_tag_based.sql` already uses
-> `openshift_vm_usage_line_items_daily` with the amortized formula — matching both RTU variants.
-> Only the Trino legacy file has the divergent formula. Backport the daily-table + amortized
-> formula to fix GAP-1.
-
----
-
 ## Recommended Actions
 
-### 1. Fix GAP-1 — backport amortized formula to Trino legacy · **Must fix before merge**
-
-Update `trino_sql/openshift/cost_model/monthly_vm_core_tag_based.sql` to use
-`openshift_vm_usage_line_items_daily` and the formula `(vm_cpu_cores × rate) / amortized_denominator`,
-matching the self-hosted legacy and both RTU variants. This is a pre-Phase-3 bug in the Trino legacy file.
-
-### 2. Verify distribution SQL compatibility with GAP-4 · **Verify before merge**
+### 1. Verify distribution SQL compatibility with GAP-4 · **Verify before merge**
 
 Confirm that the distribution SQL in `sql/openshift/cost_model/distribute_cost/` does not gate on
 `monthly_cost_type IS NULL` for rows that need distribution. In the legacy path, hourly VM tag rows
 land on LIDS with `monthly_cost_type = 'Tag'`. This is correct behavior only if distribution is not
 supposed to touch them.
 
-### 3. Accept GAP-2 and GAP-3 — NULL is correct · **Document and close**
+### 2. Accept GAP-2 and GAP-3 — NULL is correct · **Document and close**
 
 The missing `cost_category_id` in the GPU unallocated block (GAP-2) and project tag-based file (GAP-3)
 produce NULL — identical to RTU behavior. Add a clarifying comment in the SQL files and close as non-issues.
 
-### 4. GAP-5 — GPU vendor filter cross-path inconsistency · **Track separately**
+### 3. GAP-5 — GPU vendor filter cross-path inconsistency · **Track separately**
 
 The `=` vs `LIKE %` difference between self-hosted and Trino GPU vendor filtering is pre-existing and
 present in both legacy and RTU. Not a regression introduced by the smart revert. File a separate issue.
