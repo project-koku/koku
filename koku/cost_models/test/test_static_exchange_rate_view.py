@@ -355,22 +355,8 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         with tenant_context(self.tenant):
             self.assertEqual(StaticExchangeRate.objects.count(), 0)
 
-    def test_delete_fully_finalized_rejected(self):
-        """A rate whose end_date is entirely in the past cannot be deleted."""
-        with tenant_context(self.tenant):
-            rate = StaticExchangeRate.objects.create(
-                base_currency="USD",
-                target_currency="EUR",
-                exchange_rate="0.920000000000000",
-                start_date=date(2020, 1, 1),
-                end_date=date(2020, 1, 31),
-            )
-
-        response = self.client.delete(self._url(rate.uuid), **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_delete_rate_spanning_past_and_current(self):
-        """A rate with start_date in the past but end_date in current/future months can be deleted."""
+    def test_delete_rate_with_finalized_months(self):
+        """A rate with start_date in the past cannot be deleted."""
         today = timezone.now().date()
         with tenant_context(self.tenant):
             rate = StaticExchangeRate.objects.create(
@@ -382,10 +368,7 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
             )
 
         response = self.client.delete(self._url(rate.uuid), **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        with tenant_context(self.tenant):
-            self.assertEqual(StaticExchangeRate.objects.count(), 0)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_delete_nonexistent_returns_404(self):
         response = self.client.delete(self._url(uuid.uuid4()), **self.headers)
