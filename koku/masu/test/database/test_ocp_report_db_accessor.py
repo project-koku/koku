@@ -39,7 +39,6 @@ from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageReportPeriod
-from reporting.provider.ocp.models import RatesToUsage
 
 LOG = logging.getLogger(__name__)
 
@@ -260,22 +259,26 @@ class OCPReportDBAccessorTest(MasuTestCase):
                                 entry.get("cost") or 0,
                             )
 
-                    RatesToUsage.objects.filter(cluster_id=self.cluster_id).delete()
+                    # Clean up Tag rows created by prior loop iterations to avoid polluting initial values.
+                    OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id, monthly_cost_type="Tag"
+                    ).delete()
 
                     acc.populate_tag_usage_costs(
                         infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
                     )
 
+                    labels_field = "volume_labels" if usage_fields[0] == "storage" else "pod_labels"
                     for value, rate in rate_costs.get(cost).get("app").items():
                         rtu_qset = (
-                            RatesToUsage.objects.filter(
+                            OCPUsageLineItemDailySummary.objects.filter(
                                 cluster_id=self.cluster_id,
                                 monthly_cost_type="Tag",
                                 cost_model_rate_type=usage_type,
-                                pod_labels__contains={"app": value},
+                                **{f"{labels_field}__contains": {"app": value}},
                             )
                             .values("usage_start")
-                            .annotate(cost=Sum("calculated_cost"))
+                            .annotate(cost=Sum(cost_term))
                         )
                         rtu_costs = {entry["usage_start"]: float(entry["cost"]) for entry in rtu_qset}
 
@@ -379,23 +382,22 @@ class OCPReportDBAccessorTest(MasuTestCase):
                                 entry.get("cost") or 0,
                             )
 
-                    RatesToUsage.objects.filter(cluster_id=self.cluster_id).delete()
-
                     acc.populate_tag_usage_default_costs(
                         infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
                     )
 
+                    labels_field = "volume_labels" if usage_fields[0] == "storage" else "pod_labels"
                     tag_values = ["banking", "mobile", "weather"]
                     for value in tag_values:
                         rtu_qset = (
-                            RatesToUsage.objects.filter(
+                            OCPUsageLineItemDailySummary.objects.filter(
                                 cluster_id=self.cluster_id,
                                 monthly_cost_type="Tag",
                                 cost_model_rate_type=usage_type,
-                                pod_labels__contains={"app": value},
+                                **{f"{labels_field}__contains": {"app": value}},
                             )
                             .values("usage_start")
-                            .annotate(cost=Sum("calculated_cost"))
+                            .annotate(cost=Sum(cost_term))
                         )
                         rtu_costs = {entry["usage_start"]: float(entry["cost"]) for entry in rtu_qset}
 

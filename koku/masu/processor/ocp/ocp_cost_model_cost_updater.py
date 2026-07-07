@@ -496,7 +496,6 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     self._provider.uuid,
                     report_period_id,
                 )
-        self._update_vm_usage_costs(start_date, end_date)
 
     def _update_usage_rates_to_usage(self, start_date, end_date):
         """Delete stale rows and insert per-rate usage costs into RatesToUsage (single-pass)."""
