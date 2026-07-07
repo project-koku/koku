@@ -36,6 +36,7 @@ from api.utils import get_cost_type
 from api.utils import get_currency
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from koku.settings import DEFAULT_RETAIN_NUM_MONTHS
 from reporting.tenant_settings.models import TenantSettings
 
 
@@ -115,19 +116,37 @@ class GlobalSettingsView(APIView):
 
     permission_classes = [SettingsAccessPermission]
 
+    @staticmethod
+    def _is_env_retention_locked():
+        """Return True when RETAIN_NUM_MONTHS is set to a non-default value."""
+        env_val = os.environ.get("RETAIN_NUM_MONTHS")
+        if env_val is None:
+            return False
+        try:
+            return int(env_val) != DEFAULT_RETAIN_NUM_MONTHS
+        except (ValueError, TypeError):
+            return True
+
     def get(self, request):
         schema = request.user.customer.schema_name
-        env_override = os.environ.get("RETAIN_NUM_MONTHS") is not None
+        env_override = self._is_env_retention_locked()
         effective = get_data_retention_months(schema)
         if effective is None:
             return Response(
                 {"error": "Unable to read retention settings."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-        return Response({"data_retention_months": effective, "env_override": env_override})
+        return Response(
+            {
+                "data_retention_months": effective,
+                "env_override": env_override,
+                "min_retention_months": TenantSettings.MIN_RETENTION_MONTHS,
+                "max_retention_months": TenantSettings.MAX_RETENTION_MONTHS,
+            }
+        )
 
     def put(self, request):
-        if os.environ.get("RETAIN_NUM_MONTHS") is not None:
+        if self._is_env_retention_locked():
             return Response(
                 {
                     "error": (
