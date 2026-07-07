@@ -57,13 +57,6 @@ class Migration(migrations.Migration):
             field=models.CharField(max_length=253, null=True),
         ),
         migrations.AddIndex(
-            model_name="ocpusagelineitemdailysummary",
-            index=models.Index(
-                fields=["report_period", "usage_start", "data_source"],
-                name="summary_ocp_rp_start_ds_idx",
-            ),
-        ),
-        migrations.AddIndex(
             model_name="ratestousage",
             index=models.Index(
                 fields=[

@@ -129,10 +129,6 @@ class OCPUsageLineItemDailySummary(models.Model):
             models.Index(fields=["data_source"], name="summary_data_source_idx"),
             models.Index(fields=["monthly_cost_type"], name="monthly_cost_type_idx"),
             models.Index(fields=["cost_model_rate_type"], name="cost_model_rate_type_idx"),
-            models.Index(
-                fields=["report_period", "usage_start", "data_source"],
-                name="summary_ocp_rp_start_ds_idx",
-            ),
             GinIndex(fields=["all_labels"], name="all_labels_idx"),
             GinIndex(fields=["pod_labels"], name="pod_labels_idx"),
             GinIndex(fields=["volume_labels"], name="volume_labels_idx"),
