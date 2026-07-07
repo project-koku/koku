@@ -829,7 +829,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             )
 
             rtu_enabled = is_feature_flag_enabled_by_schema(
-                self._schema, COST_BREAKDOWN_RTU_UNLEASH_FLAG, dev_fallback=True
+                self._schema, COST_BREAKDOWN_RTU_UNLEASH_FLAG, dev_fallback=False
             )
 
             LOG.info(
