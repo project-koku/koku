@@ -967,7 +967,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             },
             ctx,
         )
-        if self.get_sql_folder_name() not in cost_type_file:
+        if cost_type != "OCP_VM_CORE":
             # RTU DELETE for the Trino-routed OCP_VM_CORE path (monthly_vm_core.sql)
             # is tracked separately (requires catalog-qualified DELETE syntax and a
             # Trino-enabled validation environment) -- see COST-7249 follow-up.
