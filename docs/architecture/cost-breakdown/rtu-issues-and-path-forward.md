@@ -85,7 +85,7 @@ Severity: **Confirmed** (Glitchtip/prod or stage) | **Likely** (code review) | *
 | **Path** | `masu` cost model updater → raw SQL INSERT into `rates_to_usage` |
 | **Evidence** | Glitchtip **PROD-5F9** (5 events, prod) |
 | **Cause (hypothesis)** | Rate deleted (or sync removed it) while Celery job still INSERTs with old `rate_id` |
-| **Status** | **Not fixed by PR #6166**; related to bot PR #6128 |
+| **Status** | **Mitigated by smart revert** — RTU INSERT does not run with flag OFF; will recur if flag re-enabled before GAP-1/GAP-3 are fixed |
 | **Notes** | Different direction than #1 (INSERT vs DELETE) |
 
 ### 4. Pipeline INSERT with stale `cost_model_id` (race)
@@ -94,7 +94,7 @@ Severity: **Confirmed** (Glitchtip/prod or stage) | **Likely** (code review) | *
 |---|---|
 | **Symptom** | Same as #3 but on `cost_model_id` |
 | **Evidence** | Glitchtip **STAGE-5HI** (9 events, stage) |
-| **Status** | Open; same family as #3 |
+| **Status** | **Mitigated by smart revert** — same reasoning as #3 |
 
 ### 5. Missing index on `rates_to_usage.rate_id`
 
@@ -177,17 +177,60 @@ Implication: performance fixes (#5) matter mainly for a **small number of large 
 
 ---
 
-## Proposed next steps (draft)
+## Proposed path forward: smart revert — restore legacy flow, fix RTU properly before re-enabling
+
+### Why fixing in place is risky
+
+The gap analysis (GAP-1 through GAP-8) describes real correctness and performance bugs in the RTU pipeline. The fundamental problem with fixing them in place is that **live production data is actively flowing through the table**. GAP-1 and GAP-3 cause HTTP 500s on cost model edits; GAP-6 and GAP-7 silently accumulate duplicate cost rows; GAP-5 means any null-before-delete fix would trigger a sequential scan across millions of rows inside a synchronous API transaction. Fixing individual symptoms one at a time while real data flows creates a high risk of making things worse before they get better — a cascading series of one-off PRs targeting Glitchtip alerts without addressing the root causes.
+
+### What "smart revert" means
+
+Rather than a full git revert of Phase 2/3, preserve the RTU infrastructure (table, migrations, SQL files) and keep the Unleash flag gate in the code — but ensure the **legacy direct-write path is the only path that runs in production** until the gaps are fixed and the feature is consciously re-enabled.
+
+The revert has two layers:
+
+**1. Phase 3 revert**
+
+Phase 3 had made the monthly/tag/VM SQL unconditionally write to `rates_to_usage` and removed the flag gate. This meant the flag had no effect — RTU ran regardless. Proposed reversal:
+
+- Each SQL file changed in Phase 3 would be preserved as a `*_rtu.sql` variant (the RTU version).
+- The original filenames would be restored to their pre-Phase 3 content — these write directly to `reporting_ocpusagelineitem_daily_summary`.
+- The Unleash flag gate would be properly restored in `update_summary_cost_model_costs`:
+  - **Flag ON** → full RTU path (`insert_usage_rates_to_usage` + `*_rtu.sql` variants + `aggregate_rates_to_daily_summary`)
+  - **Flag OFF** → legacy path (all SQL writes directly to daily summary, no aggregate step)
+- Since the flag is currently **OFF in production**, the legacy path would run immediately with no further config change.
+
+**2. Phase 2 RTU path (flag ON only)**
+
+The Phase 2 RTU files (`insert_usage_rates_to_usage.sql`, `aggregate_rates_to_daily_summary.sql`, `insert_markup_rates_to_usage.sql`) would remain in place, wired to the flag-ON path only. They would not run until the flag is explicitly turned on. No data would flow through `rates_to_usage` while the flag stays off.
+
+### What the legacy path would look like
+
+| Step | Flag OFF (legacy) | Flag ON (RTU, re-enabled later) |
+|------|-------------------|----------------------------------|
+| Usage costs | `_update_usage_costs` → `usage_costs.sql` → daily summary | `_update_usage_rates_to_usage` → `insert_usage_rates_to_usage.sql` → RTU |
+| Monthly costs | `populate_monthly_cost_sql` → original `monthly_cost_*.sql` → daily summary | same method, `*_rtu.sql` variants → RTU |
+| Tag costs | `populate_tag_usage_costs` → original `infrastructure_tag_rates.sql` etc. → daily summary | same method, `*_rtu.sql` variants → RTU |
+| VM costs | `populate_vm_usage_costs` → original `hourly_cost_virtual_machine.sql` etc. → daily summary | same method, `*_rtu.sql` variants → RTU |
+| Aggregate | not run | `aggregate_rates_to_daily_summary.sql` rebuilds daily summary from RTU |
+| Markup | `populate_markup_cost` ORM UPDATE → daily summary | same + `insert_markup_rates_to_usage.sql` → RTU |
+
+### Proposed next steps
 
 | Step | Owner | Output |
 |------|--------|--------|
-| 1 | Cody | ~~Current state analysis~~ → **[rates-to-usage-gap-analysis.md](./rates-to-usage-gap-analysis.md)** (GAP-1–7) |
-| 2 | Team | Validate / correct this issue list and Cody's gaps; resolve conflicts (e.g. GAP-2 CASCADE vs null-before-delete) |
-| 3 | Team | Decide: tactical patches vs cohesive design reset |
-| 4 | TBD | Jira tickets per issue cluster (not per bot PR unless agreed) |
-| 5 | TBD | Root cause investigation (DB constraints on partitioned RTU) |
+| 1 | Cody | ~~Current state analysis~~ → **[rates-to-usage-gap-analysis.md](./rates-to-usage-gap-analysis.md)** (GAP-1–8) |
+| 2 | Team | Review and agree on this path forward |
+| 3 | Cody | Phase 3 revert PR: restore original SQL files, add `*_rtu.sql` variants, restore Unleash flag gate |
+| 4 | Team | Validate issue list and gap analysis; confirm production behaviour with flag OFF |
+| 5 | Team | Fix GAP-5 first (standalone index migration) — makes subsequent FK null-before-delete operations fast |
+| 6 | Team | Fix GAP-1 + GAP-3 together (`sync_rate_table` + `PriceListManager` schema context + pre-delete RTU nullification) |
+| 7 | Team | Fix GAP-6 + GAP-7 (add scoped DELETE before monthly/tag INSERT into RTU SQL files) |
+| 8 | Team | Fix GAP-2, GAP-4, GAP-8 (cost model CASCADE, report_period_id orphan paths, cost_category SET_NULL) |
+| 9 | Team | Integration test RTU path end-to-end with real data on stage |
+| 10 | Team | Re-enable Unleash flag on stage; validate; roll out to production tenants incrementally |
 
-**Explicitly paused until plan agreed:** merge PR #6166 and similar tactical fixes.
+**Recommendation on open PRs:** do not merge PR #6166, PR #6159, or PR #6128 in isolation. These address individual symptoms but not the root causes. Revisit after the gap fix PRs are in, or supersede them.
 
 ---
 
@@ -209,3 +252,4 @@ Implication: performance fixes (#5) matter mainly for a **small number of large 
 |------|--------|--------|
 | 2026-07-07 | Victor Sizilio | Initial draft from COST-7736 investigation and team thread |
 | 2026-07-07 | Victor Sizilio | Link to Cody's [rates-to-usage-gap-analysis.md](./rates-to-usage-gap-analysis.md); issue ↔ GAP mapping |
+| 2026-07-07 | Cody Myers | Add "Proposed path forward: smart revert" section; document Phase 3 revert approach and flag gate restoration; update proposed next steps; mark issues #3/#4 as mitigated by revert |
