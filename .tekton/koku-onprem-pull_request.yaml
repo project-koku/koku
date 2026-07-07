@@ -33,7 +33,7 @@ spec:
   - name: hermetic
     value: "true"
   - name: prefetch-input
-    value: '[{"type": "rpm", "path": "."}, {"type": "pip", "path": ".", "requirements_build_files": ["requirements-build.txt"]}, {"type": "pip", "path": "prefetch-binary", "allow_binary": true, "binary": {"os": "linux", "arch": "x86_64", "py_version": "311"}}]'
+    value: '[{"type": "rpm", "path": "."}, {"type": "pip", "path": ".", "requirements_build_files": []}, {"type": "pip", "path": "prefetch-binary", "allow_binary": true, "binary": {"os": "linux", "arch": "x86_64", "py_version": "311"}}]'
   - name: build-source-image
     value: "true"
   - name: build-args
