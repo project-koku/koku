@@ -1005,7 +1005,10 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         insert_sql = pkgutil.get_data("masu.database", cost_type_file)
         insert_sql = insert_sql.decode("utf-8")
         LOG.info(log_json(msg="populating monthly costs", context=ctx))
-        if self.get_sql_folder_name() in cost_type_file:
+        # OCP_VM_CORE is currently the only Trino-routed monthly cost type; check
+        # cost_type explicitly rather than a substring match against cost_type_file,
+        # which would break if get_sql_folder_name() ever returned "sql".
+        if cost_type == "OCP_VM_CORE":
             start_date = DateHelper().parse_to_date(sql_params["start_date"])
             sql_params["year"] = start_date.strftime("%Y")
             sql_params["month"] = start_date.strftime("%m")
