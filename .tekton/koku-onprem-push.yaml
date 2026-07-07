@@ -30,7 +30,7 @@ spec:
   - name: hermetic
     value: "true"
   - name: prefetch-input
-    value: '[{"type": "rpm", "path": "."}, {"type": "pip", "path": ".", "allow_binary": "true"}]'
+    value: '[{"type": "rpm", "path": "."}, {"type": "pip", "path": ".", "allow_binary": true, "binary": {"os": "linux"}}]'
   - name: build-source-image
     value: "true"
   - name: build-args
@@ -530,7 +530,7 @@ spec:
         - ReadWriteOnce
         resources:
           requests:
-            storage: 5Gi
+            storage: 2Gi
       status: {}
   - name: git-auth
     secret:
