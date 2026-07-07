@@ -3,12 +3,19 @@
 -- populate_monthly_cost_sql() always calls _delete_monthly_cost_model_data()
 -- first, but that DELETE only targets the legacy
 -- reporting_ocpusagelineitem_daily_summary table. monthly_cost_cluster_and_node.sql,
--- monthly_cost_persistentvolumeclaim.sql, and monthly_cost_virtual_machine.sql are
--- pure INSERT...SELECT into rates_to_usage with no matching DELETE, so every
--- re-run of monthly-cost population (cost model rate edits, re-summarization,
--- orchestrator re-runs) duplicated Node/Cluster/PVC/OCP_VM monthly-cost rows
--- instead of replacing them. Mirrors delete_distributed_rates_to_usage.sql,
--- which fixed the identical gap for distribution rows.
+-- monthly_cost_persistentvolumeclaim.sql, monthly_cost_virtual_machine.sql, and
+-- monthly_vm_core.sql are pure INSERT...SELECT into rates_to_usage with no
+-- matching DELETE, so every re-run of monthly-cost population (cost model rate
+-- edits, re-summarization, orchestrator re-runs) duplicated Node/Cluster/PVC/
+-- OCP_VM/OCP_VM_CORE monthly-cost rows instead of replacing them. Mirrors
+-- delete_distributed_rates_to_usage.sql, which fixed the identical gap for
+-- distribution rows.
+--
+-- This DELETE is always issued via the plain psycopg2 cursor, never via Trino
+-- -- rates_to_usage is a PostgreSQL table regardless of whether the matching
+-- INSERT (e.g. monthly_vm_core.sql) reads its source rows from Trino/Hive.
+-- delete_distributed_rates_to_usage.sql already establishes this precedent
+-- for the Trino-routed GPU distribution path.
 --
 -- No rate_type filter, matching delete_monthly_cost.sql: a rate's
 -- Infrastructure/Supplementary classification can change between runs, so all

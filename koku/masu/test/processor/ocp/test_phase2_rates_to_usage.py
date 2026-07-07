@@ -2110,11 +2110,15 @@ class TestMonthlyCostRTUDeleteScope(MasuTestCase):
     Introduced in #6043 ([COST-7249] Phase 3: Migrate monthly/tag/VM cost SQL
     to RTU pipeline), already on main -- independent of PR #6100/#6162/#6163.
 
-    NOTE: OCP_VM_CORE (monthly_vm_core.sql) shares the same missing-DELETE
-    pattern but is routed through _execute_trino_multipart_sql_query and
-    requires catalog-qualified (postgres.<schema>.rates_to_usage) DELETE SQL
-    plus a Trino-enabled validation environment. It is intentionally excluded
-    from this fix and tracked as a separate follow-up.
+    OCP_VM_CORE (monthly_vm_core.sql) shares the same missing-DELETE pattern
+    and is routed through _execute_trino_multipart_sql_query for its INSERT,
+    but rates_to_usage is a plain PostgreSQL table regardless of where the
+    INSERT's source rows come from -- the DELETE itself never needs to touch
+    Trino. This is proven by the existing _delete_distributed_rtu_rows,
+    which is called unconditionally (including for the Trino-routed GPU
+    distribution path) and always executes via the plain psycopg2 cursor
+    (_prepare_and_execute_raw_sql_query), never via Trino. OCP_VM_CORE is
+    fixed the same way here, with no catalog-qualified SQL needed.
     """
 
     def _rendered_monthly_cost_rtu_delete(self):
@@ -2207,6 +2211,38 @@ class TestMonthlyCostRTUDeleteScope(MasuTestCase):
         rtu_delete_calls = [c for c in delete_calls if c.args[0] == "rates_to_usage"]
         self.assertTrue(rtu_delete_calls, "populate_monthly_cost_sql must delete stale OCP_VM RTU rows")
         self.assertEqual(rtu_delete_calls[0].args[2]["cost_type"], "OCP_VM")
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_populate_monthly_cost_sql_deletes_rtu_rows_before_insert_ocp_vm_core(
+        self, mock_execute, mock_trino_multipart, mock_trino_exists
+    ):
+        """OCP_VM_CORE's INSERT is Trino-routed, but its RTU DELETE is not --
+        it must go through the plain psycopg2 cursor, exactly like Node/PVC/
+        OCP_VM above and like the existing _delete_distributed_rtu_rows
+        precedent for the Trino-routed GPU distribution path.
+        """
+        with OCPReportDBAccessor(self.schema) as accessor:
+            rp = accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, DateHelper().this_month_start)
+            if not rp:
+                self.skipTest("No report period for OCP provider")
+            accessor.populate_monthly_cost_sql(
+                "OCP_VM_CORE",
+                "Infrastructure",
+                Decimal("1"),
+                DateHelper().this_month_start.date(),
+                DateHelper().this_month_end.date(),
+                "cpu",
+                self.ocp_provider_uuid,
+            )
+        delete_calls = [c for c in mock_execute.call_args_list if c.kwargs.get("operation") == "DELETE"]
+        rtu_delete_calls = [c for c in delete_calls if c.args[0] == "rates_to_usage"]
+        self.assertTrue(rtu_delete_calls, "populate_monthly_cost_sql must delete stale OCP_VM_CORE RTU rows")
+        self.assertEqual(rtu_delete_calls[0].args[2]["cost_type"], "OCP_VM_CORE")
+        # The DELETE must never go through the Trino connection -- only the INSERT does.
+        trino_sql_calls = [c for c in mock_trino_multipart.call_args_list if "DELETE" in c.args[0].upper()]
+        self.assertFalse(trino_sql_calls, "the RTU delete must not be routed through Trino")
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")

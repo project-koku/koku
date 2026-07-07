@@ -967,20 +967,21 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             },
             ctx,
         )
-        if cost_type != "OCP_VM_CORE":
-            # RTU DELETE for the Trino-routed OCP_VM_CORE path (monthly_vm_core.sql)
-            # is tracked separately (requires catalog-qualified DELETE syntax and a
-            # Trino-enabled validation environment) -- see COST-7249 follow-up.
-            self._delete_monthly_cost_rates_to_usage(
-                {
-                    "schema": self.schema,
-                    "report_period_id": report_period.id,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "cost_type": cost_type,
-                },
-                ctx,
-            )
+        # rates_to_usage is always a plain PostgreSQL table, even for OCP_VM_CORE
+        # whose INSERT is Trino-routed -- the DELETE never touches Trino, so no
+        # catalog qualification is needed. Mirrors _delete_distributed_rtu_rows,
+        # which is called unconditionally including for the Trino-routed GPU
+        # distribution path.
+        self._delete_monthly_cost_rates_to_usage(
+            {
+                "schema": self.schema,
+                "report_period_id": report_period.id,
+                "start_date": start_date,
+                "end_date": end_date,
+                "cost_type": cost_type,
+            },
+            ctx,
+        )
         if not rate:
             # since we don't have a rate, we have no new costs to calculate.
             return
