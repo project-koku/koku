@@ -16,6 +16,7 @@ Tier 4 (E2E): TestRTUCostBreakdownAPI
 drift5-sql: TestRTURateResolution
 R20: TestOrchestrationOrder
 """
+import pkgutil
 from decimal import Decimal
 from functools import wraps
 from unittest.mock import patch
@@ -2086,3 +2087,193 @@ class TestPrometheusTimingWrappers(_ReportPeriodMixin, MasuTestCase):
         self.assertIsNotNone(observe_args, "observe() was never called on RTU_MARKUP_DURATION")
         observed_duration = observe_args[0][0]
         self.assertGreaterEqual(observed_duration, 0, "Duration must be non-negative")
+
+
+class TestMonthlyCostRTUDeleteScope(MasuTestCase):
+    """Regression tests for the monthly-cost RTU duplication bug (COST-7249 follow-up).
+
+    Root cause: populate_monthly_cost_sql() always calls
+    _delete_monthly_cost_model_data(), but that DELETE only targets the legacy
+    reporting_ocpusagelineitem_daily_summary table -- it has no rates_to_usage
+    clause. monthly_cost_cluster_and_node.sql, monthly_cost_persistentvolumeclaim.sql,
+    and monthly_cost_virtual_machine.sql are pure INSERT...SELECT into
+    rates_to_usage with no matching DELETE, so every re-run of monthly-cost
+    population (cost model rate edits, re-summarization, orchestrator re-runs)
+    duplicated Node/Cluster/PVC/OCP_VM monthly-cost RTU rows instead of
+    replacing them, silently inflating customer-facing monthly costs.
+
+    Reproduced empirically on helios08 (COST-7249/phase4-perf validation,
+    2026-07-06): two consecutive serial (non-concurrent) calls to
+    OCPCostModelCostUpdater.update_summary_cost_model_costs() for the
+    identical date range produced identical deltas (+9,600 rows each) for
+    Infrastructure/Node and Infrastructure/Cluster rates_to_usage rows.
+    Introduced in #6043 ([COST-7249] Phase 3: Migrate monthly/tag/VM cost SQL
+    to RTU pipeline), already on main -- independent of PR #6100/#6162/#6163.
+
+    NOTE: OCP_VM_CORE (monthly_vm_core.sql) shares the same missing-DELETE
+    pattern but is routed through _execute_trino_multipart_sql_query and
+    requires catalog-qualified (postgres.<schema>.rates_to_usage) DELETE SQL
+    plus a Trino-enabled validation environment. It is intentionally excluded
+    from this fix and tracked as a separate follow-up.
+    """
+
+    def _rendered_monthly_cost_rtu_delete(self):
+        sql = pkgutil.get_data(
+            "masu.database", "sql/openshift/cost_model/delete_monthly_cost_rates_to_usage.sql"
+        ).decode("utf-8")
+        lines = [line for line in sql.splitlines() if not line.strip().startswith("--")]
+        return "\n".join(lines)
+
+    def test_delete_sql_targets_rates_to_usage(self):
+        rendered = self._rendered_monthly_cost_rtu_delete()
+        self.assertIn("DELETE FROM {{schema | sqlsafe}}.rates_to_usage", rendered)
+
+    def test_delete_sql_scopes_by_report_period_and_monthly_cost_type(self):
+        rendered = self._rendered_monthly_cost_rtu_delete()
+        self.assertIn("rtu.report_period_id = {{report_period_id}}", rendered)
+        self.assertIn("rtu.monthly_cost_type = {{cost_type}}", rendered)
+        self.assertIn("rtu.usage_start >= {{start_date}}::date", rendered)
+        self.assertIn("rtu.usage_start <= {{end_date}}::date", rendered)
+
+    def test_delete_sql_does_not_filter_by_rate_type(self):
+        # A rate's Infrastructure/Supplementary classification can change
+        # between runs, so the delete must not filter on cost_model_rate_type
+        # -- matching delete_monthly_cost.sql's existing behavior.
+        rendered = self._rendered_monthly_cost_rtu_delete()
+        self.assertNotIn("cost_model_rate_type", rendered)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_populate_monthly_cost_sql_deletes_rtu_rows_before_insert_node(self, mock_execute):
+        with OCPReportDBAccessor(self.schema) as accessor:
+            rp = accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, DateHelper().this_month_start)
+            if not rp:
+                self.skipTest("No report period for OCP provider")
+            accessor.populate_monthly_cost_sql(
+                "Node",
+                "Infrastructure",
+                Decimal("1000"),
+                DateHelper().this_month_start.date(),
+                DateHelper().this_month_end.date(),
+                "cpu",
+                self.ocp_provider_uuid,
+            )
+        delete_calls = [c for c in mock_execute.call_args_list if c.kwargs.get("operation") == "DELETE"]
+        rtu_delete_calls = [c for c in delete_calls if c.args[0] == "rates_to_usage"]
+        self.assertTrue(
+            rtu_delete_calls,
+            "populate_monthly_cost_sql must issue a DELETE against rates_to_usage "
+            "before inserting monthly-cost rows",
+        )
+        sql_params = rtu_delete_calls[0].args[2]
+        self.assertEqual(sql_params["cost_type"], "Node")
+        self.assertEqual(sql_params["report_period_id"], rp.id)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_populate_monthly_cost_sql_deletes_rtu_rows_before_insert_pvc(self, mock_execute):
+        with OCPReportDBAccessor(self.schema) as accessor:
+            rp = accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, DateHelper().this_month_start)
+            if not rp:
+                self.skipTest("No report period for OCP provider")
+            accessor.populate_monthly_cost_sql(
+                "PVC",
+                "Infrastructure",
+                Decimal("1"),
+                DateHelper().this_month_start.date(),
+                DateHelper().this_month_end.date(),
+                "cpu",
+                self.ocp_provider_uuid,
+            )
+        delete_calls = [c for c in mock_execute.call_args_list if c.kwargs.get("operation") == "DELETE"]
+        rtu_delete_calls = [c for c in delete_calls if c.args[0] == "rates_to_usage"]
+        self.assertTrue(rtu_delete_calls, "populate_monthly_cost_sql must delete stale PVC RTU rows")
+        self.assertEqual(rtu_delete_calls[0].args[2]["cost_type"], "PVC")
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_populate_monthly_cost_sql_deletes_rtu_rows_before_insert_ocp_vm(self, mock_execute):
+        with OCPReportDBAccessor(self.schema) as accessor:
+            rp = accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, DateHelper().this_month_start)
+            if not rp:
+                self.skipTest("No report period for OCP provider")
+            accessor.populate_monthly_cost_sql(
+                "OCP_VM",
+                "Infrastructure",
+                Decimal("1"),
+                DateHelper().this_month_start.date(),
+                DateHelper().this_month_end.date(),
+                "cpu",
+                self.ocp_provider_uuid,
+            )
+        delete_calls = [c for c in mock_execute.call_args_list if c.kwargs.get("operation") == "DELETE"]
+        rtu_delete_calls = [c for c in delete_calls if c.args[0] == "rates_to_usage"]
+        self.assertTrue(rtu_delete_calls, "populate_monthly_cost_sql must delete stale OCP_VM RTU rows")
+        self.assertEqual(rtu_delete_calls[0].args[2]["cost_type"], "OCP_VM")
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_populate_monthly_cost_sql_no_rtu_delete_when_no_report_period(self, mock_execute, mock_trino):
+        # Guard clause returns before any DELETE when there's no report period.
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_monthly_cost_sql(
+                "Node",
+                "Infrastructure",
+                Decimal("1000"),
+                "1970-01-01",
+                "1970-01-31",
+                "cpu",
+                self.ocp_provider_uuid,
+            )
+        mock_execute.assert_not_called()
+
+
+class TestMonthlyCostRTUIdempotency(_ReportPeriodMixin, MasuTestCase):
+    """Integration test: real DB execution proves populate_monthly_cost_sql no
+    longer duplicates rates_to_usage rows on repeated invocation. This is the
+    GREEN counterpart to the empirical helios08 reproduction described in
+    TestMonthlyCostRTUDeleteScope's docstring.
+    """
+
+    def _rtu_node_row_count(self, rp):
+        with schema_context(self.schema):
+            return RatesToUsage.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                report_period_id=rp.id,
+                monthly_cost_type="Node",
+            ).count()
+
+    def test_repeated_call_does_not_duplicate_node_monthly_cost_rows(self):
+        rp = self._get_report_period()
+        start_date = rp.report_period_start.date()
+        end_date = DateHelper().month_end(rp.report_period_start).date()
+        call_kwargs = dict(
+            cost_type="Node",
+            rate_type="Infrastructure",
+            rate=Decimal("1000"),
+            start_date=start_date,
+            end_date=end_date,
+            distribution="cpu",
+            provider_uuid=self.ocp_provider_uuid,
+            custom_name="Node cost",
+        )
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_monthly_cost_sql(**call_kwargs)
+            first_count = self._rtu_node_row_count(rp)
+            self.assertGreater(
+                first_count,
+                0,
+                "Seed produced no monthly-cost RTU rows; fixture may be missing node capacity data",
+            )
+
+            accessor.populate_monthly_cost_sql(**call_kwargs)
+            second_count = self._rtu_node_row_count(rp)
+
+            accessor.populate_monthly_cost_sql(**call_kwargs)
+            third_count = self._rtu_node_row_count(rp)
+
+        self.assertEqual(
+            first_count,
+            second_count,
+            "populate_monthly_cost_sql must delete stale rates_to_usage rows before "
+            "re-inserting; row count must not grow on repeated invocation for the "
+            "same date range.",
+        )
+        self.assertEqual(second_count, third_count, "Row count must remain stable across further re-runs")
