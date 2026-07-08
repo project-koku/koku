@@ -1,7 +1,7 @@
 # RatesToUsage (RTU) — Known issues and path forward
 
 **Status:** Draft (crowdsource)
-**Owner:** Victor Sizilio (initial); Cody Myers (gap analysis)
+**Owner:** Victor Sizilio (initial); Cody Myers (gap analysis, smart revert)
 **Created:** 2026-07-07
 **Context:** Cost breakdown / Phase 2 work paused at stakeholder level; team resetting on RTU logic before more tactical fixes.
 
@@ -47,6 +47,8 @@ While fixing [COST-7736](https://redhat.atlassian.net/browse/COST-7736) (cost mo
 
 Tactical fix (PR #6166) may be correct for one symptom; team agreed to **pause and reset** on broader RTU logic.
 
+**PR #6166 (COST-7736) remains paused.** Do not merge until the smart revert and gap fixes below are agreed and in progress. The team direction is to address root causes (Unleash gate, CASCADE policy, indexes) rather than ship isolated null-before-delete patches.
+
 ---
 
 ## Issue inventory (crowdsource)
@@ -61,8 +63,9 @@ Severity: **Confirmed** (Glitchtip/prod or stage) | **Likely** (code review) | *
 | **Error** | `update or delete on table "cost_model_rate" violates FK ... rates_to_usage_rate_id_...` |
 | **Path** | `CostModelSerializer.update` → `CostModelManager.update` → `sync_rate_table()` → `Rate.delete()` |
 | **Evidence** | Glitchtip **PROD-5ER** (5 events, last seen 2026-06-29) |
-| **Proposed fix** | Null `rates_to_usage.rate_id` before deleting stale `Rate` rows (PR #6166) |
-| **Status** | Fix drafted; **implementation paused** pending broader plan |
+| **Proposed fix** | Null `rates_to_usage.rate_id` before deleting stale `Rate` rows (PR #6166, paused) |
+| **Longer-term fix** | GAP-1: `schema_context` in `sync_rate_table()`; team leaning CASCADE over SET NULL for derived RTU rows |
+| **Status** | Fix drafted in #6166; **paused** pending smart revert and gap fixes |
 | **Notes** | Started after Phase 2 populated `rate_id` on RTU rows |
 
 ### 2. DELETE cost model while RTU still references `cost_model_id`
@@ -73,7 +76,7 @@ Severity: **Confirmed** (Glitchtip/prod or stage) | **Likely** (code review) | *
 | **Error** | `update or delete on table "cost_model" violates FK ... rates_to_usage_cost_model_id_...` |
 | **Path** | `CostModelViewSet.destroy` |
 | **Evidence** | Glitchtip **STAGE-5I4** (stage); bot draft PR #6159 |
-| **Proposed fix** | Null `rates_to_usage.cost_model_id` before delete (same pattern as #1) |
+| **Proposed fix** | GAP-2: CASCADE on `cost_model` FK (not null-before-delete) |
 | **Status** | Likely same class as #1; separate PR/ticket |
 
 ### 3. Pipeline INSERT with stale `rate_id` (race)
@@ -101,11 +104,11 @@ Severity: **Confirmed** (Glitchtip/prod or stage) | **Likely** (code review) | *
 | | |
 |---|---|
 | **Symptom** | Slow cost model updates (or timeout HTTP 500) for large tenants |
-| **Cause** | `UPDATE ... WHERE rate_id IN (...)` without index → seq scan across partitions |
+| **Cause** | `UPDATE ... WHERE rate_id IN (...)` or CASCADE delete without index → seq scan across partitions |
 | **Context** | Runs inside `CostModelManager.update()` `@transaction.atomic` — user waits for full transaction |
 | **Evidence** | Production row counts (Martin, 2026-07-07): ~15.6M rows total; 3 tenants 1M+ (up to ~5.3M); 97% tenants have 0 rows |
 | **Status** | Likely; needs validation on whale tenants |
-| **Mitigation** | Index on `rate_id` (and possibly `cost_model_id` if we null on delete path) |
+| **Mitigation** | Index on `rate_id` (and `cost_model_id`) — required for both SET NULL and CASCADE paths |
 
 ### 6. Root cause of FK failures unclear
 
@@ -121,25 +124,27 @@ Severity: **Confirmed** (Glitchtip/prod or stage) | **Likely** (code review) | *
 | | |
 |---|---|
 | **Examples** | PriceList delete → CASCADE to `Rate` → SET_NULL on RTU; other partitioned FKs |
-| **Status** | Likely from code inspection; no Glitchtip hit cited yet |
+| **Status** | Likely from code inspection; covered by GAP-3 |
 
 ### 8. Broader design tension (Phase 2)
 
 | | |
 |---|---|
-| **Topic** | RTU rows now hold real `rate_id` / `cost_model_id`, but delete/sync paths were built when FKs were mostly NULL |
-| **Policy** | SET NULL (keep RTU cost data) vs CASCADE (delete RTU rows, recalc) — not fully decided for all paths |
+| **Topic** | RTU rows are derived pipeline data; `rate_id` / `cost_model_id` are write-only traceability fields (no consumer reads them for aggregation) |
+| **Policy** | Team leaning **CASCADE** (delete RTU rows when Rate/CostModel deleted) over SET NULL; recalc rebuilds from source tables |
+| **Unleash** | RTU SQL should be gated behind `cost-management.backend.cost_breakdown_rates_to_usage`; Phase 3 broke the gate (see smart revert below) |
 | **Docs** | `docs/architecture/cost-breakdown/` (phased delivery, open concerns) |
 
 ---
 
-## Related automated PRs (Glitchtip triager)
+## Related PRs
 
-| PR | Focus | Overlaps with |
-|----|--------|----------------|
-| [#6166](https://github.com/project-koku/koku/pull/6166) | COST-7736 — null `rate_id` before Rate delete | Issue #1 |
-| [#6159](https://github.com/project-koku/koku/pull/6159) | Null `cost_model_id` before CostModel delete | Issue #2 |
-| [#6128](https://github.com/project-koku/koku/pull/6128) | Guard worker when cost model gone before INSERT | Issues #3/#4 |
+| PR | Author | Focus | Overlaps with |
+|----|--------|--------|----------------|
+| [#6166](https://github.com/project-koku/koku/pull/6166) | Victor | COST-7736 — null `rate_id` before Rate delete | Issue #1 — **paused** |
+| [#6172](https://github.com/project-koku/koku/pull/6172) | Cody | Smart revert POC — restore Unleash flag gate, legacy + `*_rtu.sql` dual paths | Smart revert (step 3) |
+| [#6159](https://github.com/project-koku/koku/pull/6159) | Bot (Glitchtip triager) | Null `cost_model_id` before CostModel delete | Issue #2 — do not merge in isolation |
+| [#6128](https://github.com/project-koku/koku/pull/6128) | Bot (Glitchtip triager) | Guard worker when cost model gone before INSERT | Issues #3/#4 — do not merge in isolation |
 
 These are **not interchangeable**. Merging one does not fix the others.
 
@@ -168,10 +173,10 @@ Implication: performance fixes (#5) matter mainly for a **small number of large 
 
 ## Open questions (for team discussion)
 
-1. Do we fix symptoms path-by-path, or one **shared helper** (e.g. detach RTU before any Rate/CostModel delete)?
-2. Should DB FKs be migrated to explicit `ON DELETE SET NULL` / `CASCADE` at PostgreSQL level?
-3. Index on `rate_id` (and `cost_model_id`?) — required before any null-before-delete fix ships?
-4. How do we handle pipeline races (#3, #4) — guard in worker, retry, or accept NULL FK on INSERT?
+1. Do we fix symptoms path-by-path, or one **shared helper** (e.g. detach/delete RTU before any Rate/CostModel delete)?
+2. Confirm CASCADE policy for both `rate_id` and `cost_model_id` FKs at the DB level?
+3. Index on `rate_id` (and `cost_model_id`) — ship standalone migration before any FK fix?
+4. How do we handle pipeline races (#3, #4) if flag is re-enabled — guard in worker, retry, or accept NULL FK on INSERT?
 5. Is Cost breakdown / RTU **frozen** (stability only) until AI Grid PoC, or minimal fixes allowed?
 6. Run diagnostic FK constraint query per tenant schema (see Martin's review) to confirm root cause?
 
@@ -186,6 +191,8 @@ The gap analysis (GAP-1 through GAP-8) describes real correctness and performanc
 ### What "smart revert" means
 
 Rather than a full git revert of Phase 2/3, preserve the RTU infrastructure (table, migrations, SQL files) and keep the Unleash flag gate in the code — but ensure the **legacy direct-write path is the only path that runs in production** until the gaps are fixed and the feature is consciously re-enabled.
+
+Unleash flag: `cost-management.backend.cost_breakdown_rates_to_usage`
 
 The revert has two layers:
 
@@ -204,6 +211,8 @@ Phase 3 had made the monthly/tag/VM SQL unconditionally write to `rates_to_usage
 
 The Phase 2 RTU files (`insert_usage_rates_to_usage.sql`, `aggregate_rates_to_daily_summary.sql`, `insert_markup_rates_to_usage.sql`) would remain in place, wired to the flag-ON path only. They would not run until the flag is explicitly turned on. No data would flow through `rates_to_usage` while the flag stays off.
 
+POC: [PR #6172](https://github.com/project-koku/koku/pull/6172) (`smart_revert_rtu` branch).
+
 ### What the legacy path would look like
 
 | Step | Flag OFF (legacy) | Flag ON (RTU, re-enabled later) |
@@ -221,10 +230,10 @@ The Phase 2 RTU files (`insert_usage_rates_to_usage.sql`, `aggregate_rates_to_da
 |------|--------|--------|
 | 1 | Cody | ~~Current state analysis~~ → **[rates-to-usage-gap-analysis.md](./rates-to-usage-gap-analysis.md)** (GAP-1–8) |
 | 2 | Team | Review and agree on this path forward |
-| 3 | Cody | Phase 3 revert PR: restore original SQL files, add `*_rtu.sql` variants, restore Unleash flag gate |
+| 3 | Cody | Phase 3 revert PR: restore original SQL files, add `*_rtu.sql` variants, restore Unleash flag gate ([#6172](https://github.com/project-koku/koku/pull/6172)) |
 | 4 | Team | Validate issue list and gap analysis; confirm production behaviour with flag OFF |
-| 5 | Team | Fix GAP-5 first (standalone index migration) — makes subsequent FK null-before-delete operations fast |
-| 6 | Team | Fix GAP-1 + GAP-3 together (`sync_rate_table` + `PriceListManager` schema context + pre-delete RTU nullification) |
+| 5 | Team | Fix GAP-5 first (standalone index migration) — makes subsequent FK operations fast |
+| 6 | Team | Fix GAP-1 + GAP-3 together (`sync_rate_table` + `PriceListManager` schema context; CASCADE policy) |
 | 7 | Team | Fix GAP-6 + GAP-7 (add scoped DELETE before monthly/tag INSERT into RTU SQL files) |
 | 8 | Team | Fix GAP-2, GAP-4, GAP-8 (cost model CASCADE, report_period_id orphan paths, cost_category SET_NULL) |
 | 9 | Team | Integration test RTU path end-to-end with real data on stage |
@@ -237,6 +246,7 @@ The Phase 2 RTU files (`insert_usage_rates_to_usage.sql`, `aggregate_rates_to_da
 ## References
 
 - **Cody's gap analysis:** [rates-to-usage-gap-analysis.md](./rates-to-usage-gap-analysis.md)
+- **Smart revert POC:** [PR #6172](https://github.com/project-koku/koku/pull/6172)
 - Jira: [COST-7736](https://redhat.atlassian.net/browse/COST-7736)
 - PR: [#6166](https://github.com/project-koku/koku/pull/6166) (paused)
 - Deep dive (leads, verify claims): [pr-6166-review.md](https://github.com/project-koku/koku/blob/pr-6166-adversarial-review/pr-6166-review.md)
@@ -253,3 +263,4 @@ The Phase 2 RTU files (`insert_usage_rates_to_usage.sql`, `aggregate_rates_to_da
 | 2026-07-07 | Victor Sizilio | Initial draft from COST-7736 investigation and team thread |
 | 2026-07-07 | Victor Sizilio | Link to Cody's [rates-to-usage-gap-analysis.md](./rates-to-usage-gap-analysis.md); issue ↔ GAP mapping |
 | 2026-07-07 | Cody Myers | Add "Proposed path forward: smart revert" section; document Phase 3 revert approach and flag gate restoration; update proposed next steps; mark issues #3/#4 as mitigated by revert |
+| 2026-07-08 | Victor Sizilio | Sync with gap_analysis path forward; fix PR table (#6166 human, #6172 POC); CASCADE/Unleash policy; explicit #6166 paused note |
