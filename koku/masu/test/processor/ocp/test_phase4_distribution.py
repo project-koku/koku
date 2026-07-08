@@ -14,6 +14,7 @@ See docs/architecture/cost-breakdown/phased-delivery.md § Concern 1 Resolution.
 See docs/architecture/cost-breakdown/risk-register.md § R18.
 """
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.db.models import Q
 from django.db.models import Sum
@@ -480,13 +481,17 @@ class TestBreakdownSQLFixes(_ReportPeriodMixin, MasuTestCase):
             "worker_cost": True,
         }
         summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
-        with OCPReportDBAccessor(self.schema) as accessor:
-            accessor.populate_distributed_cost_sql(summary_range, self.provider_uuid, distribution_info)
-            accessor.populate_ui_summary_tables(
-                summary_range,
-                self.provider_uuid,
-                tables=["reporting_ocp_cost_breakdown_p"],
-            )
+        with (
+            patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False),
+            patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False),
+        ):
+            with OCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_distributed_cost_sql(summary_range, self.provider_uuid, distribution_info)
+                accessor.populate_ui_summary_tables(
+                    summary_range,
+                    self.provider_uuid,
+                    tables=["reporting_ocp_cost_breakdown_p"],
+                )
 
     def test_raw_currency_date_scoped(self):
         """B1: raw_currency in breakdown rows comes from date-scoped subquery."""
@@ -589,13 +594,17 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
             "worker_cost": True,
         }
         summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
-        with OCPReportDBAccessor(self.schema) as accessor:
-            accessor.populate_distributed_cost_sql(summary_range, self.provider_uuid, distribution_info)
-            accessor.populate_ui_summary_tables(
-                summary_range,
-                self.provider_uuid,
-                tables=["reporting_ocp_cost_breakdown_p"],
-            )
+        with (
+            patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False),
+            patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False),
+        ):
+            with OCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_distributed_cost_sql(summary_range, self.provider_uuid, distribution_info)
+                accessor.populate_ui_summary_tables(
+                    summary_range,
+                    self.provider_uuid,
+                    tables=["reporting_ocp_cost_breakdown_p"],
+                )
 
     def _breakdown_qs(self, **extra_filters):
         return OCPCostUIBreakDownP.objects.filter(

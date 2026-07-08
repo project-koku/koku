@@ -1,10 +1,10 @@
 # QE Test Plan: Cost Breakdown and Rate Filtering
 
-**Jira:** COST-7320  
-**Features:** COST-7249 (Cost Breakdown), COST-7439 (Rate Filtering)  
-**Execution:** `iqe-cost-management-plugin` (IQE black-box API tests)  
-**Author:** Jordi Gil  
-**Date:** 2026-06-09  
+**Jira:** COST-7320
+**Features:** COST-7249 (Cost Breakdown), COST-7439 (Rate Filtering)
+**Execution:** `iqe-cost-management-plugin` (IQE black-box API tests)
+**Author:** Jordi Gil
+**Date:** 2026-06-09
 
 ---
 
