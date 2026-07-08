@@ -156,4 +156,5 @@ dev/containers/unleash/cache/
 .cursor/*
 !.cursor/rules/
 !.cursor/commands/
-.claude/
+# Claude Code — share commands/rules/hooks, keep personal settings local
+.claude/settings.local.json

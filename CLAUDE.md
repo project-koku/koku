@@ -16,6 +16,7 @@ make docker-reinitdb        # nuke + rebuild DB from scratch
 ```
 koku/api/                   # REST API views, serializers, URL routing
 koku/cost_models/           # cost model CRUD, rate sync, price lists
+koku/koku/                  # Django project config (settings, database, feature flags)
 koku/masu/                  # data pipeline: processors, Celery tasks, SQL templates
 koku/masu/database/sql/     # PostgreSQL SQL templates (SaaS + on-prem)
 koku/masu/database/trino_sql/       # SaaS-only Trino SQL templates
@@ -70,9 +71,9 @@ There are **three** SQL template directories:
 
 | Directory | Engine | Scope |
 |-----------|--------|-------|
-| `masu/database/sql/` | PostgreSQL | Primary path, both SaaS and on-prem (103 files) |
-| `masu/database/trino_sql/` | Trino | SaaS-only, selected when `ONPREM=False` (65 files) |
-| `masu/database/self_hosted_sql/` | PostgreSQL | On-prem-only, selected when `ONPREM=True` (13 files) |
+| `koku/masu/database/sql/` | PostgreSQL | Primary path, both SaaS and on-prem (103 files) |
+| `koku/masu/database/trino_sql/` | Trino | SaaS-only, selected when `ONPREM=False` (65 files) |
+| `koku/masu/database/self_hosted_sql/` | PostgreSQL | On-prem-only, selected when `ONPREM=True` (13 files) |
 
 `self_hosted_sql/` is a **strict subset** of `trino_sql/` — 13 shared
 openshift templates that must stay in sync.  Any bug fix or behaviour change
@@ -119,9 +120,9 @@ commit despite Django's Collector having already issued the SET_NULL UPDATE
    consider adding a database index on the FK column — without it, the
    SET_NULL UPDATE sequential-scans every partition.
 3. The `rates_to_usage` table (`RatesToUsage` model) is the primary example.
-   It has `SET_NULL` FKs to both `Rate` and `CostModel`.  As of July 2026,
-   it has ~15.6M rows across 1807 tenant schemas, heavily skewed (3 tenants
-   hold 72% of all rows, 97% of tenants have zero rows).
+   It has `SET_NULL` FKs to both `Rate` and `CostModel`.  The table is
+   heavily skewed — most tenants have zero rows, but a few large tenants
+   have millions.  Always index FK columns on partitioned tables.
 
 ## On-prem parity
 
@@ -138,8 +139,8 @@ both `ONPREM=True` and `ONPREM=False`.  On-prem SQL templates live in
 | OCP updater (`ocp_cost_model_cost_updater.py`) | Check all 3 SQL template directories |
 | `cost_models/models.py` or `rate_sync.py` | Test cost model create/update/delete end-to-end |
 | API views or serializers | `docs/specs/openapi.json` |
-| Environment variables | `deploy/clowdapp.yaml`, `koku/settings.py`, `.env.example` |
+| Environment variables | `deploy/clowdapp.yaml`, `koku/koku/settings.py`, `.env.example` |
 | Celery tasks | Ensure `@app.task(name=...)` matches function name |
-| New Unleash flag | `masu/processor/__init__.py` (constant), `koku/feature_flags.py` (on-prem default), `dev/scripts/setup_unleash.py` |
+| New Unleash flag | `koku/masu/processor/__init__.py` (constant), `koku/koku/feature_flags.py` (on-prem default), `dev/scripts/setup_unleash.py` |
 | Provider-specific code (aws/azure/gcp/ocp) | Check other providers for parity |
 | Django models (field changes) | Include migration in same or paired PR |
