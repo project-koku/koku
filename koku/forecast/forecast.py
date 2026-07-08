@@ -21,7 +21,9 @@ from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import ExpressionWrapper
 from django.db.models import F
+from django.db.models import OuterRef
 from django.db.models import Q
+from django.db.models import Subquery
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import Coalesce
@@ -30,6 +32,8 @@ from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from statsmodels.tools.sm_exceptions import ValueWarning
 
 from api.currency.models import ExchangeRateDictionary
+from api.currency.utils import build_monthly_rate_annotation
+from api.currency.utils import validate_exchange_rate_coverage
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -45,6 +49,8 @@ from api.utils import DateHelper
 from api.utils import get_cost_type
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from masu.processor import CONSTANT_CURRENCY_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
@@ -159,12 +165,23 @@ class Forecast:
 
     @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        whens = [
-            When(**{self.provider_map.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+        """Get exchange rate annotation.
+
+        When constant currency is enabled, uses per-month Subquery from
+        MonthlyExchangeRate. Otherwise uses ExchangeRateDictionary via Case/When.
+        """
+        if is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+            exchange_rate_annotation = build_monthly_rate_annotation(
+                OuterRef(self.provider_map.cost_units_key), self.currency
+            )
+        else:
+            whens = [
+                When(**{self.provider_map.cost_units_key: k, "then": Value(v.get(self.currency))})
+                for k, v in self.exchange_rates.items()
+            ]
+            exchange_rate_annotation = Case(*whens, default=1, output_field=DecimalField())
+
+        return {"exchange_rate": exchange_rate_annotation}
 
     def get_data(self):
         """Query the database."""
@@ -184,6 +201,24 @@ class Forecast:
         """Define ORM query to run forecast and return prediction."""
         cost_predictions = {}
         with tenant_context(self.params.tenant):
+            if (
+                is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG)
+                and self.currency
+            ):
+                base_currencies = set(
+                    self.provider_map.query_table.objects.filter(
+                        usage_start__gte=self.query_range[0],
+                        usage_start__lte=self.query_range[1],
+                    )
+                    .values_list(self.provider_map.cost_units_key, flat=True)
+                    .distinct()
+                ) - {None}
+                validate_exchange_rate_coverage(
+                    base_currencies,
+                    self.currency,
+                    self.query_range[0].date(),
+                    self.query_range[1].date(),
+                )
             data = self.get_data()
 
             for fieldname in COST_FIELD_NAMES:
@@ -614,18 +649,36 @@ class OCPForecast(Forecast):
 
     @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        exchange_rate_whens = [
-            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
-            for uuid, cur in self.source_to_currency_map.items()
-        ]
-        infra_exchange_rate_whens = [
-            When(**{self.provider_map.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
+        """Get per-month exchange rate annotations from MonthlyExchangeRate via Subquery.
+
+        When constant currency is enabled, uses OCP-specific dual annotations.
+        Falls back to ExchangeRateDictionary via Case/When when the flag is off.
+        """
+        if is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+            cost_model_currency = Subquery(
+                CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
+                    "currency"
+                )[:1],
+            )
+            exchange_rate_annotation = build_monthly_rate_annotation(cost_model_currency, self.currency)
+            infra_exchange_rate_annotation = build_monthly_rate_annotation(
+                OuterRef(self.provider_map.cost_units_key), self.currency
+            )
+        else:
+            exchange_rate_whens = [
+                When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
+                for uuid, cur in self.source_to_currency_map.items()
+            ]
+            infra_exchange_rate_whens = [
+                When(**{self.provider_map.cost_units_key: k, "then": Value(v.get(self.currency))})
+                for k, v in self.exchange_rates.items()
+            ]
+            exchange_rate_annotation = Case(*exchange_rate_whens, default=1, output_field=DecimalField())
+            infra_exchange_rate_annotation = Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField())
+
         return {
-            "exchange_rate": Case(*exchange_rate_whens, default=1, output_field=DecimalField()),
-            "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
+            "exchange_rate": exchange_rate_annotation,
+            "infra_exchange_rate": infra_exchange_rate_annotation,
         }
 
 

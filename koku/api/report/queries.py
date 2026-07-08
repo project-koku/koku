@@ -24,8 +24,8 @@ import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
-from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Value
 from django.db.models import When
@@ -35,9 +35,10 @@ from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
+from django_tenants.utils import tenant_context
 from pandas.api.types import CategoricalDtype
 
-from api.currency.models import ExchangeRateDictionary
+from api.currency.utils import validate_exchange_rate_coverage
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -45,6 +46,8 @@ from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
+from masu.processor import CONSTANT_CURRENCY_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
 
 LOG = logging.getLogger(__name__)
 
@@ -179,7 +182,14 @@ class ReportQueryHandler(QueryHandler):
     @property
     def report_annotations(self):
         """Return annotations with the correct capacity field."""
-        return self._mapper.report_type_map.get("annotations", {})
+        annotations = self._mapper.report_type_map.get("annotations", {})
+        if self.is_csv_output:
+            annotations = {
+                **annotations,
+                "base_currency": Max(self._mapper.cost_units_key),
+                "exchange_rate": Max("exchange_rate"),
+            }
+        return annotations
 
     @cached_property
     def query_table(self):
@@ -880,23 +890,6 @@ class ReportQueryHandler(QueryHandler):
                 group_by.append((db_name, group_pos, original_aws_category))
         return group_by
 
-    @cached_property
-    def exchange_rates(self):
-        try:
-            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
-        except AttributeError as err:
-            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
-            return {}
-
-    @cached_property
-    def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
-
     def _project_classification_annotation(self, query_data):
         """Get the correct annotation for a project or category"""
         whens = [
@@ -1070,7 +1063,32 @@ class ReportQueryHandler(QueryHandler):
         # remove access from the output
         output.pop("access")
 
+        if self.currency:
+            output["currency"] = self.currency
+            if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+                with tenant_context(self.tenant):
+                    validate_exchange_rate_coverage(
+                        self._get_base_currencies_for_conversion(),
+                        self.currency,
+                        self.start_datetime.date(),
+                        self.end_datetime.date(),
+                    )
+
         return output
+
+    def _get_base_currencies_for_conversion(self):
+        """Return the set of base currencies present in the query range.
+
+        Subclasses (e.g. OCP) can override to include additional currency sources.
+        """
+        return set(
+            self._mapper.query_table.objects.filter(
+                usage_start__gte=self.start_datetime.date(),
+                usage_start__lte=self.end_datetime.date(),
+            )
+            .values_list(self._mapper.cost_units_key, flat=True)
+            .distinct()
+        ) - {None}
 
     def _pack_data_object(self, data, **kwargs):  # noqa: C901
         """Pack data into object format."""
