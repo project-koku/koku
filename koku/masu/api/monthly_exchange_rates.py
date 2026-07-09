@@ -3,10 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Admin endpoint to inspect MonthlyExchangeRate rows."""
+import datetime
+
 from django.views.decorators.cache import never_cache
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
@@ -29,8 +32,16 @@ def monthly_exchange_rates(request):
     """
     filters = {}
     if start := request.query_params.get("start_date"):
+        try:
+            datetime.date.fromisoformat(start)
+        except ValueError:
+            raise ValidationError({"start_date": "Invalid date format. Use YYYY-MM-DD."})
         filters["effective_date__gte"] = start
     if end := request.query_params.get("end_date"):
+        try:
+            datetime.date.fromisoformat(end)
+        except ValueError:
+            raise ValidationError({"end_date": "Invalid date format. Use YYYY-MM-DD."})
         filters["effective_date__lte"] = end
     if base := request.query_params.get("base_currency"):
         filters["base_currency"] = base.upper()

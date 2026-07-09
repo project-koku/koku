@@ -13,7 +13,7 @@ class ExchangeRateNotFound(ValidationError):
     def __init__(self, base_currencies, target_currency, start_date, end_date, missing_months=None):
         missing_pairs = ", ".join(f"{base} -> {target_currency}" for base in base_currencies)
         if missing_months:
-            months_str = ", ".join(str(m) for m in sorted(missing_months))
+            months_str = ", ".join(m.strftime("%Y-%m") for m in sorted(missing_months))
             detail = f"Exchange rate missing for {missing_pairs} for months: {months_str}."
         else:
             detail = f"No exchange rate available for {missing_pairs} for {start_date} to {end_date}."
