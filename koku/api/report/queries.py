@@ -25,6 +25,7 @@ from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import F
+from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Value
 from django.db.models import When
@@ -181,7 +182,14 @@ class ReportQueryHandler(QueryHandler):
     @property
     def report_annotations(self):
         """Return annotations with the correct capacity field."""
-        return self._mapper.report_type_map.get("annotations", {})
+        annotations = self._mapper.report_type_map.get("annotations", {})
+        if self.is_csv_output:
+            annotations = {
+                **annotations,
+                "base_currency": Max(self._mapper.cost_units_key),
+                "exchange_rate": Max("exchange_rate"),
+            }
+        return annotations
 
     @cached_property
     def query_table(self):

@@ -15,7 +15,6 @@ from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
-from django.db.models import Max
 from django.db.models import OuterRef
 from django.db.models import Subquery
 from django.db.models import Value
@@ -164,18 +163,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         if special_annotations := self._mapper.report_type_map.get("report_type_annotations"):
             annotations.update(special_annotations)
 
-        return annotations
-
-    @property
-    def report_annotations(self):
-        """Return annotations with CSV-specific exchange rate columns for OCP."""
-        annotations = self._mapper.report_type_map.get("annotations", {})
-        if self.is_csv_output:
-            annotations = {
-                **annotations,
-                "base_currency": Max(self._mapper.cost_units_key),
-                "exchange_rate": Max("exchange_rate"),
-            }
         return annotations
 
     @cached_property
