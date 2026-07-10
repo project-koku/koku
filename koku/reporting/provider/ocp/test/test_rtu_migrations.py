@@ -104,10 +104,9 @@ class _RatesToUsageMigrationMixin:
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT indexname
+                SELECT DISTINCT indexname
                 FROM pg_indexes
                 WHERE schemaname = %s
-                  AND tablename = 'rates_to_usage'
                   AND indexname = ANY(%s)
                 """,
                 (
@@ -116,6 +115,20 @@ class _RatesToUsageMigrationMixin:
                 ),
             )
             return {row[0] for row in cursor.fetchall()}
+
+    def _restore_latest_migration(self):
+        """Re-apply latest migration after tests that roll back (KEEPDB=True)."""
+        with tenant_context(self.tenant):
+            self._run_migration(MIGRATE_TO_0353)
+
+    def _cleanup_rtu_migration_fixtures(self):
+        with tenant_context(self.tenant):
+            CostModel.objects.filter(name__startswith="RTU ").delete()
+
+    def tearDown(self):
+        self._cleanup_rtu_migration_fixtures()
+        self._restore_latest_migration()
+        super().tearDown()
 
 
 class RatesToUsageTruncateMigrationTest(_RatesToUsageMigrationMixin, TransactionTestCase):
@@ -130,10 +143,6 @@ class RatesToUsageTruncateMigrationTest(_RatesToUsageMigrationMixin, Transaction
         )
         self.ocp_provider_uuid = str(self.ocp_provider.uuid)
         self.ocp_cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
-
-    def tearDown(self):
-        with tenant_context(self.tenant):
-            CostModel.objects.filter(name__startswith="RTU ").delete()
 
     def _fixture_teardown(self):
         """Skip global TRUNCATE flush; django-tenants FK graph breaks TransactionTestCase flush."""
@@ -157,6 +166,9 @@ class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
     def test_0352_adds_fk_indexes(self):
         """Migration 0352 creates indexes on rate_id and cost_model_id."""
         with tenant_context(self.tenant):
+            # Roll back and re-apply 0352 so AddIndex runs even when django_migrations
+            # already records 0352+ (e.g. CI tenant setup vs MigrationExecutor state).
+            self._run_migration(MIGRATE_FROM)
             self._run_migration(MIGRATE_TO_0352)
             self.assertEqual(
                 self._index_names(),
