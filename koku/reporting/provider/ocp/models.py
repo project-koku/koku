@@ -1059,6 +1059,8 @@ class RatesToUsage(models.Model):
             models.Index(fields=["custom_name"], name="ratestousage_custom_name_idx"),
             models.Index(fields=["monthly_cost_type"], name="ratestousage_monthly_cost_idx"),
             models.Index(fields=["label_hash"], name="ratestousage_label_hash_idx"),
+            models.Index(fields=["rate_id"], name="ratestousage_rate_id_idx"),
+            models.Index(fields=["cost_model_id"], name="ratestousage_cost_model_id_idx"),
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
