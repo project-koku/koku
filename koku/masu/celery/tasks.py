@@ -26,7 +26,9 @@ from api.utils import DateHelper
 from common.queues import DownloadQueue
 from common.queues import PriorityQueue
 from common.queues import SummaryQueue
+from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
 from koku import celery_app
+from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.notifications import NotificationService
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -263,12 +265,8 @@ def autovacuum_tune_schemas():
         autovacuum_tune_schema.delay(schema_name)
 
 
-@celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
-def get_daily_currency_rates():
-    """Task to get latest daily conversion rates."""
-    rate_metrics = {}
-
-    url = settings.CURRENCY_URL
+def _fetch_and_store_exchange_rates(url):
+    """Fetch exchange rates from the configured URL. Returns rate_metrics dict or None on failure."""
     retries = Retry(
         total=5,
         allowed_methods={"GET"},
@@ -278,33 +276,59 @@ def get_daily_currency_rates():
     session = requests.Session()
     session.mount("https://", HTTPAdapter(max_retries=retries))
 
-    # Retrieve conversion rates from URL
     try:
         response = session.get(url)
         response.raise_for_status()
     except (HTTPError, RetryError) as e:
         LOG.error(f"Couldn't pull latest conversion rates from {url}")
         LOG.error(e)
+        return None
 
-        return rate_metrics
-
+    rate_metrics = {}
     data = response.json()
-
     rates = data["rates"]
-    # Update conversion rates in database
-    for curr_type in rates.keys():
-        if is_valid_iso_currency(curr_type):
-            value = rates[curr_type]
-            try:
-                exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
-                LOG.info(f"Updating currency {curr_type} to {value}")
-            except ExchangeRates.DoesNotExist:
-                LOG.info(f"Creating the exchange rate {curr_type} to {value}")
-                exchange = ExchangeRates(currency_type=curr_type.lower())
-            rate_metrics[curr_type] = value
-            exchange.exchange_rate = value
-            exchange.save()
+    for curr_type, value in rates.items():
+        if not is_valid_iso_currency(curr_type):
+            LOG.warning(f"Skipping unsupported currency {curr_type}")
+            continue
+        if not value or value <= 0:
+            LOG.warning(f"Skipping currency {curr_type} with invalid rate {value}")
+            continue
+        try:
+            exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
+            LOG.info(f"Updating currency {curr_type} to {value}")
+        except ExchangeRates.DoesNotExist:
+            LOG.info(f"Creating the exchange rate {curr_type} to {value}")
+            exchange = ExchangeRates(currency_type=curr_type.lower())
+        rate_metrics[curr_type] = value
+        exchange.exchange_rate = value
+        exchange.save()
     exchange_dictionary(rate_metrics)
+    return rate_metrics
+
+
+@celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
+def get_daily_currency_rates():
+    """Task to get latest daily conversion rates and upsert MonthlyExchangeRate per tenant."""
+    url = settings.CURRENCY_URL
+    if not url:
+        LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
+        return {}
+
+    rate_metrics = _fetch_and_store_exchange_rates(url)
+    if not rate_metrics:
+        return {}
+
+    for tenant in Tenant.objects.exclude(schema_name="public"):
+        try:
+            with schema_context(tenant.schema_name):
+                populate_dynamic_monthly_rates()
+                invalidate_view_cache_for_tenant_and_all_source_types(tenant.schema_name)
+        except Exception as e:
+            LOG.error(
+                log_json(msg="Failed to populate monthly exchange rates", schema=tenant.schema_name, error=str(e))
+            )
+
     return rate_metrics
 
 

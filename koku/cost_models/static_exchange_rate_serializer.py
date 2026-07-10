@@ -4,13 +4,21 @@
 #
 """Serializers for StaticExchangeRate CRUD."""
 import calendar
+import logging
 from datetime import timedelta
 
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
+from api.common import log_json
 from api.currency.currencies import is_valid_iso_currency
 from cost_models.models import StaticExchangeRate
+from cost_models.monthly_exchange_rate_utils import replace_static_to_dynamic_monthly_rates
+from cost_models.monthly_exchange_rate_utils import upsert_static_monthly_rates
+from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
+
+LOG = logging.getLogger(__name__)
 
 
 class StaticExchangeRateSerializer(serializers.ModelSerializer):
@@ -61,7 +69,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("end_date must be the last day of a month.")
         return value
 
-    def _validate_update(self, start, end, current_month_start, has_finalized_months):
+    def _validate_update(self, base, target, start, end, current_month_start, has_finalized_months):
         """Validate constraints specific to updating an existing rate."""
         if self.instance.end_date < current_month_start:
             raise serializers.ValidationError(
@@ -69,6 +77,10 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
                 "To set a new rate, create a new record starting from the current month."
             )
         if has_finalized_months:
+            if base != self.instance.base_currency or target != self.instance.target_currency:
+                raise serializers.ValidationError(
+                    "Currencies cannot be changed because this rate has finalized months."
+                )
             if start != self.instance.start_date:
                 raise serializers.ValidationError(
                     "start_date cannot be changed because this rate has finalized months. "
@@ -96,7 +108,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         current_month_start = today.replace(day=1)
         has_finalized_months = self.instance and self.instance.start_date < current_month_start
         if self.instance:
-            self._validate_update(start, end, current_month_start, has_finalized_months)
+            self._validate_update(base, target, start, end, current_month_start, has_finalized_months)
 
         if not has_finalized_months and start < current_month_start:
             raise serializers.ValidationError("start_date cannot be in a past month.")
@@ -117,3 +129,53 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        upsert_static_monthly_rates(instance)
+        # Defer cache invalidation until after this atomic block commits,
+        # so concurrent requests don't re-cache stale data from an uncommitted transaction.
+        schema_name = self.context["request"].user.customer.schema_name
+        transaction.on_commit(lambda: invalidate_view_cache_for_tenant_and_all_source_types(schema_name))
+        LOG.info(
+            log_json(
+                msg="Static exchange rate created with MonthlyExchangeRate rows",
+                pair=instance.name,
+                start=str(instance.start_date),
+                end=str(instance.end_date),
+            )
+        )
+        return instance
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        old_base = instance.base_currency
+        old_target = instance.target_currency
+        old_start = instance.start_date
+        old_end = instance.end_date
+
+        instance = super().update(instance, validated_data)
+
+        scope_changed = (
+            old_base != instance.base_currency
+            or old_target != instance.target_currency
+            or old_start != instance.start_date
+            or old_end != instance.end_date
+        )
+        # If scope changed, clean up old range and backfill with dynamic rates.
+        # upsert_static_monthly_rates will then overwrite overlapping months with the new static values.
+        if scope_changed:
+            replace_static_to_dynamic_monthly_rates(old_base, old_target, old_start, old_end)
+
+        upsert_static_monthly_rates(instance)
+
+        schema_name = self.context["request"].user.customer.schema_name
+        transaction.on_commit(lambda: invalidate_view_cache_for_tenant_and_all_source_types(schema_name))
+        LOG.info(
+            log_json(
+                msg="Static exchange rate updated with MonthlyExchangeRate rows",
+                pair=instance.name,
+            )
+        )
+        return instance
