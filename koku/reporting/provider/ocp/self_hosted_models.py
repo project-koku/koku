@@ -458,6 +458,34 @@ class OCPUsageLineItemDailySummaryStaging(models.Model):
     day = models.CharField(max_length=2, null=True)
 
 
+class OSACUsageLineItemDaily(OCPLineItemBase):
+    """Daily OSAC usage data from the cost-event-consumer.
+
+    Stores pre-aggregated daily metering and cost data from OSAC sovereign
+    cloud resources (VMs, clusters, bare metal, MaaS). Written by the
+    koku-sync tool, processed by the standard OCP summarization pipeline
+    via a UNION in reporting_ocpusagelineitem_daily_summary.sql.
+    """
+
+    class Meta:
+        db_table = "openshift_osac_usage_line_items_daily"
+        indexes = [
+            models.Index(fields=["source", "year", "month"], name="osac_daily_src_yr_mo_idx"),
+        ]
+
+    resource_type = models.CharField(max_length=64, null=True)
+    resource_id = models.CharField(max_length=256, null=True)
+    tenant_id = models.CharField(max_length=256, null=True)
+    project_id = models.CharField(max_length=256, null=True)
+    meter_name = models.CharField(max_length=128, null=True)
+    value = models.FloatField(null=True)
+    unit = models.CharField(max_length=64, null=True)
+    cost_type = models.CharField(max_length=32, null=True)
+    koku_metric = models.CharField(max_length=128, null=True)
+    cost_amount = models.FloatField(null=True)
+    currency = models.CharField(max_length=8, null=True)
+
+
 # Mapping from report type to Django model (for self-hosted/on-prem PostgreSQL)
 SELF_HOSTED_MODEL_MAP = {
     "pod_usage": OCPPodUsageLineItem,
@@ -475,6 +503,7 @@ SELF_HOSTED_DAILY_MODEL_MAP = {
     "namespace_labels": OCPNamespaceLabelsLineItemDaily,
     "vm_usage": OCPVMUsageLineItemDaily,
     "gpu_usage": OCPGPUUsageLineItemDaily,
+    "osac_usage": OSACUsageLineItemDaily,
 }
 
 
