@@ -13,6 +13,9 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
 
+from django.db.models import Case
+from django.db.models import Subquery
+from django_tenants.utils import schema_context
 from statsmodels.tools.sm_exceptions import ValueWarning
 
 from api.forecast.views import AWSCostForecastView
@@ -915,3 +918,64 @@ class LinearForecastResultTest(IamTestCase):
         self.assertEqual(lfr.pvalues, ["99999.00000000", "88888.00000000"])
         self.assertEqual(lfr.slope, 77777)
         self.assertEqual(lfr.intercept, 66666)
+
+
+class ForecastExchangeRateTest(IamTestCase):
+    """Tests for exchange rate annotation and validation in forecast classes."""
+
+    def test_base_forecast_flag_on_uses_subquery(self):
+        """Flag ON (default) → Forecast.exchange_rate_annotation_dict returns a Subquery annotation."""
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params)
+        ann = instance.exchange_rate_annotation_dict
+        self.assertIn("exchange_rate", ann)
+        self.assertIsInstance(ann["exchange_rate"], Subquery)
+
+    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_base_forecast_flag_off_uses_case(self, _):
+        """Flag OFF → Forecast.exchange_rate_annotation_dict returns a Case annotation."""
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params)
+        ann = instance.exchange_rate_annotation_dict
+        self.assertIn("exchange_rate", ann)
+        self.assertIsInstance(ann["exchange_rate"], Case)
+
+    def test_ocp_forecast_flag_on_returns_dual_annotations(self):
+        """Flag ON (default) → OCPForecast returns both exchange_rate and infra_exchange_rate."""
+        params = self.mocked_query_params("?", OCPCostForecastView)
+        instance = OCPForecast(params)
+        ann = instance.exchange_rate_annotation_dict
+        self.assertEqual(set(ann.keys()), {"exchange_rate", "infra_exchange_rate"})
+
+    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_ocp_forecast_flag_off_returns_dual_case_annotations(self, _):
+        """Flag OFF → OCPForecast returns both keys via Case/When."""
+        params = self.mocked_query_params("?", OCPCostForecastView)
+        instance = OCPForecast(params)
+        with schema_context(self.schema_name):
+            ann = instance.exchange_rate_annotation_dict
+        self.assertEqual(set(ann.keys()), {"exchange_rate", "infra_exchange_rate"})
+        self.assertIsInstance(ann["exchange_rate"], Case)
+
+    @patch("forecast.forecast.validate_exchange_rate_coverage")
+    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_predict_skips_validation_when_flag_off(self, _, mock_validate):
+        """predict() does not call validate_exchange_rate_coverage when flag is disabled."""
+        dh = DateHelper()
+        expected = [
+            {
+                "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                "total_cost": 5 + (0.01 * n),
+                "infrastructure_cost": 3 + (0.01 * n),
+                "supplementary_cost": 2 + (0.01 * n),
+            }
+            for n in range(10)
+        ]
+        mock_qset = MockQuerySet(expected)
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params)
+
+        with patch("forecast.forecast.AWSForecast.get_data", return_value=mock_qset):
+            instance.predict()
+
+        mock_validate.assert_not_called()
