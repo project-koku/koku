@@ -112,24 +112,31 @@ class EnabledCurrencyView(APIView):
         if EnabledCurrency.objects.count() == 1:
             raise ValidationError({"error": "At least one currency must be enabled."})
 
+        reasons = []
+
+        if code == KOKU_DEFAULT_CURRENCY:
+            reasons.append("it is the system default currency")
+
+        if UserSettings.objects.filter(settings__currency=code).exists():
+            reasons.append("it is set as a user's default display currency")
+
         affected_cost_models = list(CostModel.objects.filter(currency=code).values("uuid", "name"))
+        if affected_cost_models:
+            reasons.append(f"it is used by {len(affected_cost_models)} cost model(s)")
+
         affected_price_lists = list(PriceList.objects.filter(currency=code).values("uuid", "name"))
-        has_conflict = affected_cost_models or affected_price_lists
+        if affected_price_lists:
+            reasons.append(f"it is used by {len(affected_price_lists)} price list(s)")
 
-        if has_conflict:
-            LOG.warning(
-                log_json(
-                    msg="Disabling currency that is in use by cost models or price lists",
-                    currency=code,
-                    affected_cost_models=len(affected_cost_models),
-                    affected_price_lists=len(affected_price_lists),
-                )
+        if reasons:
+            detail = f"Cannot disable {code} because {'; '.join(reasons)}."
+            raise ValidationError(
+                {
+                    "error": detail,
+                    "affected_cost_models": affected_cost_models,
+                    "affected_price_lists": affected_price_lists,
+                }
             )
-
-        for user_setting in UserSettings.objects.filter(settings__currency=code):
-            user_setting.settings["currency"] = KOKU_DEFAULT_CURRENCY
-            user_setting.save(update_fields=["settings"])
-            LOG.info(log_json(msg="Account currency reset to default", previous=code, new=KOKU_DEFAULT_CURRENCY))
 
         EnabledCurrency.objects.filter(currency_code=code).delete()
         remove_monthly_rates(code=code)
@@ -137,16 +144,4 @@ class EnabledCurrencyView(APIView):
         invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
         LOG.info(log_json(msg="Currency disabled", currency=code))
 
-        if has_conflict:
-            total = len(affected_cost_models) + len(affected_price_lists)
-            return Response(
-                {
-                    "warning": f"Currency {code} was disabled but is still referenced by "
-                    f"{total} cost model(s) or price list(s). "
-                    "Those items may become uneditable until the currency is re-enabled.",
-                    "affected_cost_models": affected_cost_models,
-                    "affected_price_lists": affected_price_lists,
-                },
-                status=status.HTTP_200_OK,
-            )
         return Response(status=status.HTTP_204_NO_CONTENT)
