@@ -1082,7 +1082,7 @@ class ReportQueryHandler(QueryHandler):
         Subclasses (e.g. OCP) can override to include additional currency sources.
         """
         return set(
-            self._mapper.query_table.objects.filter(
+            self.query_table.objects.filter(
                 usage_start__gte=self.start_datetime.date(),
                 usage_start__lte=self.end_datetime.date(),
             )

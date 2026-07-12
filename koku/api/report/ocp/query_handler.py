@@ -224,7 +224,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         base_currencies = super()._get_base_currencies_for_conversion()
         cm_currencies = set(
             CostModel.objects.filter(
-                costmodelmap__provider_uuid__in=self._mapper.query_table.objects.filter(
+                costmodelmap__provider_uuid__in=self.query_table.objects.filter(
                     usage_start__gte=self.start_datetime.date(),
                     usage_start__lte=self.end_datetime.date(),
                 ).values("source_uuid"),
