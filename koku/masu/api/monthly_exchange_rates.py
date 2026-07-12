@@ -15,7 +15,16 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.iam.models import Tenant
 from cost_models.models import MonthlyExchangeRate
+
+
+def _validate_date_param(value, param_name):
+    """Validate an ISO-format date string, raising ValidationError on failure."""
+    try:
+        datetime.date.fromisoformat(value)
+    except ValueError:
+        raise ValidationError({param_name: "Invalid date format. Use YYYY-MM-DD."})
 
 
 @never_cache
@@ -35,19 +44,15 @@ def monthly_exchange_rates(request):
     schema = request.query_params.get("schema")
     if not schema:
         raise ValidationError({"schema": "This parameter is required."})
+    if not Tenant.objects.filter(schema_name=schema).exists():
+        raise ValidationError({"schema": f"Schema '{schema}' does not exist."})
 
     filters = {}
     if start := request.query_params.get("start_date"):
-        try:
-            datetime.date.fromisoformat(start)
-        except ValueError:
-            raise ValidationError({"start_date": "Invalid date format. Use YYYY-MM-DD."})
+        _validate_date_param(start, "start_date")
         filters["effective_date__gte"] = start
     if end := request.query_params.get("end_date"):
-        try:
-            datetime.date.fromisoformat(end)
-        except ValueError:
-            raise ValidationError({"end_date": "Invalid date format. Use YYYY-MM-DD."})
+        _validate_date_param(end, "end_date")
         filters["effective_date__lte"] = end
     if base := request.query_params.get("base_currency"):
         filters["base_currency"] = base.upper()

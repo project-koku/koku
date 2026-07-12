@@ -54,3 +54,10 @@ class MonthlyExchangeRatesTest(MasuTestCase):
             reverse("monthly_exchange_rates"), {"schema": self.schema, "end_date": "not-a-date"}
         )
         self.assertEqual(response.status_code, 400)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_nonexistent_schema_returns_400(self, _):
+        """Test that a non-existent schema returns 400 instead of 500."""
+        response = self.client.get(reverse("monthly_exchange_rates"), {"schema": "nonexistent"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("does not exist", response.json()["errors"][0]["detail"])
