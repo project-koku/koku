@@ -24,6 +24,7 @@ import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
+from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Q
@@ -187,7 +188,7 @@ class ReportQueryHandler(QueryHandler):
             annotations = {
                 **annotations,
                 "base_currency": Max(self._mapper.cost_units_key),
-                "exchange_rate": Max("exchange_rate"),
+                "exchange_rate": Coalesce(Max("exchange_rate"), Value(1), output_field=DecimalField()),
             }
         return annotations
 

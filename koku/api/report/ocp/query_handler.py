@@ -240,7 +240,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             annotations = {
                 **annotations,
                 "base_currency": Max(self._mapper.cost_units_key),
-                "exchange_rate": Max("infra_exchange_rate"),
+                "exchange_rate": Coalesce(Max("infra_exchange_rate"), Value(1), output_field=DecimalField()),
             }
         return annotations
 
