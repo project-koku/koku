@@ -109,6 +109,9 @@ class EnabledCurrencyView(APIView):
     def delete(self, request, *args, **kwargs):
         code = self._validate_code(kwargs["code"])
 
+        if not EnabledCurrency.objects.filter(currency_code=code).exists():
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
         if EnabledCurrency.objects.count() == 1:
             raise ValidationError({"error": "At least one currency must be enabled."})
 
