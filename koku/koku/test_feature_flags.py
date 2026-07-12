@@ -29,6 +29,11 @@ class MockUnleashClientTest(TestCase):
         result = self.client.is_enabled("cost-management.backend.disable-ingress-rate-limit")
         self.assertTrue(result)
 
+    def test_onprem_constant_currency_flag_returns_true(self):
+        """Override map returns True for constant-currency."""
+        result = self.client.is_enabled("cost-management.backend.constant-currency")
+        self.assertTrue(result)
+
     def test_override_takes_precedence_over_fallback(self):
         """Override map is checked before the fallback function."""
 
