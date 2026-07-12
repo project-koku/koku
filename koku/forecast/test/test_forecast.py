@@ -923,8 +923,9 @@ class LinearForecastResultTest(IamTestCase):
 class ForecastExchangeRateTest(IamTestCase):
     """Tests for exchange rate annotation and validation in forecast classes."""
 
-    def test_base_forecast_flag_on_uses_subquery(self):
-        """Flag ON (default) → Forecast.exchange_rate_annotation_dict returns a Subquery annotation."""
+    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_base_forecast_flag_on_uses_subquery(self, _):
+        """Flag ON → Forecast.exchange_rate_annotation_dict returns a Subquery annotation."""
         params = self.mocked_query_params("?", AWSCostForecastView)
         instance = AWSForecast(params)
         ann = instance.exchange_rate_annotation_dict
@@ -940,11 +941,13 @@ class ForecastExchangeRateTest(IamTestCase):
         self.assertIn("exchange_rate", ann)
         self.assertIsInstance(ann["exchange_rate"], Case)
 
-    def test_ocp_forecast_flag_on_returns_dual_annotations(self):
-        """Flag ON (default) → OCPForecast returns both exchange_rate and infra_exchange_rate."""
+    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_ocp_forecast_flag_on_returns_dual_annotations(self, _):
+        """Flag ON → OCPForecast returns both exchange_rate and infra_exchange_rate."""
         params = self.mocked_query_params("?", OCPCostForecastView)
         instance = OCPForecast(params)
-        ann = instance.exchange_rate_annotation_dict
+        with schema_context(self.schema_name):
+            ann = instance.exchange_rate_annotation_dict
         self.assertEqual(set(ann.keys()), {"exchange_rate", "infra_exchange_rate"})
 
     @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=False)

@@ -91,9 +91,10 @@ class QueryHandlerFeatureFlagTest(MasuTestCase):
             ann = self._make_handler().exchange_rate_annotation_dict
         self.assertEqual(set(ann.keys()), {"exchange_rate", "infra_exchange_rate"})
 
+    @patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=True)
     @patch("api.report.queries.validate_exchange_rate_coverage")
-    def test_initialize_response_output(self, mock_validate):
-        """_initialize_response_output includes currency and calls validation (flag ON by default)."""
+    def test_initialize_response_output(self, mock_validate, _):
+        """_initialize_response_output includes currency and calls validation (flag ON)."""
         handler = self._make_handler()
         output = handler._initialize_response_output(handler.parameters)
         self.assertIn("currency", output)
