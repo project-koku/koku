@@ -6,6 +6,7 @@
 import datetime
 
 from django.views.decorators.cache import never_cache
+from django_tenants.utils import schema_context
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
@@ -25,11 +26,16 @@ def monthly_exchange_rates(request):
     """Return stored MonthlyExchangeRate rows, optionally filtered by date range and currency pair.
 
     Query parameters:
-        start_date  - filter effective_date >= (YYYY-MM-DD, default: no lower bound)
-        end_date    - filter effective_date <= (YYYY-MM-DD, default: no upper bound)
+        schema          - tenant schema name (required)
+        start_date      - filter effective_date >= (YYYY-MM-DD, default: no lower bound)
+        end_date        - filter effective_date <= (YYYY-MM-DD, default: no upper bound)
         base_currency   - filter by base currency code
         target_currency - filter by target currency code
     """
+    schema = request.query_params.get("schema")
+    if not schema:
+        raise ValidationError({"schema": "This parameter is required."})
+
     filters = {}
     if start := request.query_params.get("start_date"):
         try:
@@ -48,10 +54,11 @@ def monthly_exchange_rates(request):
     if target := request.query_params.get("target_currency"):
         filters["target_currency"] = target.upper()
 
-    rates = list(
-        MonthlyExchangeRate.objects.filter(**filters)
-        .order_by("base_currency", "target_currency", "effective_date")
-        .values("effective_date", "base_currency", "target_currency", "exchange_rate", "rate_type")
-    )
+    with schema_context(schema):
+        rates = list(
+            MonthlyExchangeRate.objects.filter(**filters)
+            .order_by("base_currency", "target_currency", "effective_date")
+            .values("effective_date", "base_currency", "target_currency", "exchange_rate", "rate_type")
+        )
 
     return Response({"count": len(rates), "rates": rates})
