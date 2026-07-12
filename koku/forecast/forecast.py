@@ -206,7 +206,7 @@ class Forecast:
                 and self.currency
             ):
                 base_currencies = set(
-                    self.provider_map.query_table.objects.filter(
+                    self.cost_summary_table.objects.filter(
                         usage_start__gte=self.query_range[0],
                         usage_start__lte=self.query_range[1],
                     )
