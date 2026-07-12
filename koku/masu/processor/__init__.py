@@ -22,6 +22,12 @@ ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
 OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
 TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
+DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
+COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"
+COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
+CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lookup_enabled"
+OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
+CONSTANT_CURRENCY_FLAG = "cost-management.backend.constant-currency"
 
 
 def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):  # pragma: no cover
@@ -66,6 +72,16 @@ def is_ocp_on_cloud_summary_disabled(schema):  # pragma: no cover
     res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ocp-on-cloud-summary", context)
     if res:
         LOG.info(log_json(msg="OCP-on-Cloud summary processing disabled", context=context))
+
+    return res
+
+
+def is_cost_model_writes_disabled(schema):  # pragma: no cover
+    """Disable cost model writes during migration."""
+    context = {"schema": schema}
+    res = UNLEASH_CLIENT.is_enabled(COST_MODEL_WRITE_FREEZE_FLAG, context)
+    if res:
+        LOG.info(log_json(msg="cost model writes disabled for migration", context=context))
 
     return res
 

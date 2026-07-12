@@ -26,6 +26,7 @@ from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Value
 from django.db.models import When
@@ -35,9 +36,10 @@ from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
+from django_tenants.utils import tenant_context
 from pandas.api.types import CategoricalDtype
 
-from api.currency.models import ExchangeRateDictionary
+from api.currency.utils import validate_exchange_rate_coverage
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -45,6 +47,8 @@ from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
+from masu.processor import CONSTANT_CURRENCY_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
 
 LOG = logging.getLogger(__name__)
 
@@ -179,7 +183,14 @@ class ReportQueryHandler(QueryHandler):
     @property
     def report_annotations(self):
         """Return annotations with the correct capacity field."""
-        return self._mapper.report_type_map.get("annotations", {})
+        annotations = self._mapper.report_type_map.get("annotations", {})
+        if self.is_csv_output:
+            annotations = {
+                **annotations,
+                "base_currency": Max(self._mapper.cost_units_key),
+                "exchange_rate": Coalesce(Max("exchange_rate"), Value(1), output_field=DecimalField()),
+            }
+        return annotations
 
     @cached_property
     def query_table(self):
@@ -880,23 +891,6 @@ class ReportQueryHandler(QueryHandler):
                 group_by.append((db_name, group_pos, original_aws_category))
         return group_by
 
-    @cached_property
-    def exchange_rates(self):
-        try:
-            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
-        except AttributeError as err:
-            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
-            return {}
-
-    @cached_property
-    def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
-
     def _project_classification_annotation(self, query_data):
         """Get the correct annotation for a project or category"""
         whens = [
@@ -1070,7 +1064,32 @@ class ReportQueryHandler(QueryHandler):
         # remove access from the output
         output.pop("access")
 
+        if self.currency:
+            output["currency"] = self.currency
+            if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+                with tenant_context(self.tenant):
+                    validate_exchange_rate_coverage(
+                        self._get_base_currencies_for_conversion(),
+                        self.currency,
+                        self.start_datetime.date(),
+                        self.end_datetime.date(),
+                    )
+
         return output
+
+    def _get_base_currencies_for_conversion(self):
+        """Return the set of base currencies present in the query range.
+
+        Subclasses (e.g. OCP) can override to include additional currency sources.
+        """
+        return set(
+            self.query_table.objects.filter(
+                usage_start__gte=self.start_datetime.date(),
+                usage_start__lte=self.end_datetime.date(),
+            )
+            .values_list(self._mapper.cost_units_key, flat=True)
+            .distinct()
+        ) - {None}
 
     def _pack_data_object(self, data, **kwargs):  # noqa: C901
         """Pack data into object format."""
@@ -1342,9 +1361,29 @@ class ReportQueryHandler(QueryHandler):
         if self.order_field == "subscription_name":
             group_by_value.append("subscription_name")
 
+        # rank_group_by allows ranking at a finer granularity than the response group_by
+        # (e.g. mig_profiles ranks by (mig_profile, mig_id) so filter[limit] limits instances).
+        rank_group_by = self._mapper.report_type_map.get("rank_group_by", group_by_value)
+
+        # Annotate alias fields in rank_group_by (e.g. mig_id = F("mig_instance_id")) that
+        # are not in self.annotations. Skip F(same_name) aliases — those are direct model
+        # fields and re-annotating them raises "conflicts with a field on the model".
+        extra_rank_group_annotations = {
+            field: expr
+            for field in rank_group_by
+            if (expr := self.report_annotations.get(field)) is not None
+            and not (isinstance(expr, F) and expr.name == field)
+        }
+
+        # Do not re-annotate names that are already in the rank GROUP BY columns.
+        # Otherwise Django raises ValueError
+        for grouped_col in rank_group_by:
+            rank_annotations.pop(grouped_col, None)
+
         ranks = (
             query.annotate(**self.annotations)
-            .values(*group_by_value)
+            .annotate(**extra_rank_group_annotations)
+            .values(*rank_group_by)
             .annotate(**rank_annotations)
             .annotate(source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True))
         )
@@ -1361,19 +1400,21 @@ class ReportQueryHandler(QueryHandler):
         rankings = []
         distinct_ranks = []
         for rank in ranks:
-            rank_value = (rank.get(group) for group in group_by_value)
+            rank_value = tuple(rank.get(group) for group in rank_group_by)
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
-        return self._ranked_list(data, distinct_ranks, set(rank_annotations))
+        return self._ranked_list(data, distinct_ranks, set(rank_annotations), rank_group_by=rank_group_by)
 
-    def _ranked_list(self, data_list, ranks, rank_fields=None):  # noqa C901
+    def _ranked_list(self, data_list, ranks, rank_fields=None, rank_group_by=None):  # noqa C901
         """Get list of ranked items less than top.
 
         Args:
             data_list (List(Dict)): List of ranked data points from the same bucket
             ranks (List): list of ranks to use; overrides ranking that may present in data_list.
             rank_fields (Set): the fields on which ranking is performed.
+            rank_group_by (List): fields used for ranking; defaults to self._get_group_by().
+                When set, filter[limit] limits individual items rather than response groups.
         Returns:
             List(Dict): List of data points meeting the rank criteria
 
@@ -1382,6 +1423,8 @@ class ReportQueryHandler(QueryHandler):
             rank_fields = set()
         is_offset = "offset" in self.parameters.get("filter", {})
         group_by = self._get_group_by()
+        if rank_group_by is None:
+            rank_group_by = group_by
         self.max_rank = len(ranks)
         # Columns we drop in favor of the same named column merged in from rank data frame
         drop_columns = {"source_uuid"}
@@ -1391,6 +1434,10 @@ class ReportQueryHandler(QueryHandler):
         if not data_list:
             return data_list
         data_frame = pd.DataFrame(data_list)
+        # Rank rows may include dimensions not selected on the main queryset (e.g. subscription_name).
+        merge_rank_keys = [col for col in rank_group_by if col in data_frame.columns]
+        if not merge_rank_keys:
+            merge_rank_keys = list(rank_group_by)
 
         rank_data_frame = pd.DataFrame(ranks)
         rank_data_frame = rank_data_frame.drop(
@@ -1408,12 +1455,12 @@ class ReportQueryHandler(QueryHandler):
             drop_columns.add(col)
             agg_fields[col] = ["max"]
 
-        aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
+        aggs = data_frame.groupby(merge_rank_keys, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
         aggs.columns = columns
         aggs = aggs.reset_index()
         aggs = aggs.replace({np.nan: None})
-        rank_data_frame = rank_data_frame.merge(aggs, on=group_by)
+        rank_data_frame = rank_data_frame.merge(aggs, on=merge_rank_keys)
 
         # Create a dataframe of days in the query
         days = data_frame["date"].unique()
@@ -1430,7 +1477,7 @@ class ReportQueryHandler(QueryHandler):
         # Merge our data frame to "zero-fill" missing data for each rank field
         # per day in the query, using a RIGHT JOIN
         account_aliases = None
-        merge_on = group_by + ["date"]
+        merge_on = merge_rank_keys + ["date"]
         if self.is_aws and "account" in group_by:
             account_aliases = data_frame[["account", "account_alias"]]
             account_aliases = account_aliases.drop_duplicates(subset="account")
@@ -1446,13 +1493,14 @@ class ReportQueryHandler(QueryHandler):
                 (data_frame["rank"] > self._offset) & (data_frame["rank"] <= (self._offset + self._limit))
             ]
         else:
-            # Get others category
-            others_data_frame = self._aggregate_ranks_over_limit(data_frame, group_by)
-            # Reduce data to limit
-            data_frame = data_frame[data_frame["rank"] <= self._limit]
-
-            # Add the others category to the data set
-            data_frame = pd.concat([data_frame, others_data_frame])
+            include_others = self._mapper.report_type_map.get("rank_limit_include_others", True)
+            if include_others:
+                # Aggregate rank > limit before trimming; _aggregate_ranks_over_limit needs those rows.
+                others_data_frame = self._aggregate_ranks_over_limit(data_frame, group_by)
+                data_frame = data_frame[data_frame["rank"] <= self._limit]
+                data_frame = pd.concat([data_frame, others_data_frame])
+            else:
+                data_frame = data_frame[data_frame["rank"] <= self._limit]
 
         # Replace NaN with 0
         numeric_columns = [col for col in self.report_annotations if "unit" not in col]

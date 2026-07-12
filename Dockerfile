@@ -17,17 +17,6 @@ ENV PYTHON_VERSION=3.11 \
 ENV SUMMARY="Koku is the Cost Management application" \
     DESCRIPTION="Koku is the Cost Management application"
 
-LABEL summary="$SUMMARY" \
-    description="$DESCRIPTION" \
-    io.k8s.description="$DESCRIPTION" \
-    io.k8s.display-name="Koku" \
-    io.openshift.expose-services="8000:http" \
-    io.openshift.tags="builder,python,python3.11,rh-python3.11" \
-    com.redhat.component="python3.11-docker" \
-    name="Koku" \
-    version="1" \
-    maintainer="Red Hat Cost Management Services <cost-mgmt@redhat.com>"
-
 # Very minimal set of packages
 # glibc-langpack-en is needed to set locale to en_US and disable warning about it
 # gcc to compile some python packages (e.g. ciso8601)
@@ -59,7 +48,7 @@ COPY Pipfile .
 COPY Pipfile.lock .
 RUN \
     # install the dependencies into the working dir (i.e. ${APP_ROOT}/.venv)
-    pipenv install --deploy && \
+    pipenv sync && \
     # delete the pipenv cache
     pipenv --clear
 
@@ -95,6 +84,18 @@ EXPOSE 8000
 # Set this at the end to leverage build caching
 ARG GIT_COMMIT=undefined
 ENV GIT_COMMIT=${GIT_COMMIT}
+
+ARG IMAGE_NAME=Koku
+LABEL summary="$SUMMARY" \
+    description="$DESCRIPTION" \
+    io.k8s.description="$DESCRIPTION" \
+    io.k8s.display-name="Koku" \
+    io.openshift.expose-services="8000:http" \
+    io.openshift.tags="builder,python,python3.11,rh-python3.11" \
+    com.redhat.component="python3.11-docker" \
+    name="$IMAGE_NAME" \
+    version="1" \
+    maintainer="Red Hat Cost Management Services <cost-mgmt@redhat.com>"
 
 # Set the default CMD.
 CMD ["./scripts/entrypoint.sh"]

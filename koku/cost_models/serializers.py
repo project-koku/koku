@@ -13,7 +13,7 @@ from rest_framework import serializers
 
 from api.common import error_obj
 from api.common import log_json
-from api.currency.currencies import CURRENCY_CHOICES
+from api.currency.currencies import CurrencyField
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
@@ -23,6 +23,8 @@ from api.utils import get_currency
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
+from cost_models.price_list_manager import PriceListManager
+from masu.processor import is_cost_model_writes_disabled
 
 MARKUP_CHOICES = (("percent", "%"),)
 TAG_RATE_ONLY = (metric_constants.OCP_PROJECT_MONTH,)
@@ -93,7 +95,7 @@ class TieredRateSerializer(serializers.Serializer):
 
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     usage = serializers.DictField(required=False)
-    unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
+    unit = CurrencyField(enabled_only=False)
 
     def validate_value(self, value):
         """Check that value is a positive value."""
@@ -131,10 +133,10 @@ class TagRateValueSerializer(serializers.Serializer):
     DECIMALS = ("value", "usage_start", "usage_end")
 
     tag_value = serializers.CharField(max_length=100)
-    unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
+    unit = CurrencyField(enabled_only=False)
     usage = serializers.DictField(required=False)
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
-    description = serializers.CharField(allow_blank=True, max_length=500)
+    description = serializers.CharField(allow_blank=True, max_length=500, required=False)
     default = serializers.BooleanField()
 
     def validate_value(self, value):
@@ -211,6 +213,7 @@ class RateSerializer(serializers.Serializer):
     DECIMALS = ("value", "usage_start", "usage_end")
     RATE_TYPES = ("tiered_rates", "tag_rates")
 
+    custom_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
     metric = serializers.DictField(required=True)
     cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
     description = serializers.CharField(allow_blank=True, max_length=500, required=False)
@@ -353,36 +356,37 @@ class RateSerializer(serializers.Serializer):
             error_msg = f"Missing rate information: one of {rate_keys_str}"
             raise serializers.ValidationError(error_msg)
 
+    @staticmethod
+    def _normalize_tiered_rate(rate):
+        """Convert decimals and ensure usage dict structure on a single tiered rate."""
+        RateSerializer._convert_to_decimal(rate)
+        if not rate.get("usage"):
+            usage_start = rate.pop("usage_start", None)
+            usage_end = rate.pop("usage_end", None)
+            if usage_start is not None or usage_end is not None:
+                rate["usage"] = {
+                    "usage_start": usage_start,
+                    "usage_end": usage_end,
+                    "unit": rate.get("unit"),
+                }
+
     def to_representation(self, rate_obj):
         """Create external representation of a rate."""
         out = {
             "metric": {"name": rate_obj.get("metric", {}).get("name")},
             "description": rate_obj.get("description", ""),
         }
+        if "custom_name" in rate_obj:
+            out["custom_name"] = rate_obj["custom_name"]
 
-        # Specifically handling only tiered rates now
-        # with the expectation that this code will be generalized
-        # when other rate types (e.g. markup) are introduced
         tiered_rates = rate_obj.get("tiered_rates", [])
         if tiered_rates:
             for rates in tiered_rates:
                 if isinstance(rates, list):
                     for rate in rates:
-                        RateSerializer._convert_to_decimal(rate)
-                        if not rate.get("usage"):
-                            rate["usage"] = {
-                                "usage_start": rate.pop("usage_start", None),
-                                "usage_end": rate.pop("usage_end", None),
-                                "unit": rate.get("unit"),
-                            }
+                        self._normalize_tiered_rate(rate)
                 else:
-                    RateSerializer._convert_to_decimal(rates)
-                    if not rates.get("usage"):
-                        rates["usage"] = {
-                            "usage_start": rates.pop("usage_start", None),
-                            "usage_end": rates.pop("usage_end", None),
-                            "unit": rates.get("unit"),
-                        }
+                    self._normalize_tiered_rate(rates)
             out.update({"tiered_rates": tiered_rates, "cost_type": rate_obj.get("cost_type")})
             return out
 
@@ -395,9 +399,19 @@ class RateSerializer(serializers.Serializer):
         return out
 
     def to_internal_value(self, data):
-        """Convert the JSON representation of rate to DB representation."""
-        metric = data.get("metric", {})
-        new_metric = {"name": metric.get("name")}
+        """Convert the JSON representation of rate to DB representation.
+
+        Silently strips rate_id (internal enrichment field) that the UI may
+        round-trip back. We cannot call super().to_internal_value() because
+        validate_cost_type has a non-standard signature (2 args) that DRF's
+        field-level validation would call incorrectly.
+        """
+        data.pop("rate_id", None)
+        custom_name = data.get("custom_name")
+        if custom_name is not None and len(custom_name) > 50:
+            raise serializers.ValidationError({"custom_name": "Ensure this field has no more than 50 characters."})
+        metric = data.get("metric") or {}
+        new_metric = {"name": metric.get("name") if isinstance(metric, dict) else None}
         data["metric"] = new_metric
         return data
 
@@ -419,7 +433,8 @@ class CostModelSerializer(BaseSerializer):
     source_type = serializers.CharField(required=True)
 
     source_uuids = serializers.ListField(
-        child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field="uuid"), required=False
+        child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field="uuid"),
+        required=False,
     )
 
     created_timestamp = serializers.DateTimeField(read_only=True)
@@ -436,7 +451,9 @@ class CostModelSerializer(BaseSerializer):
 
     distribution_info = DistributionSerializer(required=False)
 
-    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
+    currency = CurrencyField(required=False, enabled_only=True)
+
+    price_list_uuids = serializers.ListField(child=serializers.UUIDField(), required=False)
 
     @property
     def customer(self):
@@ -483,7 +500,8 @@ class CostModelSerializer(BaseSerializer):
             rate_tag_key = rate.get("tag_rates", {}).get("tag_key")
             tag_keys = tag_metrics[rate_cost_type].get(rate_metric_name)
             err_msg = (
-                f"Duplicate tag_key ({rate_tag_key}) per cost_type ({rate_cost_type}) for metric ({rate_metric_name})."
+                f"Duplicate tag_key ({rate_tag_key}) per cost_type ({rate_cost_type})"
+                f" for metric ({rate_metric_name})."
             )
             if tag_keys:
                 if rate_tag_key in tag_keys:
@@ -545,14 +563,18 @@ class CostModelSerializer(BaseSerializer):
             LOG.warning(
                 log_json(
                     msg="Source UUID validation failed. Provider object does not exist with one or more of the uuids.",
-                    context={"source_uuids": source_uuids, "schema": self.customer.schema_name},
+                    context={
+                        "source_uuids": source_uuids,
+                        "schema": self.customer.schema_name,
+                    },
                 )
             )
             raise serializers.ValidationError("Invalid request. Source UUID validation failed.")
 
         return source_uuids
 
-    def validate_rates_currency(self, data):
+    @staticmethod
+    def validate_rates_currency(data):
         """Validate incoming currency and rates all match."""
         err_msg = "Rate units must match currency provided in a cost model."
         for rate in data.get("rates"):
@@ -580,6 +602,12 @@ class CostModelSerializer(BaseSerializer):
                 tag_rates.append(rate)
         if tag_rates:
             CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
+        explicit_names = [r.get("custom_name") for r in rates if r.get("custom_name")]
+        dupes = {n for n in explicit_names if explicit_names.count(n) > 1}
+        if dupes:
+            raise serializers.ValidationError(
+                f"Duplicate custom_name values in a single request are not allowed: {sorted(dupes)}"
+            )
         return validated_rates
 
     def validate_distribution(self, distribution):
@@ -590,18 +618,41 @@ class CostModelSerializer(BaseSerializer):
             raise serializers.ValidationError(error_msg)
         return distribution
 
+    def _check_write_freeze(self):
+        """Raise ValidationError if cost model writes are frozen for migration."""
+        schema = self.customer.schema_name if self.customer else None
+        if schema and is_cost_model_writes_disabled(schema):
+            raise serializers.ValidationError(
+                error_obj(
+                    "cost-models",
+                    "Cost model writes are temporarily disabled during migration.",
+                )
+            )
+
     def create(self, validated_data):
         """Create the cost model object in the database."""
+        self._check_write_freeze()
         source_uuids = validated_data.pop("source_uuids", [])
+        price_list_uuids = validated_data.pop("price_list_uuids", [])
         validated_data.update({"provider_uuids": source_uuids})
         try:
-            return CostModelManager().create(**validated_data)
+            cost_model = CostModelManager().create(**validated_data)
         except CostModelException as error:
             raise serializers.ValidationError(error_obj("cost-models", str(error)))
+        if price_list_uuids:
+            from cost_models.price_list_manager import PriceListException
+
+            try:
+                PriceListManager.attach_price_lists_to_cost_model(cost_model.uuid, price_list_uuids)
+            except PriceListException as error:
+                raise serializers.ValidationError(error_obj("cost-models", str(error)))
+        return cost_model
 
     def update(self, instance, validated_data, *args, **kwargs):
         """Update the rate object in the database."""
+        self._check_write_freeze()
         source_uuids = validated_data.pop("source_uuids", [])
+        price_list_uuids = validated_data.pop("price_list_uuids", None)
         new_providers_for_instance = []
         for uuid in source_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
@@ -611,6 +662,13 @@ class CostModelSerializer(BaseSerializer):
             manager.update(**validated_data)
         except CostModelException as error:
             raise serializers.ValidationError(error_obj("cost-models", str(error)))
+        if price_list_uuids is not None:
+            from cost_models.price_list_manager import PriceListException
+
+            try:
+                PriceListManager.attach_price_lists_to_cost_model(instance.uuid, price_list_uuids)
+            except PriceListException as error:
+                raise serializers.ValidationError(error_obj("cost-models", str(error)))
         return manager.instance
 
     def to_representation(self, cost_model_obj):
@@ -638,12 +696,26 @@ class CostModelSerializer(BaseSerializer):
             source_type = SOURCE_TYPE_MAP[source_type]
         rep["source_type"] = source_type
 
-        rep["source_uuids"] = rep.get("provider_uuids", [])
-        if rep.get("provider_uuids"):
-            del rep["provider_uuids"]
-        cm_uuid = cost_model_obj.uuid
-        source_uuids = CostModelManager(cm_uuid).get_provider_names_uuids()
-        rep.update({"sources": source_uuids})
+        manager = CostModelManager()
+        manager._model = cost_model_obj
+        sources = manager.get_provider_names_uuids()
+        rep["source_uuids"] = [source["uuid"] for source in sources]
+        rep["sources"] = sources
+
+        price_list_maps = cost_model_obj.price_list_maps.all()
+        rep["price_lists"] = [
+            {
+                "uuid": str(m.price_list.uuid),
+                "name": m.price_list.name,
+                "priority": m.priority,
+                "version": m.price_list.version,
+                "enabled": m.price_list.enabled,
+                "effective_start_date": m.price_list.effective_start_date.isoformat(),
+                "effective_end_date": m.price_list.effective_end_date.isoformat(),
+            }
+            for m in price_list_maps
+        ]
+
         return rep
 
     def to_internal_value(self, data):

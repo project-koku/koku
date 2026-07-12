@@ -1007,7 +1007,9 @@ class OCPGpuSummaryP(models.Model):
     vendor_name = models.CharField(max_length=128, null=True)
     model_name = models.CharField(max_length=128, null=True)
     memory_capacity_gb = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    gpu_count = models.IntegerField(null=True)
+    gpu_count = models.IntegerField(null=True)  # TODO: Remove this field
+    mig_instance_id = models.CharField(max_length=128, null=True)
+    gpu_uuid = models.CharField(max_length=128, null=True)
 
     # MIG (Multi-Instance GPU) fields
     gpu_mode = models.CharField(max_length=32, null=True)  # 'dedicated' or 'MIG'
@@ -1032,6 +1034,107 @@ class OCPGpuSummaryP(models.Model):
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
+
+
+class RatesToUsage(models.Model):
+    """Per-rate cost rows produced by the Phase 2 SQL pipeline.
+
+    Partitioned by usage_start (same strategy as all OCP reporting tables).
+    See docs/architecture/cost-breakdown/data-model.md § RatesToUsage.
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        db_table = "rates_to_usage"
+        indexes = [
+            models.Index(
+                fields=["usage_start", "source_uuid", "report_period_id"],
+                name="ratestousage_start_src_rp_idx",
+            ),
+            models.Index(fields=["namespace"], name="ratestousage_namespace_idx"),
+            models.Index(fields=["cluster_id"], name="ratestousage_cluster_idx"),
+            models.Index(fields=["custom_name"], name="ratestousage_custom_name_idx"),
+            models.Index(fields=["monthly_cost_type"], name="ratestousage_monthly_cost_idx"),
+            models.Index(fields=["label_hash"], name="ratestousage_label_hash_idx"),
+        ]
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    rate = models.ForeignKey("cost_models.Rate", on_delete=models.SET_NULL, null=True)
+    cost_model = models.ForeignKey("cost_models.CostModel", on_delete=models.SET_NULL, null=True)
+    report_period_id = models.IntegerField(null=True)
+    source_uuid = models.UUIDField()
+    usage_start = models.DateField()
+    usage_end = models.DateField()
+    node = models.CharField(max_length=253, null=True)
+    namespace = models.CharField(max_length=253, null=True)
+    cluster_id = models.TextField()
+    cluster_alias = models.TextField(null=True)
+    data_source = models.CharField(max_length=63, null=True)
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
+    pod_labels = JSONField(null=True)
+    volume_labels = JSONField(null=True)
+    all_labels = JSONField(null=True)
+    custom_name = models.CharField(max_length=50)
+    metric_type = models.CharField(max_length=20)
+    cost_model_rate_type = models.TextField(null=True)
+    monthly_cost_type = models.TextField(null=True)
+    calculated_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
+    labels = JSONField(null=True)
+    label_hash = models.CharField(max_length=64, null=True)
+
+
+class OCPCostUIBreakDownP(models.Model):
+    """UI summary table for the per-rate cost breakdown API.
+
+    Populated from RatesToUsage. Partitioned by usage_start.
+    See docs/architecture/cost-breakdown/data-model.md § OCPCostUIBreakDownP.
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        db_table = "reporting_ocp_cost_breakdown_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpcostbreakdown_usage_start"),
+            models.Index(fields=["namespace"], name="ocpcostbreakdown_namespace"),
+            models.Index(fields=["cluster_id"], name="ocpcostbreakdown_cluster_id"),
+            models.Index(fields=["custom_name"], name="ocpcostbreakdown_custom_name"),
+            models.Index(fields=["path"], name="ocpcostbreakdown_path"),
+            models.Index(fields=["depth"], name="ocpcostbreakdown_depth"),
+            models.Index(fields=["top_category"], name="ocpcostbreakdown_top_category"),
+            models.Index(fields=["usage_start", "source_uuid"], name="ocpcostbreakdown_start_src_idx"),
+            models.Index(fields=["node"], name="ocpcostbreakdown_node_idx"),
+        ]
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    usage_start = models.DateField()
+    usage_end = models.DateField()
+    source_uuid = models.ForeignKey(
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+    cluster_id = models.TextField()
+    cluster_alias = models.TextField(null=True)
+    namespace = models.CharField(max_length=253, null=True)
+    node = models.CharField(max_length=253, null=True)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
+    custom_name = models.CharField(max_length=50)
+    metric_type = models.CharField(max_length=30)
+    cost_model_rate_type = models.TextField(null=True)
+    cost_value = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    raw_currency = models.TextField(null=True)
+    path = models.CharField(max_length=512)
+    depth = models.SmallIntegerField()
+    parent_path = models.CharField(max_length=512)
+    top_category = models.CharField(max_length=512)
+    breakdown_category = models.CharField(max_length=50)
 
 
 # Import on-prem line item models so Django can discover them for migrations

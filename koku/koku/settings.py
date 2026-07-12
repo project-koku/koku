@@ -17,9 +17,11 @@ import datetime
 import logging
 import os
 import re
+import ssl
 import sys
 from enum import StrEnum
 from json import JSONDecodeError
+from urllib.parse import quote
 
 import boto3
 import pandas as pd
@@ -217,13 +219,31 @@ HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 REDIS_HOST = CONFIGURATOR.get_in_memory_db_host()
 REDIS_PORT = CONFIGURATOR.get_in_memory_db_port()
 REDIS_DB = 1
-REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+REDIS_USERNAME = ENVIRONMENT.get_value("REDIS_USERNAME", default="") or None
+REDIS_PASSWORD = ENVIRONMENT.get_value("REDIS_PASSWORD", default="") or None
+REDIS_SSL = ENVIRONMENT.bool("REDIS_SSL", default=False)
+REDIS_SSL_CA_CERTS = ENVIRONMENT.get_value("REDIS_SSL_CA_CERTS", default="")
+
+_redis_scheme = "rediss" if REDIS_SSL else "redis"
+if REDIS_USERNAME and REDIS_PASSWORD:
+    _redis_auth = f"{quote(REDIS_USERNAME)}:{quote(REDIS_PASSWORD)}@"
+elif REDIS_PASSWORD:
+    _redis_auth = f":{quote(REDIS_PASSWORD)}@"
+else:
+    _redis_auth = ""
+REDIS_URL = f"{_redis_scheme}://{_redis_auth}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+
 REDIS_HEALTH_CHECK_INTERVAL = 5
 REDIS_RETRY_ON_TIMEOUT = True
 REDIS_CONNECTION_POOL_KWARGS = {
     "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
     "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
 }
+if REDIS_SSL:
+    REDIS_SSL_CERT_REQS = ssl.CERT_REQUIRED if REDIS_SSL_CA_CERTS else ssl.CERT_NONE
+    REDIS_CONNECTION_POOL_KWARGS["ssl_cert_reqs"] = REDIS_SSL_CERT_REQS
+    if REDIS_SSL_CA_CERTS:
+        REDIS_CONNECTION_POOL_KWARGS["ssl_ca_certs"] = REDIS_SSL_CA_CERTS
 
 KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
 
@@ -276,7 +296,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.api: {
@@ -290,7 +310,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.rbac: {
@@ -302,7 +322,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.worker: {
@@ -662,6 +682,12 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_CONCURRENCY = 1
 CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = REDIS_HEALTH_CHECK_INTERVAL
 CELERY_REDIS_RETRY_ON_TIMEOUT = REDIS_RETRY_ON_TIMEOUT
+if REDIS_SSL:
+    _celery_ssl_conf = {"ssl_cert_reqs": REDIS_SSL_CERT_REQS}
+    if REDIS_SSL_CA_CERTS:
+        _celery_ssl_conf["ssl_ca_certs"] = REDIS_SSL_CA_CERTS
+    CELERY_BROKER_USE_SSL = _celery_ssl_conf
+    CELERY_REDIS_BACKEND_USE_SSL = _celery_ssl_conf
 
 # HCS debugging
 ENABLE_HCS_DEBUG = ENVIRONMENT.bool("ENABLE_HCS_DEBUG", default=False)

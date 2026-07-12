@@ -43,9 +43,15 @@ from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import TRINO_MANAGED_TABLES
 from reporting.provider.all.models import TagMapping
-from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
-from reporting.provider.azure.models import TRINO_LINE_ITEM_DAILY_TABLE as AZURE_TRINO_LINE_ITEM_DAILY_TABLE
-from reporting.provider.gcp.models import TRINO_LINE_ITEM_DAILY_TABLE as GCP_TRINO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.aws.models import (
+    TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE,
+)
+from reporting.provider.azure.models import (
+    TRINO_LINE_ITEM_DAILY_TABLE as AZURE_TRINO_LINE_ITEM_DAILY_TABLE,
+)
+from reporting.provider.gcp.models import (
+    TRINO_LINE_ITEM_DAILY_TABLE as GCP_TRINO_LINE_ITEM_DAILY_TABLE,
+)
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
@@ -156,7 +162,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         # Don't use context manager here - its __exit__ resets schema to public,
         # which would break subsequent ORM operations in the calling code
-        cost_model_accessor = CostModelDBAccessor(self.schema, sql_params.get("source_uuid"))
+        cost_model_accessor = CostModelDBAccessor(
+            self.schema,
+            sql_params.get("source_uuid"),
+            price_list_effective_on=DateHelper().parse_to_date(sql_params.get("start_date")),
+        )
         # Check to see if the cost model is set up to give cost
         if cost_model_accessor.metric_to_tag_params_map.get(metric_constants.OCP_GPU_MONTH):
             return
@@ -164,7 +174,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         cluster_id = get_cluster_id_from_provider(sql_params.get("source_uuid"))
         if not cluster_id:
             LOG.info(
-                log_json(msg="No cluster_id found for source, skipping GPU UI table population.", context=sql_params)
+                log_json(
+                    msg="No cluster_id found for source, skipping GPU UI table population.",
+                    context=sql_params,
+                )
             )
             return
 
@@ -180,11 +193,65 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if is_onprem:
             # On-prem: execute via PostgreSQL
             self._prepare_and_execute_raw_sql_query(
-                "reporting_ocp_gpu_summary_p", populate_gpu_usage_info, sql_params, operation="INSERT"
+                "reporting_ocp_gpu_summary_p",
+                populate_gpu_usage_info,
+                sql_params,
+                operation="INSERT",
             )
         else:
             # SaaS: execute via Trino
             self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
+
+    def _reporting_period_has_gpu_data(self, source_uuid: uuid.UUID, start_date) -> bool:
+        """
+        Return True if the cluster/source has GPU data for the given reporting period.
+
+        Used as a gate to skip GPU full-month summary and distribution when
+        the cluster has no GPU data for the period, avoiding unnecessary work.
+
+        Args:
+            source_uuid: Provider UUID to check.
+            start_date: A date/datetime in the target month. Year and month are extracted from it.
+        """
+        gpu_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP["gpu_usage"]
+        year = str(start_date.year)
+        month = str(start_date.month).zfill(2)
+        month_no_zero = month.lstrip("0") or "0"
+        trino_select_statement = f"""
+SELECT count(*) FROM hive.{self.schema}."{gpu_table}$partitions"
+"""
+        postgres_select_statement = f"""
+SELECT count(*) FROM "{self.schema}"."{gpu_table}"
+"""
+        where_statement = """
+WHERE source = {{source_uuid}}
+AND year = {{year}}
+AND (month = {{month_no_zero}} OR month = {{month}})
+"""
+        sql_params = {
+            "source_uuid": str(source_uuid),
+            "year": year,
+            "month": month,
+            "month_no_zero": month_no_zero,
+        }
+        if not trino_table_exists(self.schema, gpu_table):
+            return False
+
+        if self.get_sql_folder_name() == "trino_sql":
+            source_available = self._execute_trino_raw_sql_query(
+                trino_select_statement + where_statement,
+                sql_params=sql_params,
+                log_ref=f"Checking if source has GPU data in {gpu_table} for {year}-{month}",
+            )[0][0]
+            return bool(source_available)
+        rows = self._prepare_and_execute_raw_sql_query(
+            gpu_table,
+            postgres_select_statement + where_statement,
+            sql_params,
+            operation="VALIDATION_QUERY",
+        )
+        source_available = rows[0][0] if rows else 0
+        return bool(source_available)
 
     def _populate_virtualization_ui_summary_table(self, params):
         """
@@ -205,7 +272,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         create_temp_table_sql = pkgutil.get_data("masu.database", "sql/openshift/create_virtualization_tmp_table.sql")
         create_temp_table_sql = create_temp_table_sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(
-            "create temp virtualization table", create_temp_table_sql, sql_params, operation="CREATE"
+            "create temp virtualization table",
+            create_temp_table_sql,
+            sql_params,
+            operation="CREATE",
         )
         # This pathway won't be needed if/when we require users to utilize 4.0.0 operator
         population_temp_table_file = "populate_vm_tmp_table.sql"
@@ -213,7 +283,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if trino_table_exists(self.schema, vm_report_table):
             source_uuid = sql_params.get("source_uuid")
             source_sql = get_report_db_accessor().get_check_source_in_partitions_sql(
-                schema_name=self.schema, table_name=vm_report_table, source_uuid=source_uuid
+                schema_name=self.schema,
+                table_name=vm_report_table,
+                source_uuid=source_uuid,
             )
             source_available = self._execute_trino_raw_sql_query(
                 source_sql,
@@ -222,7 +294,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             if source_available:
                 population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
         populate_temp_table_sql = pkgutil.get_data(
-            "masu.database", f"{self.get_sql_folder_name()}/openshift/{population_temp_table_file}"
+            "masu.database",
+            f"{self.get_sql_folder_name()}/openshift/{population_temp_table_file}",
         )
         populate_temp_table_sql = populate_temp_table_sql.decode("utf8")
         self._execute_trino_multipart_sql_query(populate_temp_table_sql, bind_params=sql_params)
@@ -399,7 +472,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             provider_uuid: The provider UUID to delete data for
         """
         from reporting.provider.ocp.self_hosted_models import get_self_hosted_models
-        from reporting.provider.ocp.self_hosted_models import OCPUsageLineItemDailySummaryStaging
+        from reporting.provider.ocp.self_hosted_models import (
+            OCPUsageLineItemDailySummaryStaging,
+        )
 
         provider_uuid_str = str(provider_uuid)
         total_deleted = 0
@@ -442,7 +517,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             LOG.info("Could not find table.")
             return False
         sql = get_report_db_accessor().get_expired_data_ocp_sql(
-            schema_name=self.schema, table_name=table, source_column=source_column, expired_date=date_str
+            schema_name=self.schema,
+            table_name=table,
+            source_column=source_column,
+            expired_date=date_str,
         )
         return self._execute_trino_raw_sql_query(sql, log_ref="finding expired partitions")
 
@@ -476,7 +554,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self.delete_ocp_hive_partition_by_day(days_tup, source, year, month)
 
         sql = pkgutil.get_data(
-            "masu.database", f"{self.get_sql_folder_name()}/openshift/reporting_ocpusagelineitem_daily_summary.sql"
+            "masu.database",
+            f"{self.get_sql_folder_name()}/openshift/reporting_ocpusagelineitem_daily_summary.sql",
         )
         sql = sql.decode("utf-8")
         sql_params = {
@@ -526,7 +605,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         ctx = self.extract_context_from_sql_params(sql_params)
         LOG.info(log_json(msg=f"updating {table_name}", context=ctx))
         self._execute_processing_script(
-            "masu.database", "sql/openshift/reporting_ocpusagepodlabel_summary.sql", sql_params
+            "masu.database",
+            "sql/openshift/reporting_ocpusagepodlabel_summary.sql",
+            sql_params,
         )
         LOG.info(log_json(msg=f"finished updating {table_name}", context=ctx))
 
@@ -544,26 +625,45 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         ctx = self.extract_context_from_sql_params(sql_params)
         LOG.info(log_json(msg=f"updating {table_name}", context=ctx))
         self._execute_processing_script(
-            "masu.database", "sql/openshift/reporting_ocpstoragevolumelabel_summary.sql", sql_params
+            "masu.database",
+            "sql/openshift/reporting_ocpstoragevolumelabel_summary.sql",
+            sql_params,
         )
         LOG.info(log_json(msg=f"finished updating {table_name}", context=ctx))
 
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
         OCPUsageLineItemDailySummary.objects.filter(
-            cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
+            cluster_id=cluster_id,
+            usage_start__gte=start_date,
+            usage_start__lte=end_date,
         ).update(
             infrastructure_markup_cost=(
-                (Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))) * markup
+                (
+                    Coalesce(
+                        F("infrastructure_raw_cost"),
+                        Value(0, output_field=DecimalField()),
+                    )
+                )
+                * markup
             ),
             infrastructure_project_markup_cost=(
-                (Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))) * markup
+                (
+                    Coalesce(
+                        F("infrastructure_project_raw_cost"),
+                        Value(0, output_field=DecimalField()),
+                    )
+                )
+                * markup
             ),
         )
 
-    def populate_distributed_cost_sql(
-        self, summary_range: SummaryRangeConfig, provider_uuid: uuid.UUID, distribution_info: dict
-    ) -> None:
+    def populate_distributed_cost_sql(  # noqa: C901
+        self,
+        summary_range: SummaryRangeConfig,
+        provider_uuid: uuid.UUID,
+        distribution_info: dict,
+    ) -> SummaryRangeConfig:
         """
         Populate the distribution cost model options.
 
@@ -617,12 +717,37 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 if summary_range.is_current_month:
                     # Trigger distribution for previous month on the second of the current month
                     if dh.now_utc.day == 2:
+                        if OCPUsageLineItemDailySummary.objects.filter(
+                            source_uuid=provider_uuid,
+                            usage_start__gte=summary_range.start_of_previous_month,
+                            usage_start__lte=summary_range.end_of_previous_month,
+                            cost_model_rate_type=config.cost_model_rate_type,
+                        ).exists():
+                            msg = f"Skipping {cost_model_key} distribution - previous month already finalized"
+                            LOG.info(
+                                log_json(
+                                    msg=msg,
+                                    context={
+                                        "schema": self.schema,
+                                        "provider_uuid": str(provider_uuid),
+                                    },
+                                )
+                            )
+                            continue
                         sql_params["start_date"] = summary_range.start_of_previous_month
                         sql_params["end_date"] = summary_range.end_of_previous_month
                         summary_range.summarize_previous_month = True
                     else:
                         msg = f"Skipping {cost_model_key} distribution requires full month"
-                        LOG.info(log_json(msg=msg, context={"schema": self.schema, "cost_model_key": cost_model_key}))
+                        LOG.info(
+                            log_json(
+                                msg=msg,
+                                context={
+                                    "schema": self.schema,
+                                    "cost_model_key": cost_model_key,
+                                },
+                            )
+                        )
                         continue
                 else:
                     sql_params["start_date"] = summary_range.start_of_month
@@ -644,6 +769,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             populate = distribution_info.get(cost_model_key, config.distribute_by_default)
             if not populate:
                 continue
+            # Gate: skip GPU distribution if cluster has no GPU data for the period
+            if cost_model_key == metric_constants.GPU_UNALLOCATED and not self._reporting_period_has_gpu_data(
+                provider_uuid, sql_params["start_date"]
+            ):
+                msg = "Skipping GPU full-month summary: no GPU data for cluster"
+                LOG.info(
+                    log_json(
+                        msg=msg,
+                        context={
+                            "schema": self.schema,
+                            "provider_uuid": str(provider_uuid),
+                        },
+                    )
+                )
+                continue
             sql_params["distribution"] = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
             sql = pkgutil.get_data("masu.database", config.get_full_path())
             sql = sql.decode("utf-8")
@@ -658,7 +798,15 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         f"Skipping {cost_model_key} distribution - "
                         f"required table '{config.required_table}' does not exist"
                     )
-                    LOG.info(log_json(msg=msg, context={"schema": self.schema, "cost_model_key": cost_model_key}))
+                    LOG.info(
+                        log_json(
+                            msg=msg,
+                            context={
+                                "schema": self.schema,
+                                "cost_model_key": cost_model_key,
+                            },
+                        )
+                    )
                     continue
                 start_date_parsed = DateHelper().parse_to_date(sql_params["start_date"])
                 sql_params["year"] = start_date_parsed.strftime("%Y")
@@ -671,12 +819,16 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def _delete_monthly_cost_model_rate_type_data(self, sql_params, cost_model_key):
         delete_sql = pkgutil.get_data(
-            "masu.database", "sql/openshift/cost_model/delete_monthly_cost_model_rate_type.sql"
+            "masu.database",
+            "sql/openshift/cost_model/delete_monthly_cost_model_rate_type.sql",
         )
         delete_sql = delete_sql.decode("utf-8")
         LOG.info(log_json(msg=f"removing {cost_model_key} distribution", context=sql_params))
         self._prepare_and_execute_raw_sql_query(
-            self._table_map["line_item_daily_summary"], delete_sql, sql_params, operation="DELETE"
+            self._table_map["line_item_daily_summary"],
+            delete_sql,
+            sql_params,
+            operation="DELETE",
         )
 
     def _delete_monthly_cost_model_data(self, sql_params, ctx):
@@ -687,10 +839,56 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         else:
             LOG.info(log_json(msg="removing stale monthly costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(
-            self._table_map["line_item_daily_summary"], delete_sql, sql_params, operation="DELETE"
+            self._table_map["line_item_daily_summary"],
+            delete_sql,
+            sql_params,
+            operation="DELETE",
         )
 
-    def populate_monthly_cost_sql(self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid):
+    @staticmethod
+    def _get_routing_metric_type(cost_type=None, distribution=None, usage_type=None, metric_name=None):
+        """Map cost parameters to the aggregation routing bucket.
+
+        The aggregation SQL routes ``calculated_cost`` into daily-summary
+        columns using ``metric_type``:
+          cpu     -> cost_model_cpu_cost
+          memory  -> cost_model_memory_cost
+          storage -> cost_model_volume_cost
+          gpu     -> cost_model_gpu_cost
+
+        ``usage_type`` (from tag-rate loops) already carries the right
+        value and is returned as-is.
+        """
+        if usage_type:
+            return usage_type
+        if cost_type == "PVC":
+            return "storage"
+        if metric_name and "gpu" in metric_name:
+            return "gpu"
+        if cost_type in (
+            "Node",
+            "Node_Core_Month",
+            "Cluster",
+            "OCP_VM",
+            "OCP_VM_CORE",
+            "Node_Core_Hour",
+        ):
+            return "cpu" if distribution == "cpu" else "memory"
+        return "cpu"
+
+    def populate_monthly_cost_sql(
+        self,
+        cost_type,
+        rate_type,
+        rate,
+        start_date,
+        end_date,
+        distribution,
+        provider_uuid,
+        cost_model_id=None,
+        rate_uuid=None,
+        custom_name=None,
+    ):
         """
         Populate the monthly cost of a customer.
 
@@ -765,6 +963,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cost_type": cost_type,
             "rate_type": rate_type,
             "distribution": distribution,
+            "cost_model_id": cost_model_id,
+            "rate_uuid": rate_uuid,
+            "custom_name": custom_name or cost_type,
+            "metric_type": self._get_routing_metric_type(cost_type=cost_type, distribution=distribution),
         }
         insert_sql = pkgutil.get_data("masu.database", cost_type_file)
         insert_sql = insert_sql.decode("utf-8")
@@ -778,7 +980,18 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             self._prepare_and_execute_raw_sql_query(table_name, insert_sql, sql_params, operation="INSERT")
 
     def populate_tag_cost_sql(
-        self, cost_type, rate_type, tag_key, case_dict, start_date, end_date, distribution, provider_uuid
+        self,
+        cost_type,
+        rate_type,
+        tag_key,
+        case_dict,
+        start_date,
+        end_date,
+        distribution,
+        provider_uuid,
+        cost_model_id=None,
+        rate_uuid=None,
+        custom_name=None,
     ):
         """
         Update or insert daily summary line item for node cost.
@@ -812,7 +1025,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/node_cost_by_tag.sql")
         elif cost_type == "PVC":
             sql = pkgutil.get_data(
-                "masu.database", "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim_by_tag.sql"
+                "masu.database",
+                "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim_by_tag.sql",
             )
 
         sql = sql.decode("utf-8")
@@ -830,6 +1044,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "distribution": distribution,
             "tag_key": tag_key,
             "labels": labels,
+            "cost_model_id": cost_model_id,
+            "rate_uuid": rate_uuid,
+            "custom_name": custom_name or cost_type,
+            "metric_type": self._get_routing_metric_type(cost_type=cost_type, distribution=distribution),
         }
 
         if case_dict.get("unallocated"):
@@ -842,11 +1060,20 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def populate_vm_usage_costs(
-        self, rate_type, vm_usage_rates, start_date, end_date, provider_uuid, report_period_id
+        self,
+        rate_type,
+        vm_usage_rates,
+        start_date,
+        end_date,
+        provider_uuid,
+        report_period_id,
+        cost_model_id=None,
+        rate_info_map=None,
     ):
         if not vm_usage_rates:
             return
         vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
+        rate_info_map = rate_info_map or {}
         vm_usage_metadata = {
             metric_constants.OCP_VM_HOUR: {
                 "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_cost_virtual_machine.sql",
@@ -862,6 +1089,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             metadata = vm_usage_metadata.get(metric_name)
             if metric_name == metric_constants.OCP_VM_CORE_HOUR and not vm_table_exists:
                 continue
+            rate_info = rate_info_map.get((metric_name, rate_type, ""), {})
             param_builder = BaseCostModelParams(
                 schema_name=self.schema,
                 start_date=start_date,
@@ -869,7 +1097,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 source_uuid=provider_uuid,
                 report_period_id=report_period_id,
             )
-            context_params = {"rate_type": rate_type, "hourly_rate": hourly_rate}
+            context_params = {
+                "rate_type": rate_type,
+                "hourly_rate": hourly_rate,
+                "cost_model_id": cost_model_id,
+                "rate_uuid": rate_info.get("rate_uuid"),
+                "custom_name": rate_info.get("custom_name", metric_name),
+                "metric_type": self._get_routing_metric_type(metric_name=metric_name),
+            }
             if metric_params := metadata.get("metric_params"):
                 context_params.update(metric_params)
             sql_params = param_builder.build_parameters(context_params=context_params)
@@ -878,7 +1113,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def populate_usage_costs(
-        self, rate_type, rates, distribution, start_date, end_date, provider_uuid, report_period_id
+        self,
+        rate_type,
+        rates,
+        distribution,
+        start_date,
+        end_date,
+        provider_uuid,
+        report_period_id,
     ):
         """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
         table_name = self._table_map["line_item_daily_summary"]
@@ -897,7 +1139,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 start_date,
                 end_date,
                 table=OCPUsageLineItemDailySummary,
-                filters={"cost_model_rate_type": rate_type, "report_period_id": report_period_id},
+                filters={
+                    "cost_model_rate_type": rate_type,
+                    "report_period_id": report_period_id,
+                },
                 null_filters={"monthly_cost_type": "IS NULL"},
             )
             # We cleared out existing data, but there is no new to calculate.
@@ -921,40 +1166,132 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
-    def populate_tag_usage_costs(  # noqa: C901
-        self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
-    ):
-        """
-        Update the reporting_ocpusagelineitem_daily_summary table with
-        usage costs based on tag rates.
-        Due to the way the tag_keys are stored it loops through all of
-        the tag keys to filter and update costs.
+    def populate_usage_rates_to_usage(self, start_date, end_date, provider_uuid, report_period_id, cost_model_id):
+        """Delete stale rows and insert per-rate cost rows into rates_to_usage (single-pass).
 
-        The data structure for infrastructure and supplementary rates are
-        a dictionary that include the metric name, the tag key,
-        the tag value names, and the tag value, for example:
-            {'cpu_core_usage_per_hour': {
-                'app': {
-                    'far': '0.2000000000', 'manager': '100.0000000000', 'walk': '5.0000000000'
-                    }
-                }
-            }
+        All rate values (including cluster_cost_per_hour) are read from
+        cost_model_rate via SQL JOIN.  Distribution is read directly from the
+        cost_model table; cte_node_cost computes allocation fractions only;
+        rate multiplication happens in Component 6.
         """
-        # Remove monthly rates
+        sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/usage_rates/insert_usage_rates_to_usage.sql",
+        )
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "source_uuid": provider_uuid,
+            "report_period_id": report_period_id,
+            "cost_model_id": cost_model_id,
+        }
+
+        LOG.info(log_json(msg="populating rates_to_usage (single-pass)", context=sql_params))
+        self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
+
+    def populate_markup_rates_to_usage(self, start_date, end_date, source_uuid, cluster_id, cost_model_id):
+        """Write markup costs as RatesToUsage rows with metric_type='markup'.
+
+        Reads from infrastructure_markup_cost on daily summary (set by
+        populate_markup_cost ORM UPDATE) and inserts per-row markup
+        entries into rates_to_usage for the breakdown tree.
+        report_period_id is read from lids.report_period_id, not passed as a bind.
+        """
+        sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/usage_rates/insert_markup_rates_to_usage.sql",
+        )
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "start_date": DateHelper().parse_to_date(start_date),
+            "end_date": DateHelper().parse_to_date(end_date),
+            "schema": self.schema,
+            "source_uuid": source_uuid,
+            "cluster_id": cluster_id,
+            "cost_model_id": cost_model_id,
+        }
+        LOG.info(log_json(msg="populating markup rates_to_usage", context=sql_params))
+        self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
+
+    def aggregate_rates_to_daily_summary(self, start_date, end_date, source_uuid, report_period_id):
+        """Aggregate RatesToUsage rows into daily summary cost columns."""
+
+        table_name = self._table_map["line_item_daily_summary"]
+        sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/usage_rates/aggregate_rates_to_daily_summary.sql",
+        )
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "source_uuid": source_uuid,
+            "report_period_id": report_period_id,
+        }
+        LOG.info(log_json(msg="aggregating rates_to_usage → daily summary", context=sql_params))
+        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+
+    def validate_rates_against_daily_summary(self, start_date, end_date, source_uuid, report_period_id):
+        """CI-only: return diff rows between RTU aggregates and daily summary. Empty = correct."""
+        sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/usage_rates/validate_rates_against_daily_summary.sql",
+        )
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "source_uuid": source_uuid,
+            "report_period_id": report_period_id,
+        }
+        return self._prepare_and_execute_raw_sql_query(
+            self._table_map["line_item_daily_summary"],
+            sql,
+            sql_params,
+            operation="VALIDATION_QUERY",
+        )
+
+    def populate_tag_usage_costs(  # noqa: C901
+        self,
+        infrastructure_rates,
+        supplementary_rates,
+        start_date,
+        end_date,
+        cluster_id,
+        cost_model_id=None,
+        rate_info_map=None,
+        source_uuid=None,
+        report_period_id=None,
+    ):
+        """Insert per-rate tag-based usage costs into rates_to_usage.
+
+        Called once per (metric, tag_key, tag_value) combination.
+        """
         infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys())
         supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys())
-        # define the rates so the loop can operate on both rate types
         rate_types = [
-            {"rates": infrastructure_rates, "sql_file": "sql/openshift/cost_model/infrastructure_tag_rates.sql"},
-            {"rates": supplementary_rates, "sql_file": "sql/openshift/cost_model/supplementary_tag_rates.sql"},
+            {
+                "rates": infrastructure_rates,
+                "sql_file": "sql/openshift/cost_model/infrastructure_tag_rates.sql",
+                "cost_type": metric_constants.INFRASTRUCTURE_COST_TYPE,
+            },
+            {
+                "rates": supplementary_rates,
+                "sql_file": "sql/openshift/cost_model/supplementary_tag_rates.sql",
+                "cost_type": metric_constants.SUPPLEMENTARY_COST_TYPE,
+            },
         ]
-        # Cast start_date and end_date to date object, if they aren't already
         start_date = DateHelper().parse_to_date(start_date)
         end_date = DateHelper().parse_to_date(end_date)
-        # updates costs from tags
+        rate_info_map = rate_info_map or {}
         for rate_type in rate_types:
             rate = rate_type.get("rates")
             sql_file = rate_type.get("sql_file")
+            cost_type_label = rate_type.get("cost_type", "")
             for metric in rate:
                 tags = rate.get(metric, {})
                 usage_type = metric_constants.USAGE_METRIC_MAP.get(metric)
@@ -963,7 +1300,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 else:
                     labels_field = "pod_labels"
                 table_name = self._table_map["line_item_daily_summary"]
+                rate_info = rate_info_map.get((metric, cost_type_label, ""), {})
                 for tag_key in tags:
+                    tag_rate_info = rate_info_map.get((metric, cost_type_label, tag_key), rate_info)
                     tag_vals = tags.get(tag_key, {})
                     value_names = list(tag_vals.keys())
                     for val_name in value_names:
@@ -981,50 +1320,51 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             "metric": metric,
                             "k_v_pair": key_value_pair,
                             "labels_field": labels_field,
+                            "cost_model_id": cost_model_id,
+                            "rate_uuid": tag_rate_info.get("rate_uuid"),
+                            "custom_name": tag_rate_info.get("custom_name", metric),
+                            "source_uuid": source_uuid,
+                            "report_period_id": report_period_id,
                         }
                         ctx = self.extract_context_from_sql_params(sql_params)
                         LOG.info(log_json(msg="running populate_tag_usage_costs SQL", context=ctx))
                         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     def populate_tag_usage_default_costs(  # noqa: C901
-        self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
+        self,
+        infrastructure_rates,
+        supplementary_rates,
+        start_date,
+        end_date,
+        cluster_id,
+        cost_model_id=None,
+        rate_info_map=None,
+        source_uuid=None,
+        report_period_id=None,
     ):
-        """
-        Update the reporting_ocpusagelineitem_daily_summary table
-        with usage costs based on tag rates.
-
-        The data structure for infrastructure and supplementary rates
-        are a dictionary that includes the metric, the tag key,
-        the default value, and the values for that key that have
-        rates defined and do not need the default applied,
-        for example:
-            {
-                'cpu_core_usage_per_hour': {
-                    'app': {
-                        'default_value': '100.0000000000', 'defined_keys': ['far', 'manager', 'walk']
-                    }
-                }
-            }
-        """
-        # Remove monthly rates
+        """Insert per-rate default tag-based usage costs into rates_to_usage."""
         infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys())
         supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys())
-        # define the rates so the loop can operate on both rate types
         rate_types = [
             {
                 "rates": infrastructure_rates,
                 "sql_file": "sql/openshift/cost_model/default_infrastructure_tag_rates.sql",
+                "cost_type": metric_constants.INFRASTRUCTURE_COST_TYPE,
             },
-            {"rates": supplementary_rates, "sql_file": "sql/openshift/cost_model/default_supplementary_tag_rates.sql"},
+            {
+                "rates": supplementary_rates,
+                "sql_file": "sql/openshift/cost_model/default_supplementary_tag_rates.sql",
+                "cost_type": metric_constants.SUPPLEMENTARY_COST_TYPE,
+            },
         ]
-        # Cast start_date and end_date to date object, if they aren't already
         start_date = DateHelper().parse_to_date(start_date)
         end_date = DateHelper().parse_to_date(end_date)
+        rate_info_map = rate_info_map or {}
 
-        # updates costs from tags
         for rate_type in rate_types:
             rate = rate_type.get("rates")
             sql_file = rate_type.get("sql_file")
+            cost_type_label = rate_type.get("cost_type", "")
             for metric in rate:
                 tags = rate.get(metric, {})
                 usage_type = metric_constants.USAGE_METRIC_MAP.get(metric)
@@ -1033,6 +1373,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 else:
                     labels_field = "pod_labels"
                 table_name = self._table_map["line_item_daily_summary"]
+                rate_info = rate_info_map.get((metric, cost_type_label, ""), {})
                 for tag_key in tags:
                     key_value_pair = []
                     tag_vals = tags.get(tag_key)
@@ -1043,6 +1384,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     for value_to_skip in value_names:
                         key_value_pair.append(json.dumps({tag_key: value_to_skip}))
                     json.dumps(key_value_pair)
+                    tag_rate_info = rate_info_map.get((metric, cost_type_label, tag_key), rate_info)
                     sql = pkgutil.get_data("masu.database", sql_file)
                     sql = sql.decode("utf-8")
                     sql_params = {
@@ -1056,9 +1398,19 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         "tag_key": tag_key,
                         "k_v_pair": key_value_pair,
                         "labels_field": labels_field,
+                        "cost_model_id": cost_model_id,
+                        "rate_uuid": tag_rate_info.get("rate_uuid"),
+                        "custom_name": tag_rate_info.get("custom_name", metric),
+                        "source_uuid": source_uuid,
+                        "report_period_id": report_period_id,
                     }
                     ctx = self.extract_context_from_sql_params(sql_params)
-                    LOG.info(log_json(msg="running populate_tag_usage_default_costs SQL", context=ctx))
+                    LOG.info(
+                        log_json(
+                            msg="running populate_tag_usage_default_costs SQL",
+                            context=ctx,
+                        )
+                    )
                     self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     def populate_openshift_cluster_information_tables(self, provider, cluster_id, cluster_alias, start_date, end_date):
@@ -1075,7 +1427,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_cluster_table(self, provider, cluster_id, cluster_alias):
         """Get or create an entry in the OCP cluster table."""
-        LOG.info(log_json(msg="fetching entry in reporting_ocp_cluster", provider_uuid=provider.uuid))
+        LOG.info(
+            log_json(
+                msg="fetching entry in reporting_ocp_cluster",
+                provider_uuid=provider.uuid,
+            )
+        )
         clusters = OCPCluster.objects.filter(provider_id=provider.uuid)
         if clusters.count() > 1:
             clusters_to_delete = clusters.exclude(cluster_alias=cluster_alias)
@@ -1090,7 +1447,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         msg = "fetched entry in reporting_ocp_cluster"
         if not cluster:
             cluster, created = OCPCluster.objects.get_or_create(
-                cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=provider.uuid
+                cluster_id=cluster_id,
+                cluster_alias=cluster_alias,
+                provider_id=provider.uuid,
             )
             msg = f"created entry in reporting_ocp_clusters: {created}"
 
@@ -1124,7 +1483,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         for node in nodes:
             tmp_node = OCPNode.objects.filter(
-                node=node[0], resource_id=node[1], node_capacity_cpu_cores=node[2], cluster=cluster_table
+                node=node[0],
+                resource_id=node[1],
+                node_capacity_cpu_cores=node[2],
+                cluster=cluster_table,
             ).first()
             if not tmp_node:
                 OCPNode.objects.create(
@@ -1156,7 +1518,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         for pvc in pvcs:
             ocppvc = OCPPVC.objects.filter(
-                persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster_table
+                persistent_volume=pvc[0],
+                persistent_volume_claim=pvc[1],
+                cluster=cluster_table,
             ).first()
             if ocppvc:
                 if not ocppvc.csi_volume_handle:
@@ -1174,7 +1538,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     )
 
                 except IntegrityError as e:
-                    LOG.warning(log_json(msg="IntegrityError raised when creating pvc", pvc=pvc), exc_info=e)
+                    LOG.warning(
+                        log_json(msg="IntegrityError raised when creating pvc", pvc=pvc),
+                        exc_info=e,
+                    )
 
     def populate_project_table(self, cluster_table, projects):
         """Get or create an entry in the OCP cluster table."""
@@ -1201,7 +1568,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             start_date=str(start_date),
             end_date=str(end_date),
         )
-        context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
+        context = {
+            "schema": self.schema,
+            "start": start_date,
+            "end": end_date,
+            "provider_uuid": source_uuid,
+        }
         return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_nodes_trino")
 
     def get_pvcs_trino(self, source_uuid, start_date, end_date):
@@ -1216,7 +1588,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             start_date=str(start_date),
             end_date=str(end_date),
         )
-        context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
+        context = {
+            "schema": self.schema,
+            "start": start_date,
+            "end": end_date,
+            "provider_uuid": source_uuid,
+        }
         return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_pvcs_trino")
 
     def get_projects_trino(self, source_uuid, start_date, end_date):
@@ -1229,7 +1606,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             start_date=str(start_date),
             end_date=str(end_date),
         )
-        context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
+        context = {
+            "schema": self.schema,
+            "start": start_date,
+            "end": end_date,
+            "provider_uuid": source_uuid,
+        }
         projects = self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_projects_trino")
 
         return [project[0] for project in projects]
@@ -1340,7 +1722,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "table_name": table_name,
             "report_period_id": report_period_id,
         }
-        LOG.info(log_json(msg="removing all cost excluding infrastructure_raw_cost from daily summary", context=ctx))
+        LOG.info(
+            log_json(
+                msg="removing all cost excluding infrastructure_raw_cost from daily summary",
+                context=ctx,
+            )
+        )
         sql = f"""
             DELETE FROM {self.schema}.reporting_ocpusagelineitem_daily_summary
             WHERE usage_start >= '{start_date}'::date
@@ -1354,7 +1741,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_ocp_on_all_project_daily_summary(self, platform, sql_params):
         LOG.info(
             log_json(
-                msg=f"populating {platform.upper()} records for ocpallcostlineitem_project_daily_summary", **sql_params
+                msg=f"populating {platform.upper()} records for ocpallcostlineitem_project_daily_summary",
+                **sql_params,
             )
         )
         script_file_name = f"reporting_ocpallcostlineitem_project_daily_summary_{platform.lower()}.sql"
@@ -1363,7 +1751,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_ocp_on_all_daily_summary(self, platform, sql_params):
         LOG.info(
-            log_json(msg=f"populating {platform.upper()} records for ocpallcostlineitem_daily_summary", **sql_params)
+            log_json(
+                msg=f"populating {platform.upper()} records for ocpallcostlineitem_daily_summary",
+                **sql_params,
+            )
         )
         script_file_name = f"reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
         script_file_path = f"{self.OCP_ON_ALL_SQL_PATH}{script_file_name}"
@@ -1385,7 +1776,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             start_date=str(start_date),
             end_date=str(end_date),
         )
-        context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
+        context = {
+            "schema": self.schema,
+            "start": start_date,
+            "end": end_date,
+            "provider_uuid": source_uuid,
+        }
         timestamps = self._execute_trino_raw_sql_query(
             sql, context=context, log_ref="get_max_min_timestamp_from_parquet"
         )
@@ -1395,7 +1791,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return minim, maxim
 
     def populate_tag_based_costs(  # noqa: C901
-        self, start_date, end_date, provider_uuid, metric_to_tag_params_map, cluster_params
+        self,
+        start_date,
+        end_date,
+        provider_uuid,
+        metric_to_tag_params_map,
+        cluster_params,
+        cost_model_id=None,
+        rate_info_map=None,
     ):
         """Populate the tag based costs.
 
@@ -1406,10 +1809,16 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if not report_period or not metric_to_tag_params_map:
             return
 
-        monthly_params = {"amortized_denominator": DateHelper().days_in_month(start_date), "cost_type": "Tag"}
+        monthly_params = {
+            "amortized_denominator": DateHelper().days_in_month(start_date),
+            "cost_type": "Tag",
+        }
         vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
         gpu_table_exists = trino_table_exists(self.schema, "openshift_gpu_usage_line_items_daily")
-        requires_vm_table = [metric_constants.OCP_VM_CORE_HOUR, metric_constants.OCP_VM_CORE_MONTH]
+        requires_vm_table = [
+            metric_constants.OCP_VM_CORE_HOUR,
+            metric_constants.OCP_VM_CORE_MONTH,
+        ]
         requires_gpu_table = [metric_constants.OCP_GPU_MONTH]
 
         metric_metadata = {
@@ -1465,15 +1874,32 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     self.schema, OCP_GPU_COST_MODEL_UNLEASH_FLAG, dev_fallback=True
                 ):
                     continue
+                if not cluster_params.get("cluster_id"):
+                    LOG.info(
+                        log_json(
+                            msg="No cluster_id found, skipping GPU tag based cost population.",
+                            schema=self.schema,
+                            provider_uuid=str(provider_uuid),
+                        )
+                    )
+                    continue
 
             param_list = metric_to_tag_params_map.get(name)
             if not param_list:
                 continue
+            rate_info_map = rate_info_map or {}
             for tag_params in param_list:
                 if metric_params := metadata.get("metric_params"):
                     context_params = tag_params | metric_params
                 else:
                     context_params = tag_params.copy()
+                rate_type_val = context_params.get("rate_type", "")
+                tag_key_val = context_params.get("tag_key", "")
+                rate_info = rate_info_map.get((name, rate_type_val, tag_key_val), {})
+                context_params["cost_model_id"] = cost_model_id
+                context_params["rate_uuid"] = rate_info.get("rate_uuid")
+                context_params["custom_name"] = rate_info.get("custom_name", name)
+                context_params["metric_type"] = self._get_routing_metric_type(metric_name=name)
                 final_sql_params = param_builder.build_parameters(context_params=context_params)
                 sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
                 LOG.info(log_json(msg=metadata["log_msg"], context=context_params))

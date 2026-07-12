@@ -15,6 +15,7 @@ import time
 import traceback
 from datetime import datetime
 from pathlib import Path
+from tarfile import FilterError
 from tarfile import ReadError
 from tarfile import TarFile
 
@@ -29,10 +30,13 @@ from django.db import InterfaceError
 from django.db import OperationalError
 from django.db import transaction
 from kombu.exceptions import OperationalError as KombuOperationalError
+from pydantic import ValidationError
 
 import masu.util.ocp.ocp_data_validator  # noqa: F401
 from api.common import log_json
+from api.iam.models import Customer
 from api.provider.models import Provider
+from api.settings.utils import get_data_retention_months
 from api.utils import DateHelper
 from common.queues import get_customer_queue
 from common.queues import OCPQueue
@@ -46,6 +50,8 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.ros_report_shipper import ROSReportShipper
+from masu.processor import CROSS_ORG_CLUSTER_LOOKUP_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.processor.report_processor import ReportProcessorDBError
@@ -67,6 +73,7 @@ LOG = logging.getLogger(__name__)
 SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
 MANIFEST_ACCESSOR = ReportManifestDBAccessor()
+_MAX_MANIFEST_BYTES = 10 * 1_024 * 1_024  # 10 MB — orders of magnitude above any real manifest
 
 
 class KafkaMsgHandlerError(Exception):
@@ -306,35 +313,61 @@ def download_payload(request_id, url, context):
     return temp_file
 
 
-def extract_payload_contents(request_id, tarball_path, context):
-    """Extract the payload contents into a temporary location."""
-    # Extract tarball into temp directory
-
+def read_manifest_from_tarball(request_id, tarball_path, context) -> utils.Manifest:
+    """Read and validate manifest.json from a tarball without extracting archive members."""
     if not os.path.isfile(tarball_path):
         msg = f"Unable to find tar file {tarball_path}."
         LOG.warning(log_json(request_id, msg=msg, context=context))
         raise KafkaMsgHandlerError("Extraction failure, file not found.")
 
     try:
-        mytar = TarFile.open(tarball_path, mode="r:gz")
-        mytar.extractall(path=tarball_path.parent)
-        files = mytar.getnames()
-        manifest_path = [manifest for manifest in files if "manifest.json" in manifest]
-    except (ReadError, EOFError, OSError) as error:
+        with TarFile.open(tarball_path, mode="r:gz") as mytar:
+            manifest_member = utils.get_manifest_member_name(mytar.getnames())
+            manifest_file = mytar.extractfile(manifest_member)
+            if manifest_file is None:
+                raise KafkaMsgHandlerError("No manifest found in payload.")
+            manifest_data = manifest_file.read(_MAX_MANIFEST_BYTES + 1)
+            if len(manifest_data) > _MAX_MANIFEST_BYTES:
+                raise ValueError(f"manifest.json exceeds maximum allowed size of {_MAX_MANIFEST_BYTES} bytes")
+            return utils.Manifest.model_validate_json(manifest_data)
+    except (ReadError, EOFError, OSError, ValueError) as error:
+        msg = f"Unable to read manifest from tar file {tarball_path}. Reason: {str(error)}"
+        LOG.warning(log_json(request_id, msg=msg, context=context))
+        raise KafkaMsgHandlerError("Extraction failure.") from error
+    except ValidationError as error:
+        msg = f"Invalid manifest in tar file {tarball_path}."
+        LOG.warning(log_json(request_id, msg=msg, context=context))
+        raise KafkaMsgHandlerError("Extraction failure.") from error
+
+
+def extract_tarball_to_directory(request_id, tarball_path, context) -> list[str]:
+    """Extract tarball members into the tarball parent directory using PEP 706 data filter."""
+    try:
+        with TarFile.open(tarball_path, mode="r:gz") as mytar:
+            mytar.extractall(path=tarball_path.parent, filter="data")
+            return mytar.getnames()
+    except (ReadError, EOFError, OSError, FilterError) as error:
         msg = f"Unable to untar file {tarball_path}. Reason: {str(error)}"
         LOG.warning(log_json(request_id, msg=msg, context=context))
         shutil.rmtree(tarball_path.parent)
-        raise KafkaMsgHandlerError("Extraction failure.")
+        raise KafkaMsgHandlerError("Extraction failure.") from error
 
-    if not manifest_path:
+
+def extract_payload_contents(request_id, tarball_path, context):
+    """Extract the payload contents into a temporary location."""
+    payload_files = extract_tarball_to_directory(request_id, tarball_path, context)
+    try:
+        manifest_path = utils.get_manifest_member_name(payload_files)
+    except ValueError as error:
         msg = "No manifest found in payload."
         LOG.warning(log_json(request_id, msg=msg, context=context))
-        raise KafkaMsgHandlerError("No manifest found in payload.")
+        shutil.rmtree(tarball_path.parent)
+        raise KafkaMsgHandlerError("No manifest found in payload.") from error
 
-    return manifest_path[0], files
+    return manifest_path, payload_files
 
 
-def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
+def extract_payload(payload_path, request_id, b64_identity, context):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
 
@@ -349,23 +382,19 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     2. *.csv - Actual usage report for the cluster.  Format is:
         Format is: <uuid>_report_name.csv
 
-    Once the files are extracted:
-    1. Provider account is retrieved for the cluster id.  If no account is found we return.
-    2. Manifest database record is created which will establish the assembly_id and number of files
-    3. Report stats database record is created and is used as a filter to determine if the file
+    Once the files are downloaded:
+    1. manifest.json is read and validated from the archive before any files are extracted.
+    2. Provider account is retrieved for the cluster id.  If no account is found we return.
+    3. Archive members are extracted using the tarfile data filter (PEP 706).
+    4. Manifest database record is created which will establish the assembly_id and number of files
+    5. Report stats database record is created and is used as a filter to determine if the file
        has already been processed.
-    4. All report files that have not been processed will have the local path to that report file
+    6. All report files that have not been processed will have the local path to that report file
        added to the report_meta context dictionary for that file.
-    5. Report file context dictionaries that require processing is added to a list which will be
+    7. Report file context dictionaries that require processing is added to a list which will be
        passed to the report processor.  All context from report_meta is used by the processor.
     """
-    payload_path = download_payload(request_id, url, context)
-    manifest_path, payload_files = extract_payload_contents(request_id, payload_path, context)
-
-    # Open manifest.json file and build the payload dictionary.
-    full_manifest_path = Path(payload_path.parent, manifest_path)
-    manifest = utils.parse_manifest(full_manifest_path.parent)
-
+    manifest = read_manifest_from_tarball(request_id, payload_path, context)
     context |= {
         "request_id": request_id,
         "cluster_id": manifest.cluster_id,
@@ -379,17 +408,32 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
             context=context,
         )
     )
-    source = utils.get_source_and_provider_from_cluster_id(manifest.cluster_id, org_id=context["org_id"])
+    org_id = context["org_id"]
+    source = utils.get_source_and_provider_from_cluster_id(manifest.cluster_id, org_id=org_id)
+    if not source:
+        schema_name_for_flag = Customer.objects.filter(org_id=org_id).values_list("schema_name", flat=True).first()
+        if schema_name_for_flag and is_feature_flag_enabled_by_schema(
+            schema_name_for_flag, CROSS_ORG_CLUSTER_LOOKUP_FLAG
+        ):
+            source = utils.get_source_and_provider_from_cluster_id(
+                manifest.cluster_id, org_id=org_id, skip_org_id_filter=True
+            )
+            if source:
+                LOG.warning(
+                    log_json(
+                        manifest.uuid,
+                        msg="cross-org cluster lookup bypass used",
+                        context={
+                            **context,
+                            "requesting_org_id": org_id,
+                            "source_org_id": source.org_id,
+                            "cluster_id": manifest.cluster_id,
+                            "provider_uuid": str(source.koku_uuid),
+                        },
+                    )
+                )
     if not source:
         msg = f"Received unexpected OCP report from {manifest.cluster_id}"
-        LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
-        shutil.rmtree(payload_path.parent)
-        return None, manifest.uuid
-
-    dh = DateHelper()
-    manifest_end = manifest.end or dh.month_end(manifest.date)
-    if manifest_end < dh.relative_month_end(-Config.MASU_RETAIN_NUM_MONTHS):
-        msg = f"Received OCP data outside our retention period for {manifest.cluster_id}, skipping processing"
         LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
         shutil.rmtree(payload_path.parent)
         return None, manifest.uuid
@@ -398,8 +442,20 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     schema_name: str = provider.account.get("schema_name")
     context["provider_type"] = provider.type
     context["schema"] = schema_name
-    # for anemic accounts, use `no_account`
     context["account"] = context["account"] or provider.account.get("account_id") or "no_account"
+
+    retention = get_data_retention_months(schema_name) or Config.MASU_RETAIN_NUM_MONTHS
+    dh = DateHelper()
+    manifest_end = manifest.end or dh.month_end(manifest.date)
+    if manifest_end < dh.relative_month_end(-retention):
+        msg = f"Received OCP data outside our retention period for {manifest.cluster_id}, skipping processing"
+        LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
+        shutil.rmtree(payload_path.parent)
+        return None, manifest.uuid
+
+    payload_files = extract_tarball_to_directory(request_id, payload_path, context)
+    manifest_path = utils.get_manifest_member_name(payload_files)
+    full_manifest_path = utils.resolve_path_within_base(payload_path.parent, manifest_path)
 
     payload = utils.PayloadInfo(
         request_id=request_id,
@@ -416,11 +472,13 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(manifest.date)
-    destination_dir = Path(Config.INSIGHTS_LOCAL_REPORT_DIR, manifest.cluster_id, usage_month)
+    destination_dir = utils.resolve_path_within_base(
+        Config.INSIGHTS_LOCAL_REPORT_DIR, manifest.cluster_id, usage_month
+    )
     os.makedirs(destination_dir, exist_ok=True)
 
     # Copy manifest
-    manifest_destination_path = Path(destination_dir, full_manifest_path.name)
+    manifest_destination_path = destination_dir / full_manifest_path.name
     shutil.copy(full_manifest_path, manifest_destination_path)
 
     # Save Manifest
@@ -432,7 +490,9 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     manifest_ros_files = manifest.resource_optimization_files
     manifest_files = manifest.files
     ros_reports = [
-        (ros_file, payload_path.with_name(ros_file)) for ros_file in manifest_ros_files if ros_file in payload_files
+        (ros_file, utils.resolve_path_within_base(payload_path.parent, ros_file))
+        for ros_file in manifest_ros_files
+        if ros_file in payload_files
     ]
     ros_processor = ROSReportShipper(payload, b64_identity, context)
     try:
@@ -448,8 +508,8 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     }
     for report_file in manifest_files:
         current_meta = manifest.model_dump() | extra_meta_needed_to_process_reports
-        payload_source_path = Path(payload_path.parent, report_file)
-        payload_destination_path = Path(destination_dir, report_file)
+        payload_source_path = utils.resolve_path_within_base(payload_path.parent, report_file)
+        payload_destination_path = utils.resolve_path_within_base(destination_dir, report_file)
         try:
             shutil.copy(payload_source_path, payload_destination_path)
             current_meta["current_file"] = payload_destination_path
@@ -528,19 +588,31 @@ def handle_message(kmsg):
         return FAILURE_CONFIRM_STATUS, None, None
 
     try:
+        msg = f"Downloading Payload for msg: {str(value)}"
+        LOG.info(log_json(request_id, msg=msg, context=context))
+        payload_path = download_payload(request_id, value["url"], context)
+    except Exception as error:
+        traceback.print_exc()
+        msg = f"Unable to download payload. Error: {type(error).__name__}: {error}"
+        LOG.warning(log_json(request_id, msg=msg, context=context))
+        return FAILURE_CONFIRM_STATUS, None, None
+
+    try:
         msg = f"Extracting Payload for msg: {str(value)}"
         LOG.info(log_json(request_id, msg=msg, context=context))
-        report_metas, manifest_uuid = extract_payload(value["url"], request_id, value["b64_identity"], context)
+        report_metas, manifest_uuid = extract_payload(payload_path, request_id, value["b64_identity"], context)
         return SUCCESS_CONFIRM_STATUS, report_metas, manifest_uuid
     except (OperationalError, InterfaceError) as error:
         close_and_set_db_connection()
         msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
         LOG.warning(log_json(request_id, msg=msg, context=context))
+        shutil.rmtree(payload_path.parent, ignore_errors=True)
         raise KafkaMsgHandlerError(msg) from error
     except Exception as error:  # noqa
         traceback.print_exc()
         msg = f"Unable to extract payload. Error: {type(error).__name__}: {error}"
         LOG.warning(log_json(request_id, msg=msg, context=context))
+        shutil.rmtree(payload_path.parent, ignore_errors=True)
         return FAILURE_CONFIRM_STATUS, None, None
 
 

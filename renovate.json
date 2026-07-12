@@ -1,15 +1,56 @@
 {
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
     "extends": [
         "github>konflux-ci/mintmaker//config/renovate/renovate.json"
     ],
     "updateNotScheduled": false,
+    "lockFileMaintenance": {
+        "enabled": true,
+        "schedule": [
+            "on Tuesday after 3am and before 10am"
+        ]
+    },
+    "packageRules": [
+        {
+            "matchManagers": [
+                "github-actions"
+            ],
+            "groupName": "ci-dependencies",
+            "groupSlug": "ci-dependencies",
+            "addLabels": [
+                "ok-to-skip-smokes"
+            ]
+        },
+        {
+            "matchManagers": [
+                "pipenv"
+            ],
+            "matchUpdateTypes": [
+                "lockFileMaintenance"
+            ],
+            "addLabels": [
+                "smoke-tests",
+                "dependencies"
+            ]
+        },
+        {
+            "matchManagers": [
+                "pipenv"
+            ],
+            "matchUpdateTypes": [
+                "major",
+                "minor",
+                "patch",
+                "pin"
+            ],
+            "enabled": false
+        }
+    ],
     "schedule": [
         "on Tuesday after 3am and before 10am"
     ],
     "ignorePaths": [
         "dev/containers/**",
-        ".pre-commit-config.yaml",
-        "Pipfile",
-        "Pipfile.lock"
+        ".pre-commit-config.yaml"
     ]
 }

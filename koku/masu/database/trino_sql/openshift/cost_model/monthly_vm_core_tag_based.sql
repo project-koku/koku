@@ -1,21 +1,25 @@
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage (
     uuid,
+    cost_model_id,
     report_period_id,
+    source_uuid,
+    usage_start,
+    usage_end,
+    node,
+    namespace,
     cluster_id,
     cluster_alias,
     data_source,
-    usage_start,
-    usage_end,
-    namespace,
-    node,
-    resource_id,
     pod_labels,
     all_labels,
-    source_uuid,
-    monthly_cost_type,
+    label_hash,
+    custom_name,
+    metric_type,
     cost_model_rate_type,
-    cost_model_cpu_cost,
-    cost_category_id
+    monthly_cost_type,
+    calculated_cost,
+    cost_category_id,
+    rate_id
 )
 WITH
     vm_max_interval AS (
@@ -40,7 +44,7 @@ WITH
             ON node_info.vm_name = vmi.vm_name
             AND node_info.interval_start = vmi.max_interval_start
         WHERE
-            node_info.source = {{source_uuid}}
+           node_info.source = {{source_uuid}}
             AND node_info.year = {{year}}
             AND node_info.month = {{month}}
     ),
@@ -59,20 +63,23 @@ WITH
     )
 SELECT
     uuid(),
+    CAST({{cost_model_id}} AS uuid) AS cost_model_id,
     {{report_period_id}} AS report_period_id,
+    lids.source_uuid,
+    lids.usage_start,
+    lids.usage_end,
+    max(latest.node_name) AS node,
+    lids.namespace,
     lids.cluster_id,
     lids.cluster_alias,
     lids.data_source,
-    lids.usage_start,
-    lids.usage_end,
-    lids.namespace,
-    max(latest.node_name) AS node,
-    max(latest.resource_id) AS resource_id,
     lids.pod_labels,
     lids.all_labels,
-    lids.source_uuid,
-    'Tag' AS monthly_cost_type,
+    max(to_hex(sha256(to_utf8(COALESCE(json_format(CAST(lids.pod_labels AS json)), '') || '|' || '' || '|' || COALESCE(json_format(CAST(lids.all_labels AS json)), ''))))) AS label_hash,
+    {{custom_name}} AS custom_name,
+    {{metric_type}} AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
+    'Tag' AS monthly_cost_type,
     {%- if value_rates is defined and value_rates %}
     CASE
         {%- for value, rate in value_rates.items() %}
@@ -82,11 +89,12 @@ SELECT
         {%- if default_rate is defined %}
         ELSE (max(vm_usage.vm_cpu_cores) * CAST({{default_rate}} AS DECIMAL(33, 15))) / {{amortized_denominator}}
         {%- endif %}
-    END AS cost_model_cpu_cost,
+    END AS calculated_cost,
     {%- else %}
-    (max(vm_usage.vm_cpu_cores) * CAST({{default_rate}} AS DECIMAL(33, 15))) / {{amortized_denominator}} AS cost_model_cpu_cost,
+    (max(vm_usage.vm_cpu_cores) * CAST({{default_rate}} AS DECIMAL(33, 15))) / {{amortized_denominator}} AS calculated_cost,
     {%- endif %}
-    lids.cost_category_id
+    lids.cost_category_id,
+    CAST({{rate_uuid}} AS uuid) AS rate_id
 FROM
     postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN

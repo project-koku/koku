@@ -4,6 +4,7 @@
 #
 """Test Azure Client Class."""
 import random
+from unittest.mock import MagicMock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -101,7 +102,11 @@ class AzureClientFactoryTestCase(TestCase):
             client_secret=FAKE.word(),
             cloud=random.choice(self.clouds),
         )
-        with patch("providers.azure.client.AzureClientFactory.storage_client", new_callable=PropertyMock):
+        with (
+            patch("providers.azure.client.AzureClientFactory.storage_client", new_callable=PropertyMock),
+            patch("providers.azure.client.BlobServiceClient.from_connection_string") as mock_from_conn,
+        ):
+            mock_from_conn.return_value = MagicMock(spec=BlobServiceClient)
             cloud_account = obj.blob_service_client(resource_group_name, storage_account_name)
             self.assertIsInstance(cloud_account, BlobServiceClient)
 
@@ -131,6 +136,85 @@ class AzureClientFactoryTestCase(TestCase):
         with patch("providers.azure.client.AzureClientFactory.storage_client") as mock_storage_client:
             err = "does not have authorization to perform action 'Microsoft.Storage/storageAccounts/listKeys/action'"
             mock_storage_client.storage_accounts.list_keys.side_effect = HttpResponseError(err)
+            cloud_account = obj.blob_service_client(FAKE.word(), FAKE.word())
+            self.assertIsInstance(cloud_account, BlobServiceClient)
+
+    def test_blob_service_client_key_auth_not_permitted(self):
+        """Test fallback to credential-based auth when key-based authentication is disabled on the storage account."""
+        obj = AzureClientFactory(
+            subscription_id=FAKE.uuid4(),
+            tenant_id=FAKE.uuid4(),
+            client_id=FAKE.uuid4(),
+            client_secret=FAKE.word(),
+            cloud=random.choice(self.clouds),
+        )
+        with (
+            patch("providers.azure.client.AzureClientFactory.storage_client"),
+            patch("providers.azure.client.BlobServiceClient.from_connection_string") as mock_from_conn,
+        ):
+            err = "KeyBasedAuthenticationNotPermitted"
+            mock_from_conn.return_value.get_account_information.side_effect = HttpResponseError(err)
+            cloud_account = obj.blob_service_client(FAKE.word(), FAKE.word())
+            self.assertIsInstance(cloud_account, BlobServiceClient)
+
+    def test_blob_service_client_none_message(self):
+        """Test that TypeError is not raised when HttpResponseError.message is None."""
+        obj = AzureClientFactory(
+            subscription_id=FAKE.uuid4(),
+            tenant_id=FAKE.uuid4(),
+            client_id=FAKE.uuid4(),
+            client_secret=FAKE.word(),
+            cloud=random.choice(self.clouds),
+        )
+        with patch("providers.azure.client.AzureClientFactory.storage_client") as mock_storage_client:
+            error = HttpResponseError()
+            error.message = None
+            mock_storage_client.storage_accounts.list_keys.side_effect = error
+            with self.assertRaises(HttpResponseError):
+                obj.blob_service_client(FAKE.word(), FAKE.word())
+
+    def test_blob_service_client_uses_keys_property(self):
+        """Test list_keys result from azure-mgmt-storage >=25 uses keys_property."""
+        obj = AzureClientFactory(
+            subscription_id=FAKE.uuid4(),
+            tenant_id=FAKE.uuid4(),
+            client_id=FAKE.uuid4(),
+            client_secret=FAKE.word(),
+            cloud=random.choice(self.clouds),
+        )
+        list_keys_result = MagicMock()
+        list_keys_result.keys = MagicMock()
+        key = MagicMock()
+        key.value = FAKE.word()
+        list_keys_result.keys_property = [key]
+        with (
+            patch("providers.azure.client.AzureClientFactory.storage_client") as mock_storage_client,
+            patch("providers.azure.client.BlobServiceClient.from_connection_string") as mock_from_conn,
+        ):
+            mock_storage_client.storage_accounts.list_keys.return_value = list_keys_result
+            mock_from_conn.return_value = MagicMock(spec=BlobServiceClient)
+            cloud_account = obj.blob_service_client(FAKE.word(), FAKE.word())
+            self.assertIsInstance(cloud_account, BlobServiceClient)
+
+    def test_blob_service_client_uses_keys(self):
+        """Test list_keys result from azure-mgmt-storage <25 uses keys."""
+        obj = AzureClientFactory(
+            subscription_id=FAKE.uuid4(),
+            tenant_id=FAKE.uuid4(),
+            client_id=FAKE.uuid4(),
+            client_secret=FAKE.word(),
+            cloud=random.choice(self.clouds),
+        )
+        list_keys_result = MagicMock(spec=["keys"])
+        key = MagicMock()
+        key.value = FAKE.word()
+        list_keys_result.keys = [key]
+        with (
+            patch("providers.azure.client.AzureClientFactory.storage_client") as mock_storage_client,
+            patch("providers.azure.client.BlobServiceClient.from_connection_string") as mock_from_conn,
+        ):
+            mock_storage_client.storage_accounts.list_keys.return_value = list_keys_result
+            mock_from_conn.return_value = MagicMock(spec=BlobServiceClient)
             cloud_account = obj.blob_service_client(FAKE.word(), FAKE.word())
             self.assertIsInstance(cloud_account, BlobServiceClient)
 

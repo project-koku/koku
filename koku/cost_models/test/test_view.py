@@ -5,6 +5,7 @@
 """Test the Cost Model views."""
 import copy
 import random
+from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 from uuid import uuid4
@@ -21,6 +22,9 @@ from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModelAudit
 from cost_models.models import CostModelMap
+from cost_models.models import PriceList
+from cost_models.models import PriceListCostModelMap
+from cost_models.price_list_manager import PriceListManager
 from cost_models.serializers import CostModelSerializer
 from koku.cache import CacheEnum
 from koku.rbac import RbacService
@@ -65,7 +69,11 @@ class CostModelViewTests(IamTestCase):
             "source_type": self.ocp_source_type,
             "source_uuids": [self.provider.uuid],
             "rates": [
-                {"metric": {"name": self.ocp_metric}, "cost_type": "Infrastructure", "tiered_rates": tiered_rates}
+                {
+                    "metric": {"name": self.ocp_metric},
+                    "cost_type": "Infrastructure",
+                    "tiered_rates": tiered_rates,
+                }
             ],
             "currency": "USD",
         }
@@ -110,7 +118,10 @@ class CostModelViewTests(IamTestCase):
         self.assertIsNotNone(response.data.get("uuid"))
         self.assertIsNotNone(response.data.get("sources"))
         for rate in response.data.get("rates", []):
-            self.assertEqual(self.fake_data["rates"][0]["metric"]["name"], rate.get("metric", {}).get("name"))
+            self.assertEqual(
+                self.fake_data["rates"][0]["metric"]["name"],
+                rate.get("metric", {}).get("name"),
+            )
             self.assertIsNotNone(rate.get("tiered_rates"))
 
     def test_create_new_cost_model_map_association_for_provider(self):
@@ -352,7 +363,8 @@ class CostModelViewTests(IamTestCase):
 
         self.assertIsNotNone(cost_model)
         self.assertEqual(
-            self.fake_data["rates"][0]["metric"]["name"], cost_model.get("rates", [])[0].get("metric", {}).get("name")
+            self.fake_data["rates"][0]["metric"]["name"],
+            cost_model.get("rates", [])[0].get("metric", {}).get("name"),
         )
         self.assertEqual(
             self.fake_data["rates"][0]["tiered_rates"][0].get("value"),
@@ -375,7 +387,8 @@ class CostModelViewTests(IamTestCase):
         self.assertIsNotNone(cost_model.get("uuid"))
         self.assertIsNotNone(cost_model.get("sources"))
         self.assertEqual(
-            self.fake_data["rates"][0]["metric"]["name"], cost_model.get("rates", [])[0].get("metric", {}).get("name")
+            self.fake_data["rates"][0]["metric"]["name"],
+            cost_model.get("rates", [])[0].get("metric", {}).get("name"),
         )
         self.assertEqual(
             self.fake_data["rates"][0]["tiered_rates"][0].get("value"),
@@ -410,8 +423,14 @@ class CostModelViewTests(IamTestCase):
         self.initialize_request(context={"request_context": request_context, "user_data": user_data})
 
         test_matrix = [
-            {"access": {"cost_model": {"read": [], "write": []}}, "expected_response": status.HTTP_403_FORBIDDEN},
-            {"access": {"cost_model": {"read": ["*"], "write": []}}, "expected_response": status.HTTP_200_OK},
+            {
+                "access": {"cost_model": {"read": [], "write": []}},
+                "expected_response": status.HTTP_403_FORBIDDEN,
+            },
+            {
+                "access": {"cost_model": {"read": ["*"], "write": []}},
+                "expected_response": status.HTTP_200_OK,
+            },
             {
                 "access": {"cost_model": {"read": ["not-a-uuid"], "write": []}},
                 "expected_response": status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -451,8 +470,14 @@ class CostModelViewTests(IamTestCase):
         self.initialize_request(context={"request_context": request_context, "user_data": user_data})
 
         test_matrix = [
-            {"access": {"cost_model": {"read": [], "write": []}}, "expected_response": status.HTTP_403_FORBIDDEN},
-            {"access": {"cost_model": {"read": ["*"], "write": []}}, "expected_response": status.HTTP_200_OK},
+            {
+                "access": {"cost_model": {"read": [], "write": []}},
+                "expected_response": status.HTTP_403_FORBIDDEN,
+            },
+            {
+                "access": {"cost_model": {"read": ["*"], "write": []}},
+                "expected_response": status.HTTP_200_OK,
+            },
             {
                 "access": {"cost_model": {"read": [str(cost_model_uuid)], "write": []}},
                 "expected_response": status.HTTP_200_OK,
@@ -531,7 +556,10 @@ class CostModelViewTests(IamTestCase):
 
         # PUT tests
         test_matrix = [
-            {"access": {"cost_model": {"read": [], "write": []}}, "expected_response": status.HTTP_403_FORBIDDEN},
+            {
+                "access": {"cost_model": {"read": [], "write": []}},
+                "expected_response": status.HTTP_403_FORBIDDEN,
+            },
             {
                 "access": {"cost_model": {"read": ["*"], "write": [str(other_cost_models[0])]}},
                 "expected_response": status.HTTP_403_FORBIDDEN,
@@ -588,7 +616,10 @@ class CostModelViewTests(IamTestCase):
         client = APIClient()
         for test_case in test_matrix:
             with patch.object(RbacService, "get_access_for_user", return_value=test_case.get("access")):
-                url = reverse("cost-models-detail", kwargs={"uuid": test_case.get("cost_model_uuid")})
+                url = reverse(
+                    "cost-models-detail",
+                    kwargs={"uuid": test_case.get("cost_model_uuid")},
+                )
                 caches[CacheEnum.rbac].clear()
                 with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                     response = client.delete(url, **request_context["request"].META)
@@ -619,8 +650,9 @@ class CostModelViewTests(IamTestCase):
         cost_model_uuid = response.data.get("uuid")
 
         with tenant_context(self.tenant):
-            audit = CostModelAudit.objects.last()
-            self.assertEqual(audit.operation, "INSERT")
+            insert_audit = CostModelAudit.objects.filter(operation="INSERT").last()
+            self.assertIsNotNone(insert_audit)
+            insert_count = CostModelAudit.objects.filter(operation="INSERT").count()
 
         fake_data["source_uuids"] = [self.provider.uuid]
         url = reverse("cost-models-detail", kwargs={"uuid": cost_model_uuid})
@@ -628,8 +660,7 @@ class CostModelViewTests(IamTestCase):
             response = client.put(url, data=fake_data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         with tenant_context(self.tenant):
-            audit = CostModelAudit.objects.last()
-            self.assertEqual(audit.operation, "INSERT")
+            self.assertEqual(CostModelAudit.objects.filter(operation="INSERT").count(), insert_count)
 
         with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.delete(url, format="json", **self.headers)
@@ -660,6 +691,97 @@ class CostModelViewTests(IamTestCase):
         url = reverse("cost-models-list")
         client = APIClient()
         MOCK_COST_MODEL_METRIC_MAP = {"Invalid": {"Invalid": "Invalid"}}
-        with patch("api.metrics.constants.get_cost_model_metrics_map", return_value=MOCK_COST_MODEL_METRIC_MAP):
+        with patch(
+            "api.metrics.constants.get_cost_model_metrics_map",
+            return_value=MOCK_COST_MODEL_METRIC_MAP,
+        ):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_cost_model_price_lists_include_version_and_enabled(self):
+        """Test that cost model responses include price list version and enabled status."""
+        client = APIClient()
+        detail_url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
+
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            response = client.get(detail_url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(response.data["price_lists"]), 1)
+        for entry in response.data["price_lists"]:
+            self.assertIn("version", entry)
+            self.assertIn("enabled", entry)
+            self.assertIsInstance(entry["version"], int)
+            self.assertIsInstance(entry["enabled"], bool)
+
+        with tenant_context(self.tenant):
+            PriceListCostModelMap.objects.filter(cost_model_id=self.fake_data_cost_model_uuid).delete()
+            enabled_pl = PriceList.objects.create(
+                name="Enabled PL",
+                description="Test",
+                currency="USD",
+                effective_start_date=date(2026, 1, 1),
+                effective_end_date=date(2026, 6, 30),
+                enabled=True,
+                version=3,
+                rates=[],
+            )
+            formerly_enabled_pl = PriceList.objects.create(
+                name="Disabled PL",
+                description="Test",
+                currency="USD",
+                effective_start_date=date(2026, 7, 1),
+                effective_end_date=date(2026, 12, 31),
+                enabled=True,
+                version=2,
+                rates=[],
+            )
+            PriceListManager.attach_price_lists_to_cost_model(
+                self.fake_data_cost_model_uuid,
+                [enabled_pl.uuid, formerly_enabled_pl.uuid],
+            )
+            PriceListManager(formerly_enabled_pl.uuid).update(enabled=False)
+            formerly_enabled_pl.refresh_from_db()
+
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            detail_response = client.get(detail_url, **self.headers)
+            list_response = client.get(reverse("cost-models-list"), **self.headers)
+
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        price_lists = detail_response.data["price_lists"]
+        self.assertEqual(len(price_lists), 2)
+        self.assertEqual(price_lists[0]["uuid"], str(enabled_pl.uuid))
+        self.assertEqual(price_lists[0]["version"], 3)
+        self.assertTrue(price_lists[0]["enabled"])
+        self.assertEqual(price_lists[1]["uuid"], str(formerly_enabled_pl.uuid))
+        self.assertEqual(price_lists[1]["version"], 2)
+        self.assertFalse(price_lists[1]["enabled"])
+
+        list_entry = next(
+            item for item in list_response.data["data"] if item["uuid"] == str(self.fake_data_cost_model_uuid)
+        )
+        self.assertEqual(list_entry["price_lists"], price_lists)
+
+    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    def test_cost_model_response_includes_price_list_dates(self, _):
+        """Test that cost model GET response includes effective start/end dates for price lists."""
+        with tenant_context(self.tenant):
+            price_list = PriceList.objects.create(
+                name="Test PL",
+                description="",
+                currency="USD",
+                effective_start_date="2026-01-01",
+                effective_end_date="2026-06-30",
+                rates=[],
+            )
+            PriceListManager.attach_price_lists_to_cost_model(self.fake_data_cost_model_uuid, [price_list.uuid])
+
+        url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        price_lists = response.data.get("price_lists", [])
+        self.assertEqual(len(price_lists), 1)
+        self.assertEqual(price_lists[0]["uuid"], str(price_list.uuid))
+        self.assertEqual(price_lists[0]["effective_start_date"], "2026-01-01")
+        self.assertEqual(price_lists[0]["effective_end_date"], "2026-06-30")

@@ -15,14 +15,16 @@ from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
-from django.db.models import IntegerField
+from django.db.models import Max
+from django.db.models import OuterRef
+from django.db.models import Subquery
 from django.db.models import Value
 from django.db.models import When
-from django.db.models.expressions import RawSQL
 from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
+from api.currency.utils import build_monthly_rate_annotation
 from api.models import Provider
 from api.report.ocp.capacity.cluster_capacity import calculate_unused
 from api.report.ocp.capacity.cluster_capacity import ClusterCapacity
@@ -33,11 +35,10 @@ from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
-from reporting.provider.ocp.models import OCPGpuSummaryP
+from masu.processor import CONSTANT_CURRENCY_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
 
 LOG = logging.getLogger(__name__)
-
-_GPU_TABLE = f'"{OCPGpuSummaryP._meta.db_table}"'
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -114,6 +115,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
         ocp_pack_definitions["usage"]["keys"].extend(["data_transfer_in", "data_transfer_out"])
         ocp_pack_definitions["gpu_memory"] = {"keys": ["gpu_memory"], "units": "gpu_memory_units"}
+        ocp_pack_definitions["compute"] = {"keys": ["compute"], "units": "mig_compute_units"}
+        ocp_pack_definitions["memory"] = {"keys": ["memory"], "units": "mig_memory_units"}
         ocp_pack_definitions["gpu_count"] = {"keys": ["gpu_count"], "units": "gpu_count_units"}
 
         # super() needs to be called after _mapper and _limit is set
@@ -163,51 +166,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return annotations
 
-    @property
-    def report_annotations(self):
-        """Return annotations for the grouped query; for GPU report use unique GPU count."""
-        base = self._mapper.report_type_map.get("annotations", {})
-        if self._report_type != "gpu":
-            return base
-        gpu_ann = self._gpu_count_annotation()
-        if gpu_ann is not None:
-            return {**base, "gpu_count": gpu_ann}
-        return base
-
-    def _gpu_count_annotation(self):
-        """Build a RawSQL annotation for unique GPU count that respects active ORM filters."""
-        if self.resolution == "daily":
-            return None
-
-        qs = self.query_table.objects.filter(self.query_filter)
-        if self.query_exclusions:
-            qs = qs.exclude(self.query_exclusions)
-
-        compiler = qs.query.get_compiler(using="default")
-        where_sql, where_params = qs.query.where.as_sql(compiler, compiler.connection)
-
-        filter_clause = ""
-        if where_sql:
-            p2_ref = '"p2"'
-            filter_clause = f" AND {where_sql.replace(_GPU_TABLE, p2_ref)}"
-
-        namespace_corr = ""
-        if is_grouped_by_project(self.parameters):
-            namespace_corr = f' AND "p2"."namespace" = {_GPU_TABLE}."namespace"'
-
-        sql = f"""(SELECT COALESCE(SUM(m), 0) FROM (
-            SELECT MAX("p2"."gpu_count") AS m
-            FROM {_GPU_TABLE} AS "p2"
-            WHERE "p2"."vendor_name" = {_GPU_TABLE}."vendor_name"
-              AND "p2"."model_name" = {_GPU_TABLE}."model_name"
-              AND "p2"."node" = {_GPU_TABLE}."node"
-              AND "p2"."cluster_id" = {_GPU_TABLE}."cluster_id"
-              {namespace_corr}
-              {filter_clause}
-            GROUP BY "p2"."namespace", "p2"."node"
-        ) t)"""
-        return RawSQL(sql, list(where_params), output_field=IntegerField())
-
     @cached_property
     def source_to_currency_map(self):
         """
@@ -226,19 +184,65 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        exchange_rate_whens = [
-            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
-            for uuid, cur in self.source_to_currency_map.items()
-        ]
-        infra_exchange_rate_whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
+        """Get per-month exchange rate annotations from MonthlyExchangeRate via Subquery.
+
+        When constant currency is enabled, OCP needs two annotations:
+        - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency)
+        - infra_exchange_rate: cloud bill currency (raw_currency column)
+
+        Falls back to the Case/When approach when the flag is off.
+        """
+        if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+            cost_model_currency = Subquery(
+                CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
+                    "currency"
+                )[:1],
+            )
+            exchange_rate_annotation = build_monthly_rate_annotation(cost_model_currency, self.currency)
+            infra_exchange_rate_annotation = build_monthly_rate_annotation(
+                OuterRef(self._mapper.cost_units_key), self.currency
+            )
+        else:
+            exchange_rate_whens = [
+                When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
+                for uuid, cur in self.source_to_currency_map.items()
+            ]
+            infra_exchange_rate_whens = [
+                When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
+                for k, v in self.exchange_rates.items()
+            ]
+            exchange_rate_annotation = Case(*exchange_rate_whens, default=1, output_field=DecimalField())
+            infra_exchange_rate_annotation = Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField())
+
         return {
-            "exchange_rate": Case(*exchange_rate_whens, default=1, output_field=DecimalField()),
-            "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
+            "exchange_rate": exchange_rate_annotation,
+            "infra_exchange_rate": infra_exchange_rate_annotation,
         }
+
+    def _get_base_currencies_for_conversion(self):
+        """Return base currencies from both raw_currency and cost model currencies."""
+        base_currencies = super()._get_base_currencies_for_conversion()
+        cm_currencies = set(
+            CostModel.objects.filter(
+                costmodelmap__provider_uuid__in=self.query_table.objects.filter(
+                    usage_start__gte=self.start_datetime.date(),
+                    usage_start__lte=self.end_datetime.date(),
+                ).values("source_uuid"),
+            ).values_list("currency", flat=True)
+        )
+        return (base_currencies | cm_currencies) - {None}
+
+    @property
+    def report_annotations(self):
+        """Return annotations with OCP-specific infra_exchange_rate for CSV output."""
+        annotations = self._mapper.report_type_map.get("annotations", {})
+        if self.is_csv_output:
+            annotations = {
+                **annotations,
+                "base_currency": Max(self._mapper.cost_units_key),
+                "exchange_rate": Coalesce(Max("infra_exchange_rate"), Value(1), output_field=DecimalField()),
+            }
+        return annotations
 
     def format_tags(self, tags_iterable):
         """

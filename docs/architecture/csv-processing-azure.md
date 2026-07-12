@@ -675,6 +675,9 @@ json_extract_scalar(json_parse(additionalinfo), '$.ServiceType') as instance_typ
    ```
 
 3. **Authorization Issues**
+
+   A 403 `AuthorizationFailure` on blob list/download may indicate missing RBAC **or** a storage account network firewall blocking the caller. See [Azure source troubleshooting — AuthorizationFailure on blob access](../sources/azure.md#unable-to-find-manifest-with-authorizationfailure-on-blob-access) for diagnosis steps.
+
    ```python
    except HttpResponseError as httpError:
        if httpError.status_code == 403:

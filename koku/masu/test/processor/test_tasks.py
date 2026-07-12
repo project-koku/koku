@@ -552,6 +552,7 @@ class TestProcessorTasks(MasuTestCase):
         get_report_files(**self.get_report_args)
         mock_cache_remove.assert_called()
 
+    @override_settings(ONPREM=False)
     @patch("masu.processor.tasks.DataValidator")
     @patch(
         "masu.processor.tasks.is_validation_enabled",
@@ -563,9 +564,26 @@ class TestProcessorTasks(MasuTestCase):
         validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
         mock_validate_daily_data.assert_called()
 
+    @override_settings(ONPREM=False)
     @patch("masu.processor.tasks.DataValidator")
     def test_validate_data_task_skip(self, mock_validate_daily_data):
         """Test skipping validate data task."""
+        context = {"unit": "test"}
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
+            mock_validate_daily_data.assert_not_called()
+            expected = "skipping validation, disabled for schema"
+            found = any(expected in log for log in logger.output)
+            self.assertTrue(found)
+
+    @override_settings(ONPREM=True)
+    @patch("masu.processor.tasks.DataValidator")
+    @patch(
+        "masu.processor.tasks.is_validation_enabled",
+        return_value=True,
+    )
+    def test_validate_data_task_skip_onprem(self, mock_unleash, mock_validate_daily_data):
+        """Data validation is skipped on-prem for now."""
         context = {"unit": "test"}
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
@@ -732,6 +750,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         # have something to pull from
         self.start_date = self.dh.today.replace(day=1)
 
+    @patch(
+        "masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema",
+        return_value=False,
+    )
     @patch("masu.util.common.trino_db.connect")
     @patch(
         "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportParquetSummaryUpdater._check_parquet_date_range"
@@ -742,8 +764,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._load_rates")
     def test_update_summary_tables_ocp(
         self,
+        mock_load_rates,
         mock_select_for_update,
         mock_cost_model,
         mock_charge_info,
@@ -752,6 +776,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_cache,
         mock_date_check,
         mock_conn,
+        mock_ff,
     ):
         """Test that the summary table task runs."""
         mock_queryset = mock_select_for_update.return_value
@@ -771,7 +796,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "platform_cost": False,
             "worker_cost": False,
         }
-        # We need to bypass the None check for cost model in update_cost_model_costs
+        mock_cost_model.return_value.__enter__.return_value.cost_model = None
+        mock_cost_model.return_value.__enter__.return_value.rate_info_map = {}
         mock_task_cost_model.return_value.__enter__.return_value.cost_model = {}
 
         provider_type = Provider.PROVIDER_OCP
@@ -1553,6 +1579,36 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_summary.side_effect = ReportSummaryUpdaterCloudError
         with self.assertRaises(ReportSummaryUpdaterCloudError):
             update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
+
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
+    @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    def test_update_summary_tables_preserves_original_error_when_manifest_deleted(
+        self, mock_select_for_update, mock_updater
+    ):
+        """Test that a missing manifest does not mask the original summary failure."""
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
+        manifest = Mock()
+        manifest.state = None
+        mock_select_for_update.return_value.get.side_effect = [
+            manifest,
+            CostUsageReportManifest.DoesNotExist,
+        ]
+        mock_updater.side_effect = IntegrityError("fk violation")
+
+        with self.assertLogs("masu.database.report_manifest_db_accessor", level="WARNING") as logger:
+            with self.assertRaises(IntegrityError):
+                update_summary_tables(
+                    self.schema,
+                    Provider.PROVIDER_AWS,
+                    self.aws_provider_uuid,
+                    start_date,
+                    end_date,
+                    manifest_id=123,
+                    synchronous=True,
+                )
+
+        self.assertIn("manifest not found, skipping state update", logger.output[0])
 
     @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")

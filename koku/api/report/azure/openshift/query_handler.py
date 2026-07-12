@@ -89,14 +89,10 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date", self.order]
 
-            annotations = self._mapper.report_type_map.get("annotations")
+            annotations = self.report_annotations
             query_data = query.values(*query_group_by).annotate(**annotations)
 
-            if (
-                "subscription_guid" in query_group_by
-                and "subscription_name" not in query_order_by
-                and "-subscription_name" not in query_order_by
-            ):
+            if "subscription_guid" in query_group_by:
                 query_data = query_data.annotate(
                     subscription_name=Coalesce(F(self._mapper.provider_map.get("alias")), "subscription_guid")
                 )

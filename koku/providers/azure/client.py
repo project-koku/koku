@@ -65,12 +65,17 @@ class AzureClientFactory:
 
     def blob_service_client(self, resource_group_name, storage_account_name):
         """Get a BlobServiceClient."""
+        account_url = f"https://{storage_account_name}.blob.core.windows.net"
         try:
             storage_account_keys = self.storage_client.storage_accounts.list_keys(
                 resource_group_name, storage_account_name
             )
-            # Add check for keys and a get value
-            key = storage_account_keys.keys[0]
+            # azure-mgmt-storage >=25 exposes keys as keys_property (.keys is dict.keys())
+            if hasattr(storage_account_keys, "keys_property"):
+                account_keys = storage_account_keys.keys_property
+            else:
+                account_keys = storage_account_keys.keys
+            key = account_keys[0]
 
             connect_str = (
                 f"DefaultEndpointsProtocol=https;"
@@ -78,16 +83,20 @@ class AzureClientFactory:
                 f"AccountKey={key.value};"
                 f"EndpointSuffix=core.windows.net"
             )
-            return BlobServiceClient.from_connection_string(connect_str)
+            client = BlobServiceClient.from_connection_string(connect_str)
+            client.get_account_information()
+            return client
         except HttpResponseError as httpError:
-            err = "does not have authorization to perform action 'Microsoft.Storage/storageAccounts/listKeys/action'"
-            if err not in httpError.message:
+            error_msg = str(httpError)
+            listkeys_err = (
+                "does not have authorization to perform action 'Microsoft.Storage/storageAccounts/listKeys/action'"
+            )
+            key_disabled_err = "KeyBasedAuthenticationNotPermitted"
+            if listkeys_err not in error_msg and key_disabled_err not in error_msg:
                 raise httpError
             LOG.warning(
-                "falling back to non storage account key access: "
-                f"unable to list storage account keys: {httpError.message}"
+                "falling back to non storage account key access: " f"unable to use storage account keys: {error_msg}"
             )
-            account_url = f"https://{storage_account_name}.blob.core.windows.net"
             return BlobServiceClient(account_url, self.credentials)
 
     @property
