@@ -20,11 +20,13 @@ from cost_models.models import PriceListCostModelMap
 from cost_models.models import Rate
 from koku.pg_partition import PartitionHandlerMixin
 from masu.test import MasuTestCase
+from reporting.models import TenantAPIProvider
 from reporting.provider.ocp.models import RatesToUsage
 
 MIGRATE_FROM = ("reporting", "0351_create_ocp_cost_breakdown_p")
 MIGRATE_TO_0352 = ("reporting", "0352_rtu_truncate_and_fk_indexes")
 MIGRATE_TO_0353 = ("reporting", "0353_rtu_fk_cascade")
+MIGRATE_TO_0354 = ("reporting", "0354_rtu_provider_report_period_fk")
 
 
 class _RatesToUsageMigrationMixin:
@@ -57,10 +59,11 @@ class _RatesToUsageMigrationMixin:
     def _create_rtu_row(self, *, rate=None, cost_model=None, usage_start=None):
         usage_start = usage_start or self.dh.this_month_start.date()
         self._ensure_rtu_partition(usage_start)
+        source = TenantAPIProvider.objects.get(uuid=self.ocp_provider_uuid)
         return RatesToUsage.objects.create(
             rate=rate,
             cost_model=cost_model,
-            source_uuid=self.ocp_provider_uuid,
+            source_uuid=source,
             usage_start=usage_start,
             usage_end=usage_start,
             cluster_id=self.ocp_cluster_id,
@@ -119,7 +122,7 @@ class _RatesToUsageMigrationMixin:
     def _restore_latest_migration(self):
         """Re-apply latest migration after tests that roll back (KEEPDB=True)."""
         with tenant_context(self.tenant):
-            self._run_migration(MIGRATE_TO_0353)
+            self._run_migration(MIGRATE_TO_0354)
 
     def _cleanup_rtu_migration_fixtures(self):
         with tenant_context(self.tenant):
@@ -178,7 +181,7 @@ class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
     def test_0353_cascade_deletes_rtu_when_rate_deleted(self):
         """Migration 0353 CASCADE removes RTU rows when a Rate is deleted."""
         with tenant_context(self.tenant):
-            self._run_migration(MIGRATE_TO_0353)
+            self._run_migration(MIGRATE_TO_0354)
             cost_model, rate = self._create_cost_model_rate(name="RTU Rate CASCADE CM")
             rtu = self._create_rtu_row(rate=rate, cost_model=cost_model)
             rtu_uuid = rtu.uuid
@@ -190,7 +193,7 @@ class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
     def test_0353_cascade_deletes_rtu_when_cost_model_deleted(self):
         """Migration 0353 CASCADE removes RTU rows when a CostModel is deleted."""
         with tenant_context(self.tenant):
-            self._run_migration(MIGRATE_TO_0353)
+            self._run_migration(MIGRATE_TO_0354)
             cost_model, rate = self._create_cost_model_rate(name="RTU CM CASCADE CM")
             rtu = self._create_rtu_row(rate=rate, cost_model=cost_model)
             rtu_uuid = rtu.uuid

@@ -1051,7 +1051,7 @@ class RatesToUsage(models.Model):
         db_table = "rates_to_usage"
         indexes = [
             models.Index(
-                fields=["usage_start", "source_uuid", "report_period_id"],
+                fields=["usage_start", "source_uuid", "report_period"],
                 name="ratestousage_start_src_rp_idx",
             ),
             models.Index(fields=["namespace"], name="ratestousage_namespace_idx"),
@@ -1066,8 +1066,19 @@ class RatesToUsage(models.Model):
     uuid = models.UUIDField(primary_key=True, default=uuid4)
     rate = models.ForeignKey("cost_models.Rate", on_delete=models.CASCADE, null=True)
     cost_model = models.ForeignKey("cost_models.CostModel", on_delete=models.CASCADE, null=True)
-    report_period_id = models.IntegerField(null=True)
-    source_uuid = models.UUIDField()
+    report_period = models.ForeignKey(
+        "OCPUsageReportPeriod",
+        on_delete=models.CASCADE,
+        null=True,
+        db_column="report_period_id",
+    )
+    source_uuid = models.ForeignKey(
+        "reporting.TenantAPIProvider",
+        on_delete=models.CASCADE,
+        unique=False,
+        null=False,
+        db_column="source_uuid",
+    )
     usage_start = models.DateField()
     usage_end = models.DateField()
     node = models.CharField(max_length=253, null=True)
