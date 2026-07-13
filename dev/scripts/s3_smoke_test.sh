@@ -24,6 +24,7 @@ DEV_SCRIPTS_PATH=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 KOKU_ROOT=$(cd -- "${DEV_SCRIPTS_PATH}/../.." &>/dev/null && pwd)
 
 source "${DEV_SCRIPTS_PATH}/common/logging.sh"
+source "${DEV_SCRIPTS_PATH}/common/utils.sh"
 
 # Defaults match S4 local dev (see docker-compose.yml).
 S3_ENDPOINT="${S3_ENDPOINT:-http://localhost:9000}"
@@ -34,20 +35,7 @@ KOKU_BUCKET="${S3_BUCKET_NAME:-koku-bucket}"
 OCP_BUCKET="${S3_BUCKET_NAME_OCP_INGRESS:-ocp-ingress}"
 METASTORE_BUCKET="${S3_METASTORE_BUCKET:-metastore}"
 
-# When running from the host, Docker-internal hostnames are not resolvable.
-# Map common compose service names to localhost (port must match compose publish).
-normalize_host_endpoint() {
-    local endpoint=$1
-    endpoint="${endpoint/koku-s4-proxy/localhost}"
-    endpoint="${endpoint/koku-s4/localhost}"
-    endpoint="${endpoint/koku-minio/localhost}"
-    endpoint="${endpoint/http:\/\/s4/http:\/\/localhost}"
-    # S4 RGW listens on 7480 in-container; compose publishes host 9000 -> 7480.
-    if [[ "${endpoint}" == *localhost* && "${endpoint}" == *:7480* ]]; then
-        endpoint="${endpoint/:7480/:9000}"
-    fi
-    echo "${endpoint}"
-}
+S3_HOST_ENDPOINT="$(normalize_host_s3_endpoint "${S3_ENDPOINT}")"
 
 endpoint_port() {
     local endpoint=$1
@@ -60,7 +48,6 @@ endpoint_port() {
     fi
 }
 
-S3_HOST_ENDPOINT="$(normalize_host_endpoint "${S3_ENDPOINT}")"
 S3_ENDPOINT_PORT="$(endpoint_port "${S3_HOST_ENDPOINT}")"
 
 export AWS_ACCESS_KEY_ID="${S3_ACCESS_KEY}"
