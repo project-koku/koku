@@ -831,8 +831,14 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             operation="DELETE",
         )
 
-    def _delete_monthly_cost_model_data(self, sql_params, ctx):
-        delete_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/delete_monthly_cost.sql")
+    def _delete_monthly_cost_model_data(self, sql_params, ctx, use_rtu=False):
+        """Delete stale monthly-cost rows from before re-inserting."""
+        if use_rtu:
+            sql_file = "sql/openshift/cost_model/delete_monthly_cost_rates_to_usage.sql"
+        else:
+            sql_file = "sql/openshift/cost_model/delete_monthly_cost.sql"
+
+        delete_sql = pkgutil.get_data("masu.database", sql_file)
         delete_sql = delete_sql.decode("utf-8")
         if sql_params.get("rate_type"):
             LOG.info(log_json(msg="removing monthly costs", context=ctx))
@@ -840,25 +846,6 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             LOG.info(log_json(msg="removing stale monthly costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(
             self._table_map["line_item_daily_summary"],
-            delete_sql,
-            sql_params,
-            operation="DELETE",
-        )
-
-    def _delete_monthly_cost_rates_to_usage(self, sql_params, ctx):
-        """Delete stale monthly-cost rows from rates_to_usage before re-inserting.
-
-        Mirrors _delete_distributed_rtu_rows, which fixes the identical
-        missing-delete gap for distribution rows. See
-        delete_monthly_cost_rates_to_usage.sql for the full explanation.
-        """
-        delete_sql = pkgutil.get_data(
-            "masu.database", "sql/openshift/cost_model/delete_monthly_cost_rates_to_usage.sql"
-        )
-        delete_sql = delete_sql.decode("utf-8")
-        LOG.info(log_json(msg="removing stale monthly cost RTU rows", context=ctx))
-        self._prepare_and_execute_raw_sql_query(
-            "rates_to_usage",
             delete_sql,
             sql_params,
             operation="DELETE",
@@ -968,21 +955,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 "cost_type": cost_type,
             },
             ctx,
-        )
-        # rates_to_usage is always a plain PostgreSQL table, even for OCP_VM_CORE
-        # whose INSERT is Trino-routed -- the DELETE never touches Trino, so no
-        # catalog qualification is needed. Mirrors _delete_distributed_rtu_rows,
-        # which is called unconditionally including for the Trino-routed GPU
-        # distribution path.
-        self._delete_monthly_cost_rates_to_usage(
-            {
-                "schema": self.schema,
-                "report_period_id": report_period.id,
-                "start_date": start_date,
-                "end_date": end_date,
-                "cost_type": cost_type,
-            },
-            ctx,
+            use_rtu,
         )
         if not rate:
             # since we don't have a rate, we have no new costs to calculate.
@@ -1007,9 +980,6 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         insert_sql = pkgutil.get_data("masu.database", cost_type_file)
         insert_sql = insert_sql.decode("utf-8")
         LOG.info(log_json(msg="populating monthly costs", context=ctx))
-        # OCP_VM_CORE is currently the only Trino-routed monthly cost type; check
-        # cost_type explicitly rather than a substring match against cost_type_file,
-        # which would break if get_sql_folder_name() ever returned "sql".
         if cost_type == "OCP_VM_CORE":
             start_date = DateHelper().parse_to_date(sql_params["start_date"])
             sql_params["year"] = start_date.strftime("%Y")
