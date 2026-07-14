@@ -167,6 +167,9 @@ class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
     def test_0352_adds_fk_indexes(self):
         """Migration 0352 creates indexes on rate_id and cost_model_id."""
         with tenant_context(self.tenant):
+            # Roll back and re-apply so AddIndex runs even when django_migrations
+            # already records 0352 (e.g. CI tenant setup vs MigrationExecutor state).
+            self._run_migration(MIGRATE_FROM)
             self._run_migration(MIGRATE_TO)
             self.assertEqual(
                 self._index_names(),

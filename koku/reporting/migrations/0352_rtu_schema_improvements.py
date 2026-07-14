@@ -104,36 +104,13 @@ class Migration(migrations.Migration):
             sql="TRUNCATE TABLE rates_to_usage;",
             reverse_sql=migrations.RunSQL.noop,
         ),
-        migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunSQL(
-                    sql="CREATE INDEX IF NOT EXISTS ratestousage_rate_id_idx ON rates_to_usage (rate_id);",
-                    reverse_sql="DROP INDEX IF EXISTS ratestousage_rate_id_idx;",
-                ),
-            ],
-            state_operations=[
-                migrations.AddIndex(
-                    model_name="ratestousage",
-                    index=models.Index(fields=["rate_id"], name="ratestousage_rate_id_idx"),
-                ),
-            ],
+        migrations.AddIndex(
+            model_name="ratestousage",
+            index=models.Index(fields=["rate_id"], name="ratestousage_rate_id_idx"),
         ),
-        migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunSQL(
-                    sql=(
-                        "CREATE INDEX IF NOT EXISTS ratestousage_cost_model_id_idx "
-                        "ON rates_to_usage (cost_model_id);"
-                    ),
-                    reverse_sql="DROP INDEX IF EXISTS ratestousage_cost_model_id_idx;",
-                ),
-            ],
-            state_operations=[
-                migrations.AddIndex(
-                    model_name="ratestousage",
-                    index=models.Index(fields=["cost_model_id"], name="ratestousage_cost_model_id_idx"),
-                ),
-            ],
+        migrations.AddIndex(
+            model_name="ratestousage",
+            index=models.Index(fields=["cost_model_id"], name="ratestousage_cost_model_id_idx"),
         ),
         migrations.SeparateDatabaseAndState(
             database_operations=[],
@@ -163,19 +140,9 @@ class Migration(migrations.Migration):
                 ),
             ],
         ),
-        migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunSQL(
-                    sql="DROP INDEX IF EXISTS ratestousage_start_src_rp_idx;",
-                    reverse_sql=migrations.RunSQL.noop,
-                ),
-            ],
-            state_operations=[
-                migrations.RemoveIndex(
-                    model_name="ratestousage",
-                    name="ratestousage_start_src_rp_idx",
-                ),
-            ],
+        migrations.RemoveIndex(
+            model_name="ratestousage",
+            name="ratestousage_start_src_rp_idx",
         ),
         migrations.SeparateDatabaseAndState(
             database_operations=[],
@@ -216,25 +183,12 @@ class Migration(migrations.Migration):
                 ),
             ],
         ),
-        migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunSQL(
-                    sql=(
-                        "CREATE INDEX IF NOT EXISTS ratestousage_start_src_rp_idx "
-                        "ON rates_to_usage (usage_start, source_uuid, report_period_id);"
-                    ),
-                    reverse_sql="DROP INDEX IF EXISTS ratestousage_start_src_rp_idx;",
-                ),
-            ],
-            state_operations=[
-                migrations.AddIndex(
-                    model_name="ratestousage",
-                    index=models.Index(
-                        fields=["usage_start", "source_uuid", "report_period"],
-                        name="ratestousage_start_src_rp_idx",
-                    ),
-                ),
-            ],
+        migrations.AddIndex(
+            model_name="ratestousage",
+            index=models.Index(
+                fields=["usage_start", "source_uuid", "report_period"],
+                name="ratestousage_start_src_rp_idx",
+            ),
         ),
         migrations.RunSQL(sql=RTU_FK_CASCADE_SQL, reverse_sql=migrations.RunSQL.noop),
     ]
