@@ -2,7 +2,7 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Tests for rates_to_usage schema migrations 0352 and 0353."""
+"""Tests for rates_to_usage schema migration 0352."""
 from datetime import date
 from decimal import Decimal
 
@@ -24,9 +24,7 @@ from reporting.models import TenantAPIProvider
 from reporting.provider.ocp.models import RatesToUsage
 
 MIGRATE_FROM = ("reporting", "0351_create_ocp_cost_breakdown_p")
-MIGRATE_TO_0352 = ("reporting", "0352_rtu_truncate_and_fk_indexes")
-MIGRATE_TO_0353 = ("reporting", "0353_rtu_fk_cascade")
-MIGRATE_TO_0354 = ("reporting", "0354_rtu_provider_report_period_fk")
+MIGRATE_TO = ("reporting", "0352_rtu_schema_improvements")
 
 
 class _RatesToUsageMigrationMixin:
@@ -122,7 +120,7 @@ class _RatesToUsageMigrationMixin:
     def _restore_latest_migration(self):
         """Re-apply latest migration after tests that roll back (KEEPDB=True)."""
         with tenant_context(self.tenant):
-            self._run_migration(MIGRATE_TO_0354)
+            self._run_migration(MIGRATE_TO)
 
     def _cleanup_rtu_migration_fixtures(self):
         with tenant_context(self.tenant):
@@ -158,7 +156,7 @@ class RatesToUsageTruncateMigrationTest(_RatesToUsageMigrationMixin, Transaction
             self._create_rtu_row(rate=rate, cost_model=cost_model)
             self.assertEqual(RatesToUsage.objects.count(), 1)
 
-            self._run_migration(MIGRATE_TO_0352)
+            self._run_migration(MIGRATE_TO)
 
             self.assertEqual(RatesToUsage.objects.count(), 0)
 
@@ -169,10 +167,7 @@ class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
     def test_0352_adds_fk_indexes(self):
         """Migration 0352 creates indexes on rate_id and cost_model_id."""
         with tenant_context(self.tenant):
-            # Roll back and re-apply 0352 so AddIndex runs even when django_migrations
-            # already records 0352+ (e.g. CI tenant setup vs MigrationExecutor state).
-            self._run_migration(MIGRATE_FROM)
-            self._run_migration(MIGRATE_TO_0352)
+            self._run_migration(MIGRATE_TO)
             self.assertEqual(
                 self._index_names(),
                 {"ratestousage_rate_id_idx", "ratestousage_cost_model_id_idx"},
@@ -181,7 +176,7 @@ class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
     def test_0353_cascade_deletes_rtu_when_rate_deleted(self):
         """Migration 0353 CASCADE removes RTU rows when a Rate is deleted."""
         with tenant_context(self.tenant):
-            self._run_migration(MIGRATE_TO_0354)
+            self._run_migration(MIGRATE_TO)
             cost_model, rate = self._create_cost_model_rate(name="RTU Rate CASCADE CM")
             rtu = self._create_rtu_row(rate=rate, cost_model=cost_model)
             rtu_uuid = rtu.uuid
@@ -193,7 +188,7 @@ class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
     def test_0353_cascade_deletes_rtu_when_cost_model_deleted(self):
         """Migration 0353 CASCADE removes RTU rows when a CostModel is deleted."""
         with tenant_context(self.tenant):
-            self._run_migration(MIGRATE_TO_0354)
+            self._run_migration(MIGRATE_TO)
             cost_model, rate = self._create_cost_model_rate(name="RTU CM CASCADE CM")
             rtu = self._create_rtu_row(rate=rate, cost_model=cost_model)
             rtu_uuid = rtu.uuid
