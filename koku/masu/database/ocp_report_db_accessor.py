@@ -907,6 +907,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         cost_model_id=None,
         rate_uuid=None,
         custom_name=None,
+        use_rtu: bool = False,
     ):
         """
         Populate the monthly cost of a customer.
@@ -924,13 +925,14 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         """
         if cost_type == "OCP_VM_CORE" and not trino_table_exists(self.schema, "openshift_vm_usage_line_items"):
             return
+        _rtu = "_rtu" if use_rtu else ""
         cost_type_file_mapping = {
-            "Node": "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql",
-            "Node_Core_Month": "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql",
-            "Cluster": "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql",
-            "PVC": "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim.sql",
-            "OCP_VM": "sql/openshift/cost_model/monthly_cost_virtual_machine.sql",
-            "OCP_VM_CORE": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_vm_core.sql",
+            "Node": f"sql/openshift/cost_model/monthly_cost_cluster_and_node{_rtu}.sql",
+            "Node_Core_Month": f"sql/openshift/cost_model/monthly_cost_cluster_and_node{_rtu}.sql",
+            "Cluster": f"sql/openshift/cost_model/monthly_cost_cluster_and_node{_rtu}.sql",
+            "PVC": f"sql/openshift/cost_model/monthly_cost_persistentvolumeclaim{_rtu}.sql",
+            "OCP_VM": f"sql/openshift/cost_model/monthly_cost_virtual_machine{_rtu}.sql",
+            "OCP_VM_CORE": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_vm_core{_rtu}.sql",
         }
         cost_type_file = cost_type_file_mapping.get(cost_type)
         if not cost_type_file:
@@ -1029,6 +1031,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         cost_model_id=None,
         rate_uuid=None,
         custom_name=None,
+        use_rtu: bool = False,
     ):
         """
         Update or insert daily summary line item for node cost.
@@ -1058,12 +1061,13 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         cpu_case, memory_case, volume_case = case_dict.get("cost")
         labels = case_dict.get("labels")
 
+        _rtu = "_rtu" if use_rtu else ""
         if "Node" in cost_type:
-            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/node_cost_by_tag.sql")
+            sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/node_cost_by_tag{_rtu}.sql")
         elif cost_type == "PVC":
             sql = pkgutil.get_data(
                 "masu.database",
-                "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim_by_tag.sql",
+                f"sql/openshift/cost_model/monthly_cost_persistentvolumeclaim_by_tag{_rtu}.sql",
             )
 
         sql = sql.decode("utf-8")
@@ -1106,19 +1110,21 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         report_period_id,
         cost_model_id=None,
         rate_info_map=None,
+        use_rtu: bool = False,
     ):
         if not vm_usage_rates:
             return
         vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
         rate_info_map = rate_info_map or {}
+        _rtu = "_rtu" if use_rtu else ""
         vm_usage_metadata = {
             metric_constants.OCP_VM_HOUR: {
-                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_cost_virtual_machine.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_cost_virtual_machine{_rtu}.sql",
                 "log_msg": "populating virtual machine hourly costs",
                 "metric_params": {"use_fractional_hours": vm_table_exists},
             },
             metric_constants.OCP_VM_CORE_HOUR: {
-                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_vm_core.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_vm_core{_rtu}.sql",
                 "log_msg": "populating virtual machine core hourly costs",
             },
         }
@@ -1303,22 +1309,21 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         rate_info_map=None,
         source_uuid=None,
         report_period_id=None,
+        use_rtu: bool = False,
     ):
-        """Insert per-rate tag-based usage costs into rates_to_usage.
-
-        Called once per (metric, tag_key, tag_value) combination.
-        """
+        """Insert per-rate tag-based usage costs into rates_to_usage (use_rtu=True) or daily summary (legacy)."""
         infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys())
         supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys())
+        _rtu = "_rtu" if use_rtu else ""
         rate_types = [
             {
                 "rates": infrastructure_rates,
-                "sql_file": "sql/openshift/cost_model/infrastructure_tag_rates.sql",
+                "sql_file": f"sql/openshift/cost_model/infrastructure_tag_rates{_rtu}.sql",
                 "cost_type": metric_constants.INFRASTRUCTURE_COST_TYPE,
             },
             {
                 "rates": supplementary_rates,
-                "sql_file": "sql/openshift/cost_model/supplementary_tag_rates.sql",
+                "sql_file": f"sql/openshift/cost_model/supplementary_tag_rates{_rtu}.sql",
                 "cost_type": metric_constants.SUPPLEMENTARY_COST_TYPE,
             },
         ]
@@ -1378,19 +1383,22 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         rate_info_map=None,
         source_uuid=None,
         report_period_id=None,
+        use_rtu: bool = False,
     ):
-        """Insert per-rate default tag-based usage costs into rates_to_usage."""
+        """Insert per-rate default tag-based usage costs into
+        rates_to_usage (use_rtu=True) or daily summary (legacy)."""
         infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys())
         supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys())
+        _rtu = "_rtu" if use_rtu else ""
         rate_types = [
             {
                 "rates": infrastructure_rates,
-                "sql_file": "sql/openshift/cost_model/default_infrastructure_tag_rates.sql",
+                "sql_file": f"sql/openshift/cost_model/default_infrastructure_tag_rates{_rtu}.sql",
                 "cost_type": metric_constants.INFRASTRUCTURE_COST_TYPE,
             },
             {
                 "rates": supplementary_rates,
-                "sql_file": "sql/openshift/cost_model/default_supplementary_tag_rates.sql",
+                "sql_file": f"sql/openshift/cost_model/default_supplementary_tag_rates{_rtu}.sql",
                 "cost_type": metric_constants.SUPPLEMENTARY_COST_TYPE,
             },
         ]

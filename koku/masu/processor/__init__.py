@@ -27,6 +27,7 @@ COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-write
 COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
 CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lookup_enabled"
 OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
+CONSTANT_CURRENCY_FLAG = "cost-management.backend.constant-currency"
 
 
 def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):  # pragma: no cover
