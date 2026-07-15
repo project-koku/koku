@@ -148,10 +148,12 @@ class EnabledCurrencyView(APIView):
                     "errors": [
                         {
                             "detail": detail,
-                            "affected_cost_models": affected_cost_models,
-                            "affected_price_lists": affected_price_lists,
+                            "source": "currency",
+                            "status": status.HTTP_400_BAD_REQUEST,
                         }
-                    ]
+                    ],
+                    "affected_cost_models": affected_cost_models,
+                    "affected_price_lists": affected_price_lists,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
