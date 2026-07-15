@@ -291,7 +291,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         updater._load_rates(start_date)
-        updater._update_monthly_cost(start_date, end_date)
+        updater._update_monthly_cost(start_date, end_date, use_rtu=True)
         with self.accessor:
             rtu_rows = RatesToUsage.objects.filter(
                 cost_model_rate_type="Supplementary",
@@ -415,6 +415,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             rate_info_map=ANY,
             source_uuid=ANY,
             report_period_id=ANY,
+            use_rtu=ANY,
         )
 
     def test_delete_tag_usage_costs_no_report_period(self):
@@ -574,7 +575,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
                     self.assertEqual(pvc_line_items, 0)
 
-                updater._update_monthly_tag_based_cost(start_date, end_date)
+                updater._update_monthly_tag_based_cost(start_date, end_date, use_rtu=True)
 
                 with schema_context(self.schema):
                     node_rtu_rows = RatesToUsage.objects.filter(
@@ -624,7 +625,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
                     self.assertEqual(node_line_item_count, 0)
 
-                updater._update_node_hour_tag_based_cost(start_date, end_date)
+                updater._update_node_hour_tag_based_cost(start_date, end_date, use_rtu=True)
 
                 with schema_context(self.schema):
                     node_rtu_rows = RatesToUsage.objects.filter(

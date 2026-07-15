@@ -1,21 +1,26 @@
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+-- Phase 3: RTU INSERT — VM core hourly costs, flat rate
+INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage (
     uuid,
+    cost_model_id,
     report_period_id,
+    source_uuid,
+    usage_start,
+    usage_end,
+    node,
+    namespace,
     cluster_id,
     cluster_alias,
     data_source,
-    usage_start,
-    usage_end,
-    namespace,
-    node,
-    resource_id,
     pod_labels,
     all_labels,
-    source_uuid,
+    label_hash,
+    custom_name,
+    metric_type,
     cost_model_rate_type,
-    cost_model_cpu_cost,
     monthly_cost_type,
-    cost_category_id
+    calculated_cost,
+    cost_category_id,
+    rate_id
 )
 WITH
     vm_max_interval AS (
@@ -48,7 +53,8 @@ WITH
         SELECT
             vm_map.vm_cpu_request_cores AS vm_cpu_cores,
             DATE(vm_map.interval_start) AS interval_day,
-            vm_map.vm_name AS vm_name
+            vm_map.vm_name AS vm_name,
+            sum(vm_map.vm_uptime_total_seconds) AS vm_interval_hours
         FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items AS vm_map
         WHERE
             vm_map.source = {{source_uuid | string}}
@@ -87,22 +93,26 @@ WITH
     )
 SELECT
     uuid(),
+    CAST({{cost_model_id}} AS uuid) AS cost_model_id,
     {{report_period_id}} AS report_period_id,
+    lids.source_uuid,
+    lids.usage_start,
+    lids.usage_end,
+    max(latest.node_name) AS node,
+    lids.namespace,
     lids.cluster_id,
     lids.cluster_alias,
     lids.data_source,
-    lids.usage_start,
-    lids.usage_end,
-    lids.namespace,
-    max(latest.node_name) AS node,
-    max(latest.resource_id) AS resource_id,
-    labels.combined_labels as pod_labels,
-    labels.combined_labels as all_labels,
-    lids.source_uuid,
+    labels.combined_labels AS pod_labels,
+    labels.combined_labels AS all_labels,
+    max(to_hex(sha256(to_utf8(COALESCE(json_format(CAST(labels.combined_labels AS json)), '') || '|' || '' || '|' || COALESCE(json_format(CAST(labels.combined_labels AS json)), ''))))) AS label_hash,
+    {{custom_name}} AS custom_name,
+    {{metric_type}} AS metric_type,
     {{rate_type}} AS cost_model_rate_type,
-    max(vm_usage.vm_cpu_cores) * CAST({{rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
-    {{cost_type}} AS monthly_cost_type,
-    lids.cost_category_id
+    CAST(NULL AS varchar) AS monthly_cost_type,
+    max(vm_usage.vm_interval_hours) / 3600 * max(vm_usage.vm_cpu_cores) * CAST({{hourly_rate}} as DECIMAL(33, 15)) AS calculated_cost,
+    lids.cost_category_id,
+    CAST({{rate_uuid}} AS uuid) AS rate_id
 FROM
     postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN
