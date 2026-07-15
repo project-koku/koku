@@ -31,7 +31,7 @@ FAKE = Faker()
 
 def throw_azure_exception(scope, extra=None):
     """Raises azure exception."""
-    raise AzureError()
+    raise ClientAuthenticationError("test exception")
 
 
 def throw_azure_http_error(scope):

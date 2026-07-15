@@ -90,7 +90,7 @@ class AzureService:
         try:
             container_client = self._blob_service_client.get_container_client(container_name)
             blobs = list(container_client.list_blobs(name_starts_with=report_path))
-        except (ClientAuthenticationError, ServiceRequestError, AzureError) as error:
+        except (ClientAuthenticationError, ServiceRequestError) as error:
             raise AzureServiceError("Failed to download file. Error: ", str(error))
         except ResourceNotFoundError as Error:
             message = f"Specified container {container_name} does not exist for report path {report_path}."
@@ -128,7 +128,6 @@ class AzureService:
         except (
             ClientAuthenticationError,
             ServiceRequestError,
-            AzureError,
             ResourceNotFoundError,
         ) as ex:
             raise AzureServiceError(f"Unable to list blobs. Error: {ex}")
@@ -231,7 +230,7 @@ class AzureService:
                     "directory": report.delivery_info.destination.root_folder_path,
                 }
                 export_reports.append(report_def)
-            except (ClientAuthenticationError, ServiceRequestError, AzureError) as exc:
+            except (ClientAuthenticationError, ServiceRequestError) as exc:
                 raise AzureCostReportNotFound(exc)
 
             return export_reports
@@ -252,7 +251,7 @@ class AzureService:
                         "directory": report.delivery_info.destination.root_folder_path,
                     }
                     export_reports.append(report_def)
-        except (ClientAuthenticationError, ServiceRequestError, AzureError) as exc:
+        except (ClientAuthenticationError, ServiceRequestError) as exc:
             raise AzureCostReportNotFound(exc)
 
         return export_reports
