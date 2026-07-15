@@ -137,9 +137,10 @@ class EnabledCurrencyViewTest(IamTestCase):
             response = self.client.delete(self._url("GBP"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="GBP").exists())
-            errors = response.data["errors"]
-            error_detail = str(errors[0]["detail"])
-            self.assertIn("cost model", error_detail)
+            error = response.data["errors"][0]
+            self.assertIn("cost model", error["detail"])
+            self.assertEqual(len(error["affected_cost_models"]), 1)
+            self.assertEqual(error["affected_price_lists"], [])
 
     def test_disable_currency_in_use_by_price_list_blocked(self):
         """Disabling a currency referenced by a PriceList must return 400."""
@@ -158,9 +159,10 @@ class EnabledCurrencyViewTest(IamTestCase):
             response = self.client.delete(self._url("EUR"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="EUR").exists())
-            errors = response.data["errors"]
-            error_detail = str(errors[0]["detail"])
-            self.assertIn("price list", error_detail)
+            error = response.data["errors"][0]
+            self.assertIn("price list", error["detail"])
+            self.assertEqual(error["affected_cost_models"], [])
+            self.assertEqual(len(error["affected_price_lists"]), 1)
 
     def test_disable_default_currency_blocked(self):
         """Disabling the system default currency (USD) must return 400."""

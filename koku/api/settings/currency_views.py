@@ -133,12 +133,17 @@ class EnabledCurrencyView(APIView):
 
         if reasons:
             detail = f"Cannot disable {code} because {'; '.join(reasons)}."
-            raise ValidationError(
+            return Response(
                 {
-                    "error": detail,
-                    "affected_cost_models": affected_cost_models,
-                    "affected_price_lists": affected_price_lists,
-                }
+                    "errors": [
+                        {
+                            "detail": detail,
+                            "affected_cost_models": affected_cost_models,
+                            "affected_price_lists": affected_price_lists,
+                        }
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         EnabledCurrency.objects.filter(currency_code=code).delete()
