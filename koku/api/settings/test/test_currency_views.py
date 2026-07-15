@@ -176,17 +176,18 @@ class EnabledCurrencyViewTest(IamTestCase):
             error_detail = str(response.data["errors"][0]["detail"])
             self.assertIn("system default currency", error_detail)
 
-    def test_disable_user_default_currency_blocked(self):
-        """Disabling a currency set as a user's default display currency must return 400."""
+    def test_disable_account_default_currency_blocked(self):
+        """Disabling the account default currency must return 400."""
         from reporting.user_settings.models import UserSettings
 
         with tenant_context(self.tenant):
             EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="GBP")
+            UserSettings.objects.all().delete()
             UserSettings.objects.create(settings={"currency": "GBP"})
 
             response = self.client.delete(self._url("GBP"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="GBP").exists())
             error_detail = str(response.data["errors"][0]["detail"])
-            self.assertIn("user's default display currency", error_detail)
+            self.assertIn("account default currency", error_detail)

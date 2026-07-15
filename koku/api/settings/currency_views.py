@@ -120,8 +120,9 @@ class EnabledCurrencyView(APIView):
         if code == KOKU_DEFAULT_CURRENCY:
             reasons.append("it is the system default currency")
 
-        if UserSettings.objects.filter(settings__currency=code).exists():
-            reasons.append("it is set as a user's default display currency")
+        account_settings = UserSettings.objects.first()
+        if account_settings and account_settings.settings.get("currency") == code:
+            reasons.append("it is the account default currency")
 
         affected_cost_models = list(CostModel.objects.filter(currency=code).values("uuid", "name"))
         if affected_cost_models:
