@@ -139,8 +139,8 @@ class EnabledCurrencyView(APIView):
                     msg="Currency disable blocked",
                     currency=code,
                     reasons=reasons,
-                    affected_cost_models=len(affected_cost_models),
-                    affected_price_lists=len(affected_price_lists),
+                    affected_cost_models=affected_cost_models,
+                    affected_price_lists=affected_price_lists,
                 )
             )
             return Response(
