@@ -28,6 +28,8 @@ from cost_models.models import StaticExchangeRate
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
 from cost_models.monthly_exchange_rate_utils import remove_monthly_rates
 from cost_models.static_exchange_rate_serializer import StaticExchangeRateSerializer
+from koku.cache import build_enabled_currency_codes_key
+from koku.cache import delete_value_from_cache
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.user_settings.models import UserSettings
@@ -102,6 +104,7 @@ class EnabledCurrencyView(APIView):
             populate_dynamic_monthly_rates(code=code)
             schema_name = request.user.customer.schema_name
             invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+            delete_value_from_cache(build_enabled_currency_codes_key(schema_name))
         LOG.info(log_json(msg="Currency enabled", currency=code))
         return Response(status=status.HTTP_200_OK)
 
@@ -135,6 +138,7 @@ class EnabledCurrencyView(APIView):
         remove_monthly_rates(code=code)
         schema_name = request.user.customer.schema_name
         invalidate_view_cache_for_tenant_and_all_source_types(schema_name)
+        delete_value_from_cache(build_enabled_currency_codes_key(schema_name))
         LOG.info(log_json(msg="Currency disabled", currency=code))
 
         if has_conflict:

@@ -3,15 +3,46 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for currency settings views."""
+from django.core.cache import caches
+from django.test.utils import override_settings
 from django.urls import reverse
 from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from api.currency.currencies import get_enabled_currency_codes
 from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
+from koku.cache import build_enabled_currency_codes_key
+from koku.cache import CacheEnum
+from koku.cache import get_value_from_cache
+
+CACHE_OVERRIDE = {
+    CacheEnum.default: {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake-currency-views-default",
+        "KEY_FUNCTION": "django_tenants.cache.make_key",
+        "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
+    },
+    CacheEnum.api: {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake-currency-views-api",
+        "KEY_FUNCTION": "django_tenants.cache.make_key",
+        "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
+    },
+    # rbac/worker are untouched by this test but must stay defined so middleware
+    # that reads them (e.g. RBAC lookups) doesn't blow up when CACHES is overridden.
+    CacheEnum.rbac: {
+        "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+        "LOCATION": "unique-snowflake",
+    },
+    CacheEnum.worker: {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
+    },
+}
 
 
 class CurrencySettingsViewTest(IamTestCase):
@@ -140,6 +171,43 @@ class EnabledCurrencyViewTest(IamTestCase):
             self.assertEqual(len(response.data["affected_cost_models"]), 1)
             self.assertEqual(response.data["affected_price_lists"], [])
             self.assertFalse(EnabledCurrency.objects.filter(currency_code="GBP").exists())
+
+    @override_settings(CACHES=CACHE_OVERRIDE)
+    def test_enable_currency_invalidates_enabled_codes_cache(self):
+        """Enabling a currency should invalidate the cached enabled-codes set."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            get_enabled_currency_codes()
+            cache_key = build_enabled_currency_codes_key(self.schema_name)
+            self.assertEqual(get_value_from_cache(cache_key), {"USD"})
+
+            response = self.client.post(self._url("CHF"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            self.assertIsNone(get_value_from_cache(cache_key))
+            self.assertEqual(get_enabled_currency_codes(), {"USD", "CHF"})
+
+        caches[CacheEnum.default].clear()
+        caches[CacheEnum.api].clear()
+
+    @override_settings(CACHES=CACHE_OVERRIDE)
+    def test_disable_currency_invalidates_enabled_codes_cache(self):
+        """Disabling a currency should invalidate the cached enabled-codes set."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="CHF")
+            get_enabled_currency_codes()
+            cache_key = build_enabled_currency_codes_key(self.schema_name)
+            self.assertEqual(get_value_from_cache(cache_key), {"USD", "CHF"})
+
+            response = self.client.delete(self._url("CHF"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+            self.assertIsNone(get_value_from_cache(cache_key))
+            self.assertEqual(get_enabled_currency_codes(), {"USD"})
+
+        caches[CacheEnum.default].clear()
+        caches[CacheEnum.api].clear()
 
     def test_disable_currency_in_use_by_price_list_warns(self):
         """Disabling a currency referenced by a PriceList should succeed with a warning."""
