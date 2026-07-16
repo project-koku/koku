@@ -91,12 +91,12 @@ def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, star
     populate_dynamic_monthly_rates(code=base_currency)
 
 
-def _backfill_missing_past_months(dynamic_rates, current_month, enabled=False):
+def _backfill_missing_past_months(dynamic_rates, current_month):
     """Insert today's rate for missing MonthlyExchangeRate rows in the retention window.
 
     Existing rows (static or dynamic) are never overwritten.
     """
-    if not enabled or not dynamic_rates:
+    if not dynamic_rates:
         return
 
     schema_name = getattr(connection, "schema_name", None)
@@ -142,7 +142,7 @@ def _backfill_missing_past_months(dynamic_rates, current_month, enabled=False):
     )
 
 
-def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):
+def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # noqa: C901
     """Populate dynamic MonthlyExchangeRate rows for the current month only.
 
     Past months are finalized and read-only — only the current month is written,
@@ -215,7 +215,8 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):
         )
         count += 1
 
-    _backfill_missing_past_months(dynamic_rates, current_month, enabled=backfill_past_months)
+    if backfill_past_months:
+        _backfill_missing_past_months(dynamic_rates, current_month)
 
     return count
 
