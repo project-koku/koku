@@ -91,6 +91,45 @@ def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, star
     populate_dynamic_monthly_rates(code=base_currency)
 
 
+def _build_enabled_pair_rates(exchange_dict, enabled_codes, code=None):
+    """Build (base, target) -> rate for enabled pairs, synthesizing missing inverses.
+
+    Example:
+        exchange_dict = {"USD": {"EUR": "0.87", "USD": "1.0"}, "EUR": {"EUR": "1.0"}}
+        enabled_codes = {"USD", "EUR"}
+
+        # Returns both the forward rate and a synthesized inverse:
+        # {("USD", "EUR"): Decimal("0.87"), ("EUR", "USD"): Decimal("1") / Decimal("0.87")}
+    """
+    dynamic_rates = {}
+    for base_cur, rates_by_target in exchange_dict.items():
+        for target_cur, rate in rates_by_target.items():
+            if base_cur == target_cur:
+                continue
+            if base_cur not in enabled_codes or target_cur not in enabled_codes:
+                continue
+            if code and code != base_cur and code != target_cur:
+                continue
+
+            forward_pair = (base_cur, target_cur)
+            inverse_pair = (target_cur, base_cur)
+
+            rate_dec = Decimal(str(rate))
+            if rate_dec <= 0:
+                LOG.warning(
+                    log_json(
+                        msg="Skipping non-positive rate from ExchangeRateDictionary",
+                        base_currency=base_cur,
+                        target_currency=target_cur,
+                        rate=str(rate),
+                    )
+                )
+                continue
+            dynamic_rates[forward_pair] = rate_dec
+            dynamic_rates.setdefault(inverse_pair, Decimal(1) / rate_dec)
+    return dynamic_rates
+
+
 def _backfill_missing_past_months(dynamic_rates, current_month):
     """Insert today's rate for missing MonthlyExchangeRate rows in the retention window.
 
@@ -142,7 +181,7 @@ def _backfill_missing_past_months(dynamic_rates, current_month):
     )
 
 
-def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # noqa: C901
+def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):
     """Populate dynamic MonthlyExchangeRate rows for the current month only.
 
     Past months are finalized and read-only — only the current month is written,
@@ -164,8 +203,8 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
     if not erd or not erd.currency_exchange_dictionary:
         return 0
 
-    exchange_dict = erd.currency_exchange_dictionary
     current_month = DateHelper().this_month_start.date()
+    dynamic_rates = _build_enabled_pair_rates(erd.currency_exchange_dictionary, enabled_codes, code)
 
     static_pairs = set(
         MonthlyExchangeRate.objects.filter(
@@ -173,34 +212,6 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
             rate_type=RateType.STATIC,
         ).values_list("base_currency", "target_currency")
     )
-
-    # Collect rates and synthesize inverses when not already in the dictionary
-    dynamic_rates = {}
-    for base_cur, rates_by_target in exchange_dict.items():
-        for target_cur, rate in rates_by_target.items():
-            if base_cur == target_cur:
-                continue
-            if base_cur not in enabled_codes or target_cur not in enabled_codes:
-                continue
-            if code and code != base_cur and code != target_cur:
-                continue
-
-            forward_pair = (base_cur, target_cur)
-            inverse_pair = (target_cur, base_cur)
-
-            rate_dec = Decimal(str(rate))
-            if rate_dec <= 0:
-                LOG.warning(
-                    log_json(
-                        msg="Skipping non-positive rate from ExchangeRateDictionary",
-                        base_currency=base_cur,
-                        target_currency=target_cur,
-                        rate=str(rate),
-                    )
-                )
-                continue
-            dynamic_rates[forward_pair] = rate_dec
-            dynamic_rates.setdefault(inverse_pair, Decimal(1) / rate_dec)
 
     # Exclude pairs that already have a static override for this month
     pairs_to_upsert = {pair: rate for pair, rate in dynamic_rates.items() if pair not in static_pairs}
