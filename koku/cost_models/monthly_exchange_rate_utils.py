@@ -108,14 +108,41 @@ def _retention_months_before_current(current_month):
     return months
 
 
+def _collect_dynamic_rates(exchange_dict, enabled_codes, code=None):
+    """Build enabled currency-pair rates from ExchangeRateDictionary, with inverses."""
+    dynamic_rates = {}
+    for base_cur, rates_by_target in exchange_dict.items():
+        for target_cur, rate in rates_by_target.items():
+            if base_cur == target_cur:
+                continue
+            if base_cur not in enabled_codes or target_cur not in enabled_codes:
+                continue
+            if code and code != base_cur and code != target_cur:
+                continue
+
+            rate_dec = Decimal(str(rate))
+            if rate_dec <= 0:
+                LOG.warning(
+                    log_json(
+                        msg="Skipping non-positive rate from ExchangeRateDictionary",
+                        base_currency=base_cur,
+                        target_currency=target_cur,
+                        rate=str(rate),
+                    )
+                )
+                continue
+            dynamic_rates[(base_cur, target_cur)] = rate_dec
+            dynamic_rates.setdefault((target_cur, base_cur), Decimal(1) / rate_dec)
+    return dynamic_rates
+
+
 def _backfill_missing_past_months(dynamic_rates, past_months):
     """Insert today's rate for any missing MonthlyExchangeRate rows in past months.
 
-    Existing rows (static or dynamic) are never overwritten. Returns the number of
-    rows created.
+    Existing rows (static or dynamic) are never overwritten.
     """
     if not dynamic_rates or not past_months:
-        return 0
+        return
 
     existing = set(
         MonthlyExchangeRate.objects.filter(
@@ -137,7 +164,7 @@ def _backfill_missing_past_months(dynamic_rates, past_months):
         if (base_cur, target_cur, month) not in existing
     ]
     if not to_create:
-        return 0
+        return
 
     MonthlyExchangeRate.objects.bulk_create(to_create, ignore_conflicts=True)
     LOG.info(
@@ -147,34 +174,32 @@ def _backfill_missing_past_months(dynamic_rates, past_months):
             months=len(past_months),
         )
     )
-    return len(to_create)
 
 
-def populate_dynamic_monthly_rates(code=None):
-    """Populate dynamic MonthlyExchangeRate rows for the current month and backfill gaps.
+def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):
+    """Populate dynamic MonthlyExchangeRate rows for the current month.
 
     Current month: upserted from ExchangeRateDictionary (daily refresh). Static
     overrides for the current month are preserved.
 
-    Past months within the tenant retention window: if a currency pair has no
-    MonthlyExchangeRate row for that month, today's rate is inserted. Existing
-    rows (static or dynamic) are left untouched — a no-op when coverage already
-    exists. This fills rates for newly enabled currencies and for months that
-    predate feature rollout, without requiring a migration.
+    When backfill_past_months is True, also insert
+    today's rate for any missing MonthlyExchangeRate rows in past months within
+    the tenant retention window. Existing rows (static or dynamic) are never
+    overwritten.
 
     When code is provided, only pairs involving that currency are processed.
     When None, all enabled currency pairs are processed.
     """
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     if not enabled_codes:
-        return 0
+        return
 
     erd = ExchangeRateDictionary.objects.first()
     if not erd or not erd.currency_exchange_dictionary:
-        return 0
+        return
 
-    exchange_dict = erd.currency_exchange_dictionary
     current_month = DateHelper().this_month_start.date()
+    dynamic_rates = _collect_dynamic_rates(erd.currency_exchange_dictionary, enabled_codes, code)
 
     static_pairs = set(
         MonthlyExchangeRate.objects.filter(
@@ -183,49 +208,18 @@ def populate_dynamic_monthly_rates(code=None):
         ).values_list("base_currency", "target_currency")
     )
 
-    # Collect rates and synthesize inverses when not already in the dictionary
-    dynamic_rates = {}
-    for base_cur, rates_by_target in exchange_dict.items():
-        for target_cur, rate in rates_by_target.items():
-            if base_cur == target_cur:
-                continue
-            if base_cur not in enabled_codes or target_cur not in enabled_codes:
-                continue
-            if code and code != base_cur and code != target_cur:
-                continue
-
-            forward_pair = (base_cur, target_cur)
-            inverse_pair = (target_cur, base_cur)
-
-            rate_dec = Decimal(str(rate))
-            if rate_dec <= 0:
-                LOG.warning(
-                    log_json(
-                        msg="Skipping non-positive rate from ExchangeRateDictionary",
-                        base_currency=base_cur,
-                        target_currency=target_cur,
-                        rate=str(rate),
-                    )
-                )
-                continue
-            dynamic_rates[forward_pair] = rate_dec
-            dynamic_rates.setdefault(inverse_pair, Decimal(1) / rate_dec)
-
-    # Exclude pairs that already have a static override for this month
-    pairs_to_upsert = {pair: rate for pair, rate in dynamic_rates.items() if pair not in static_pairs}
-
-    count = 0
-    for (base_cur, target_cur), rate in pairs_to_upsert.items():
+    for (base_cur, target_cur), rate in dynamic_rates.items():
+        if (base_cur, target_cur) in static_pairs:
+            continue
         MonthlyExchangeRate.objects.update_or_create(
             effective_date=current_month,
             base_currency=base_cur,
             target_currency=target_cur,
             defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
         )
-        count += 1
 
-    count += _backfill_missing_past_months(dynamic_rates, _retention_months_before_current(current_month))
-    return count
+    if backfill_past_months:
+        _backfill_missing_past_months(dynamic_rates, _retention_months_before_current(current_month))
 
 
 def remove_monthly_rates(code):

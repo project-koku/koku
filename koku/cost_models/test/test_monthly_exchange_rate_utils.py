@@ -317,7 +317,7 @@ class RemoveMonthlyRatesTest(MasuTestCase):
 
 
 class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
-    """Tests for retention-window backfill in populate_dynamic_monthly_rates."""
+    """Tests for retention-window backfill (Celery-only via backfill_past_months=True)."""
 
     def setUp(self):
         super().setUp()
@@ -335,12 +335,28 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
             EnabledCurrency.objects.create(currency_code="EUR")
 
     @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_default_does_not_backfill_past_months(self, mock_retention_start):
+        """Currency enable and other callers leave past months untouched."""
+        mock_retention_start.return_value = self.last_month
+
+        with tenant_context(self.tenant):
+            populate_dynamic_monthly_rates()
+
+            self.assertTrue(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=self.month_start, base_currency="USD", target_currency="EUR"
+                ).exists()
+            )
+            self.assertFalse(MonthlyExchangeRate.objects.filter(effective_date=self.last_month).exists())
+            mock_retention_start.assert_not_called()
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
     def test_backfills_missing_past_months_with_todays_rate(self, mock_retention_start):
         """Missing past months in the retention window get today's dynamic rate."""
         mock_retention_start.return_value = self.two_months_ago
 
         with tenant_context(self.tenant):
-            populate_dynamic_monthly_rates()
+            populate_dynamic_monthly_rates(backfill_past_months=True)
 
             for month in (self.two_months_ago, self.last_month, self.month_start):
                 forward = MonthlyExchangeRate.objects.get(
@@ -375,7 +391,7 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
                 rate_type=RateType.DYNAMIC,
             )
 
-            populate_dynamic_monthly_rates()
+            populate_dynamic_monthly_rates(backfill_past_months=True)
 
             preserved = MonthlyExchangeRate.objects.get(
                 effective_date=self.last_month, base_currency="USD", target_currency="EUR"
@@ -402,38 +418,10 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
                 rate_type=RateType.STATIC,
             )
 
-            populate_dynamic_monthly_rates()
+            populate_dynamic_monthly_rates(backfill_past_months=True)
 
             static = MonthlyExchangeRate.objects.get(
                 effective_date=self.last_month, base_currency="USD", target_currency="EUR"
             )
             self.assertEqual(static.rate_type, RateType.STATIC)
             self.assertEqual(static.exchange_rate, Decimal("0.50"))
-
-    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
-    def test_backfill_only_pairs_involving_enabled_code(self, mock_retention_start):
-        """When code is provided, only pairs involving that currency are backfilled."""
-        mock_retention_start.return_value = self.last_month
-        ExchangeRateDictionary.objects.all().delete()
-        ExchangeRateDictionary.objects.create(
-            currency_exchange_dictionary={
-                "USD": {"EUR": "0.87", "GBP": "0.78", "USD": "1.0"},
-                "EUR": {"USD": "1.15", "GBP": "0.90", "EUR": "1.0"},
-                "GBP": {"USD": "1.28", "EUR": "1.11", "GBP": "1.0"},
-            }
-        )
-
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.create(currency_code="GBP")
-            populate_dynamic_monthly_rates(code="GBP")
-
-            self.assertTrue(
-                MonthlyExchangeRate.objects.filter(
-                    effective_date=self.last_month, base_currency="USD", target_currency="GBP"
-                ).exists()
-            )
-            self.assertFalse(
-                MonthlyExchangeRate.objects.filter(
-                    effective_date=self.last_month, base_currency="USD", target_currency="EUR"
-                ).exists()
-            )

@@ -322,7 +322,7 @@ def get_daily_currency_rates():
     for tenant in Tenant.objects.exclude(schema_name="public"):
         try:
             with schema_context(tenant.schema_name):
-                populate_dynamic_monthly_rates()
+                populate_dynamic_monthly_rates(backfill_past_months=True)
                 invalidate_view_cache_for_tenant_and_all_source_types(tenant.schema_name)
         except Exception as e:
             LOG.error(
