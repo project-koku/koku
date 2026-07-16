@@ -6,11 +6,14 @@
 import logging
 from decimal import Decimal
 
+from dateutil.relativedelta import relativedelta
+from django.db import connection
 from django.db.models import Q
 
 from api.common import log_json
 from api.currency.models import ExchangeRateDictionary
 from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
@@ -87,12 +90,77 @@ def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, star
     populate_dynamic_monthly_rates(code=base_currency)
 
 
-def populate_dynamic_monthly_rates(code=None):
-    """Populate dynamic MonthlyExchangeRate rows for the current month only.
+def _retention_months_before_current(current_month):
+    """Return month-start dates in the tenant retention window before the current month.
 
-    Past months are finalized and read-only — only the current month is written.
-    Reads the latest rates from ExchangeRateDictionary and writes dynamic
-    MonthlyExchangeRate rows for each enabled currency pair. Static overrides are preserved.
+    Uses the same retention window as data purge (per-tenant when available).
+    """
+    schema_name = getattr(connection, "schema_name", None)
+    earliest = materialized_view_month_start(schema_name=schema_name)
+    if hasattr(earliest, "date"):
+        earliest = earliest.date()
+
+    months = []
+    month = earliest
+    while month < current_month:
+        months.append(month)
+        month += relativedelta(months=1)
+    return months
+
+
+def _backfill_missing_past_months(dynamic_rates, past_months):
+    """Insert today's rate for any missing MonthlyExchangeRate rows in past months.
+
+    Existing rows (static or dynamic) are never overwritten. Returns the number of
+    rows created.
+    """
+    if not dynamic_rates or not past_months:
+        return 0
+
+    existing = set(
+        MonthlyExchangeRate.objects.filter(
+            effective_date__gte=past_months[0],
+            effective_date__lte=past_months[-1],
+        ).values_list("base_currency", "target_currency", "effective_date")
+    )
+
+    to_create = [
+        MonthlyExchangeRate(
+            effective_date=month,
+            base_currency=base_cur,
+            target_currency=target_cur,
+            exchange_rate=rate,
+            rate_type=RateType.DYNAMIC,
+        )
+        for (base_cur, target_cur), rate in dynamic_rates.items()
+        for month in past_months
+        if (base_cur, target_cur, month) not in existing
+    ]
+    if not to_create:
+        return 0
+
+    MonthlyExchangeRate.objects.bulk_create(to_create, ignore_conflicts=True)
+    LOG.info(
+        log_json(
+            msg="Backfilled missing monthly exchange rates for retention window",
+            created=len(to_create),
+            months=len(past_months),
+        )
+    )
+    return len(to_create)
+
+
+def populate_dynamic_monthly_rates(code=None):
+    """Populate dynamic MonthlyExchangeRate rows for the current month and backfill gaps.
+
+    Current month: upserted from ExchangeRateDictionary (daily refresh). Static
+    overrides for the current month are preserved.
+
+    Past months within the tenant retention window: if a currency pair has no
+    MonthlyExchangeRate row for that month, today's rate is inserted. Existing
+    rows (static or dynamic) are left untouched — a no-op when coverage already
+    exists. This fills rates for newly enabled currencies and for months that
+    predate feature rollout, without requiring a migration.
 
     When code is provided, only pairs involving that currency are processed.
     When None, all enabled currency pairs are processed.
@@ -156,6 +224,7 @@ def populate_dynamic_monthly_rates(code=None):
         )
         count += 1
 
+    count += _backfill_missing_past_months(dynamic_rates, _retention_months_before_current(current_month))
     return count
 
 
