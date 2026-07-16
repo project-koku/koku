@@ -1809,11 +1809,12 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         cluster_params,
         cost_model_id=None,
         rate_info_map=None,
+        use_rtu: bool = False,
     ):
         """Populate the tag based costs.
 
-        This method populates the daily summary table with tag-based costs for
-        the metrics highlighted in the metadata section.
+        Inserts per-tag usage costs into rates_to_usage (use_rtu=True) or
+        directly into the daily summary table (legacy, use_rtu=False).
         """
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period or not metric_to_tag_params_map:
@@ -1831,34 +1832,35 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         ]
         requires_gpu_table = [metric_constants.OCP_GPU_MONTH]
 
+        _rtu = "_rtu" if use_rtu else ""
         metric_metadata = {
             metric_constants.OCP_VM_HOUR: {
                 "log_msg": "populating hourly VM tag based costs",
-                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_cost_vm_tag_based.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_cost_vm_tag_based{_rtu}.sql",
                 "metric_params": {"use_fractional_hours": vm_table_exists},
             },
             metric_constants.OCP_VM_MONTH: {
                 "log_msg": "populating monthly VM tag based costs",
-                "file_path": "sql/openshift/cost_model/monthly_cost_virtual_machine.sql",
+                "file_path": f"sql/openshift/cost_model/monthly_cost_virtual_machine{_rtu}.sql",
                 "metric_params": monthly_params,
             },
             metric_constants.OCP_VM_CORE_MONTH: {
                 "log_msg": "populating monthly VM Core based costs",
-                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_vm_core_tag_based.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_vm_core_tag_based{_rtu}.sql",
                 "metric_params": monthly_params,
             },
             metric_constants.OCP_VM_CORE_HOUR: {
                 "log_msg": "populating hourly VM Core based costs",
-                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_vm_core_tag_based.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/hourly_vm_core_tag_based{_rtu}.sql",
             },
             metric_constants.OCP_GPU_MONTH: {
                 "log_msg": "populating monthly GPU tag based costs",
-                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_cost_gpu.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_cost_gpu{_rtu}.sql",
                 "metric_params": {**monthly_params, **cluster_params},
             },
             metric_constants.OCP_PROJECT_MONTH: {
                 "log_msg": "populating monthly project tag costs",
-                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_project_tag_based.sql",
+                "file_path": f"{self.get_sql_folder_name()}/openshift/cost_model/monthly_project_tag_based{_rtu}.sql",
                 "metric_params": {**monthly_params, **cluster_params},
             },
         }
