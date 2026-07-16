@@ -69,14 +69,32 @@ export PGPASSWORD="${DATABASE_PASSWORD}"
 export PGPORT="${POSTGRES_SQL_SERVICE_PORT}"
 export PGHOST="${POSTGRES_SQL_SERVICE_HOST}"
 export PGUSER="${DATABASE_USER}"
+export PGDATABASE="${DATABASE_NAME:-postgres}"
 OS="$(uname)"
 export OS
 
-export S3_ACCESS_KEY="${S3_ACCESS_KEY}"
-export S3_SECRET_KEY="${S3_SECRET}"
+export S3_ACCESS_KEY="${S3_ACCESS_KEY:-s4admin}"
+export S3_SECRET_KEY="${S3_SECRET:-s4secret}"
 export S3_BUCKET_NAME="${S3_BUCKET_NAME_OCP_INGRESS-ocp-ingress}"
-export MINIO_UPLOAD="${S3_ENDPOINT-http://localhost:9000}"
 
+# nise runs on the host; normalize Docker-internal S3_ENDPOINT values from .env.
+export MINIO_UPLOAD="$(normalize_host_s3_endpoint "${S3_ENDPOINT:-http://localhost:9000}")"
+log-info "OCP ingress upload endpoint (host): ${MINIO_UPLOAD}"
+log-debug "MINIO_UPLOAD=${MINIO_UPLOAD}"
+
+
+check-test-customer() {
+  local provider_count
+  provider_count=$(psql --no-password -t -c "SELECT COUNT(*) FROM public.api_provider;" | tr -d '[:space:]')
+  if [[ -z "${provider_count}" || "${provider_count}" -eq 0 ]]; then
+    log-err "No test providers found in the database."
+    log-err "Run 'make create-test-customer' first, then retry load-test-customer-data."
+    exit 1
+  fi
+  log-info "Found ${provider_count} test provider(s) in the database."
+}
+
+check-test-customer
 
 log-info "Calculating dates..."
 if [[ $OS = "Darwin" ]]; then
@@ -91,23 +109,34 @@ log-debug "END_DATE=${END_DATE}"
 
 
 check-api-status() {
-  # API status validation.
+  # API status validation with retries (masu may restart after create-test-customer).
   #
   # Args: ($1) - server name
   #       ($2) - URL to status endpoint
   #
   local _server_name=$1
   local _status_url=$2
+  local max_retries=12
+  local wait_seconds=5
+  local attempt=1
+  local check=""
 
   log-info "Checking that $_server_name is up and running..."
-  CHECK=$(curl --connect-timeout 20 -s -w "%{http_code}\n" -L "${_status_url}" -o /dev/null)
-  if [[ $CHECK != 200 ]];then
-      log-err "$_server_name is not available at: $_status_url"
-      log-err "exiting..."
-      exit 1
-  else
-    log-info "$_server_name is up and running"
-  fi
+  while [[ $attempt -le $max_retries ]]; do
+    check=$(curl --connect-timeout 10 -s -w "%{http_code}" -L "${_status_url}" -o /dev/null 2>/dev/null || echo "000")
+    if [[ "$check" == 200 ]]; then
+      log-info "$_server_name is up and running"
+      return 0
+    fi
+    if [[ $attempt -lt $max_retries ]]; then
+      log-info "$_server_name not ready (HTTP ${check}); retrying in ${wait_seconds}s (${attempt}/${max_retries})"
+      sleep "$wait_seconds"
+    fi
+    attempt=$((attempt + 1))
+  done
+  log-err "$_server_name is not available at: $_status_url (last HTTP ${check})"
+  log-err "exiting..."
+  exit 1
 }
 
 add_cost_models() {
@@ -173,6 +202,39 @@ trigger_download() {
   done
 }
 
+verify_ocp_payload_in_s3() {
+  #
+  # Args:
+  #   1 - S3 object key (payload name)
+  #
+  local payload_key=$1
+  local exit_code=0
+
+  if command -v aws &>/dev/null; then
+    AWS_ACCESS_KEY_ID="${S3_ACCESS_KEY}" AWS_SECRET_ACCESS_KEY="${S3_SECRET_KEY}" \
+      aws --endpoint-url "${MINIO_UPLOAD}" s3api head-object \
+      --bucket "${S3_BUCKET_NAME}" --key "${payload_key}" &>/dev/null || exit_code=$?
+  elif command -v docker &>/dev/null; then
+    log-warn "aws CLI not found; falling back to docker for S3 payload verification"
+    docker run --rm --network host \
+      -e AWS_ACCESS_KEY_ID="${S3_ACCESS_KEY}" \
+      -e AWS_SECRET_ACCESS_KEY="${S3_SECRET_KEY}" \
+      amazon/aws-cli:latest \
+      --endpoint-url "${MINIO_UPLOAD}" \
+      s3api head-object --bucket "${S3_BUCKET_NAME}" --key "${payload_key}" &>/dev/null || exit_code=$?
+  else
+    log-warn "Neither aws CLI nor docker is available; skipping S3 payload verification for ${payload_key}"
+    return 0
+  fi
+
+  if [[ ${exit_code} -ne 0 ]]; then
+    log-err "OCP payload not found in s3://${S3_BUCKET_NAME}/${payload_key}"
+    log-err "nise upload likely failed. Confirm s4-path-proxy is running and MINIO_UPLOAD=${MINIO_UPLOAD} is reachable."
+    exit 1
+  fi
+  log-info "Verified OCP payload exists in S3: ${payload_key}"
+}
+
 trigger_ocp_ingest() {
   #
   # Args:
@@ -196,6 +258,7 @@ trigger_ocp_ingest() {
     fi
     while [ ! "$formatted_start_date" \> "$formatted_end_date" ]; do
       local payload_name="$2.$formatted_start_date.tar.gz"
+      verify_ocp_payload_in_s3 "${payload_name}"
       log-info "Triggering ingest for, source_name: $1, uuid: $UUID, org_id: $ORG_ID, payload_name: $payload_name"
       local url="$MASU_URL_PREFIX/v1/ingest_ocp_payload/?org_id=$ORG_ID&payload_name=$payload_name"
       log-info "url: $url"
