@@ -1583,6 +1583,35 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             mock_trino_exec.assert_called()
 
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data", wraps=pkgutil.get_data)
+    def test_populate_tag_based_costs_use_rtu(self, mock_get_data, mock_trino_exec, mock_trino_exists):
+        """Test that use_rtu=True selects the rates_to_usage SQL template variants."""
+        test_mapping = {
+            metric_constants.OCP_GPU_MONTH: [
+                {
+                    "rate_type": "Infrastructure",
+                    "tag_key": "nvidia",
+                    "value_rates": {"Tesla T4": 1000},
+                    "default_rate": 1000,
+                },
+            ]
+        }
+        with self.accessor as acc:
+            acc.populate_tag_based_costs(
+                self.start_date,
+                self.dh.this_month_end,
+                self.ocp_provider_uuid,
+                test_mapping,
+                {"cluster_id": "test", "cluster_alias": "test"},
+                use_rtu=True,
+            )
+        used_paths = [call_args.args[1] for call_args in mock_get_data.call_args_list]
+        self.assertTrue(used_paths)
+        for path in used_paths:
+            self.assertTrue(path.endswith("_rtu.sql"), f"expected rtu SQL file, got {path}")
+
     @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
