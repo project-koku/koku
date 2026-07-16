@@ -790,17 +790,19 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
     def update_summary_cost_model_costs(self, summary_range: SummaryRangeConfig) -> None:
         """Update the OCP summary table with the charge information.
 
-        Phase 3 converted all monthly/tag/VM SQL to INSERT into rates_to_usage,
-        so all cost types now require the RTU pipeline.  The feature flag is
-        checked and a warning is emitted when it is OFF, but the RTU path runs
-        unconditionally because aggregation (which rebuilds daily-summary from
-        RTU) would otherwise discard any legacy direct-written rows.
+        The ``cost-management.backend.cost_breakdown_rates_to_usage`` Unleash flag
+        selects between two pipelines:
+
+        * **Flag ON (RTU path):** usage, monthly, VM, and tag costs write into
+          ``rates_to_usage`` (via ``*_rtu.sql`` templates where applicable), then
+          ``aggregate_rates_to_daily_summary`` rebuilds daily summary from RTU.
+        * **Flag OFF (legacy path):** all cost types write directly to daily
+          summary (legacy SQL templates); no RTU insert or aggregate step.
 
         Args:
-            start_date (str, Optional) - Start date of range to update derived cost.
-            end_date (str, Optional) - End date of range to update derived cost.
+            summary_range: Date range configuration for the cost update.
 
-        Returns
+        Returns:
             None
 
         """
