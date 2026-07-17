@@ -33,13 +33,17 @@ def get_enabled_currency_codes():
     since this is validated on nearly every report/forecast/settings/cost-model
     request; invalidated by ``EnabledCurrencyView`` whenever a currency is
     enabled or disabled.
+
+    Stored in the cache as a list rather than a set, since not all cache
+    serializer backends can round-trip a set.
     """
     cache_key = build_enabled_currency_codes_key(connection.schema_name)
-    codes = get_value_from_cache(cache_key)
-    if codes is None:
+    cached_codes = get_value_from_cache(cache_key)
+    if cached_codes is None:
         codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
-        set_value_in_cache(cache_key, codes)
-    return codes
+        set_value_in_cache(cache_key, list(codes))
+        return codes
+    return set(cached_codes)
 
 
 class CurrencyField(serializers.CharField):

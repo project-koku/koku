@@ -179,7 +179,7 @@ class EnabledCurrencyViewTest(IamTestCase):
             EnabledCurrency.objects.create(currency_code="USD")
             get_enabled_currency_codes()
             cache_key = build_enabled_currency_codes_key(self.schema_name)
-            self.assertEqual(get_value_from_cache(cache_key), {"USD"})
+            self.assertEqual(set(get_value_from_cache(cache_key)), {"USD"})
 
             response = self.client.post(self._url("CHF"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -198,7 +198,7 @@ class EnabledCurrencyViewTest(IamTestCase):
             EnabledCurrency.objects.create(currency_code="CHF")
             get_enabled_currency_codes()
             cache_key = build_enabled_currency_codes_key(self.schema_name)
-            self.assertEqual(get_value_from_cache(cache_key), {"USD", "CHF"})
+            self.assertEqual(set(get_value_from_cache(cache_key)), {"USD", "CHF"})
 
             response = self.client.delete(self._url("CHF"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
