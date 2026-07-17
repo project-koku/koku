@@ -417,6 +417,78 @@ FROM (
 
 {% endif %}
 
+{% if osac_exists %}
+
+UNION
+
+/*
+ * ====================================
+ *          OSAC SOVEREIGN CLOUD
+ * ====================================
+ * Data from the cost-event-consumer via koku-sync.
+ * Covers: VMs, clusters, bare metal, MaaS inference.
+ */
+SELECT null as uuid,
+    {{report_period_id}} as report_period_id,
+    {{cluster_id}} as cluster_id,
+    {{cluster_alias}} as cluster_alias,
+    'OSAC' as data_source,
+    o.usage_start,
+    o.usage_start as usage_end,
+    COALESCE(o.project_id, o.tenant_id, '') as namespace,
+    COALESCE(o.resource_id, '') as node,
+    COALESCE(o.resource_id, '') as resource_id,
+    '{}'::text as pod_labels,
+    -- CPU: map vm_cpu_core_seconds to core-hours
+    CASE WHEN o.meter_name IN ('vm_cpu_core_seconds')
+        THEN o.value / 3600.0 END as pod_usage_cpu_core_hours,
+    CASE WHEN o.meter_name IN ('vm_cpu_core_seconds')
+        THEN o.value / 3600.0 END as pod_request_cpu_core_hours,
+    CASE WHEN o.meter_name IN ('vm_cpu_core_seconds')
+        THEN o.value / 3600.0 END as pod_effective_usage_cpu_core_hours,
+    NULL as pod_limit_cpu_core_hours,
+    -- Memory: map vm_memory_gib_seconds to gigabyte-hours
+    CASE WHEN o.meter_name IN ('vm_memory_gib_seconds')
+        THEN o.value / 3600.0 END as pod_usage_memory_gigabyte_hours,
+    CASE WHEN o.meter_name IN ('vm_memory_gib_seconds')
+        THEN o.value / 3600.0 END as pod_request_memory_gigabyte_hours,
+    CASE WHEN o.meter_name IN ('vm_memory_gib_seconds')
+        THEN o.value / 3600.0 END as pod_effective_usage_memory_gigabyte_hours,
+    NULL as pod_limit_memory_gigabyte_hours,
+    -- Node capacity (from uptime meters)
+    NULL as node_capacity_cpu_cores,
+    CASE WHEN o.meter_name IN ('vm_uptime_seconds', 'bm_uptime_seconds')
+        THEN o.value / 3600.0 END as node_capacity_cpu_core_hours,
+    NULL as node_capacity_memory_gigabytes,
+    NULL as node_capacity_memory_gigabyte_hours,
+    NULL as cluster_capacity_cpu_core_hours,
+    NULL as cluster_capacity_memory_gigabyte_hours,
+    -- No storage data from OSAC
+    NULL as persistentvolumeclaim,
+    NULL as persistentvolume,
+    NULL as storageclass,
+    '{}'::text as volume_labels,
+    NULL as persistentvolumeclaim_capacity_gigabyte,
+    NULL as persistentvolumeclaim_capacity_gigabyte_months,
+    NULL as volume_request_storage_gigabyte_months,
+    NULL as persistentvolumeclaim_usage_gigabyte_months,
+    o.source as source_uuid,
+    NULL as infrastructure_usage_cost,
+    NULL as csi_volume_handle,
+    NULL as cost_category_id,
+    o.source,
+    o.year,
+    o.month,
+    EXTRACT(DAY FROM o.usage_start)::text as day
+FROM {{schema | sqlsafe}}.openshift_osac_usage_line_items_daily o
+WHERE o.source = {{source}}
+    AND o.year = {{year}}
+    AND lpad(o.month, 2, '0') = {{month}}
+    AND o.usage_start >= {{start_date}}
+    AND o.usage_start < {{end_date}} + INTERVAL '1 day'
+
+{% endif %}
+
 RETURNING 1;
 
 /*

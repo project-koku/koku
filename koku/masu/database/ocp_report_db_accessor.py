@@ -548,6 +548,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         end_date = DateHelper().parse_to_date(end_date)
 
         storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
+        osac_exists = trino_table_exists(self.schema, "openshift_osac_usage_line_items_daily")
 
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
@@ -573,6 +574,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "month": month,
             "days": days_tup,
             "storage_exists": storage_exists,
+            "osac_exists": osac_exists,
         }
 
         try:
