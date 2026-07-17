@@ -18,6 +18,7 @@ from django.db.models import Subquery
 from django_tenants.utils import schema_context
 from statsmodels.tools.sm_exceptions import ValueWarning
 
+from api.currency.models import ExchangeRateDictionary
 from api.forecast.views import AWSCostForecastView
 from api.forecast.views import AzureCostForecastView
 from api.forecast.views import GCPCostForecastView
@@ -30,6 +31,7 @@ from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.report.test.test_queries import assertSameQ
 from api.utils import DateHelper
+from cost_models.models import EnabledCurrency
 from forecast import AWSForecast
 from forecast import AzureForecast
 from forecast import GCPForecast
@@ -39,6 +41,8 @@ from forecast import OCPAzureForecast
 from forecast import OCPForecast
 from forecast.forecast import LinearForecastResult
 from forecast.forecast import ZERO_RESULT
+from koku.cache import build_enabled_currency_codes_key
+from koku.cache import delete_value_from_cache
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByProjectP
@@ -959,6 +963,32 @@ class ForecastExchangeRateTest(IamTestCase):
             ann = instance.exchange_rate_annotation_dict
         self.assertEqual(set(ann.keys()), {"exchange_rate", "infra_exchange_rate"})
         self.assertIsInstance(ann["exchange_rate"], Case)
+
+    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_flag_off_case_limited_to_enabled_currencies(self, _):
+        """Flag-off forecast Case/When is limited to enabled∩ERD bases, not full ERD."""
+        fat_codes = [f"C{i:02d}" for i in range(40)] + ["USD", "EUR"]
+        fat_rates = {
+            code: {target: Decimal("1") if target == code else Decimal("0.5") for target in fat_codes}
+            for code in fat_codes
+        }
+        ExchangeRateDictionary.objects.all().delete()
+        ExchangeRateDictionary.objects.create(currency_exchange_dictionary=fat_rates)
+
+        with schema_context(self.schema_name):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+            delete_value_from_cache(build_enabled_currency_codes_key(self.schema_name))
+
+            aws_ann = AWSForecast(self.mocked_query_params("?", AWSCostForecastView)).exchange_rate_annotation_dict
+            ocp_ann = OCPForecast(self.mocked_query_params("?", OCPCostForecastView)).exchange_rate_annotation_dict
+
+        self.assertIsInstance(aws_ann["exchange_rate"], Case)
+        self.assertEqual(len(aws_ann["exchange_rate"].cases), 2)
+        self.assertIsInstance(ocp_ann["infra_exchange_rate"], Case)
+        self.assertEqual(len(ocp_ann["infra_exchange_rate"].cases), 2)
+        self.assertLess(len(aws_ann["exchange_rate"].cases), len(fat_codes))
 
     @patch("forecast.forecast.validate_exchange_rate_coverage")
     @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=False)
