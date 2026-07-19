@@ -339,11 +339,9 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
             EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="EUR")
 
-    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
-    def test_default_does_not_backfill_past_months(self, mock_retention_start):
+    @patch("cost_models.monthly_exchange_rate_utils._backfill_missing_past_months")
+    def test_default_does_not_backfill_past_months(self, mock_backfill):
         """Currency enable and other callers leave past months untouched."""
-        mock_retention_start.return_value = self.month_5
-
         with tenant_context(self.tenant):
             populate_dynamic_monthly_rates()
             self.assertTrue(
@@ -352,7 +350,7 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
                 ).exists()
             )
             self.assertFalse(MonthlyExchangeRate.objects.filter(effective_date=self.month_5).exists())
-            mock_retention_start.assert_not_called()
+            mock_backfill.assert_not_called()
 
     @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
     def test_backfill_uses_next_later_existing_rate(self, mock_retention_start):
