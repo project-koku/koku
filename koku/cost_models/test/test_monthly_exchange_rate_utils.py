@@ -441,7 +441,8 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
                 rate_type=RateType.DYNAMIC,
             )
 
-            _backfill_missing_past_months(self.current_month_start)
+            enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+            _backfill_missing_past_months(self.current_month_start, enabled_codes)
 
             for month in (self.month_1, self.month_2, self.month_3):
                 row = MonthlyExchangeRate.objects.get(effective_date=month, base_currency="USD", target_currency="EUR")

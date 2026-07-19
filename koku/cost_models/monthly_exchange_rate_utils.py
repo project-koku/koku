@@ -109,9 +109,10 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     if not enabled_codes:
         LOG.warning(log_json(msg="No enabled currencies; skipping monthly exchange rate populate"))
-        return
+        return 0
 
     current_month = DateHelper().this_month_start.date()
+    updated_count = 0
     erd = ExchangeRateDictionary.objects.first()
     if erd and erd.currency_exchange_dictionary:
         exchange_dict = erd.currency_exchange_dictionary
@@ -162,9 +163,13 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
                 target_currency=target_cur,
                 defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
             )
+            updated_count += 1
 
+    backfilled_count = 0
     if backfill_past_months:
-        _backfill_missing_past_months(current_month, code=code)
+        backfilled_count = _backfill_missing_past_months(current_month, enabled_codes=enabled_codes, code=code)
+
+    return updated_count + backfilled_count
 
 
 def remove_monthly_rates(code):
@@ -182,14 +187,13 @@ def remove_monthly_rates(code):
     return deleted
 
 
-def _get_existing_rates_by_pair(start, end, code=None):
+def _get_existing_rates_by_pair(start, end, enabled_codes, code=None):
     """Return existing MER rates grouped by pair, ordered newest-first.
 
     {("USD", "EUR"): {date(2026, 6, 1): Decimal("0.45"), date(2026, 4, 1): Decimal("0.40")}}
 
     Dict insertion order is newest-first, so next(iter(d.items())) gives the latest rate.
     """
-    enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     qs = MonthlyExchangeRate.objects.filter(
         base_currency__in=enabled_codes,
         target_currency__in=enabled_codes,
@@ -208,12 +212,13 @@ def _get_existing_rates_by_pair(start, end, code=None):
     return rates_by_pair
 
 
-def _backfill_missing_past_months(current_month, code=None):
+def _backfill_missing_past_months(current_month, enabled_codes, code=None):
     """Fill gaps walking downward; each missing month inherits the next later rate.
 
     Example (Jan–Jun, rows at Apr/Jun): May<-Jun, Mar<-Apr, Feb<-Apr, Jan<-Apr.
 
     Discovers pairs from existing MER rows in the retention window.
+    Returns the number of rows created.
     """
     retention_start = to_date(materialized_view_month_start(schema_name=getattr(connection, "schema_name", None)))
     if retention_start >= current_month:
@@ -224,12 +229,12 @@ def _backfill_missing_past_months(current_month, code=None):
                 current_month=str(current_month),
             )
         )
-        return
+        return 0
 
-    rates_by_pair = _get_existing_rates_by_pair(retention_start, current_month, code=code)
+    rates_by_pair = _get_existing_rates_by_pair(retention_start, current_month, enabled_codes=enabled_codes, code=code)
 
     if not rates_by_pair:
-        return
+        return 0
 
     rows_to_create = []
     for (base, target), existing_rates in rates_by_pair.items():
@@ -254,3 +259,5 @@ def _backfill_missing_past_months(current_month, code=None):
     if rows_to_create:
         MonthlyExchangeRate.objects.bulk_create(rows_to_create, ignore_conflicts=True)
         LOG.info(log_json(msg="Backfilled missing monthly exchange rates", created=len(rows_to_create)))
+
+    return len(rows_to_create)
