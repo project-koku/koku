@@ -347,7 +347,11 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
                     effective_date=self.current_month_start, base_currency="USD", target_currency="EUR"
                 ).exists()
             )
-            self.assertFalse(MonthlyExchangeRate.objects.filter(effective_date=self.month_3).exists())
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date__in=(self.month_1, self.month_2, self.month_3)
+                ).exists()
+            )
             mock_backfill.assert_not_called()
 
     @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
