@@ -186,77 +186,49 @@ def remove_monthly_rates(code):
     return deleted
 
 
-def _retention_months_before_current(current_month):
-    """Return month-start dates in the tenant retention window before the current month."""
-    schema_name = getattr(connection, "schema_name", None)
-    earliest = to_date(materialized_view_month_start(schema_name=schema_name))
-    months = []
-    month = earliest
+def _backfill_missing_past_months(currency_pairs, current_month):
+    """Fill missing past months from each pair's oldest MonthlyExchangeRate rate."""
+    currency_pairs = set(currency_pairs)
+    month = to_date(materialized_view_month_start(schema_name=getattr(connection, "schema_name", None)))
+    past_months = []
     while month < current_month:
-        months.append(month)
+        past_months.append(month)
         month += relativedelta(months=1)
-    return months
+    if not currency_pairs or not past_months:
+        return
 
-
-def _oldest_rates_and_coverage(currency_pairs):
-    """Return oldest exchange_rate per pair and the set of existing (pair, month) keys."""
-    existing_rows = (
+    oldest, covered = {}, set()
+    for base, target, effective, rate in (
         MonthlyExchangeRate.objects.filter(
-            base_currency__in={pair[0] for pair in currency_pairs},
-            target_currency__in={pair[1] for pair in currency_pairs},
+            base_currency__in={b for b, _ in currency_pairs},
+            target_currency__in={t for _, t in currency_pairs},
         )
         .order_by("effective_date")
         .values_list("base_currency", "target_currency", "effective_date", "exchange_rate")
-    )
-
-    oldest_rate_by_pair = {}
-    existing = set()
-    for base_cur, target_cur, effective_date, exchange_rate in existing_rows:
-        pair = (base_cur, target_cur)
-        if pair not in currency_pairs:
+    ):
+        if (base, target) not in currency_pairs:
             continue
-        existing.add((base_cur, target_cur, effective_date))
-        if pair not in oldest_rate_by_pair:
-            oldest_rate_by_pair[pair] = exchange_rate
-    return oldest_rate_by_pair, existing
+        covered.add((base, target, effective))
+        oldest.setdefault((base, target), rate)
 
-
-def _backfill_missing_past_months(currency_pairs, current_month):
-    """Fill missing past months using each pair's oldest MonthlyExchangeRate.
-
-    Copies the exchange_rate from the earliest existing MER row for that pair
-    (not today's ExchangeRateDictionary value). Existing rows are never overwritten.
-    Pairs with no existing MER rows are skipped.
-    """
-    currency_pairs = set(currency_pairs)
-    if not currency_pairs:
-        return
-
-    past_months = _retention_months_before_current(current_month)
-    if not past_months:
-        return
-
-    oldest_rate_by_pair, existing = _oldest_rates_and_coverage(currency_pairs)
     to_create = [
         MonthlyExchangeRate(
-            effective_date=month,
-            base_currency=base_cur,
-            target_currency=target_cur,
-            exchange_rate=exchange_rate,
+            effective_date=m,
+            base_currency=base,
+            target_currency=target,
+            exchange_rate=rate,
             rate_type=RateType.DYNAMIC,
         )
-        for (base_cur, target_cur), exchange_rate in oldest_rate_by_pair.items()
-        for month in past_months
-        if (base_cur, target_cur, month) not in existing
+        for (base, target), rate in oldest.items()
+        for m in past_months
+        if (base, target, m) not in covered
     ]
-    if not to_create:
-        return
-
-    MonthlyExchangeRate.objects.bulk_create(to_create, ignore_conflicts=True)
-    LOG.info(
-        log_json(
-            msg="Backfilled missing monthly exchange rates for retention window",
-            created=len(to_create),
-            months=len(past_months),
+    if to_create:
+        MonthlyExchangeRate.objects.bulk_create(to_create, ignore_conflicts=True)
+        LOG.info(
+            log_json(
+                msg="Backfilled missing monthly exchange rates for retention window",
+                created=len(to_create),
+                months=len(past_months),
+            )
         )
-    )
