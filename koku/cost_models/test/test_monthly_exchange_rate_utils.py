@@ -15,6 +15,7 @@ from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
+from cost_models.monthly_exchange_rate_utils import _backfill_missing_past_months
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
 from cost_models.monthly_exchange_rate_utils import remove_monthly_rates
 from cost_models.monthly_exchange_rate_utils import replace_static_to_dynamic_monthly_rates
@@ -412,4 +413,80 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
                     effective_date=self.month_start, base_currency="USD", target_currency="EUR"
                 ).exchange_rate,
                 Decimal("0.87"),
+            )
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_backfill_starts_from_month_before_latest_available(self, mock_retention_start):
+        """Walk starts at latest_month-1; months after the latest available are not filled."""
+        mock_retention_start.return_value = self.month_1
+
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.month_2,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.20"),
+                rate_type=RateType.DYNAMIC,
+            )
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.month_4,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.40"),
+                rate_type=RateType.DYNAMIC,
+            )
+
+            _backfill_missing_past_months({("USD", "EUR")}, self.month_start)
+
+            # Latest available is month 4, so walk starts at month 3; month 5 stays empty.
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=self.month_5, base_currency="USD", target_currency="EUR"
+                ).exists()
+            )
+            self.assertEqual(
+                MonthlyExchangeRate.objects.get(
+                    effective_date=self.month_3, base_currency="USD", target_currency="EUR"
+                ).exchange_rate,
+                Decimal("0.40"),
+            )
+            self.assertEqual(
+                MonthlyExchangeRate.objects.get(
+                    effective_date=self.month_1, base_currency="USD", target_currency="EUR"
+                ).exchange_rate,
+                Decimal("0.20"),
+            )
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=self.month_start, base_currency="USD", target_currency="EUR"
+                ).exists()
+            )
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_backfill_fills_all_gaps_before_latest_with_same_rate(self, mock_retention_start):
+        """If only month 4 exists, months 3 and 2 (and 1) are filled with month 4's rate."""
+        mock_retention_start.return_value = self.month_1
+
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.month_4,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.40"),
+                rate_type=RateType.DYNAMIC,
+            )
+
+            _backfill_missing_past_months({("USD", "EUR")}, self.month_start)
+
+            for month in (self.month_1, self.month_2, self.month_3):
+                self.assertEqual(
+                    MonthlyExchangeRate.objects.get(
+                        effective_date=month, base_currency="USD", target_currency="EUR"
+                    ).exchange_rate,
+                    Decimal("0.40"),
+                )
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=self.month_5, base_currency="USD", target_currency="EUR"
+                ).exists()
             )

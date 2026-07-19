@@ -186,12 +186,17 @@ def remove_monthly_rates(code):
 
 
 def _mer_rates_by_pair(currency_pairs):
-    """Return {pair: [(effective_date, rate), ...]} ordered by effective_date."""
+    """Return {pair: [(effective_date, rate), ...]} ordered by effective_date.
+
+    Example: {("USD", "EUR"): [(Apr 1, 0.40), (Jun 1, 0.45)]}.
+    """
+    base_currencies = {base for base, _ in currency_pairs}
+    target_currencies = {target for _, target in currency_pairs}
     rates = {}
     for base, target, effective, rate in (
         MonthlyExchangeRate.objects.filter(
-            base_currency__in={b for b, _ in currency_pairs},
-            target_currency__in={t for _, t in currency_pairs},
+            base_currency__in=base_currencies,
+            target_currency__in=target_currencies,
         )
         .order_by("effective_date")
         .values_list("base_currency", "target_currency", "effective_date", "exchange_rate")
@@ -202,31 +207,37 @@ def _mer_rates_by_pair(currency_pairs):
 
 
 def _backfill_missing_past_months(currency_pairs, current_month):
-    """Fill gaps with the next later MER rate (e.g. 1<-2, 3<-4, 5<-6)."""
+    """Fill gaps walking downward; each missing month inherits the next later rate.
+
+    Example (Jan–Jun, rows at Apr/Jun): May<-Jun, Mar<-Apr, Feb<-Apr, Jan<-Apr.
+    """
     pairs = set(currency_pairs)
-    cursor_start = to_date(materialized_view_month_start(schema_name=getattr(connection, "schema_name", None)))
-    if not pairs or cursor_start >= current_month:
+    start = to_date(materialized_view_month_start(schema_name=getattr(connection, "schema_name", None)))
+    if not pairs or start >= current_month:
         return
 
     to_create = []
     for (base, target), dated_rates in _mer_rates_by_pair(pairs).items():
-        cursor = cursor_start
-        for effective, rate in dated_rates:
-            # Months before this existing row inherit its rate.
-            while cursor < effective and cursor < current_month:
+        if not dated_rates:
+            continue
+        existing = dict(dated_rates)
+        # Walk down from the month before the latest available MER row.
+        latest_month, latest_rate = dated_rates[-1]
+        month = latest_month - relativedelta(months=1)
+        while month >= start:
+            if month in existing:
+                latest_rate = existing[month]
+            else:
                 to_create.append(
                     MonthlyExchangeRate(
-                        effective_date=cursor,
+                        effective_date=month,
                         base_currency=base,
                         target_currency=target,
-                        exchange_rate=rate,
+                        exchange_rate=latest_rate,
                         rate_type=RateType.DYNAMIC,
                     )
                 )
-                cursor += relativedelta(months=1)
-            # Skip the existing month itself.
-            if cursor == effective:
-                cursor += relativedelta(months=1)
+            month -= relativedelta(months=1)
 
     if to_create:
         MonthlyExchangeRate.objects.bulk_create(to_create, ignore_conflicts=True)
