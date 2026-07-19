@@ -214,19 +214,19 @@ def _backfill_missing_past_months(current_month, code=None):
 
     Discovers pairs from existing MER rows in the retention window.
     """
-    start = to_date(materialized_view_month_start(schema_name=getattr(connection, "schema_name", None)))
-    if start >= current_month:
+    retention_start = to_date(materialized_view_month_start(schema_name=getattr(connection, "schema_name", None)))
+    if retention_start >= current_month:
         LOG.warning(
             log_json(
                 msg="Skipping MER backfill; retention start is at or after current month",
-                retention_start=str(start),
+                retention_start=str(retention_start),
                 current_month=str(current_month),
             )
         )
         return
 
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
-    rates_by_pair = _get_existing_rates_by_pair(start, current_month, enabled_codes, code=code)
+    rates_by_pair = _get_existing_rates_by_pair(retention_start, current_month, enabled_codes, code=code)
 
     if not rates_by_pair:
         return
@@ -236,7 +236,7 @@ def _backfill_missing_past_months(current_month, code=None):
         # First entry is the latest because the query is ordered newest-first.
         latest_month, latest_rate = next(iter(existing.items()))
         month = latest_month - relativedelta(months=1)
-        while month >= start:
+        while month >= retention_start:
             if month in existing:
                 latest_rate = existing[month]
             else:
