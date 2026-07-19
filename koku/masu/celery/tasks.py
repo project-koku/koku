@@ -283,8 +283,14 @@ def _fetch_and_store_exchange_rates(url):
         LOG.error(e)
         return {}
 
+    try:
+        data = response.json()
+    except (ValueError, KeyError) as e:
+        LOG.error(f"Invalid or malformed response from {url}")
+        LOG.error(e)
+        return {}
+
     rate_metrics = {}
-    data = response.json()
     rates = data["rates"]
     for curr_type, value in rates.items():
         if not is_valid_iso_currency(curr_type):
