@@ -182,13 +182,14 @@ def remove_monthly_rates(code):
     return deleted
 
 
-def _get_existing_rates_by_pair(start, end, enabled_codes, code=None):
+def _get_existing_rates_by_pair(start, end, code=None):
     """Return existing MER rates grouped by pair, ordered newest-first.
 
     {("USD", "EUR"): {date(2026, 6, 1): Decimal("0.45"), date(2026, 4, 1): Decimal("0.40")}}
 
     Dict insertion order is newest-first, so next(iter(d.items())) gives the latest rate.
     """
+    enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     qs = MonthlyExchangeRate.objects.filter(
         base_currency__in=enabled_codes,
         target_currency__in=enabled_codes,
@@ -225,8 +226,7 @@ def _backfill_missing_past_months(current_month, code=None):
         )
         return
 
-    enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
-    rates_by_pair = _get_existing_rates_by_pair(retention_start, current_month, enabled_codes, code=code)
+    rates_by_pair = _get_existing_rates_by_pair(retention_start, current_month, code=code)
 
     if not rates_by_pair:
         return
