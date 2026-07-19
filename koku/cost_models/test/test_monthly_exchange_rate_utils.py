@@ -323,7 +323,7 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
     def setUp(self):
         super().setUp()
         self.month_start = self.dh.this_month_start.date()
-        # Retention months 1..3 with current = 4 (minimum for next-later + gap-after-latest).
+        # Retention months 1..3 with current = 4.
         self.month_1 = (self.month_start - relativedelta(months=3)).replace(day=1)
         self.month_2 = (self.month_start - relativedelta(months=2)).replace(day=1)
         self.month_3 = (self.month_start - relativedelta(months=1)).replace(day=1)
