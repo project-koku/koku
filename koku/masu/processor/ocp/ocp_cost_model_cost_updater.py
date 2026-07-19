@@ -790,11 +790,12 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
     def update_summary_cost_model_costs(self, summary_range: SummaryRangeConfig) -> None:
         """Update the OCP summary table with the charge information.
 
-        Phase 3 converted all monthly/tag/VM SQL to INSERT into rates_to_usage,
-        so all cost types now require the RTU pipeline.  The feature flag is
-        checked and a warning is emitted when it is OFF, but the RTU path runs
-        unconditionally because aggregation (which rebuilds daily-summary from
-        RTU) would otherwise discard any legacy direct-written rows.
+        Phase 3 converted all monthly/tag/VM SQL to INSERT into rates_to_usage.
+        When COST_BREAKDOWN_RTU_UNLEASH_FLAG is enabled, usage costs are written
+        to rates_to_usage and then aggregated back into the daily summary via
+        aggregate_rates_to_daily_summary. When it is disabled, usage costs and
+        the monthly/tag/VM costs below write directly to the daily summary and
+        no aggregation step is needed.
 
         Args:
             start_date (str, Optional) - Start date of range to update derived cost.
@@ -831,17 +832,15 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 self._schema, COST_BREAKDOWN_RTU_UNLEASH_FLAG, dev_fallback=False
             )
 
-            LOG.info(
-                log_json(
-                    msg="cost pipeline path selected",
-                    rtu_enabled=rtu_enabled,
-                    cost_model_id=str(self._cost_model_id) if self._cost_model_id else None,
-                    provider_uuid=self._provider_uuid,
-                )
-            )
-
             if rtu_enabled:
-                # RTU path (Phase 3): all cost types write through rates_to_usage,
+                LOG.info(
+                    log_json(
+                        msg="RTU pipeline path selected",
+                        cost_model_id=str(self._cost_model_id) if self._cost_model_id else None,
+                        provider_uuid=self._provider_uuid,
+                    )
+                )
+                # RTU path (Phase 3): usage costs write through rates_to_usage,
                 # then aggregate_rates_to_daily_summary rebuilds daily summary from RTU.
                 if self._cost_model_id and not no_effective_pl:
                     self._update_usage_rates_to_usage(start_date, end_date)
@@ -856,65 +855,49 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     self._cleanup_stale_rtu_costs(start_date, end_date)
                 else:
                     self._cleanup_stale_rtu_costs(start_date, end_date)
-
-                self._update_monthly_cost(start_date, end_date, use_rtu=True)
-
-                if self._tag_infra_rates != {} or self._tag_supplementary_rates != {}:
-                    self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
-                    self._update_tag_usage_costs(start_date, end_date, use_rtu=True)
-                    self._update_tag_usage_default_costs(start_date, end_date, use_rtu=True)
-                    self._update_monthly_tag_based_cost(start_date, end_date, use_rtu=True)
-                    self._update_node_hour_tag_based_cost(start_date, end_date, use_rtu=True)
-                    with OCPReportDBAccessor(self._schema) as report_accessor:
-                        cluster_params = {
-                            "cluster_id": self._cluster_id,
-                            "cluster_alias": self._cluster_alias,
-                        }
-                        report_accessor.populate_tag_based_costs(
-                            start_date,
-                            end_date,
-                            self._provider.uuid,
-                            self.metric_to_tag_params_map,
-                            cluster_params,
-                            cost_model_id=self._cost_model_id,
-                            rate_info_map=self._rate_info_map,
-                        )
-                if not (self._tag_infra_rates or self._tag_supplementary_rates):
-                    self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
-
-                self._update_vm_usage_costs(start_date, end_date, use_rtu=True)
-                self._aggregate_rates_to_daily_summary(start_date, end_date)
             else:
-                # Legacy path (pre-Phase 3): all cost types write directly to daily summary.
+                LOG.info(
+                    log_json(
+                        msg="Legacy pipeline path selected",
+                        cost_model_id=str(self._cost_model_id) if self._cost_model_id else None,
+                        provider_uuid=self._provider_uuid,
+                    )
+                )
+                # Legacy path (pre-Phase 3): usage costs write directly to daily summary.
                 self._update_usage_costs(start_date, end_date)
 
-                self._update_monthly_cost(start_date, end_date, use_rtu=False)
+            self._update_monthly_cost(start_date, end_date, use_rtu=rtu_enabled)
 
-                if self._tag_infra_rates != {} or self._tag_supplementary_rates != {}:
-                    self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
-                    self._update_tag_usage_costs(start_date, end_date, use_rtu=False)
-                    self._update_tag_usage_default_costs(start_date, end_date, use_rtu=False)
-                    self._update_monthly_tag_based_cost(start_date, end_date, use_rtu=False)
-                    self._update_node_hour_tag_based_cost(start_date, end_date, use_rtu=False)
-                    with OCPReportDBAccessor(self._schema) as report_accessor:
-                        cluster_params = {
-                            "cluster_id": self._cluster_id,
-                            "cluster_alias": self._cluster_alias,
-                        }
-                        report_accessor.populate_tag_based_costs(
-                            start_date,
-                            end_date,
-                            self._provider.uuid,
-                            self.metric_to_tag_params_map,
-                            cluster_params,
-                            cost_model_id=self._cost_model_id,
-                            rate_info_map=self._rate_info_map,
-                        )
-                if not (self._tag_infra_rates or self._tag_supplementary_rates):
-                    self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
+            if self._tag_infra_rates != {} or self._tag_supplementary_rates != {}:
+                self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
+                self._update_tag_usage_costs(start_date, end_date, use_rtu=rtu_enabled)
+                self._update_tag_usage_default_costs(start_date, end_date, use_rtu=rtu_enabled)
+                self._update_monthly_tag_based_cost(start_date, end_date, use_rtu=rtu_enabled)
+                self._update_node_hour_tag_based_cost(start_date, end_date, use_rtu=rtu_enabled)
+                with OCPReportDBAccessor(self._schema) as report_accessor:
+                    cluster_params = {
+                        "cluster_id": self._cluster_id,
+                        "cluster_alias": self._cluster_alias,
+                    }
+                    report_accessor.populate_tag_based_costs(
+                        start_date,
+                        end_date,
+                        self._provider.uuid,
+                        self.metric_to_tag_params_map,
+                        cluster_params,
+                        cost_model_id=self._cost_model_id,
+                        rate_info_map=self._rate_info_map,
+                        use_rtu=rtu_enabled,
+                    )
+            if not (self._tag_infra_rates or self._tag_supplementary_rates):
+                self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
 
-                self._update_vm_usage_costs(start_date, end_date, use_rtu=False)
-                # No aggregate step — monthly/tag/VM wrote directly to daily summary.
+            self._update_vm_usage_costs(start_date, end_date, use_rtu=rtu_enabled)
+
+            if rtu_enabled:
+                # Monthly/tag/VM costs above wrote to rates_to_usage; rebuild the
+                # daily summary cost-model rows from those RTU rows.
+                self._aggregate_rates_to_daily_summary(start_date, end_date)
 
             self._update_markup_cost(start_date, end_date)
 
