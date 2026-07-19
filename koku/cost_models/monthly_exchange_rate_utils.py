@@ -108,7 +108,7 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
     """
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     if not enabled_codes:
-        LOG.info(log_json(msg="No enabled currencies; skipping monthly exchange rate populate"))
+        LOG.warning(log_json(msg="No enabled currencies; skipping monthly exchange rate populate"))
         return
 
     current_month = DateHelper().this_month_start.date()
@@ -209,6 +209,13 @@ def _backfill_missing_past_months(current_month, code=None, currency_pairs=None)
     """
     start = to_date(materialized_view_month_start(schema_name=getattr(connection, "schema_name", None)))
     if start >= current_month:
+        LOG.warning(
+            log_json(
+                msg="Skipping MER backfill; retention start is at or after current month",
+                retention_start=str(start),
+                current_month=str(current_month),
+            )
+        )
         return
 
     if currency_pairs is None:
