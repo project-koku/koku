@@ -108,6 +108,7 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
     """
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     if not enabled_codes:
+        LOG.info(log_json(msg="No enabled currencies; skipping monthly exchange rate populate"))
         return
 
     current_month = DateHelper().this_month_start.date()
