@@ -200,12 +200,12 @@ def _mer_rates_by_pair(currency_pairs):
     return rates_by_pair
 
 
-def _backfill_missing_past_months(current_month, code=None, currency_pairs=None):
+def _backfill_missing_past_months(current_month, code=None):
     """Fill gaps walking downward; each missing month inherits the next later rate.
 
     Example (Jan–Jun, rows at Apr/Jun): May<-Jun, Mar<-Apr, Feb<-Apr, Jan<-Apr.
 
-    When currency_pairs is omitted, discover pairs from existing MER rows in the retention window.
+    Discovers pairs from existing MER rows in the retention window.
     """
     start = to_date(materialized_view_month_start(schema_name=getattr(connection, "schema_name", None)))
     if start >= current_month:
@@ -218,20 +218,16 @@ def _backfill_missing_past_months(current_month, code=None, currency_pairs=None)
         )
         return
 
-    if currency_pairs is None:
-        enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
-        pairs = set(
-            MonthlyExchangeRate.objects.filter(
-                base_currency__in=enabled_codes,
-                target_currency__in=enabled_codes,
-                effective_date__gte=start,
-                effective_date__lte=current_month,
-            ).values_list("base_currency", "target_currency")
-        )
-        if code:
-            pairs = {(base, target) for base, target in pairs if code in (base, target)}
-    else:
-        pairs = set(currency_pairs)
+    enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+    pairs_qs = MonthlyExchangeRate.objects.filter(
+        base_currency__in=enabled_codes,
+        target_currency__in=enabled_codes,
+        effective_date__gte=start,
+        effective_date__lte=current_month,
+    )
+    if code:
+        pairs_qs = pairs_qs.filter(Q(base_currency=code) | Q(target_currency=code))
+    pairs = set(pairs_qs.values_list("base_currency", "target_currency"))
 
     if not pairs:
         return
