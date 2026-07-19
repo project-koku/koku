@@ -96,8 +96,9 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
 
     Past months are finalized and read-only — only the current month is written,
     unless backfill_past_months is True (daily Celery crawl), in which case missing
-    MonthlyExchangeRate rows in the tenant retention window are filled with today's rate.
-    Existing past-month rows (static or dynamic) are never overwritten.
+    MonthlyExchangeRate rows in the tenant retention window are filled using each
+    pair's oldest existing MonthlyExchangeRate. Existing past-month rows (static
+    or dynamic) are never overwritten.
 
     Reads the latest rates from ExchangeRateDictionary and writes dynamic
     MonthlyExchangeRate rows for each enabled currency pair. Static overrides are preserved.
@@ -165,7 +166,7 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
         count += 1
 
     if backfill_past_months:
-        _backfill_missing_past_months(dynamic_rates, current_month)
+        _backfill_missing_past_months(dynamic_rates.keys(), current_month)
 
     return count
 
@@ -185,41 +186,66 @@ def remove_monthly_rates(code):
     return deleted
 
 
-def _backfill_missing_past_months(dynamic_rates, current_month):
-    """Insert today's rate for missing MonthlyExchangeRate rows in the retention window.
-
-    Existing rows (static or dynamic) are never overwritten.
-    """
-    if not dynamic_rates:
-        return
-
+def _retention_months_before_current(current_month):
+    """Return month-start dates in the tenant retention window before the current month."""
     schema_name = getattr(connection, "schema_name", None)
     earliest = to_date(materialized_view_month_start(schema_name=schema_name))
-    past_months = []
+    months = []
     month = earliest
     while month < current_month:
-        past_months.append(month)
+        months.append(month)
         month += relativedelta(months=1)
+    return months
+
+
+def _oldest_rates_and_coverage(currency_pairs):
+    """Return oldest exchange_rate per pair and the set of existing (pair, month) keys."""
+    existing_rows = (
+        MonthlyExchangeRate.objects.filter(
+            base_currency__in={pair[0] for pair in currency_pairs},
+            target_currency__in={pair[1] for pair in currency_pairs},
+        )
+        .order_by("effective_date")
+        .values_list("base_currency", "target_currency", "effective_date", "exchange_rate")
+    )
+
+    oldest_rate_by_pair = {}
+    existing = set()
+    for base_cur, target_cur, effective_date, exchange_rate in existing_rows:
+        pair = (base_cur, target_cur)
+        if pair not in currency_pairs:
+            continue
+        existing.add((base_cur, target_cur, effective_date))
+        if pair not in oldest_rate_by_pair:
+            oldest_rate_by_pair[pair] = exchange_rate
+    return oldest_rate_by_pair, existing
+
+
+def _backfill_missing_past_months(currency_pairs, current_month):
+    """Fill missing past months using each pair's oldest MonthlyExchangeRate.
+
+    Copies the exchange_rate from the earliest existing MER row for that pair
+    (not today's ExchangeRateDictionary value). Existing rows are never overwritten.
+    Pairs with no existing MER rows are skipped.
+    """
+    currency_pairs = set(currency_pairs)
+    if not currency_pairs:
+        return
+
+    past_months = _retention_months_before_current(current_month)
     if not past_months:
         return
 
-    existing = set(
-        MonthlyExchangeRate.objects.filter(
-            effective_date__gte=past_months[0],
-            effective_date__lte=past_months[-1],
-            base_currency__in={pair[0] for pair in dynamic_rates},
-            target_currency__in={pair[1] for pair in dynamic_rates},
-        ).values_list("base_currency", "target_currency", "effective_date")
-    )
+    oldest_rate_by_pair, existing = _oldest_rates_and_coverage(currency_pairs)
     to_create = [
         MonthlyExchangeRate(
             effective_date=month,
             base_currency=base_cur,
             target_currency=target_cur,
-            exchange_rate=rate,
+            exchange_rate=exchange_rate,
             rate_type=RateType.DYNAMIC,
         )
-        for (base_cur, target_cur), rate in dynamic_rates.items()
+        for (base_cur, target_cur), exchange_rate in oldest_rate_by_pair.items()
         for month in past_months
         if (base_cur, target_cur, month) not in existing
     ]
