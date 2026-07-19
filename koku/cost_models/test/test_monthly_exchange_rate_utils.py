@@ -342,6 +342,11 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
         """Currency enable and other callers leave past months untouched."""
         with tenant_context(self.tenant):
             populate_dynamic_monthly_rates()
+            current = MonthlyExchangeRate.objects.get(
+                effective_date=self.current_month_start, base_currency="USD", target_currency="EUR"
+            )
+            self.assertEqual(current.exchange_rate, Decimal("0.87"))
+            self.assertEqual(current.rate_type, RateType.DYNAMIC)
             self.assertFalse(
                 MonthlyExchangeRate.objects.filter(
                     effective_date__in=(self.month_1, self.month_2, self.month_3)
