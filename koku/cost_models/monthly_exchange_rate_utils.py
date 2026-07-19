@@ -4,6 +4,7 @@
 #
 """Utilities for managing MonthlyExchangeRate side effects."""
 import logging
+from bisect import bisect_right
 from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
@@ -95,10 +96,9 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
     """Populate dynamic MonthlyExchangeRate rows for the current month only.
 
     Past months are finalized and read-only — only the current month is written,
-    unless backfill_past_months is True (daily Celery crawl), in which case missing
-    MonthlyExchangeRate rows in the tenant retention window are filled using each
-    pair's oldest existing MonthlyExchangeRate. Existing past-month rows (static
-    or dynamic) are never overwritten.
+    unless backfill_past_months is True (daily Celery crawl), in which case each
+    missing month in the retention window is filled from the next later existing
+    MonthlyExchangeRate for that pair. Existing rows are never overwritten.
 
     Reads the latest rates from ExchangeRateDictionary and writes dynamic
     MonthlyExchangeRate rows for each enabled currency pair. Static overrides are preserved.
@@ -187,7 +187,11 @@ def remove_monthly_rates(code):
 
 
 def _backfill_missing_past_months(currency_pairs, current_month):
-    """Fill missing past months from each pair's oldest MonthlyExchangeRate rate."""
+    """Fill each missing month with the next later existing MER rate for that pair.
+
+    Example (retention months 1-6, current=6, existing rows at 2 and 4):
+    month 1 <- rate from 2, month 3 <- rate from 4, month 5 <- rate from 6.
+    """
     currency_pairs = set(currency_pairs)
     month = to_date(materialized_view_month_start(schema_name=getattr(connection, "schema_name", None)))
     past_months = []
@@ -197,7 +201,7 @@ def _backfill_missing_past_months(currency_pairs, current_month):
     if not currency_pairs or not past_months:
         return
 
-    oldest, covered = {}, set()
+    rates_by_pair = {}
     for base, target, effective, rate in (
         MonthlyExchangeRate.objects.filter(
             base_currency__in={b for b, _ in currency_pairs},
@@ -206,23 +210,29 @@ def _backfill_missing_past_months(currency_pairs, current_month):
         .order_by("effective_date")
         .values_list("base_currency", "target_currency", "effective_date", "exchange_rate")
     ):
-        if (base, target) not in currency_pairs:
-            continue
-        covered.add((base, target, effective))
-        oldest.setdefault((base, target), rate)
+        if (base, target) in currency_pairs:
+            rates_by_pair.setdefault((base, target), []).append((effective, rate))
 
-    to_create = [
-        MonthlyExchangeRate(
-            effective_date=m,
-            base_currency=base,
-            target_currency=target,
-            exchange_rate=rate,
-            rate_type=RateType.DYNAMIC,
-        )
-        for (base, target), rate in oldest.items()
-        for m in past_months
-        if (base, target, m) not in covered
-    ]
+    to_create = []
+    for (base, target), dated_rates in rates_by_pair.items():
+        dates = [effective for effective, _ in dated_rates]
+        covered = set(dates)
+        for missing in past_months:
+            if missing in covered:
+                continue
+            idx = bisect_right(dates, missing)
+            if idx >= len(dates):
+                continue
+            to_create.append(
+                MonthlyExchangeRate(
+                    effective_date=missing,
+                    base_currency=base,
+                    target_currency=target,
+                    exchange_rate=dated_rates[idx][1],
+                    rate_type=RateType.DYNAMIC,
+                )
+            )
+
     if to_create:
         MonthlyExchangeRate.objects.bulk_create(to_create, ignore_conflicts=True)
         LOG.info(

@@ -322,8 +322,12 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
     def setUp(self):
         super().setUp()
         self.month_start = self.dh.this_month_start.date()
-        self.last_month = (self.month_start - relativedelta(months=1)).replace(day=1)
-        self.two_months_ago = (self.month_start - relativedelta(months=2)).replace(day=1)
+        # Retention months 1..6 with current = 6
+        self.month_1 = (self.month_start - relativedelta(months=5)).replace(day=1)
+        self.month_2 = (self.month_start - relativedelta(months=4)).replace(day=1)
+        self.month_3 = (self.month_start - relativedelta(months=3)).replace(day=1)
+        self.month_4 = (self.month_start - relativedelta(months=2)).replace(day=1)
+        self.month_5 = (self.month_start - relativedelta(months=1)).replace(day=1)
         ExchangeRateDictionary.objects.all().delete()
         ExchangeRateDictionary.objects.create(
             currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}, "EUR": {"USD": "1.15", "EUR": "1.0"}}
@@ -337,7 +341,7 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
     @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
     def test_default_does_not_backfill_past_months(self, mock_retention_start):
         """Currency enable and other callers leave past months untouched."""
-        mock_retention_start.return_value = self.last_month
+        mock_retention_start.return_value = self.month_5
 
         with tenant_context(self.tenant):
             populate_dynamic_monthly_rates()
@@ -346,41 +350,66 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
                     effective_date=self.month_start, base_currency="USD", target_currency="EUR"
                 ).exists()
             )
-            self.assertFalse(MonthlyExchangeRate.objects.filter(effective_date=self.last_month).exists())
+            self.assertFalse(MonthlyExchangeRate.objects.filter(effective_date=self.month_5).exists())
             mock_retention_start.assert_not_called()
 
     @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
-    def test_backfill_uses_oldest_mer_rate_not_todays(self, mock_retention_start):
-        """Gaps are filled from the oldest MER row for the pair, not today's dictionary rate."""
-        mock_retention_start.return_value = self.two_months_ago
+    def test_backfill_uses_next_later_existing_rate(self, mock_retention_start):
+        """Gaps use the next later MER rate: 1<-2, 3<-4, 5<-current."""
+        mock_retention_start.return_value = self.month_1
 
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.create(
-                effective_date=self.last_month,
+                effective_date=self.month_2,
                 base_currency="USD",
                 target_currency="EUR",
-                exchange_rate=Decimal("0.50"),
+                exchange_rate=Decimal("0.20"),
+                rate_type=RateType.DYNAMIC,
+            )
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.month_4,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.40"),
                 rate_type=RateType.STATIC,
             )
 
             populate_dynamic_monthly_rates(backfill_past_months=True)
 
-            # Existing oldest row is preserved
-            static = MonthlyExchangeRate.objects.get(
-                effective_date=self.last_month, base_currency="USD", target_currency="EUR"
+            self.assertEqual(
+                MonthlyExchangeRate.objects.get(
+                    effective_date=self.month_1, base_currency="USD", target_currency="EUR"
+                ).exchange_rate,
+                Decimal("0.20"),
             )
-            self.assertEqual(static.rate_type, RateType.STATIC)
-            self.assertEqual(static.exchange_rate, Decimal("0.50"))
-
-            # Gap before the oldest MER uses that oldest rate (0.50), not today's 0.87
-            backfilled = MonthlyExchangeRate.objects.get(
-                effective_date=self.two_months_ago, base_currency="USD", target_currency="EUR"
+            self.assertEqual(
+                MonthlyExchangeRate.objects.get(
+                    effective_date=self.month_3, base_currency="USD", target_currency="EUR"
+                ).exchange_rate,
+                Decimal("0.40"),
             )
-            self.assertEqual(backfilled.rate_type, RateType.DYNAMIC)
-            self.assertEqual(backfilled.exchange_rate, Decimal("0.50"))
-
-            # Current month is still upserted with today's dictionary rate
-            current = MonthlyExchangeRate.objects.get(
-                effective_date=self.month_start, base_currency="USD", target_currency="EUR"
+            self.assertEqual(
+                MonthlyExchangeRate.objects.get(
+                    effective_date=self.month_5, base_currency="USD", target_currency="EUR"
+                ).exchange_rate,
+                Decimal("0.87"),
             )
-            self.assertEqual(current.exchange_rate, Decimal("0.87"))
+            # Existing rows preserved
+            self.assertEqual(
+                MonthlyExchangeRate.objects.get(
+                    effective_date=self.month_2, base_currency="USD", target_currency="EUR"
+                ).exchange_rate,
+                Decimal("0.20"),
+            )
+            self.assertEqual(
+                MonthlyExchangeRate.objects.get(
+                    effective_date=self.month_4, base_currency="USD", target_currency="EUR"
+                ).rate_type,
+                RateType.STATIC,
+            )
+            self.assertEqual(
+                MonthlyExchangeRate.objects.get(
+                    effective_date=self.month_start, base_currency="USD", target_currency="EUR"
+                ).exchange_rate,
+                Decimal("0.87"),
+            )
