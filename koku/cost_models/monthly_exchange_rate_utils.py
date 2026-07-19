@@ -231,26 +231,26 @@ def _backfill_missing_past_months(current_month, code=None):
     if not rates_by_pair:
         return
 
-    to_create = []
-    for (base, target), existing in rates_by_pair.items():
+    rows_to_create = []
+    for (base, target), existing_rates in rates_by_pair.items():
         # First entry is the latest because the query is ordered newest-first.
-        latest_month, latest_rate = next(iter(existing.items()))
-        month = latest_month - relativedelta(months=1)
-        while month >= retention_start:
-            if month in existing:
-                latest_rate = existing[month]
+        most_recent_month, fill_rate = next(iter(existing_rates.items()))
+        current_fill_month = most_recent_month - relativedelta(months=1)
+        while current_fill_month >= retention_start:
+            if current_fill_month in existing_rates:
+                fill_rate = existing_rates[current_fill_month]
             else:
-                to_create.append(
+                rows_to_create.append(
                     MonthlyExchangeRate(
-                        effective_date=month,
+                        effective_date=current_fill_month,
                         base_currency=base,
                         target_currency=target,
-                        exchange_rate=latest_rate,
+                        exchange_rate=fill_rate,
                         rate_type=RateType.DYNAMIC,
                     )
                 )
-            month -= relativedelta(months=1)
+            current_fill_month -= relativedelta(months=1)
 
-    if to_create:
-        MonthlyExchangeRate.objects.bulk_create(to_create, ignore_conflicts=True)
-        LOG.info(log_json(msg="Backfilled missing monthly exchange rates", created=len(to_create)))
+    if rows_to_create:
+        MonthlyExchangeRate.objects.bulk_create(rows_to_create, ignore_conflicts=True)
+        LOG.info(log_json(msg="Backfilled missing monthly exchange rates", created=len(rows_to_create)))
