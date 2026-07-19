@@ -322,11 +322,11 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
 
     def setUp(self):
         super().setUp()
-        self.month_start = self.dh.this_month_start.date()
+        self.current_month_start = self.dh.this_month_start.date()
         # Retention months 1..3 with current = 4.
-        self.month_1 = (self.month_start - relativedelta(months=3)).replace(day=1)
-        self.month_2 = (self.month_start - relativedelta(months=2)).replace(day=1)
-        self.month_3 = (self.month_start - relativedelta(months=1)).replace(day=1)
+        self.month_1 = (self.current_month_start - relativedelta(months=3)).replace(day=1)
+        self.month_2 = (self.current_month_start - relativedelta(months=2)).replace(day=1)
+        self.month_3 = (self.current_month_start - relativedelta(months=1)).replace(day=1)
         ExchangeRateDictionary.objects.all().delete()
         ExchangeRateDictionary.objects.create(
             currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}, "EUR": {"USD": "1.15", "EUR": "1.0"}}
@@ -344,7 +344,7 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
             populate_dynamic_monthly_rates()
             self.assertTrue(
                 MonthlyExchangeRate.objects.filter(
-                    effective_date=self.month_start, base_currency="USD", target_currency="EUR"
+                    effective_date=self.current_month_start, base_currency="USD", target_currency="EUR"
                 ).exists()
             )
             self.assertFalse(MonthlyExchangeRate.objects.filter(effective_date=self.month_3).exists())
@@ -387,7 +387,7 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
             )
             self.assertEqual(
                 MonthlyExchangeRate.objects.get(
-                    effective_date=self.month_start, base_currency="USD", target_currency="EUR"
+                    effective_date=self.current_month_start, base_currency="USD", target_currency="EUR"
                 ).exchange_rate,
                 Decimal("0.87"),
             )
@@ -406,7 +406,7 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
                 rate_type=RateType.DYNAMIC,
             )
 
-            _backfill_missing_past_months({("USD", "EUR")}, self.month_start)
+            _backfill_missing_past_months({("USD", "EUR")}, self.current_month_start)
 
             # Latest available is month 2, so walk starts at month 1; month 3 stays empty.
             self.assertFalse(
@@ -422,7 +422,7 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
             )
             self.assertFalse(
                 MonthlyExchangeRate.objects.filter(
-                    effective_date=self.month_start, base_currency="USD", target_currency="EUR"
+                    effective_date=self.current_month_start, base_currency="USD", target_currency="EUR"
                 ).exists()
             )
 
@@ -440,7 +440,7 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
                 rate_type=RateType.DYNAMIC,
             )
 
-            _backfill_missing_past_months({("USD", "EUR")}, self.month_start)
+            _backfill_missing_past_months({("USD", "EUR")}, self.current_month_start)
 
             for month in (self.month_1, self.month_2):
                 self.assertEqual(
