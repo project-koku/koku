@@ -266,7 +266,7 @@ def autovacuum_tune_schemas():
 
 
 def _fetch_and_store_exchange_rates(url):
-    """Fetch exchange rates from the configured URL. Returns rate_metrics dict or None on failure."""
+    """Fetch exchange rates from the configured URL. Returns rate_metrics dict (empty on failure)."""
     retries = Retry(
         total=5,
         allowed_methods={"GET"},
@@ -282,7 +282,7 @@ def _fetch_and_store_exchange_rates(url):
     except (HTTPError, RetryError) as e:
         LOG.error(f"Couldn't pull latest conversion rates from {url}")
         LOG.error(e)
-        return None
+        return {}
 
     rate_metrics = {}
     data = response.json()
@@ -309,15 +309,14 @@ def _fetch_and_store_exchange_rates(url):
 
 @celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
 def get_daily_currency_rates():
-    """Task to get latest daily conversion rates and upsert MonthlyExchangeRate per tenant."""
+    """Fetch exchange rates when configured, then upsert/backfill MER per tenant."""
     url = settings.CURRENCY_URL
-    rate_metrics = {}
-    if not url:
-        LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
+    if url:
+        rate_metrics = _fetch_and_store_exchange_rates(url)
     else:
-        rate_metrics = _fetch_and_store_exchange_rates(url) or {}
+        LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
+        rate_metrics = {}
 
-    # Always populate/backfill so MER gaps are filled even when the fetch is unavailable.
     for tenant in Tenant.objects.exclude(schema_name="public"):
         try:
             with schema_context(tenant.schema_name):
