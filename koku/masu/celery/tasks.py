@@ -11,8 +11,7 @@ from botocore.exceptions import ClientError
 from django.conf import settings
 from django_tenants.utils import schema_context
 from requests.adapters import HTTPAdapter
-from requests.exceptions import HTTPError
-from requests.exceptions import RetryError
+from requests.exceptions import RequestException
 from urllib3.util.retry import Retry
 
 from api.common import log_json
@@ -279,7 +278,7 @@ def _fetch_and_store_exchange_rates(url):
     try:
         response = session.get(url)
         response.raise_for_status()
-    except (HTTPError, RetryError) as e:
+    except RequestException as e:
         LOG.error(f"Couldn't pull latest conversion rates from {url}")
         LOG.error(e)
         return {}
