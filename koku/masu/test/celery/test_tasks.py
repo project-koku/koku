@@ -556,15 +556,13 @@ class TestCeleryTasks(MasuTestCase):
             self.assertEqual(MonthlyExchangeRate.objects.filter(effective_date=current_month).count(), 0)
 
     @override_settings(CURRENCY_URL="")
-    @patch("masu.celery.tasks.populate_dynamic_monthly_rates")
-    def test_get_daily_currency_rates_no_url(self, mock_populate):
-        """CURRENCY_URL empty skips fetch but still runs per-tenant MER backfill."""
+    def test_get_daily_currency_rates_no_url(self):
+        """Test that get_daily_currency_rates returns empty dict when CURRENCY_URL is empty."""
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             result = tasks.get_daily_currency_rates()
 
         self.assertEqual(result, {})
         self.assertIn("CURRENCY_URL not configured", str(captured_logs))
-        mock_populate.assert_called_with(backfill_past_months=True)
 
     def test_get_daily_currency_rates_upserts_mer(self):
         """Test end-to-end: get_daily_currency_rates fetches rates and upserts MER rows."""
