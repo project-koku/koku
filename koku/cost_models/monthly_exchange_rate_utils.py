@@ -210,12 +210,16 @@ def _backfill_missing_past_months(current_month, code=None):
     if code:
         rates_qs = rates_qs.filter(Q(base_currency=code) | Q(target_currency=code))
 
-    # {("USD", "EUR"): {date(2026, 4, 1): Decimal("0.40"), date(2026, 6, 1): Decimal("0.45")}}
+    # Newest effective_date first so the first row per pair is the latest MER.
+    # {("USD", "EUR"): {date(2026, 6, 1): Decimal("0.45"), date(2026, 4, 1): Decimal("0.40")}}
     rates_by_pair = {}
-    for base, target, effective, rate in rates_qs.values_list(
-        "base_currency", "target_currency", "effective_date", "exchange_rate"
-    ):
-        rates_by_pair.setdefault((base, target), {})[effective] = rate
+    latest_by_pair = {}
+    for base, target, effective, rate in rates_qs.order_by(
+        "base_currency", "target_currency", "-effective_date"
+    ).values_list("base_currency", "target_currency", "effective_date", "exchange_rate"):
+        pair = (base, target)
+        rates_by_pair.setdefault(pair, {})[effective] = rate
+        latest_by_pair.setdefault(pair, (effective, rate))
 
     if not rates_by_pair:
         return
@@ -223,8 +227,7 @@ def _backfill_missing_past_months(current_month, code=None):
     to_create = []
     for (base, target), existing in rates_by_pair.items():
         # Walk down from the month before the latest available MER row.
-        latest_month = max(existing)
-        latest_rate = existing[latest_month]
+        latest_month, latest_rate = latest_by_pair[(base, target)]
         month = latest_month - relativedelta(months=1)
         while month >= start:
             if month in existing:
