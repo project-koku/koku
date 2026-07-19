@@ -186,24 +186,21 @@ def remove_monthly_rates(code):
 
 
 def _mer_rates_by_pair(currency_pairs):
-    """Return {pair: [(effective_date, rate), ...]} ordered by effective_date.
+    """Return {pair: {effective_date: rate}} for the given currency pairs.
 
-    Example: {("USD", "EUR"): [(Apr 1, 0.40), (Jun 1, 0.45)]}.
+    Example: {("USD", "EUR"): {date(2026, 4, 1): Decimal("0.40"), date(2026, 6, 1): Decimal("0.45")}}.
     """
-    base_currencies = {base for base, _ in currency_pairs}
-    target_currencies = {target for _, target in currency_pairs}
-    rates = {}
-    for base, target, effective, rate in (
-        MonthlyExchangeRate.objects.filter(
-            base_currency__in=base_currencies,
-            target_currency__in=target_currencies,
-        )
-        .order_by("effective_date")
-        .values_list("base_currency", "target_currency", "effective_date", "exchange_rate")
-    ):
-        if (base, target) in currency_pairs:
-            rates.setdefault((base, target), []).append((effective, rate))
-    return rates
+    pairs = set(currency_pairs)
+    base_currencies = {base for base, _ in pairs}
+    target_currencies = {target for _, target in pairs}
+    rates_by_pair = {}
+    for base, target, effective, rate in MonthlyExchangeRate.objects.filter(
+        base_currency__in=base_currencies,
+        target_currency__in=target_currencies,
+    ).values_list("base_currency", "target_currency", "effective_date", "exchange_rate"):
+        if (base, target) in pairs:
+            rates_by_pair.setdefault((base, target), {})[effective] = rate
+    return rates_by_pair
 
 
 def _backfill_missing_past_months(currency_pairs, current_month):
@@ -217,12 +214,12 @@ def _backfill_missing_past_months(currency_pairs, current_month):
         return
 
     to_create = []
-    for (base, target), dated_rates in _mer_rates_by_pair(pairs).items():
-        if not dated_rates:
+    for (base, target), existing in _mer_rates_by_pair(pairs).items():
+        if not existing:
             continue
-        existing = dict(dated_rates)
         # Walk down from the month before the latest available MER row.
-        latest_month, latest_rate = dated_rates[-1]
+        latest_month = max(existing)
+        latest_rate = existing[latest_month]
         month = latest_month - relativedelta(months=1)
         while month >= start:
             if month in existing:
