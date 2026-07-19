@@ -15,7 +15,6 @@ from cost_models.models import EnabledCurrency
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
-from cost_models.monthly_exchange_rate_utils import _backfill_missing_past_months
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
 from cost_models.monthly_exchange_rate_utils import remove_monthly_rates
 from cost_models.monthly_exchange_rate_utils import replace_static_to_dynamic_monthly_rates
@@ -431,6 +430,7 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
     def test_backfill_fills_all_gaps_before_latest_with_same_rate(self, mock_retention_start):
         """If only month 3 exists, months 1 and 2 are filled with month 3's rate."""
         mock_retention_start.return_value = self.month_1
+        ExchangeRateDictionary.objects.all().delete()
 
         with tenant_context(self.tenant):
             MonthlyExchangeRate.objects.create(
@@ -441,10 +441,84 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
                 rate_type=RateType.DYNAMIC,
             )
 
-            enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
-            _backfill_missing_past_months(self.current_month_start, enabled_codes)
+            populate_dynamic_monthly_rates(backfill_past_months=True)
 
             for month in (self.month_1, self.month_2, self.month_3):
                 row = MonthlyExchangeRate.objects.get(effective_date=month, base_currency="USD", target_currency="EUR")
                 self.assertEqual(row.exchange_rate, Decimal("0.40"))
                 self.assertEqual(row.rate_type, RateType.DYNAMIC)
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_backfill_skips_when_retention_start_at_or_after_current_month(self, mock_retention_start):
+        """Backfill returns 0 when retention start is at or after the current month."""
+        mock_retention_start.return_value = self.current_month_start
+
+        with tenant_context(self.tenant):
+            populate_dynamic_monthly_rates(backfill_past_months=True)
+            past_months = MonthlyExchangeRate.objects.exclude(effective_date=self.current_month_start)
+            self.assertEqual(past_months.count(), 0)
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_backfill_returns_zero_when_no_existing_rates(self, mock_retention_start):
+        """Backfill returns 0 when no MER rows exist in the retention window."""
+        mock_retention_start.return_value = self.month_1
+        ExchangeRateDictionary.objects.all().delete()
+
+        with tenant_context(self.tenant):
+            result = populate_dynamic_monthly_rates(backfill_past_months=True)
+            self.assertEqual(result, 0)
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_backfill_scoped_by_code(self, mock_retention_start):
+        """Backfill with code= only fills gaps for pairs involving that currency."""
+        mock_retention_start.return_value = self.month_1
+
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="GBP")
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.month_3,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.87"),
+                rate_type=RateType.DYNAMIC,
+            )
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.month_3,
+                base_currency="USD",
+                target_currency="GBP",
+                exchange_rate=Decimal("0.78"),
+                rate_type=RateType.DYNAMIC,
+            )
+
+            result = populate_dynamic_monthly_rates(code="EUR", backfill_past_months=True)
+            self.assertGreater(result, 0)
+
+            self.assertTrue(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=self.month_1, base_currency="USD", target_currency="EUR"
+                ).exists()
+            )
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=self.month_1, base_currency="USD", target_currency="GBP"
+                ).exists()
+            )
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_backfill_noop_when_all_months_filled(self, mock_retention_start):
+        """Backfill returns 0 when every month in the retention window already has a rate."""
+        mock_retention_start.return_value = self.month_1
+        ExchangeRateDictionary.objects.all().delete()
+
+        with tenant_context(self.tenant):
+            for month in (self.month_1, self.month_2, self.month_3):
+                MonthlyExchangeRate.objects.create(
+                    effective_date=month,
+                    base_currency="USD",
+                    target_currency="EUR",
+                    exchange_rate=Decimal("0.87"),
+                    rate_type=RateType.DYNAMIC,
+                )
+
+            result = populate_dynamic_monthly_rates(backfill_past_months=True)
+            self.assertEqual(result, 0)
