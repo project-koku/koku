@@ -182,6 +182,31 @@ def remove_monthly_rates(code):
     return deleted
 
 
+def _get_existing_rates_by_pair(start, end, enabled_codes, code=None):
+    """Return existing MER rates grouped by pair, ordered newest-first.
+
+    {("USD", "EUR"): {date(2026, 6, 1): Decimal("0.45"), date(2026, 4, 1): Decimal("0.40")}}
+
+    Dict insertion order is newest-first, so next(iter(d.items())) gives the latest rate.
+    """
+    qs = MonthlyExchangeRate.objects.filter(
+        base_currency__in=enabled_codes,
+        target_currency__in=enabled_codes,
+        effective_date__gte=start,
+        effective_date__lte=end,
+    )
+    if code:
+        qs = qs.filter(Q(base_currency=code) | Q(target_currency=code))
+
+    rates_by_pair = {}
+    for base, target, effective, rate in qs.order_by(
+        "base_currency", "target_currency", "-effective_date"
+    ).values_list("base_currency", "target_currency", "effective_date", "exchange_rate"):
+        rates_by_pair.setdefault((base, target), {})[effective] = rate
+
+    return rates_by_pair
+
+
 def _backfill_missing_past_months(current_month, code=None):
     """Fill gaps walking downward; each missing month inherits the next later rate.
 
@@ -201,33 +226,15 @@ def _backfill_missing_past_months(current_month, code=None):
         return
 
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
-    rates_qs = MonthlyExchangeRate.objects.filter(
-        base_currency__in=enabled_codes,
-        target_currency__in=enabled_codes,
-        effective_date__gte=start,
-        effective_date__lte=current_month,
-    )
-    if code:
-        rates_qs = rates_qs.filter(Q(base_currency=code) | Q(target_currency=code))
-
-    # Newest effective_date first so the first row per pair is the latest MER.
-    # {("USD", "EUR"): {date(2026, 6, 1): Decimal("0.45"), date(2026, 4, 1): Decimal("0.40")}}
-    rates_by_pair = {}
-    latest_by_pair = {}
-    for base, target, effective, rate in rates_qs.order_by(
-        "base_currency", "target_currency", "-effective_date"
-    ).values_list("base_currency", "target_currency", "effective_date", "exchange_rate"):
-        pair = (base, target)
-        rates_by_pair.setdefault(pair, {})[effective] = rate
-        latest_by_pair.setdefault(pair, (effective, rate))
+    rates_by_pair = _get_existing_rates_by_pair(start, current_month, enabled_codes, code=code)
 
     if not rates_by_pair:
         return
 
     to_create = []
     for (base, target), existing in rates_by_pair.items():
-        # Walk down from the month before the latest available MER row.
-        latest_month, latest_rate = latest_by_pair[(base, target)]
+        # First entry is the latest because the query is ordered newest-first.
+        latest_month, latest_rate = next(iter(existing.items()))
         month = latest_month - relativedelta(months=1)
         while month >= start:
             if month in existing:
