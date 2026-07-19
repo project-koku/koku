@@ -101,73 +101,68 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
 
     Reads the latest rates from ExchangeRateDictionary and writes dynamic
     MonthlyExchangeRate rows for each enabled currency pair. Static overrides are preserved.
+    If ERD is missing/empty and backfill_past_months is True, still backfill from existing MER.
 
     When code is provided, only pairs involving that currency are processed.
     When None, all enabled currency pairs are processed.
     """
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     if not enabled_codes:
-        return 0
+        return
 
-    erd = ExchangeRateDictionary.objects.first()
-    if not erd or not erd.currency_exchange_dictionary:
-        return 0
-
-    exchange_dict = erd.currency_exchange_dictionary
     current_month = DateHelper().this_month_start.date()
+    erd = ExchangeRateDictionary.objects.first()
+    if erd and erd.currency_exchange_dictionary:
+        exchange_dict = erd.currency_exchange_dictionary
 
-    static_pairs = set(
-        MonthlyExchangeRate.objects.filter(
-            effective_date=current_month,
-            rate_type=RateType.STATIC,
-        ).values_list("base_currency", "target_currency")
-    )
-
-    # Collect rates and synthesize inverses when not already in the dictionary
-    dynamic_rates = {}
-    for base_cur, rates_by_target in exchange_dict.items():
-        for target_cur, rate in rates_by_target.items():
-            if base_cur == target_cur:
-                continue
-            if base_cur not in enabled_codes or target_cur not in enabled_codes:
-                continue
-            if code and code != base_cur and code != target_cur:
-                continue
-
-            forward_pair = (base_cur, target_cur)
-            inverse_pair = (target_cur, base_cur)
-
-            rate_dec = Decimal(str(rate))
-            if rate_dec <= 0:
-                LOG.warning(
-                    log_json(
-                        msg="Skipping non-positive rate from ExchangeRateDictionary",
-                        base_currency=base_cur,
-                        target_currency=target_cur,
-                        rate=str(rate),
-                    )
-                )
-                continue
-            dynamic_rates[forward_pair] = rate_dec
-            dynamic_rates.setdefault(inverse_pair, Decimal(1) / rate_dec)
-
-    # Exclude pairs that already have a static override for this month
-    pairs_to_upsert = {pair: rate for pair, rate in dynamic_rates.items() if pair not in static_pairs}
-
-    count = 0
-    for (base_cur, target_cur), rate in pairs_to_upsert.items():
-        MonthlyExchangeRate.objects.update_or_create(
-            effective_date=current_month,
-            base_currency=base_cur,
-            target_currency=target_cur,
-            defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
+        static_pairs = set(
+            MonthlyExchangeRate.objects.filter(
+                effective_date=current_month,
+                rate_type=RateType.STATIC,
+            ).values_list("base_currency", "target_currency")
         )
-        count += 1
+
+        # Collect rates and synthesize inverses when not already in the dictionary
+        dynamic_rates = {}
+        for base_cur, rates_by_target in exchange_dict.items():
+            for target_cur, rate in rates_by_target.items():
+                if base_cur == target_cur:
+                    continue
+                if base_cur not in enabled_codes or target_cur not in enabled_codes:
+                    continue
+                if code and code != base_cur and code != target_cur:
+                    continue
+
+                forward_pair = (base_cur, target_cur)
+                inverse_pair = (target_cur, base_cur)
+
+                rate_dec = Decimal(str(rate))
+                if rate_dec <= 0:
+                    LOG.warning(
+                        log_json(
+                            msg="Skipping non-positive rate from ExchangeRateDictionary",
+                            base_currency=base_cur,
+                            target_currency=target_cur,
+                            rate=str(rate),
+                        )
+                    )
+                    continue
+                dynamic_rates[forward_pair] = rate_dec
+                dynamic_rates.setdefault(inverse_pair, Decimal(1) / rate_dec)
+
+        # Exclude pairs that already have a static override for this month
+        pairs_to_upsert = {pair: rate for pair, rate in dynamic_rates.items() if pair not in static_pairs}
+
+        for (base_cur, target_cur), rate in pairs_to_upsert.items():
+            MonthlyExchangeRate.objects.update_or_create(
+                effective_date=current_month,
+                base_currency=base_cur,
+                target_currency=target_cur,
+                defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
+            )
 
     if backfill_past_months:
-        _backfill_missing_past_months(dynamic_rates.keys(), current_month)
-
-    return count
+        _backfill_missing_past_months(current_month, code=code)
 
 
 def remove_monthly_rates(code):
@@ -203,14 +198,33 @@ def _mer_rates_by_pair(currency_pairs):
     return rates_by_pair
 
 
-def _backfill_missing_past_months(currency_pairs, current_month):
+def _backfill_missing_past_months(current_month, code=None, currency_pairs=None):
     """Fill gaps walking downward; each missing month inherits the next later rate.
 
     Example (Jan–Jun, rows at Apr/Jun): May<-Jun, Mar<-Apr, Feb<-Apr, Jan<-Apr.
+
+    When currency_pairs is omitted, discover pairs from existing MER rows in the retention window.
     """
-    pairs = set(currency_pairs)
     start = to_date(materialized_view_month_start(schema_name=getattr(connection, "schema_name", None)))
-    if not pairs or start >= current_month:
+    if start >= current_month:
+        return
+
+    if currency_pairs is None:
+        enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+        pairs = set(
+            MonthlyExchangeRate.objects.filter(
+                base_currency__in=enabled_codes,
+                target_currency__in=enabled_codes,
+                effective_date__gte=start,
+                effective_date__lte=current_month,
+            ).values_list("base_currency", "target_currency")
+        )
+        if code:
+            pairs = {(base, target) for base, target in pairs if code in (base, target)}
+    else:
+        pairs = set(currency_pairs)
+
+    if not pairs:
         return
 
     to_create = []

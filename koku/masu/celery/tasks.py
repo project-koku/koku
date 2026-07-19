@@ -311,14 +311,13 @@ def _fetch_and_store_exchange_rates(url):
 def get_daily_currency_rates():
     """Task to get latest daily conversion rates and upsert MonthlyExchangeRate per tenant."""
     url = settings.CURRENCY_URL
+    rate_metrics = {}
     if not url:
         LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
-        return {}
+    else:
+        rate_metrics = _fetch_and_store_exchange_rates(url) or {}
 
-    rate_metrics = _fetch_and_store_exchange_rates(url)
-    if not rate_metrics:
-        return {}
-
+    # Always populate/backfill so MER gaps are filled even when the fetch is unavailable.
     for tenant in Tenant.objects.exclude(schema_name="public"):
         try:
             with schema_context(tenant.schema_name):
