@@ -6,7 +6,6 @@
 import calendar
 import logging
 from datetime import timedelta
-from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -31,14 +30,11 @@ class TrailingZeroStrippingDecimalField(serializers.DecimalField):
     def to_representation(self, value):
         if value is None:
             return None
-        if not isinstance(value, Decimal):
-            value = Decimal(str(value).strip())
-        # Format then strip trailing zeros — avoid Decimal.normalize(), which
-        # rounds under the thread decimal context (default prec=28) and can
-        # truncate values within this field's max_digits=33.
-        val_str = format(value, "f")
-        if "." in val_str:
-            val_str = val_str.rstrip("0").rstrip(".")
+        # DecimalField already coerces/quantizes to a fixed-point string;
+        # strip trailing zeros (and a leftover decimal point) for a compact API value.
+        val_str = super().to_representation(value)
+        if isinstance(val_str, str) and "." in val_str:
+            return val_str.rstrip("0").rstrip(".")
         return val_str
 
 

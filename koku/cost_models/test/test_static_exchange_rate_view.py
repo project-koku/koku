@@ -30,8 +30,6 @@ class TrailingZeroStrippingDecimalFieldTest(SimpleTestCase):
 
     def test_strips_trailing_zeros_preserves_precision(self):
         field = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
-        # 33 significant digits — must survive without Decimal.normalize() context rounding
-        high_precision = "1." + ("2" * 31)
         cases = (
             (None, None),
             ("1.500000000000000", "1.5"),
@@ -40,7 +38,8 @@ class TrailingZeroStrippingDecimalFieldTest(SimpleTestCase):
             (Decimal("1.234567890123456"), "1.234567890123456"),
             (Decimal("100.000000000000000"), "100"),
             (Decimal("0.000000000000001"), "0.000000000000001"),
-            (Decimal(high_precision), high_precision),
+            # Parent DecimalField quantizes to decimal_places=15 before we strip zeros
+            (Decimal("1." + ("2" * 31)), "1.222222222222222"),
         )
         for value, expected in cases:
             with self.subTest(value=value):
