@@ -1065,8 +1065,8 @@ class RatesToUsage(models.Model):
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
-    rate = models.ForeignKey("cost_models.Rate", on_delete=models.CASCADE, null=True)
-    cost_model = models.ForeignKey("cost_models.CostModel", on_delete=models.CASCADE, null=True)
+    rate = models.ForeignKey("cost_models.Rate", on_delete=models.CASCADE, null=True, db_index=False)
+    cost_model = models.ForeignKey("cost_models.CostModel", on_delete=models.CASCADE, null=True, db_index=False)
     report_period = models.ForeignKey(
         "OCPUsageReportPeriod",
         on_delete=models.CASCADE,

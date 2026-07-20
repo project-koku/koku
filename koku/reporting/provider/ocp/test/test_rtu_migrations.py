@@ -117,6 +117,47 @@ class _RatesToUsageMigrationMixin:
             )
             return {row[0] for row in cursor.fetchall()}
 
+    def _duplicate_index_groups(self):
+        """Return index groups that share the same column definition (duplicates)."""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT array_agg(i.indexname ORDER BY i.indexname) AS index_names
+                FROM pg_indexes i
+                JOIN pg_class c ON c.relname = i.indexname
+                JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = i.schemaname
+                WHERE i.schemaname = %s
+                  AND i.tablename = 'rates_to_usage'
+                  AND i.indexname NOT LIKE '%%pkey%%'
+                GROUP BY regexp_replace(
+                    pg_get_indexdef(c.oid),
+                    '^CREATE (UNIQUE )?INDEX [^ ]+ ',
+                    'CREATE INDEX '
+                )
+                HAVING count(*) > 1
+                """,
+                (self.schema,),
+            )
+            return [row[0] for row in cursor.fetchall()]
+
+    def _rtu_auto_named_fk_indexes(self):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = %s
+                  AND tablename = 'rates_to_usage'
+                  AND indexname IN (
+                      'rates_to_usage_rate_id_idx',
+                      'rates_to_usage_cost_model_id_idx',
+                      'rates_to_usage_usage_start_source_uuid_report_period_id_idx'
+                  )
+                """,
+                (self.schema,),
+            )
+            return {row[0] for row in cursor.fetchall()}
+
     def _restore_latest_migration(self):
         """Re-apply latest migration after tests that roll back (KEEPDB=True)."""
         with tenant_context(self.tenant):
@@ -175,6 +216,14 @@ class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
                 self._index_names(),
                 {"ratestousage_rate_id_idx", "ratestousage_cost_model_id_idx"},
             )
+
+    def test_0352_drops_duplicate_auto_named_indexes(self):
+        """Migration 0352 keeps ratestousage_* indexes and removes Django auto-named duplicates."""
+        with tenant_context(self.tenant):
+            self._run_migration(MIGRATE_FROM)
+            self._run_migration(MIGRATE_TO)
+            self.assertEqual(self._rtu_auto_named_fk_indexes(), set())
+            self.assertEqual(self._duplicate_index_groups(), [])
 
     def test_0353_cascade_deletes_rtu_when_rate_deleted(self):
         """Migration 0353 CASCADE removes RTU rows when a Rate is deleted."""

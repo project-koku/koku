@@ -3,6 +3,7 @@
 # - Indexes on rate_id and cost_model_id
 # - CASCADE on rate/cost_model FKs (ORM + PostgreSQL)
 # - FK wiring for source_uuid (TenantAPIProvider) and report_period (OCPUsageReportPeriod)
+# - Drop duplicate Django auto-named indexes (keep explicit ratestousage_* from Meta.indexes)
 import django.db.models.deletion
 from django.db import migrations
 from django.db import models
@@ -92,6 +93,13 @@ BEGIN
 END $$;
 """
 
+# Django FK db_index creates rates_to_usage_* indexes; Meta.indexes uses ratestousage_* names.
+RTU_DROP_DUPLICATE_INDEXES_SQL = """
+DROP INDEX IF EXISTS rates_to_usage_rate_id_idx;
+DROP INDEX IF EXISTS rates_to_usage_cost_model_id_idx;
+DROP INDEX IF EXISTS rates_to_usage_usage_start_source_uuid_report_period_id_idx;
+"""
+
 
 class Migration(migrations.Migration):
 
@@ -119,6 +127,7 @@ class Migration(migrations.Migration):
                     model_name="ratestousage",
                     name="rate",
                     field=models.ForeignKey(
+                        db_index=False,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
                         to="cost_models.rate",
@@ -133,6 +142,7 @@ class Migration(migrations.Migration):
                     model_name="ratestousage",
                     name="cost_model",
                     field=models.ForeignKey(
+                        db_index=False,
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
                         to="cost_models.costmodel",
@@ -190,5 +200,6 @@ class Migration(migrations.Migration):
                 name="ratestousage_start_src_rp_idx",
             ),
         ),
+        migrations.RunSQL(sql=RTU_DROP_DUPLICATE_INDEXES_SQL, reverse_sql=migrations.RunSQL.noop),
         migrations.RunSQL(sql=RTU_FK_CASCADE_SQL, reverse_sql=migrations.RunSQL.noop),
     ]
