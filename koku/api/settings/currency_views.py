@@ -6,6 +6,7 @@
 import logging
 from collections import defaultdict
 
+from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -41,17 +42,13 @@ LOG = logging.getLogger(__name__)
 
 def _get_cloud_providers_using_currency(code, customer):
     """Return cloud providers whose billing data uses ``code`` as a base currency."""
-    source_uuids_qs = (
-        AWSCostSummaryP.objects.filter(currency_code=code)
-        .values_list("source_uuid", flat=True)
-        .union(
-            AzureCostSummaryP.objects.filter(currency=code).values_list("source_uuid", flat=True),
-            GCPCostSummaryP.objects.filter(currency=code).values_list("source_uuid", flat=True),
-        )
-    )
+    aws_uuids = AWSCostSummaryP.objects.filter(currency_code=code).values_list("source_uuid", flat=True)
+    azure_uuids = AzureCostSummaryP.objects.filter(currency=code).values_list("source_uuid", flat=True)
+    gcp_uuids = GCPCostSummaryP.objects.filter(currency=code).values_list("source_uuid", flat=True)
+
     return list(
         Provider.objects.filter(
-            uuid__in=source_uuids_qs,
+            Q(uuid__in=aws_uuids) | Q(uuid__in=azure_uuids) | Q(uuid__in=gcp_uuids),
             type__in=Provider.CLOUD_PROVIDER_LIST,
             customer=customer,
         ).values("uuid", "name", "type")
