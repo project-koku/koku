@@ -6,6 +6,7 @@
 import calendar
 import logging
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -21,10 +22,25 @@ from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 LOG = logging.getLogger(__name__)
 
 
+class TrailingZeroStrippingDecimalField(serializers.DecimalField):
+    """Serialize Decimals as strings without unnecessary trailing zeros.
+
+    Storage keeps full DecimalField precision; only the API representation is trimmed.
+    """
+
+    def to_representation(self, value):
+        if value is None:
+            return None
+        if not isinstance(value, Decimal):
+            value = Decimal(value)
+        return format(value.normalize(), "f")
+
+
 class StaticExchangeRateSerializer(serializers.ModelSerializer):
     """Serializer for creating and updating static exchange rates."""
 
     name = serializers.CharField(read_only=True)
+    exchange_rate = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
 
     class Meta:
         model = StaticExchangeRate
