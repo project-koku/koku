@@ -49,7 +49,6 @@ def _get_cloud_providers_using_currency(code, customer):
     return list(
         Provider.objects.filter(
             Q(uuid__in=aws_uuids) | Q(uuid__in=azure_uuids) | Q(uuid__in=gcp_uuids),
-            type__in=Provider.CLOUD_PROVIDER_LIST,
             customer=customer,
         ).values("uuid", "name", "type")
     )
