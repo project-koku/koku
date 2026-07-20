@@ -32,8 +32,14 @@ class TrailingZeroStrippingDecimalField(serializers.DecimalField):
         if value is None:
             return None
         if not isinstance(value, Decimal):
-            value = Decimal(value)
-        return format(value.normalize(), "f")
+            value = Decimal(str(value).strip())
+        # Format then strip trailing zeros — avoid Decimal.normalize(), which
+        # rounds under the thread decimal context (default prec=28) and can
+        # truncate values within this field's max_digits=33.
+        val_str = format(value, "f")
+        if "." in val_str:
+            val_str = val_str.rstrip("0").rstrip(".")
+        return val_str
 
 
 class StaticExchangeRateSerializer(serializers.ModelSerializer):
