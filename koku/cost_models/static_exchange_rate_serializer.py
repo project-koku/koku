@@ -30,10 +30,12 @@ class TrailingZeroStrippingDecimalField(serializers.DecimalField):
     def to_representation(self, value):
         if value is None:
             return None
-        # DecimalField already coerces/quantizes to a fixed-point string;
-        # strip trailing zeros (and a leftover decimal point) for a compact API value.
+        # DecimalField already coerces/quantizes; normalize to str then strip
+        # trailing zeros (and a leftover decimal point) for a compact API value.
         val_str = super().to_representation(value)
-        if isinstance(val_str, str) and "." in val_str:
+        if not isinstance(val_str, str):
+            val_str = format(val_str, "f")
+        if "." in val_str:
             return val_str.rstrip("0").rstrip(".")
         return val_str
 
