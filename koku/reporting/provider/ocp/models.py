@@ -45,6 +45,9 @@ UI_SUMMARY_TABLES_MARKUP_SUBSET = (
     "reporting_ocp_cost_summary_by_project_p",
 )
 
+# Populated via _populate_virtualization_ui_summary_table(), not the standard UI summary loop.
+VM_UI_SUMMARY_TABLE = "reporting_ocp_vm_summary_p"
+
 UI_SUMMARY_TABLES = (
     *UI_SUMMARY_TABLES_MARKUP_SUBSET,
     "reporting_ocp_pod_summary_p",
@@ -56,10 +59,8 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_network_summary_by_node_p",
     "reporting_ocp_network_summary_by_project_p",
     "reporting_ocp_gpu_summary_p",
+    VM_UI_SUMMARY_TABLE,
 )
-
-# Note the reporting_ocp_vm_summary_p is populated separately.
-VM_UI_SUMMARY_TABLE = "reporting_ocp_vm_summary_p"
 
 
 class OCPUsageReportPeriod(models.Model):
