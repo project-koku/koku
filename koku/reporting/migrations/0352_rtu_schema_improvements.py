@@ -93,11 +93,74 @@ BEGIN
 END $$;
 """
 
-# Django FK db_index creates rates_to_usage_* indexes; Meta.indexes uses ratestousage_* names.
+# Drop any non-explicit index that duplicates rate_id, cost_model_id, or the pipeline
+# composite key (covers rates_to_usage_* auto names and suffix variants like _idx1).
 RTU_DROP_DUPLICATE_INDEXES_SQL = """
-DROP INDEX IF EXISTS rates_to_usage_rate_id_idx;
-DROP INDEX IF EXISTS rates_to_usage_cost_model_id_idx;
-DROP INDEX IF EXISTS rates_to_usage_usage_start_source_uuid_report_period_id_idx;
+DO $$
+DECLARE
+    idx record;
+    keep_indexes name[] := ARRAY[
+        'ratestousage_rate_id_idx',
+        'ratestousage_cost_model_id_idx',
+        'ratestousage_start_src_rp_idx'
+    ];
+BEGIN
+    FOR idx IN
+        SELECT
+            ic.relname AS index_name,
+            array_agg(a.attname ORDER BY k.ordinality) AS cols
+        FROM pg_class t
+        JOIN pg_namespace n ON n.oid = t.relnamespace
+        JOIN pg_index i ON i.indrelid = t.oid
+        JOIN pg_class ic ON ic.oid = i.indexrelid
+        JOIN unnest(i.indkey) WITH ORDINALITY AS k(attnum, ordinality) ON TRUE
+        JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum
+        WHERE n.nspname = current_schema()
+          AND t.relname = 'rates_to_usage'
+          AND NOT t.relispartition
+          AND NOT i.indisprimary
+        GROUP BY ic.relname
+    LOOP
+        IF idx.index_name = ANY(keep_indexes) THEN
+            CONTINUE;
+        END IF;
+        IF idx.cols = ARRAY['rate_id']::name[]
+           OR idx.cols = ARRAY['cost_model_id']::name[]
+           OR idx.cols = ARRAY['usage_start', 'source_uuid', 'report_period_id']::name[] THEN
+            EXECUTE format('DROP INDEX IF EXISTS %I', idx.index_name);
+        END IF;
+    END LOOP;
+END $$;
+"""
+
+# Remove legacy FK auto-indexes from 0348 before adding explicit ratestousage_* indexes.
+RTU_DROP_LEGACY_FK_INDEXES_SQL = """
+DO $$
+DECLARE
+    idx record;
+BEGIN
+    FOR idx IN
+        SELECT
+            ic.relname AS index_name,
+            array_agg(a.attname ORDER BY k.ordinality) AS cols
+        FROM pg_class t
+        JOIN pg_namespace n ON n.oid = t.relnamespace
+        JOIN pg_index i ON i.indrelid = t.oid
+        JOIN pg_class ic ON ic.oid = i.indexrelid
+        JOIN unnest(i.indkey) WITH ORDINALITY AS k(attnum, ordinality) ON TRUE
+        JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum
+        WHERE n.nspname = current_schema()
+          AND t.relname = 'rates_to_usage'
+          AND NOT t.relispartition
+          AND NOT i.indisprimary
+        GROUP BY ic.relname
+    LOOP
+        IF idx.cols = ARRAY['rate_id']::name[]
+           OR idx.cols = ARRAY['cost_model_id']::name[] THEN
+            EXECUTE format('DROP INDEX IF EXISTS %I', idx.index_name);
+        END IF;
+    END LOOP;
+END $$;
 """
 
 
@@ -112,6 +175,7 @@ class Migration(migrations.Migration):
             sql="TRUNCATE TABLE rates_to_usage;",
             reverse_sql=migrations.RunSQL.noop,
         ),
+        migrations.RunSQL(sql=RTU_DROP_LEGACY_FK_INDEXES_SQL, reverse_sql=migrations.RunSQL.noop),
         migrations.AddIndex(
             model_name="ratestousage",
             index=models.Index(fields=["rate_id"], name="ratestousage_rate_id_idx"),
@@ -200,6 +264,6 @@ class Migration(migrations.Migration):
                 name="ratestousage_start_src_rp_idx",
             ),
         ),
-        migrations.RunSQL(sql=RTU_DROP_DUPLICATE_INDEXES_SQL, reverse_sql=migrations.RunSQL.noop),
         migrations.RunSQL(sql=RTU_FK_CASCADE_SQL, reverse_sql=migrations.RunSQL.noop),
+        migrations.RunSQL(sql=RTU_DROP_DUPLICATE_INDEXES_SQL, reverse_sql=migrations.RunSQL.noop),
     ]
