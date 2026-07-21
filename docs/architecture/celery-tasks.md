@@ -742,9 +742,9 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 **Schedule**: Daily at 01:00
 
-**Always Enabled**: Yes
+**Enabled**: When `CURRENCY_URL` is a non-empty value (skipped on-prem by default)
 
-**Description**: Fetches latest currency exchange rates.
+**Description**: Fetches latest currency exchange rates from the configured API and upserts monthly dynamic rates per tenant. When `CURRENCY_URL` is unset/empty (typical on-prem / airgapped), the beat is not registered so the worker does not attempt outbound requests.
 
 ---
 
@@ -821,16 +821,17 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 **Queue**: `DEFAULT`
 
-**Description**: Fetches and updates daily currency exchange rates.
+**Description**: Fetches and updates daily currency exchange rates. Celery Beat schedules this task only when `CURRENCY_URL` is set.
 
 **Configuration**:
-- URL: `settings.CURRENCY_URL`
-- Retry strategy: 5 retries with exponential backoff
+- URL: `settings.CURRENCY_URL` (empty by default when `ONPREM=True`; SaaS default is `https://open.er-api.com/v6/latest/USD`)
+- Retry strategy: 5 retries with exponential backoff on the HTTP fetch
 
 **Workflow**:
-1. Fetches exchange rates from external API
-2. Updates `ExchangeRates` model for valid currencies
-3. Updates exchange rate cache
+1. If `CURRENCY_URL` is empty, skips the API fetch (logs and continues without dynamic discovery)
+2. Otherwise fetches exchange rates from the external API
+3. Updates `ExchangeRates` model for valid currencies and rebuilds the exchange rate cache
+4. Upserts `MonthlyExchangeRate` dynamic rows per tenant (and may invalidate report view cache)
 
 ---
 
