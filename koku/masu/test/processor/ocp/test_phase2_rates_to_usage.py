@@ -2193,6 +2193,7 @@ class TestMonthlyCostRTUDeleteScope(MasuTestCase):
                 DateHelper().this_month_end.date(),
                 "cpu",
                 self.ocp_provider_uuid,
+                use_rtu=True,
             )
         delete_calls = [c for c in mock_execute.call_args_list if c.kwargs.get("operation") == "DELETE"]
         rtu_delete_calls = [c for c in delete_calls if c.args[0] == "rates_to_usage"]
@@ -2219,6 +2220,7 @@ class TestMonthlyCostRTUDeleteScope(MasuTestCase):
                 DateHelper().this_month_end.date(),
                 "cpu",
                 self.ocp_provider_uuid,
+                use_rtu=True,
             )
         delete_calls = [c for c in mock_execute.call_args_list if c.kwargs.get("operation") == "DELETE"]
         rtu_delete_calls = [c for c in delete_calls if c.args[0] == "rates_to_usage"]
@@ -2239,6 +2241,7 @@ class TestMonthlyCostRTUDeleteScope(MasuTestCase):
                 DateHelper().this_month_end.date(),
                 "cpu",
                 self.ocp_provider_uuid,
+                use_rtu=True,
             )
         delete_calls = [c for c in mock_execute.call_args_list if c.kwargs.get("operation") == "DELETE"]
         rtu_delete_calls = [c for c in delete_calls if c.args[0] == "rates_to_usage"]
@@ -2268,6 +2271,7 @@ class TestMonthlyCostRTUDeleteScope(MasuTestCase):
                 DateHelper().this_month_end.date(),
                 "cpu",
                 self.ocp_provider_uuid,
+                use_rtu=True,
             )
         delete_calls = [c for c in mock_execute.call_args_list if c.kwargs.get("operation") == "DELETE"]
         rtu_delete_calls = [c for c in delete_calls if c.args[0] == "rates_to_usage"]
@@ -2322,7 +2326,9 @@ class TestMonthlyCostRTUIdempotency(_ReportPeriodMixin, MasuTestCase):
             distribution="cpu",
             provider_uuid=self.ocp_provider_uuid,
             custom_name="Node cost",
-        )
+            provider_uuid=self.ocp_provider_uuid,
+            custom_name="Node cost",
+            use_rtu=True,
         with OCPReportDBAccessor(self.schema) as accessor:
             accessor.populate_monthly_cost_sql(**call_kwargs)
             first_count = self._rtu_node_row_count(rp)
