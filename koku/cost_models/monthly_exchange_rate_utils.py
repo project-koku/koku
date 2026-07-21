@@ -197,9 +197,10 @@ def _purge_expired_monthly_rates(simulate=False):
     """
     expired_date = to_date(materialized_view_month_start(schema_name=connection.schema_name))
     query = MonthlyExchangeRate.objects.filter(effective_date__lt=expired_date)
-    deleted = query.count()
-    if not simulate:
-        query.delete()
+    if simulate:
+        deleted = query.count()
+    else:
+        deleted, _ = query.delete()
     if deleted:
         LOG.info(
             log_json(
