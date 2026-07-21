@@ -26,6 +26,7 @@ from common.queues import DownloadQueue
 from common.queues import PriorityQueue
 from common.queues import SummaryQueue
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
+from cost_models.monthly_exchange_rate_utils import purge_expired_exchange_rates_for_all_tenants
 from koku import celery_app
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.notifications import NotificationService
@@ -70,6 +71,7 @@ def remove_expired_data(simulate=False):
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
     orchestrator.remove_expired_trino_partitions(simulate)
+    purge_expired_exchange_rates_for_all_tenants()
 
 
 @celery_app.task(name="masu.celery.tasks.purge_trino_files", queue=DEFAULT)

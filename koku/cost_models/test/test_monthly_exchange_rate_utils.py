@@ -16,6 +16,7 @@ from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
+from cost_models.monthly_exchange_rate_utils import purge_expired_exchange_rates_for_all_tenants
 from cost_models.monthly_exchange_rate_utils import remove_monthly_rates
 from cost_models.monthly_exchange_rate_utils import replace_static_to_dynamic_monthly_rates
 from cost_models.monthly_exchange_rate_utils import upsert_static_monthly_rates
@@ -522,3 +523,45 @@ class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
 
             result = populate_dynamic_monthly_rates(backfill_past_months=True)
             self.assertEqual(result, 0)
+
+
+class PurgeExpiredMonthlyRatesTest(MasuTestCase):
+    """Tests for purge_expired_exchange_rates_for_all_tenants."""
+
+    def setUp(self):
+        super().setUp()
+        self.current_month = self.dh.this_month_start.date()
+        self.expired_month = (self.current_month - relativedelta(months=3)).replace(day=1)
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.all().delete()
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.expired_month,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.85"),
+                rate_type=RateType.DYNAMIC,
+            )
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_purge_on_date(self, mock_retention_start):
+        """Rows at the retention boundary are preserved."""
+        mock_retention_start.return_value = self.expired_month
+        purge_expired_exchange_rates_for_all_tenants()
+        with tenant_context(self.tenant):
+            self.assertEqual(MonthlyExchangeRate.objects.count(), 1)
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_purge_before_date(self, mock_retention_start):
+        """Retention boundary before data — nothing removed."""
+        mock_retention_start.return_value = (self.expired_month - relativedelta(months=1)).replace(day=1)
+        purge_expired_exchange_rates_for_all_tenants()
+        with tenant_context(self.tenant):
+            self.assertEqual(MonthlyExchangeRate.objects.count(), 1)
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_purge_after_date(self, mock_retention_start):
+        """Retention boundary after data — expired rows removed."""
+        mock_retention_start.return_value = (self.expired_month + relativedelta(months=1)).replace(day=1)
+        purge_expired_exchange_rates_for_all_tenants()
+        with tenant_context(self.tenant):
+            self.assertEqual(MonthlyExchangeRate.objects.count(), 0)
