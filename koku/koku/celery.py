@@ -33,7 +33,7 @@ def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=Non
     On-prem / airgapped deployments leave CURRENCY_URL empty so this beat is
     not scheduled and workers do not attempt outbound exchange-rate API calls.
     """
-    if not currency_url:
+    if not (currency_url or "").strip():
         return False
     beat_schedule[CURRENCY_RATES_BEAT_NAME] = {
         "task": "masu.celery.tasks.get_daily_currency_rates",

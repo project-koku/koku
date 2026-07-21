@@ -87,9 +87,11 @@ class CurrencyRatesBeatScheduleTest(SimpleTestCase):
         )
 
     def test_register_daily_currency_rates_beat_without_url(self):
-        """Beat is not registered when CURRENCY_URL is empty (on-prem default)."""
-        beat_schedule = {}
-        scheduled = register_daily_currency_rates_beat(beat_schedule, "")
+        """Beat is not registered when CURRENCY_URL is empty, None, or whitespace."""
+        for invalid_url in ("", "   ", None):
+            with self.subTest(invalid_url=invalid_url):
+                beat_schedule = {}
+                scheduled = register_daily_currency_rates_beat(beat_schedule, invalid_url)
 
-        self.assertFalse(scheduled)
-        self.assertNotIn(CURRENCY_RATES_BEAT_NAME, beat_schedule)
+                self.assertFalse(scheduled)
+                self.assertNotIn(CURRENCY_RATES_BEAT_NAME, beat_schedule)
