@@ -7,7 +7,10 @@ import calendar
 import uuid
 from datetime import date
 from datetime import timedelta
+from decimal import Decimal
+from unittest.mock import patch
 
+from django.test import SimpleTestCase
 from django.urls import reverse
 from django.utils import timezone
 from django_tenants.utils import tenant_context
@@ -16,10 +19,46 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import StaticExchangeRate
+from cost_models.static_exchange_rate_serializer import TrailingZeroStrippingDecimalField
 
 
 def _month_end(d):
     return d.replace(day=calendar.monthrange(d.year, d.month)[1])
+
+
+class TrailingZeroStrippingDecimalFieldTest(SimpleTestCase):
+    """Unit tests for API decimal representation of exchange rates."""
+
+    def test_strips_trailing_zeros_preserves_precision(self):
+        field = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
+        cases = (
+            (None, None),
+            ("1.500000000000000", "1.5"),
+            (Decimal("1.500000000000000"), "1.5"),
+            (Decimal("0.920000000000000"), "0.92"),
+            (Decimal("1.234567890123456"), "1.234567890123456"),
+            (Decimal("100.000000000000000"), "100"),
+            (Decimal("0.000000000000001"), "0.000000000000001"),
+            # Parent DecimalField quantizes to decimal_places=15 before we strip zeros
+            (Decimal("1." + ("2" * 31)), "1.222222222222222"),
+        )
+        for value, expected in cases:
+            with self.subTest(value=value):
+                self.assertEqual(field.to_representation(value), expected)
+
+    def test_coerce_to_string_false_still_strips_zeros(self):
+        """Cover non-string parent output (coerce_to_string=False returns Decimal)."""
+        field = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15, coerce_to_string=False)
+        self.assertEqual(field.to_representation(Decimal("1.500000000000000")), "1.5")
+
+    def test_integer_string_without_decimal_point(self):
+        """Cover the no-dot fallback when parent returns an integer-like string."""
+        field = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
+        with patch(
+            "rest_framework.serializers.DecimalField.to_representation",
+            return_value="100",
+        ):
+            self.assertEqual(field.to_representation(Decimal("100")), "100")
 
 
 class StaticExchangeRateListViewTest(IamTestCase):
@@ -50,7 +89,7 @@ class StaticExchangeRateListViewTest(IamTestCase):
         self.assertEqual(data["name"], "USD-EUR")
         self.assertEqual(data["base_currency"], "USD")
         self.assertEqual(data["target_currency"], "EUR")
-        self.assertEqual(data["exchange_rate"], "0.920000000000000")
+        self.assertEqual(data["exchange_rate"], "0.92")
         self.assertEqual(data["start_date"], month_start.isoformat())
         self.assertEqual(data["end_date"], month_end.isoformat())
         self.assertIn("created_timestamp", data)
@@ -187,7 +226,7 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         }
         response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["exchange_rate"], "0.950000000000000")
+        self.assertEqual(response.data["exchange_rate"], "0.95")
 
     def test_update_fully_finalized_rejected(self):
         """A rate whose end_date is entirely in the past cannot be edited."""
@@ -233,7 +272,7 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         }
         response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["exchange_rate"], "0.950000000000000")
+        self.assertEqual(response.data["exchange_rate"], "0.95")
 
     def test_update_shrink_end_date_to_past(self):
         """User can shrink end_date to close out a rate"""
