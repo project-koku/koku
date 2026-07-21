@@ -189,18 +189,23 @@ def remove_monthly_rates(code):
     return deleted
 
 
-def _purge_expired_monthly_rates():
+def _purge_expired_monthly_rates(simulate=False):
     """Delete MonthlyExchangeRate rows older than the retention window.
 
     Uses the same retention boundary as backfill (materialized_view_month_start).
     Must be called within a schema_context.
     """
     expired_date = to_date(materialized_view_month_start(schema_name=connection.schema_name))
-    deleted, _ = MonthlyExchangeRate.objects.filter(effective_date__lt=expired_date).delete()
+    query = MonthlyExchangeRate.objects.filter(effective_date__lt=expired_date)
+    if simulate:
+        deleted = query.count()
+    else:
+        deleted, _ = query.delete()
     if deleted:
         LOG.info(
             log_json(
                 msg="Purged expired MonthlyExchangeRate rows",
+                simulate=simulate,
                 deleted=deleted,
                 expired_date=str(expired_date),
             )
@@ -208,12 +213,12 @@ def _purge_expired_monthly_rates():
     return deleted
 
 
-def purge_expired_exchange_rates_for_all_tenants():
+def purge_expired_exchange_rates_for_all_tenants(simulate=False):
     """Purge expired MonthlyExchangeRate rows for all tenants."""
     for tenant in Tenant.objects.exclude(schema_name="public"):
         try:
             with schema_context(tenant.schema_name):
-                _purge_expired_monthly_rates()
+                _purge_expired_monthly_rates(simulate=simulate)
         except Exception as e:
             LOG.error(
                 log_json(

@@ -71,7 +71,7 @@ def remove_expired_data(simulate=False):
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
     orchestrator.remove_expired_trino_partitions(simulate)
-    purge_expired_exchange_rates_for_all_tenants()
+    purge_expired_exchange_rates_for_all_tenants(simulate=simulate)
 
 
 @celery_app.task(name="masu.celery.tasks.purge_trino_files", queue=DEFAULT)

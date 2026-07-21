@@ -565,3 +565,11 @@ class PurgeExpiredMonthlyRatesTest(MasuTestCase):
         purge_expired_exchange_rates_for_all_tenants()
         with tenant_context(self.tenant):
             self.assertEqual(MonthlyExchangeRate.objects.count(), 0)
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_simulate_does_not_delete(self, mock_retention_start):
+        """Simulate mode counts but does not delete expired rows."""
+        mock_retention_start.return_value = (self.expired_month + relativedelta(months=1)).replace(day=1)
+        purge_expired_exchange_rates_for_all_tenants(simulate=True)
+        with tenant_context(self.tenant):
+            self.assertEqual(MonthlyExchangeRate.objects.count(), 1)
