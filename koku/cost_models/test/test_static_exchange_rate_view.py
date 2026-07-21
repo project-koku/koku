@@ -374,6 +374,94 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         response = self.client.delete(self._url(uuid.uuid4()), **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_update_base_currency_rejected(self):
+        """base_currency is immutable and can never be changed on update."""
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+        month_end = _month_end(today)
+        next_month_start = month_end + timedelta(days=1)
+        next_month_end = _month_end(next_month_start)
+        with tenant_context(self.tenant):
+            current_rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate="0.920000000000000",
+                start_date=month_start,
+                end_date=month_end,
+            )
+            future_rate = StaticExchangeRate.objects.create(
+                base_currency="CNY",
+                target_currency="EUR",
+                exchange_rate="0.130000000000000",
+                start_date=next_month_start,
+                end_date=next_month_end,
+            )
+
+        payload = {
+            "base_currency": "GBP",
+            "target_currency": "EUR",
+            "exchange_rate": 0.85,
+            "start_date": month_start.isoformat(),
+            "end_date": month_end.isoformat(),
+        }
+        response = self.client.put(self._url(current_rate.uuid), payload, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        payload["start_date"] = next_month_start.isoformat()
+        payload["end_date"] = next_month_end.isoformat()
+        response = self.client.put(self._url(future_rate.uuid), payload, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_target_currency_allowed(self):
+        """target_currency can be changed on a rate with no finalized months."""
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+        month_end = _month_end(today)
+        with tenant_context(self.tenant):
+            rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate="0.920000000000000",
+                start_date=month_start,
+                end_date=month_end,
+            )
+
+        payload = {
+            "base_currency": "USD",
+            "target_currency": "GBP",
+            "exchange_rate": 0.79,
+            "start_date": month_start.isoformat(),
+            "end_date": month_end.isoformat(),
+        }
+        response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["target_currency"], "GBP")
+        self.assertEqual(response.data["name"], "USD-GBP")
+
+    def test_update_target_currency_with_finalized_months_rejected(self):
+        """target_currency cannot be changed when the rate has finalized months."""
+        today = timezone.now().date()
+        past_start = date(2020, 1, 1)
+        future_end = _month_end(today)
+        with tenant_context(self.tenant):
+            rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate="0.920000000000000",
+                start_date=past_start,
+                end_date=future_end,
+            )
+
+        payload = {
+            "base_currency": "USD",
+            "target_currency": "GBP",
+            "exchange_rate": 0.79,
+            "start_date": past_start.isoformat(),
+            "end_date": future_end.isoformat(),
+        }
+        response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_update_nonexistent_returns_404(self):
         today = timezone.now().date()
         payload = {
