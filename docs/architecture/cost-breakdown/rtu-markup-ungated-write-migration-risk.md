@@ -147,14 +147,6 @@ The `ocp_cloud_parquet_summary_updater` calls `_update_markup_cost` directly whi
 
 We pause the priority workers because they trigger when customers make cost model updates.
 
-### Also recommended (Stop feeding the backlog.)
-
-These do not write RTU themselves, but they enqueue `update_cost_model_costs`, which will fire as soon as writer workers return:
-
-| Deployment | Queues |
-|------------|--------|
-
-
 ### Safe to leave up
 
 `download*`, `refresh*`, `hcs`, `subs_*`, API / `masu-server`, and beat do not insert into `rates_to_usage`. Still avoid calling the Masu `update_cost_model_costs` endpoint during the migrate window.
