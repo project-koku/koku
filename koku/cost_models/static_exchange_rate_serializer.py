@@ -6,7 +6,6 @@
 import calendar
 import logging
 from datetime import timedelta
-from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -36,13 +35,7 @@ class TrailingZeroStrippingDecimalField(serializers.DecimalField):
         if value is None:
             return None
         # DecimalField quantizes; normalize strips trailing zeros before float().
-        val = super().to_representation(value)
-        if isinstance(val, Decimal):
-            return float(val.normalize())
-        val_str = format(val, "f") if not isinstance(val, str) else val
-        if "." in val_str:
-            val_str = val_str.rstrip("0").rstrip(".")
-        return float(val_str)
+        return float(super().to_representation(value).normalize())
 
 
 class StaticExchangeRateSerializer(serializers.ModelSerializer):

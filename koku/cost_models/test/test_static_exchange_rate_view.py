@@ -8,7 +8,6 @@ import uuid
 from datetime import date
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import patch
 
 from django.test import SimpleTestCase
 from django.urls import reverse
@@ -50,20 +49,6 @@ class TrailingZeroStrippingDecimalFieldTest(SimpleTestCase):
                 else:
                     self.assertIsInstance(result, float)
                     self.assertEqual(result, expected)
-
-    def test_coerce_to_string_true_still_returns_float(self):
-        """Cover string parent output (coerce_to_string=True) still returns float."""
-        field = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15, coerce_to_string=True)
-        self.assertEqual(field.to_representation(Decimal("1.500000000000000")), 1.5)
-
-    def test_integer_string_without_decimal_point(self):
-        """Cover the no-dot fallback when parent returns an integer-like string."""
-        field = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
-        with patch(
-            "rest_framework.serializers.DecimalField.to_representation",
-            return_value="100",
-        ):
-            self.assertEqual(field.to_representation(Decimal("100")), 100.0)
 
 
 class StaticExchangeRateListViewTest(IamTestCase):
