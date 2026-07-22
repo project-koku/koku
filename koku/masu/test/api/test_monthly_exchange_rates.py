@@ -3,11 +3,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the monthly_exchange_rates endpoint view."""
+from datetime import date
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.test.utils import override_settings
 from django.urls import reverse
+from django_tenants.utils import schema_context
 
+from cost_models.models import MonthlyExchangeRate
+from cost_models.models import RateType
 from masu.test import MasuTestCase
 
 
@@ -23,7 +28,16 @@ class MonthlyExchangeRatesTest(MasuTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_rates(self, _):
-        """Test the endpoint returns 200 with all optional filters."""
+        """Test the endpoint returns 200 with exchange_rate as a JSON number."""
+        with schema_context(self.schema):
+            MonthlyExchangeRate.objects.create(
+                effective_date=date(2026, 1, 1),
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                rate_type=RateType.STATIC,
+            )
+
         response = self.client.get(
             reverse("monthly_exchange_rates"),
             {
@@ -36,8 +50,10 @@ class MonthlyExchangeRatesTest(MasuTestCase):
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
-        self.assertIn("count", body)
-        self.assertIn("rates", body)
+        self.assertEqual(body["count"], 1)
+        self.assertEqual(len(body["rates"]), 1)
+        self.assertIsInstance(body["rates"][0]["exchange_rate"], float)
+        self.assertEqual(body["rates"][0]["exchange_rate"], 0.92)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_invalid_start_date_returns_400(self, _):

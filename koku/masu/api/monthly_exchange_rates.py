@@ -7,6 +7,7 @@ import datetime
 
 from django.views.decorators.cache import never_cache
 from django_tenants.utils import schema_context
+from rest_framework import serializers
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
@@ -17,6 +18,17 @@ from rest_framework.settings import api_settings
 
 from api.iam.models import Tenant
 from cost_models.models import MonthlyExchangeRate
+from cost_models.static_exchange_rate_serializer import TrailingZeroStrippingDecimalField
+
+
+class MonthlyExchangeRateSerializer(serializers.ModelSerializer):
+    """Serialize MonthlyExchangeRate rows for the Masu inspect endpoint."""
+
+    exchange_rate = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
+
+    class Meta:
+        model = MonthlyExchangeRate
+        fields = ["effective_date", "base_currency", "target_currency", "exchange_rate", "rate_type"]
 
 
 def _validate_date_param(value, param_name):
@@ -61,13 +73,10 @@ def monthly_exchange_rates(request):
 
     with schema_context(schema):
         rates = list(
-            MonthlyExchangeRate.objects.filter(**filters)
-            .order_by("base_currency", "target_currency", "effective_date")
-            .values("effective_date", "base_currency", "target_currency", "exchange_rate", "rate_type")
+            MonthlyExchangeRate.objects.filter(**filters).order_by(
+                "base_currency", "target_currency", "effective_date"
+            )
         )
+        data = MonthlyExchangeRateSerializer(rates, many=True).data
 
-    # Return exchange_rate as a JSON number (not a Decimal/string).
-    for rate in rates:
-        rate["exchange_rate"] = float(rate["exchange_rate"])
-
-    return Response({"count": len(rates), "rates": rates})
+    return Response({"count": len(data), "rates": data})
