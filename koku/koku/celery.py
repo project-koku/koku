@@ -220,7 +220,8 @@ app.conf.beat_schedule["crawl_account_hierarchy"] = {
 }
 
 # Beat used to fetch daily rates (only when CURRENCY_URL is configured)
-register_daily_currency_rates_beat(app.conf.beat_schedule, settings.CURRENCY_URL)
+if not register_daily_currency_rates_beat(app.conf.beat_schedule, settings.CURRENCY_URL):
+    LOG.info("Daily currency rates beat not registered (CURRENCY_URL is empty)")
 
 # Beat used for HCS report finalization
 app.conf.beat_schedule["finalize_hcs_reports"] = {
