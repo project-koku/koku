@@ -28,14 +28,17 @@ def _month_end(d):
 class TrailingZeroStrippingDecimalFieldTest(SimpleTestCase):
     """Unit tests for API decimal representation of exchange rates."""
 
-    def test_returns_decimal_not_string(self):
+    def test_strips_trailing_zeros_preserves_precision(self):
         field = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
         cases = (
             (None, None),
-            ("1.500000000000000", Decimal("1.500000000000000")),
-            (Decimal("0.920000000000000"), Decimal("0.920000000000000")),
+            ("1.500000000000000", Decimal("1.5")),
+            (Decimal("1.500000000000000"), Decimal("1.5")),
+            (Decimal("0.920000000000000"), Decimal("0.92")),
             (Decimal("1.234567890123456"), Decimal("1.234567890123456")),
-            # Quantized to decimal_places=15
+            (Decimal("100.000000000000000"), Decimal("100")),
+            (Decimal("0.000000000000001"), Decimal("0.000000000000001")),
+            # Parent DecimalField quantizes to decimal_places=15 before normalize
             (Decimal("1." + ("2" * 31)), Decimal("1.222222222222222")),
         )
         for value, expected in cases:

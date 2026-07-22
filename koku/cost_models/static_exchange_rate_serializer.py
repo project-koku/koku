@@ -22,14 +22,15 @@ LOG = logging.getLogger(__name__)
 
 
 class TrailingZeroStrippingDecimalField(serializers.DecimalField):
-    """Serialize Decimals as JSON numbers.
+    """Serialize Decimals as JSON numbers without unnecessary trailing zeros.
 
     coerce_to_string=False keeps a Decimal so the JSON encoder emits a number
-    instead of a quoted decimal string.
+    instead of a quoted decimal string. normalize_output strips trailing zeros.
     """
 
     def __init__(self, **kwargs):
         kwargs.setdefault("coerce_to_string", False)
+        kwargs.setdefault("normalize_output", True)
         super().__init__(**kwargs)
 
 
