@@ -14,7 +14,6 @@ constant currency. Base path unless noted:
 | Method | Path | Audience | Purpose |
 |--------|------|----------|---------|
 | `GET` | `/currency/` | End user | Enabled currencies for the target-currency dropdown |
-| `GET` | `/exchange-rates/` | End user / tooling | Latest full cross-rate matrix (legacy/current market snapshot) |
 | `GET` | `/settings/currency/` | Admin | All ISO currencies with enablement, dynamic availability, nested static rates |
 | `POST` | `/settings/currency/enabled/{code}/` | Admin | Enable a currency |
 | `DELETE` | `/settings/currency/enabled/{code}/` | Admin | Disable a currency |
@@ -62,16 +61,6 @@ Returns currencies enabled for the tenant. Used by the target-currency dropdown.
 
 Only enabled currencies appear. Name/symbol/description are derived from the
 ISO 4217 registry at response time.
-
----
-
-## `GET /exchange-rates/`
-
-Returns the latest nested cross-rate dictionary
-`{ base: { target: rate, ... }, ... }`.
-
-This remains the market snapshot used when constant currency is off, and the
-source for refreshing dynamic monthly rates when a market feed is configured.
 
 ---
 
