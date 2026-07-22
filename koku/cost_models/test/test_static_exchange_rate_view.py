@@ -78,7 +78,7 @@ class StaticExchangeRateListViewTest(IamTestCase):
         self.assertEqual(data["name"], "USD-EUR")
         self.assertEqual(data["base_currency"], "USD")
         self.assertEqual(data["target_currency"], "EUR")
-        self.assertEqual(data["exchange_rate"], Decimal("0.92"))
+        self.assertEqual(data["exchange_rate"], 0.92)
         self.assertEqual(data["start_date"], month_start.isoformat())
         self.assertEqual(data["end_date"], month_end.isoformat())
         self.assertIn("created_timestamp", data)
@@ -215,7 +215,7 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         }
         response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["exchange_rate"], Decimal("0.95"))
+        self.assertEqual(response.data["exchange_rate"], 0.95)
 
     def test_update_fully_finalized_rejected(self):
         """A rate whose end_date is entirely in the past cannot be edited."""
@@ -261,7 +261,7 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         }
         response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["exchange_rate"], Decimal("0.95"))
+        self.assertEqual(response.data["exchange_rate"], 0.95)
 
     def test_update_shrink_end_date_to_past(self):
         """User can shrink end_date to close out a rate"""
