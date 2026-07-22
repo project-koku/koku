@@ -941,7 +941,8 @@ class ForecastExchangeRateTest(IamTestCase):
         """Flag OFF → Forecast.exchange_rate_annotation_dict returns a Case annotation."""
         params = self.mocked_query_params("?", AWSCostForecastView)
         instance = AWSForecast(params)
-        ann = instance.exchange_rate_annotation_dict
+        with schema_context(self.schema_name):
+            ann = instance.exchange_rate_annotation_dict
         self.assertIn("exchange_rate", ann)
         self.assertIsInstance(ann["exchange_rate"], Case)
 
