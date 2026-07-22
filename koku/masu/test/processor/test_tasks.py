@@ -552,6 +552,7 @@ class TestProcessorTasks(MasuTestCase):
         get_report_files(**self.get_report_args)
         mock_cache_remove.assert_called()
 
+    @override_settings(ONPREM=False)
     @patch("masu.processor.tasks.DataValidator")
     @patch(
         "masu.processor.tasks.is_validation_enabled",
@@ -563,9 +564,26 @@ class TestProcessorTasks(MasuTestCase):
         validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
         mock_validate_daily_data.assert_called()
 
+    @override_settings(ONPREM=False)
     @patch("masu.processor.tasks.DataValidator")
     def test_validate_data_task_skip(self, mock_validate_daily_data):
         """Test skipping validate data task."""
+        context = {"unit": "test"}
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
+            mock_validate_daily_data.assert_not_called()
+            expected = "skipping validation, disabled for schema"
+            found = any(expected in log for log in logger.output)
+            self.assertTrue(found)
+
+    @override_settings(ONPREM=True)
+    @patch("masu.processor.tasks.DataValidator")
+    @patch(
+        "masu.processor.tasks.is_validation_enabled",
+        return_value=True,
+    )
+    def test_validate_data_task_skip_onprem(self, mock_unleash, mock_validate_daily_data):
+        """Data validation is skipped on-prem for now."""
         context = {"unit": "test"}
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
