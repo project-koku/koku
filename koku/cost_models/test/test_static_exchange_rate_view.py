@@ -38,7 +38,7 @@ class TrailingZeroStrippingDecimalFieldTest(SimpleTestCase):
             (Decimal("0.920000000000000"), 0.92),
             (Decimal("1.234567890123456"), 1.234567890123456),
             (Decimal("100.000000000000000"), 100.0),
-            (Decimal("0.000000000000001"), 1e-15),
+            (Decimal("0.000000000000001"), 0.000000000000001),
             # Parent DecimalField quantizes to decimal_places=15 before we strip zeros
             (Decimal("1." + ("2" * 31)), 1.222222222222222),
         )
