@@ -66,4 +66,8 @@ def monthly_exchange_rates(request):
             .values("effective_date", "base_currency", "target_currency", "exchange_rate", "rate_type")
         )
 
+    # Return exchange_rate as a JSON number (not a Decimal/string).
+    for rate in rates:
+        rate["exchange_rate"] = float(rate["exchange_rate"])
+
     return Response({"count": len(rates), "rates": rates})

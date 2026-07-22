@@ -6,6 +6,7 @@
 import calendar
 import logging
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -22,22 +23,26 @@ LOG = logging.getLogger(__name__)
 
 
 class TrailingZeroStrippingDecimalField(serializers.DecimalField):
-    """Serialize Decimals as strings without unnecessary trailing zeros.
+    """Serialize Decimals as JSON numbers without unnecessary trailing zeros.
 
     Storage keeps full DecimalField precision; only the API representation is trimmed.
     """
 
+    def __init__(self, **kwargs):
+        kwargs.setdefault("coerce_to_string", False)
+        super().__init__(**kwargs)
+
     def to_representation(self, value):
         if value is None:
             return None
-        # DecimalField already coerces/quantizes; normalize to str then strip
-        # trailing zeros (and a leftover decimal point) for a compact API value.
-        val_str = super().to_representation(value)
-        if not isinstance(val_str, str):
-            val_str = format(val_str, "f")
+        # DecimalField quantizes; normalize strips trailing zeros before float().
+        val = super().to_representation(value)
+        if isinstance(val, Decimal):
+            return float(val.normalize())
+        val_str = format(val, "f") if not isinstance(val, str) else val
         if "." in val_str:
-            return val_str.rstrip("0").rstrip(".")
-        return val_str
+            val_str = val_str.rstrip("0").rstrip(".")
+        return float(val_str)
 
 
 class StaticExchangeRateSerializer(serializers.ModelSerializer):

@@ -95,7 +95,7 @@ together with the `StaticExchangeRate` write. If any side effect fails, the
       "name": "USD-EUR",
       "base_currency": "USD",
       "target_currency": "EUR",
-      "exchange_rate": "0.870000000000000",
+      "exchange_rate": 0.87,
       "start_date": "2026-01-01",
       "end_date": "2026-03-31",
       "version": 1,
@@ -107,7 +107,7 @@ together with the `StaticExchangeRate` write. If any side effect fails, the
       "name": "USD-GBP",
       "base_currency": "USD",
       "target_currency": "GBP",
-      "exchange_rate": "0.740000000000000",
+      "exchange_rate": 0.74,
       "start_date": "2026-01-01",
       "end_date": "2026-06-30",
       "version": 2,
@@ -124,7 +124,7 @@ together with the `StaticExchangeRate` write. If any side effect fails, the
 {
   "base_currency": "USD",
   "target_currency": "EUR",
-  "exchange_rate": "0.870000000000000",
+  "exchange_rate": 0.87,
   "start_date": "2026-04-01",
   "end_date": "2026-06-30"
 }
