@@ -3,9 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for currency settings views."""
+from uuid import uuid4
+
 from django.core.cache import caches
 from django.test.utils import override_settings
-from uuid import uuid4
 from django.urls import reverse
 from django_tenants.utils import tenant_context
 from rest_framework import status
@@ -20,6 +21,11 @@ from cost_models.models import PriceList
 from koku.cache import build_enabled_currency_codes_key
 from koku.cache import CacheEnum
 from koku.cache import get_value_from_cache
+from reporting.provider.aws.models import AWSCostSummaryP
+from reporting.provider.azure.models import AzureCostSummaryP
+from reporting.provider.gcp.models import GCPCostSummaryP
+from reporting.provider.models import TenantAPIProvider
+
 
 CACHE_OVERRIDE = {
     CacheEnum.default: {
@@ -45,10 +51,6 @@ CACHE_OVERRIDE = {
         "LOCATION": "unique-snowflake",
     },
 }
-from reporting.provider.aws.models import AWSCostSummaryP
-from reporting.provider.azure.models import AzureCostSummaryP
-from reporting.provider.gcp.models import GCPCostSummaryP
-from reporting.provider.models import TenantAPIProvider
 
 
 class CurrencySettingsViewTest(IamTestCase):
