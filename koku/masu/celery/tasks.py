@@ -11,8 +11,7 @@ from botocore.exceptions import ClientError
 from django.conf import settings
 from django_tenants.utils import schema_context
 from requests.adapters import HTTPAdapter
-from requests.exceptions import HTTPError
-from requests.exceptions import RetryError
+from requests.exceptions import RequestException
 from urllib3.util.retry import Retry
 
 from api.common import log_json
@@ -27,6 +26,7 @@ from common.queues import DownloadQueue
 from common.queues import PriorityQueue
 from common.queues import SummaryQueue
 from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
+from cost_models.monthly_exchange_rate_utils import purge_expired_exchange_rates_for_all_tenants
 from koku import celery_app
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.notifications import NotificationService
@@ -71,6 +71,7 @@ def remove_expired_data(simulate=False):
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
     orchestrator.remove_expired_trino_partitions(simulate)
+    purge_expired_exchange_rates_for_all_tenants(simulate=simulate)
 
 
 @celery_app.task(name="masu.celery.tasks.purge_trino_files", queue=DEFAULT)
@@ -266,7 +267,7 @@ def autovacuum_tune_schemas():
 
 
 def _fetch_and_store_exchange_rates(url):
-    """Fetch exchange rates from the configured URL. Returns rate_metrics dict or None on failure."""
+    """Fetch exchange rates from the configured URL. Returns rate_metrics dict (empty on failure)."""
     retries = Retry(
         total=5,
         allowed_methods={"GET"},
@@ -279,13 +280,19 @@ def _fetch_and_store_exchange_rates(url):
     try:
         response = session.get(url)
         response.raise_for_status()
-    except (HTTPError, RetryError) as e:
+    except RequestException as e:
         LOG.error(f"Couldn't pull latest conversion rates from {url}")
         LOG.error(e)
-        return None
+        return {}
+
+    try:
+        data = response.json()
+    except (ValueError, KeyError) as e:
+        LOG.error(f"Invalid or malformed response from {url}")
+        LOG.error(e)
+        return {}
 
     rate_metrics = {}
-    data = response.json()
     rates = data["rates"]
     for curr_type, value in rates.items():
         if not is_valid_iso_currency(curr_type):
@@ -309,21 +316,20 @@ def _fetch_and_store_exchange_rates(url):
 
 @celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
 def get_daily_currency_rates():
-    """Task to get latest daily conversion rates and upsert MonthlyExchangeRate per tenant."""
+    """Fetch exchange rates when configured, then upsert/backfill MER per tenant."""
     url = settings.CURRENCY_URL
-    if not url:
+    if url:
+        rate_metrics = _fetch_and_store_exchange_rates(url)
+    else:
         LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
-        return {}
-
-    rate_metrics = _fetch_and_store_exchange_rates(url)
-    if not rate_metrics:
-        return {}
+        rate_metrics = {}
 
     for tenant in Tenant.objects.exclude(schema_name="public"):
         try:
             with schema_context(tenant.schema_name):
-                populate_dynamic_monthly_rates()
-                invalidate_view_cache_for_tenant_and_all_source_types(tenant.schema_name)
+                rates_changed = populate_dynamic_monthly_rates(backfill_past_months=True)
+                if rates_changed:
+                    invalidate_view_cache_for_tenant_and_all_source_types(tenant.schema_name)
         except Exception as e:
             LOG.error(
                 log_json(msg="Failed to populate monthly exchange rates", schema=tenant.schema_name, error=str(e))
