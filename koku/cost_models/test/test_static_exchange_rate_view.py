@@ -28,18 +28,15 @@ def _month_end(d):
 class TrailingZeroStrippingDecimalFieldTest(SimpleTestCase):
     """Unit tests for API decimal representation of exchange rates."""
 
-    def test_strips_trailing_zeros_preserves_precision(self):
+    def test_returns_decimal_not_string(self):
         field = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
         cases = (
             (None, None),
-            ("1.500000000000000", 1.5),
-            (Decimal("1.500000000000000"), 1.5),
-            (Decimal("0.920000000000000"), 0.92),
-            (Decimal("1.234567890123456"), 1.234567890123456),
-            (Decimal("100.000000000000000"), 100.0),
-            (Decimal("0.000000000000001"), 0.000000000000001),
-            # Parent DecimalField quantizes to decimal_places=15 before we strip zeros
-            (Decimal("1." + ("2" * 31)), 1.222222222222222),
+            ("1.500000000000000", Decimal("1.500000000000000")),
+            (Decimal("0.920000000000000"), Decimal("0.920000000000000")),
+            (Decimal("1.234567890123456"), Decimal("1.234567890123456")),
+            # Quantized to decimal_places=15
+            (Decimal("1." + ("2" * 31)), Decimal("1.222222222222222")),
         )
         for value, expected in cases:
             with self.subTest(value=value):
@@ -47,7 +44,7 @@ class TrailingZeroStrippingDecimalFieldTest(SimpleTestCase):
                 if expected is None:
                     self.assertIsNone(result)
                 else:
-                    self.assertIsInstance(result, float)
+                    self.assertIsInstance(result, Decimal)
                     self.assertEqual(result, expected)
 
 
@@ -79,7 +76,7 @@ class StaticExchangeRateListViewTest(IamTestCase):
         self.assertEqual(data["name"], "USD-EUR")
         self.assertEqual(data["base_currency"], "USD")
         self.assertEqual(data["target_currency"], "EUR")
-        self.assertEqual(data["exchange_rate"], 0.92)
+        self.assertEqual(data["exchange_rate"], Decimal("0.92"))
         self.assertEqual(data["start_date"], month_start.isoformat())
         self.assertEqual(data["end_date"], month_end.isoformat())
         self.assertIn("created_timestamp", data)
@@ -216,7 +213,7 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         }
         response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["exchange_rate"], 0.95)
+        self.assertEqual(response.data["exchange_rate"], Decimal("0.95"))
 
     def test_update_fully_finalized_rejected(self):
         """A rate whose end_date is entirely in the past cannot be edited."""
@@ -262,7 +259,7 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         }
         response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["exchange_rate"], 0.95)
+        self.assertEqual(response.data["exchange_rate"], Decimal("0.95"))
 
     def test_update_shrink_end_date_to_past(self):
         """User can shrink end_date to close out a rate"""

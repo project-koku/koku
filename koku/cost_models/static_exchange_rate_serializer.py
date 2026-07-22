@@ -22,20 +22,15 @@ LOG = logging.getLogger(__name__)
 
 
 class TrailingZeroStrippingDecimalField(serializers.DecimalField):
-    """Serialize Decimals as JSON numbers without unnecessary trailing zeros.
+    """Serialize Decimals as JSON numbers.
 
-    Storage keeps full DecimalField precision; only the API representation is trimmed.
+    coerce_to_string=False keeps a Decimal so the JSON encoder emits a number
+    instead of a quoted decimal string.
     """
 
     def __init__(self, **kwargs):
         kwargs.setdefault("coerce_to_string", False)
         super().__init__(**kwargs)
-
-    def to_representation(self, value):
-        if value is None:
-            return None
-        # DecimalField quantizes; normalize strips trailing zeros before float().
-        return float(super().to_representation(value).normalize())
 
 
 class StaticExchangeRateSerializer(serializers.ModelSerializer):
