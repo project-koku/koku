@@ -1052,7 +1052,7 @@ class RatesToUsage(models.Model):
         db_table = "rates_to_usage"
         indexes = [
             models.Index(
-                fields=["usage_start", "source_uuid", "report_period_id"],
+                fields=["usage_start", "source_uuid", "report_period"],
                 name="ratestousage_start_src_rp_idx",
             ),
             models.Index(fields=["namespace"], name="ratestousage_namespace_idx"),
@@ -1060,13 +1060,26 @@ class RatesToUsage(models.Model):
             models.Index(fields=["custom_name"], name="ratestousage_custom_name_idx"),
             models.Index(fields=["monthly_cost_type"], name="ratestousage_monthly_cost_idx"),
             models.Index(fields=["label_hash"], name="ratestousage_label_hash_idx"),
+            models.Index(fields=["rate_id"], name="ratestousage_rate_id_idx"),
+            models.Index(fields=["cost_model_id"], name="ratestousage_cost_model_id_idx"),
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
-    rate = models.ForeignKey("cost_models.Rate", on_delete=models.SET_NULL, null=True)
-    cost_model = models.ForeignKey("cost_models.CostModel", on_delete=models.SET_NULL, null=True)
-    report_period_id = models.IntegerField(null=True)
-    source_uuid = models.UUIDField()
+    rate = models.ForeignKey("cost_models.Rate", on_delete=models.CASCADE, null=True, db_index=False)
+    cost_model = models.ForeignKey("cost_models.CostModel", on_delete=models.CASCADE, null=True, db_index=False)
+    report_period = models.ForeignKey(
+        "OCPUsageReportPeriod",
+        on_delete=models.CASCADE,
+        null=True,
+        db_column="report_period_id",
+    )
+    source_uuid = models.ForeignKey(
+        "reporting.TenantAPIProvider",
+        on_delete=models.CASCADE,
+        unique=False,
+        null=False,
+        db_column="source_uuid",
+    )
     usage_start = models.DateField()
     usage_end = models.DateField()
     node = models.CharField(max_length=253, null=True)
