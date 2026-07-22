@@ -21,7 +21,7 @@ from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 LOG = logging.getLogger(__name__)
 
 
-class TrailingZeroStrippingDecimalField(serializers.DecimalField):
+class NumericDecimalField(serializers.DecimalField):
     """Serialize Decimals as JSON numbers.
 
     coerce_to_string=False keeps a Decimal so the JSON encoder emits a number
@@ -37,7 +37,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
     """Serializer for creating and updating static exchange rates."""
 
     name = serializers.CharField(read_only=True)
-    exchange_rate = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
+    exchange_rate = NumericDecimalField(max_digits=33, decimal_places=15)
 
     class Meta:
         model = StaticExchangeRate

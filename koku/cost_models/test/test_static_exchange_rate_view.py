@@ -18,18 +18,18 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import StaticExchangeRate
-from cost_models.static_exchange_rate_serializer import TrailingZeroStrippingDecimalField
+from cost_models.static_exchange_rate_serializer import NumericDecimalField
 
 
 def _month_end(d):
     return d.replace(day=calendar.monthrange(d.year, d.month)[1])
 
 
-class TrailingZeroStrippingDecimalFieldTest(SimpleTestCase):
+class NumericDecimalFieldTest(SimpleTestCase):
     """Unit tests for API decimal representation of exchange rates."""
 
-    def test_strips_trailing_zeros_preserves_precision(self):
-        field = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
+    def test_serializes_as_json_number_preserves_precision(self):
+        field = NumericDecimalField(max_digits=33, decimal_places=15)
         cases = (
             (None, None),
             ("1.500000000000000", 1.5),

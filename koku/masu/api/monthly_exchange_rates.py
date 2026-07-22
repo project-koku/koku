@@ -18,13 +18,13 @@ from rest_framework.settings import api_settings
 
 from api.iam.models import Tenant
 from cost_models.models import MonthlyExchangeRate
-from cost_models.static_exchange_rate_serializer import TrailingZeroStrippingDecimalField
+from cost_models.static_exchange_rate_serializer import NumericDecimalField
 
 
 class MonthlyExchangeRateSerializer(serializers.ModelSerializer):
     """Serialize MonthlyExchangeRate rows for the Masu inspect endpoint."""
 
-    exchange_rate = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
+    exchange_rate = NumericDecimalField(max_digits=33, decimal_places=15)
 
     class Meta:
         model = MonthlyExchangeRate
