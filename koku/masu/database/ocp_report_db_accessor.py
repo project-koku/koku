@@ -837,8 +837,10 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         """Delete stale monthly-cost rows from before re-inserting."""
         if use_rtu:
             sql_file = "sql/openshift/cost_model/delete_monthly_cost_rates_to_usage.sql"
+            table_name = "rates_to_usage"
         else:
             sql_file = "sql/openshift/cost_model/delete_monthly_cost.sql"
+            table_name = self._table_map["line_item_daily_summary"]
 
         delete_sql = pkgutil.get_data("masu.database", sql_file)
         delete_sql = delete_sql.decode("utf-8")
@@ -847,7 +849,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         else:
             LOG.info(log_json(msg="removing stale monthly costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(
-            self._table_map["line_item_daily_summary"],
+            table_name,
             delete_sql,
             sql_params,
             operation="DELETE",

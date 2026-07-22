@@ -2326,9 +2326,8 @@ class TestMonthlyCostRTUIdempotency(_ReportPeriodMixin, MasuTestCase):
             distribution="cpu",
             provider_uuid=self.ocp_provider_uuid,
             custom_name="Node cost",
-            provider_uuid=self.ocp_provider_uuid,
-            custom_name="Node cost",
             use_rtu=True,
+        )
         with OCPReportDBAccessor(self.schema) as accessor:
             accessor.populate_monthly_cost_sql(**call_kwargs)
             first_count = self._rtu_node_row_count(rp)
