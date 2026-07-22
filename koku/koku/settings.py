@@ -174,12 +174,9 @@ UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.j
 MAX_GROUP_BY = ENVIRONMENT.int("MAX_GROUP_BY_OVERRIDE", default=3)
 
 ### Currency URL
-# Empty when unset on-prem so the daily beat is not scheduled (no external API).
-# SaaS keeps the open.er-api.com default unless CURRENCY_URL is overridden.
-CURRENCY_URL = ENVIRONMENT.get_value(
-    "CURRENCY_URL",
-    default="" if ONPREM else "https://open.er-api.com/v6/latest/USD",
-)
+# Empty by default. SaaS sets this via app-interface / deploy parameters.
+# When unset, the daily get_daily_currency_rates Celery beat is not scheduled.
+CURRENCY_URL = (ENVIRONMENT.get_value("CURRENCY_URL", default="") or "").strip()
 
 ### End Middleware
 

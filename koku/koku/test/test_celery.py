@@ -76,7 +76,7 @@ class CurrencyRatesBeatScheduleTest(SimpleTestCase):
         """Beat is registered when CURRENCY_URL is set."""
         beat_schedule = {}
         scheduled = register_daily_currency_rates_beat(
-            beat_schedule, "https://open.er-api.com/v6/latest/USD", schedule=crontab(hour=1, minute=0)
+            beat_schedule, "https://exchange-rates.example/v6/latest/USD", schedule=crontab(hour=1, minute=0)
         )
 
         self.assertTrue(scheduled)
