@@ -21,10 +21,30 @@ from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 LOG = logging.getLogger(__name__)
 
 
+class TrailingZeroStrippingDecimalField(serializers.DecimalField):
+    """Serialize Decimals as strings without unnecessary trailing zeros.
+
+    Storage keeps full DecimalField precision; only the API representation is trimmed.
+    """
+
+    def to_representation(self, value):
+        if value is None:
+            return None
+        # DecimalField already coerces/quantizes; normalize to str then strip
+        # trailing zeros (and a leftover decimal point) for a compact API value.
+        val_str = super().to_representation(value)
+        if not isinstance(val_str, str):
+            val_str = format(val_str, "f")
+        if "." in val_str:
+            return val_str.rstrip("0").rstrip(".")
+        return val_str
+
+
 class StaticExchangeRateSerializer(serializers.ModelSerializer):
     """Serializer for creating and updating static exchange rates."""
 
     name = serializers.CharField(read_only=True)
+    exchange_rate = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
 
     class Meta:
         model = StaticExchangeRate
@@ -71,25 +91,29 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
 
     def _validate_update(self, base, target, start, end, current_month_start, has_finalized_months):
         """Validate constraints specific to updating an existing rate."""
+        if base != self.instance.base_currency:
+            raise serializers.ValidationError(
+                "Base currency cannot be modified. Delete and recreate the exchange rate instead."
+            )
         if self.instance.end_date < current_month_start:
             raise serializers.ValidationError(
                 f"This rate ended on {self.instance.end_date} and all its months have been finalized. "
                 "To set a new rate, create a new record starting from the current month."
             )
         if has_finalized_months:
-            if base != self.instance.base_currency or target != self.instance.target_currency:
+            if target != self.instance.target_currency:
                 raise serializers.ValidationError(
-                    "Currencies cannot be changed because this rate has finalized months."
+                    "Target currency cannot be changed because this rate has finalized months."
                 )
             if start != self.instance.start_date:
                 raise serializers.ValidationError(
-                    "start_date cannot be changed because this rate has finalized months. "
+                    "Start date cannot be changed because this rate has finalized months. "
                     "Shrink the end_date instead, then create a new rate for the remaining period."
                 )
             min_end_date = current_month_start - timedelta(days=1)
             if end < min_end_date:
                 raise serializers.ValidationError(
-                    "end_date cannot be earlier than the previous month when shrinking a finalized rate."
+                    "End date cannot be earlier than the previous month when shrinking a finalized rate."
                 )
 
     def validate(self, attrs):
@@ -99,10 +123,10 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         end = attrs.get("end_date")
 
         if base == target:
-            raise serializers.ValidationError("base_currency and target_currency must be different.")
+            raise serializers.ValidationError("Base currency and target currency must be different.")
 
         if end < start:
-            raise serializers.ValidationError("end_date must be on or after start_date.")
+            raise serializers.ValidationError("End date must be on or after start date.")
 
         today = timezone.now().date()
         current_month_start = today.replace(day=1)
@@ -111,7 +135,7 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             self._validate_update(base, target, start, end, current_month_start, has_finalized_months)
 
         if not has_finalized_months and start < current_month_start:
-            raise serializers.ValidationError("start_date cannot be in a past month.")
+            raise serializers.ValidationError("Start date cannot be in a past month.")
 
         overlapping = StaticExchangeRate.objects.filter(
             base_currency=base,

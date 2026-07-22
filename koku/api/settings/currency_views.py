@@ -6,6 +6,7 @@
 import logging
 from collections import defaultdict
 
+from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -21,6 +22,7 @@ from api.currency.currencies import get_currency_info
 from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import get_enabled_currency_codes
 from api.currency.currencies import is_valid_iso_currency
+from api.provider.models import Provider
 from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
@@ -32,9 +34,26 @@ from koku.cache import build_enabled_currency_codes_key
 from koku.cache import delete_value_from_cache
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.settings import KOKU_DEFAULT_CURRENCY
+from reporting.provider.aws.models import AWSCostSummaryP
+from reporting.provider.azure.models import AzureCostSummaryP
+from reporting.provider.gcp.models import GCPCostSummaryP
 from reporting.user_settings.models import UserSettings
 
 LOG = logging.getLogger(__name__)
+
+
+def _get_cloud_providers_using_currency(code, customer):
+    """Return cloud providers whose billing data uses ``code`` as a base currency."""
+    aws_uuids = AWSCostSummaryP.objects.filter(currency_code=code).values_list("source_uuid", flat=True).distinct()
+    azure_uuids = AzureCostSummaryP.objects.filter(currency=code).values_list("source_uuid", flat=True).distinct()
+    gcp_uuids = GCPCostSummaryP.objects.filter(currency=code).values_list("source_uuid", flat=True).distinct()
+
+    return list(
+        Provider.objects.filter(
+            Q(uuid__in=aws_uuids) | Q(uuid__in=azure_uuids) | Q(uuid__in=gcp_uuids),
+            customer=customer,
+        ).values("uuid", "name", "type")
+    )
 
 
 class CurrencySettingsView(APIView):
@@ -127,6 +146,10 @@ class EnabledCurrencyView(APIView):
         if account_settings and account_settings.settings.get("currency") == code:
             reasons.append("it is the account default currency")
 
+        affected_cloud_providers = _get_cloud_providers_using_currency(code, request.user.customer)
+        if affected_cloud_providers:
+            reasons.append(f"it is currently used by {len(affected_cloud_providers)} cloud provider source(s)")
+
         affected_cost_models = list(CostModel.objects.filter(currency=code).values("uuid", "name"))
         if affected_cost_models:
             reasons.append(f"it is used by {len(affected_cost_models)} cost model(s)")
@@ -142,6 +165,7 @@ class EnabledCurrencyView(APIView):
                     msg="Currency disable blocked",
                     currency=code,
                     reasons=reasons,
+                    affected_cloud_providers=affected_cloud_providers,
                     affected_cost_models=affected_cost_models,
                     affected_price_lists=affected_price_lists,
                 )
@@ -155,6 +179,7 @@ class EnabledCurrencyView(APIView):
                             "status": status.HTTP_400_BAD_REQUEST,
                         }
                     ],
+                    "affected_cloud_providers": affected_cloud_providers,
                     "affected_cost_models": affected_cost_models,
                     "affected_price_lists": affected_price_lists,
                 },

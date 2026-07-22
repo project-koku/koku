@@ -5,6 +5,7 @@
 """Tests for currency settings views."""
 from django.core.cache import caches
 from django.test.utils import override_settings
+from uuid import uuid4
 from django.urls import reverse
 from django_tenants.utils import tenant_context
 from rest_framework import status
@@ -12,6 +13,7 @@ from rest_framework.test import APIClient
 
 from api.currency.currencies import get_enabled_currency_codes
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.models import Provider
 from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
@@ -43,6 +45,10 @@ CACHE_OVERRIDE = {
         "LOCATION": "unique-snowflake",
     },
 }
+from reporting.provider.aws.models import AWSCostSummaryP
+from reporting.provider.azure.models import AzureCostSummaryP
+from reporting.provider.gcp.models import GCPCostSummaryP
+from reporting.provider.models import TenantAPIProvider
 
 
 class CurrencySettingsViewTest(IamTestCase):
@@ -223,6 +229,43 @@ class EnabledCurrencyViewTest(IamTestCase):
             response = self.client.delete(self._url("EUR"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="EUR").exists())
+
+    def test_disable_currency_in_use_by_cloud_provider_blocked(self):
+        """Disabling a currency used by AWS, Azure, or GCP providers must return 400."""
+        cloud_providers = [
+            (Provider.PROVIDER_AWS, AWSCostSummaryP, "currency_code", "AUD"),
+            (Provider.PROVIDER_AZURE, AzureCostSummaryP, "currency", "CAD"),
+            (Provider.PROVIDER_GCP, GCPCostSummaryP, "currency", "EUR"),
+        ]
+        with tenant_context(self.tenant):
+            for provider_type, summary_model, currency_field, code in cloud_providers:
+                provider = Provider.objects.create(
+                    name=f"{provider_type} {code} Source",
+                    type=provider_type,
+                    customer=self.customer,
+                )
+                tenant_provider = TenantAPIProvider.objects.create(
+                    uuid=provider.uuid, name=provider.name, type=provider.type, provider=provider
+                )
+                summary_model.objects.create(
+                    id=uuid4(),
+                    usage_start="2026-01-01",
+                    usage_end="2026-01-01",
+                    source_uuid=tenant_provider,
+                    **{currency_field: code},
+                )
+
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="AUD")
+            EnabledCurrency.objects.create(currency_code="CAD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+
+            for _, _, _, code in cloud_providers:
+                with self.subTest(code=code):
+                    response = self.client.delete(self._url(code), **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                    self.assertTrue(EnabledCurrency.objects.filter(currency_code=code).exists())
 
     def test_disable_default_currency_blocked(self):
         """Disabling the system default currency (USD) must return 400."""
