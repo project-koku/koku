@@ -11,7 +11,8 @@ from trino.exceptions import TrinoExternalError
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
-from koku.reportdb_accessor import get_report_db_accessor
+from koku.reportdb_accessor_postgres import PostgresReportDBAccessor
+from koku.reportdb_accessor_trino import TrinoReportDBAccessor
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import GCP_REPORT_TABLE_MAP
@@ -150,16 +151,17 @@ class DataValidator:
         report_db_accessor = ReportDBAccessorBase(self.schema)
         # Set provider filter, when running ocp{aws/gcp/azure} checks we need to rely on the cluster id
         provider_filter = self.provider_uuid if not self.ocp_on_cloud_type else cluster_id
-        # query trino/postgres
+        # Dialect follows query target (trino flag), not ONPREM deployment mode.
         table, query_filters = self.get_table_filters_for_provider(provider_type, trino)
-        for start, end in date_range_pair(self.start_date, self.end_date, step=self.date_step):
-            # Determine source column name based on database type and whether it's OCP-on-cloud
-            if trino:
-                source = "source" if not self.ocp_on_cloud_type else "cluster_id"
-            else:
-                source = "source_uuid" if not self.ocp_on_cloud_type else "cluster_id"
+        if trino:
+            source = "source" if not self.ocp_on_cloud_type else "cluster_id"
+            sql_accessor = TrinoReportDBAccessor()
+        else:
+            source = "source_uuid" if not self.ocp_on_cloud_type else "cluster_id"
+            sql_accessor = PostgresReportDBAccessor()
 
-            sql = get_report_db_accessor().get_data_validation_sql(
+        for start, end in date_range_pair(self.start_date, self.end_date, step=self.date_step):
+            sql = sql_accessor.get_data_validation_sql(
                 schema_name=self.schema,
                 table_name=table,
                 source_column=source,

@@ -77,8 +77,9 @@ export S3_ACCESS_KEY="${S3_ACCESS_KEY:-s4admin}"
 export S3_SECRET_KEY="${S3_SECRET:-s4secret}"
 export S3_BUCKET_NAME="${S3_BUCKET_NAME_OCP_INGRESS-ocp-ingress}"
 
-# nise runs on the host; S3_ENDPOINT is host-only (default: localhost:9000 via s4-path-proxy).
-export MINIO_UPLOAD="${S3_ENDPOINT-http://localhost:9000}"
+# nise runs on the host; normalize Docker-internal S3_ENDPOINT values from .env.
+export MINIO_UPLOAD="$(normalize_host_s3_endpoint "${S3_ENDPOINT:-http://localhost:9000}")"
+log-info "OCP ingress upload endpoint (host): ${MINIO_UPLOAD}"
 log-debug "MINIO_UPLOAD=${MINIO_UPLOAD}"
 
 
@@ -201,6 +202,39 @@ trigger_download() {
   done
 }
 
+verify_ocp_payload_in_s3() {
+  #
+  # Args:
+  #   1 - S3 object key (payload name)
+  #
+  local payload_key=$1
+  local exit_code=0
+
+  if command -v aws &>/dev/null; then
+    AWS_ACCESS_KEY_ID="${S3_ACCESS_KEY}" AWS_SECRET_ACCESS_KEY="${S3_SECRET_KEY}" \
+      aws --endpoint-url "${MINIO_UPLOAD}" s3api head-object \
+      --bucket "${S3_BUCKET_NAME}" --key "${payload_key}" &>/dev/null || exit_code=$?
+  elif command -v docker &>/dev/null; then
+    log-warn "aws CLI not found; falling back to docker for S3 payload verification"
+    docker run --rm --network host \
+      -e AWS_ACCESS_KEY_ID="${S3_ACCESS_KEY}" \
+      -e AWS_SECRET_ACCESS_KEY="${S3_SECRET_KEY}" \
+      amazon/aws-cli:latest \
+      --endpoint-url "${MINIO_UPLOAD}" \
+      s3api head-object --bucket "${S3_BUCKET_NAME}" --key "${payload_key}" &>/dev/null || exit_code=$?
+  else
+    log-warn "Neither aws CLI nor docker is available; skipping S3 payload verification for ${payload_key}"
+    return 0
+  fi
+
+  if [[ ${exit_code} -ne 0 ]]; then
+    log-err "OCP payload not found in s3://${S3_BUCKET_NAME}/${payload_key}"
+    log-err "nise upload likely failed. Confirm s4-path-proxy is running and MINIO_UPLOAD=${MINIO_UPLOAD} is reachable."
+    exit 1
+  fi
+  log-info "Verified OCP payload exists in S3: ${payload_key}"
+}
+
 trigger_ocp_ingest() {
   #
   # Args:
@@ -224,6 +258,7 @@ trigger_ocp_ingest() {
     fi
     while [ ! "$formatted_start_date" \> "$formatted_end_date" ]; do
       local payload_name="$2.$formatted_start_date.tar.gz"
+      verify_ocp_payload_in_s3 "${payload_name}"
       log-info "Triggering ingest for, source_name: $1, uuid: $UUID, org_id: $ORG_ID, payload_name: $payload_name"
       local url="$MASU_URL_PREFIX/v1/ingest_ocp_payload/?org_id=$ORG_ID&payload_name=$payload_name"
       log-info "url: $url"
