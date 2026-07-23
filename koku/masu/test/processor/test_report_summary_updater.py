@@ -181,9 +181,15 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_get_or_create.assert_called_once_with(currency_code="AUD")
         mock_populate.assert_not_called()
 
-    def test_enable_cloud_bill_currencies_noop_for_non_cloud(self):
-        """Non-cloud providers are a no-op."""
+    @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
+    @patch("masu.processor.report_summary_updater.EnabledCurrency.objects")
+    def test_enable_cloud_bill_currencies_noop_for_non_cloud(self, mock_enabled_currency, mock_populate):
+        """Non-cloud providers do not query or mutate EnabledCurrency."""
         enable_cloud_bill_currencies(self.schema, self.ocp_provider, start_date="2026-01-01", end_date="2026-01-31")
+
+        mock_enabled_currency.values_list.assert_not_called()
+        mock_enabled_currency.get_or_create.assert_not_called()
+        mock_populate.assert_not_called()
 
     @patch("masu.processor.report_summary_updater.invalidate_view_cache_for_tenant_and_source_type")
     @patch(
