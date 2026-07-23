@@ -211,6 +211,10 @@ removed (past months stay finalized).
 | `start_date` not in a past month (for new rates / non-finalized updates) | `400` |
 | No overlapping window for the same directional pair | `400` |
 
+Note: `base_currency` and `target_currency` do not need to be enabled at the
+time of creation. Admins may pre-configure static rates before enabling a
+currency for end users.
+
 #### Response `201`
 
 ```json
