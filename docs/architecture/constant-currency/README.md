@@ -32,7 +32,7 @@ rate that covers those months).
 
 | Concept | Meaning |
 |---------|---------|
-| **Enabled currency** | A currency an administrator has turned on for the tenant. Only enabled currencies appear in user-facing currency pickers. |
+| **Enabled currency** | A currency available for the tenant in user-facing pickers and dynamic-rate population. Usually turned on by an administrator; base currencies from cloud provider billing are auto-enabled after summarization. |
 | **Static exchange rate** | A tenant-defined rate for a directional pair (`base → target`) with a monthly validity window. |
 | **Dynamic exchange rate** | A market rate fetched from the configured exchange-rate provider and stored per month. |
 | **Monthly exchange rate** | The effective rate used when converting report (and forecast) costs for a given month and pair. Static rates override dynamic rates for that month. |
@@ -52,7 +52,9 @@ tenant, reports keep the legacy “single latest rate for all months” behavior
 2. Browse or search the full ISO 4217 list
    (`GET …/settings/currency/`).
 3. Enable a currency
-   (`POST …/settings/currency/enabled/{code}/`).
+   (`POST …/settings/currency/enabled/{code}/`),
+   or rely on **auto-enable** when a cloud provider’s bill base currency
+   appears in summarized AWS/Azure/GCP cost data.
 4. Optionally disable a currency
    (`DELETE …/settings/currency/enabled/{code}/`).
    - At least one currency must remain enabled.
@@ -128,7 +130,8 @@ are purged with other expired data ([COST-7345](https://redhat.atlassian.net/bro
 
 1. **Per-month stability** — finalized months do not change when markets move.
 2. **Static over dynamic** — customer-agreed rates win for their validity window.
-3. **Explicit enablement** — administrators control which currencies appear in UI.
+3. **Controlled enablement** — only enabled currencies appear in UI; admins enable
+   currencies, and cloud bill base currencies are auto-enabled after summarization.
 4. **No multi-hop conversion** — only direct `base → target` pairs are used.
 5. **Month-aligned validity** — static rate windows start on the 1st and end on
    the last day of a month.

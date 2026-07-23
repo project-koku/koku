@@ -15,7 +15,11 @@ All tenant-facing configuration is **per customer schema**.
 A currency is available in UI pickers and for dynamic monthly-rate population
 when it is enabled for the tenant.
 
-- Enablement is explicit (administrator action).
+- Enablement is normally an administrator action
+  (`POST …/settings/currency/enabled/{code}/`).
+- **Exception:** currencies that appear as **base currencies in cloud provider
+  billing data** (AWS, Azure, GCP) are **auto-enabled** after those providers’
+  summary tables are updated for the processed date window.
 - Presence of the currency in the tenant’s enabled set means “enabled”.
 - At least one currency must remain enabled.
 - Market discovery alone does **not** auto-enable currencies for the dropdown.
@@ -138,6 +142,7 @@ flowchart TD
 | -------------------- | -------------------------------------------------------------------------------------------- |
 | Dropdown contents    | Enabled currencies only (`GET /currency/`)                                                   |
 | Settings catalog     | Full ISO list with `enabled` + `has_dynamic_rate` + nested static rates                      |
+| Auto-enable          | Base currencies from cloud provider billing (AWS/Azure/GCP) are enabled after summarization  |
 | Disable blocked when | System default, account default, used by cloud provider billing, cost models, or price lists |
 | Last currency        | Cannot disable the final enabled currency                                                    |
 | Dynamic population   | Only **enabled** currency pairs receive dynamic monthly rates                                |
@@ -145,6 +150,10 @@ flowchart TD
 
 Unlike earlier design drafts, static-rate currencies are **not** automatically
 shown in the end-user dropdown unless those currencies are also enabled.
+Cloud bill base currencies are an intentional exception to “admin-only”
+enablement: they are turned on when summarization finds them in provider cost
+data, then behave like any other enabled currency (including disable blocking
+while still used by cloud billing).
 
 ---
 
@@ -250,7 +259,7 @@ reports.
 | Source of truth for conversion | Monthly exchange rates (per month, per pair)                              |
 | Static vs dynamic precedence   | Static wins for covered months                                            |
 | Reverse static rates           | Not auto-generated; define both directions if both are required as static |
-| Currency visibility            | Explicit enablement; dropdown = enabled set only                          |
+| Currency visibility            | Dropdown = enabled set only; enablement is admin or cloud-bill auto-enable |
 | Month writing                  | Populate when month is current; finalize when month ends                  |
 | Historical gaps                | Backward-looking fill from next later rate within retention               |
 | Query-time missing rate        | Hard error (`400`), not silent omit or cross-month substitution           |
