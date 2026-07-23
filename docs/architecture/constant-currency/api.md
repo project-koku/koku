@@ -94,7 +94,7 @@ Administrator currency catalog for Settings UI.
       "name": "USD-EUR",
       "base_currency": "USD",
       "target_currency": "EUR",
-      "exchange_rate": "0.87",
+      "exchange_rate": 0.87,
       "start_date": "2026-04-01",
       "end_date": "2026-06-30",
       "created_timestamp": "2026-04-02T10:30:00Z",
@@ -104,8 +104,9 @@ Administrator currency catalog for Settings UI.
 }
 ```
 
-`exchange_rate` is returned as a compact decimal string (trailing zeros
-stripped). Full precision is retained in storage.
+`exchange_rate` is returned as a JSON number. Storage retains full
+`DecimalField` precision; typical clients parse JSON numbers as IEEE 754
+doubles (~15–17 significant digits).
 
 | Field | Meaning |
 |-------|---------|
@@ -191,7 +192,7 @@ removed (past months stay finalized).
 {
   "base_currency": "USD",
   "target_currency": "EUR",
-  "exchange_rate": "0.87",
+  "exchange_rate": 0.87,
   "start_date": "2026-04-01",
   "end_date": "2026-06-30"
 }
@@ -218,7 +219,7 @@ removed (past months stay finalized).
   "name": "USD-EUR",
   "base_currency": "USD",
   "target_currency": "EUR",
-  "exchange_rate": "0.87",
+  "exchange_rate": 0.87,
   "start_date": "2026-04-01",
   "end_date": "2026-06-30",
   "created_timestamp": "2026-04-02T10:30:00Z",
@@ -227,7 +228,7 @@ removed (past months stay finalized).
 ```
 
 `name` is read-only: `"{base_currency}-{target_currency}"`.
-`exchange_rate` in responses omits trailing zeros.
+`exchange_rate` in responses is a JSON number (see settings list note above).
 
 ### `PUT /settings/currency/static-rates/{uuid}/`
 
@@ -309,21 +310,23 @@ Internal inspection of stored monthly rates.
       "effective_date": "2026-04-01",
       "base_currency": "USD",
       "target_currency": "EUR",
-      "exchange_rate": "0.87",
+      "exchange_rate": 0.87,
       "rate_type": "static"
     },
     {
       "effective_date": "2026-05-01",
       "base_currency": "USD",
       "target_currency": "EUR",
-      "exchange_rate": "0.91",
+      "exchange_rate": 0.91,
       "rate_type": "dynamic"
     }
   ]
 }
 ```
 
-`rate_type` is `static` or `dynamic`. Unknown schema or bad dates → `400`.
+`rate_type` is `static` or `dynamic`. `exchange_rate` is a JSON number
+(same representation as Settings static-rate responses). Unknown schema or
+bad dates → `400`.
 
 ---
 
