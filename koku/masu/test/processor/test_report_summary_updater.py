@@ -6,16 +6,23 @@
 from unittest.mock import patch
 from uuid import uuid4
 
+from django_tenants.utils import schema_context
+from django_tenants.utils import tenant_context
+
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
+from cost_models.models import EnabledCurrency
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
+from masu.processor.report_summary_updater import enable_cloud_bill_currencies
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.test import MasuTestCase
+from reporting.provider.aws.models import AWSCostSummaryP
+from reporting.provider.models import TenantAPIProvider
 
 
 class ReportSummaryUpdaterTest(MasuTestCase):
@@ -88,6 +95,35 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         """Test that the AzureReportParquetSummaryUpdater is returned."""
         updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
         self.assertIsInstance(updater._updater, AzureReportParquetSummaryUpdater)
+
+    @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
+    def test_enable_cloud_bill_currencies_enables_missing(self, mock_populate):
+        """Cloud bill currencies missing from EnabledCurrency are enabled."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            provider = Provider.objects.create(
+                name="AWS AUD",
+                type=Provider.PROVIDER_AWS,
+                customer=self.customer,
+            )
+            tenant_provider = TenantAPIProvider.objects.create(
+                uuid=provider.uuid, name=provider.name, type=provider.type, provider=provider
+            )
+            with schema_context(self.schema):
+                AWSCostSummaryP.objects.create(
+                    id=uuid4(),
+                    usage_start="2026-01-15",
+                    usage_end="2026-01-15",
+                    source_uuid=tenant_provider,
+                    currency_code="AUD",
+                )
+
+        enable_cloud_bill_currencies(self.schema, provider, start_date="2026-01-01", end_date="2026-01-31")
+
+        with tenant_context(self.tenant):
+            self.assertTrue(EnabledCurrency.objects.filter(currency_code="AUD").exists())
+        mock_populate.assert_called_once_with(code="AUD")
 
     @patch("masu.processor.report_summary_updater.OCPCloudParquetReportSummaryUpdater.update_summary_tables")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
