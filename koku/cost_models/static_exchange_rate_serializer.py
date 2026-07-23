@@ -21,30 +21,23 @@ from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 LOG = logging.getLogger(__name__)
 
 
-class TrailingZeroStrippingDecimalField(serializers.DecimalField):
-    """Serialize Decimals as strings without unnecessary trailing zeros.
+class NumericDecimalField(serializers.DecimalField):
+    """Serialize Decimals as JSON numbers.
 
-    Storage keeps full DecimalField precision; only the API representation is trimmed.
+    coerce_to_string=False keeps a Decimal so the JSON encoder emits a number
+    instead of a quoted decimal string.
     """
 
-    def to_representation(self, value):
-        if value is None:
-            return None
-        # DecimalField already coerces/quantizes; normalize to str then strip
-        # trailing zeros (and a leftover decimal point) for a compact API value.
-        val_str = super().to_representation(value)
-        if not isinstance(val_str, str):
-            val_str = format(val_str, "f")
-        if "." in val_str:
-            return val_str.rstrip("0").rstrip(".")
-        return val_str
+    def __init__(self, **kwargs):
+        kwargs.setdefault("coerce_to_string", False)
+        super().__init__(**kwargs)
 
 
 class StaticExchangeRateSerializer(serializers.ModelSerializer):
     """Serializer for creating and updating static exchange rates."""
 
     name = serializers.CharField(read_only=True)
-    exchange_rate = TrailingZeroStrippingDecimalField(max_digits=33, decimal_places=15)
+    exchange_rate = NumericDecimalField(max_digits=33, decimal_places=15)
 
     class Meta:
         model = StaticExchangeRate
