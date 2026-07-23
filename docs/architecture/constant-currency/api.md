@@ -132,10 +132,6 @@ Enable an ISO 4217 currency for the tenant.
 pairs involving this currency are populated when market data is available;
 report caches for the tenant are invalidated.
 
-**Related (non-API):** base currencies found in AWS/Azure/GCP cloud bill summary
-data are also auto-enabled after summarization (same enablement side effects
-when a currency is newly added). See [design.md](./design.md#currency-enablement-design).
-
 ---
 
 ## `DELETE /settings/currency/enabled/{code}/`
