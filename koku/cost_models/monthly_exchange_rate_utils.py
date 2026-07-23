@@ -9,9 +9,11 @@ from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db.models import Q
+from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.currency.models import ExchangeRateDictionary
+from api.iam.models import Tenant
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from api.utils import to_date
@@ -185,6 +187,46 @@ def remove_monthly_rates(code):
     )
     LOG.info(log_json(msg="Removed MonthlyExchangeRate rows", code=code, deleted=deleted))
     return deleted
+
+
+def _purge_expired_monthly_rates(simulate=False):
+    """Delete MonthlyExchangeRate rows older than the retention window.
+
+    Uses the same retention boundary as backfill (materialized_view_month_start).
+    Must be called within a schema_context.
+    """
+    expired_date = to_date(materialized_view_month_start(schema_name=connection.schema_name))
+    query = MonthlyExchangeRate.objects.filter(effective_date__lt=expired_date)
+    if simulate:
+        deleted = query.count()
+    else:
+        deleted, _ = query.delete()
+    if deleted:
+        LOG.info(
+            log_json(
+                msg="Purged expired MonthlyExchangeRate rows",
+                simulate=simulate,
+                deleted=deleted,
+                expired_date=str(expired_date),
+            )
+        )
+    return deleted
+
+
+def purge_expired_exchange_rates_for_all_tenants(simulate=False):
+    """Purge expired MonthlyExchangeRate rows for all tenants."""
+    for tenant in Tenant.objects.exclude(schema_name="public"):
+        try:
+            with schema_context(tenant.schema_name):
+                _purge_expired_monthly_rates(simulate=simulate)
+        except Exception as e:
+            LOG.error(
+                log_json(
+                    msg="Failed to purge expired monthly exchange rates",
+                    schema=tenant.schema_name,
+                    error=str(e),
+                )
+            )
 
 
 def _get_existing_rates_by_pair(start, end, enabled_codes, code=None):
