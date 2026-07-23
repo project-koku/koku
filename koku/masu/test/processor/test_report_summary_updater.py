@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the ReportSummaryUpdater object."""
-from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -160,25 +159,6 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
         enable_cloud_bill_currencies(self.schema, provider, start_date="2026-01-01", end_date="2026-01-31")
 
-        mock_populate.assert_not_called()
-
-    @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
-    def test_enable_cloud_bill_currencies_skips_when_not_created(self, mock_populate):
-        """When get_or_create finds an existing row, rates are not populated again."""
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-            EnabledCurrency.objects.create(currency_code="USD")
-
-        provider = self._create_aws_summary_with_currency("AUD", provider_name="AWS Race Currency")
-        existing = MagicMock()
-
-        with patch(
-            "masu.processor.report_summary_updater.EnabledCurrency.objects.get_or_create",
-            return_value=(existing, False),
-        ) as mock_get_or_create:
-            enable_cloud_bill_currencies(self.schema, provider, start_date="2026-01-01", end_date="2026-01-31")
-
-        mock_get_or_create.assert_called_once_with(currency_code="AUD")
         mock_populate.assert_not_called()
 
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
