@@ -18,6 +18,7 @@ R20: TestOrchestrationOrder
 """
 from decimal import Decimal
 from functools import wraps
+from unittest.mock import ANY
 from unittest.mock import patch
 
 from django.db.models import Sum
@@ -822,6 +823,7 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         self.assertEqual(call_order, expected, f"legacy path expected {expected}, got {call_order}")
         mock_rtu.assert_not_called()
         mock_agg.assert_not_called()
+        mock_markup.assert_called_with(ANY, ANY, use_rtu=False)
 
 
 class TestPartitionWiring(MasuTestCase):
@@ -1366,8 +1368,8 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
     ):
         """R20: _aggregate must run before _update_markup_cost (proxy for agg-before-tags)."""
         call_order = []
-        mock_agg.side_effect = lambda *a: call_order.append("agg")
-        mock_markup.side_effect = lambda *a: call_order.append("markup")
+        mock_agg.side_effect = lambda *a, **kw: call_order.append("agg")
+        mock_markup.side_effect = lambda *a, **kw: call_order.append("markup")
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
@@ -1380,6 +1382,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
             call_order.index("markup"),
             "R20: aggregation must run before markup (and therefore before tags)",
         )
+        mock_markup.assert_called_with(ANY, ANY, use_rtu=True)
 
     # TC-R20-03: cleanup called when cost_model_id is None; monthly/vm/agg/markup still run
     @_make_orchestration_patches(rtu_enabled=True)
@@ -1873,7 +1876,7 @@ class TestMarkupRTUIntegration(_ReportPeriodMixin, MasuTestCase):
             )
         updater._load_rates(start_date)
         updater._update_usage_rates_to_usage(start_date, end_date)
-        updater._update_markup_cost(start_date, end_date)
+        updater._update_markup_cost(start_date, end_date, use_rtu=True)
         return start_date, end_date
 
     # TC-70: markup RTU rows exist after pipeline
@@ -1929,7 +1932,7 @@ class TestMarkupRTUIntegration(_ReportPeriodMixin, MasuTestCase):
                 vol=Sum("cost_model_volume_cost"),
             )
 
-        updater._update_markup_cost(start_date, end_date)
+        updater._update_markup_cost(start_date, end_date, use_rtu=True)
         updater._aggregate_rates_to_daily_summary(start_date, end_date)
 
         with schema_context(self.schema):
@@ -1968,7 +1971,7 @@ class TestMarkupRTUIntegration(_ReportPeriodMixin, MasuTestCase):
         self.assertGreater(usage_count_before, 0, "Seed succeeded but no usage RTU rows — pipeline regression")
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
-        updater._update_markup_cost(start_date, end_date)
+        updater._update_markup_cost(start_date, end_date, use_rtu=True)
 
         with schema_context(self.schema):
             usage_count_after = RatesToUsage.objects.filter(
@@ -2113,7 +2116,7 @@ class TestPrometheusTimingWrappers(_ReportPeriodMixin, MasuTestCase):
         mock_cost_accessor.return_value.__enter__.return_value.markup = {"value": 10, "unit": "percent"}
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         dh = DateHelper()
-        updater._update_markup_cost(dh.this_month_start, dh.this_month_end)
+        updater._update_markup_cost(dh.this_month_start, dh.this_month_end, use_rtu=True)
         mock_histogram.labels.assert_called_with(provider_type=self.ocp_provider.type)
         observe_args = mock_histogram.labels.return_value.observe.call_args
         self.assertIsNotNone(observe_args, "observe() was never called on RTU_MARKUP_DURATION")
