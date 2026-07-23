@@ -10,7 +10,7 @@ alwaysApply: false
 
 Use `log_json()` for consistent, parseable logs:
 ```python
-from koku.log import log_json
+from api.common import log_json
 
 # ✅ GOOD
 LOG.info(log_json(
