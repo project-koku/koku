@@ -6,11 +6,16 @@ import logging
 from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
+from django.db.models import Case
+from django.db.models import DecimalField
 from django.db.models import OuterRef
 from django.db.models import Subquery
+from django.db.models import Value
+from django.db.models import When
 from django.db.models.functions import ExtractMonth
 from django.db.models.functions import ExtractYear
 
+from api.currency.currencies import get_enabled_currency_codes
 from api.currency.exceptions import ExchangeRateNotFound
 from api.currency.models import ExchangeRateDictionary
 from cost_models.models import MonthlyExchangeRate
@@ -36,6 +41,34 @@ def exchange_dictionary(rates):
     else:
         current_data.currency_exchange_dictionary = exchange_data
         current_data.save()
+
+
+def build_exchange_rate_case(cost_units_key, target_currency, exchange_rates, base_currencies=None):
+    """Build a Case/When annotation for flag-off currency conversion.
+
+    Limits When clauses to enabled (or provided) base currencies that exist in
+    ``exchange_rates``, so report SQL does not grow with every ISO code stored
+    in ExchangeRateDictionary.
+
+    Requires tenant schema context when ``base_currencies`` is omitted (same as
+    ``get_enabled_currency_codes()``).
+
+    Args:
+        cost_units_key: ORM field name for the row's base currency column.
+        target_currency: Currency code to convert to (e.g. "USD").
+        exchange_rates: Nested dict from ExchangeRateDictionary
+            ``{base: {target: rate, ...}, ...}``.
+        base_currencies: Optional iterable of base codes. Defaults to the
+            tenant's enabled currency codes.
+    """
+    if base_currencies is None:
+        base_currencies = get_enabled_currency_codes()
+    whens = [
+        When(**{cost_units_key: code, "then": Value(exchange_rates.get(code, {}).get(target_currency))})
+        for code in base_currencies
+        if code in exchange_rates
+    ]
+    return Case(*whens, default=1, output_field=DecimalField())
 
 
 def build_monthly_rate_annotation(base_currency, target_currency):
