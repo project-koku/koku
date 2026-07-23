@@ -1,6 +1,9 @@
 # Koku Ecosystem – AI Agent Guide
 
 Slim always-on index. Load deeper docs only when the task needs them.
+Always-on companion: [`CLAUDE.md`](CLAUDE.md) — dev commands, project layout, PR workflow,
+feature flags, change checklists.
+
 Follow precisely: never take shortcuts, never weaken assertions, never skip steps to make tests pass.
 
 > **Versions:** Check `Pipfile`, `go.mod`, and `package.json` — do not rely on version numbers in docs.
@@ -9,18 +12,9 @@ Follow precisely: never take shortcuts, never weaken assertions, never skip step
 
 ## Quick Reference
 
+Agent-specific defaults below. Dev stack, project layout, and commands: [`CLAUDE.md`](CLAUDE.md).
+
 **Test schema:** `org1234567` | **Test account:** `10001` | **Test org_id:** `1234567`
-
-```bash
-# On-prem (OCP only, faster)
-ONPREM=True docker compose up -d db valkey koku-server masu-server koku-worker koku-beat
-
-# SaaS (all providers, Trino)
-make docker-up-min-trino
-
-# Tests
-pipenv run tox -- koku.masu.test.path.to.test_module
-```
 
 **Identity header (base64):**
 
@@ -36,19 +30,14 @@ with schema_context(self.schema):
     rows = OCPUsageLineItemDailySummary.objects.filter(...)
 ```
 
-**SQL template directories** — [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc), [`.cursor/rules/sql-templates.mdc`](.cursor/rules/sql-templates.mdc):
-
-| Directory | Mode | Purpose |
-|-----------|------|---------|
-| `masu/database/sql/` | Both | UI summaries, tags, cost model ops |
-| `masu/database/trino_sql/` | SaaS | Trino aggregation over Parquet |
-| `masu/database/self_hosted_sql/` | On-prem | PostgreSQL parallel to `trino_sql/` |
+**SQL templates / dual paths** — [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc),
+[`.cursor/rules/sql-templates.mdc`](.cursor/rules/sql-templates.mdc), [`CLAUDE.md`](CLAUDE.md) Key rules.
 
 ---
 
 ## Critical Constraints
 
-1. **Dual execution paths** — cloud (Trino + PostgreSQL) and on-prem (PostgreSQL only). SQL changes often need both `trino_sql/` and `self_hosted_sql/`.
+1. **Dual execution paths** — cloud (Trino + PostgreSQL) and on-prem (PostgreSQL only). See on-prem vs SaaS links above and [`CLAUDE.md`](CLAUDE.md).
 2. **Multi-tenancy** — `reporting` and `cost_models` require `schema_context` / `tenant_context`. Public models (`api`, `sources`) do not.
 3. **OCI removed** — do not implement OCI support.
 4. **Feature flags** — gate risky pipeline/SQL changes only when required ([`CLAUDE.md`](CLAUDE.md)).
@@ -92,10 +81,7 @@ Load the doc or rule **before** editing when the task matches:
 
 **Always:** Fix root causes; mock at import location; read production code before changing tests/SQL; verify DB state before changing assertions.
 
-**PR titles:** `[ISSUE_KEY] Short description` or description only if no issue key.
-
-**Commits:** imperative mood, first line under 72 chars; reference issue when known
-(e.g. `COST-1234: Add MIG slice support`). PR workflow and feature flags: [`CLAUDE.md`](CLAUDE.md).
+**PR workflow and commits:** [`CLAUDE.md`](CLAUDE.md).
 
 ---
 
