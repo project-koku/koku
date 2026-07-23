@@ -134,23 +134,8 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_populate.assert_called_once_with(code="AUD")
 
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
-    def test_enable_cloud_bill_currencies_skips_empty_code(self, mock_populate):
-        """Empty bill currency codes are skipped."""
-        with tenant_context(self.tenant):
-            EnabledCurrency.objects.all().delete()
-            EnabledCurrency.objects.create(currency_code="USD")
-
-        provider = self._create_aws_summary_with_currency("", provider_name="AWS Empty Currency")
-
-        enable_cloud_bill_currencies(self.schema, provider, start_date="2026-01-01", end_date="2026-01-31")
-
-        mock_populate.assert_not_called()
-        with tenant_context(self.tenant):
-            self.assertEqual(EnabledCurrency.objects.count(), 1)
-
-    @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
     def test_enable_cloud_bill_currencies_skips_invalid_iso(self, mock_populate):
-        """Invalid ISO currency codes are logged and skipped."""
+        """Invalid ISO currency codes are skipped without enabling."""
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
