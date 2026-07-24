@@ -13,7 +13,7 @@ from rest_framework import serializers
 
 from api.common import error_obj
 from api.common import log_json
-from api.currency.currencies import CURRENCY_CHOICES
+from api.currency.currencies import CurrencyField
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
@@ -95,7 +95,7 @@ class TieredRateSerializer(serializers.Serializer):
 
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     usage = serializers.DictField(required=False)
-    unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
+    unit = CurrencyField(enabled_only=False)
 
     def validate_value(self, value):
         """Check that value is a positive value."""
@@ -133,10 +133,10 @@ class TagRateValueSerializer(serializers.Serializer):
     DECIMALS = ("value", "usage_start", "usage_end")
 
     tag_value = serializers.CharField(max_length=100)
-    unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
+    unit = CurrencyField(enabled_only=False)
     usage = serializers.DictField(required=False)
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
-    description = serializers.CharField(allow_blank=True, max_length=500)
+    description = serializers.CharField(allow_blank=True, max_length=500, required=False)
     default = serializers.BooleanField()
 
     def validate_value(self, value):
@@ -213,7 +213,6 @@ class RateSerializer(serializers.Serializer):
     DECIMALS = ("value", "usage_start", "usage_end")
     RATE_TYPES = ("tiered_rates", "tag_rates")
 
-    rate_id = serializers.UUIDField(required=False, allow_null=True)
     custom_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
     metric = serializers.DictField(required=True)
     cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
@@ -377,9 +376,6 @@ class RateSerializer(serializers.Serializer):
             "metric": {"name": rate_obj.get("metric", {}).get("name")},
             "description": rate_obj.get("description", ""),
         }
-
-        if "rate_id" in rate_obj:
-            out["rate_id"] = rate_obj["rate_id"]
         if "custom_name" in rate_obj:
             out["custom_name"] = rate_obj["custom_name"]
 
@@ -405,24 +401,17 @@ class RateSerializer(serializers.Serializer):
     def to_internal_value(self, data):
         """Convert the JSON representation of rate to DB representation.
 
-        Validates rate_id and custom_name via their declared fields, then
-        returns the original data dict with the metric normalized. We cannot
-        call super().to_internal_value() because validate_cost_type has a
-        non-standard signature (2 args) that DRF's field-level validation
-        would call incorrectly.
+        Silently strips rate_id (internal enrichment field) that the UI may
+        round-trip back. We cannot call super().to_internal_value() because
+        validate_cost_type has a non-standard signature (2 args) that DRF's
+        field-level validation would call incorrectly.
         """
-        errors = {}
-        for field_name in ("rate_id", "custom_name"):
-            value = data.get(field_name)
-            if value is not None:
-                try:
-                    self.fields[field_name].run_validation(value)
-                except serializers.ValidationError as e:
-                    errors[field_name] = e.detail
-        if errors:
-            raise serializers.ValidationError(errors)
-        metric = data.get("metric", {})
-        new_metric = {"name": metric.get("name")}
+        data.pop("rate_id", None)
+        custom_name = data.get("custom_name")
+        if custom_name is not None and len(custom_name) > 50:
+            raise serializers.ValidationError({"custom_name": "Ensure this field has no more than 50 characters."})
+        metric = data.get("metric") or {}
+        new_metric = {"name": metric.get("name") if isinstance(metric, dict) else None}
         data["metric"] = new_metric
         return data
 
@@ -462,7 +451,7 @@ class CostModelSerializer(BaseSerializer):
 
     distribution_info = DistributionSerializer(required=False)
 
-    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
+    currency = CurrencyField(required=False, enabled_only=True)
 
     price_list_uuids = serializers.ListField(child=serializers.UUIDField(), required=False)
 
@@ -613,7 +602,7 @@ class CostModelSerializer(BaseSerializer):
                 tag_rates.append(rate)
         if tag_rates:
             CostModelSerializer._validate_one_unique_tag_key_per_metric_per_cost_type(tag_rates)
-        explicit_names = [r.get("custom_name") for r in validated_rates if r.get("custom_name")]
+        explicit_names = [r.get("custom_name") for r in rates if r.get("custom_name")]
         dupes = {n for n in explicit_names if explicit_names.count(n) > 1}
         if dupes:
             raise serializers.ValidationError(
@@ -707,12 +696,11 @@ class CostModelSerializer(BaseSerializer):
             source_type = SOURCE_TYPE_MAP[source_type]
         rep["source_type"] = source_type
 
-        rep["source_uuids"] = rep.get("provider_uuids", [])
-        if rep.get("provider_uuids"):
-            del rep["provider_uuids"]
-        cm_uuid = cost_model_obj.uuid
-        source_uuids = CostModelManager(cm_uuid).get_provider_names_uuids()
-        rep.update({"sources": source_uuids})
+        manager = CostModelManager()
+        manager._model = cost_model_obj
+        sources = manager.get_provider_names_uuids()
+        rep["source_uuids"] = [source["uuid"] for source in sources]
+        rep["sources"] = sources
 
         price_list_maps = cost_model_obj.price_list_maps.all()
         rep["price_lists"] = [
@@ -720,6 +708,10 @@ class CostModelSerializer(BaseSerializer):
                 "uuid": str(m.price_list.uuid),
                 "name": m.price_list.name,
                 "priority": m.priority,
+                "version": m.price_list.version,
+                "enabled": m.price_list.enabled,
+                "effective_start_date": m.price_list.effective_start_date.isoformat(),
+                "effective_end_date": m.price_list.effective_end_date.isoformat(),
             }
             for m in price_list_maps
         ]

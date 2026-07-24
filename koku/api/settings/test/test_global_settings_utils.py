@@ -48,7 +48,7 @@ class GetDataRetentionMonthsTest(MasuTestCase):
         self.assertEqual(result, 18)
 
     def test_env_var_takes_precedence_over_db(self):
-        """Env var set + DB row → env var value."""
+        """Env var set to non-default + DB row → env var value."""
         with schema_context(self.schema):
             TenantSettings.objects.create(data_retention_months=18)
         with patch.dict(os.environ, {"RETAIN_NUM_MONTHS": "36"}):
@@ -56,10 +56,28 @@ class GetDataRetentionMonthsTest(MasuTestCase):
         self.assertEqual(result, 36)
 
     def test_env_var_takes_precedence_over_default(self):
-        """Env var set + no DB row → env var value."""
+        """Env var set to non-default + no DB row → env var value."""
         with patch.dict(os.environ, {"RETAIN_NUM_MONTHS": "10"}):
             result = get_data_retention_months(self.schema)
         self.assertEqual(result, 10)
+
+    def test_env_var_default_value_falls_through_to_db(self):
+        """Env var set to DEFAULT_RETAIN_NUM_MONTHS + DB row → DB value (COST-7728)."""
+        from koku.settings import DEFAULT_RETAIN_NUM_MONTHS
+
+        with schema_context(self.schema):
+            TenantSettings.objects.create(data_retention_months=12)
+        with patch.dict(os.environ, {"RETAIN_NUM_MONTHS": str(DEFAULT_RETAIN_NUM_MONTHS)}):
+            result = get_data_retention_months(self.schema)
+        self.assertEqual(result, 12)
+
+    def test_env_var_default_value_falls_through_to_config(self):
+        """Env var set to DEFAULT_RETAIN_NUM_MONTHS + no DB row → Config default (COST-7728)."""
+        from koku.settings import DEFAULT_RETAIN_NUM_MONTHS
+
+        with patch.dict(os.environ, {"RETAIN_NUM_MONTHS": str(DEFAULT_RETAIN_NUM_MONTHS)}):
+            result = get_data_retention_months(self.schema)
+        self.assertEqual(result, Config.MASU_RETAIN_NUM_MONTHS)
 
     # ── R7: DB error handling ──────────────────────────────────
 

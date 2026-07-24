@@ -11,12 +11,11 @@ from botocore.exceptions import ClientError
 from django.conf import settings
 from django_tenants.utils import schema_context
 from requests.adapters import HTTPAdapter
-from requests.exceptions import HTTPError
-from requests.exceptions import RetryError
+from requests.exceptions import RequestException
 from urllib3.util.retry import Retry
 
 from api.common import log_json
-from api.currency.currencies import VALID_CURRENCIES
+from api.currency.currencies import is_valid_iso_currency
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
 from api.iam.models import Tenant
@@ -26,7 +25,10 @@ from api.utils import DateHelper
 from common.queues import DownloadQueue
 from common.queues import PriorityQueue
 from common.queues import SummaryQueue
+from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
+from cost_models.monthly_exchange_rate_utils import purge_expired_exchange_rates_for_all_tenants
 from koku import celery_app
+from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.notifications import NotificationService
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -69,6 +71,7 @@ def remove_expired_data(simulate=False):
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
     orchestrator.remove_expired_trino_partitions(simulate)
+    purge_expired_exchange_rates_for_all_tenants(simulate=simulate)
 
 
 @celery_app.task(name="masu.celery.tasks.purge_trino_files", queue=DEFAULT)
@@ -99,7 +102,7 @@ def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
         raise TypeError("purge_trino_files() %s", ", ".join(messages))
 
     if settings.SKIP_MINIO_DATA_DELETION:
-        LOG.info("Skipping purge_trino_files. MinIO in use.")
+        LOG.info("Skipping purge_trino_files. Local S4 data deletion disabled.")
         return
     else:
         message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
@@ -200,7 +203,7 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
         raise TypeError("delete_archived_data() %s", ", ".join(messages))
 
     if settings.SKIP_MINIO_DATA_DELETION:
-        LOG.info("Skipping delete_archived_data. MinIO in use.")
+        LOG.info("Skipping delete_archived_data. Local S4 data deletion disabled.")
         return
     else:
         message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
@@ -263,12 +266,8 @@ def autovacuum_tune_schemas():
         autovacuum_tune_schema.delay(schema_name)
 
 
-@celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
-def get_daily_currency_rates():
-    """Task to get latest daily conversion rates."""
-    rate_metrics = {}
-
-    url = settings.CURRENCY_URL
+def _fetch_and_store_exchange_rates(url):
+    """Fetch exchange rates from the configured URL. Returns rate_metrics dict (empty on failure)."""
     retries = Retry(
         total=5,
         allowed_methods={"GET"},
@@ -278,33 +277,64 @@ def get_daily_currency_rates():
     session = requests.Session()
     session.mount("https://", HTTPAdapter(max_retries=retries))
 
-    # Retrieve conversion rates from URL
     try:
         response = session.get(url)
         response.raise_for_status()
-    except (HTTPError, RetryError) as e:
+    except RequestException as e:
         LOG.error(f"Couldn't pull latest conversion rates from {url}")
         LOG.error(e)
+        return {}
 
-        return rate_metrics
+    try:
+        data = response.json()
+    except (ValueError, KeyError) as e:
+        LOG.error(f"Invalid or malformed response from {url}")
+        LOG.error(e)
+        return {}
 
-    data = response.json()
-
+    rate_metrics = {}
     rates = data["rates"]
-    # Update conversion rates in database
-    for curr_type in rates.keys():
-        if curr_type.upper() in VALID_CURRENCIES:
-            value = rates[curr_type]
-            try:
-                exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
-                LOG.info(f"Updating currency {curr_type} to {value}")
-            except ExchangeRates.DoesNotExist:
-                LOG.info(f"Creating the exchange rate {curr_type} to {value}")
-                exchange = ExchangeRates(currency_type=curr_type.lower())
-            rate_metrics[curr_type] = value
-            exchange.exchange_rate = value
-            exchange.save()
+    for curr_type, value in rates.items():
+        if not is_valid_iso_currency(curr_type):
+            LOG.warning(f"Skipping unsupported currency {curr_type}")
+            continue
+        if not value or value <= 0:
+            LOG.warning(f"Skipping currency {curr_type} with invalid rate {value}")
+            continue
+        try:
+            exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
+            LOG.info(f"Updating currency {curr_type} to {value}")
+        except ExchangeRates.DoesNotExist:
+            LOG.info(f"Creating the exchange rate {curr_type} to {value}")
+            exchange = ExchangeRates(currency_type=curr_type.lower())
+        rate_metrics[curr_type] = value
+        exchange.exchange_rate = value
+        exchange.save()
     exchange_dictionary(rate_metrics)
+    return rate_metrics
+
+
+@celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
+def get_daily_currency_rates():
+    """Fetch exchange rates when configured, then upsert/backfill MER per tenant."""
+    url = settings.CURRENCY_URL
+    if url:
+        rate_metrics = _fetch_and_store_exchange_rates(url)
+    else:
+        LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
+        rate_metrics = {}
+
+    for tenant in Tenant.objects.exclude(schema_name="public"):
+        try:
+            with schema_context(tenant.schema_name):
+                rates_changed = populate_dynamic_monthly_rates(backfill_past_months=True)
+                if rates_changed:
+                    invalidate_view_cache_for_tenant_and_all_source_types(tenant.schema_name)
+        except Exception as e:
+            LOG.error(
+                log_json(msg="Failed to populate monthly exchange rates", schema=tenant.schema_name, error=str(e))
+            )
+
     return rate_metrics
 
 

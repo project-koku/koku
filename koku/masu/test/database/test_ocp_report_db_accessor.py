@@ -39,7 +39,6 @@ from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageReportPeriod
-from reporting.provider.ocp.models import RatesToUsage
 
 LOG = logging.getLogger(__name__)
 
@@ -260,22 +259,26 @@ class OCPReportDBAccessorTest(MasuTestCase):
                                 entry.get("cost") or 0,
                             )
 
-                    RatesToUsage.objects.filter(cluster_id=self.cluster_id).delete()
+                    # Clean up Tag rows created by prior loop iterations to avoid polluting initial values.
+                    OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id, monthly_cost_type="Tag"
+                    ).delete()
 
                     acc.populate_tag_usage_costs(
                         infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
                     )
 
+                    labels_field = "volume_labels" if usage_fields[0] == "storage" else "pod_labels"
                     for value, rate in rate_costs.get(cost).get("app").items():
                         rtu_qset = (
-                            RatesToUsage.objects.filter(
+                            OCPUsageLineItemDailySummary.objects.filter(
                                 cluster_id=self.cluster_id,
                                 monthly_cost_type="Tag",
                                 cost_model_rate_type=usage_type,
-                                pod_labels__contains={"app": value},
+                                **{f"{labels_field}__contains": {"app": value}},
                             )
                             .values("usage_start")
-                            .annotate(cost=Sum("calculated_cost"))
+                            .annotate(cost=Sum(cost_term))
                         )
                         rtu_costs = {entry["usage_start"]: float(entry["cost"]) for entry in rtu_qset}
 
@@ -379,23 +382,27 @@ class OCPReportDBAccessorTest(MasuTestCase):
                                 entry.get("cost") or 0,
                             )
 
-                    RatesToUsage.objects.filter(cluster_id=self.cluster_id).delete()
+                    # Clean up Tag rows created by prior loop iterations to avoid polluting initial values.
+                    OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id, monthly_cost_type="Tag"
+                    ).delete()
 
                     acc.populate_tag_usage_default_costs(
                         infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
                     )
 
+                    labels_field = "volume_labels" if usage_fields[0] == "storage" else "pod_labels"
                     tag_values = ["banking", "mobile", "weather"]
                     for value in tag_values:
                         rtu_qset = (
-                            RatesToUsage.objects.filter(
+                            OCPUsageLineItemDailySummary.objects.filter(
                                 cluster_id=self.cluster_id,
                                 monthly_cost_type="Tag",
                                 cost_model_rate_type=usage_type,
-                                pod_labels__contains={"app": value},
+                                **{f"{labels_field}__contains": {"app": value}},
                             )
                             .values("usage_start")
-                            .annotate(cost=Sum("calculated_cost"))
+                            .annotate(cost=Sum(cost_term))
                         )
                         rtu_costs = {entry["usage_start"]: float(entry["cost"]) for entry in rtu_qset}
 
@@ -1586,6 +1593,35 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             mock_trino_exec.assert_called()
 
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data", wraps=pkgutil.get_data)
+    def test_populate_tag_based_costs_use_rtu(self, mock_get_data, mock_trino_exec, mock_trino_exists):
+        """Test that use_rtu=True selects the rates_to_usage SQL template variants."""
+        test_mapping = {
+            metric_constants.OCP_GPU_MONTH: [
+                {
+                    "rate_type": "Infrastructure",
+                    "tag_key": "nvidia",
+                    "value_rates": {"Tesla T4": 1000},
+                    "default_rate": 1000,
+                },
+            ]
+        }
+        with self.accessor as acc:
+            acc.populate_tag_based_costs(
+                self.start_date,
+                self.dh.this_month_end,
+                self.ocp_provider_uuid,
+                test_mapping,
+                {"cluster_id": "test", "cluster_alias": "test"},
+                use_rtu=True,
+            )
+        used_paths = [call_args.args[1] for call_args in mock_get_data.call_args_list]
+        self.assertTrue(used_paths)
+        for path in used_paths:
+            self.assertTrue(path.endswith("_rtu.sql"), f"expected rtu SQL file, got {path}")
+
     @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
@@ -1639,6 +1675,83 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         {"cluster_id": empty_cluster_id, "cluster_alias": None},
                     )
                     mock_trino_exec.assert_not_called()
+
+    def test_gpu_sql_template_includes_unmatched_models_with_zero_cost(self):
+        """COST-7243: GPU models without a matching rate must NOT be filtered out.
+
+        When value_rates is defined (per-model rates in the cost model) but a GPU
+        model has no matching entry, the SQL must still insert a row for it with
+        calculated_cost = 0.  Previously the template added a WHERE filter that
+        silently dropped those rows.
+        """
+        from jinjasql import JinjaSql
+
+        sql_template = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/monthly_cost_gpu.sql")
+        sql_template = sql_template.decode("utf-8")
+
+        params = {
+            "schema": "test_schema",
+            "cost_model_id": "00000000-0000-0000-0000-000000000001",
+            "report_period_id": 1,
+            "source_uuid": "00000000-0000-0000-0000-000000000002",
+            "start_date": "2024-01-01",
+            "end_date": "2024-01-31",
+            "year": "2024",
+            "month": "01",
+            "cluster_id": "'test-cluster'",
+            "cluster_alias": "'test-alias'",
+            "tag_key": "nvidia",
+            "rate_type": "'gpu_distributed'",
+            "metric_type": "'OCP_GPU_MONTH'",
+            "custom_name": "'custom'",
+            "amortized_denominator": 31,
+            "rate_uuid": "00000000-0000-0000-0000-000000000003",
+            # value_rates with one known model — other GPU models are unmatched
+            "value_rates": {"A100": 5000},
+            # no default_rate — this is the case that previously caused rows to vanish
+        }
+
+        rendered_sql, _ = JinjaSql(param_style="named").prepare_query(sql_template, params)
+
+        # gpu.gpu_model_name = 'A100' must appear exactly once: in the CASE WHEN expression.
+        # Any additional occurrence means the restrictive WHERE filter was not removed.
+        self.assertEqual(rendered_sql.count("gpu.gpu_model_name = 'A100'"), 1)
+        # The CASE must fall back to 0 for unmatched models (ELSE 0)
+        self.assertIn("ELSE 0", rendered_sql)
+
+    def test_self_hosted_gpu_sql_template_includes_unmatched_models_with_zero_cost(self):
+        """COST-7243: on-prem (self-hosted/PG) GPU template must not filter unmatched models."""
+        from jinjasql import JinjaSql
+
+        sql_template = pkgutil.get_data("masu.database", "self_hosted_sql/openshift/cost_model/monthly_cost_gpu.sql")
+        sql_template = sql_template.decode("utf-8")
+
+        params = {
+            "schema": "test_schema",
+            "cost_model_id": "00000000-0000-0000-0000-000000000001",
+            "report_period_id": 1,
+            "source_uuid": "00000000-0000-0000-0000-000000000002",
+            "start_date": "2024-01-01",
+            "end_date": "2024-01-31",
+            "year": "2024",
+            "month": "01",
+            "cluster_id": "'test-cluster'",
+            "cluster_alias": "'test-alias'",
+            "tag_key": "nvidia",
+            "rate_type": "'gpu_distributed'",
+            "metric_type": "'OCP_GPU_MONTH'",
+            "custom_name": "'custom'",
+            "amortized_denominator": 31,
+            "rate_uuid": "00000000-0000-0000-0000-000000000003",
+            "value_rates": {"A100": 5000},
+        }
+
+        rendered_sql, _ = JinjaSql(param_style="named").prepare_query(sql_template, params)
+
+        # gpu.gpu_model_name = 'A100' must appear exactly once: in the CASE WHEN expression.
+        self.assertEqual(rendered_sql.count("gpu.gpu_model_name = 'A100'"), 1)
+        # The CASE must fall back to 0 for unmatched models (ELSE 0)
+        self.assertIn("ELSE 0", rendered_sql)
 
 
 @override_settings(ONPREM=False)

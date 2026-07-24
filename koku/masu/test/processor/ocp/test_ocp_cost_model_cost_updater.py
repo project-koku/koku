@@ -46,8 +46,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         self.distribution_info = {"distribution_type": "cpu", "platform_cost": False, "worker_cost": False}
 
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
-    def test_update_markup_cost(self, mock_cost_accessor):
+    def test_update_markup_cost(self, mock_cost_accessor, _mock_markup_rtu):
         """Test that markup is calculated."""
         markup = {"value": 10, "unit": "percent"}
         markup_dec = Decimal(markup.get("value") / 100)
@@ -104,6 +105,47 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater._update_markup_cost(start_date, end_date)
 
         mock_markup.assert_not_called()
+
+    # TC-62 (COST-7249-P2GC-TP-001): markup RTU not called when no markup
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_update_markup_cost_no_markup_skips_rtu(self, mock_cost_accessor, mock_markup, mock_markup_rtu):
+        """BAC-16: Empty markup dict -> populate_markup_rates_to_usage NOT called."""
+        mock_cost_accessor.return_value.__enter__.return_value.markup = {}
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._update_markup_cost(self.dh.this_month_start, self.dh.this_month_end)
+        mock_markup.assert_not_called()
+        mock_markup_rtu.assert_not_called()
+
+    # TC-80 (COST-7249-P2GC-TP-001): markup RTU called after populate_markup_cost
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_update_markup_cost_calls_rtu_after_markup(self, mock_cost_accessor, mock_markup, mock_markup_rtu):
+        """BAC-16: populate_markup_rates_to_usage called after populate_markup_cost when use_rtu=True."""
+        markup = {"value": 10, "unit": "percent"}
+        mock_cost_accessor.return_value.__enter__.return_value.markup = markup
+        call_order = []
+        mock_markup.side_effect = lambda *a, **kw: call_order.append("markup")
+        mock_markup_rtu.side_effect = lambda *a, **kw: call_order.append("markup_rtu")
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._update_markup_cost(self.dh.this_month_start, self.dh.this_month_end, use_rtu=True)
+        mock_markup.assert_called_once()
+        mock_markup_rtu.assert_called_once()
+        self.assertEqual(call_order, ["markup", "markup_rtu"])
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_update_markup_cost_skips_rtu_when_flag_off(self, mock_cost_accessor, mock_markup, mock_markup_rtu):
+        """Legacy path: populate_markup_rates_to_usage is not called when use_rtu=False."""
+        markup = {"value": 10, "unit": "percent"}
+        mock_cost_accessor.return_value.__enter__.return_value.markup = markup
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._update_markup_cost(self.dh.this_month_start, self.dh.this_month_end, use_rtu=False)
+        mock_markup.assert_called_once()
+        mock_markup_rtu.assert_not_called()
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False)
@@ -261,7 +303,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         updater._load_rates(start_date)
-        updater._update_monthly_cost(start_date, end_date)
+        updater._update_monthly_cost(start_date, end_date, use_rtu=True)
         with self.accessor:
             rtu_rows = RatesToUsage.objects.filter(
                 cost_model_rate_type="Supplementary",
@@ -385,6 +427,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             rate_info_map=ANY,
             source_uuid=ANY,
             report_period_id=ANY,
+            use_rtu=ANY,
         )
 
     def test_delete_tag_usage_costs_no_report_period(self):
@@ -544,7 +587,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
                     self.assertEqual(pvc_line_items, 0)
 
-                updater._update_monthly_tag_based_cost(start_date, end_date)
+                updater._update_monthly_tag_based_cost(start_date, end_date, use_rtu=True)
 
                 with schema_context(self.schema):
                     node_rtu_rows = RatesToUsage.objects.filter(
@@ -594,7 +637,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
                     self.assertEqual(node_line_item_count, 0)
 
-                updater._update_node_hour_tag_based_cost(start_date, end_date)
+                updater._update_node_hour_tag_based_cost(start_date, end_date, use_rtu=True)
 
                 with schema_context(self.schema):
                     node_rtu_rows = RatesToUsage.objects.filter(

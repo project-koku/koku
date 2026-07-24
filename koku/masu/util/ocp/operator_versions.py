@@ -15,6 +15,8 @@ from packaging.version import Version
 
 OPERATOR_RELEASES = [
     # (version, downstream_commit, upstream_commit)
+    ("4.4.2", "cdd836a19466190844727ff8f71730cd39dc28b7", None),
+    ("4.4.1", "53d63c3aa6dc255ec8bc0cecf5d62c3a30066df3", "78eabeb962648926f98b4cc239a6f59541f001cd"),
     ("4.4.0", "74ab8043a31a07d831035d5233cce0e44f3fb082", "765fc5be236ca2ca2494b2e5ca57fbb93a94e943"),
     ("4.3.1", "ec11d7bddaa8ea3a980236b364780fed0cd2cb0f", "ec6bc48a434b78e21681233585fcb0f3b2dba223"),
     ("4.3.0", "078c8d706ff3bc4198d2364c6fad1e3f7074cbe8", "c78ce96835e6dd4430e9f75cc23e914af2b3706b"),

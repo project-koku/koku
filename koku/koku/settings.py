@@ -174,7 +174,9 @@ UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.j
 MAX_GROUP_BY = ENVIRONMENT.int("MAX_GROUP_BY_OVERRIDE", default=3)
 
 ### Currency URL
-CURRENCY_URL = ENVIRONMENT.get_value("CURRENCY_URL", default="https://open.er-api.com/v6/latest/USD")
+# Empty by default. SaaS sets this via app-interface / deploy parameters.
+# When unset, the daily get_daily_currency_rates Celery beat is not scheduled.
+CURRENCY_URL = (ENVIRONMENT.get_value("CURRENCY_URL", default="") or "").strip()
 
 ### End Middleware
 
@@ -240,7 +242,7 @@ REDIS_CONNECTION_POOL_KWARGS = {
     "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
 }
 if REDIS_SSL:
-    REDIS_SSL_CERT_REQS = ssl.CERT_REQUIRED
+    REDIS_SSL_CERT_REQS = ssl.CERT_REQUIRED if REDIS_SSL_CA_CERTS else ssl.CERT_NONE
     REDIS_CONNECTION_POOL_KWARGS["ssl_cert_reqs"] = REDIS_SSL_CERT_REQS
     if REDIS_SSL_CA_CERTS:
         REDIS_CONNECTION_POOL_KWARGS["ssl_ca_certs"] = REDIS_SSL_CA_CERTS
@@ -296,7 +298,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.api: {
@@ -310,7 +312,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.rbac: {
@@ -322,7 +324,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.worker: {

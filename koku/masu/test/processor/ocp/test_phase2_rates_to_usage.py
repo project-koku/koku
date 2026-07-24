@@ -16,9 +16,12 @@ Tier 4 (E2E): TestRTUCostBreakdownAPI
 drift5-sql: TestRTURateResolution
 R20: TestOrchestrationOrder
 """
+from decimal import Decimal
 from functools import wraps
+from unittest.mock import ANY
 from unittest.mock import patch
 
+from django.db.models import Sum
 from django.test import override_settings
 from django_tenants.utils import schema_context
 
@@ -28,7 +31,9 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.test import MasuTestCase
 from masu.util.common import SummaryRangeConfig
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import RatesToUsage
 
 # ---------------------------------------------------------------------------
 # Tier 1 — Unit Tests
@@ -534,7 +539,7 @@ class TestValidateRatesToUsage(_ReportPeriodMixin, MasuTestCase):
             )
         mock_execute.assert_called_once()
         args, kwargs = mock_execute.call_args
-        self.assertEqual(kwargs.get("operation"), "SELECT")
+        self.assertEqual(kwargs.get("operation"), "VALIDATION_QUERY")
 
     # TC-32: params include report_period_id
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
@@ -763,9 +768,9 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         self.assertNotIn("cluster_cost_per_hour", sql_params)
         self.assertNotIn("rate_type", sql_params)
 
-    # TC-55: Flag OFF overrides to RTU (Phase 3 SQL requires RTU pipeline)
+    # TC-55: Flag OFF runs legacy path — _update_usage_costs, no RTU insert or aggregate
     @_make_orchestration_patches(rtu_enabled=False)
-    def test_orchestration_overrides_to_rtu_when_flag_disabled(
+    def test_orchestration_uses_legacy_path_when_flag_disabled(
         self,
         mock_ff,
         mock_load,
@@ -778,13 +783,46 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         mock_monthly,
         mock_dist,
     ):
-        """Phase 3 SQL writes to rates_to_usage, so flag OFF still uses RTU pipeline."""
+        """Flag OFF: legacy direct-write path — _update_usage_costs runs, RTU insert and aggregate do not."""
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
-        mock_rtu.assert_called_once()
-        mock_dist.assert_called_once_with(sr)
-        mock_usage.assert_not_called()
+        mock_usage.assert_called_once()
+        mock_rtu.assert_not_called()
+        mock_agg.assert_not_called()
+
+    # TC-56: Flag OFF legacy ordering: usage -> monthly -> vm -> markup -> dist (no aggregate)
+    @_make_orchestration_patches(rtu_enabled=False)
+    def test_legacy_path_full_ordering(
+        self,
+        mock_ff,
+        mock_load,
+        mock_rtu,
+        mock_agg,
+        mock_vm,
+        mock_cleanup,
+        mock_usage,
+        mock_markup,
+        mock_monthly,
+        mock_dist,
+    ):
+        """Flag OFF: orchestration order is usage -> monthly -> vm -> markup -> dist, no aggregate."""
+        call_order = []
+        mock_usage.side_effect = lambda *a, **kw: call_order.append("usage")
+        mock_monthly.side_effect = lambda *a, **kw: call_order.append("monthly")
+        mock_vm.side_effect = lambda *a, **kw: call_order.append("vm")
+        mock_markup.side_effect = lambda *a, **kw: call_order.append("markup")
+        mock_dist.side_effect = lambda *a, **kw: call_order.append("dist")
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        sr = self._make_summary_range()
+        updater.update_summary_cost_model_costs(sr)
+
+        expected = ["usage", "monthly", "vm", "markup", "dist"]
+        self.assertEqual(call_order, expected, f"legacy path expected {expected}, got {call_order}")
+        mock_rtu.assert_not_called()
+        mock_agg.assert_not_called()
+        mock_markup.assert_called_with(ANY, ANY, use_rtu=False)
 
 
 class TestPartitionWiring(MasuTestCase):
@@ -892,6 +930,7 @@ class TestPurgeWiring(MasuTestCase):
         self.assertTrue(filter_call.called)
         table_names_arg = filter_call.call_args[1].get("partition_of_table_name__in")
         self.assertIn("rates_to_usage", table_names_arg)
+        self.assertIn("reporting_ocp_vm_summary_p", table_names_arg)
 
     # TC-52: rates_to_usage NOT in get_self_hosted_table_names (avoids duplicate)
     def test_rates_to_usage_not_in_self_hosted_names(self):
@@ -1297,10 +1336,12 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
     ):
         """R20: Phase 4 outer order is rtu -> monthly -> vm -> dist."""
         call_order = []
-        mock_rtu.side_effect = lambda *a: call_order.append("rtu")
-        mock_monthly.side_effect = lambda *a: call_order.append("monthly")
-        mock_vm.side_effect = lambda *a: call_order.append("vm")
-        mock_dist.side_effect = lambda *a: call_order.append("dist")
+        mock_rtu.side_effect = lambda *a, **kw: call_order.append("rtu")
+        mock_monthly.side_effect = lambda *a, **kw: call_order.append("monthly")
+        mock_vm.side_effect = lambda *a, **kw: call_order.append("vm")
+        mock_agg.side_effect = lambda *a, **kw: call_order.append("agg")
+        mock_markup.side_effect = lambda *a, **kw: call_order.append("markup")
+        mock_dist.side_effect = lambda *a, **kw: call_order.append("dist")
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
@@ -1326,12 +1367,23 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_monthly,
         mock_dist,
     ):
-        """R20: distribute_costs_and_update_ui_summary is invoked."""
+        """R20: _aggregate must run before _update_markup_cost (proxy for agg-before-tags)."""
+        call_order = []
+        mock_agg.side_effect = lambda *a, **kw: call_order.append("agg")
+        mock_markup.side_effect = lambda *a, **kw: call_order.append("markup")
+
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
 
-        mock_dist.assert_called_once_with(sr)
+        self.assertIn("agg", call_order)
+        self.assertIn("markup", call_order)
+        self.assertLess(
+            call_order.index("agg"),
+            call_order.index("markup"),
+            "R20: aggregation must run before markup (and therefore before tags)",
+        )
+        mock_markup.assert_called_with(ANY, ANY, use_rtu=True)
 
     # TC-R20-03: cleanup called when cost_model_id is None; monthly/vm/dist still run
     @_make_orchestration_patches(rtu_enabled=True)
@@ -1781,3 +1833,379 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
                 rp.derived_cost_datetime,
                 "derived_cost_datetime should be set after pipeline run",
             )
+# ---------------------------------------------------------------------------
+# Phase 2 Gap Closure — Markup RTU Tests (COST-7249-P2GC-TP-001)
+# IEEE 829 Test Plan: docs/tests/COST-7249/phase2-gap-closure-test-plan.md
+# ---------------------------------------------------------------------------
+
+
+class TestPopulateMarkupRatesToUsage(_ReportPeriodMixin, MasuTestCase):
+    """Test populate_markup_rates_to_usage accessor method (BAC-16, BAC-19).
+
+    Tier 1 (unit) tests mock _prepare_and_execute_raw_sql_query to verify
+    SQL wiring without executing real SQL.
+    """
+
+    # TC-60: SQL params correct
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_markup_rtu_sql_params_correct(self, mock_execute):
+        """BAC-16: populate_markup_rates_to_usage passes all required SQL params."""
+        dh = DateHelper()
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_markup_rates_to_usage(
+                dh.this_month_start.date(),
+                dh.this_month_end.date(),
+                self.ocp_provider_uuid,
+                self.ocp_cluster_id,
+                "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+            )
+        mock_execute.assert_called_once()
+        args, kwargs = mock_execute.call_args
+        sql_params = args[2]
+        required_keys = (
+            "schema",
+            "start_date",
+            "end_date",
+            "source_uuid",
+            "cluster_id",
+            "cost_model_id",
+        )
+        for key in required_keys:
+            self.assertIn(key, sql_params, f"Missing SQL param: {key}")
+        self.assertNotIn("report_period_id", sql_params, "report_period_id is read from source table, not passed")
+        self.assertEqual(sql_params["source_uuid"], self.ocp_provider_uuid)
+        self.assertEqual(sql_params["start_date"], dh.this_month_start.date())
+        self.assertEqual(sql_params["end_date"], dh.this_month_end.date())
+        self.assertEqual(sql_params["cost_model_id"], "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+
+    # TC-61: operation is INSERT
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_markup_rtu_operation_is_insert(self, mock_execute):
+        """BAC-16: SQL execution uses operation='INSERT'."""
+        dh = DateHelper()
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_markup_rates_to_usage(
+                dh.this_month_start.date(),
+                dh.this_month_end.date(),
+                self.ocp_provider_uuid,
+                self.ocp_cluster_id,
+                "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+            )
+        args, kwargs = mock_execute.call_args
+        self.assertEqual(args[0], "rates_to_usage")
+        self.assertEqual(kwargs.get("operation"), "INSERT")
+
+    # TC-66: SQL file loaded from correct path
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
+    def test_markup_rtu_sql_file_loaded(self, mock_pkgutil, mock_execute):
+        """BAC-16: SQL loaded from insert_markup_rates_to_usage.sql."""
+        mock_pkgutil.return_value = b"SELECT 1"
+        dh = DateHelper()
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_markup_rates_to_usage(
+                dh.this_month_start.date(),
+                dh.this_month_end.date(),
+                self.ocp_provider_uuid,
+                self.ocp_cluster_id,
+                "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+            )
+        mock_pkgutil.assert_called_once_with(
+            "masu.database",
+            "sql/openshift/cost_model/usage_rates/insert_markup_rates_to_usage.sql",
+        )
+
+    # TC-67: SQL template contains metric_type='markup' in DELETE (scoped delete)
+    def test_markup_rtu_sql_contains_scoped_delete(self):
+        """BAC-19: DELETE predicate includes metric_type = 'markup' to avoid deleting usage RTU rows."""
+        import pkgutil
+
+        sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/usage_rates/insert_markup_rates_to_usage.sql",
+        )
+        sql_text = sql.decode("utf-8")
+        delete_start = sql_text.index("DELETE FROM")
+        insert_start = sql_text.index("INSERT INTO")
+        delete_block = sql_text[delete_start:insert_start]
+        self.assertIn("metric_type", delete_block, "DELETE must filter by metric_type")
+        self.assertIn("'markup'", delete_block, "DELETE must scope to metric_type = 'markup'")
+        self.assertNotIn(
+            "report_period_id", delete_block, "DELETE must NOT filter by report_period_id (avoid global wipe)"
+        )
+
+
+class TestMarkupRTUIntegration(_ReportPeriodMixin, MasuTestCase):
+    """Integration tests for markup RTU rows (BAC-16, BAC-17, BAC-18, BAC-19, BAC-20).
+
+    Tier 2 tests run real SQL against the test database. They rely on
+    ModelBakeryDataLoader having seeded OCP-on-Prem with a cost model
+    and run update_cost_model_costs at DB creation.
+    """
+
+    def _seed_markup_rtu(self):
+        """Ensure infrastructure_raw_cost is set on some rows, then run markup pipeline."""
+        rp = self._get_report_period()
+        start_date = rp.report_period_start.date()
+        end_date = DateHelper().month_end(rp.report_period_start).date()
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not updater._cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        with schema_context(self.schema):
+            OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                cost_model_rate_type__isnull=True,
+            ).update(
+                infrastructure_raw_cost=Decimal("10.00"),
+                infrastructure_project_raw_cost=Decimal("5.00"),
+            )
+        updater._load_rates(start_date)
+        updater._update_usage_rates_to_usage(start_date, end_date)
+        updater._update_markup_cost(start_date, end_date, use_rtu=True)
+        return start_date, end_date
+
+    # TC-70: markup RTU rows exist after pipeline
+    def test_markup_rtu_rows_exist_after_pipeline(self):
+        """BAC-16: RatesToUsage has rows with metric_type='markup' after markup update."""
+        start_date, end_date = self._seed_markup_rtu()
+        with schema_context(self.schema):
+            count = RatesToUsage.objects.filter(
+                metric_type="markup",
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+            ).count()
+        self.assertGreater(count, 0, "Expected markup RTU rows after pipeline run")
+
+    # TC-71: label_hash is SHA-256 (64-char hex), not MD5 (32-char)
+    def test_markup_rtu_label_hash_is_sha256(self):
+        """BAC-17 / FedRAMP SC-13: label_hash is 64-char SHA-256 hex, not 32-char MD5."""
+        start_date, end_date = self._seed_markup_rtu()
+        with schema_context(self.schema):
+            row = RatesToUsage.objects.filter(
+                metric_type="markup",
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                label_hash__isnull=False,
+            ).first()
+        self.assertIsNotNone(row, "Seed succeeded but no markup RTU rows with label_hash — pipeline regression")
+        self.assertEqual(len(row.label_hash), 64, f"Expected 64-char SHA-256 hash, got {len(row.label_hash)} chars")
+
+    # TC-72: markup RTU rows do NOT affect daily summary cost_model_* columns
+    def test_markup_rtu_no_aggregation_impact(self):
+        """BAC-18 / FedRAMP SI-7: Aggregation after markup RTU insert does not change cost_model_* columns."""
+        rp = self._get_report_period()
+        start_date = rp.report_period_start.date()
+        end_date = DateHelper().month_end(rp.report_period_start).date()
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not updater._cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        updater._load_rates(start_date)
+        updater._update_usage_rates_to_usage(start_date, end_date)
+        updater._aggregate_rates_to_daily_summary(start_date, end_date)
+
+        with schema_context(self.schema):
+            before_sums = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                cost_model_rate_type__in=["Infrastructure", "Supplementary"],
+            ).aggregate(
+                cpu=Sum("cost_model_cpu_cost"),
+                mem=Sum("cost_model_memory_cost"),
+                vol=Sum("cost_model_volume_cost"),
+            )
+
+        updater._update_markup_cost(start_date, end_date, use_rtu=True)
+        updater._aggregate_rates_to_daily_summary(start_date, end_date)
+
+        with schema_context(self.schema):
+            after_sums = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                cost_model_rate_type__in=["Infrastructure", "Supplementary"],
+            ).aggregate(
+                cpu=Sum("cost_model_cpu_cost"),
+                mem=Sum("cost_model_memory_cost"),
+                vol=Sum("cost_model_volume_cost"),
+            )
+
+        for key in ("cpu", "mem", "vol"):
+            before = before_sums[key] or Decimal("0")
+            after = after_sums[key] or Decimal("0")
+            self.assertAlmostEqual(
+                float(before),
+                float(after),
+                places=6,
+                msg=f"cost_model_{key}_cost changed after markup RTU insert + re-aggregation",
+            )
+
+    # TC-73: DELETE only removes markup rows, not usage rows
+    def test_markup_rtu_delete_scoped_to_markup(self):
+        """BAC-19: Re-running markup RTU insert does not delete usage RTU rows."""
+        start_date, end_date = self._seed_markup_rtu()
+        with schema_context(self.schema):
+            usage_count_before = RatesToUsage.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                metric_type__in=["cpu", "memory", "storage"],
+            ).count()
+        self.assertGreater(usage_count_before, 0, "Seed succeeded but no usage RTU rows — pipeline regression")
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        updater._update_markup_cost(start_date, end_date, use_rtu=True)
+
+        with schema_context(self.schema):
+            usage_count_after = RatesToUsage.objects.filter(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                metric_type__in=["cpu", "memory", "storage"],
+            ).count()
+        self.assertEqual(
+            usage_count_before,
+            usage_count_after,
+            "Usage RTU rows were deleted by markup RTU re-insert",
+        )
+
+    # TC-74: markup RTU row fields are correct
+    def test_markup_rtu_fields_correct(self):
+        """BAC-16: Markup RTU rows have rate_id=None, custom_name='Markup', etc."""
+        start_date, end_date = self._seed_markup_rtu()
+        with schema_context(self.schema):
+            row = RatesToUsage.objects.filter(
+                metric_type="markup",
+                source_uuid=self.ocp_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+            ).first()
+        self.assertIsNotNone(row, "Seed succeeded but no markup RTU rows — pipeline regression")
+        self.assertIsNone(row.rate_id, "Markup rows should have rate_id=None")
+        self.assertEqual(row.custom_name, "Markup")
+        self.assertEqual(row.cost_model_rate_type, "Infrastructure")
+        self.assertIsNotNone(row.calculated_cost)
+        self.assertNotEqual(row.calculated_cost, Decimal("0"))
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 Gap Closure — Validation Bugfix Tests (COST-7249-P2GC-TP-001)
+# ---------------------------------------------------------------------------
+
+
+class TestValidateRatesToUsageFix(_ReportPeriodMixin, MasuTestCase):
+    """Test validate_rates_against_daily_summary returns results (BAC-24, BAC-25)."""
+
+    # TC-65: validate_rates_against_daily_summary uses VALIDATION_QUERY operation
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_validation_uses_validation_query_operation(self, mock_execute):
+        """BAC-24: operation='VALIDATION_QUERY' is passed so cursor.fetchall() returns results."""
+        dh = DateHelper()
+        with OCPReportDBAccessor(self.schema) as accessor:
+            rp = self._get_report_period(accessor)
+            accessor.validate_rates_against_daily_summary(
+                dh.this_month_start.date(),
+                dh.this_month_end.date(),
+                self.ocp_provider_uuid,
+                rp.id,
+            )
+        mock_execute.assert_called_once()
+        args, kwargs = mock_execute.call_args
+        self.assertEqual(
+            kwargs.get("operation"),
+            "VALIDATION_QUERY",
+            "validate_rates_against_daily_summary must use operation='VALIDATION_QUERY' to return results",
+        )
+
+    # TC-75: validate_rates_against_daily_summary returns a list (not None)
+    def test_validation_returns_list(self):
+        """BAC-25: validate_rates_against_daily_summary returns a list, not None."""
+        dh = DateHelper()
+        with OCPReportDBAccessor(self.schema) as accessor:
+            rp = self._get_report_period(accessor)
+            result = accessor.validate_rates_against_daily_summary(
+                dh.this_month_start.date(),
+                dh.this_month_end.date(),
+                self.ocp_provider_uuid,
+                rp.id,
+            )
+        self.assertIsNotNone(result, "validate_rates_against_daily_summary should return a list, not None")
+        self.assertIsInstance(result, list, "Result should be a list of diff rows")
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 Gap Closure — Prometheus Instrumentation Tests (COST-7249-P2GC-TP-001)
+# ---------------------------------------------------------------------------
+
+
+class TestPrometheusMetricRegistration(MasuTestCase):
+    """Test that RTU Prometheus metrics are registered (BAC-21, BAC-22)."""
+
+    # TC-63: RTU metrics exist in prometheus_stats module
+    def test_rtu_metrics_registered(self):
+        """BAC-21: RTU Prometheus metrics are importable from prometheus_stats."""
+        from masu import prometheus_stats
+
+        for metric_name in (
+            "RTU_POPULATE_DURATION",
+            "RTU_AGGREGATE_DURATION",
+            "RTU_MARKUP_DURATION",
+        ):
+            self.assertTrue(
+                hasattr(prometheus_stats, metric_name),
+                f"Missing metric {metric_name} in prometheus_stats",
+            )
+
+    # TC-64: RTU metrics have correct label set (provider_type only)
+    def test_rtu_metrics_labels(self):
+        """BAC-22: RTU metrics use only ['provider_type'] label to avoid cardinality explosion."""
+        from masu import prometheus_stats
+
+        for metric_name in ("RTU_POPULATE_DURATION", "RTU_AGGREGATE_DURATION", "RTU_MARKUP_DURATION"):
+            metric = getattr(prometheus_stats, metric_name)
+            self.assertEqual(
+                metric._labelnames,
+                ("provider_type",),
+                f"{metric_name} should have exactly ['provider_type'] labels",
+            )
+
+
+class TestPrometheusTimingWrappers(_ReportPeriodMixin, MasuTestCase):
+    """Test that timing wrappers observe Prometheus metrics (BAC-23)."""
+
+    # TC-82: _update_usage_rates_to_usage observes RTU_POPULATE_DURATION
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.RTU_POPULATE_DURATION")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_usage_rates_to_usage")
+    def test_rtu_populate_observes_histogram(self, mock_populate, mock_histogram):
+        """BAC-23: _update_usage_rates_to_usage records duration in RTU_POPULATE_DURATION."""
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not updater._cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        dh = DateHelper()
+        updater._load_rates(dh.this_month_start.date())
+        updater._update_usage_rates_to_usage(dh.this_month_start.date(), dh.this_month_end.date())
+        mock_histogram.labels.assert_called_with(provider_type=self.ocp_provider.type)
+        observe_args = mock_histogram.labels.return_value.observe.call_args
+        self.assertIsNotNone(observe_args, "observe() was never called on RTU_POPULATE_DURATION")
+        observed_duration = observe_args[0][0]
+        self.assertGreaterEqual(observed_duration, 0, "Duration must be non-negative")
+
+    # TC-83: _update_markup_cost observes RTU_MARKUP_DURATION
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.RTU_MARKUP_DURATION")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_markup_rtu_observes_histogram(self, mock_cost_accessor, _mock_rtu, mock_histogram):
+        """BAC-23: _update_markup_cost records duration in RTU_MARKUP_DURATION."""
+        mock_cost_accessor.return_value.__enter__.return_value.markup = {"value": 10, "unit": "percent"}
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        dh = DateHelper()
+        updater._update_markup_cost(dh.this_month_start, dh.this_month_end, use_rtu=True)
+        mock_histogram.labels.assert_called_with(provider_type=self.ocp_provider.type)
+        observe_args = mock_histogram.labels.return_value.observe.call_args
+        self.assertIsNotNone(observe_args, "observe() was never called on RTU_MARKUP_DURATION")
+        observed_duration = observe_args[0][0]
+        self.assertGreaterEqual(observed_duration, 0, "Duration must be non-negative")
