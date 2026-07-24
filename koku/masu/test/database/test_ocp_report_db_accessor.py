@@ -39,7 +39,6 @@ from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageReportPeriod
-from reporting.provider.ocp.models import RatesToUsage
 
 LOG = logging.getLogger(__name__)
 
@@ -287,7 +286,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
                                 entry.get("cost") or 0,
                             )
 
-                    RatesToUsage.objects.filter(cluster_id=self.cluster_id).delete()
+                    # Clean up Tag rows created by prior loop iterations to avoid polluting initial values.
+                    OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id, monthly_cost_type="Tag"
+                    ).delete()
 
                     acc.populate_tag_usage_costs(
                         infrastructure_rates,
@@ -297,16 +299,17 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         self.cluster_id,
                     )
 
+                    labels_field = "volume_labels" if usage_fields[0] == "storage" else "pod_labels"
                     for value, rate in rate_costs.get(cost).get("app").items():
                         rtu_qset = (
-                            RatesToUsage.objects.filter(
+                            OCPUsageLineItemDailySummary.objects.filter(
                                 cluster_id=self.cluster_id,
                                 monthly_cost_type="Tag",
                                 cost_model_rate_type=usage_type,
-                                pod_labels__contains={"app": value},
+                                **{f"{labels_field}__contains": {"app": value}},
                             )
                             .values("usage_start")
-                            .annotate(cost=Sum("calculated_cost"))
+                            .annotate(cost=Sum(cost_term))
                         )
                         rtu_costs = {entry["usage_start"]: float(entry["cost"]) for entry in rtu_qset}
 
@@ -429,7 +432,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
                                 entry.get("cost") or 0,
                             )
 
-                    RatesToUsage.objects.filter(cluster_id=self.cluster_id).delete()
+                    # Clean up Tag rows created by prior loop iterations to avoid polluting initial values.
+                    OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id, monthly_cost_type="Tag"
+                    ).delete()
 
                     acc.populate_tag_usage_default_costs(
                         infrastructure_rates,
@@ -439,17 +445,18 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         self.cluster_id,
                     )
 
+                    labels_field = "volume_labels" if usage_fields[0] == "storage" else "pod_labels"
                     tag_values = ["banking", "mobile", "weather"]
                     for value in tag_values:
                         rtu_qset = (
-                            RatesToUsage.objects.filter(
+                            OCPUsageLineItemDailySummary.objects.filter(
                                 cluster_id=self.cluster_id,
                                 monthly_cost_type="Tag",
                                 cost_model_rate_type=usage_type,
-                                pod_labels__contains={"app": value},
+                                **{f"{labels_field}__contains": {"app": value}},
                             )
                             .values("usage_start")
-                            .annotate(cost=Sum("calculated_cost"))
+                            .annotate(cost=Sum(cost_term))
                         )
                         rtu_costs = {entry["usage_start"]: float(entry["cost"]) for entry in rtu_qset}
 
@@ -1772,6 +1779,36 @@ class OCPReportDBAccessorTest(MasuTestCase):
         "masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema",
         return_value=False,
     )
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data", wraps=pkgutil.get_data)
+    def test_populate_tag_based_costs_use_rtu(self, mock_get_data, mock_trino_exec, mock_trino_exists):
+        """Test that use_rtu=True selects the rates_to_usage SQL template variants."""
+        test_mapping = {
+            metric_constants.OCP_GPU_MONTH: [
+                {
+                    "rate_type": "Infrastructure",
+                    "tag_key": "nvidia",
+                    "value_rates": {"Tesla T4": 1000},
+                    "default_rate": 1000,
+                },
+            ]
+        }
+        with self.accessor as acc:
+            acc.populate_tag_based_costs(
+                self.start_date,
+                self.dh.this_month_end,
+                self.ocp_provider_uuid,
+                test_mapping,
+                {"cluster_id": "test", "cluster_alias": "test"},
+                use_rtu=True,
+            )
+        used_paths = [call_args.args[1] for call_args in mock_get_data.call_args_list]
+        self.assertTrue(used_paths)
+        for path in used_paths:
+            self.assertTrue(path.endswith("_rtu.sql"), f"expected rtu SQL file, got {path}")
+
+    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_gpu_cost_model_disabled_by_unleash(self, mock_trino_exec, mock_trino_exists, mock_feature_flag):

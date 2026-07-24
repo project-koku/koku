@@ -1157,7 +1157,7 @@ def remove_stale_tenants():
 @celery_app.task(name="masu.processor.tasks.validate_daily_data", queue=PriorityQueue.DEFAULT)
 def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_cloud_type=None, context=None):
     # collect and validate cost metrics between postgres and trino tables.
-    if is_validation_enabled(schema):
+    if is_validation_enabled(schema) and not settings.ONPREM:
         data_validator = DataValidator(schema, start_date, end_date, provider_uuid, ocp_on_cloud_type, context)
         data_validator.check_data_integrity()
     else:

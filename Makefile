@@ -76,7 +76,7 @@ help:
 	@echo "--- Commands using local services ---"
 	@echo "  delete-testing                        Delete stale files/subdirectories from the testing directory."
 	@echo "  delete-trino                          Delete stale files/subdirectories from the trino data directory."
-	@echo "  delete-trino-data                     Delete old trino data from the Minio koku-bucket bucket."
+	@echo "  delete-trino-data                     Delete old trino data from the local S4 koku-bucket."
 	@echo "  delete-redis-cache                    Flushes cache keys inside of the redis container."
 	@echo "  delete-valkey-cache                   Flushes cache keys inside of the valkey container."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
@@ -186,7 +186,7 @@ delete-trino:
 	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/trino/logs/*
 
 delete-trino-data:
-	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/minio/koku-bucket/*
+	$(DOCKER) volume rm -f koku-s4-data 2>/dev/null || true
 
 delete-redis-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
@@ -351,25 +351,16 @@ docker-build:
 	$(DOCKER_COMPOSE) build --build-arg TARGETARCH=$(shell uname -m | sed s/x86_64/amd64/) koku-base
 
 
-docker-up: docker-build
-	$(DOCKER_COMPOSE) up -d minio trino hive-metastore
-	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
-	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
+docker-up: docker-build trino-stack-up
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
-docker-up-no-build: docker-up-db
-	$(DOCKER_COMPOSE) up -d minio trino hive-metastore
-	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
-	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
+docker-up-no-build: docker-up-db trino-stack-up
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 # basic dev environment targets
 docker-up-min: docker-build docker-up-min-no-build
 
-docker-up-min-no-build: docker-host-dir-setup docker-up-db
-	$(DOCKER_COMPOSE) up -d minio trino hive-metastore
-	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
-	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
+docker-up-min-no-build: docker-host-dir-setup docker-up-db trino-stack-up
 	$(DOCKER_COMPOSE) up -d koku-server masu-server
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-worker
 
@@ -392,6 +383,14 @@ docker-up-db:
 	$(DOCKER_COMPOSE) up -d unleash
 	$(PYTHON) dev/scripts/setup_unleash.py
 
+.PHONY: trino-stack-up
+trino-stack-up:
+	$(DOCKER_COMPOSE) up -d s4 s4-path-proxy
+	$(DOCKER_COMPOSE) up -d --wait --no-deps s4 s4-path-proxy
+	$(DOCKER_COMPOSE) run --rm --no-deps create-s3-buckets
+	$(DOCKER_COMPOSE) up -d hive-metastore trino
+	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
+
 docker-up-kafka:
 	$(DOCKER_COMPOSE) up -d kafka-zookeeper kafka
 	@echo "Waiting for Kafka to be ready..."
@@ -405,7 +404,7 @@ docker-up-onprem: docker-build docker-up-onprem-no-build
 docker-up-onprem-no-build: docker-host-dir-setup docker-up-db docker-up-kafka
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-server masu-server koku-worker koku-beat koku-listener sources-client
 	@echo "Stopping SaaS-only services..."
-	-$(DOCKER_COMPOSE) stop trino hive-metastore minio subs-worker create-parquet-bucket 2>/dev/null || true
+	-$(DOCKER_COMPOSE) stop trino hive-metastore s4 s4-path-proxy subs-worker create-s3-buckets 2>/dev/null || true
 	@echo "On-prem environment ready (core + kafka, no Trino/S3)"
 
 docker-up-db-monitor:
@@ -431,23 +430,17 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_vortex_api_tests.sh
 
-CONTAINER_DIRS = $(TOPDIR)/dev/containers/postgresql/data $(TOPDIR)/dev/containers/minio $(TOPDIR)/dev/containers/trino/{data,logs}
+CONTAINER_DIRS = $(TOPDIR)/dev/containers/postgresql/data $(TOPDIR)/dev/containers/trino/{data,logs}
 docker-host-dir-setup:
 	@mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
-	@chown $(USER_ID):$(GROUP_ID) $(CONTAINER_DIRS)
-	@chmod 0755 $(CONTAINER_DIRS)
+	@chown $(USER_ID):$(GROUP_ID) $(CONTAINER_DIRS) 2>/dev/null || true
+	@chmod 0755 $(CONTAINER_DIRS) 2>/dev/null || true
 
 docker-trino-setup: delete-trino docker-host-dir-setup
 
-docker-trino-up: docker-trino-setup
-	$(DOCKER_COMPOSE) up --build -d minio trino hive-metastore
-	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
-	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
+docker-trino-up: docker-trino-setup trino-stack-up
 
-docker-trino-up-no-build: docker-trino-setup
-	$(DOCKER_COMPOSE) up -d minio trino hive-metastore
-	$(DOCKER_COMPOSE) up -d --wait --no-deps minio
-	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
+docker-trino-up-no-build: docker-trino-setup trino-stack-up
 
 docker-trino-ps:
 	$(DOCKER_COMPOSE) ps trino hive-metastore
