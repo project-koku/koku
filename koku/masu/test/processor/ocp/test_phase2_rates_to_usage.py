@@ -19,8 +19,8 @@ R20: TestOrchestrationOrder
 import pkgutil
 from decimal import Decimal
 from functools import wraps
-from unittest.mock import MagicMock
 from unittest.mock import ANY
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from django.db.models import Sum
