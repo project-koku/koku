@@ -1,14 +1,16 @@
 # Risk: Ungated Markup RTU Write vs Migration 0352
 
-**Date:** 2026-07-22
-**Related:** [`0352_rtu_schema_improvements.py`](../../../koku/reporting/migrations/0352_rtu_schema_improvements.py), [`rtu-smart-revert-handoff.md`](./rtu-smart-revert-handoff.md)
+**Date:** 2026-07-22 (updated 2026-07-24)
+**Related:** [`0352_rtu_schema_improvements.py`](../../../koku/reporting/migrations/0352_rtu_schema_improvements.py) (no-op), [`rtu_schema_improvements_operations.py`](../../../koku/reporting/migrations/rtu_schema_improvements_operations.py) (DDL for follow-up 0353), [`rtu-smart-revert-handoff.md`](./rtu-smart-revert-handoff.md)
 **Bug:** `populate_markup_rates_to_usage()` ran whenever markup + `cost_model_id` were present, even when Unleash `cost-management.backend.cost_breakdown_rates_to_usage` was OFF.
 
 ---
 
 ## Summary
 
-The ungated markup → `rates_to_usage` insert is **unlikely to make migration 0352 fail** (FK validation). The real risk is **operational**: 0352 assumes a quiet/empty RTU table under flag OFF (smart-revert precondition), and ungated markup violates that after truncate and after migrate until a `use_rtu` gate ships.
+The ungated markup → `rates_to_usage` insert is **unlikely to make the RTU schema migration fail** (FK validation). The real risk is **operational**: the migration assumes a quiet/empty RTU table under flag OFF (smart-revert precondition), and ungated markup violates that after truncate and after migrate until a `use_rtu` gate ships.
+
+**Decision (2026-07-24):** Stage already ran the original 0352 DDL. Prod has not. Rather than pausing workers for a destructive prod migrate, **0352 is a no-op in prod** and the original DDL moves to **0353**, released only after the markup RTU gate ([PR #6207](https://github.com/project-koku/koku/pull/6207)) is merged.
 
 ---
 
@@ -36,7 +38,9 @@ Markup RTU rows:
 
 Daily-summary markup columns remain correct via the ORM path regardless.
 
-### What 0352 migration does (order matters)
+### What the RTU schema migration does (order matters)
+
+Operations live in [`rtu_schema_improvements_operations.py`](../../../koku/reporting/migrations/rtu_schema_improvements_operations.py) and run via **0353** (not 0352):
 
 1. `TRUNCATE TABLE rates_to_usage`
 2. Drop legacy single-column FK indexes; add explicit `ratestousage_rate_id_idx` / `ratestousage_cost_model_id_idx`
@@ -45,14 +49,14 @@ Daily-summary markup columns remain correct via the ORM path regardless.
 5. `RTU_FK_CASCADE_SQL` — rewrite rate/cost_model FKs to `ON DELETE CASCADE`; **add** FKs for `report_period_id` and `source_uuid` if missing
 6. Drop duplicate auto-named indexes
 
-Migration header prerequisite: smart revert + Unleash flag OFF (table draining / empty).
+Migration header prerequisite: smart revert + Unleash flag OFF (table draining / empty) + markup RTU gate merged.
 
-### Current Production State (commit: f623509)
+### Environment state
 
-- **Not** yet on smart revert (`#6172`) or 0352 (`#6177`).
-- Cost pipeline is still **always-RTU** (flag OFF only warns and still uses RTU).
-- Markup RTU writes are consistent with that always-RTU world.
-- Risk analysis below applies mainly when **smart revert is live (real flag gate) and 0352 runs with flag OFF**, while markup remains ungated — or when 0352 runs with workers still writing RTU.
+| Environment | 0352 (no-op) | RTU DDL applied? |
+|-------------|--------------|------------------|
+| **Stage** | Original 0352 DDL already ran | Yes (via old 0352) |
+| **Prod** | Will record no-op 0352 only | No — waits for 0353 |
 
 ---
 
@@ -93,15 +97,15 @@ Until `RTU_FK_CASCADE_SQL`, the DB still has 0348-style constraints:
 
 General orphan RTU rows (not markup-shaped) could still fail `ADD CONSTRAINT` — that is not the markup pattern.
 
-### 3. Inserts after 0352 has completed (flag OFF, markup still ungated)
+### 3. Inserts after migration has completed (flag OFF, markup still ungated)
 
 | Effect | Details |
-|--------|---------|
+|--------|-----------|
 | Inserts succeed | New indexes/FKs accept normal markup rows. |
 | Invariant broken | Flag OFF no longer means “no RTU writes.” |
 | Daily summary / legacy costs | Unaffected (ORM markup + agg excludes markup). |
 | Breakdown UI | Low blast radius today if breakdown populate-from-RTU is not wired. |
-| CostModel / provider deletes | **Safer** after 0352 (`ON DELETE CASCADE`) than under older `SET_NULL` / missing FKs. |
+| CostModel / provider deletes | **Safer** after migration (`ON DELETE CASCADE`) than under older `SET_NULL` / missing FKs. |
 
 **Severity:** Medium (ops / precondition), Low (user-facing cost correctness).
 
@@ -109,28 +113,44 @@ General orphan RTU rows (not markup-shaped) could still fail `ADD CONSTRAINT` �
 
 - Not a dual-write of markup into daily-summary cost-model columns via aggregation.
 - Not an AWS/Azure/GCP issue (OCP RTU only).
-- Not a high-likelihood hard failure mode for 0352’s DDL under the markup insert pattern.
+- Not a high-likelihood hard failure mode for the RTU DDL under the markup insert pattern.
 
 ---
 
 # Release Strategy
 
-## Step One: Release Smart Revert
+Migrations run as separate Clowder jobs. Each release pipeline creates a `koku-db-migrate-cji*` pod that runs `migrate_schemas` before app pods roll out.
 
-We can release the commit prior the migration:
+## Phase A — Smart revert + no-op 0352 (prod, no worker pause)
+
+### Step A1: Release smart revert
+
+Release through the commit prior to the RTU schema migration work, then include the no-op 0352 change:
+
 ```
-5ae49278a2b382f06e7d0059f3708845f6ce7f67
+5ae49278a2b382f06e7d0059f3708845f6ce7f67  (smart revert, #6172)
++ no-op 0352_rtu_schema_improvements.py
 ```
 
-Note: Double check to make sure there are no other migrations that need to be run between our last release and this release.
+Double-check no other migrations sit between the last prod release and this one.
 
-## Step Two: Turn off workers
+### Step A2: Run migrate job (prod)
 
-After step one is complete, all of the cost model pathways should be disabled except for the markup cost. In order to prevent markup cost rows from being inserted into the RTU table, we will also have to pause workers prior to running the migration.
+The `koku-db-migrate-cji*` job records `0352_rtu_schema_improvements` in `django_migrations` with **no DDL**. Workers stay up; RTU schema on prod remains at the 0348/0351 shape until Phase B.
 
-RTU writes (including markup) only happen in `masu.processor.tasks.update_cost_model_costs` → `CostModelCostUpdater`. That task runs on **CostModelQueue** (summary → OCP chain) and **PriorityQueue** (cost-model API create/update via `CostModelManager`).
+**Stage:** Already has the original 0352 DDL applied. Deploying no-op 0352 code does not re-run the migration (already recorded). No action needed.
 
-### Must pause (RTU writers)
+---
+
+## Phase B — Markup gate + real RTU DDL (0353)
+
+Ship only after [PR #6207](https://github.com/project-koku/koku/pull/6207) (markup RTU Unleash gate) is merged **and** 0353 is added importing [`get_rtu_schema_improvement_operations()`](../../../koku/reporting/migrations/rtu_schema_improvements_operations.py).
+
+### Step B1: Pause RTU writers
+
+RTU writes (including markup, until #6207 is live) only happen in `masu.processor.tasks.update_cost_model_costs` → `CostModelCostUpdater`. That task runs on **CostModelQueue** (summary → OCP chain) and **PriorityQueue** (cost-model API create/update via `CostModelManager`).
+
+#### Must pause (RTU writers)
 
 | Deployment | Queue |
 |------------|--------|
@@ -143,18 +163,30 @@ RTU writes (including markup) only happen in `masu.processor.tasks.update_cost_m
 | `clowder-worker-summary` (+ `-xl`, `-penalty`) | `summary*` |
 | `clowder-worker-ocp` (+ `-xl`, `-penalty`) | `ocp*` |
 
-The `ocp_cloud_parquet_summary_updater` calls `_update_markup_cost` directly which is why we would have to pause the summary/ocp workers.
+The `ocp_cloud_parquet_summary_updater` calls `_update_markup_cost` directly, which is why summary/ocp workers must pause. Priority workers must pause because cost model API updates enqueue RTU work.
 
-We pause the priority workers because they trigger when customers make cost model updates.
-
-### Safe to leave up
+#### Safe to leave up
 
 `download*`, `refresh*`, `hcs`, `subs_*`, API / `masu-server`, and beat do not insert into `rates_to_usage`. Still avoid calling the Masu `update_cost_model_costs` endpoint during the migrate window.
 
-## Step Three: Migration
+### Step B2: Run migrate job (0353)
 
-Run the migration in production, we have disabled the workers that could potentially write to the RTU table as the migration is running
+Release with `0353_rtu_schema_improvements.py`. The migrate job runs the full RTU DDL on **prod**.
 
-## Step Four: Release & Spin up workers
+| Environment | Expected outcome |
+|-------------|------------------|
+| **Prod** | Full DDL runs (truncate, indexes, CASCADE FKs). |
+| **Stage** | Schema already matches old 0352. **Fake 0353** on stage: `migrate_schemas --fake reporting 0353` (or equivalent tenant-scoped fake) so the job records 0353 without re-running DDL. |
 
-After the migration is complete, we can release [the fix](https://github.com/project-koku/koku/pull/6207) for the missed markup & spin the workers back up to start processing data again.
+### Step B3: Release app + spin up workers
+
+After the migrate job succeeds on prod, roll out the app release (markup gate + any other changes) and restore paused workers.
+
+---
+
+## Quick reference
+
+| Phase | Prod migrate job | Worker pause? | RTU DDL on prod |
+|-------|------------------|---------------|-----------------|
+| A (no-op 0352) | Records 0352, no-op | No | No |
+| B (0353 + #6207) | Runs 0353 DDL | Yes | Yes |
