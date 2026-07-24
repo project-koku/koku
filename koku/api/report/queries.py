@@ -487,7 +487,8 @@ class ReportQueryHandler(QueryHandler):
                             exclusion.add(exclude_cat_filter)
                     exclude_filter = QueryFilter(parameter=item, **filt)
                     exclusion.add(exclude_filter)
-            if access:
+            # Exact cluster lookups skip RBAC access filters for single-cluster resolution.
+            if access and not (q_param == "cluster" and exact_list):
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
         composed_exclusions = exclusion.compose(logical_operator="or")
