@@ -59,7 +59,7 @@ class CurrencyField(serializers.CharField):
         if not is_valid_iso_currency(value):
             raise serializers.ValidationError(f'"{value}" is not a valid ISO 4217 currency.')
         if self.enabled_only and value not in get_enabled_currency_codes():
-            raise serializers.ValidationError(f'"{value}" is not an enabled currency..')
+            raise serializers.ValidationError(f'"{value}" is not an enabled currency.')
         return value
 
 

@@ -5,7 +5,6 @@
 """Updates report summary tables in the database with charge information."""
 import logging
 import time
-import uuid
 from decimal import Decimal
 
 from django.utils import timezone
@@ -532,7 +531,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             report_accessor.populate_usage_rates_to_usage(
                 start_date,
                 end_date,
-                uuid.UUID(self._provider_uuid),
+                self._provider.uuid,
                 report_period_id,
                 self._cost_model_id,
             )
@@ -690,7 +689,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 accessor.populate_markup_rates_to_usage(
                     start_date,
                     end_date,
-                    uuid.UUID(self._provider_uuid),
+                    self._provider.uuid,
                     self._cluster_id,
                     self._cost_model_id,
                 )
@@ -929,7 +928,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     accessor.populate_markup_rates_to_usage(
                         month_range.start_date,
                         month_range.end_date,
-                        uuid.UUID(self._provider_uuid),
+                        self._provider.uuid,
                         self._cluster_id,
                         self._cost_model_id,
                     )
