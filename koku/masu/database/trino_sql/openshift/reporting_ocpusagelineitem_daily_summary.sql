@@ -307,6 +307,7 @@ FROM (
         AND li.interval_start >= {{start_date}}
         AND li.interval_start < date_add('day', 1, {{end_date}})
         AND li.node != ''
+        AND li.namespace NOT LIKE '%-archived'
     GROUP BY date(li.interval_start),
         li.namespace,
         li.node,
