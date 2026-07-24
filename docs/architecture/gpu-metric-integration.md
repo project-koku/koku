@@ -209,7 +209,7 @@ GPU costs also surface implicitly in every other OCP cost report (compute, clust
 
 ## Dual-Path SQL Inventory
 
-Per [`AGENTS.md`](../../AGENTS.md) and [`CLAUDE.md`](../../CLAUDE.md), every Trino template has a self-hosted PostgreSQL counterpart at the same relative path. GPU-related files:
+Per [`AGENTS.md`](../../AGENTS.md), [`.cursor/rules/onprem-vs-saas.mdc`](../../.cursor/rules/onprem-vs-saas.mdc), and [`CLAUDE.md`](../../CLAUDE.md), every Trino template has a self-hosted PostgreSQL counterpart at the same relative path. GPU-related files:
 
 | Relative path (under `masu/database/`) | Trino (SaaS) | Self-hosted (on-prem) |
 |---|---|---|

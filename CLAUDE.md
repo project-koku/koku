@@ -30,6 +30,9 @@ docs/specs/openapi.json     # OpenAPI spec (main API)
 
 ## PR workflow and releases
 
+**Commit messages:** imperative mood; first line under 72 characters; reference
+Jira/GitHub issue when known (e.g. `COST-1234: Add MIG slice support`).
+
 1. Open PRs as **DRAFT**.  Mark **Ready for Review** when done.
 2. Add the `smoke-test` label to kick off IQE smoke tests.
 3. Smoke tests **must pass** before merging (unless the PR only touches

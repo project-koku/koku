@@ -96,7 +96,15 @@ When generating test files, follow these Koku conventions:
 - **Mock at import location**, not definition: `@patch("masu.database.ocp_report_db_accessor.trino_table_exists")`
 - **Tenant model queries** must be wrapped in `with schema_context(self.schema):`
 
-For deeper architecture context, read `AGENTS.md` from the repo via `gh api repos/project-koku/koku/contents/AGENTS.md` when needed.
+For deeper context, read `AGENTS.md` and `docs/agent/testing.md`:
+
+- **In a local checkout:** [`AGENTS.md`](../../AGENTS.md), [`docs/agent/testing.md`](../../docs/agent/testing.md)
+- **Otherwise (automation / no checkout):**
+  ```bash
+  gh api repos/project-koku/koku/contents/AGENTS.md --jq '.content' | base64 -d
+  gh api repos/project-koku/koku/contents/docs/agent/testing.md --jq '.content' | base64 -d
+  ```
+  For architecture design: [`docs/architecture/README.md`](../../docs/architecture/README.md) or the same `gh api` pattern under `docs/architecture/README.md`.
 
 ---
 
