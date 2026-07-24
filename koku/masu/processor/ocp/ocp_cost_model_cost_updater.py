@@ -848,10 +848,15 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
 
         return Decimal(str(rate)), True
 
-    def distribute_costs_and_update_ui_summary(self, summary_range: SummaryRangeConfig):
-        """Distribute per-rate costs, aggregate, apply markup, and update UI summaries.
+    def distribute_costs_and_update_ui_summary(self, summary_range: SummaryRangeConfig, use_rtu: bool = False):
+        """Distribute costs, optionally aggregate RTU, apply markup, and update UI summaries.
 
-        Phase 4 order per month: markup(daily_summary) -> distribute -> aggregate -> markup(full) -> UI summary.
+        When use_rtu is True, Phase 4 order per month is:
+        markup(daily_summary) -> per-rate distribute -> aggregate -> markup(full) -> UI summary.
+
+        When use_rtu is False (safe default), uses legacy distribution SQL that
+        writes directly to daily summary; skips RTU partition ensure, aggregate,
+        and markup RTU inserts.
 
         Markup must run on daily_summary BEFORE distribution because the
         distribution SQL reads infrastructure_markup_cost from daily_summary.
@@ -861,18 +866,24 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         running it again after aggregation is safe.
 
         RTU markup rows (populate_markup_rates_to_usage) are created only in
-        the post-aggregation markup call to avoid double-counting in the
-        distribution source CTEs.
+        the post-aggregation markup call (use_rtu=True) to avoid double-counting
+        in the distribution source CTEs.
 
         Distribution runs per-month so report_period_id resolves correctly for
         each month in a multi-month range.
 
         All accessor calls within a single month iteration share one
         OCPReportDBAccessor to avoid redundant database connections.
+
+        Args:
+            summary_range: Date range configuration for distribution and UI summary.
+            use_rtu: When True, run the RTU distribute/aggregate/markup path.
+                Caller should pass the result of a single Unleash flag check.
         """
         markup_pct = self._get_markup_percentage()
         cost_model_currency = self._cost_model.currency if self._cost_model else "USD"
-        self._ensure_rates_to_usage_partitions(summary_range.start_date, summary_range.end_date)
+        if use_rtu:
+            self._ensure_rates_to_usage_partitions(summary_range.start_date, summary_range.end_date)
         for month_range in summary_range.iter_summary_range_by_month():
             infra_to_cm_rate, has_infra_currency = self._get_infra_to_cm_rate(
                 cost_model_currency, month_range.start_date, month_range.end_date
@@ -893,9 +904,10 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     infra_to_cm_rate=infra_to_cm_rate,
                     cost_model_currency=cost_model_currency,
                     cost_model_id=self._cost_model_id,
+                    use_rtu=use_rtu,
                 )
                 report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, month_range.start_date)
-                if self._cost_model_id and report_period:
+                if use_rtu and self._cost_model_id and report_period:
                     t0 = time.monotonic()
                     accessor.aggregate_rates_to_daily_summary(
                         month_range.start_date,
@@ -912,7 +924,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                         month_range.end_date,
                         self._cluster_id,
                     )
-                if self._cost_model_id:
+                if use_rtu and self._cost_model_id:
                     t0 = time.monotonic()
                     accessor.populate_markup_rates_to_usage(
                         month_range.start_date,
@@ -974,6 +986,10 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             )
         )
 
+        rtu_enabled = is_feature_flag_enabled_by_schema(
+            self._schema, COST_BREAKDOWN_RTU_UNLEASH_FLAG, dev_fallback=False
+        )
+
         for month_range in summary_range.iter_summary_range_by_month():
             start_date = month_range.start_date
             end_date = month_range.end_date
@@ -985,10 +1001,6 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 or self._supplementary_rates
                 or self._tag_infra_rates
                 or self._tag_supplementary_rates
-            )
-
-            rtu_enabled = is_feature_flag_enabled_by_schema(
-                self._schema, COST_BREAKDOWN_RTU_UNLEASH_FLAG, dev_fallback=False
             )
 
             if rtu_enabled:
@@ -1060,4 +1072,4 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
 
             self._update_markup_cost(start_date, end_date, use_rtu=rtu_enabled)
 
-        self.distribute_costs_and_update_ui_summary(summary_range)
+        self.distribute_costs_and_update_ui_summary(summary_range, use_rtu=rtu_enabled)

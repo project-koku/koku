@@ -669,9 +669,15 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         infra_to_cm_rate: Decimal = Decimal(1),
         cost_model_currency: str = "USD",
         cost_model_id=None,
+        use_rtu: bool = False,
     ) -> SummaryRangeConfig:
         """
         Populate the distribution cost model options.
+
+        When ``use_rtu`` is True (Unleash RTU flag ON), uses per-rate
+        ``*_rtu.sql`` templates that read/write ``rates_to_usage``.
+        When False (safe default), uses legacy ``distribute_*_cost.sql``
+        templates that write directly to the daily summary.
 
         args:
             start_date (datetime, str): The start_date to calculate monthly_cost.
@@ -680,29 +686,31 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             provider_uuid (str): The str of the provider UUID
             infra_to_cm_rate: Exchange rate from infra raw_currency to cost_model_currency.
             cost_model_currency: The cost model's currency code.
+            use_rtu: When True, use per-rate RTU distribution SQL.
         """
 
+        path_suffix = "_rtu" if use_rtu else ""
         distribution_configs = {
             metric_constants.PLATFORM_COST: DistributionConfig(
-                sql_file="distribute_platform_cost_per_rate.sql",
+                sql_file=f"distribute_platform_cost{path_suffix}.sql",
                 cost_model_rate_type="platform_distributed",
             ),
             metric_constants.WORKER_UNALLOCATED: DistributionConfig(
-                sql_file="distribute_worker_cost_per_rate.sql",
+                sql_file=f"distribute_worker_cost{path_suffix}.sql",
                 cost_model_rate_type="worker_distributed",
             ),
             metric_constants.STORAGE_UNATTRIBUTED: DistributionConfig(
-                sql_file="distribute_unattributed_storage_per_rate.sql",
+                sql_file=f"distribute_unattributed_storage_cost{path_suffix}.sql",
                 cost_model_rate_type="unattributed_storage",
                 distribute_by_default=True,
             ),
             metric_constants.NETWORK_UNATTRIBUTED: DistributionConfig(
-                sql_file="distribute_unattributed_network_per_rate.sql",
+                sql_file=f"distribute_unattributed_network_cost{path_suffix}.sql",
                 cost_model_rate_type="unattributed_network",
                 distribute_by_default=True,
             ),
             metric_constants.GPU_UNALLOCATED: DistributionConfig(
-                sql_file="distribute_unallocated_gpu_per_rate.sql",
+                sql_file=f"distribute_unallocated_gpu_cost{path_suffix}.sql",
                 cost_model_rate_type="gpu_distributed",
                 query_type="trino",
                 required_table="openshift_gpu_usage_line_items_daily",
@@ -712,8 +720,12 @@ AND (month = {{month_no_zero}} OR month = {{month}})
 
         table_name = self._table_map["line_item_daily_summary"]
         dh = DateHelper()
-        report_period_for_temp_tables = self.report_periods_for_provider_uuid(provider_uuid, summary_range.start_date)
-        if report_period_for_temp_tables:
+        # Per-rate SQL shares denominator/namespace_usage temp tables (Option B).
+        if use_rtu and (
+            report_period_for_temp_tables := self.report_periods_for_provider_uuid(
+                provider_uuid, summary_range.start_date
+            )
+        ):
             self._create_distribution_temp_tables(
                 {
                     "schema": self.schema,
@@ -785,7 +797,8 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             sql_params["report_period_id"] = report_period.id
 
             self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
-            self._delete_distributed_rtu_rows(sql_params, cost_model_key)
+            if use_rtu:
+                self._delete_distributed_rtu_rows(sql_params, cost_model_key)
             populate = distribution_info.get(cost_model_key, config.distribute_by_default)
             if not populate:
                 continue

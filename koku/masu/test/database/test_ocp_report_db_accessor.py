@@ -1112,6 +1112,58 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # Should not raise an exception when no report period exists
             acc.populate_distributed_cost_sql(summary_range, self.provider_uuid, {"platform_cost": True})
 
+    @patch("masu.util.ocp.common.trino_table_exists", return_value=False)
+    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_distributed_cost_sql_uses_legacy_when_use_rtu_false(
+        self, mock_trino_execute, mock_sql_execute, mock_data_get, mock_table_exists
+    ):
+        """Flag OFF (use_rtu=False): legacy distribute_*_cost.sql, no per-rate/RTU helpers."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+        mock_data_get.return_value = b"SELECT 1;"
+
+        with (
+            self.accessor as acc,
+            patch("masu.database.ocp_report_db_accessor.DateHelper") as mock_dh_class,
+        ):
+            mock_dh = Mock()
+            mock_dh.parse_to_date.return_value = start_date
+            mock_dh.now_utc = self.dh.now.replace(day=15)
+            mock_dh_class.return_value = mock_dh
+
+            summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
+            acc.populate_distributed_cost_sql(
+                summary_range,
+                self.ocp_test_provider_uuid,
+                {"worker_cost": True, "platform_cost": True},
+                use_rtu=False,
+            )
+
+        requested = [c.args[1] for c in mock_data_get.call_args_list]
+        self.assertIn(
+            "sql/openshift/cost_model/distribute_cost/distribute_platform_cost.sql",
+            requested,
+        )
+        self.assertIn(
+            "sql/openshift/cost_model/distribute_cost/distribute_worker_cost.sql",
+            requested,
+        )
+        self.assertNotIn(
+            "sql/openshift/cost_model/distribute_cost/distribute_platform_cost_per_rate.sql",
+            requested,
+        )
+        self.assertNotIn(
+            "sql/openshift/cost_model/distribute_cost/create_distribution_temp_tables.sql",
+            requested,
+        )
+        self.assertNotIn(
+            "sql/openshift/cost_model/distribute_cost/delete_distributed_rates_to_usage.sql",
+            requested,
+        )
+        mock_trino_execute.assert_not_called()
+
     def _setup_distributed_cost_sql_mocks(self, start_date, end_date):
         """Helper to set up common mocks for distributed cost SQL tests."""
         masu_database = "masu.database"
@@ -1216,6 +1268,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                             "platform_cost": True,
                             "gpu_unallocated": True,
                         },
+                        use_rtu=True,
                     )
 
                     # Validate that standard SQL distributions (Platform/Worker) still run
@@ -1269,6 +1322,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 summary_range,
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+                use_rtu=True,
             )
             gpu_call = call(
                 masu_database,
@@ -1317,6 +1371,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 summary_range,
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+                use_rtu=True,
             )
 
             # GPU should NOT run — already finalized
@@ -1370,6 +1425,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 summary_range,
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+                use_rtu=True,
             )
 
             # GPU SHOULD run — not yet finalized
@@ -1408,6 +1464,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 summary_range,
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+                use_rtu=True,
             )
             # Natural path (is_current_month=False) should ALWAYS run GPU distribution
             gpu_call = call(
@@ -1455,6 +1512,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 summary_range,
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+                use_rtu=True,
             )
             gpu_call = call(
                 masu_database,
@@ -1490,6 +1548,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 summary_range,
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+                use_rtu=True,
             )
             gpu_call = call(
                 masu_database,
@@ -1540,6 +1599,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 summary_range,
                 self.ocp_test_provider_uuid,
                 {"worker_cost": True, "platform_cost": True, "gpu_unallocated": True},
+                use_rtu=True,
             )
             # GPU should NOT be called since no report period exists for previous month
             gpu_call = call(

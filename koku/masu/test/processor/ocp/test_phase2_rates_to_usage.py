@@ -2445,7 +2445,7 @@ class TestDistributionRawCurrency(_ReportPeriodMixin, MasuTestCase):
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
-        updater.distribute_costs_and_update_ui_summary(sr)
+        updater.distribute_costs_and_update_ui_summary(sr, use_rtu=True)
 
         agg_call = mock_agg.call_args
         self.assertIsNotNone(agg_call)
@@ -2470,7 +2470,7 @@ class TestDistributionRawCurrency(_ReportPeriodMixin, MasuTestCase):
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
-        updater.distribute_costs_and_update_ui_summary(sr)
+        updater.distribute_costs_and_update_ui_summary(sr, use_rtu=True)
 
         agg_call = mock_agg.call_args
         self.assertIsNotNone(agg_call)
@@ -2520,7 +2520,7 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
-        updater.distribute_costs_and_update_ui_summary(sr)
+        updater.distribute_costs_and_update_ui_summary(sr, use_rtu=True)
 
         self.assertEqual(
             call_order,
@@ -2544,7 +2544,7 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
-        updater.distribute_costs_and_update_ui_summary(sr)
+        updater.distribute_costs_and_update_ui_summary(sr, use_rtu=True)
 
         mock_dist_sql.assert_called_once()
 
@@ -2564,11 +2564,12 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
-        updater.distribute_costs_and_update_ui_summary(sr)
+        updater.distribute_costs_and_update_ui_summary(sr, use_rtu=True)
 
         _, kwargs = mock_dist_sql.call_args
         self.assertIn("infra_to_cm_rate", kwargs)
         self.assertIn("cost_model_currency", kwargs)
+        self.assertTrue(kwargs.get("use_rtu"))
 
     @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
@@ -2588,7 +2589,7 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
         rp = self._get_report_period()
         old_datetime = rp.derived_cost_datetime
 
-        updater.distribute_costs_and_update_ui_summary(sr)
+        updater.distribute_costs_and_update_ui_summary(sr, use_rtu=True)
 
         with schema_context(self.schema):
             rp.refresh_from_db()
@@ -2603,6 +2604,52 @@ class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
                 rp.derived_cost_datetime,
                 "derived_cost_datetime should be set after pipeline run",
             )
+
+
+class TestLegacyDistributePath(_ReportPeriodMixin, MasuTestCase):
+    """use_rtu=False: distribute_costs_and_update_ui_summary uses legacy path only."""
+
+    def _make_summary_range(self):
+        dh = DateHelper()
+        return SummaryRangeConfig(
+            schema=self.schema,
+            provider_uuid=self.ocp_provider_uuid,
+            start_date=dh.this_month_start,
+            end_date=dh.this_month_end,
+            cost_model_update=True,
+        )
+
+    @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
+    def test_legacy_distribute_skips_rtu_steps(
+        self,
+        mock_rp,
+        mock_agg,
+        mock_markup,
+        mock_dist_sql,
+        mock_markup_rtu,
+        mock_ui,
+        mock_partitions,
+    ):
+        """use_rtu=False: legacy distribute SQL, no RTU partition/aggregate/markup-RTU steps."""
+        mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+        mock_rp.return_value = MagicMock(id=1)
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        sr = self._make_summary_range()
+        updater.distribute_costs_and_update_ui_summary(sr, use_rtu=False)
+
+        _, kwargs = mock_dist_sql.call_args
+        self.assertFalse(kwargs.get("use_rtu"))
+        mock_partitions.assert_not_called()
+        mock_agg.assert_not_called()
+        mock_markup_rtu.assert_not_called()
+        mock_ui.assert_called_once()
 
 
 class TestRTUCapacityColumns(_ReportPeriodMixin, MasuTestCase):

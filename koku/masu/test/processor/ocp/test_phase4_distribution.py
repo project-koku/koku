@@ -106,6 +106,7 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                 self.provider_uuid,
                 distribution_info,
                 cost_model_id=self._updater._cost_model_id,
+                use_rtu=True,
             )
 
     def _distributed_qs(self, distribution_type=None):
@@ -413,6 +414,7 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                 self.provider_uuid,
                 distribution_info,
                 cost_model_id=self._updater._cost_model_id,
+                use_rtu=True,
             )
 
         with schema_context(self.schema):
@@ -518,6 +520,7 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                 self.provider_uuid,
                 distribution_info,
                 cost_model_id=self._updater._cost_model_id,
+                use_rtu=True,
             )
 
         with schema_context(self.schema):
@@ -677,6 +680,7 @@ class TestBreakdownSQLFixes(_ReportPeriodMixin, MasuTestCase):
                     self.provider_uuid,
                     distribution_info,
                     cost_model_id=updater._cost_model_id,
+                    use_rtu=True,
                 )
                 accessor.populate_ui_summary_tables(
                     summary_range,
@@ -795,6 +799,7 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
                     self.provider_uuid,
                     distribution_info,
                     cost_model_id=updater._cost_model_id,
+                    use_rtu=True,
                 )
                 accessor.populate_ui_summary_tables(
                     summary_range,
