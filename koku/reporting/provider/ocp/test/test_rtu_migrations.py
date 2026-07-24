@@ -24,7 +24,7 @@ from masu.test import MasuTestCase
 from reporting.models import TenantAPIProvider
 from reporting.provider.ocp.models import RatesToUsage
 
-MIGRATE_FROM = ("reporting", "0351_create_ocp_cost_breakdown_p")
+MIGRATE_FROM = ("reporting", "0352_rtu_schema_improvements")
 MIGRATE_TO = ("reporting", "0353_rtu_schema_improvements")
 
 RTU_SCHEMA_MIGRATION_PENDING = unittest.skip(
