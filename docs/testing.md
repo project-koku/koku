@@ -44,7 +44,7 @@ For example:
 
 If you observe the following error when running the unit tests, it may
 be a false error. This can be due to some tests expecting the DEBUG
-setting to be TRUE:
+setting to be True:
 
     FAIL: test_delete_single_provider_skips_delete_archived_data_if_customer_is_none
     (api.provider.test.tests_models.ProviderModelTest)
