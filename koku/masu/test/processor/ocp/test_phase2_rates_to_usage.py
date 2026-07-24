@@ -666,9 +666,9 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         mock_rtu.assert_called_once_with(sr.start_date, sr.end_date)
         mock_usage.assert_not_called()
 
-    # TC-41: RTU aggregate called, legacy usage costs NOT called
+    # TC-41: Phase 4 entry point called, legacy usage costs NOT called
     @_make_orchestration_patches()
-    def test_orchestration_calls_rtu_aggregate(
+    def test_orchestration_calls_distribute(
         self,
         mock_ff,
         mock_load,
@@ -684,12 +684,12 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
-        mock_agg.assert_called_once_with(sr.start_date, sr.end_date)
+        mock_dist.assert_called_once_with(sr)
         mock_usage.assert_not_called()
 
-    # TC-42: RTU insert before aggregate (both in RTU-enabled path)
+    # TC-42: RTU insert before distribute (both in RTU-enabled path)
     @_make_orchestration_patches()
-    def test_orchestration_order_rtu_before_aggregate(
+    def test_orchestration_order_rtu_before_distribute(
         self,
         mock_ff,
         mock_load,
@@ -704,7 +704,6 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
     ):
         call_order = []
         mock_rtu.side_effect = lambda *a: call_order.append("rtu")
-        mock_agg.side_effect = lambda *a: call_order.append("agg")
         mock_dist.side_effect = lambda *a: call_order.append("dist")
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
@@ -712,13 +711,13 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         updater.update_summary_cost_model_costs(sr)
 
         self.assertIn("rtu", call_order)
-        self.assertIn("agg", call_order)
-        self.assertLess(call_order.index("rtu"), call_order.index("agg"))
+        self.assertIn("dist", call_order)
+        self.assertLess(call_order.index("rtu"), call_order.index("dist"))
         self.assertNotIn("usage", call_order)
 
-    # TC-44: aggregate before distribute
+    # TC-44: Phase 4 — RTU + monthly before distribute
     @_make_orchestration_patches()
-    def test_orchestration_order_aggregate_before_distribute(
+    def test_orchestration_order_monthly_before_distribute(
         self,
         mock_ff,
         mock_load,
@@ -733,17 +732,17 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
     ):
         call_order = []
         mock_rtu.side_effect = lambda *a: call_order.append("rtu")
-        mock_usage.side_effect = lambda *a: call_order.append("usage")
-        mock_agg.side_effect = lambda *a: call_order.append("agg")
+        mock_monthly.side_effect = lambda *a: call_order.append("monthly")
         mock_dist.side_effect = lambda *a: call_order.append("dist")
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
 
-        self.assertIn("agg", call_order)
+        self.assertIn("rtu", call_order)
+        self.assertIn("monthly", call_order)
         self.assertIn("dist", call_order)
-        self.assertLess(call_order.index("agg"), call_order.index("dist"))
+        self.assertLess(call_order.index("monthly"), call_order.index("dist"))
 
     # TC-53: single-pass INSERT (no rate_type loop)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
@@ -1318,7 +1317,9 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
             cost_model_update=True,
         )
 
-    # TC-R20-01: full ordering: rtu -> monthly -> vm -> agg -> markup -> dist
+    # TC-R20-01: Phase 4 ordering at outer level: rtu -> monthly -> vm -> dist
+    # (agg and markup now run inside distribute_costs_and_update_ui_summary,
+    #  tested separately in TestPhase4Orchestration)
     @_make_orchestration_patches(rtu_enabled=True)
     def test_rtu_enabled_full_ordering(
         self,
@@ -1333,7 +1334,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_monthly,
         mock_dist,
     ):
-        """R20: Orchestration order is rtu -> monthly -> vm -> agg -> markup -> dist."""
+        """R20: Phase 4 outer order is rtu -> monthly -> vm -> dist."""
         call_order = []
         mock_rtu.side_effect = lambda *a, **kw: call_order.append("rtu")
         mock_monthly.side_effect = lambda *a, **kw: call_order.append("monthly")
@@ -1346,14 +1347,14 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
 
-        expected = ["rtu", "monthly", "vm", "agg", "markup", "dist"]
+        expected = ["rtu", "monthly", "vm", "dist"]
         self.assertEqual(call_order, expected, f"R20: expected {expected}, got {call_order}")
         mock_usage.assert_not_called()
         mock_cleanup.assert_not_called()
 
-    # TC-R20-02: aggregation before markup (proxy for agg-before-tags)
+    # TC-R20-02: distribute is called (agg+markup ordering tested in TestPhase4Orchestration)
     @_make_orchestration_patches(rtu_enabled=True)
-    def test_aggregation_before_markup(
+    def test_distribute_called(
         self,
         mock_ff,
         mock_load,
@@ -1384,7 +1385,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         )
         mock_markup.assert_called_with(ANY, ANY, use_rtu=True)
 
-    # TC-R20-03: cleanup called when cost_model_id is None; monthly/vm/agg/markup still run
+    # TC-R20-03: cleanup called when cost_model_id is None; monthly/vm/dist still run
     @_make_orchestration_patches(rtu_enabled=True)
     def test_cleanup_called_when_no_cost_model(
         self,
@@ -1400,7 +1401,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_dist,
     ):
         """R20: When cost_model_id is None, cleanup runs instead of RTU insert.
-        Monthly/vm/agg/markup still run (monthly cleanup, agg guards on cost_model_id)."""
+        Monthly/vm/dist still run (agg+markup are inside dist)."""
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         updater._cost_model_id = None
         sr = self._make_summary_range()
@@ -1411,8 +1412,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_usage.assert_not_called()
         mock_monthly.assert_called()
         mock_vm.assert_called()
-        mock_agg.assert_called()
-        mock_markup.assert_called()
+        mock_dist.assert_called()
 
 
 # ---------------------------------------------------------------------------
@@ -1470,7 +1470,7 @@ class TestPriceListValidityGuard(_ReportPeriodMixin, MasuTestCase):
 
         mock_cleanup.assert_called()
         mock_rtu.assert_not_called()
-        mock_agg.assert_called()
+        mock_dist.assert_called()
         mock_vm.assert_called()
         mock_monthly.assert_called()
         mock_markup.assert_called()
@@ -1746,6 +1746,93 @@ class TestRoutingMetricType(MasuTestCase):
         self.assertEqual(result, "cpu")
 
 
+class TestPhase4Orchestration(_ReportPeriodMixin, MasuTestCase):
+    """Test distribute_costs_and_update_ui_summary internal ordering (D1/D2).
+
+    Patches at the accessor boundary rather than mocking the whole method,
+    verifying per-month order: distribute -> aggregate -> markup -> ui.
+    """
+
+    def _make_summary_range(self):
+        dh = DateHelper()
+        return SummaryRangeConfig(
+            schema=self.schema,
+            provider_uuid=self.ocp_provider_uuid,
+            start_date=dh.this_month_start,
+            end_date=dh.this_month_end,
+            cost_model_update=True,
+        )
+
+    @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
+    @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
+    @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
+    def test_phase4_per_month_order(self, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions):
+        """Per-month order must be: distribute -> aggregate -> markup -> ui."""
+        call_order = []
+        mock_dist_sql.side_effect = lambda sr, *a, **kw: (call_order.append("dist"), sr)[1]
+        mock_agg.side_effect = lambda *a: call_order.append("agg")
+        mock_markup.side_effect = lambda *a: call_order.append("markup")
+        mock_ui.side_effect = lambda *a, **kw: call_order.append("ui")
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        sr = self._make_summary_range()
+        updater.distribute_costs_and_update_ui_summary(sr)
+
+        self.assertEqual(
+            call_order,
+            ["dist", "agg", "markup", "ui"],
+            f"Expected [dist, agg, markup, ui] but got {call_order}",
+        )
+
+    @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
+    @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
+    @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
+    def test_distribute_calls_dist_entry_point(self, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions):
+        """distribute_costs_and_update_ui_summary invokes accessor.populate_distributed_cost_sql."""
+        mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        sr = self._make_summary_range()
+        updater.distribute_costs_and_update_ui_summary(sr)
+
+        mock_dist_sql.assert_called_once()
+
+    @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
+    @patch.object(OCPCostModelCostUpdater, "_update_markup_cost")
+    @patch.object(OCPCostModelCostUpdater, "_aggregate_rates_to_daily_summary")
+    def test_derived_cost_datetime_updated_after_pipeline(
+        self, mock_agg, mock_markup, mock_dist_sql, mock_ui, mock_partitions
+    ):
+        """D1: derived_cost_datetime is updated even after nested accessors reset schema."""
+        mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        sr = self._make_summary_range()
+
+        rp = self._get_report_period()
+        old_datetime = rp.derived_cost_datetime
+
+        updater.distribute_costs_and_update_ui_summary(sr)
+
+        with schema_context(self.schema):
+            rp.refresh_from_db()
+        if old_datetime is not None:
+            self.assertGreater(
+                rp.derived_cost_datetime,
+                old_datetime,
+                "derived_cost_datetime should be updated after pipeline run",
+            )
+        else:
+            self.assertIsNotNone(
+                rp.derived_cost_datetime,
+                "derived_cost_datetime should be set after pipeline run",
+            )
 # ---------------------------------------------------------------------------
 # Phase 2 Gap Closure — Markup RTU Tests (COST-7249-P2GC-TP-001)
 # IEEE 829 Test Plan: docs/tests/COST-7249/phase2-gap-closure-test-plan.md

@@ -678,25 +678,25 @@ AND (month = {{month_no_zero}} OR month = {{month}})
 
         distribution_configs = {
             metric_constants.PLATFORM_COST: DistributionConfig(
-                sql_file="distribute_platform_cost.sql",
+                sql_file="distribute_platform_cost_per_rate.sql",
                 cost_model_rate_type="platform_distributed",
             ),
             metric_constants.WORKER_UNALLOCATED: DistributionConfig(
-                sql_file="distribute_worker_cost.sql",
+                sql_file="distribute_worker_cost_per_rate.sql",
                 cost_model_rate_type="worker_distributed",
             ),
             metric_constants.STORAGE_UNATTRIBUTED: DistributionConfig(
-                sql_file="distribute_unattributed_storage_cost.sql",
+                sql_file="distribute_unattributed_storage_per_rate.sql",
                 cost_model_rate_type="unattributed_storage",
-                distribute_by_default=True,  # Distributed without cost model
+                distribute_by_default=True,
             ),
             metric_constants.NETWORK_UNATTRIBUTED: DistributionConfig(
-                sql_file="distribute_unattributed_network_cost.sql",
+                sql_file="distribute_unattributed_network_per_rate.sql",
                 cost_model_rate_type="unattributed_network",
-                distribute_by_default=True,  # Distributed without cost model
+                distribute_by_default=True,
             ),
             metric_constants.GPU_UNALLOCATED: DistributionConfig(
-                sql_file="distribute_unallocated_gpu_cost.sql",
+                sql_file="distribute_unallocated_gpu_per_rate.sql",
                 cost_model_rate_type="gpu_distributed",
                 query_type="trino",
                 required_table="openshift_gpu_usage_line_items_daily",
@@ -768,6 +768,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             sql_params["report_period_id"] = report_period.id
 
             self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
+            self._delete_distributed_rtu_rows(sql_params, cost_model_key)
             populate = distribution_info.get(cost_model_key, config.distribute_by_default)
             if not populate:
                 continue
@@ -828,6 +829,21 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         LOG.info(log_json(msg=f"removing {cost_model_key} distribution", context=sql_params))
         self._prepare_and_execute_raw_sql_query(
             self._table_map["line_item_daily_summary"],
+            delete_sql,
+            sql_params,
+            operation="DELETE",
+        )
+
+    def _delete_distributed_rtu_rows(self, sql_params, cost_model_key):
+        """Delete distributed rows from rates_to_usage before re-inserting."""
+        delete_sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/distribute_cost/delete_distributed_rates_to_usage.sql",
+        )
+        delete_sql = delete_sql.decode("utf-8")
+        LOG.info(log_json(msg=f"removing {cost_model_key} RTU distribution rows", context=sql_params))
+        self._prepare_and_execute_raw_sql_query(
+            "rates_to_usage",
             delete_sql,
             sql_params,
             operation="DELETE",

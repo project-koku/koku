@@ -1031,16 +1031,26 @@ class OCPReportDBAccessorTest(MasuTestCase):
             "source_uuid": self.ocp_test_provider_uuid,
             "populate": True,
         }
+        delete_monthly = [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params]
+        delete_rtu = [
+            get_pkgutil_values("distribute_cost/delete_distributed_rates_to_usage.sql"),
+            default_sql_params,
+        ]
         side_effect = [
-            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
-            [get_pkgutil_values("distribute_platform_cost.sql"), default_sql_params],
-            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
-            [get_pkgutil_values("distribute_worker_cost.sql"), default_sql_params],
-            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
-            [get_pkgutil_values("distribute_unattributed_storage_cost.sql"), default_sql_params],
-            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
-            [get_pkgutil_values("distribute_unattributed_network_cost.sql"), default_sql_params],
-            [get_pkgutil_values("delete_monthly_cost_model_rate_type.sql"), default_sql_params],
+            delete_monthly,
+            delete_rtu,
+            [get_pkgutil_values("distribute_cost/distribute_platform_cost_per_rate.sql"), default_sql_params],
+            delete_monthly,
+            delete_rtu,
+            [get_pkgutil_values("distribute_cost/distribute_worker_cost_per_rate.sql"), default_sql_params],
+            delete_monthly,
+            delete_rtu,
+            [get_pkgutil_values("distribute_cost/distribute_unattributed_storage_per_rate.sql"), default_sql_params],
+            delete_monthly,
+            delete_rtu,
+            [get_pkgutil_values("distribute_cost/distribute_unattributed_network_per_rate.sql"), default_sql_params],
+            delete_monthly,
+            delete_rtu,
         ]
         mock_jinja = Mock()
         mock_jinja.side_effect = side_effect
