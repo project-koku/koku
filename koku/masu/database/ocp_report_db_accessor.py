@@ -543,6 +543,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             (None)
 
         """
+        # Archived namespaces are filtered out in the daily summary SQL
         # Cast start_date to date
         start_date = DateHelper().parse_to_date(start_date)
         end_date = DateHelper().parse_to_date(end_date)

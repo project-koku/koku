@@ -43,5 +43,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
+        AND namespace NOT LIKE '%-archived'
     GROUP BY usage_start, cluster_id, cluster_alias, namespace, cost_model_rate_type
 ;
