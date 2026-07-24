@@ -44,10 +44,15 @@ class OCPCpuView(OCPView):
 
 
 class OCPCostView(OCPView):
-    """Get OpenShift cost data."""
+    """Get OpenShift cost data.
+
+    Exact cluster lookups (`filter[exact:cluster]`) are allowed without the
+    OpenShift access permission so operators can resolve a single cluster quickly.
+    """
 
     report = "costs"
     serializer = OCPCostQueryParamSerializer
+    permission_classes = []
 
 
 class OCPVolumeView(OCPView):
