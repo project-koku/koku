@@ -5,6 +5,7 @@
     metadata:
       annotations:
         ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
+    replicas: ${{WORKER_DOWNLOAD_XL_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -237,6 +238,13 @@
     name: WORKER_DOWNLOAD_XL_TRIGGER_THRESHOLD
     required: true
     value: '19.5'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Replicas
+    name: WORKER_DOWNLOAD_XL_REPLICAS
+    required: true
+    value: '1'
 - op: add
   path: /parameters/-
   value:
