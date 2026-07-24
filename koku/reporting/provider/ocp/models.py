@@ -59,6 +59,7 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_network_summary_by_node_p",
     "reporting_ocp_network_summary_by_project_p",
     "reporting_ocp_gpu_summary_p",
+    "reporting_ocp_cost_breakdown_p",
     VM_UI_SUMMARY_TABLE,
 )
 
@@ -1060,6 +1061,10 @@ class RatesToUsage(models.Model):
             models.Index(fields=["custom_name"], name="ratestousage_custom_name_idx"),
             models.Index(fields=["monthly_cost_type"], name="ratestousage_monthly_cost_idx"),
             models.Index(fields=["label_hash"], name="ratestousage_label_hash_idx"),
+            models.Index(
+                fields=["source_uuid", "report_period_id", "usage_start", "monthly_cost_type"],
+                name="ratestousage_src_rp_mct_idx",
+            ),
             models.Index(fields=["rate_id"], name="ratestousage_rate_id_idx"),
             models.Index(fields=["cost_model_id"], name="ratestousage_cost_model_id_idx"),
         ]
@@ -1100,6 +1105,19 @@ class RatesToUsage(models.Model):
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     labels = JSONField(null=True)
     label_hash = models.CharField(max_length=64, null=True)
+    # Capacity + metadata columns denormalized from reporting_ocpusagelineitem_daily_summary
+    # at insert time (see insert_usage_rates_to_usage.sql). Lets the aggregation step read
+    # them directly off RatesToUsage instead of re-JOINing to the daily summary, eliminating
+    # an expensive IS NOT DISTINCT FROM JOIN on nullable columns.
+    node_capacity_cpu_cores = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_memory_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    node_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    resource_id = models.CharField(max_length=253, null=True)
+    persistentvolume = models.CharField(max_length=253, null=True)
+    storageclass = models.CharField(max_length=253, null=True)
 
 
 class OCPCostUIBreakDownP(models.Model):
