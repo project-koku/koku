@@ -15,6 +15,7 @@ from rest_framework import serializers  # meh
 from ..provider_errors import ProviderErrors
 from ..provider_interface import ProviderInterface
 from api.common import error_obj
+from api.common import log_json
 from api.models import Provider
 from masu.processor import ALLOWED_COMPRESSIONS
 from masu.util.aws.common import AwsArn
@@ -154,12 +155,31 @@ class AWSProvider(ProviderInterface):
         if bool({k: v for k, v in creds.items() if not v}):
             key = ProviderErrors.AWS_ROLE_ARN_UNREACHABLE
             internal_message = f"Unable to access account resources with ARN {role_arn}."
+            LOG.warning(
+                log_json(
+                    msg="provider authentication failed while assuming role",
+                    role_arn=role_arn,
+                    credentials=credentials,
+                    aws_access_key_id=creds.get("aws_access_key_id"),
+                    aws_secret_access_key=creds.get("aws_secret_access_key"),
+                    aws_session_token=creds.get("aws_session_token"),
+                )
+            )
             raise serializers.ValidationError(error_obj(key, internal_message))
 
         s3_exists = _check_s3_access(storage_resource_name, creds, **region_kwargs)
         if not s3_exists:
             key = ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND
             internal_message = f"Bucket {storage_resource_name} could not be found with {role_arn}."
+            LOG.warning(
+                log_json(
+                    msg="provider authentication failed while checking S3 access",
+                    role_arn=role_arn,
+                    bucket=storage_resource_name,
+                    credentials=credentials,
+                    password=creds.get("aws_secret_access_key"),
+                )
+            )
             raise serializers.ValidationError(error_obj(key, internal_message))
 
         _check_cost_report_access(role_arn, creds, bucket=storage_resource_name)
