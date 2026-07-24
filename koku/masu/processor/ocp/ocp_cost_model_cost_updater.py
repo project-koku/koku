@@ -642,12 +642,17 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     use_rtu=use_rtu,
                 )
 
-    def _update_markup_cost(self, start_date, end_date):
+    def _update_markup_cost(self, start_date, end_date, use_rtu: bool = False):
         """Populate markup costs for OpenShift.
+
+        Always updates infrastructure_markup_cost on the daily summary.
+        When use_rtu is True (Unleash RTU flag), also writes markup rows
+        into rates_to_usage for the cost breakdown tree.
 
         Args:
             start_date (str) The date to start populating the table.
             end_date   (str) The date to end on.
+            use_rtu (bool): When True, also insert markup into rates_to_usage.
 
         Returns
             None
@@ -680,7 +685,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 )
             )
             accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
-            if self._cost_model_id:
+            if use_rtu and self._cost_model_id:
                 t0 = time.monotonic()
                 accessor.populate_markup_rates_to_usage(
                     start_date,
@@ -1053,6 +1058,6 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 # daily summary cost-model rows from those RTU rows.
                 self._aggregate_rates_to_daily_summary(start_date, end_date)
 
-            self._update_markup_cost(start_date, end_date)
+            self._update_markup_cost(start_date, end_date, use_rtu=rtu_enabled)
 
         self.distribute_costs_and_update_ui_summary(summary_range)

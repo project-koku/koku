@@ -11,15 +11,12 @@ from dateutil import parser
 from dateutil import relativedelta
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import Case
-from django.db.models import DecimalField
 from django.db.models import OuterRef
-from django.db.models import Value
-from django.db.models import When
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
 
 from api.currency.models import ExchangeRateDictionary
+from api.currency.utils import build_exchange_rate_case
 from api.currency.utils import build_monthly_rate_annotation
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -144,11 +141,9 @@ class QueryHandler:
                 OuterRef(self._mapper.cost_units_key), self.currency
             )
         else:
-            whens = [
-                When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-                for k, v in self.exchange_rates.items()
-            ]
-            exchange_rate_annotation = Case(*whens, default=1, output_field=DecimalField())
+            exchange_rate_annotation = build_exchange_rate_case(
+                self._mapper.cost_units_key, self.currency, self.exchange_rates
+            )
 
         return {"exchange_rate": exchange_rate_annotation}
 
