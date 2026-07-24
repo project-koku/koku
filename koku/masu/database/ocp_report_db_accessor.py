@@ -13,6 +13,7 @@ import uuid
 from uuid import uuid4
 
 from dateutil.parser import parse
+from dateutil.relativedelta import relativedelta
 from django.db import IntegrityError
 from django.db.models import DecimalField
 from django.db.models import F
@@ -101,6 +102,26 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_report_periods_before_date(self, date):
         """Get the report periods with report period before provided date."""
         return OCPUsageReportPeriod.objects.filter(report_period_start__lte=date)
+
+    def delete_orphaned_report_periods(self, provider_uuid, retention_months: int = 15):
+        """Remove OCP report periods older than the retention window.
+
+        Called after failed or incomplete manifests leave stale period metadata
+        that no longer has matching daily summary data.
+        """
+        retention_date = DateHelper().today.date() - relativedelta(months=retention_months)
+        orphaned_periods = self.get_report_periods_before_date(retention_date)
+        deleted_count, _ = orphaned_periods.delete()
+        LOG.info(
+            log_json(
+                msg="removed orphaned OCP report periods beyond retention window",
+                schema=self.schema,
+                provider_uuid=str(provider_uuid),
+                retention_months=retention_months,
+                deleted_count=deleted_count,
+            )
+        )
+        return deleted_count
 
     def populate_ui_summary_tables(self, summary_range: SummaryRangeConfig, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
