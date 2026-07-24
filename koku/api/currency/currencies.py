@@ -57,9 +57,9 @@ class CurrencyField(serializers.CharField):
     def to_internal_value(self, data):
         value = super().to_internal_value(data).upper()
         if not is_valid_iso_currency(value):
-            raise serializers.ValidationError(f'"{value}" is not a valid choice.')
+            raise serializers.ValidationError(f'"{value}" is not a valid ISO 4217 currency.')
         if self.enabled_only and value not in get_enabled_currency_codes():
-            raise serializers.ValidationError(f'"{value}" is not a valid choice.')
+            raise serializers.ValidationError(f'"{value}" is not an enabled currency..')
         return value
 
 
