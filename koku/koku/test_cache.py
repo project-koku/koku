@@ -12,6 +12,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
+from koku.cache import build_enabled_currency_codes_key
 from koku.cache import build_matching_tags_key
 from koku.cache import CacheEnum
 from koku.cache import delete_value_from_cache
@@ -301,6 +302,12 @@ class KokuCacheTest(IamTestCase):
         provider_type = Provider.PROVIDER_AWS
         expected = f"OCP-on-{provider_type}:{self.schema_name}:matching-tags"
         actual = build_matching_tags_key(self.schema_name, provider_type)
+        self.assertEqual(expected, actual)
+
+    def test_build_enabled_currency_codes_key(self):
+        """Test that the enabled currency codes key is constructed properly."""
+        expected = f"enabled-currency-codes-{self.schema_name}"
+        actual = build_enabled_currency_codes_key(self.schema_name)
         self.assertEqual(expected, actual)
 
     def test_get_and_set_value_from_cache(self):
