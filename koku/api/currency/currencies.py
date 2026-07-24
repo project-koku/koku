@@ -13,10 +13,14 @@ Name, symbol, and description are computed at response time via babel.
 from babel.core import get_global
 from babel.numbers import get_currency_name
 from babel.numbers import get_currency_symbol
+from django.db import connection
 from rest_framework import serializers
 
 from api.currency.models import ExchangeRates
 from cost_models.models import EnabledCurrency
+from koku.cache import build_enabled_currency_codes_key
+from koku.cache import get_value_from_cache
+from koku.cache import set_value_in_cache
 
 _ISO_4217_CURRENCIES = get_global("all_currencies")
 
@@ -25,9 +29,21 @@ def get_enabled_currency_codes():
     """Return the set of currency codes that are currently enabled.
 
     Requires tenant schema context (set by django-tenants middleware for
-    requests or by ``schema_context()`` in tasks).
+    requests or by ``schema_context()`` in tasks). Cached per tenant schema
+    since this is validated on nearly every report/forecast/settings/cost-model
+    request; invalidated by ``EnabledCurrencyView`` whenever a currency is
+    enabled or disabled.
+
+    Stored in the cache as a list rather than a set, since not all cache
+    serializer backends can round-trip a set.
     """
-    return set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+    cache_key = build_enabled_currency_codes_key(connection.schema_name)
+    cached_codes = get_value_from_cache(cache_key)
+    if cached_codes is None:
+        codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+        set_value_in_cache(cache_key, list(codes))
+        return codes
+    return set(cached_codes)
 
 
 class CurrencyField(serializers.CharField):
