@@ -1,12 +1,13 @@
-# rates_to_usage schema improvements (GAP-2, GAP-4, GAP-5):
+# rates_to_usage schema improvements (GAP-2, GAP-4, GAP-5) — database DDL only.
+# Django project state was updated in 0352 (state-only). This migration applies:
 # - TRUNCATE existing RTU rows (prerequisite: smart revert #6172, Unleash flag OFF)
 # - Indexes on rate_id and cost_model_id
-# - CASCADE on rate/cost_model FKs (ORM + PostgreSQL)
-# - FK wiring for source_uuid (TenantAPIProvider) and report_period (OCPUsageReportPeriod)
+# - CASCADE on rate/cost_model/source_uuid/report_period FKs (PostgreSQL)
 # - Drop duplicate Django auto-named indexes (keep explicit ratestousage_* from Meta.indexes)
-import django.db.models.deletion
+#
+# Index DDL uses IF NOT EXISTS so Stage (which already applied the original 0352 DDL)
+# can re-run safely.
 from django.db import migrations
-from django.db import models
 
 
 RTU_FK_CASCADE_SQL = """
@@ -163,6 +164,11 @@ BEGIN
 END $$;
 """
 
+RTU_CREATE_FK_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS ratestousage_rate_id_idx ON rates_to_usage (rate_id);
+CREATE INDEX IF NOT EXISTS ratestousage_cost_model_id_idx ON rates_to_usage (cost_model_id);
+"""
+
 
 class Migration(migrations.Migration):
 
@@ -176,94 +182,7 @@ class Migration(migrations.Migration):
             reverse_sql=migrations.RunSQL.noop,
         ),
         migrations.RunSQL(sql=RTU_DROP_LEGACY_FK_INDEXES_SQL, reverse_sql=migrations.RunSQL.noop),
-        migrations.AddIndex(
-            model_name="ratestousage",
-            index=models.Index(fields=["rate_id"], name="ratestousage_rate_id_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ratestousage",
-            index=models.Index(fields=["cost_model_id"], name="ratestousage_cost_model_id_idx"),
-        ),
-        migrations.SeparateDatabaseAndState(
-            database_operations=[],
-            state_operations=[
-                migrations.AlterField(
-                    model_name="ratestousage",
-                    name="rate",
-                    field=models.ForeignKey(
-                        db_index=False,
-                        null=True,
-                        on_delete=django.db.models.deletion.CASCADE,
-                        to="cost_models.rate",
-                    ),
-                ),
-            ],
-        ),
-        migrations.SeparateDatabaseAndState(
-            database_operations=[],
-            state_operations=[
-                migrations.AlterField(
-                    model_name="ratestousage",
-                    name="cost_model",
-                    field=models.ForeignKey(
-                        db_index=False,
-                        null=True,
-                        on_delete=django.db.models.deletion.CASCADE,
-                        to="cost_models.costmodel",
-                    ),
-                ),
-            ],
-        ),
-        migrations.RemoveIndex(
-            model_name="ratestousage",
-            name="ratestousage_start_src_rp_idx",
-        ),
-        migrations.SeparateDatabaseAndState(
-            database_operations=[],
-            state_operations=[
-                migrations.RenameField(
-                    model_name="ratestousage",
-                    old_name="report_period_id",
-                    new_name="report_period",
-                ),
-            ],
-        ),
-        migrations.SeparateDatabaseAndState(
-            database_operations=[],
-            state_operations=[
-                migrations.AlterField(
-                    model_name="ratestousage",
-                    name="report_period",
-                    field=models.ForeignKey(
-                        db_column="report_period_id",
-                        null=True,
-                        on_delete=django.db.models.deletion.CASCADE,
-                        to="reporting.ocpusagereportperiod",
-                    ),
-                ),
-            ],
-        ),
-        migrations.SeparateDatabaseAndState(
-            database_operations=[],
-            state_operations=[
-                migrations.AlterField(
-                    model_name="ratestousage",
-                    name="source_uuid",
-                    field=models.ForeignKey(
-                        db_column="source_uuid",
-                        on_delete=django.db.models.deletion.CASCADE,
-                        to="reporting.tenantapiprovider",
-                    ),
-                ),
-            ],
-        ),
-        migrations.AddIndex(
-            model_name="ratestousage",
-            index=models.Index(
-                fields=["usage_start", "source_uuid", "report_period"],
-                name="ratestousage_start_src_rp_idx",
-            ),
-        ),
+        migrations.RunSQL(sql=RTU_CREATE_FK_INDEXES_SQL, reverse_sql=migrations.RunSQL.noop),
         migrations.RunSQL(sql=RTU_FK_CASCADE_SQL, reverse_sql=migrations.RunSQL.noop),
         migrations.RunSQL(sql=RTU_DROP_DUPLICATE_INDEXES_SQL, reverse_sql=migrations.RunSQL.noop),
     ]
