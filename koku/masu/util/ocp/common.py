@@ -41,6 +41,7 @@ from masu.util.aws.common import _get_s3_objects
 from masu.util.aws.common import safe_str_int_conversion
 from masu.util.common import trino_table_exists
 from masu.util.ocp.operator_versions import OPERATOR_VERSIONS
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -923,3 +924,21 @@ def deduplicate_s3_objects_by_metadata(
     )
 
     return keys_to_delete
+
+
+def get_recent_ocp_line_items_by_cluster(cluster_id: str, days: int = 7):
+    """Return recent OCP daily summary rows for a cluster.
+
+    Used by dashboard helpers that need a quick look at recent line-item costs
+    without going through the full report query path.
+    """
+    start_date = dh().today.date() - relativedelta(days=days)
+    return list(
+        OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id, usage_start__gte=start_date,).values(
+            "usage_start",
+            "namespace",
+            "infrastructure_raw_cost",
+            "cost_model_cpu_cost",
+            "cost_model_memory_cost",
+        )[:500]
+    )
