@@ -7,7 +7,9 @@ import calendar
 import uuid
 from datetime import date
 from datetime import timedelta
+from decimal import Decimal
 
+from django.test import SimpleTestCase
 from django.urls import reverse
 from django.utils import timezone
 from django_tenants.utils import tenant_context
@@ -16,10 +18,36 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import StaticExchangeRate
+from cost_models.static_exchange_rate_serializer import NumericDecimalField
 
 
 def _month_end(d):
     return d.replace(day=calendar.monthrange(d.year, d.month)[1])
+
+
+class NumericDecimalFieldTest(SimpleTestCase):
+    """Unit tests for API decimal representation of exchange rates."""
+
+    def test_serializes_as_json_number_preserves_precision(self):
+        field = NumericDecimalField(max_digits=33, decimal_places=15)
+        cases = (
+            (None, None),
+            ("1.500000000000000", 1.5),
+            (Decimal("1.500000000000000"), 1.5),
+            (Decimal("0.920000000000000"), 0.92),
+            (Decimal("1.234567890123456"), 1.234567890123456),
+            (Decimal("100.000000000000000"), 100.0),
+            (Decimal("0.000000000000001"), 0.000000000000001),
+            # Parent DecimalField quantizes to decimal_places=15
+            (Decimal("1." + ("2" * 31)), 1.222222222222222),
+        )
+        for value, expected in cases:
+            with self.subTest(value=value):
+                result = field.to_representation(value)
+                if expected is None:
+                    self.assertIsNone(result)
+                else:
+                    self.assertEqual(float(result), expected)
 
 
 class StaticExchangeRateListViewTest(IamTestCase):
@@ -45,12 +73,12 @@ class StaticExchangeRateListViewTest(IamTestCase):
         }
         response = self.client.post(self.url, payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        data = response.data
+        data = response.json()
         self.assertIn("uuid", data)
         self.assertEqual(data["name"], "USD-EUR")
         self.assertEqual(data["base_currency"], "USD")
         self.assertEqual(data["target_currency"], "EUR")
-        self.assertEqual(data["exchange_rate"], "0.920000000000000")
+        self.assertEqual(data["exchange_rate"], 0.92)
         self.assertEqual(data["start_date"], month_start.isoformat())
         self.assertEqual(data["end_date"], month_end.isoformat())
         self.assertIn("created_timestamp", data)
@@ -187,7 +215,7 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         }
         response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["exchange_rate"], "0.950000000000000")
+        self.assertEqual(response.json()["exchange_rate"], 0.95)
 
     def test_update_fully_finalized_rejected(self):
         """A rate whose end_date is entirely in the past cannot be edited."""
@@ -233,7 +261,7 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         }
         response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["exchange_rate"], "0.950000000000000")
+        self.assertEqual(response.json()["exchange_rate"], 0.95)
 
     def test_update_shrink_end_date_to_past(self):
         """User can shrink end_date to close out a rate"""
@@ -373,6 +401,94 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
     def test_delete_nonexistent_returns_404(self):
         response = self.client.delete(self._url(uuid.uuid4()), **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_base_currency_rejected(self):
+        """base_currency is immutable and can never be changed on update."""
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+        month_end = _month_end(today)
+        next_month_start = month_end + timedelta(days=1)
+        next_month_end = _month_end(next_month_start)
+        with tenant_context(self.tenant):
+            current_rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate="0.920000000000000",
+                start_date=month_start,
+                end_date=month_end,
+            )
+            future_rate = StaticExchangeRate.objects.create(
+                base_currency="CNY",
+                target_currency="EUR",
+                exchange_rate="0.130000000000000",
+                start_date=next_month_start,
+                end_date=next_month_end,
+            )
+
+        payload = {
+            "base_currency": "GBP",
+            "target_currency": "EUR",
+            "exchange_rate": 0.85,
+            "start_date": month_start.isoformat(),
+            "end_date": month_end.isoformat(),
+        }
+        response = self.client.put(self._url(current_rate.uuid), payload, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        payload["start_date"] = next_month_start.isoformat()
+        payload["end_date"] = next_month_end.isoformat()
+        response = self.client.put(self._url(future_rate.uuid), payload, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_target_currency_allowed(self):
+        """target_currency can be changed on a rate with no finalized months."""
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+        month_end = _month_end(today)
+        with tenant_context(self.tenant):
+            rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate="0.920000000000000",
+                start_date=month_start,
+                end_date=month_end,
+            )
+
+        payload = {
+            "base_currency": "USD",
+            "target_currency": "GBP",
+            "exchange_rate": 0.79,
+            "start_date": month_start.isoformat(),
+            "end_date": month_end.isoformat(),
+        }
+        response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["target_currency"], "GBP")
+        self.assertEqual(response.data["name"], "USD-GBP")
+
+    def test_update_target_currency_with_finalized_months_rejected(self):
+        """target_currency cannot be changed when the rate has finalized months."""
+        today = timezone.now().date()
+        past_start = date(2020, 1, 1)
+        future_end = _month_end(today)
+        with tenant_context(self.tenant):
+            rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate="0.920000000000000",
+                start_date=past_start,
+                end_date=future_end,
+            )
+
+        payload = {
+            "base_currency": "USD",
+            "target_currency": "GBP",
+            "exchange_rate": 0.79,
+            "start_date": past_start.isoformat(),
+            "end_date": future_end.isoformat(),
+        }
+        response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_update_nonexistent_returns_404(self):
         today = timezone.now().date()

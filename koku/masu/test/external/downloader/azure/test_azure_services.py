@@ -9,7 +9,6 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
-from azure.common import AzureException
 from azure.core.exceptions import AzureError
 from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
@@ -32,7 +31,7 @@ FAKE = Faker()
 
 def throw_azure_exception(scope, extra=None):
     """Raises azure exception."""
-    raise AzureException()
+    raise ClientAuthenticationError("test exception")
 
 
 def throw_azure_http_error(scope):
