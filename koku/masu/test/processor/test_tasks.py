@@ -1729,6 +1729,39 @@ class TestWorkerCacheThrottling(MasuTestCase):
             update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
             self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.tasks.WorkerCache.single_task_is_running")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_cost_model_costs_cache_key_includes_date_range(
+        self, mock_inspect, mock_is_running, mock_lock, mock_release, mock_updater
+    ):
+        """COST-7249: the WorkerCache key must include start_date/end_date.
+
+        An earlier deadlock-mitigation attempt narrowed this key to
+        [schema, provider_uuid], serializing *all* same-provider cost model
+        updates regardless of date range. That sacrifices real concurrency:
+        e.g. Jan and Feb summaries for the same provider never touch the
+        same physical rows and should run in parallel rather than queue
+        behind each other. The deadlock's actual root cause -- the RTU
+        DELETE's overly broad scope -- is fixed at the SQL layer instead
+        (see insert_usage_rates_to_usage.sql); the residual
+        overlapping-date-range risk is handled by retry-on-deadlock
+        (_execute_raw_sql_query) rather than by task-level serialization.
+        """
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        mock_is_running.return_value = False
+        start_date = "2024-01-01"
+        end_date = "2024-01-31"
+
+        update_cost_model_costs(self.schema, self.aws_provider_uuid, start_date, end_date)
+
+        mock_lock.assert_called_once()
+        args, _ = mock_lock.call_args
+        cache_args = args[1]
+        self.assertEqual(cache_args, [self.schema, self.aws_provider_uuid, start_date, end_date])
+
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
     @patch("masu.processor.tasks.update_openshift_on_cloud.s")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
