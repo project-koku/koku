@@ -195,8 +195,8 @@ class RatesToUsageTruncateMigrationTest(_RatesToUsageMigrationMixin, Transaction
     def _fixture_teardown(self):
         """Skip global TRUNCATE flush; django-tenants FK graph breaks TransactionTestCase flush."""
 
-    def test_0352_truncates_rates_to_usage(self):
-        """Migration 0352 removes all existing RTU rows."""
+    def test_0353_truncates_rates_to_usage(self):
+        """Migration 0353 removes all existing RTU rows."""
         with tenant_context(self.tenant):
             self._run_migration(MIGRATE_FROM)
             cost_model, rate = self._create_cost_model_rate()
@@ -212,11 +212,11 @@ class RatesToUsageTruncateMigrationTest(_RatesToUsageMigrationMixin, Transaction
 class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
     """Test RTU index and CASCADE FK migrations."""
 
-    def test_0352_adds_fk_indexes(self):
-        """Migration 0352 creates indexes on rate_id and cost_model_id."""
+    def test_0353_adds_fk_indexes(self):
+        """Migration 0353 creates indexes on rate_id and cost_model_id."""
         with tenant_context(self.tenant):
-            # Roll back and re-apply so AddIndex runs even when django_migrations
-            # already records 0352 (e.g. CI tenant setup vs MigrationExecutor state).
+            # Roll back and re-apply so DDL runs even when django_migrations
+            # already records 0353 (e.g. CI tenant setup vs MigrationExecutor state).
             self._run_migration(MIGRATE_FROM)
             self._run_migration(MIGRATE_TO)
             self.assertEqual(
@@ -224,8 +224,8 @@ class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
                 {"ratestousage_rate_id_idx", "ratestousage_cost_model_id_idx"},
             )
 
-    def test_0352_drops_duplicate_auto_named_indexes(self):
-        """Migration 0352 keeps ratestousage_* indexes and removes Django auto-named duplicates."""
+    def test_0353_drops_duplicate_auto_named_indexes(self):
+        """Migration 0353 keeps ratestousage_* indexes and removes Django auto-named duplicates."""
         with tenant_context(self.tenant):
             self._run_migration(MIGRATE_FROM)
             self._run_migration(MIGRATE_TO)
