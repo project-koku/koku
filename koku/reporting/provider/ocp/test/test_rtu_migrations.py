@@ -198,7 +198,7 @@ class RatesToUsageTruncateMigrationTest(_RatesToUsageMigrationMixin, Transaction
     def test_0353_truncates_rates_to_usage(self):
         """Migration 0353 removes all existing RTU rows."""
         with tenant_context(self.tenant):
-            self._run_migration(MIGRATE_STATE)
+            self._run_migration(MIGRATE_FROM)
             cost_model, rate = self._create_cost_model_rate()
             self._create_rtu_row(rate=rate, cost_model=cost_model)
             self.assertEqual(RatesToUsage.objects.count(), 1)
