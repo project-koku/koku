@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("cost_models", "0015_static_exchange_rate"),
-        ("reporting", "0351_create_ocp_cost_breakdown_p"),
+        ("reporting", "0353_rtu_schema_improvements"),
     ]
 
     operations = [
@@ -61,7 +61,7 @@ class Migration(migrations.Migration):
             index=models.Index(
                 fields=[
                     "source_uuid",
-                    "report_period_id",
+                    "report_period",
                     "usage_start",
                     "monthly_cost_type",
                 ],
