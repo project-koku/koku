@@ -24,6 +24,7 @@ from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
+from api.currency.utils import build_exchange_rate_case
 from api.currency.utils import build_monthly_rate_annotation
 from api.models import Provider
 from api.report.ocp.capacity.cluster_capacity import calculate_unused
@@ -207,12 +208,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
                 for uuid, cur in self.source_to_currency_map.items()
             ]
-            infra_exchange_rate_whens = [
-                When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-                for k, v in self.exchange_rates.items()
-            ]
             exchange_rate_annotation = Case(*exchange_rate_whens, default=1, output_field=DecimalField())
-            infra_exchange_rate_annotation = Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField())
+            infra_exchange_rate_annotation = build_exchange_rate_case(
+                self._mapper.cost_units_key, self.currency, self.exchange_rates
+            )
 
         return {
             "exchange_rate": exchange_rate_annotation,
