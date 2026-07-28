@@ -61,7 +61,7 @@ class Migration(migrations.Migration):
             index=models.Index(
                 fields=[
                     "source_uuid",
-                    "report_period_id",
+                    "report_period",
                     "usage_start",
                     "monthly_cost_type",
                 ],

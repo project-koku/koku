@@ -1062,7 +1062,7 @@ class RatesToUsage(models.Model):
             models.Index(fields=["monthly_cost_type"], name="ratestousage_monthly_cost_idx"),
             models.Index(fields=["label_hash"], name="ratestousage_label_hash_idx"),
             models.Index(
-                fields=["source_uuid", "report_period_id", "usage_start", "monthly_cost_type"],
+                fields=["source_uuid", "report_period", "usage_start", "monthly_cost_type"],
                 name="ratestousage_src_rp_mct_idx",
             ),
             models.Index(fields=["rate_id"], name="ratestousage_rate_id_idx"),
