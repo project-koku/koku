@@ -20,7 +20,6 @@ from cost_models.models import PriceListCostModelMap
 from cost_models.models import Rate
 from koku.pg_partition import PartitionHandlerMixin
 from masu.test import MasuTestCase
-from reporting.models import TenantAPIProvider
 from reporting.provider.ocp.models import RatesToUsage
 
 MIGRATE_FROM = ("reporting", "0352_rtu_schema_improvements")
@@ -79,11 +78,16 @@ class _RatesToUsageMigrationMixin:
     def _create_rtu_row(self, *, rate=None, cost_model=None, usage_start=None):
         usage_start = usage_start or self.dh.this_month_start.date()
         self._ensure_rtu_partition(usage_start)
-        source = TenantAPIProvider.objects.get(uuid=self.ocp_provider_uuid)
+        # Assign FKs by raw id rather than model instance: self._rtu_model
+        # may be a historical model (from a prior _run_migration() call),
+        # and Django's FK descriptor rejects instances of the live
+        # TenantAPIProvider/Rate/CostModel classes as "not the right type"
+        # when the target field belongs to a different (historical) model
+        # version, even though the underlying table/column is identical.
         return self._rtu_model.objects.create(
-            rate=rate,
-            cost_model=cost_model,
-            source_uuid=source,
+            rate_id=rate.uuid if rate is not None else None,
+            cost_model_id=cost_model.uuid if cost_model is not None else None,
+            source_uuid_id=self.ocp_provider_uuid,
             usage_start=usage_start,
             usage_end=usage_start,
             cluster_id=self.ocp_cluster_id,
