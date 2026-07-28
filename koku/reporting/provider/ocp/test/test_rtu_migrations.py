@@ -27,8 +27,29 @@ MIGRATE_FROM = ("reporting", "0352_rtu_schema_improvements")
 MIGRATE_TO = ("reporting", "0353_rtu_schema_improvements")
 
 
+def _latest_reporting_migration():
+    """Return the current leaf migration node for the ``reporting`` app.
+
+    Deliberately dynamic (rather than hardcoded to 0353) so this suite keeps
+    working as later migrations (e.g. RTU capacity columns) are stacked on
+    top of 0353_rtu_schema_improvements.
+    """
+    from django.db.migrations.executor import MigrationExecutor
+
+    executor = MigrationExecutor(connection)
+    return executor.loader.graph.leaf_nodes("reporting")[0]
+
+
 class _RatesToUsageMigrationMixin:
     """Shared helpers for RTU migration tests."""
+
+    # Model reflecting whatever migration state _run_migration() last left
+    # the DB in. Migrations beyond MIGRATE_TO (0353) may add columns to
+    # rates_to_usage, so ORM writes performed while intentionally parked at
+    # an older migration state must use a matching historical model rather
+    # than the current (fuller) RatesToUsage class, or INSERTs will
+    # reference columns that don't exist yet at that point in the graph.
+    _rtu_model = RatesToUsage
 
     def _run_migration(self, target):
         """Run migration to target state within the tenant schema."""
@@ -43,8 +64,9 @@ class _RatesToUsageMigrationMixin:
                         cursor.execute("TRUNCATE TABLE rates_to_usage")
             except Exception:
                 pass
-        executor.migrate([target])
+        state = executor.migrate([target])
         executor.loader.build_graph()
+        self._rtu_model = state.apps.get_model("reporting", "RatesToUsage")
 
     def _ensure_rtu_partition(self, usage_start):
         PartitionHandlerMixin()._handle_partitions(
@@ -58,7 +80,7 @@ class _RatesToUsageMigrationMixin:
         usage_start = usage_start or self.dh.this_month_start.date()
         self._ensure_rtu_partition(usage_start)
         source = TenantAPIProvider.objects.get(uuid=self.ocp_provider_uuid)
-        return RatesToUsage.objects.create(
+        return self._rtu_model.objects.create(
             rate=rate,
             cost_model=cost_model,
             source_uuid=source,
@@ -161,15 +183,19 @@ class _RatesToUsageMigrationMixin:
     def _restore_latest_migration(self):
         """Re-apply latest migration after tests that roll back (KEEPDB=True)."""
         with tenant_context(self.tenant):
-            self._run_migration(MIGRATE_TO)
+            self._run_migration(_latest_reporting_migration())
 
     def _cleanup_rtu_migration_fixtures(self):
         with tenant_context(self.tenant):
             CostModel.objects.filter(name__startswith="RTU ").delete()
 
     def tearDown(self):
-        self._cleanup_rtu_migration_fixtures()
+        # Restore full schema *before* cleanup: the CostModel delete below
+        # cascades through Django's live RatesToUsage model (all columns),
+        # so the DB must already be back at the latest migration or the
+        # cascade SELECT will reference columns that don't exist yet.
         self._restore_latest_migration()
+        self._cleanup_rtu_migration_fixtures()
         super().tearDown()
 
 
@@ -228,7 +254,11 @@ class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
     def test_0353_cascade_deletes_rtu_when_rate_deleted(self):
         """Migration 0353 CASCADE removes RTU rows when a Rate is deleted."""
         with tenant_context(self.tenant):
-            self._run_migration(MIGRATE_TO)
+            # Ensure at least 0353 has run, without forcing an exact match:
+            # rate.delete() cascades via Django's live RatesToUsage model
+            # (all columns), so rolling back past later additive migrations
+            # (e.g. RTU capacity columns) would break the ORM-level collect.
+            self._run_migration(_latest_reporting_migration())
             cost_model, rate = self._create_cost_model_rate(name="RTU Rate CASCADE CM")
             rtu = self._create_rtu_row(rate=rate, cost_model=cost_model)
             rtu_uuid = rtu.uuid
@@ -240,7 +270,10 @@ class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
     def test_0353_cascade_deletes_rtu_when_cost_model_deleted(self):
         """Migration 0353 CASCADE removes RTU rows when a CostModel is deleted."""
         with tenant_context(self.tenant):
-            self._run_migration(MIGRATE_TO)
+            # See test_0353_cascade_deletes_rtu_when_rate_deleted: use latest,
+            # not an exact MIGRATE_TO match, so ORM-level cascade collection
+            # matches whatever columns the live RatesToUsage model expects.
+            self._run_migration(_latest_reporting_migration())
             cost_model, rate = self._create_cost_model_rate(name="RTU CM CASCADE CM")
             rtu = self._create_rtu_row(rate=rate, cost_model=cost_model)
             rtu_uuid = rtu.uuid
