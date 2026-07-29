@@ -2125,7 +2125,7 @@ class TestPrometheusTimingWrappers(_ReportPeriodMixin, MasuTestCase):
         self.assertGreaterEqual(observed_duration, 0, "Duration must be non-negative")
 
 
-class TestMonthlyCostRTUDeleteScope(MasuTestCase):
+class TestMonthlyCostRTUDeleteScope(_ReportPeriodMixin, MasuTestCase):
     """Regression tests for the monthly-cost RTU duplication bug (COST-7249 follow-up).
 
     Root cause: populate_monthly_cost_sql() always calls
@@ -2185,9 +2185,7 @@ class TestMonthlyCostRTUDeleteScope(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
     def test_populate_monthly_cost_sql_deletes_rtu_rows_before_insert_node(self, mock_execute):
         with OCPReportDBAccessor(self.schema) as accessor:
-            rp = accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, DateHelper().this_month_start)
-            if not rp:
-                self.skipTest("No report period for OCP provider")
+            rp = self._get_report_period(accessor)
             accessor.populate_monthly_cost_sql(
                 "Node",
                 "Infrastructure",
@@ -2212,9 +2210,7 @@ class TestMonthlyCostRTUDeleteScope(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
     def test_populate_monthly_cost_sql_deletes_rtu_rows_before_insert_pvc(self, mock_execute):
         with OCPReportDBAccessor(self.schema) as accessor:
-            rp = accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, DateHelper().this_month_start)
-            if not rp:
-                self.skipTest("No report period for OCP provider")
+            self._get_report_period(accessor)
             accessor.populate_monthly_cost_sql(
                 "PVC",
                 "Infrastructure",
@@ -2233,9 +2229,7 @@ class TestMonthlyCostRTUDeleteScope(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
     def test_populate_monthly_cost_sql_deletes_rtu_rows_before_insert_ocp_vm(self, mock_execute):
         with OCPReportDBAccessor(self.schema) as accessor:
-            rp = accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, DateHelper().this_month_start)
-            if not rp:
-                self.skipTest("No report period for OCP provider")
+            self._get_report_period(accessor)
             accessor.populate_monthly_cost_sql(
                 "OCP_VM",
                 "Infrastructure",
@@ -2263,9 +2257,7 @@ class TestMonthlyCostRTUDeleteScope(MasuTestCase):
         precedent for the Trino-routed GPU distribution path.
         """
         with OCPReportDBAccessor(self.schema) as accessor:
-            rp = accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, DateHelper().this_month_start)
-            if not rp:
-                self.skipTest("No report period for OCP provider")
+            self._get_report_period(accessor)
             accessor.populate_monthly_cost_sql(
                 "OCP_VM_CORE",
                 "Infrastructure",
