@@ -1,0 +1,75 @@
+# Cursor access ignore — keep agents off heavy / non-source paths.
+# Prefer .cursorindexingignore for large files agents must still Read
+# (e.g. OpenAPI). Patterns follow .gitignore semantics.
+
+# --- Runtimes, caches, coverage ---
+.tox/
+.venv/
+venv/
+env/
+htmlcov/
+.coverage
+.coverage.*
+.cache/
+.mypy_cache/
+.hypothesis/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+*.prof
+view.prof
+koku.iml
+
+# --- Local data stores & container volumes ---
+pg_data/
+pg_data.bak*/
+.trino/
+.unleash/
+dev/containers/**/data/
+dev/containers/**/data.bak*/
+dev/containers/**/logs/
+dev/containers/**/cache/
+dev/containers/minio/
+dev/containers/trino/data/
+dev/containers/postgresql/data/
+
+# --- Integration / smoke test assets (not unit-test source) ---
+testing/local_providers/
+testing/data/
+testing/pvc_dir/
+testing/parquet_data/
+testing/kustomize/
+testing/**/*.zip
+testing/auth_files/
+
+# --- Generated static / downloaded pricing dumps ---
+koku/staticfiles/
+koku/static/
+scripts/aws_cost_usage/
+scripts/aws_pricing/
+certs/
+
+# --- Docs / ops assets rarely needed for code edits ---
+docs/images/
+dashboards/
+grafana/
+licenses/
+
+# --- Editor / OS noise ---
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+pgadmin_servers.json
+
+# --- Secrets / local env (never index) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+dev/credentials/

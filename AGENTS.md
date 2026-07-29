@@ -65,10 +65,16 @@ with schema_context(self.schema):
     rows = OCPUsageLineItemDailySummary.objects.filter(...)
 ```
 
+<<<<<<< Updated upstream
 **SQL template directories:**
 - `masu/database/sql/` — PostgreSQL (both modes): UI summaries, tags, cost model ops
 - `masu/database/trino_sql/` — Trino (SaaS only): Parquet aggregation
 - `masu/database/self_hosted_sql/` — PostgreSQL (on-prem only): parallel to `trino_sql/`
+=======
+**SQL templates / dual paths** — start with [`docs/agent/sql-pipeline-index.md`](docs/agent/sql-pipeline-index.md),
+then [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc),
+[`.cursor/rules/sql-templates.mdc`](.cursor/rules/sql-templates.mdc), [`CLAUDE.md`](CLAUDE.md) Key rules.
+>>>>>>> Stashed changes
 
 ---
 
@@ -144,6 +150,7 @@ Most features require changes that work in **both** execution paths. Choose your
 
 ## Tech Stack
 
+<<<<<<< Updated upstream
 | Component      | Technology                                        | Version Source |
 |----------------|---------------------------------------------------|----------------|
 | Framework      | Django + Django REST Framework                    | `Pipfile`      |
@@ -186,6 +193,23 @@ koku/                          # Repository root
 ├── docker-compose.yml         # Full development environment
 └── tox.ini                    # Test runner configuration
 ```
+=======
+| If you are... | Load |
+|---------------|------|
+| Editing `*.sql` templates | [`docs/agent/sql-pipeline-index.md`](docs/agent/sql-pipeline-index.md), [`.cursor/rules/sql-templates.mdc`](.cursor/rules/sql-templates.mdc) |
+| Changing masu pipeline / accessors / Celery | [`docs/agent/sql-pipeline-index.md`](docs/agent/sql-pipeline-index.md), [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc), [`.cursor/rules/celery-tasks.mdc`](.cursor/rules/celery-tasks.mdc), [`docs/architecture/celery-tasks.md`](docs/architecture/celery-tasks.md) |
+| New pipeline feature / SQL write path | [`docs/agent/sql-pipeline-index.md`](docs/agent/sql-pipeline-index.md), [`CLAUDE.md`](CLAUDE.md) feature flags, [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc) |
+| Sources / Kafka / data ingestion | [`docs/architecture/sources-and-data-ingestion.md`](docs/architecture/sources-and-data-ingestion.md) |
+| Changing report API / `provider_map.py` | [`.cursor/rules/provider-maps.mdc`](.cursor/rules/provider-maps.mdc), [`.cursor/rules/api-design.mdc`](.cursor/rules/api-design.mdc), [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc), [`docs/architecture/api-serializers-provider-maps.md`](docs/architecture/api-serializers-provider-maps.md) |
+| API / OpenAPI changes | [`.cursor/rules/api-design.mdc`](.cursor/rules/api-design.mdc), [`CLAUDE.md`](CLAUDE.md) Key rules; extract paths with `jq` (OpenAPI is index-ignored — do not Read whole JSON) |
+| OCP report processing | [`.cursor/rules/ocp-processing.mdc`](.cursor/rules/ocp-processing.mdc), [`.cursor/rules/file-processing.mdc`](.cursor/rules/file-processing.mdc) |
+| Writing or fixing tests | [`docs/agent/testing.md`](docs/agent/testing.md), [`.cursor/rules/testing-patterns.mdc`](.cursor/rules/testing-patterns.mdc) |
+| Django ORM / models / accessors | [`.cursor/rules/django-db.mdc`](.cursor/rules/django-db.mdc), [`docs/agent/backend-gotchas.md`](docs/agent/backend-gotchas.md) |
+| Local stack / nise / UI E2E | [`docs/local-development.md`](docs/local-development.md) |
+| Cost model SQL or distribution | [`docs/agent/sql-pipeline-index.md`](docs/agent/sql-pipeline-index.md), [`docs/architecture/cost-models.md`](docs/architecture/cost-models.md) |
+| Editing architecture docs | [`.cursor/rules/architecture-docs.mdc`](.cursor/rules/architecture-docs.mdc) |
+| PRD → design docs | [`docs/architecture/README.md`](docs/architecture/README.md), `/architect` command |
+>>>>>>> Stashed changes
 
 ---
 

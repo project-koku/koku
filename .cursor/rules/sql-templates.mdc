@@ -6,6 +6,8 @@ alwaysApply: false
 
 # SQL Template Patterns
 
+**File map first:** [`docs/agent/sql-pipeline-index.md`](../../docs/agent/sql-pipeline-index.md) — provider → accessor/updater/SQL roots. Use it before globbing all three SQL trees.
+
 ## Three SQL Directories
 
 | Directory | Used By | Purpose |

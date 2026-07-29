@@ -1,0 +1,10 @@
+# Index-only ignore — agents can still Read these when needed.
+# Keeps ~1MB+ JSON out of default semantic search / codebase index.
+
+# OpenAPI (use jq / targeted extraction; do not load whole files)
+docs/specs/openapi.json
+koku/masu/openapi.json
+koku/sources/openapi.json
+
+# Lockfile (check Pipfile for declared deps; read lock only if required)
+Pipfile.lock

@@ -33,6 +33,8 @@ else:
 
 ## SQL Template Directories
 
+Provider → accessor/updater/SQL map: [`docs/agent/sql-pipeline-index.md`](../../docs/agent/sql-pipeline-index.md).
+
 | Directory | Mode | Purpose |
 |-----------|------|---------|
 | `masu/database/sql/` | Both | Shared PostgreSQL operations |
