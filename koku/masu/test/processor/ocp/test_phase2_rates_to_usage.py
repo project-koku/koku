@@ -932,6 +932,8 @@ class TestPurgeWiring(MasuTestCase):
         table_names_arg = filter_call.call_args[1].get("partition_of_table_name__in")
         self.assertIn("rates_to_usage", table_names_arg)
         self.assertIn("reporting_ocp_vm_summary_p", table_names_arg)
+        self.assertIn("reporting_ocp_cost_breakdown_p", table_names_arg)
+        mock_accessor.cleanup_ocp_tags_values.assert_called_once()
 
     # TC-52: rates_to_usage NOT in get_self_hosted_table_names (avoids duplicate)
     def test_rates_to_usage_not_in_self_hosted_names(self):

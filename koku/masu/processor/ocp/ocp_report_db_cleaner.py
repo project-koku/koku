@@ -91,6 +91,9 @@ class OCPReportDBCleaner:
                 if settings.ONPREM:
                     accessor.delete_self_hosted_data_by_source(provider_uuid)
 
+                # Label summaries cascade with report periods; prune orphan tag index rows.
+                accessor.cleanup_ocp_tags_values()
+
         return removed_items
 
     def purge_expired_report_data_by_date(self, expired_date, simulate=False):
@@ -149,6 +152,9 @@ class OCPReportDBCleaner:
                         schema=self._schema,
                     )
                 )
+
+                # Label summaries cascade with report periods; prune orphan tag index rows.
+                accessor.cleanup_ocp_tags_values()
 
         return removed_items
 
