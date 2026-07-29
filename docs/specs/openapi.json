@@ -43,6 +43,10 @@
             "description": "Operations about cost types"
         },
         {
+            "name": "Currency",
+            "description": "Operations about currencies and constant-currency settings"
+        },
+        {
             "name": "Metrics",
             "description": "Operations about cost model metrics"
         },
@@ -100,11 +104,11 @@
                 "tags": [
                     "Currency"
                 ],
-                "summary": "Obtain the supported currencies",
+                "summary": "List enabled currencies",
                 "operationId": "getCurrency",
                 "responses": {
                     "200": {
-                        "description": "An object describing the supported currencies",
+                        "description": "Paginated list of enabled currencies (code, name, symbol, description).",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -123,7 +127,16 @@
                             }
                         }
                     }
-                }
+                },
+                "description": "Returns currencies enabled for the tenant. Used by the end-user target-currency dropdown. Only enabled currencies are returned.\n\nFor the administrator Settings currency table (all ISO currencies with enable/disable state and nested static rates), use `GET /settings/currency/` instead.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    }
+                ]
             }
         },
         "/cost-type/": {
@@ -6190,6 +6203,354 @@
                 }
             }
         },
+        "/settings/currency/": {
+            "get": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "List all currencies for Settings",
+                "description": "Administrator currency catalog for the Settings UI. Returns all ISO 4217 currencies with enablement status, dynamic-rate availability, and nested static exchange rates (where this currency is the base).\n\n**Default behavior:** omit `enabled` to return **all** currencies (enabled first, then disabled). This is the endpoint the Settings toggle table should call.\n\n- `enabled=true` or `enabled=1` \u2014 only enabled currencies\n- `enabled=false` (or any other value) \u2014 only disabled currencies\n- omit `enabled` \u2014 all currencies\n\nRequires settings access permission.\n\nNote: There is no dedicated currency CSV/export endpoint. Report CSV exports continue to use existing report endpoints with the `currency` query parameter; conversion uses monthly rates when constant currency is enabled. Surfacing applied rate periods in export payloads is not implemented as a separate API.",
+                "operationId": "getSettingsCurrency",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "in": "query",
+                        "name": "enabled",
+                        "required": false,
+                        "description": "Filter by enablement. `true`/`1` = enabled only; any other value = disabled only; omit = all currencies (enabled first).",
+                        "schema": {
+                            "type": "string",
+                            "example": "true"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "required": false,
+                        "description": "Case-insensitive substring match on currency code.",
+                        "schema": {
+                            "type": "string",
+                            "example": "USD"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated currency catalog",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CurrencySettings"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden \u2014 settings access required"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            }
+        },
+        "/settings/currency/enabled/{code}/": {
+            "post": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "Enable a currency",
+                "description": "Enable an ISO 4217 currency for the tenant. Idempotent: enabling an already-enabled currency returns 200. Invalid codes return 400.\n\nSide effects: may populate current-month dynamic monthly rates for pairs involving this currency; invalidates report caches for the tenant.",
+                "operationId": "enableSettingsCurrency",
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "path",
+                        "required": true,
+                        "description": "ISO 4217 currency code (normalized to uppercase).",
+                        "schema": {
+                            "type": "string",
+                            "example": "EUR"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Currency enabled (or already enabled). Empty body."
+                    },
+                    "400": {
+                        "description": "Invalid currency code",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden \u2014 settings access required"
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "Disable a currency",
+                "description": "Disable a currency for the tenant. Idempotent when already disabled (204).\n\nDisable is rejected (400) when:\n- It would remove the last enabled currency\n- It is the system default currency\n- It is the account default currency\n- Cloud provider billing data uses it as a base currency\n- One or more cost models or price lists use it",
+                "operationId": "disableSettingsCurrency",
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "path",
+                        "required": true,
+                        "description": "ISO 4217 currency code (normalized to uppercase).",
+                        "schema": {
+                            "type": "string",
+                            "example": "EUR"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Currency disabled (or already disabled). Empty body."
+                    },
+                    "400": {
+                        "description": "Cannot disable \u2014 last enabled currency, or currency in use / is a default",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Error"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/CurrencyDisableBlocked"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden \u2014 settings access required"
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            }
+        },
+        "/settings/currency/static-rates/": {
+            "post": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "Create a static exchange rate",
+                "description": "Create a tenant-defined static exchange rate for a directional pair (`base_currency` \u2192 `target_currency`) with a monthly validity window.\n\nValidation rules:\n- Currencies must be valid ISO 4217 codes\n- `base_currency` must differ from `target_currency`\n- `exchange_rate` must be strictly positive\n- `start_date` must be the 1st of a month\n- `end_date` must be the last day of a month and on/after `start_date`\n- `start_date` cannot be in a past month (for new rates)\n- No overlapping window for the same directional pair\n\nBase and target currencies do **not** need to be enabled at creation time.\n\nRequires cost models / price list access. There is no dedicated GET collection for static rates; list them via `GET /settings/currency/` (`static_rates` nested under each base).",
+                "operationId": "createStaticExchangeRate",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StaticExchangeRateIn"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Static exchange rate created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaticExchangeRate"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden \u2014 cost models access required"
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            }
+        },
+        "/settings/currency/static-rates/{uuid}/": {
+            "put": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "Update a static exchange rate",
+                "description": "Full update of a static exchange rate. Same body shape as create.\n\n- `base_currency` cannot be changed (delete and recreate instead)\n- When the rate already includes finalized months (months before the current calendar month):\n  - `target_currency` cannot change\n  - `start_date` cannot change (shrink `end_date`, then create a new rate)\n  - `end_date` cannot shrink earlier than the last day of the previous month\n- Fully finalized rates cannot be updated \u2014 create a new rate starting in the current month instead",
+                "operationId": "updateStaticExchangeRate",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Static exchange rate UUID.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StaticExchangeRateIn"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Static exchange rate updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaticExchangeRate"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden \u2014 cost models access required"
+                    },
+                    "404": {
+                        "description": "Static exchange rate not found"
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "Delete a static exchange rate",
+                "description": "Delete a static exchange rate. Rates whose entire window includes finalized months (start_date before the current month) cannot be deleted (400) \u2014 create a new rate instead.",
+                "operationId": "deleteStaticExchangeRate",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Static exchange rate UUID.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted. Empty body."
+                    },
+                    "400": {
+                        "description": "Cannot delete \u2014 rate has finalized months",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden \u2014 cost models access required"
+                    },
+                    "404": {
+                        "description": "Static exchange rate not found"
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            }
+        },
         "/settings/tags/": {
             "get": {
                 "tags": [
@@ -7484,7 +7845,8 @@
                             }
                         }
                     }
-                ]
+                ],
+                "description": "Paginated list of enabled currencies for the target-currency dropdown."
             },
             "Currencies": {
                 "required": [
@@ -7506,6 +7868,244 @@
                     "description": {
                         "type": "string"
                     }
+                },
+                "description": "Enabled currency entry returned by GET /currency/."
+            },
+            "CurrencySettingsItem": {
+                "type": "object",
+                "required": [
+                    "code",
+                    "symbol",
+                    "name",
+                    "description",
+                    "enabled",
+                    "has_dynamic_rate",
+                    "static_rates"
+                ],
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "example": "USD",
+                        "description": "ISO 4217 currency code"
+                    },
+                    "symbol": {
+                        "type": "string",
+                        "example": "$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "US Dollar"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "USD ($) - US Dollar"
+                    },
+                    "enabled": {
+                        "type": "boolean",
+                        "description": "Whether the currency is enabled for the tenant"
+                    },
+                    "has_dynamic_rate": {
+                        "type": "boolean",
+                        "description": "Whether a dynamic (market) rate exists for this currency code"
+                    },
+                    "static_rates": {
+                        "type": "array",
+                        "description": "Static rates where this currency is the base",
+                        "items": {
+                            "$ref": "#/components/schemas/StaticExchangeRate"
+                        }
+                    }
+                }
+            },
+            "CurrencySettings": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/CurrencySettingsItem"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "description": "Paginated administrator currency catalog."
+            },
+            "StaticExchangeRateIn": {
+                "type": "object",
+                "required": [
+                    "base_currency",
+                    "target_currency",
+                    "exchange_rate",
+                    "start_date",
+                    "end_date"
+                ],
+                "properties": {
+                    "base_currency": {
+                        "type": "string",
+                        "example": "USD",
+                        "description": "ISO 4217 base currency code"
+                    },
+                    "target_currency": {
+                        "type": "string",
+                        "example": "EUR",
+                        "description": "ISO 4217 target currency code"
+                    },
+                    "exchange_rate": {
+                        "type": "number",
+                        "example": 0.87,
+                        "description": "Strictly positive exchange rate (base \u2192 target)"
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-04-01",
+                        "description": "Must be the first day of a month"
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-06-30",
+                        "description": "Must be the last day of a month"
+                    }
+                }
+            },
+            "StaticExchangeRate": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/StaticExchangeRateIn"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "uuid",
+                            "name",
+                            "created_timestamp",
+                            "updated_timestamp"
+                        ],
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "name": {
+                                "type": "string",
+                                "readOnly": true,
+                                "example": "USD-EUR",
+                                "description": "Read-only: `{base_currency}-{target_currency}`"
+                            },
+                            "created_timestamp": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "updated_timestamp": {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        }
+                    }
+                ],
+                "description": "Static exchange rate. `exchange_rate` is a JSON number; storage retains full Decimal precision."
+            },
+            "CurrencyDisableBlocked": {
+                "type": "object",
+                "required": [
+                    "errors"
+                ],
+                "properties": {
+                    "errors": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "detail": {
+                                    "type": "string"
+                                },
+                                "source": {
+                                    "type": "string",
+                                    "example": "currency"
+                                },
+                                "status": {
+                                    "type": "integer",
+                                    "example": 400
+                                }
+                            }
+                        }
+                    },
+                    "affected_cloud_providers": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "uuid": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "affected_cost_models": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "uuid": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "affected_price_lists": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "uuid": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Returned when disabling a currency that is in use or is a default.",
+                "example": {
+                    "errors": [
+                        {
+                            "detail": "Cannot disable GBP because it is used by 1 cost model(s).",
+                            "source": "currency",
+                            "status": 400
+                        }
+                    ],
+                    "affected_cloud_providers": [],
+                    "affected_cost_models": [
+                        {
+                            "uuid": "00000000-0000-0000-0000-000000000001",
+                            "name": "GBP Cost Model"
+                        }
+                    ],
+                    "affected_price_lists": []
                 }
             },
             "Customer": {
