@@ -1280,7 +1280,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     # Double check the specific GPU SQL file was never requested
                     gpu_call = call(
                         masu_database,
-                        "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                        "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost_rtu.sql",
                     )
                     self.assertNotIn(gpu_call, mock_data_get.call_args_list)
 
@@ -1326,7 +1326,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost_rtu.sql",
             )
             self.assertIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_called()
@@ -1377,7 +1377,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # GPU should NOT run — already finalized
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost_rtu.sql",
             )
             self.assertNotIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_not_called()
@@ -1431,7 +1431,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # GPU SHOULD run — not yet finalized
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost_rtu.sql",
             )
             self.assertIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_called()
@@ -1469,7 +1469,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # Natural path (is_current_month=False) should ALWAYS run GPU distribution
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost_rtu.sql",
             )
             self.assertIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_called()
@@ -1516,7 +1516,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost_rtu.sql",
             )
             self.assertNotIn(gpu_call, mock_data_get.call_args_list)
 
@@ -1552,7 +1552,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost_rtu.sql",
             )
             self.assertIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_called()
@@ -1604,7 +1604,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # GPU should NOT be called since no report period exists for previous month
             gpu_call = call(
                 masu_database,
-                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_per_rate.sql",
+                "trino_sql/openshift/cost_model/distribute_cost/distribute_unallocated_gpu_cost_rtu.sql",
             )
             self.assertNotIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_not_called()

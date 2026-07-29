@@ -165,7 +165,7 @@ class OCPReportDBCleanerTest(MasuTestCase):
                 self.skipTest("No report period for OCP provider")
             RatesToUsage.objects.filter(source_uuid=self.ocp_provider_uuid).delete()
             RatesToUsage.objects.create(
-                source_uuid=self.ocp_provider_uuid,
+                source_uuid_id=self.ocp_provider_uuid,
                 usage_start=rp.report_period_start.date(),
                 usage_end=rp.report_period_start.date(),
                 cluster_id="test-cluster",

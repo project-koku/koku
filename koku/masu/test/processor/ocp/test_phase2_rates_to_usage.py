@@ -762,7 +762,7 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
-        mock_dist.assert_called_once_with(sr)
+        mock_dist.assert_called_once_with(sr, use_rtu=True)
         mock_usage.assert_not_called()
 
     # TC-42: RTU insert before distribute (both in RTU-enabled path)
@@ -781,8 +781,8 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         mock_dist,
     ):
         call_order = []
-        mock_rtu.side_effect = lambda *a: call_order.append("rtu")
-        mock_dist.side_effect = lambda *a: call_order.append("dist")
+        mock_rtu.side_effect = lambda *a, **kw: call_order.append("rtu")
+        mock_dist.side_effect = lambda *a, **kw: call_order.append("dist")
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
@@ -809,9 +809,9 @@ class TestUpdaterOrchestration(_ReportPeriodMixin, MasuTestCase):
         mock_dist,
     ):
         call_order = []
-        mock_rtu.side_effect = lambda *a: call_order.append("rtu")
-        mock_monthly.side_effect = lambda *a: call_order.append("monthly")
-        mock_dist.side_effect = lambda *a: call_order.append("dist")
+        mock_rtu.side_effect = lambda *a, **kw: call_order.append("rtu")
+        mock_monthly.side_effect = lambda *a, **kw: call_order.append("monthly")
+        mock_dist.side_effect = lambda *a, **kw: call_order.append("dist")
 
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
         sr = self._make_summary_range()
@@ -1413,9 +1413,9 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
             cost_model_update=True,
         )
 
-    # TC-R20-01: Phase 4 ordering at outer level: rtu -> monthly -> vm -> dist
-    # (agg and markup now run inside distribute_costs_and_update_ui_summary,
-    #  tested separately in TestPhase4Orchestration)
+    # TC-R20-01: Phase 4 ordering at outer level: rtu -> monthly -> vm -> agg -> markup -> dist
+    # (a *separate* accessor-level agg/markup pair also runs inside
+    #  distribute_costs_and_update_ui_summary itself, tested in TestPhase4Orchestration)
     @_make_orchestration_patches(rtu_enabled=True)
     def test_rtu_enabled_full_ordering(
         self,
@@ -1430,7 +1430,13 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         mock_monthly,
         mock_dist,
     ):
-        """R20: Phase 4 outer order is rtu -> monthly -> vm -> dist."""
+        """R20: Phase 4 outer order is rtu -> monthly -> vm -> agg -> markup -> dist.
+
+        _aggregate_rates_to_daily_summary and _update_markup_cost run inside
+        update_summary_cost_model_costs's per-month loop (after vm, before the
+        loop ends), and distribute_costs_and_update_ui_summary runs once after
+        the loop completes.
+        """
         call_order = []
         mock_rtu.side_effect = lambda *a, **kw: call_order.append("rtu")
         mock_monthly.side_effect = lambda *a, **kw: call_order.append("monthly")
@@ -1443,7 +1449,7 @@ class TestOrchestrationOrder(_ReportPeriodMixin, MasuTestCase):
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
 
-        expected = ["rtu", "monthly", "vm", "dist"]
+        expected = ["rtu", "monthly", "vm", "agg", "markup", "dist"]
         self.assertEqual(call_order, expected, f"R20: expected {expected}, got {call_order}")
         mock_usage.assert_not_called()
         mock_cleanup.assert_not_called()
@@ -1569,7 +1575,10 @@ class TestPriceListValidityGuard(_ReportPeriodMixin, MasuTestCase):
         mock_dist.assert_called()
         mock_vm.assert_called()
         mock_monthly.assert_called()
-        mock_markup.assert_not_called()
+        # Markup runs unconditionally regardless of price-list effective dates --
+        # it uses its own CostModelDBAccessor(price_list_effective_on=None) and is
+        # independent of whether tiered/tag rates have coverage for this month.
+        mock_markup.assert_called()
 
     # TC-7492-02: RTU still called when price_list_effective_on is None (feature flag disabled)
     @_make_orchestration_patches(rtu_enabled=True)

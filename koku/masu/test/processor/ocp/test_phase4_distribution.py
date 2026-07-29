@@ -756,8 +756,6 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
     These tests form the mid-tier of the test pyramid for the breakdown feature.
     """
 
-    _populated = False
-
     def setUp(self):
         super().setUp()
         self.dh = DateHelper()
@@ -768,9 +766,14 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
         self.end_date = end.date() if hasattr(end, "date") else end
         self.provider_uuid = self.ocp_provider.uuid
 
-        if not TestBreakdownPopulationSQL._populated:
-            self._seed_rtu_and_populate_breakdown()
-            TestBreakdownPopulationSQL._populated = True
+        # NOTE: Django's TestCase wraps each test method in its own transaction
+        # that is rolled back afterward, so seeded data cannot be shared across
+        # tests via a class-level "seeded once" flag (a prior version of this
+        # class did that and silently self-skipped every test after the first,
+        # since the flag survived the rollback but the data did not; see
+        # TestDistributionIntegration.setUp above for the same fix). Reseed
+        # fresh on every test.
+        self._seed_rtu_and_populate_breakdown()
 
     def _seed_rtu_and_populate_breakdown(self):
         """Run cost model updater then populate breakdown table."""
