@@ -1,6 +1,8 @@
 ---
 description: On-premise vs SaaS architectural patterns and decision guidance
-globs: "**/{masu,api/report}/**/*.py"
+globs:
+  - "**/masu/**/*.py"
+  - "**/api/report/**/*.py"
 alwaysApply: false
 ---
 

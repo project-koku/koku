@@ -90,7 +90,7 @@ Use a `poc/` subfolder only for **spike artifacts** (SQL sketches, scripts) that
 
 ### 6. Maintenance rule
 
-Per `.cursorrules`: **link to code instead of pasting large blocks** that will drift. When implementation merges, update or add links to the canonical files. If a workflow documented here changes (tasks, serializers, Kafka, cost model SQL), update the relevant architecture doc in the same PR when practical.
+Per [`.cursor/rules/architecture-docs.mdc`](../../.cursor/rules/architecture-docs.mdc): **link to code instead of pasting large blocks** that will drift. When implementation merges, update or add links to the canonical files. If a workflow documented here changes (tasks, serializers, Kafka, cost model SQL), update the relevant architecture doc in the same PR when practical.
 
 ---
 
@@ -198,7 +198,7 @@ Output: proposed new/changed markdown files only (no application code unless ask
 
 ## Related project rules
 
-- **Architecture doc policy** (link vs duplicate, when to update): `.cursorrules` section “Architecture Documentation.”
+- **Architecture doc policy** (link vs duplicate, when to update): [`.cursor/rules/architecture-docs.mdc`](../../.cursor/rules/architecture-docs.mdc).
 - **Multi-tenancy** and **on-prem vs SaaS**: `.cursor/rules/multi-tenancy.mdc`, `.cursor/rules/onprem-vs-saas.mdc`.
 
 If you add a major new workflow or task, update [`celery-tasks.md`](celery-tasks.md) or the relevant CSV/architecture doc in the same change set when that remains the canonical map.

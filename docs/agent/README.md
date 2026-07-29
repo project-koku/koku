@@ -16,4 +16,4 @@ in [`AGENTS.md`](../../AGENTS.md), then open entries from this catalog.
 | OCP metrics operator | [`koku-metrics-operator.md`](koku-metrics-operator.md) → [repo](https://github.com/project-koku/koku-metrics-operator) |
 | Env vars, dev tooling | [`../devtools.md`](../devtools.md) |
 | Test patterns (glob) | [`.cursor/rules/testing-patterns.mdc`](../../.cursor/rules/testing-patterns.mdc) |
-| Python/Django style | [`.cursorrules`](../../.cursorrules) |
+| Python/Django style | [`.cursor/rules/python-conventions.mdc`](../../.cursor/rules/python-conventions.mdc), [`.cursor/rules/django-db.mdc`](../../.cursor/rules/django-db.mdc) |
