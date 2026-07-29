@@ -103,8 +103,29 @@ Cloud Providers --> [AWS CUR / Azure API / GCP BigQuery] ------> Koku Backend (C
    - **On-prem**: PostgreSQL-only (no Trino)
 2. **Multi-tenancy**: Schema-per-tenant via `django-tenants`. All queries must be tenant-aware.
 3. **OCI is deprecated/removed** — do not implement OCI support.
-4. **Feature flags** (Unleash): Only gate features behind flags when explicitly required.
+4. **Feature flags** (Unleash): Gate risky pipeline/data changes behind an
+   **enablement** flag (ON = new path, default OFF in stage/prod). Do **not**
+   create `disable-*` flags for feature rollout — those are reserved for ops
+   kill-switches. Full policy + catalog:
+   [`docs/team_workflows/unleash-flags.md`](docs/team_workflows/unleash-flags.md).
 5. **Supported providers**: AWS, Azure, GCP, OpenShift (and OCP-on-cloud: OCP_AWS, OCP_Azure, OCP_GCP).
+
+### Feature flags (Unleash)
+
+Full policy, lifecycle, and catalog:
+[`docs/team_workflows/unleash-flags.md`](docs/team_workflows/unleash-flags.md).
+
+- **Must flag:** risky pipeline/SQL/data-path changes (see CLAUDE.md / playbook).
+- **May skip:** purely additive API changes that do not affect data processing.
+- **Polarity for new features:** enablement only — flag ON enables the new path;
+  default OFF in stage/prod. Use `dev_fallback=True` so local/dev can exercise
+  the new path without configuring Unleash. Never name new feature flags
+  `disable-*`.
+- **Ops exceptions:** kill-switches (`disable-summary-processing`,
+  `disable-source`, write-freeze, etc.) and customer classification flags
+  (`large-customer`, …) may keep disable/ops polarity.
+- Define constants in `koku/masu/processor/__init__.py`; add on-prem defaults in
+  `koku/koku/feature_flags.py` only when needed; update the catalog in the same PR.
 
 ### Choosing Your Development Mode
 

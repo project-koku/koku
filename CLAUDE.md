@@ -43,9 +43,21 @@ docs/specs/openapi.json     # OpenAPI spec (main API)
 
 ## Feature flags (Unleash) — gate risky changes
 
+Full team policy, lifecycle, and flag catalog:
+[`docs/team_workflows/unleash-flags.md`](docs/team_workflows/unleash-flags.md).
+
 New features, SQL pipeline changes, and any code path change that could
 negatively affect production **must** be gated behind an Unleash feature flag
-with a default of **OFF** (`dev_fallback=True` for dev/test).
+with a default of **OFF** in stage/prod (`dev_fallback=True` for local/dev).
+
+**Polarity (required for new feature flags):** use **enablement**, not
+disablement. Flag **ON** turns on the new path; flag **OFF** keeps the legacy
+path. Name flags as `cost-management.backend.<feature_name>` (or
+`enable-<feature>`), never `disable-*` for feature rollout.
+
+**Exceptions (ops only — do not use for new features):**
+- Kill-switches: `disable-summary-processing`, `disable-source`, write-freeze, etc.
+- Classification: `large-customer`, `penalty-customer`, rate-limit variants
 
 **What must be flagged:**
 - New or changed SQL INSERT/UPDATE/DELETE templates in the pipeline
@@ -62,7 +74,7 @@ fields) may skip flagging if they don't affect data processing.
 # 1. Define in koku/masu/processor/__init__.py
 MY_FEATURE_UNLEASH_FLAG = "cost-management.backend.my_feature_name"
 
-# 2. Gate the code path
+# 2. Gate the code path (enablement: ON = new path)
 from masu.processor import is_feature_flag_enabled_by_schema, MY_FEATURE_UNLEASH_FLAG
 
 if is_feature_flag_enabled_by_schema(schema, MY_FEATURE_UNLEASH_FLAG, dev_fallback=True):
@@ -71,9 +83,14 @@ else:
     # legacy path — must remain functional
 ```
 
+`dev_fallback=True` enables the flag only when the Unleash client environment
+is `development`; stage/prod still default to **OFF** if Unleash is unreachable.
+Use `dev_fallback=False` only for rollback-sensitive paths (e.g. RTU).
+
 The legacy path must remain functional and tested.  Do not delete legacy SQL
 files or code until the flag has been enabled in production for at least one
-full billing cycle and validated.
+full billing cycle and validated. Update the catalog in
+`docs/team_workflows/unleash-flags.md` in the same PR that adds or removes a flag.
 
 See existing flags in `koku/masu/processor/__init__.py` for naming convention
 (`cost-management.backend.<feature_name>`).  For flags checked from multiple
@@ -109,7 +126,7 @@ everywhere.
 | API views or serializers | `docs/specs/openapi.json` |
 | Environment variables | `deploy/clowdapp.yaml`, `koku/koku/settings.py`, `.env.example` |
 | Celery tasks | Ensure `@celery_app.task(name=...)` matches function name (exception: legacy names for backwards compat) |
-| New Unleash flag | `koku/masu/processor/__init__.py` (constant); `koku/koku/feature_flags.py` only if on-prem default needed |
+| New Unleash flag | `koku/masu/processor/__init__.py` (constant); `koku/koku/feature_flags.py` only if on-prem default needed; update `docs/team_workflows/unleash-flags.md` |
 | Provider-specific code (aws/azure/gcp/ocp) | Check other providers for parity |
 | Django models (field changes) | Include migration in same or paired PR |
 | New periodic Celery task | Add beat_schedule entry in `koku/koku/celery.py` |
