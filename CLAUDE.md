@@ -84,7 +84,7 @@ else:
 ```
 
 `dev_fallback=True` enables the flag only when the Unleash client environment
-is `development`; stage/prod still default to **OFF** if Unleash is unreachable.
+is `development`; stage/prod still defaults to **OFF** if Unleash is unreachable.
 Use `dev_fallback=False` only for rollback-sensitive paths (e.g. RTU).
 
 The legacy path must remain functional and tested.  Do not delete legacy SQL
