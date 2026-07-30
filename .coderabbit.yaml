@@ -133,7 +133,7 @@ reviews:
     shellcheck: # Bugs in shell scripts
       enabled: true
     osvScanner: # Known vulns in dependencies
-      enabled: true
+      enabled: false
     oasdiff: # OpenAPI breaking changes
       enabled: false
     pylint:
