@@ -40,6 +40,7 @@ from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
+from masu.processor import is_cost_model_processing_disabled
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
@@ -931,6 +932,8 @@ def update_cost_model_costs(  # noqa: C901
         None
 
     """
+    if is_cost_model_processing_disabled(schema_name) or is_source_disabled(provider_uuid):
+        return
     task_name = "masu.processor.tasks.update_cost_model_costs"
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
