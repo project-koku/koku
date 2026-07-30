@@ -3,15 +3,19 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Cost Model Manager."""
+import threading
 from unittest.mock import patch
 from uuid import uuid4
 
+import django.test
+from django.db import connection
 from django_tenants.utils import tenant_context
 from model_bakery import baker
 
 from api.iam.models import Customer
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
+from api.models import Tenant
 from api.metrics import constants as metric_constants
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
@@ -102,7 +106,8 @@ class CostModelManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = CostModelManager()
             with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                cost_model_obj = manager.create(**data)
+                with self.captureOnCommitCallbacks(execute=True):
+                    cost_model_obj = manager.create(**data)
                 mock_update.s.return_value.set.return_value.apply_async.assert_called()
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
@@ -158,7 +163,8 @@ class CostModelManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = CostModelManager()
             with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                cost_model_obj = manager.create(**data)
+                with self.captureOnCommitCallbacks(execute=True):
+                    cost_model_obj = manager.create(**data)
                 mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
@@ -278,7 +284,8 @@ class CostModelManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = CostModelManager()
             with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                cost_model_obj = manager.create(**data)
+                with self.captureOnCommitCallbacks(execute=True):
+                    cost_model_obj = manager.create(**data)
                 mock_update.s.return_value.set.return_value.apply_async.assert_called()
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
@@ -323,7 +330,8 @@ class CostModelManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = CostModelManager()
             with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                cost_model_obj = manager.create(**data)
+                with self.captureOnCommitCallbacks(execute=True):
+                    cost_model_obj = manager.create(**data)
                 mock_update.s.return_value.set.return_value.apply_async.assert_not_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
@@ -344,7 +352,8 @@ class CostModelManagerTest(IamTestCase):
                     "cost_models.cost_model_manager.get_customer_queue",
                     return_value=PriorityQueue.XL,
                 ):
-                    manager.update_provider_uuids(provider_uuids=[provider_uuid])
+                    with self.captureOnCommitCallbacks(execute=True):
+                        manager.update_provider_uuids(provider_uuids=[provider_uuid])
                     mock_update.s.return_value.set.assert_called_with(queue=PriorityQueue.XL)
 
     def test_update_provider_uuids(self):
@@ -367,7 +376,8 @@ class CostModelManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = CostModelManager()
             with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                cost_model_obj = manager.create(**data)
+                with self.captureOnCommitCallbacks(execute=True):
+                    cost_model_obj = manager.create(**data)
                 mock_update.s.return_value.set.return_value.apply_async.assert_not_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
@@ -384,7 +394,8 @@ class CostModelManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
             with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                manager.update_provider_uuids(provider_uuids=[provider_uuid])
+                with self.captureOnCommitCallbacks(execute=True):
+                    manager.update_provider_uuids(provider_uuids=[provider_uuid])
                 mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
@@ -396,7 +407,8 @@ class CostModelManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
             with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                manager.update_provider_uuids(provider_uuids=[provider_uuid])
+                with self.captureOnCommitCallbacks(execute=True):
+                    manager.update_provider_uuids(provider_uuids=[provider_uuid])
                 mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
@@ -408,7 +420,8 @@ class CostModelManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
             with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                manager.update_provider_uuids(provider_uuids=[])
+                with self.captureOnCommitCallbacks(execute=True):
+                    manager.update_provider_uuids(provider_uuids=[])
                 mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
@@ -433,14 +446,16 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with self.captureOnCommitCallbacks(execute=True):
+                cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
 
             # simulates deleting a cost_model
-            manager.update_provider_uuids(provider_uuids=[])
+            with self.captureOnCommitCallbacks(execute=True):
+                manager.update_provider_uuids(provider_uuids=[])
             mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
     @patch("cost_models.cost_model_manager.update_cost_model_costs")
@@ -465,15 +480,17 @@ class CostModelManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = CostModelManager()
             with patch("cost_models.cost_model_manager.update_cost_model_costs"):
-                cost_model_obj = manager.create(**data)
+                with self.captureOnCommitCallbacks(execute=True):
+                    cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
 
             # simulates deleting a cost_model
-            manager.update_provider_uuids(provider_uuids=[])
-            mock_update.assert_not_called()
+            with self.captureOnCommitCallbacks(execute=True):
+                manager.update_provider_uuids(provider_uuids=[])
+            mock_update.s.return_value.set.return_value.apply_async.assert_not_called()
 
     def test_update_distribution_choice(self):
         """Test creating a cost model."""
@@ -710,3 +727,81 @@ class CostModelManagerTest(IamTestCase):
             pl_rates = mapping.price_list.rates
             self.assertEqual(pl_rates[0]["metric"], original_rates[0]["metric"])
             self.assertEqual(pl_rates[0]["tiered_rates"], original_rates[0]["tiered_rates"])
+
+
+class CostModelManagerConcurrencyTest(django.test.TransactionTestCase):
+    """Tests that concurrent access to update_provider_uuids serializes correctly."""
+
+    def _fixture_teardown(self):
+        """Skip TRUNCATE flush — django-tenants FK graph breaks TransactionTestCase flush."""
+
+    def setUp(self):
+        """Set up test fixtures using the pre-existing test tenant."""
+        from koku.koku_test_runner import KokuTestRunner
+
+        self.schema = KokuTestRunner.schema
+        self.tenant = Tenant.objects.get(schema_name=self.schema)
+        self.customer = Customer.objects.get(
+            account_id=KokuTestRunner.account,
+            org_id=KokuTestRunner.org_id,
+        )
+        self.user = User.objects.filter(customer=self.customer).first()
+
+        with patch("masu.celery.tasks.check_report_updates"):
+            self.provider_a = Provider.objects.create(
+                name="concurrency_test_a", created_by=self.user, customer=self.customer
+            )
+            self.provider_b = Provider.objects.create(
+                name="concurrency_test_b", created_by=self.user, customer=self.customer
+            )
+
+    def tearDown(self):
+        """Clean up test-specific data."""
+        uuids = [self.provider_a.uuid, self.provider_b.uuid]
+        with tenant_context(self.tenant):
+            CostModelMap.objects.filter(provider_uuid__in=uuids).delete()
+            CostModel.objects.filter(name__startswith="concurrency_test_").delete()
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM public.api_provider WHERE uuid IN (%s, %s)", uuids)
+
+    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    def test_concurrent_update_provider_uuids_no_deadlock(self, mock_update):
+        """Concurrent updates to the same cost model serialize without deadlock."""
+        with tenant_context(self.tenant):
+            cost_model = CostModel.objects.create(
+                name="concurrency_test_model",
+                description="test",
+                source_type="OCP",
+            )
+            CostModelMap.objects.create(cost_model=cost_model, provider_uuid=self.provider_a.uuid)
+            CostModelMap.objects.create(cost_model=cost_model, provider_uuid=self.provider_b.uuid)
+
+        barrier = threading.Barrier(2, timeout=10)
+        results = [None, None]
+
+        def update_fn(index, keep_provider_uuid):
+            try:
+                barrier.wait()
+                with tenant_context(self.tenant):
+                    mgr = CostModelManager(cost_model_uuid=cost_model.uuid)
+                    mgr.update_provider_uuids([str(keep_provider_uuid)])
+                results[index] = "ok"
+            except Exception as exc:
+                results[index] = f"{type(exc).__name__}: {exc}"
+
+        t1 = threading.Thread(target=update_fn, args=(0, self.provider_a.uuid))
+        t2 = threading.Thread(target=update_fn, args=(1, self.provider_b.uuid))
+        t1.start()
+        t2.start()
+        t1.join(timeout=15)
+        t2.join(timeout=15)
+
+        self.assertEqual(results[0], "ok", f"Thread 1 failed: {results[0]}")
+        self.assertEqual(results[1], "ok", f"Thread 2 failed: {results[1]}")
+
+        # Last writer wins — exactly one provider should remain
+        with tenant_context(self.tenant):
+            maps = CostModelMap.objects.filter(cost_model=cost_model)
+            self.assertEqual(maps.count(), 1)
