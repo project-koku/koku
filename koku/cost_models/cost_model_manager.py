@@ -78,6 +78,8 @@ class CostModelManager:
     @transaction.atomic
     def update_provider_uuids(self, provider_uuids):  # noqa: C901
         """Update rate with new provider uuids."""
+        if self._model is None:
+            raise CostModelException("Cannot update provider UUIDs: cost model does not exist.")
         # Serialize concurrent updates to the same cost model (COST-7996).
         CostModel.objects.select_for_update().get(uuid=self._model.uuid)
 
