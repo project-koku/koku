@@ -212,6 +212,7 @@ class ReportSummaryUpdater:
 
         LOG.info(log_json(tracing_id, msg="summary processing complete", context=context))
 
+        # Commented out to get a hot fix to production
         # try:
         #     enable_cloud_bill_currencies(self._schema, self._provider, start_date=start_date, end_date=end_date)
         # except Exception as err:
