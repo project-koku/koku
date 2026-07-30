@@ -932,7 +932,7 @@ def update_cost_model_costs(  # noqa: C901
         None
 
     """
-    if is_cost_model_processing_disabled(schema_name) or is_source_disabled(provider_uuid):
+    if is_cost_model_processing_disabled(schema_name):
         LOG.info(
             log_json(
                 tracing_id,
