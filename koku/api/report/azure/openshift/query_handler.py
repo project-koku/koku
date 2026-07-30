@@ -89,7 +89,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date", self.order]
 
-            annotations = self._mapper.report_type_map.get("annotations")
+            annotations = self.report_annotations
             query_data = query.values(*query_group_by).annotate(**annotations)
 
             if "subscription_guid" in query_group_by:

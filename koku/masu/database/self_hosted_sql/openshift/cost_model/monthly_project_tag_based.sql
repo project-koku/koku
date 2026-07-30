@@ -1,28 +1,19 @@
--- Phase 3: RTU INSERT
-INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
-    cost_model_id,
     report_period_id,
-    source_uuid,
-    usage_start,
-    usage_end,
-    node,
-    namespace,
     cluster_id,
     cluster_alias,
     data_source,
-    persistentvolumeclaim,
+    usage_start,
+    usage_end,
+    namespace,
+    node,
     pod_labels,
-    volume_labels,
     all_labels,
-    label_hash,
-    custom_name,
-    metric_type,
-    cost_model_rate_type,
+    source_uuid,
     monthly_cost_type,
-    calculated_cost,
-    cost_category_id,
-    rate_id
+    cost_model_rate_type,
+    cost_model_cpu_cost
 )
 WITH filtered_data as (
     select
@@ -88,32 +79,24 @@ node_count as (
 )
 SELECT
     uuid_generate_v4(),
-    {{cost_model_id}} AS cost_model_id,
     {{report_period_id}} AS report_period_id,
-    {{source_uuid}}::uuid,
-    fd.usage_start,
-    fd.usage_start as usage_end,
-    fd.node,
-    fd.namespace,
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
     'Pod' as data_source,
-    NULL AS persistentvolumeclaim,
+    fd.usage_start,
+    fd.usage_start as usage_end,
+    fd.namespace,
+    fd.node,
     fd.filtered_namespace_labels as pod_labels,
-    NULL::jsonb AS volume_labels,
     fd.filtered_namespace_labels as all_labels,
-    encode(sha256(decode(COALESCE(fd.filtered_namespace_labels::text, '') || '|' || COALESCE((NULL::jsonb)::text, '') || '|' || COALESCE(fd.filtered_namespace_labels::text, ''), 'escape')), 'hex') AS label_hash,
-    {{custom_name}} AS custom_name,
-    {{metric_type}} AS metric_type,
-    {{rate_type}} AS cost_model_rate_type,
+    {{source_uuid}}::uuid,
     'Tag' AS monthly_cost_type,
+    {{rate_type}} AS cost_model_rate_type,
     CASE
         WHEN nc.node_count < 1
         THEN fd.amortized_cost
         ELSE fd.amortized_cost / nc.node_count
-    END AS calculated_cost,
-    NULL AS cost_category_id,
-    {{rate_uuid}} AS rate_id
+    END
 FROM filtered_data as fd
 JOIN node_count as nc
     ON fd.namespace = nc.namespace

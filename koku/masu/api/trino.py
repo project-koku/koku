@@ -21,6 +21,25 @@ from rest_framework_csv.renderers import CSVRenderer
 LOG = logging.getLogger(__name__)
 
 
+def _filter_trino_queries_by_id(trino_response, query_id):
+    """Filter Trino query responses to a specific query id."""
+
+    def _matches_query_id(query_entry):
+        return isinstance(query_entry, dict) and query_entry.get("queryId") == query_id
+
+    if isinstance(trino_response, list):
+        return [query for query in trino_response if _matches_query_id(query)]
+
+    if isinstance(trino_response, dict):
+        queries = trino_response.get("queries")
+        if isinstance(queries, list):
+            return {**trino_response, "queries": [query for query in queries if _matches_query_id(query)]}
+        if "queryId" in trino_response:
+            return trino_response if _matches_query_id(trino_response) else {}
+
+    return trino_response
+
+
 @never_cache
 @api_view(http_method_names=["POST"])
 @permission_classes((AllowAny,))
@@ -77,10 +96,14 @@ def trino_ui(request):
     if request.method == "GET":
         params = request.query_params
         api_service = params.get("api_service", "")
+        query_id = params.get("query_id", "")
         if api_service in trino_ui_api_services:
             api_str = f"http://{settings.TRINO_HOST}:{settings.TRINO_PORT}/ui/api/{api_service}"
             LOG.info(f"Running Trino UI API service for endpoint: {api_str}")
             response = requests.get(api_str)
-            return Response({"api_service_name": api_service, "trino_response": response.json()})
+            trino_response = response.json()
+            if api_service == "query" and query_id:
+                trino_response = _filter_trino_queries_by_id(trino_response, query_id)
+            return Response({"api_service_name": api_service, "trino_response": trino_response})
         errmsg = "Must provide a valid parameter and trino-ui api service."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)

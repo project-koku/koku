@@ -11,20 +11,21 @@ from dateutil import parser
 from dateutil import relativedelta
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import Case
-from django.db.models import DecimalField
-from django.db.models import Value
-from django.db.models import When
+from django.db.models import OuterRef
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
 
 from api.currency.models import ExchangeRateDictionary
+from api.currency.utils import build_exchange_rate_case
+from api.currency.utils import build_monthly_rate_annotation
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.report.constants import RESOLUTION_DAILY
 from api.report.constants import TIME_SCOPE_UNITS_DAILY
 from api.report.constants import TIME_SCOPE_VALUES_DAILY
 from api.utils import DateHelper
+from masu.processor import CONSTANT_CURRENCY_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
 
 LOG = logging.getLogger(__name__)
 WILDCARD = "*"
@@ -130,12 +131,21 @@ class QueryHandler:
 
     @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+        """Get the exchange rate annotation.
+
+        When constant currency is enabled, uses per-month Subquery from
+        MonthlyExchangeRate. Otherwise uses ExchangeRateDictionary.
+        """
+        if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+            exchange_rate_annotation = build_monthly_rate_annotation(
+                OuterRef(self._mapper.cost_units_key), self.currency
+            )
+        else:
+            exchange_rate_annotation = build_exchange_rate_case(
+                self._mapper.cost_units_key, self.currency, self.exchange_rates
+            )
+
+        return {"exchange_rate": exchange_rate_annotation}
 
     @property
     def order(self):

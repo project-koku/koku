@@ -31,6 +31,7 @@ from masu.api.views import ingress_reports
 from masu.api.views import invalidate_cache
 from masu.api.views import lockinfo
 from masu.api.views import ManifestStatusViewSet
+from masu.api.views import monthly_exchange_rates
 from masu.api.views import notification
 from masu.api.views import pg_engine_version
 from masu.api.views import purge_trino_files
@@ -85,6 +86,7 @@ urlpatterns = [
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
     path("db-performance/schema-sizes/", schema_sizes, name="schema_sizes"),
     path("invalidate_cache/", invalidate_cache, name="invalidate_cache"),
+    path("monthly_exchange_rates/", monthly_exchange_rates, name="monthly_exchange_rates"),
 ]
 
 if settings.DEBUG:

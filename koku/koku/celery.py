@@ -24,6 +24,23 @@ from koku.probe_server import start_probe_server
 
 LOG = logging.getLogger(__name__)
 
+CURRENCY_RATES_BEAT_NAME = "get_daily_currency_rates"
+
+
+def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=None):
+    """Register the daily currency rates beat only when CURRENCY_URL is set.
+
+    On-prem / airgapped deployments leave CURRENCY_URL empty so this beat is
+    not scheduled and workers do not attempt outbound exchange-rate API calls.
+    """
+    if not (currency_url or "").strip():
+        return False
+    beat_schedule[CURRENCY_RATES_BEAT_NAME] = {
+        "task": "masu.celery.tasks.get_daily_currency_rates",
+        "schedule": schedule or crontab(hour=1, minute=0),
+    }
+    return True
+
 
 class LogErrorsTask(Task):  # pragma: no cover
     """Log Celery task exceptions."""
@@ -202,11 +219,9 @@ app.conf.beat_schedule["crawl_account_hierarchy"] = {
     "schedule": crontab(hour=0, minute=0),
 }
 
-# Beat used to fetch daily rates
-app.conf.beat_schedule["get_daily_currency_rates"] = {
-    "task": "masu.celery.tasks.get_daily_currency_rates",
-    "schedule": crontab(hour=1, minute=0),
-}
+# Beat used to fetch daily rates (only when CURRENCY_URL is configured)
+if not register_daily_currency_rates_beat(app.conf.beat_schedule, settings.CURRENCY_URL):
+    LOG.info("Daily currency rates beat not registered (CURRENCY_URL is empty)")
 
 # Beat used for HCS report finalization
 app.conf.beat_schedule["finalize_hcs_reports"] = {

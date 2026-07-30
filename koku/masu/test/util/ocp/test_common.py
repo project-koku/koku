@@ -6,8 +6,10 @@
 import copy
 import json
 import tempfile
+from unittest.mock import Mock
 from unittest.mock import patch
 
+from botocore.exceptions import ClientError
 from model_bakery import baker
 from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import ValidationError
@@ -362,3 +364,301 @@ class DistributionConfigTest(MasuTestCase):
         with tempfile.TemporaryDirectory() as base_dir:
             with self.assertRaises(ValueError):
                 utils.resolve_path_within_base(base_dir, "..", "escape.txt")
+
+
+class TestSelectManifestsToDelete(MasuTestCase):
+    """Tests for select_manifests_to_delete winner-selection logic."""
+
+    def test_select_manifests_to_delete(self):
+        """Test winner selection across multiple scenarios."""
+        test_matrix = [
+            {
+                "label": "empty groups",
+                "groups": {},
+                "current_id": "100",
+                "current_hours": 24,
+                "expected": [],
+            },
+            {
+                "label": "single manifest, no conflict",
+                "groups": {"100": [{"key": "a.parquet", "reportnumhours": "24"}]},
+                "current_id": "100",
+                "current_hours": 24,
+                "expected": [],
+            },
+            {
+                "label": "current wins with more hours",
+                "groups": {
+                    "200": [{"key": "ours.parquet", "reportnumhours": "24"}],
+                    "100": [{"key": "theirs.parquet", "reportnumhours": "18"}],
+                },
+                "current_id": "200",
+                "current_hours": 24,
+                "expected": ["theirs.parquet"],
+            },
+            {
+                "label": "current loses with fewer hours",
+                "groups": {
+                    "100": [{"key": "ours.parquet", "reportnumhours": "18"}],
+                    "200": [{"key": "theirs.parquet", "reportnumhours": "24"}],
+                },
+                "current_id": "100",
+                "current_hours": 18,
+                "expected": ["ours.parquet"],
+            },
+            {
+                "label": "equal hours, higher ID wins",
+                "groups": {
+                    "200": [{"key": "ours.parquet", "reportnumhours": "24"}],
+                    "100": [{"key": "theirs.parquet", "reportnumhours": "24"}],
+                },
+                "current_id": "200",
+                "current_hours": 24,
+                "expected": ["theirs.parquet"],
+            },
+            {
+                "label": "equal hours, lower ID loses",
+                "groups": {
+                    "100": [{"key": "ours.parquet", "reportnumhours": "24"}],
+                    "200": [{"key": "theirs.parquet", "reportnumhours": "24"}],
+                },
+                "current_id": "100",
+                "current_hours": 24,
+                "expected": ["ours.parquet"],
+            },
+            {
+                "label": "multiple files per manifest, superseded manifest fully deleted",
+                "groups": {
+                    "200": [
+                        {"key": "ours_1.parquet", "reportnumhours": "24"},
+                        {"key": "ours_2.parquet", "reportnumhours": "24"},
+                    ],
+                    "100": [
+                        {"key": "theirs_1.parquet", "reportnumhours": "18"},
+                        {"key": "theirs_2.parquet", "reportnumhours": "18"},
+                    ],
+                },
+                "current_id": "200",
+                "current_hours": 24,
+                "expected": ["theirs_1.parquet", "theirs_2.parquet"],
+            },
+            {
+                "label": "three manifests, current has middle hours, only deletes own files",
+                "groups": {
+                    "200": [{"key": "mid.parquet", "reportnumhours": "20"}],
+                    "100": [{"key": "low.parquet", "reportnumhours": "18"}],
+                    "300": [{"key": "high.parquet", "reportnumhours": "24"}],
+                },
+                "current_id": "200",
+                "current_hours": 20,
+                "expected": ["mid.parquet"],
+            },
+            {
+                "label": "three manifests, current is the winner, deletes all others",
+                "groups": {
+                    "300": [{"key": "ours.parquet", "reportnumhours": "24"}],
+                    "200": [{"key": "mid.parquet", "reportnumhours": "20"}],
+                    "100": [{"key": "low.parquet", "reportnumhours": "18"}],
+                },
+                "current_id": "300",
+                "current_hours": 24,
+                "expected": ["mid.parquet", "low.parquet"],
+            },
+            {
+                "label": "other manifest has None hours, skipped",
+                "groups": {
+                    "200": [{"key": "ours.parquet", "reportnumhours": "24"}],
+                    "100": [{"key": "theirs.parquet", "reportnumhours": None}],
+                },
+                "current_id": "200",
+                "current_hours": 24,
+                "expected": [],
+            },
+        ]
+        for scenario in test_matrix:
+            with self.subTest(scenario["label"]):
+                result = utils.select_manifests_to_delete(
+                    scenario["groups"], scenario["current_id"], scenario["current_hours"]
+                )
+                self.assertCountEqual(result, scenario["expected"])
+
+
+class TestDeduplicateS3ObjectsByMetadata(MasuTestCase):
+    """Tests for deduplicate_s3_objects_by_metadata and _collect_s3_objects_for_day."""
+
+    @staticmethod
+    def _make_s3_obj_summary(key, metadata):
+        """Helper: create a mock S3 ObjectSummary with .key on summary and .Object() for metadata."""
+        obj = Mock(key=key, metadata=metadata)
+        summary = Mock(key=key)
+        summary.Object.return_value = obj
+        return summary
+
+    @patch("masu.util.ocp.common._get_s3_objects")
+    def test_dedup_scenarios(self, mock_get):
+        """Test dedup across multiple S3 scan scenarios."""
+        day = "2026-01-15"
+        test_matrix = [
+            {
+                "label": "single manifest, no duplicates",
+                "s3_objects": [
+                    self._make_s3_obj_summary(
+                        f"pod_usage.{day}.100.0_0.parquet",
+                        {"manifestid": "100", "reportnumhours": "24", "reportdatestart": day},
+                    ),
+                ],
+                "current_id": "100",
+                "current_hours": "24",
+                "expected": [],
+            },
+            {
+                "label": "current wins with more hours",
+                "s3_objects": [
+                    self._make_s3_obj_summary(
+                        f"pod_usage.{day}.200.0_0.parquet",
+                        {"manifestid": "200", "reportnumhours": "24", "reportdatestart": day},
+                    ),
+                    self._make_s3_obj_summary(
+                        f"pod_usage.{day}.100.0_0.parquet",
+                        {"manifestid": "100", "reportnumhours": "18", "reportdatestart": day},
+                    ),
+                ],
+                "current_id": "200",
+                "current_hours": "24",
+                "expected": [f"pod_usage.{day}.100.0_0.parquet"],
+            },
+            {
+                "label": "different day filtered out by key pre-check, no conflict",
+                "s3_objects": [
+                    self._make_s3_obj_summary(
+                        f"pod_usage.{day}.200.0_0.parquet",
+                        {"manifestid": "200", "reportnumhours": "24", "reportdatestart": day},
+                    ),
+                    self._make_s3_obj_summary(
+                        "pod_usage.2026-01-16.100.0_0.parquet",
+                        {"manifestid": "100", "reportnumhours": "18", "reportdatestart": "2026-01-16"},
+                    ),
+                ],
+                "current_id": "200",
+                "current_hours": "24",
+                "expected": [],
+            },
+            {
+                "label": "missing manifestid ignored, no conflict",
+                "s3_objects": [
+                    self._make_s3_obj_summary(
+                        f"pod_usage.{day}.200.0_0.parquet",
+                        {"manifestid": "200", "reportnumhours": "24", "reportdatestart": day},
+                    ),
+                    self._make_s3_obj_summary(
+                        f"pod_usage.{day}.orphan.0_0.parquet",
+                        {"reportnumhours": "18", "reportdatestart": day},
+                    ),
+                ],
+                "current_id": "200",
+                "current_hours": "24",
+                "expected": [],
+            },
+        ]
+        for scenario in test_matrix:
+            with self.subTest(scenario["label"]):
+                mock_get.return_value = scenario["s3_objects"]
+                result = utils.deduplicate_s3_objects_by_metadata(
+                    "req",
+                    ["path/prefix"],
+                    current_manifest_id=scenario["current_id"],
+                    current_reportnumhours=scenario["current_hours"],
+                    reportdatestart=day,
+                )
+                self.assertCountEqual(result, scenario["expected"])
+
+    @patch("masu.util.ocp.common._get_s3_objects")
+    def test_dedup_aggregates_across_multiple_paths(self, mock_get):
+        """Files from hourly, daily, and ocp-on-cloud paths are all scanned for a single day."""
+        day = "2026-01-15"
+        mock_get.side_effect = [
+            [
+                self._make_s3_obj_summary(
+                    f"hourly/pod_usage.{day}.200.0_0.parquet",
+                    {"manifestid": "200", "reportnumhours": "24", "reportdatestart": day},
+                )
+            ],
+            [
+                self._make_s3_obj_summary(
+                    f"daily/pod_usage.{day}.100.0_daily_0.parquet",
+                    {"manifestid": "100", "reportnumhours": "18", "reportdatestart": day},
+                )
+            ],
+            [
+                self._make_s3_obj_summary(
+                    f"cloud/openshift.{day}.100.0_daily_0.parquet",
+                    {"manifestid": "100", "reportnumhours": "18", "reportdatestart": day},
+                )
+            ],
+        ]
+        result = utils.deduplicate_s3_objects_by_metadata(
+            "req",
+            ["path/hourly", "path/daily", "path/cloud"],
+            current_manifest_id="200",
+            current_reportnumhours="24",
+            reportdatestart=day,
+        )
+        self.assertCountEqual(
+            result,
+            [f"daily/pod_usage.{day}.100.0_daily_0.parquet", f"cloud/openshift.{day}.100.0_daily_0.parquet"],
+        )
+
+    def test_dedup_early_returns(self):
+        """Test cases that return early without scanning S3."""
+        early_return_cases = [
+            {
+                "label": "invalid reportnumhours",
+                "paths": ["path/prefix"],
+                "hours": "invalid",
+            },
+            {
+                "label": "empty string hours",
+                "paths": ["path/prefix"],
+                "hours": "",
+            },
+            {
+                "label": "None hours",
+                "paths": ["path/prefix"],
+                "hours": None,
+            },
+        ]
+        for case in early_return_cases:
+            with self.subTest(case["label"]):
+                result = utils.deduplicate_s3_objects_by_metadata(
+                    "req",
+                    case["paths"],
+                    current_manifest_id="100",
+                    current_reportnumhours=case["hours"],
+                    reportdatestart="2026-01-15",
+                )
+                self.assertEqual(result, [])
+
+    @patch("masu.util.ocp.common._get_s3_objects")
+    def test_dedup_empty_and_none_paths_skipped(self, mock_get):
+        """Empty or None paths are skipped without calling S3."""
+        result = utils.deduplicate_s3_objects_by_metadata(
+            "req",
+            ["", None],
+            current_manifest_id="100",
+            current_reportnumhours="24",
+            reportdatestart="2026-01-15",
+        )
+        self.assertEqual(result, [])
+        mock_get.assert_not_called()
+
+    @patch("masu.util.ocp.common._get_s3_objects", side_effect=ClientError({}, "Error"))
+    def test_dedup_s3_error_returns_empty(self, mock_get):
+        """S3 errors are caught and return empty list."""
+        result = utils.deduplicate_s3_objects_by_metadata(
+            "req",
+            ["path/prefix"],
+            current_manifest_id="100",
+            current_reportnumhours="24",
+            reportdatestart="2026-01-15",
+        )
+        self.assertEqual(result, [])

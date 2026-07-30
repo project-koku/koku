@@ -5,8 +5,13 @@
 """Test Celery utility functions."""
 from unittest.mock import patch
 
+from celery.schedules import crontab
+from django.test import SimpleTestCase
+
 from api.iam.test.iam_test_case import IamTestCase
 from koku import is_task_currently_running
+from koku.celery import CURRENCY_RATES_BEAT_NAME
+from koku.celery import register_daily_currency_rates_beat
 
 
 class CeleryTest(IamTestCase):
@@ -62,3 +67,31 @@ class CeleryTest(IamTestCase):
         )
         # A different task
         self.assertFalse(is_task_currently_running("masu.processor.tasks.update_cost_model_costs", None))
+
+
+class CurrencyRatesBeatScheduleTest(SimpleTestCase):
+    """Tests for conditional registration of the daily currency rates beat."""
+
+    def test_register_daily_currency_rates_beat_with_url(self):
+        """Beat is registered when CURRENCY_URL is set."""
+        beat_schedule = {}
+        scheduled = register_daily_currency_rates_beat(
+            beat_schedule, "https://exchange-rates.example/v6/latest/USD", schedule=crontab(hour=1, minute=0)
+        )
+
+        self.assertTrue(scheduled)
+        self.assertIn(CURRENCY_RATES_BEAT_NAME, beat_schedule)
+        self.assertEqual(
+            beat_schedule[CURRENCY_RATES_BEAT_NAME]["task"],
+            "masu.celery.tasks.get_daily_currency_rates",
+        )
+
+    def test_register_daily_currency_rates_beat_without_url(self):
+        """Beat is not registered when CURRENCY_URL is empty, None, or whitespace."""
+        for invalid_url in ("", "   ", None):
+            with self.subTest(invalid_url=invalid_url):
+                beat_schedule = {}
+                scheduled = register_daily_currency_rates_beat(beat_schedule, invalid_url)
+
+                self.assertFalse(scheduled)
+                self.assertNotIn(CURRENCY_RATES_BEAT_NAME, beat_schedule)

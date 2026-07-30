@@ -5,6 +5,7 @@
 """Test cases for VataValidator"""
 from unittest.mock import patch
 
+from django.test import override_settings
 from trino.exceptions import TrinoExternalError
 
 from api.provider.models import Provider
@@ -116,6 +117,35 @@ class TestDataValidator(MasuTestCase):
         validator.execute_relevant_query("AWS")
         mock_pg_query.assert_called()
 
+    @override_settings(ONPREM=False)
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._prepare_and_execute_raw_sql_query")
+    def test_query_postgres_sql_is_postgres_dialect_on_saas(self, mock_pg_query):
+        """SaaS postgres validation must use PG SQL, not hive-qualified Trino SQL."""
+        mock_pg_query.return_value = []
+        validator = DataValidator(
+            self.schema, self.start_date, self.end_date, self.provider_uuid, None, context="test"
+        )
+        validator.execute_relevant_query("AWS")
+        mock_pg_query.assert_called()
+        sql = mock_pg_query.call_args.args[1]
+        self.assertNotIn("hive.", sql)
+        self.assertIn(f"{self.schema}.", sql)
+        self.assertIn("source_uuid", sql)
+
+    @override_settings(ONPREM=False)
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
+    def test_query_trino_sql_is_trino_dialect_on_saas(self, mock_trino_query):
+        """SaaS trino validation must use hive-qualified Trino SQL."""
+        mock_trino_query.return_value = []
+        validator = DataValidator(
+            self.schema, self.start_date, self.end_date, self.provider_uuid, None, context="test"
+        )
+        validator.execute_relevant_query("AWS", trino=True)
+        mock_trino_query.assert_called()
+        sql = mock_trino_query.call_args.args[0]
+        self.assertIn(f"hive.{self.schema}.", sql)
+        self.assertIn("source", sql)
+
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
     def test_query_trino(self, mock_trino_query):
         """Test making trino queries."""
@@ -165,6 +195,7 @@ class TestDataValidator(MasuTestCase):
             found = any(expected in log for log in logger.output)
             self.assertTrue(found)
 
+    @override_settings(ONPREM=False)
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._prepare_and_execute_raw_sql_query")
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
     def test_check_data_integrity_trino_error(self, mock_trino_query, mock_pg_query):
@@ -179,6 +210,7 @@ class TestDataValidator(MasuTestCase):
             found = any(expected in log for log in logger.output)
             self.assertTrue(found)
 
+    @override_settings(ONPREM=False)
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._prepare_and_execute_raw_sql_query")
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
     def test_partition_dropped_during_verification(self, mock_trino_query, mock_pg_query):
@@ -192,6 +224,7 @@ class TestDataValidator(MasuTestCase):
             validator.check_data_integrity()
             self.assertTrue(any("Partition dropped during verification" in log for log in logger.output))
 
+    @override_settings(ONPREM=False)
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._prepare_and_execute_raw_sql_query")
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
     def test_partition_dropped_during_verification_unknown_error(self, mock_trino_query, mock_pg_query):

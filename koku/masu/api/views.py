@@ -24,6 +24,7 @@ from masu.api.ingest_ocp_payload import ingest_ocp_payload
 from masu.api.ingress_reports import ingress_reports
 from masu.api.invalidate_cache import invalidate_cache
 from masu.api.manifest.views import ManifestStatusViewSet
+from masu.api.monthly_exchange_rates import monthly_exchange_rates
 from masu.api.notifications import notification
 from masu.api.purge_trino_files import purge_trino_files
 from masu.api.recheck_infra_map import recheck_infra_map

@@ -6744,8 +6744,8 @@ data:
           {
             "current": {
               "selected": false,
-              "text": "app-sre-prod-01-prometheus",
-              "value": "app-sre-prod-01-prometheus"
+              "text": "appsrep11ue1-prometheus",
+              "value": "appsrep11ue1-prometheus"
             },
             "hide": 0,
             "includeAll": false,
@@ -6756,7 +6756,7 @@ data:
             "query": "prometheus",
             "queryValue": "",
             "refresh": 1,
-            "regex": "/.*app-sre.*01.*/",
+            "regex": "/.*appsrep\\d+ue1.*/",
             "skipUrlSync": false,
             "type": "datasource"
           }

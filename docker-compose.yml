@@ -65,6 +65,7 @@ services:
       - TAG_ENABLED_LIMIT=${TAG_ENABLED_LIMIT-200}
       - DELAYED_TASK_TIME=${DELAYED_TASK_TIME-20}
       - DELAYED_TASK_POLLING_MINUTES=${DELAYED_TASK_POLLING_MINUTES-5}
+      - CURRENCY_URL=${CURRENCY_URL}
       - DEVELOPMENT_IDENTITY
     ports:
       - 8000:8000
@@ -136,6 +137,7 @@ services:
       - TRINO_HOST=${TRINO_HOST-trino}
       - TRINO_PORT=${TRINO_PORT-8080}
       - TAG_ENABLED_LIMIT=${TAG_ENABLED_LIMIT-200}
+      - CURRENCY_URL=${CURRENCY_URL}
     ports:
       - 5042:8000
       - 5001:9000
@@ -221,6 +223,7 @@ services:
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
+      - CURRENCY_URL=${CURRENCY_URL}
     ports:
       - 6001-6020:9000
       # Debug port 5678 is conditionally added via docker-compose.debug.yml when scale=1
@@ -484,6 +487,7 @@ services:
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
+      - CURRENCY_URL=${CURRENCY_URL}
     volumes:
       - "./koku:/koku/koku:z"
       - "./dev/containers/unleash:/koku/.unleash:z"
@@ -657,7 +661,7 @@ services:
 
   s4:
     container_name: koku-s4
-    image: quay.io/rh-aiservices-bu/s4:0.3.2-2
+    image: ${S4_IMAGE:-quay.io/rh-aiservices-bu/s4:0.3.2-2}
     # S3 API: use koku-s4-proxy on host port 9000, or direct backend on 9001.
     ports:
       - "9001:7480"

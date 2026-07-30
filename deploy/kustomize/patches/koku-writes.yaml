@@ -66,6 +66,8 @@
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL

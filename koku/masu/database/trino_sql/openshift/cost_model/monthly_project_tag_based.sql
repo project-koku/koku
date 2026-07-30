@@ -1,27 +1,19 @@
-INSERT INTO postgres.{{schema | sqlsafe}}.rates_to_usage (
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
-    cost_model_id,
     report_period_id,
-    source_uuid,
-    usage_start,
-    usage_end,
-    node,
-    namespace,
     cluster_id,
     cluster_alias,
     data_source,
-    persistentvolumeclaim,
+    usage_start,
+    usage_end,
+    namespace,
+    node,
     pod_labels,
-    volume_labels,
     all_labels,
-    label_hash,
-    custom_name,
-    metric_type,
-    cost_model_rate_type,
+    source_uuid,
     monthly_cost_type,
-    calculated_cost,
-    cost_category_id,
-    rate_id
+    cost_model_rate_type,
+    cost_model_cpu_cost
 )
 WITH filtered_data as (
     select
@@ -72,13 +64,13 @@ WITH filtered_data as (
                 {%- endfor %}
         {%- endif %}
     GROUP by
-        2,
-        3,
-        nsp.namespace,
-        ouds.cluster_id,
-        ouds.cluster_alias,
-        ouds.node,
-        DATE(nsp.interval_start)
+    2,
+    3,
+    nsp.namespace,
+    ouds.cluster_id,
+    ouds.cluster_alias,
+    ouds.node,
+    DATE(nsp.interval_start)
 ),
 node_count as (
     select
@@ -90,32 +82,24 @@ node_count as (
 )
 SELECT
     uuid(),
-    CAST({{cost_model_id}} AS uuid) AS cost_model_id,
     {{report_period_id}} AS report_period_id,
-    CAST({{source_uuid}} AS uuid) AS source_uuid,
-    fd.usage_start,
-    fd.usage_start as usage_end,
-    fd.node,
-    fd.namespace,
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
     'Pod' as data_source,
-    CAST(NULL AS varchar) AS persistentvolumeclaim,
+    fd.usage_start,
+    fd.usage_start as usage_end,
+    fd.namespace,
+    fd.node,
     fd.filtered_namespace_labels as pod_labels,
-    CAST(NULL AS json) AS volume_labels,
     fd.filtered_namespace_labels as all_labels,
-    to_hex(sha256(to_utf8(COALESCE(json_format(CAST(fd.filtered_namespace_labels AS json)), '') || '|' || '' || '|' || COALESCE(json_format(CAST(fd.filtered_namespace_labels AS json)), '')))) AS label_hash,
-    {{custom_name}} AS custom_name,
-    {{metric_type}} AS metric_type,
-    {{rate_type}} AS cost_model_rate_type,
+    CAST({{source_uuid}} AS uuid),
     'Tag' AS monthly_cost_type,
+    {{rate_type}} AS cost_model_rate_type,
     CASE
         WHEN nc.node_count < 1
         THEN fd.amortized_cost
         ELSE fd.amortized_cost / nc.node_count
-    END AS calculated_cost,
-    CAST(NULL AS integer) AS cost_category_id,
-    CAST({{rate_uuid}} AS uuid) AS rate_id
+    END
 FROM filtered_data as fd
 JOIN node_count as nc
     ON fd.namespace = nc.namespace
