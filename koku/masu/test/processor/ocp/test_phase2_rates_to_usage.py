@@ -2150,11 +2150,11 @@ class TestMonthlyCostRTUDeleteScope(_ReportPeriodMixin, MasuTestCase):
     and is routed through _execute_trino_multipart_sql_query for its INSERT,
     but rates_to_usage is a plain PostgreSQL table regardless of where the
     INSERT's source rows come from -- the DELETE itself never needs to touch
-    Trino. This is proven by the existing _delete_distributed_rtu_rows,
-    which is called unconditionally (including for the Trino-routed GPU
-    distribution path) and always executes via the plain psycopg2 cursor
-    (_prepare_and_execute_raw_sql_query), never via Trino. OCP_VM_CORE is
-    fixed the same way here, with no catalog-qualified SQL needed.
+    Trino. This mirrors the same precedent already established for the
+    Trino-routed GPU distribution path (PR #6163), where the RTU delete is
+    also called unconditionally and always executes via the plain psycopg2
+    cursor (_prepare_and_execute_raw_sql_query), never via Trino. OCP_VM_CORE
+    is fixed the same way here, with no catalog-qualified SQL needed.
     """
 
     def _rendered_monthly_cost_rtu_delete(self):
@@ -2253,8 +2253,8 @@ class TestMonthlyCostRTUDeleteScope(_ReportPeriodMixin, MasuTestCase):
     ):
         """OCP_VM_CORE's INSERT is Trino-routed, but its RTU DELETE is not --
         it must go through the plain psycopg2 cursor, exactly like Node/PVC/
-        OCP_VM above and like the existing _delete_distributed_rtu_rows
-        precedent for the Trino-routed GPU distribution path.
+        OCP_VM above and mirroring the same precedent established for the
+        Trino-routed GPU distribution path (PR #6163).
         """
         with OCPReportDBAccessor(self.schema) as accessor:
             self._get_report_period(accessor)
