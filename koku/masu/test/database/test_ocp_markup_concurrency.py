@@ -12,8 +12,6 @@ import django.test
 from django.db import connection
 from django_tenants.utils import tenant_context
 
-from api.iam.models import Customer
-from api.iam.models import User
 from api.models import Tenant
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
