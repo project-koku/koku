@@ -76,7 +76,7 @@ class CostModelManager:
         return self._model
 
     @transaction.atomic
-    def update_provider_uuids(self, provider_uuids):
+    def update_provider_uuids(self, provider_uuids):  # noqa: C901
         """Update rate with new provider uuids."""
         # Serialize concurrent updates to the same cost model (COST-7996).
         CostModel.objects.select_for_update().get(uuid=self._model.uuid)
@@ -118,14 +118,17 @@ class CostModelManager:
                         f"provider {provider_uuid} update for cost model {self._cost_model_uuid} "
                         + f"with tracing_id {tracing_id}"
                     )
-                    deferred_tasks.append((schema_name, provider.uuid, start_date, end_date, tracing_id, fallback_queue))
+                    deferred_tasks.append(
+                        (schema_name, provider.uuid, start_date, end_date, tracing_id, fallback_queue)
+                    )
 
         if deferred_tasks:
+
             def _dispatch():
                 for schema_name, p_uuid, start, end, tid, queue in deferred_tasks:
-                    update_cost_model_costs.s(
-                        schema_name, p_uuid, start, end, tracing_id=tid, queue_name=queue
-                    ).set(queue=queue).apply_async()
+                    update_cost_model_costs.s(schema_name, p_uuid, start, end, tracing_id=tid, queue_name=queue).set(
+                        queue=queue
+                    ).apply_async()
 
             transaction.on_commit(_dispatch)
 

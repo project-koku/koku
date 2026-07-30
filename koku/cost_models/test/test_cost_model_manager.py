@@ -8,15 +8,14 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import django.test
-from django.db import connection
 from django_tenants.utils import tenant_context
 from model_bakery import baker
 
 from api.iam.models import Customer
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Tenant
 from api.metrics import constants as metric_constants
+from api.models import Tenant
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.utils import DateHelper
