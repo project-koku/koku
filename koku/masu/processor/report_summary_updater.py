@@ -6,9 +6,14 @@
 import datetime
 import logging
 
+from django_tenants.utils import schema_context
+
 from api.common import log_json
+from api.currency.currencies import is_valid_iso_currency
 from api.models import Provider
 from api.utils import DateHelper
+from cost_models.models import EnabledCurrency
+from cost_models.monthly_exchange_rate_utils import populate_dynamic_monthly_rates
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
@@ -17,6 +22,9 @@ from masu.processor.gcp.gcp_report_parquet_summary_updater import GCPReportParqu
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdaterClusterNotFound
+from reporting.provider.aws.models import AWSCostSummaryP
+from reporting.provider.azure.models import AzureCostSummaryP
+from reporting.provider.gcp.models import GCPCostSummaryP
 
 LOG = logging.getLogger(__name__)
 REPORT_SUMMARY_UPDATER_DICT = {
@@ -25,6 +33,64 @@ REPORT_SUMMARY_UPDATER_DICT = {
     Provider.PROVIDER_GCP: GCPReportParquetSummaryUpdater,
     Provider.PROVIDER_OCP: OCPReportParquetSummaryUpdater,
 }
+
+_CLOUD_BILL_CURRENCY_SOURCES = {
+    Provider.PROVIDER_AWS: (AWSCostSummaryP, "currency_code"),
+    Provider.PROVIDER_AWS_LOCAL: (AWSCostSummaryP, "currency_code"),
+    Provider.PROVIDER_AZURE: (AzureCostSummaryP, "currency"),
+    Provider.PROVIDER_AZURE_LOCAL: (AzureCostSummaryP, "currency"),
+    Provider.PROVIDER_GCP: (GCPCostSummaryP, "currency"),
+    Provider.PROVIDER_GCP_LOCAL: (GCPCostSummaryP, "currency"),
+}
+
+
+def enable_cloud_bill_currencies(schema_name, provider, start_date, end_date):
+    """Enable bill base currencies for a cloud provider that are not already enabled.
+
+    Scoped to the summarized date window. No-op when nothing is missing.
+    """
+    source = _CLOUD_BILL_CURRENCY_SOURCES.get(provider.type)
+    if not source:
+        return
+
+    model, field = source
+    with schema_context(schema_name):
+        enabled = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
+        qs = model.objects.filter(
+            source_uuid=provider.uuid,
+            usage_start__gte=start_date,
+            usage_start__lte=end_date,
+        )
+
+        for code in qs.values_list(field, flat=True).distinct():
+            if not code:
+                continue
+            code = code.upper()
+            if code in enabled:
+                continue
+            if not is_valid_iso_currency(code):
+                LOG.warning(
+                    log_json(
+                        msg="Skipping enable for invalid cloud bill currency code",
+                        currency=code,
+                        schema=schema_name,
+                        provider_uuid=str(provider.uuid),
+                    )
+                )
+                continue
+            _, created = EnabledCurrency.objects.get_or_create(currency_code=code)
+            enabled.add(code)
+            if not created:
+                continue
+            populate_dynamic_monthly_rates(code=code)
+            LOG.info(
+                log_json(
+                    msg="Cloud bill base currency enabled",
+                    currency=code,
+                    schema=schema_name,
+                    provider_uuid=str(provider.uuid),
+                )
+            )
 
 
 class ReportSummaryUpdaterError(Exception):
@@ -145,6 +211,13 @@ class ReportSummaryUpdater:
         start_date, end_date = self._updater.update_summary_tables(start_date, end_date, invoice_month=invoice_month)
 
         LOG.info(log_json(tracing_id, msg="summary processing complete", context=context))
+
+        try:
+            enable_cloud_bill_currencies(self._schema, self._provider, start_date=start_date, end_date=end_date)
+        except Exception as err:
+            LOG.warning(
+                log_json(tracing_id, msg="failed to enable cloud bill currencies", context=context, error=str(err))
+            )
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
 
