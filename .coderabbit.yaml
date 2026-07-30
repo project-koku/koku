@@ -111,7 +111,7 @@ reviews:
     issue_assessment:
       mode: warning
     docstrings:
-      mode: false   # large legacy codebase; docstring coverage gate will spam
+      mode: "off"   # large legacy codebase; docstring coverage gate will spam
 
   finishing_touches:
     docstrings:
