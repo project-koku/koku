@@ -1,0 +1,171 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+
+# Concise, senior-engineer tone — matches how your team reviews.
+tone_instructions: >
+  Be direct and constructive. Prefer fewer, high-signal comments.
+  Explain why for Koku-specific risks (tenancy, dual-path SQL, migrations).
+  Do not nitpick style already enforced by pre-commit/ruff/black.
+
+inheritance: true
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  poem: false
+  in_progress_fortune: false
+  collapse_walkthrough: true
+  sequence_diagrams: true
+  estimate_code_review_effort: false
+  assess_linked_issues: true
+  related_prs: true
+  suggested_labels: false
+  auto_apply_labels: false
+  suggested_reviewers: false
+  auto_assign_reviewers: false
+  enable_prompt_for_ai_agents: true
+  review_details: false
+
+  # Anti-slop: useful for public OSS contributor PRs
+  slop_detection:
+    enabled: true
+
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 2 # Run "@coderabbitai review" to force a review
+    ignore_title_keywords:
+      - WIP
+      - DO NOT MERGE
+      - "[WIP]"
+
+  path_filters:
+    # Reduce file count toward OSS 50–150 file limit
+    - "!**/Pipfile.lock"
+    - "!**/poetry.lock"
+    - "!**/package-lock.json"
+    - "!**/yarn.lock"
+    - "!**/pnpm-lock.yaml"
+    - "!**/*.min.js"
+    - "!**/*.parquet"
+    - "!**/testing/local_providers/**"
+    - "!**/dev/containers/**"
+    - "!docs/specs/openapi.json"
+
+  path_instructions:
+    - path: "koku/**/*.py"
+      instructions: |
+        Focus on correctness and Koku architecture risks, not style (pre-commit handles style).
+        MUST flag:
+        - Tenant model queries without schema_context/tenant_context
+        - Filtering OCP report periods by Provider instance instead of provider_id=uuid
+        - Changes to only one of trino_sql/ vs self_hosted_sql/ when both apply
+        - New non-nullable columns / unsafe migrations
+        - Secrets, credentials, or hardcoded endpoints
+        Prefer Django ORM parameterized queries; flag raw SQL without bind params.
+        Do not suggest OCI support.
+
+    - path: "koku/masu/database/trino_sql/**"
+      instructions: |
+        Flag missing parallel changes under self_hosted_sql/ for the same relative path.
+        Check Trino dialect (uuid(), json_extract_scalar, hive/postgres catalog prefixes).
+
+    - path: "koku/masu/database/self_hosted_sql/**"
+      instructions: |
+        Flag missing parallel changes under trino_sql/ for the same relative path.
+        Check PostgreSQL dialect (uuid_generate_v4(), jsonb, RETURNING).
+
+    - path: "koku/masu/database/sql/**"
+      instructions: |
+        Shared PostgreSQL SQL used in SaaS and on-prem. Flag tenant-unsafe identifiers
+        and missing {{schema | sqlsafe}} where schema-qualified tables are required.
+
+    - path: "koku/reporting/migrations/**"
+      instructions: |
+        Enforce: one logical migration concern; new columns nullable; partitioned tables
+        use set_pg_extended_mode when creating partitioned models; prefer cascade_delete
+        patterns for partitioned FK cleanup. Flag data migrations that lock large tables.
+
+    - path: "koku/**/test*/**/*.py"
+      instructions: |
+        Flag weak assertions, bare assertTrue(True), try/except pass, and skipTest used to
+        hide failures. Prefer MasuTestCase/IamTestCase patterns. Mocks must target import
+        location. Tenant tests must use schema_context.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        Flag unpinned actions, excessive GITHUB_TOKEN permissions, and secrets in logs.
+
+  pre_merge_checks:
+    # Soft gates — good for OSS; don't block merge via CodeRabbit alone
+    title:
+      mode: warning
+      requirements: >
+        Prefer '[COST-####] Short description' when a Jira key exists.
+        Imperative mood, sentence case, under ~72 characters.
+    description:
+      mode: warning
+    issue_assessment:
+      mode: warning
+    docstrings:
+      mode: false   # large legacy codebase; docstring coverage gate will spam
+
+  finishing_touches:
+    docstrings:
+      enabled: false   # opt-in later; noisy on legacy Django
+    unit_tests:
+      enabled: false   # your TDD/senior-engineer flow owns tests
+    autofix:
+      enabled: true    # useful for clear mechanical fixes
+    simplify:
+      enabled: false
+
+  tools:
+    gitleaks: # Accidental secrets in the diff
+      enabled: true
+    semgrep: # Security vulnerabilities in the diff
+      enabled: true
+    ruff: # Code style and linting
+      enabled: false
+    shellcheck: # Bugs in shell scripts
+      enabled: true
+    osvScanner: # Known vulns in dependencies
+      enabled: true
+    oasdiff: # OpenAPI breaking changes
+      enabled: false
+    pylint:
+      enabled: false
+    flake8:
+      enabled: false
+
+knowledge_base:
+  opt_out: false
+  web_search:
+    enabled: true
+  code_guidelines:
+    enabled: true
+    # AGENTS.md / CLAUDE.md / .cursorrules / .cursor/rules auto-detected.
+    # Add architecture docs that should influence reviews:
+    filePatterns:
+      - files: "docs/architecture/**/*.md"
+        applyTo: "koku/**/*.{py,sql}"
+      - files: "CLAUDE.md"
+        applyTo: "koku/**/*"
+  learnings:
+    # Dynamic memory from review interactions (👍/👎, “don’t flag X”, resolved comments).
+    # local = apply only learnings from this repo, not from koku-ui / nise / etc.
+    scope: local
+  jira:
+    # Public OSS: keep disabled/auto to avoid leaking internal Jira into public reviews.
+    # During private/internal experiments you can set enabled + project_keys: ["COST"]
+    usage: disabled
+    project_keys:
+      - COST
+
+chat:
+  auto_reply: true
+  art: false
+  allow_non_org_members: true   # OSS contributors; set false if spam becomes an issue
