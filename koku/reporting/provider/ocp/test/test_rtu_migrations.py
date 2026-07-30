@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for rates_to_usage schema migration 0353 (DDL deferred from no-op 0352)."""
-import unittest
 from datetime import date
 from decimal import Decimal
 
@@ -26,10 +25,6 @@ from reporting.provider.ocp.models import RatesToUsage
 
 MIGRATE_FROM = ("reporting", "0352_rtu_schema_improvements")
 MIGRATE_TO = ("reporting", "0353_rtu_schema_improvements")
-
-RTU_SCHEMA_MIGRATION_PENDING = unittest.skip(
-    "0352 is a no-op; RTU DDL tests run against 0353 once that migration is added."
-)
 
 
 class _RatesToUsageMigrationMixin:
@@ -178,7 +173,6 @@ class _RatesToUsageMigrationMixin:
         super().tearDown()
 
 
-@RTU_SCHEMA_MIGRATION_PENDING
 class RatesToUsageTruncateMigrationTest(_RatesToUsageMigrationMixin, TransactionTestCase):
     """TRUNCATE migration must run outside TestCase's atomic block."""
 
@@ -208,7 +202,6 @@ class RatesToUsageTruncateMigrationTest(_RatesToUsageMigrationMixin, Transaction
             self.assertEqual(RatesToUsage.objects.count(), 0)
 
 
-@RTU_SCHEMA_MIGRATION_PENDING
 class RatesToUsageMigrationTest(_RatesToUsageMigrationMixin, MasuTestCase):
     """Test RTU index and CASCADE FK migrations."""
 
