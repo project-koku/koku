@@ -933,6 +933,18 @@ def update_cost_model_costs(  # noqa: C901
 
     """
     if is_cost_model_processing_disabled(schema_name) or is_source_disabled(provider_uuid):
+        LOG.info(
+            log_json(
+                tracing_id,
+                msg="skipping cost model update - processing disabled",
+                context={
+                    "schema": schema_name,
+                    "provider_uuid": provider_uuid,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                },
+            )
+        )
         return
     task_name = "masu.processor.tasks.update_cost_model_costs"
     cache_args = [schema_name, provider_uuid, start_date, end_date]
