@@ -66,6 +66,16 @@ def is_summary_processing_disabled(schema):  # pragma: no cover
     return res
 
 
+def is_cost_model_processing_disabled(schema):  # pragma: no cover
+    """Disable cost model processing."""
+    context = {"schema": schema}
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-cost-model-processing", context)
+    if res:
+        LOG.info(log_json(msg="cost model processing disabled", context=context))
+
+    return res
+
+
 def is_ocp_on_cloud_summary_disabled(schema):  # pragma: no cover
     """Disable OCP on Cloud summary."""
     context = {"schema": schema}
