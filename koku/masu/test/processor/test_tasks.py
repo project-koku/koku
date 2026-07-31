@@ -1729,6 +1729,27 @@ class TestWorkerCacheThrottling(MasuTestCase):
             update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
             self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
+    @patch(
+        "masu.processor.tasks.is_cost_model_processing_disabled",
+        return_value=True,
+    )
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    @patch("masu.processor.tasks.update_cost_model_costs.s")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_cost_model_costs_unleash_disabled(
+        self, mock_inspect, mock_lock, mock_delay, mock_updater, mock_unleash
+    ):
+        """Test that cost model processing is skipped when the Unleash flag is enabled."""
+        start_date = self.dh.last_month_start.strftime("%Y-%m-%d")
+        end_date = self.dh.today.strftime("%Y-%m-%d")
+
+        update_cost_model_costs(self.schema, self.aws_provider_uuid, start_date, end_date)
+
+        mock_updater.assert_not_called()
+        mock_delay.assert_not_called()
+        mock_lock.assert_not_called()
+
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
     @patch("masu.processor.tasks.update_openshift_on_cloud.s")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
