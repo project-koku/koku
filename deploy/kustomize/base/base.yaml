@@ -284,6 +284,9 @@ parameters:
 - name: ONPREM
   description: toggles onprem data processing logic
   value: "False"
+- name: CURRENCY_URL
+  description: Exchange rate API URL for dynamic currency rates. Empty disables the daily currency beat.
+  value: ""
 - description: Image tag
   name: IMAGE_TAG
   required: true

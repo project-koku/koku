@@ -32,6 +32,7 @@ from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from statsmodels.tools.sm_exceptions import ValueWarning
 
 from api.currency.models import ExchangeRateDictionary
+from api.currency.utils import build_exchange_rate_case
 from api.currency.utils import build_monthly_rate_annotation
 from api.currency.utils import validate_exchange_rate_coverage
 from api.models import Provider
@@ -175,11 +176,9 @@ class Forecast:
                 OuterRef(self.provider_map.cost_units_key), self.currency
             )
         else:
-            whens = [
-                When(**{self.provider_map.cost_units_key: k, "then": Value(v.get(self.currency))})
-                for k, v in self.exchange_rates.items()
-            ]
-            exchange_rate_annotation = Case(*whens, default=1, output_field=DecimalField())
+            exchange_rate_annotation = build_exchange_rate_case(
+                self.provider_map.cost_units_key, self.currency, self.exchange_rates
+            )
 
         return {"exchange_rate": exchange_rate_annotation}
 
@@ -669,12 +668,10 @@ class OCPForecast(Forecast):
                 When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
                 for uuid, cur in self.source_to_currency_map.items()
             ]
-            infra_exchange_rate_whens = [
-                When(**{self.provider_map.cost_units_key: k, "then": Value(v.get(self.currency))})
-                for k, v in self.exchange_rates.items()
-            ]
             exchange_rate_annotation = Case(*exchange_rate_whens, default=1, output_field=DecimalField())
-            infra_exchange_rate_annotation = Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField())
+            infra_exchange_rate_annotation = build_exchange_rate_case(
+                self.provider_map.cost_units_key, self.currency, self.exchange_rates
+            )
 
         return {
             "exchange_rate": exchange_rate_annotation,

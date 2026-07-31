@@ -66,6 +66,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -251,6 +253,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -488,6 +492,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: KOKU_LOG_LEVEL
           value: ${LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
@@ -648,6 +654,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -816,6 +824,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -988,6 +998,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: GUNICORN_WORKERS
@@ -1147,6 +1159,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL
@@ -1289,6 +1303,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1475,6 +1491,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1666,6 +1684,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -1857,6 +1877,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2048,6 +2070,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2243,6 +2267,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2438,6 +2464,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2633,6 +2661,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2826,6 +2856,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3019,6 +3051,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3200,6 +3234,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3388,6 +3424,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3576,6 +3614,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3764,6 +3804,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -3944,6 +3986,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4124,6 +4168,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4316,6 +4362,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4511,6 +4559,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4706,6 +4756,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -4889,6 +4941,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: ENABLE_HCS_DEBUG
           value: ${ENABLE_HCS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -5071,6 +5125,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -5245,6 +5301,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
         - name: CELERY_LOG_LEVEL
@@ -5593,6 +5651,10 @@ parameters:
 - description: toggles onprem data processing logic
   name: ONPREM
   value: "False"
+- description: Exchange rate API URL for dynamic currency rates. Empty disables the
+    daily currency beat.
+  name: CURRENCY_URL
+  value: ""
 - description: Image tag
   name: IMAGE_TAG
   required: true

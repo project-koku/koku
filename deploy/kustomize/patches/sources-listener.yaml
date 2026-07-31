@@ -71,6 +71,8 @@
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
         - name: UNLEASH_LOG_LEVEL

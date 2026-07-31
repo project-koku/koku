@@ -4,6 +4,7 @@
 #
 """View for Currency."""
 from rest_framework import permissions
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
@@ -43,4 +44,14 @@ def get_exchange_rates(request):
 
         get_daily_currency_rates()
         exchange_rates = ExchangeRateDictionary.objects.all().first()
+    if not exchange_rates:
+        return Response(
+            {
+                "detail": (
+                    "No exchange rates are available. Configure CURRENCY_URL for dynamic rates "
+                    "or ensure exchange rate data has been loaded."
+                )
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
     return Response(exchange_rates.currency_exchange_dictionary)
