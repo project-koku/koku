@@ -634,7 +634,6 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             sql_params,
         )
         LOG.info(log_json(msg=f"finished updating {table_name}", context=ctx))
-        self.cleanup_ocp_tags_values()
 
     def cleanup_ocp_tags_values(self):
         """Delete reporting_ocptags_values rows absent from label summaries."""

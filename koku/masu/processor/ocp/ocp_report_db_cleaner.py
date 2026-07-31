@@ -12,6 +12,7 @@ from api.common import log_json
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.processor import is_ocp_tag_cleanup_disabled
 from reporting.models import PartitionedTable
 from reporting.models import TRINO_MANAGED_TABLES
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
@@ -92,7 +93,8 @@ class OCPReportDBCleaner:
                     accessor.delete_self_hosted_data_by_source(provider_uuid)
 
                 # Label summaries cascade with report periods; prune orphan tag index rows.
-                accessor.cleanup_ocp_tags_values()
+                if not is_ocp_tag_cleanup_disabled(self._schema):
+                    accessor.cleanup_ocp_tags_values()
 
         return removed_items
 
@@ -153,8 +155,9 @@ class OCPReportDBCleaner:
                     )
                 )
 
-                # Label summaries cascade with report periods; prune orphan tag index rows.
-                accessor.cleanup_ocp_tags_values()
+                if not is_ocp_tag_cleanup_disabled(self._schema):
+                    # Label summaries cascade with report periods; prune orphan tag index rows.
+                    accessor.cleanup_ocp_tags_values()
 
         return removed_items
 
