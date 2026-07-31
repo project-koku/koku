@@ -5,6 +5,7 @@
 """Updates report summary tables in the database with charge information."""
 import logging
 import time
+import uuid
 from decimal import Decimal
 
 from django.utils import timezone
@@ -471,14 +472,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             metric_constants.SUPPLEMENTARY_COST_TYPE: self._supplementary_rates,
         }
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            report_period = report_accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             if not report_period:
                 LOG.info(
                     log_json(
                         msg="no report period for OCP provider, skipping populate_usage_costs update",
                         context={
                             "schema": self._schema,
-                            "provider_uuid": self._provider.uuid,
+                            "provider_uuid": self._provider_uuid,
                             "start_date": start_date,
                             "end_date": end_date,
                         },
@@ -493,7 +494,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     self._distribution,
                     start_date,
                     end_date,
-                    self._provider.uuid,
+                    self._provider_uuid,
                     report_period_id,
                 )
 
@@ -509,14 +510,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             return
 
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            report_period = report_accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             if not report_period:
                 LOG.info(
                     log_json(
                         msg="no report period for OCP provider, skipping rates_to_usage insert",
                         context={
                             "schema": self._schema,
-                            "provider_uuid": self._provider.uuid,
+                            "provider_uuid": self._provider_uuid,
                             "start_date": start_date,
                             "end_date": end_date,
                         },
@@ -531,13 +532,13 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             report_accessor.populate_usage_rates_to_usage(
                 start_date,
                 end_date,
-                self._provider.uuid,
+                uuid.UUID(self._provider_uuid),
                 report_period_id,
                 self._cost_model_id,
             )
             RTU_POPULATE_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
 
-    def _aggregate_rates_to_daily_summary(self, start_date, end_date):
+    def _aggregate_rates_to_daily_summary(self, start_date, end_date, cost_model_currency="USD"):
         """Aggregate RatesToUsage rows into daily summary cost columns."""
         if not self._cost_model_id:
             LOG.debug(
@@ -548,14 +549,14 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             )
             return
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            report_period = report_accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             if not report_period:
                 LOG.info(
                     log_json(
                         msg="no report period for OCP provider, skipping rates_to_usage aggregation",
                         context={
                             "schema": self._schema,
-                            "provider_uuid": self._provider.uuid,
+                            "provider_uuid": self._provider_uuid,
                             "start_date": start_date,
                             "end_date": end_date,
                         },
@@ -564,7 +565,11 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 return
             t0 = time.monotonic()
             report_accessor.aggregate_rates_to_daily_summary(
-                start_date, end_date, self._provider.uuid, report_period.id
+                start_date,
+                end_date,
+                self._provider_uuid,
+                report_period.id,
+                cost_model_currency,
             )
             RTU_AGGREGATE_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
 
@@ -575,7 +580,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         Cleans both rates_to_usage and the daily summary cost-model rows.
         """
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            report_period = report_accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             if not report_period:
                 return
             report_period_id = report_period.id
@@ -593,7 +598,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 metric_constants.SUPPLEMENTARY_COST_TYPE,
             ):
                 report_accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid,
+                    self._provider_uuid,
                     start_date,
                     end_date,
                     table=OCPUsageLineItemDailySummary,
@@ -609,7 +614,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 RatesToUsage.objects.filter(
                     usage_start__gte=start_date,
                     usage_start__lte=end_date,
-                    source_uuid=self._provider.uuid,
+                    source_uuid=self._provider_uuid,
                     report_period_id=report_period_id,
                 ).delete()
 
@@ -620,7 +625,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             metric_constants.SUPPLEMENTARY_COST_TYPE: self._supplementary_rates,
         }
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            report_period = report_accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             if not report_period:
                 return
             report_period_id = report_period.id
@@ -630,7 +635,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     filter_dictionary(report_type_dict, metric_constants.COST_MODEL_VM_USAGE_RATES),
                     start_date,
                     end_date,
-                    self._provider.uuid,
+                    self._provider_uuid,
                     report_period_id,
                     cost_model_id=self._cost_model_id,
                     rate_info_map=self._rate_info_map,
@@ -685,7 +690,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 accessor.populate_markup_rates_to_usage(
                     start_date,
                     end_date,
-                    self._provider_uuid,
+                    uuid.UUID(self._provider_uuid),
                     self._cluster_id,
                     self._cost_model_id,
                 )
@@ -705,7 +710,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
     def _update_tag_usage_costs(self, start_date, end_date, use_rtu: bool = False):
         """Update infrastructure and supplementary tag based usage costs."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            report_period = report_accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             report_period_id = report_period.id if report_period else None
             report_accessor.populate_tag_usage_costs(
                 self._tag_infra_rates,
@@ -715,7 +720,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 self._cluster_id,
                 cost_model_id=self._cost_model_id,
                 rate_info_map=self._rate_info_map,
-                source_uuid=self._provider.uuid,
+                source_uuid=self._provider_uuid,
                 report_period_id=report_period_id,
                 use_rtu=use_rtu,
             )
@@ -723,7 +728,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
     def _update_tag_usage_default_costs(self, start_date, end_date, use_rtu: bool = False):
         """Update infrastructure and supplementary tag based usage costs based on default values."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            report_period = report_accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             report_period_id = report_period.id if report_period else None
             report_accessor.populate_tag_usage_default_costs(
                 self._tag_default_infra_rates,
@@ -733,7 +738,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 self._cluster_id,
                 cost_model_id=self._cost_model_id,
                 rate_info_map=self._rate_info_map,
-                source_uuid=self._provider.uuid,
+                source_uuid=self._provider_uuid,
                 report_period_id=report_period_id,
                 use_rtu=use_rtu,
             )
@@ -743,12 +748,12 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         # Delete existing records
         with OCPReportDBAccessor(self._schema) as report_accessor:
             with schema_context(self._schema):
-                report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+                report_period = report_accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
                 if not report_period:
                     LOG.info(
                         log_json(
                             msg="no report period for provider",
-                            provider_uuid=self._provider.uuid,
+                            provider_uuid=self._provider_uuid,
                             start_date=start_date,
                             end_date=end_date,
                             schema=self._schema,
@@ -777,20 +782,165 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 },
             )
 
-    def distribute_costs_and_update_ui_summary(self, summary_range: SummaryRangeConfig):
-        """Distribute cost model costs and update UI summary tables"""
-        with OCPReportDBAccessor(self._schema) as accessor:
-            summary_range = accessor.populate_distributed_cost_sql(
-                summary_range, self._provider_uuid, self._distribution_info
-            )
-            for month_range in summary_range.iter_summary_range_by_month():
-                accessor.populate_ui_summary_tables(month_range, self._provider.uuid)
+    def _get_infra_to_cm_rate(self, cost_model_currency, start_date, end_date):
+        """Return (exchange_rate, has_infra_currency) for infra → cost_model_currency conversion.
 
+        Queries distinct raw_currency from unattributed namespace rows in daily_summary.
+        If infra currency matches cost model currency (or no infra exists), returns (1, flag).
+
+        The second element indicates whether source rows have a non-NULL raw_currency.
+        The caller uses this to decide the raw_currency on aggregated distribution rows:
+        when False, raw_currency should be NULL so the API applies the same default
+        exchange rate (1) as the original infrastructure rows.
+        """
+        if not cost_model_currency:
+            return Decimal(1), False
+
+        with schema_context(self._schema):
+            infra_currencies = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    source_uuid=self._provider_uuid,
+                    usage_start__gte=start_date,
+                    usage_start__lte=end_date,
+                    namespace__in=["Network unattributed", "Storage unattributed"],
+                    cost_model_rate_type__isnull=True,
+                    raw_currency__isnull=False,
+                )
+                .values_list("raw_currency", flat=True)
+                .distinct()
+            )
+            infra_currencies = list(infra_currencies)
+
+        if not infra_currencies:
+            return Decimal(1), False
+
+        if all(c == cost_model_currency for c in infra_currencies):
+            return Decimal(1), True
+
+        infra_currency = infra_currencies[0]
+        if infra_currency == cost_model_currency:
+            return Decimal(1), True
+
+        from api.currency.models import ExchangeRateDictionary
+
+        exchange_dict = ExchangeRateDictionary.objects.first()
+        if not exchange_dict or not exchange_dict.currency_exchange_dictionary:
+            LOG.warning(
+                log_json(
+                    msg="no exchange rate dictionary found, defaulting infra_to_cm_rate to 1",
+                    infra_currency=infra_currency,
+                    cost_model_currency=cost_model_currency,
+                )
+            )
+            return Decimal(1), True
+
+        rates = exchange_dict.currency_exchange_dictionary
+        rate = rates.get(infra_currency, {}).get(cost_model_currency)
+        if rate is None:
+            LOG.warning(
+                log_json(
+                    msg="exchange rate not found, defaulting to 1",
+                    infra_currency=infra_currency,
+                    cost_model_currency=cost_model_currency,
+                )
+            )
+            return Decimal(1), True
+
+        return Decimal(str(rate)), True
+
+    def distribute_costs_and_update_ui_summary(self, summary_range: SummaryRangeConfig):
+        """Distribute per-rate costs, aggregate, apply markup, and update UI summaries.
+
+        Phase 4 order per month: markup(daily_summary) -> distribute -> aggregate -> markup(full) -> UI summary.
+
+        Markup must run on daily_summary BEFORE distribution because the
+        distribution SQL reads infrastructure_markup_cost from daily_summary.
+        Without pre-applying markup, infrastructure_markup_cost is 0 and
+        OCP-on-cloud infrastructure costs are under-distributed (only raw cost
+        is distributed, not raw + markup).  The ORM UPDATE is idempotent so
+        running it again after aggregation is safe.
+
+        RTU markup rows (populate_markup_rates_to_usage) are created only in
+        the post-aggregation markup call to avoid double-counting in the
+        distribution source CTEs.
+
+        Distribution runs per-month so report_period_id resolves correctly for
+        each month in a multi-month range.
+
+        All accessor calls within a single month iteration share one
+        OCPReportDBAccessor to avoid redundant database connections.
+        """
+        markup_pct = self._get_markup_percentage()
+        cost_model_currency = self._cost_model.currency if self._cost_model else "USD"
+        self._ensure_rates_to_usage_partitions(summary_range.start_date, summary_range.end_date)
+        for month_range in summary_range.iter_summary_range_by_month():
+            infra_to_cm_rate, has_infra_currency = self._get_infra_to_cm_rate(
+                cost_model_currency, month_range.start_date, month_range.end_date
+            )
+            distribution_raw_currency = cost_model_currency if has_infra_currency else None
+            with OCPReportDBAccessor(self._schema) as accessor:
+                if markup_pct:
+                    accessor.populate_markup_cost(
+                        markup_pct,
+                        month_range.start_date,
+                        month_range.end_date,
+                        self._cluster_id,
+                    )
+                month_range = accessor.populate_distributed_cost_sql(
+                    month_range,
+                    self._provider_uuid,
+                    self._distribution_info,
+                    infra_to_cm_rate=infra_to_cm_rate,
+                    cost_model_currency=cost_model_currency,
+                    cost_model_id=self._cost_model_id,
+                )
+                report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, month_range.start_date)
+                if self._cost_model_id and report_period:
+                    t0 = time.monotonic()
+                    accessor.aggregate_rates_to_daily_summary(
+                        month_range.start_date,
+                        month_range.end_date,
+                        self._provider_uuid,
+                        report_period.id,
+                        distribution_raw_currency,
+                    )
+                    RTU_AGGREGATE_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
+                if markup_pct:
+                    accessor.populate_markup_cost(
+                        markup_pct,
+                        month_range.start_date,
+                        month_range.end_date,
+                        self._cluster_id,
+                    )
+                if self._cost_model_id:
+                    t0 = time.monotonic()
+                    accessor.populate_markup_rates_to_usage(
+                        month_range.start_date,
+                        month_range.end_date,
+                        uuid.UUID(self._provider_uuid),
+                        self._cluster_id,
+                        self._cost_model_id,
+                    )
+                    RTU_MARKUP_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
+                accessor.populate_ui_summary_tables(month_range, self._provider_uuid)
                 if report_period := accessor.report_periods_for_provider_uuid(
                     self._provider_uuid, month_range.summary_start
                 ):
                     report_period.derived_cost_datetime = timezone.now()
                     report_period.save()
+
+    def _get_markup_percentage(self):
+        """Return the markup percentage as a Decimal, or None if no markup configured."""
+        with CostModelDBAccessor(
+            self._schema, self._provider_uuid, price_list_effective_on=None
+        ) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            if not markup:
+                return None
+            value = Decimal(markup.get("value", 0))
+            if not value:
+                return None
+            return value / 100
 
     def update_summary_cost_model_costs(self, summary_range: SummaryRangeConfig) -> None:
         """Update the OCP summary table with the charge information.
@@ -888,7 +1038,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                     report_accessor.populate_tag_based_costs(
                         start_date,
                         end_date,
-                        self._provider.uuid,
+                        self._provider_uuid,
                         self.metric_to_tag_params_map,
                         cluster_params,
                         cost_model_id=self._cost_model_id,
@@ -896,7 +1046,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                         use_rtu=rtu_enabled,
                     )
             if not (self._tag_infra_rates or self._tag_supplementary_rates):
-                self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
+                self._delete_tag_usage_costs(start_date, end_date, self._provider_uuid)
 
             self._update_vm_usage_costs(start_date, end_date, use_rtu=rtu_enabled)
 

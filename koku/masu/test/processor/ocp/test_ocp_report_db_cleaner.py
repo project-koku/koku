@@ -151,6 +151,37 @@ class OCPReportDBCleanerTest(MasuTestCase):
         self.assertIn(first_period.id, [item.get("usage_period_id") for item in removed_data])
         self.assertIn(str(first_period.report_period_start), [item.get("interval_start") for item in removed_data])
 
+    def test_purge_expired_report_data_for_provider_deletes_rtu(self):
+        """Test that purging by provider_uuid also removes rates_to_usage rows."""
+        from reporting.provider.ocp.models import RatesToUsage
+
+        with schema_context(self.schema):
+            rp = (
+                OCPUsageReportPeriod.objects.filter(provider_id=self.ocp_provider_uuid)
+                .order_by("-report_period_start")
+                .first()
+            )
+            if not rp:
+                self.skipTest("No report period for OCP provider")
+            RatesToUsage.objects.filter(source_uuid=self.ocp_provider_uuid).delete()
+            RatesToUsage.objects.create(
+                source_uuid=self.ocp_provider_uuid,
+                usage_start=rp.report_period_start.date(),
+                usage_end=rp.report_period_start.date(),
+                cluster_id="test-cluster",
+                custom_name="test-rate",
+                metric_type="cpu_usage",
+                report_period_id=rp.id,
+            )
+            self.assertEqual(RatesToUsage.objects.filter(source_uuid=self.ocp_provider_uuid).count(), 1)
+
+        cleaner = OCPReportDBCleaner(self.schema)
+        cleaner.purge_expired_report_data(provider_uuid=self.ocp_provider_uuid)
+
+        with schema_context(self.schema):
+            remaining = RatesToUsage.objects.filter(source_uuid=self.ocp_provider_uuid).count()
+            self.assertEqual(remaining, 0, "RTU rows must be deleted when purging provider data")
+
     def test_purge_expired_report_data_no_args(self):
         """Test that the provider_uuid deletes all data for the provider."""
         cleaner = OCPReportDBCleaner(self.schema)

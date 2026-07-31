@@ -47,7 +47,7 @@ class CostModelsFilter(FilterSet):
     def currency_filter(self, qs, name, values):
         """Filter currency if a valid currency is passed in"""
         if values and values[0].upper() not in get_enabled_currency_codes():
-            error = {"currency": f'"{values[0]}" is not an enabled currency.'}
+            error = {"currency": f'"{values[0]}" is not a valid choice.'}
             raise serializers.ValidationError(error)
         lookup = "__".join([name, "iexact"])
         queries = [Q(**{lookup: val}) for val in values]
