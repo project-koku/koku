@@ -245,6 +245,48 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         dup_cust = IdentityHeaderMiddleware.create_customer(account_id, org_id, "POST")
         self.assertEqual(orig_cust, dup_cust)
 
+    @patch("koku.middleware.IdentityHeaderMiddleware.customer_cache", TTLCache(5, 0.1))
+    @patch("koku.middleware.USER_CACHE", TTLCache(5, 0.1))
+    @patch("koku.rbac.RbacService.get_access_for_user", return_value={})
+    def test_user_cache_hit_syncs_customer_after_get_then_write(self, _get_access_mock):
+        """USER_CACHE hit must sync customer after GET leaves an unsaved instance cached."""
+        org_id = "7962001"
+        account_id = "7962001"
+        customer_data = self._create_customer_data(account=account_id, org_id=org_id)
+        user_data = self._create_user_data()
+        request_context = self._create_request_context(
+            customer_data, user_data, create_customer=False, create_user=False
+        )
+        mock_request = request_context["request"]
+        mock_request.path = "/api/v1/tags/aws/"
+        mock_request.META["QUERY_STRING"] = ""
+        middleware = IdentityHeaderMiddleware(self.mock_get_response)
+
+        mock_request.method = "GET"
+        middleware.process_request(mock_request)
+        self.assertIsNone(mock_request.user.customer.pk)
+        self.assertFalse(Customer.objects.filter(org_id=org_id).exists())
+
+        mock_request.method = "DELETE"
+        middleware.process_request(mock_request)
+        persisted = Customer.objects.get(org_id=org_id)
+        self.assertIsNotNone(mock_request.user.customer.pk)
+        self.assertEqual(mock_request.user.customer.pk, persisted.pk)
+
+        user_key = f"{org_id}_{user_data['username']}"
+        self.assertEqual(MD.USER_CACHE[user_key].customer.pk, persisted.pk)
+
+    def test_create_customer_get_does_not_persist(self):
+        """GET/HEAD must not persist a Customer for a brand-new org (COST-5198)."""
+        org_id = "7962002"
+        account_id = "7962002"
+        for method in ("GET", "HEAD"):
+            with self.subTest(method=method):
+                Customer.objects.filter(org_id=org_id).delete()
+                customer = IdentityHeaderMiddleware.create_customer(account_id, org_id, method)
+                self.assertIsNone(customer.pk)
+                self.assertFalse(Customer.objects.filter(org_id=org_id).exists())
+
     @override_settings(CACHES={CacheEnum.rbac: {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
     @patch("koku.rbac.RbacService.get_access_for_user")
     def test_process_non_admin(self, get_access_mock):
