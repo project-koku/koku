@@ -121,6 +121,7 @@ PROMETHEUS_AFTER_MIDDLEWARE = "django_prometheus.middleware.PrometheusAfterMiddl
 MIDDLEWARE = [
     PROMETHEUS_BEFORE_MIDDLEWARE,
     "koku.middleware.RequestTimingMiddleware",
+    "koku.middleware.RequestTimeoutMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "koku.middleware.DisableCSRF",
     "django.middleware.security.SecurityMiddleware",

@@ -5,6 +5,8 @@
 """Custom Koku Middleware."""
 import binascii
 import logging
+import os
+import signal
 import threading
 import time
 from http import HTTPStatus
@@ -454,6 +456,34 @@ class RequestTimingMiddleware(MiddlewareMixin):
             time_taken_ms = int((time.time() - request.start_time) * 1000)
             stmt.update({"response_time": time_taken_ms})
             LOG.info(stmt)
+        return response
+
+
+class RequestTimeoutError(Exception):
+    """Raised when a request exceeds the soft timeout."""
+
+
+class RequestTimeoutMiddleware(MiddlewareMixin):
+    """Abort requests that exceed a soft timeout, before gunicorn kills the worker.
+
+    Uses SIGALRM to raise RequestTimeoutError with full request context,
+    replacing the uninformative SystemExit:1 that gunicorn's SIGABRT produces.
+    """
+
+    SOFT_TIMEOUT = int(os.environ.get("REQUEST_SOFT_TIMEOUT", 90))
+
+    def process_request(self, request):
+        def handler(signum, frame):
+            duration = time.time() - getattr(request, "start_time", time.time())
+            raise RequestTimeoutError(
+                f"Request exceeded {self.SOFT_TIMEOUT}s: {request.method} {request.path} ({duration:.1f}s elapsed)"
+            )
+
+        signal.signal(signal.SIGALRM, handler)
+        signal.alarm(self.SOFT_TIMEOUT)
+
+    def process_response(self, request, response):
+        signal.alarm(0)
         return response
 
 
