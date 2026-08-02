@@ -34,7 +34,9 @@ docs/specs/openapi.json     # OpenAPI spec (main API)
 Jira/GitHub issue when known (e.g. `COST-1234: Add MIG slice support`).
 
 1. Open PRs as **DRAFT**.  Mark **Ready for Review** when done.
-2. Add the `smoke-test` label to kick off IQE smoke tests.
+2. Add the `smoke-tests` label to kick off IQE smoke tests.
+   Also add `smokes-required` (Konflux CI gate).
+   For non-code PRs (docs, dashboards), use `ok-to-skip-smokes` instead.
 3. Smoke tests **must pass** before merging (unless the PR only touches
    non-build files like docs).
 4. Merges to `main` **auto-deploy to stage**.
