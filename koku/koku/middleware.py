@@ -367,6 +367,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 LOG.debug(f"User added to cache: {user_key}")
             else:
                 user = USER_CACHE[user_key]
+                user.customer = customer
 
             user.identity_header = {"encoded": rh_auth_header, "decoded": json_rh_auth}
             user.admin = is_admin
