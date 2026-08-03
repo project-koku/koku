@@ -6668,22 +6668,48 @@ data:
         "list": [
           {
             "current": {
+              "selected": true,
+              "text": "prod",
+              "value": "{\"namespace\":\"hccm-prod\",\"db_instance\":\"cost-management-prod\",\"datasource\":\"crcp01ue1-prometheus\",\"rds_datasource\":\"appsrep11ue1-prometheus\"}"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Environment",
+            "multi": false,
+            "name": "env",
+            "options": [
+              {
+                "selected": true,
+                "text": "prod",
+                "value": "{\"namespace\":\"hccm-prod\",\"db_instance\":\"cost-management-prod\",\"datasource\":\"crcp01ue1-prometheus\",\"rds_datasource\":\"appsrep11ue1-prometheus\"}"
+              },
+              {
+                "selected": false,
+                "text": "stage",
+                "value": "{\"namespace\":\"hccm-stage\",\"db_instance\":\"koku-stage\",\"datasource\":\"crcs02ue1-prometheus\",\"rds_datasource\":\"appsres11ue1-prometheus\"}"
+              }
+            ],
+            "query": "prod : {\"namespace\":\"hccm-prod\",\"db_instance\":\"cost-management-prod\",\"datasource\":\"crcp01ue1-prometheus\",\"rds_datasource\":\"appsrep11ue1-prometheus\"}, stage : {\"namespace\":\"hccm-stage\",\"db_instance\":\"koku-stage\",\"datasource\":\"crcs02ue1-prometheus\",\"rds_datasource\":\"appsres11ue1-prometheus\"}",
+            "queryValue": "",
+            "skipUrlSync": false,
+            "type": "custom",
+            "valuesFormat": "json"
+          },
+          {
+            "current": {
               "selected": false,
               "text": "crcp01ue1-prometheus",
               "value": "crcp01ue1-prometheus"
             },
-            "hide": 0,
+            "hide": 2,
             "includeAll": false,
             "label": "Datasource",
             "multi": false,
             "name": "Datasource",
-            "options": [],
-            "query": "prometheus",
+            "query": "${env.datasource}",
             "queryValue": "",
-            "refresh": 1,
-            "regex": "/.*crc.*/",
             "skipUrlSync": false,
-            "type": "datasource"
+            "type": "custom"
           },
           {
             "current": {
@@ -6691,24 +6717,12 @@ data:
               "text": "hccm-prod",
               "value": "hccm-prod"
             },
-            "hide": 0,
+            "hide": 2,
             "includeAll": false,
             "label": "namespace",
             "multi": false,
             "name": "namespace",
-            "options": [
-              {
-                "selected": false,
-                "text": "hccm-stage",
-                "value": "hccm-stage"
-              },
-              {
-                "selected": true,
-                "text": "hccm-prod",
-                "value": "hccm-prod"
-              }
-            ],
-            "query": "hccm-stage,hccm-prod",
+            "query": "${env.namespace}",
             "queryValue": "",
             "skipUrlSync": false,
             "type": "custom"
@@ -6719,24 +6733,12 @@ data:
               "text": "cost-management-prod",
               "value": "cost-management-prod"
             },
-            "hide": 0,
+            "hide": 2,
             "includeAll": false,
             "label": "db_instance",
             "multi": false,
             "name": "db_instance",
-            "options": [
-              {
-                "selected": false,
-                "text": "cost-management-stage",
-                "value": "cost-management-stage"
-              },
-              {
-                "selected": true,
-                "text": "cost-management-prod",
-                "value": "cost-management-prod"
-              }
-            ],
-            "query": "cost-management-stage, cost-management-prod",
+            "query": "${env.db_instance}",
             "queryValue": "",
             "skipUrlSync": false,
             "type": "custom"
@@ -6747,18 +6749,15 @@ data:
               "text": "appsrep11ue1-prometheus",
               "value": "appsrep11ue1-prometheus"
             },
-            "hide": 0,
+            "hide": 2,
             "includeAll": false,
             "label": "RDS Datasource",
             "multi": false,
             "name": "rds_datasource",
-            "options": [],
-            "query": "prometheus",
+            "query": "${env.rds_datasource}",
             "queryValue": "",
-            "refresh": 1,
-            "regex": "/.*appsre[ps]\\d+ue1.*/",
             "skipUrlSync": false,
-            "type": "datasource"
+            "type": "custom"
           }
         ]
       },
