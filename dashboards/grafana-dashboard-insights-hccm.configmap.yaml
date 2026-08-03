@@ -31,6 +31,18 @@ data:
       "liveNow": false,
       "panels": [
         {
+          "gridPos": {"h": 2, "w": 24, "x": 0, "y": 0},
+          "id": 9999,
+          "options": {
+            "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
+            "content": "**Quick start:** Select **Datasource** (`crcp01ue1` = prod, `crcs02ue1` = stage) — namespace auto-selects.<br>For RDS panels, also select **RDS Datasource** (`appsrep11ue1` = prod, `appsres11ue1` = stage) — db_instance auto-selects.",
+            "mode": "markdown"
+          },
+          "title": "",
+          "transparent": true,
+          "type": "text"
+        },
+        {
           "collapsed": false,
           "datasource": {
             "type": "prometheus",
@@ -6667,97 +6679,78 @@ data:
       "templating": {
         "list": [
           {
-            "current": {
-              "selected": true,
-              "text": "prod",
-              "value": "{\"namespace\":\"hccm-prod\",\"db_instance\":\"cost-management-prod\",\"datasource\":\"crcp01ue1-prometheus\",\"rds_datasource\":\"appsrep11ue1-prometheus\"}"
-            },
+            "current": {},
             "hide": 0,
-            "includeAll": false,
-            "label": "Environment",
-            "multi": false,
-            "name": "env",
-            "options": [
-              {
-                "selected": true,
-                "text": "prod",
-                "value": "{\"namespace\":\"hccm-prod\",\"db_instance\":\"cost-management-prod\",\"datasource\":\"crcp01ue1-prometheus\",\"rds_datasource\":\"appsrep11ue1-prometheus\"}"
-              },
-              {
-                "selected": false,
-                "text": "stage",
-                "value": "{\"namespace\":\"hccm-stage\",\"db_instance\":\"koku-stage\",\"datasource\":\"crcs02ue1-prometheus\",\"rds_datasource\":\"appsres11ue1-prometheus\"}"
-              }
-            ],
-            "query": "prod : {\"namespace\":\"hccm-prod\",\"db_instance\":\"cost-management-prod\",\"datasource\":\"crcp01ue1-prometheus\",\"rds_datasource\":\"appsrep11ue1-prometheus\"}, stage : {\"namespace\":\"hccm-stage\",\"db_instance\":\"koku-stage\",\"datasource\":\"crcs02ue1-prometheus\",\"rds_datasource\":\"appsres11ue1-prometheus\"}",
-            "queryValue": "",
-            "skipUrlSync": false,
-            "type": "custom",
-            "valuesFormat": "json"
-          },
-          {
-            "current": {
-              "selected": false,
-              "text": "crcp01ue1-prometheus",
-              "value": "crcp01ue1-prometheus"
-            },
-            "hide": 2,
             "includeAll": false,
             "label": "Datasource",
             "multi": false,
             "name": "Datasource",
-            "query": "${env.datasource}",
+            "options": [],
+            "query": "prometheus",
             "queryValue": "",
+            "refresh": 1,
+            "regex": "/^crc[ps]\\d+ue1-prometheus$/",
             "skipUrlSync": false,
-            "type": "custom"
+            "type": "datasource"
           },
           {
-            "current": {
-              "selected": false,
-              "text": "hccm-prod",
-              "value": "hccm-prod"
+            "current": {},
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${Datasource}"
             },
-            "hide": 2,
+            "definition": "label_values(up{namespace=~\"hccm-.*\"}, namespace)",
+            "hide": 0,
             "includeAll": false,
             "label": "namespace",
             "multi": false,
             "name": "namespace",
-            "query": "${env.namespace}",
-            "queryValue": "",
+            "options": [],
+            "query": {
+              "query": "label_values(up{namespace=~\"hccm-.*\"}, namespace)",
+              "refId": "namespace"
+            },
+            "refresh": 1,
             "skipUrlSync": false,
-            "type": "custom"
+            "sort": 1,
+            "type": "query"
           },
           {
-            "current": {
-              "selected": false,
-              "text": "cost-management-prod",
-              "value": "cost-management-prod"
-            },
-            "hide": 2,
-            "includeAll": false,
-            "label": "db_instance",
-            "multi": false,
-            "name": "db_instance",
-            "query": "${env.db_instance}",
-            "queryValue": "",
-            "skipUrlSync": false,
-            "type": "custom"
-          },
-          {
-            "current": {
-              "selected": false,
-              "text": "appsrep11ue1-prometheus",
-              "value": "appsrep11ue1-prometheus"
-            },
-            "hide": 2,
+            "current": {},
+            "hide": 0,
             "includeAll": false,
             "label": "RDS Datasource",
             "multi": false,
             "name": "rds_datasource",
-            "query": "${env.rds_datasource}",
+            "options": [],
+            "query": "prometheus",
             "queryValue": "",
+            "refresh": 1,
+            "regex": "/^appsre[ps]11ue1-prometheus$/",
             "skipUrlSync": false,
-            "type": "custom"
+            "type": "datasource"
+          },
+          {
+            "current": {},
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${rds_datasource}"
+            },
+            "definition": "label_values(rdsosmetrics_cpuUtilization_user{exported_instance=~\"cost-management-.*|koku-.*\"}, exported_instance)",
+            "hide": 0,
+            "includeAll": false,
+            "label": "db_instance",
+            "multi": false,
+            "name": "db_instance",
+            "options": [],
+            "query": {
+              "query": "label_values(rdsosmetrics_cpuUtilization_user{exported_instance=~\"cost-management-.*|koku-.*\"}, exported_instance)",
+              "refId": "db_instance"
+            },
+            "refresh": 1,
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
           }
         ]
       },
