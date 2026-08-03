@@ -76,8 +76,9 @@ team prefers DB-first.
 | 3 | [retention-pipeline.md](retention-pipeline.md) | DD | Purge flow changes, calendar-month fix, read-path refactor, Kafka ingest gate |
 | 4 | [phased-delivery.md](phased-delivery.md) | DD | Implementation phases, per-phase artifacts, validation criteria, rollback strategy |
 | 5 | [test-plan.md](test-plan.md) | TP | IEEE 829 test plan — tiers, test cases, traceability, gap analysis |
+| 6 | [COST-7845-docs-handoff-draft.md](COST-7845-docs-handoff-draft.md) | Docs handoff | Customer-facing draft: how on-prem admins control retention (UI/API/env). Not the per-table audit matrix. |
 
-**Reading order**: 1 → 2 → 3 → 4 → 5
+**Reading order**: 1 → 2 → 3 → 4 → 5 (engineering). For Docs handoff: **6**.
 
 ---
 
