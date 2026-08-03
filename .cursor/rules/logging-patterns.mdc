@@ -1,6 +1,11 @@
 ---
 description: Structured logging patterns using log_json
-globs: "**/*.py"
+globs:
+  - "**/masu/**/*.py"
+  - "**/api/**/*.py"
+  - "**/sources/**/*.py"
+  - "**/hcs/**/*.py"
+  - "**/subs/**/*.py"
 alwaysApply: false
 ---
 

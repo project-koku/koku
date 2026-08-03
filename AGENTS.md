@@ -5,9 +5,9 @@ Always-on companion: [`CLAUDE.md`](CLAUDE.md) — dev commands, project layout, 
 
 **How context loads:** Always-on — this file, [`CLAUDE.md`](CLAUDE.md),
 [`.cursor/rules/multi-tenancy.mdc`](.cursor/rules/multi-tenancy.mdc),
-[`.cursor/rules/domain-context.mdc`](.cursor/rules/domain-context.mdc), [`.cursorrules`](.cursorrules).
-Auto by glob — other [`.cursor/rules/*.mdc`](.cursor/rules/) (e.g. `test_*.py`, `*.sql`,
-`provider_map.py`, `migrations/*.py`). On-demand — **Task Router** below →
+[`.cursor/rules/domain-context.mdc`](.cursor/rules/domain-context.mdc).
+Auto by glob — [`.cursor/rules/*.mdc`](.cursor/rules/) (API, Celery, SQL, tests, models, etc.).
+On-demand — **Task Router** below →
 [`docs/agent/*`](docs/agent/README.md), [`docs/architecture/*`](docs/architecture/README.md).
 
 Follow precisely: never take shortcuts, never weaken assertions, never skip steps to make tests pass.
@@ -51,16 +51,17 @@ Use this table for **architecture docs and cross-cutting tasks** — load **befo
 | If you are... | Load |
 |---------------|------|
 | Editing `*.sql` templates | [`.cursor/rules/sql-templates.mdc`](.cursor/rules/sql-templates.mdc) |
-| Changing masu pipeline / accessors / Celery | [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc), [`docs/architecture/celery-tasks.md`](docs/architecture/celery-tasks.md) |
+| Changing masu pipeline / accessors / Celery | [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc), [`.cursor/rules/celery-tasks.mdc`](.cursor/rules/celery-tasks.mdc), [`docs/architecture/celery-tasks.md`](docs/architecture/celery-tasks.md) |
 | New pipeline feature / SQL write path | [`CLAUDE.md`](CLAUDE.md) feature flags, [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc) |
 | Sources / Kafka / data ingestion | [`docs/architecture/sources-and-data-ingestion.md`](docs/architecture/sources-and-data-ingestion.md) |
-| Changing report API / `provider_map.py` | [`.cursor/rules/provider-maps.mdc`](.cursor/rules/provider-maps.mdc), [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc), [`docs/architecture/api-serializers-provider-maps.md`](docs/architecture/api-serializers-provider-maps.md) |
-| API / OpenAPI changes | [`CLAUDE.md`](CLAUDE.md) Key rules, [`docs/specs/openapi.json`](docs/specs/openapi.json) |
-| OCP report processing | [`.cursor/rules/ocp-processing.mdc`](.cursor/rules/ocp-processing.mdc) |
+| Changing report API / `provider_map.py` | [`.cursor/rules/provider-maps.mdc`](.cursor/rules/provider-maps.mdc), [`.cursor/rules/api-design.mdc`](.cursor/rules/api-design.mdc), [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc), [`docs/architecture/api-serializers-provider-maps.md`](docs/architecture/api-serializers-provider-maps.md) |
+| API / OpenAPI changes | [`.cursor/rules/api-design.mdc`](.cursor/rules/api-design.mdc), [`CLAUDE.md`](CLAUDE.md) Key rules, [`docs/specs/openapi.json`](docs/specs/openapi.json) |
+| OCP report processing | [`.cursor/rules/ocp-processing.mdc`](.cursor/rules/ocp-processing.mdc), [`.cursor/rules/file-processing.mdc`](.cursor/rules/file-processing.mdc) |
 | Writing or fixing tests | [`docs/agent/testing.md`](docs/agent/testing.md), [`.cursor/rules/testing-patterns.mdc`](.cursor/rules/testing-patterns.mdc) |
-| Django ORM / aggregations / date helpers | [`docs/agent/backend-gotchas.md`](docs/agent/backend-gotchas.md) |
+| Django ORM / models / accessors | [`.cursor/rules/django-db.mdc`](.cursor/rules/django-db.mdc), [`docs/agent/backend-gotchas.md`](docs/agent/backend-gotchas.md) |
 | Local stack / nise / UI E2E | [`docs/local-development.md`](docs/local-development.md) |
 | Cost model SQL or distribution | [`docs/architecture/cost-models.md`](docs/architecture/cost-models.md) |
+| Editing architecture docs | [`.cursor/rules/architecture-docs.mdc`](.cursor/rules/architecture-docs.mdc) |
 | PRD → design docs | [`docs/architecture/README.md`](docs/architecture/README.md), `/architect` command |
 
 ---
