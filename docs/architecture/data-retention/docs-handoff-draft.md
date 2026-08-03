@@ -37,7 +37,7 @@ In **Settings**, a **Global** tab with:
 - Hidden when Cost Management runs as SaaS (`ONPREM` false / not on-prem).
 - Disabled / read-only when `env_override` is true (see §3.3).
 
-**UI ship status:** Confirm with UI team before publishing click-path + screenshots (API contract referenced as COST-7729). If the Global tab is not shipped yet, publish API/`RETAIN_NUM_MONTHS` only until UI is ready.
+**UI ship status:** Confirm with UI team before publishing click-path + screenshots. If the Global tab is not shipped yet, publish API/`RETAIN_NUM_MONTHS` only until UI is ready.
 
 ### 3.2 API (on-prem; for UI integration)
 
