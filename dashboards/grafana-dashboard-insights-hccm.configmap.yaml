@@ -6756,7 +6756,7 @@ data:
             "query": "prometheus",
             "queryValue": "",
             "refresh": 1,
-            "regex": "/.*appsrep\\d+ue1.*/",
+            "regex": "/.*appsre[ps]\\d+ue1.*/",
             "skipUrlSync": false,
             "type": "datasource"
           }
