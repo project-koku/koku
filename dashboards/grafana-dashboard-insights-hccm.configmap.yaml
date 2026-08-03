@@ -6734,9 +6734,14 @@ data:
                 "selected": true,
                 "text": "cost-management-prod",
                 "value": "cost-management-prod"
+              },
+              {
+                "selected": false,
+                "text": "koku-stage",
+                "value": "koku-stage"
               }
             ],
-            "query": "cost-management-stage, cost-management-prod",
+            "query": "cost-management-stage, cost-management-prod, koku-stage",
             "queryValue": "",
             "skipUrlSync": false,
             "type": "custom"
