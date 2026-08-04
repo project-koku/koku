@@ -103,7 +103,7 @@ class ReportDBAccessorBase:
             )
         )
         sql, sql_params = self.prepare_query(tmp_sql, tmp_sql_params)
-        return self._execute_raw_sql_query(table, sql, bind_params=sql_params, operation=operation)
+        return self._execute_raw_sql_query(table, sql, sql_params=sql_params, operation=operation)
 
     @retry(
         retries=settings.DB_DEADLOCK_RETRIES,
@@ -111,7 +111,7 @@ class ReportDBAccessorBase:
         max_wait=4,
         log_message="Deadlock detected, retrying statement",
     )
-    def _execute_raw_sql_query(self, table, sql, bind_params=None, operation="UPDATE"):
+    def _execute_raw_sql_query(self, table, sql, sql_params=None, operation="UPDATE"):
         """Run a SQL statement via a cursor. This also returns a result if the operation is VALIDATION_QUERY.
 
         Postgres deadlocks are expected under concurrent writers (e.g. two providers under
@@ -119,6 +119,11 @@ class ReportDBAccessorBase:
         rolls one transaction back cleanly, so retrying the statement here is safe -- each call
         runs as its own autocommitted unit of work (this method does not span a transaction.atomic()
         block), and is the standard, Postgres-recommended way to handle a deadlock.
+
+        `sql_params` is named to match the `@retry` decorator's `extract_context_from_sql_params`
+        lookup (it inspects a `sql_params` kwarg to build log context) -- it was previously named
+        `bind_params`, which silently defeated that lookup and left deadlock-retry log lines with
+        no schema/date-range/provider context at all (raised in PR #6162 review).
         """
         LOG.info(log_json(msg=f"triggering {operation}", table=table))
         row_count = None
@@ -127,7 +132,7 @@ class ReportDBAccessorBase:
             cursor.db.set_schema(self.schema)
             t1 = time.time()
             try:
-                cursor.execute(sql, params=bind_params)
+                cursor.execute(sql, params=sql_params)
                 row_count = cursor.rowcount
                 if operation == "VALIDATION_QUERY":
                     result = cursor.fetchall()

@@ -154,6 +154,34 @@ class ReportDBAccessorBaseDeadlockRetryTest(MasuTestCase):
         self.assertEqual(cursor_mock.execute.call_count, 2)
         mock_sleep.assert_called_once()
 
+    @patch("koku.trino_database.LOG")
+    @patch("masu.database.report_db_accessor_base.time.sleep")
+    @patch("masu.database.report_db_accessor_base.connection")
+    def test_execute_raw_sql_query_retry_log_includes_deadlock_detail(self, mock_connection, mock_sleep, mock_log):
+        """The retry-warning log line must carry the deadlock's own diagnostic detail.
+
+        Previously this line only logged a generic message plus a raw (unserializable)
+        exception object under an `exc_info` key, and derived its `context` from a
+        `sql_params` kwarg that `_execute_raw_sql_query` never actually received (it was
+        named `bind_params`), so the line carried no query/table/PID detail at all --
+        exactly the gap raised in PR #6162 review (comment on this file's `@retry` call).
+        """
+        cursor_mock = MagicMock()
+        cursor_mock.execute.side_effect = [_make_deadlock_operational_error(), None]
+        cursor_mock.rowcount = 5
+        mock_connection.cursor.return_value = self._mock_cursor_cm(cursor_mock)
+
+        self.accessor._execute_raw_sql_query("rates_to_usage", "DELETE FROM rates_to_usage")
+
+        mock_log.warning.assert_called_once()
+        (logged,), _ = mock_log.warning.call_args
+        self.assertEqual(logged["message"], "Deadlock detected, retrying statement (attempt 1)")
+        self.assertNotIn("exc_info", logged)
+        detail = logged["exception_detail"]
+        self.assertEqual(detail["process1_pid"], 12)
+        self.assertEqual(detail["process2_pid"], 56)
+        self.assertIn("DEADLOCKED DATABASE PIDS: [12, 56]", detail["message"])
+
     @patch("masu.database.report_db_accessor_base.time.sleep")
     @patch("masu.database.report_db_accessor_base.connection")
     def test_execute_raw_sql_query_raises_after_exhausting_deadlock_retries(self, mock_connection, mock_sleep):
