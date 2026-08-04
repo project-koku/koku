@@ -36,3 +36,14 @@ API when `DEVELOPMENT=True`. :
     HOST='localhost'
     IDENTITY=$(echo '{"identity":{"account_number":"10001","user":{"username":"test_customer","email":"koku-dev@example.com"}}}' | base64 | tr -d '\n')
     curl -g -H "HTTP_X_RH_IDENTITY: ${IDENTITY}" 'http://'${HOST}'/api/v1/reports/inventory/aws/instance-type/'
+
+
+**Identity header (base64):**
+
+```bash
+# Linux
+echo -n '{"identity":{"account_number":"10001","org_id":"1234567","type":"User","user":{"username":"user_dev","email":"user_dev@foo.com","is_org_admin":true,"access":{}}},"entitlements":{"cost_management":{"is_entitled":true}}}' | base64 -w0
+
+# macOS
+echo -n '{"identity":{"account_number":"10001","org_id":"1234567","type":"User","user":{"username":"user_dev","email":"user_dev@foo.com","is_org_admin":true,"access":{}}},"entitlements":{"cost_management":{"is_entitled":true}}}' | base64 | tr -d '\n'
+```
