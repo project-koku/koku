@@ -1,10 +1,14 @@
 ---
 description: Test patterns for Koku using MasuTestCase, model_bakery, and subTest
-globs: "**/test_*.py"
+globs:
+  - "**/test_*.py"
 alwaysApply: false
 ---
 
 # Testing Patterns
+
+- Place tests in `test/` next to the code; name files `test_*.py`
+- Clean up temp files/dirs created during tests
 
 ## Test Base Classes
 

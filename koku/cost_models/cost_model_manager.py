@@ -76,8 +76,13 @@ class CostModelManager:
         return self._model
 
     @transaction.atomic
-    def update_provider_uuids(self, provider_uuids):
+    def update_provider_uuids(self, provider_uuids):  # noqa: C901
         """Update rate with new provider uuids."""
+        if self._model is None:
+            raise CostModelException("Cannot update provider UUIDs: cost model does not exist.")
+        # Serialize concurrent updates to the same cost model (COST-7996).
+        CostModel.objects.select_for_update().get(uuid=self._model.uuid)
+
         current_providers_for_instance = []
         for rate_map_instance in CostModelMap.objects.filter(cost_model=self._model):
             current_providers_for_instance.append(str(rate_map_instance.provider_uuid))
@@ -98,6 +103,7 @@ class CostModelManager:
                 raise CostModelException(log_msg)
             CostModelMap.objects.create(cost_model=self._model, provider_uuid=provider_uuid)
 
+        deferred_tasks = []
         start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
         end_date = DateHelper().today.strftime("%Y-%m-%d")
         for provider_uuid in all_providers:
@@ -114,15 +120,19 @@ class CostModelManager:
                         f"provider {provider_uuid} update for cost model {self._cost_model_uuid} "
                         + f"with tracing_id {tracing_id}"
                     )
+                    deferred_tasks.append(
+                        (schema_name, provider.uuid, start_date, end_date, tracing_id, fallback_queue)
+                    )
 
-                    update_cost_model_costs.s(
-                        schema_name,
-                        provider.uuid,
-                        start_date,
-                        end_date,
-                        tracing_id=tracing_id,
-                        queue_name=fallback_queue,
-                    ).set(queue=fallback_queue).apply_async()
+        if deferred_tasks:
+
+            def _dispatch():
+                for schema_name, p_uuid, start, end, tid, queue in deferred_tasks:
+                    update_cost_model_costs.s(schema_name, p_uuid, start, end, tracing_id=tid, queue_name=queue).set(
+                        queue=queue
+                    ).apply_async()
+
+            transaction.on_commit(_dispatch)
 
     @transaction.atomic
     def update(self, **data):
