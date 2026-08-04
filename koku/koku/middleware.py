@@ -463,16 +463,31 @@ class RequestTimeoutError(Exception):
     """Raised when a request exceeds the soft timeout."""
 
 
+def _parse_soft_timeout(default=90):
+    raw = os.environ.get("REQUEST_SOFT_TIMEOUT")
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
 class RequestTimeoutMiddleware(MiddlewareMixin):
     """Abort requests that exceed a soft timeout, before gunicorn kills the worker.
 
     Uses SIGALRM to raise RequestTimeoutError with full request context,
     replacing the uninformative SystemExit:1 that gunicorn's SIGABRT produces.
+    Only active in the main thread (sync workers); with threaded workers,
+    gunicorn's hard timeout remains the fallback.
     """
 
-    SOFT_TIMEOUT = int(os.environ.get("REQUEST_SOFT_TIMEOUT", 90))
+    SOFT_TIMEOUT = _parse_soft_timeout()
 
     def process_request(self, request):
+        if threading.current_thread() is not threading.main_thread():
+            return
+
         def handler(signum, frame):
             duration = time.time() - getattr(request, "start_time", time.time())
             raise RequestTimeoutError(
@@ -483,7 +498,8 @@ class RequestTimeoutMiddleware(MiddlewareMixin):
         signal.alarm(self.SOFT_TIMEOUT)
 
     def process_response(self, request, response):
-        signal.alarm(0)
+        if threading.current_thread() is threading.main_thread():
+            signal.alarm(0)
         return response
 
 
