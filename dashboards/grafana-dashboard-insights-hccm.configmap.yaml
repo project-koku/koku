@@ -31,6 +31,18 @@ data:
       "liveNow": false,
       "panels": [
         {
+          "gridPos": {"h": 2, "w": 24, "x": 0, "y": 0},
+          "id": 9999,
+          "options": {
+            "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
+            "content": "**Quick start:** Select **Datasource** (`crcp01ue1` = prod, `crcs02ue1` = stage) — namespace auto-selects.<br>For RDS panels, also select **RDS Datasource** (`appsrep11ue1` = prod, `appsres11ue1` = stage) — db_instance auto-selects.",
+            "mode": "markdown"
+          },
+          "title": "",
+          "transparent": true,
+          "type": "text"
+        },
+        {
           "collapsed": false,
           "datasource": {
             "type": "prometheus",
@@ -6667,11 +6679,7 @@ data:
       "templating": {
         "list": [
           {
-            "current": {
-              "selected": false,
-              "text": "crcp01ue1-prometheus",
-              "value": "crcp01ue1-prometheus"
-            },
+            "current": {},
             "hide": 0,
             "includeAll": false,
             "label": "Datasource",
@@ -6681,72 +6689,34 @@ data:
             "query": "prometheus",
             "queryValue": "",
             "refresh": 1,
-            "regex": "/.*crc.*/",
+            "regex": "/^crc[ps]\\d+ue1-prometheus$/",
             "skipUrlSync": false,
             "type": "datasource"
           },
           {
-            "current": {
-              "selected": false,
-              "text": "hccm-prod",
-              "value": "hccm-prod"
+            "current": {},
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${Datasource}"
             },
+            "definition": "label_values(up{namespace=~\"hccm-.*\"}, namespace)",
             "hide": 0,
             "includeAll": false,
             "label": "namespace",
             "multi": false,
             "name": "namespace",
-            "options": [
-              {
-                "selected": false,
-                "text": "hccm-stage",
-                "value": "hccm-stage"
-              },
-              {
-                "selected": true,
-                "text": "hccm-prod",
-                "value": "hccm-prod"
-              }
-            ],
-            "query": "hccm-stage,hccm-prod",
-            "queryValue": "",
+            "options": [],
+            "query": {
+              "query": "label_values(up{namespace=~\"hccm-.*\"}, namespace)",
+              "refId": "namespace"
+            },
+            "refresh": 1,
             "skipUrlSync": false,
-            "type": "custom"
+            "sort": 1,
+            "type": "query"
           },
           {
-            "current": {
-              "selected": false,
-              "text": "cost-management-prod",
-              "value": "cost-management-prod"
-            },
-            "hide": 0,
-            "includeAll": false,
-            "label": "db_instance",
-            "multi": false,
-            "name": "db_instance",
-            "options": [
-              {
-                "selected": false,
-                "text": "cost-management-stage",
-                "value": "cost-management-stage"
-              },
-              {
-                "selected": true,
-                "text": "cost-management-prod",
-                "value": "cost-management-prod"
-              }
-            ],
-            "query": "cost-management-stage, cost-management-prod",
-            "queryValue": "",
-            "skipUrlSync": false,
-            "type": "custom"
-          },
-          {
-            "current": {
-              "selected": false,
-              "text": "appsrep11ue1-prometheus",
-              "value": "appsrep11ue1-prometheus"
-            },
+            "current": {},
             "hide": 0,
             "includeAll": false,
             "label": "RDS Datasource",
@@ -6756,9 +6726,31 @@ data:
             "query": "prometheus",
             "queryValue": "",
             "refresh": 1,
-            "regex": "/.*appsrep\\d+ue1.*/",
+            "regex": "/^appsre[ps]11ue1-prometheus$/",
             "skipUrlSync": false,
             "type": "datasource"
+          },
+          {
+            "current": {},
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${rds_datasource}"
+            },
+            "definition": "label_values(rdsosmetrics_cpuUtilization_user{exported_instance=~\"cost-management-.*|koku-.*\"}, exported_instance)",
+            "hide": 0,
+            "includeAll": false,
+            "label": "db_instance",
+            "multi": false,
+            "name": "db_instance",
+            "options": [],
+            "query": {
+              "query": "label_values(rdsosmetrics_cpuUtilization_user{exported_instance=~\"cost-management-.*|koku-.*\"}, exported_instance)",
+              "refId": "db_instance"
+            },
+            "refresh": 1,
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
           }
         ]
       },
