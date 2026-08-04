@@ -9,7 +9,7 @@ You **analyze**, **map**, and **specify**. You do **not** implement application 
 Follow the repo’s architecture doc playbook:
 
 - [`docs/architecture/README.md`](../../docs/architecture/README.md) — PRD → docs flow, hub depth (lean / standard / full), splitting by concern, maintenance rules.
-- [`AGENTS.md`](../../AGENTS.md) — layout, multi-tenancy, dual SQL paths, testing commands.
+- [`AGENTS.md`](../../AGENTS.md) — slim index, **Task Router**, agent behavior; on-demand catalog in [`docs/agent/README.md`](../../docs/agent/README.md).
 
 ## When to Use
 
@@ -28,7 +28,7 @@ Follow the repo’s architecture doc playbook:
 ## Prime context (ask the user to attach or @ mention)
 
 - `docs/architecture/README.md`
-- `AGENTS.md`
+- `AGENTS.md` (index + Task Router), [`docs/agent/README.md`](../../docs/agent/README.md), `docs/architecture/`, and `docs/local-development.md`
 - `.cursor/rules/multi-tenancy.mdc`, `.cursor/rules/onprem-vs-saas.mdc`
 - Existing hubs for tone: e.g. `docs/architecture/data-retention/README.md`, `docs/architecture/cost-breakdown/README.md`, `docs/architecture/efficiency-scores/README.md`
 - [`docs/architecture/celery-tasks.md`](../../docs/architecture/celery-tasks.md) if tasks or queues may change
