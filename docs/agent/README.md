@@ -8,6 +8,7 @@ in [`AGENTS.md`](../../AGENTS.md), then open entries from this catalog.
 | Local stack, nise, ingest, UI E2E | [`../local-development.md`](../local-development.md) |
 | Unit testing | [`testing.md`](testing.md) |
 | Backend ORM / date helpers | [`backend-gotchas.md`](backend-gotchas.md) |
+| Unleash feature flags (backend) | [`unleash-flags.md`](unleash-flags.md) |
 | Celery tasks / pipeline | [`../architecture/celery-tasks.md`](../architecture/celery-tasks.md) |
 | Sources / data ingestion | [`../architecture/sources-and-data-ingestion.md`](../architecture/sources-and-data-ingestion.md) |
 | Feature architecture | [`../architecture/README.md`](../architecture/README.md) |
