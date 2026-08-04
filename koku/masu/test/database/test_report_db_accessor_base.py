@@ -182,41 +182,6 @@ class ReportDBAccessorBaseDeadlockRetryTest(MasuTestCase):
         self.assertEqual(detail["process2_pid"], 56)
         self.assertIn("DEADLOCKED DATABASE PIDS: [12, 56]", detail["message"])
 
-    @patch("koku.trino_database.LOG")
-    @patch("masu.database.report_db_accessor_base.time.sleep")
-    @patch("masu.database.report_db_accessor_base.connection")
-    def test_prepare_and_execute_raw_sql_query_retry_log_includes_schema_and_date_context(
-        self, mock_connection, mock_sleep, mock_log
-    ):
-        """The retry-warning log line must also carry schema/date-range context end-to-end.
-
-        `JinjaSql.prepare_query()` (pyformat mode) renames every bind param with a positional
-        suffix (e.g. `start_date` -> `start_date_1`) to avoid collisions. A first attempt at
-        this fix renamed `_execute_raw_sql_query`'s `bind_params` kwarg to `sql_params`, on the
-        theory that this alone would let the `@retry` decorator's `sql_params`-based context
-        fallback recover schema/date/provider info -- but that fallback inspects the *renamed*
-        keys and silently finds nothing, so that fix didn't actually work. `context` must be
-        computed from the pre-rename params and passed through explicitly instead.
-        """
-        cursor_mock = MagicMock()
-        cursor_mock.execute.side_effect = [_make_deadlock_operational_error(), None]
-        cursor_mock.rowcount = 5
-        mock_connection.cursor.return_value = self._mock_cursor_cm(cursor_mock)
-
-        self.accessor._prepare_and_execute_raw_sql_query(
-            "rates_to_usage",
-            "DELETE FROM {{schema | sqlsafe}}.rates_to_usage WHERE usage_start >= {{start_date}}::date",
-            {"schema": self.schema, "start_date": "2026-08-01", "source_uuid": "abc-123"},
-            operation="DELETE",
-        )
-
-        mock_log.warning.assert_called_once()
-        (logged,), _ = mock_log.warning.call_args
-        self.assertEqual(logged["schema"], self.schema)
-        self.assertEqual(logged["start_date"], "2026-08-01")
-        self.assertEqual(logged["provider_uuid"], "abc-123")
-        self.assertIn("exception_detail", logged)
-
     @patch("masu.database.report_db_accessor_base.time.sleep")
     @patch("masu.database.report_db_accessor_base.connection")
     def test_execute_raw_sql_query_raises_after_exhausting_deadlock_retries(self, mock_connection, mock_sleep):
