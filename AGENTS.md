@@ -38,7 +38,10 @@ with schema_context(self.schema):
 1. **Dual execution paths** — cloud (Trino + PostgreSQL) and on-prem (PostgreSQL only). See on-prem vs SaaS links above and [`CLAUDE.md`](CLAUDE.md).
 2. **Multi-tenancy** — `reporting` and `cost_models` require `schema_context` / `tenant_context`. Public models (`api`, `sources`) do not.
 3. **OCI removed** — do not implement OCI support.
-4. **Feature flags** — gate risky pipeline/SQL changes only when required ([`CLAUDE.md`](CLAUDE.md)).
+4. **Feature flags** (Unleash): gate risky pipeline/SQL/data changes behind an
+   **enablement** flag (ON = new path, default OFF). Do **not** create
+   `disable-*` flags for feature rollout. See [`CLAUDE.md`](CLAUDE.md) and
+   [`docs/agent/unleash-flags.md`](docs/agent/unleash-flags.md).
 5. **Providers:** AWS, Azure, GCP, OpenShift (+ OCP-on-cloud variants).
 
 ---
@@ -52,7 +55,8 @@ Use this table for **architecture docs and cross-cutting tasks** — load **befo
 |---------------|------|
 | Editing `*.sql` templates | [`.cursor/rules/sql-templates.mdc`](.cursor/rules/sql-templates.mdc) |
 | Changing masu pipeline / accessors / Celery | [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc), [`.cursor/rules/celery-tasks.mdc`](.cursor/rules/celery-tasks.mdc), [`docs/architecture/celery-tasks.md`](docs/architecture/celery-tasks.md) |
-| New pipeline feature / SQL write path | [`CLAUDE.md`](CLAUDE.md) feature flags, [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc) |
+| New pipeline feature / SQL write path | [`CLAUDE.md`](CLAUDE.md) feature flags, [`docs/agent/unleash-flags.md`](docs/agent/unleash-flags.md), [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc) |
+| Adding / changing Unleash flags | [`docs/agent/unleash-flags.md`](docs/agent/unleash-flags.md), [`.cursor/rules/unleash-flags.mdc`](.cursor/rules/unleash-flags.mdc), [`.claude/rules/unleash-flags.md`](.claude/rules/unleash-flags.md) |
 | Sources / Kafka / data ingestion | [`docs/architecture/sources-and-data-ingestion.md`](docs/architecture/sources-and-data-ingestion.md) |
 | Changing report API / `provider_map.py` | [`.cursor/rules/provider-maps.mdc`](.cursor/rules/provider-maps.mdc), [`.cursor/rules/api-design.mdc`](.cursor/rules/api-design.mdc), [`.cursor/rules/onprem-vs-saas.mdc`](.cursor/rules/onprem-vs-saas.mdc), [`docs/architecture/api-serializers-provider-maps.md`](docs/architecture/api-serializers-provider-maps.md) |
 | API / OpenAPI changes | [`.cursor/rules/api-design.mdc`](.cursor/rules/api-design.mdc), [`CLAUDE.md`](CLAUDE.md) Key rules, [`docs/specs/openapi.json`](docs/specs/openapi.json) |
