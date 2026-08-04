@@ -95,15 +95,15 @@ class ReportDBAccessorBase:
         """Prepare the sql params and run via a cursor."""
         if tmp_sql_params is None:
             tmp_sql_params = {}
-        LOG.info(
-            log_json(
-                msg=f"triggering {operation}",
-                table=table,
-                context=self.extract_context_from_sql_params(tmp_sql_params),
-            )
-        )
+        # Computed from `tmp_sql_params` (the template's *named* params) rather than the
+        # `sql_params` JinjaSql.prepare_query() returns below: pyformat mode suffixes every
+        # bind name with a positional index (e.g. `start_date` -> `start_date_1`) to avoid
+        # collisions, which silently defeats `extract_context_from_sql_params`'s exact-key
+        # lookups (`schema`, `start_date`, `source_uuid`, ...) on the post-prepare dict.
+        context = self.extract_context_from_sql_params(tmp_sql_params)
+        LOG.info(log_json(msg=f"triggering {operation}", table=table, context=context))
         sql, sql_params = self.prepare_query(tmp_sql, tmp_sql_params)
-        return self._execute_raw_sql_query(table, sql, sql_params=sql_params, operation=operation)
+        return self._execute_raw_sql_query(table, sql, sql_params=sql_params, operation=operation, context=context)
 
     @retry(
         retries=settings.DB_DEADLOCK_RETRIES,
@@ -111,7 +111,7 @@ class ReportDBAccessorBase:
         max_wait=4,
         log_message="Deadlock detected, retrying statement",
     )
-    def _execute_raw_sql_query(self, table, sql, sql_params=None, operation="UPDATE"):
+    def _execute_raw_sql_query(self, table, sql, sql_params=None, operation="UPDATE", context=None):
         """Run a SQL statement via a cursor. This also returns a result if the operation is VALIDATION_QUERY.
 
         Postgres deadlocks are expected under concurrent writers (e.g. two providers under
@@ -120,12 +120,15 @@ class ReportDBAccessorBase:
         runs as its own autocommitted unit of work (this method does not span a transaction.atomic()
         block), and is the standard, Postgres-recommended way to handle a deadlock.
 
-        `sql_params` is named to match the `@retry` decorator's `extract_context_from_sql_params`
-        lookup (it inspects a `sql_params` kwarg to build log context) -- it was previously named
-        `bind_params`, which silently defeated that lookup and left deadlock-retry log lines with
-        no schema/date-range/provider context at all (raised in PR #6162 review).
+        `context` is accepted explicitly (mirroring `_execute_trino_raw_sql_query_with_description`)
+        so the `@retry` decorator's deadlock-retry log line carries schema/date-range/provider
+        context: the decorator only picks up a `context` kwarg directly, or falls back to
+        inspecting a `sql_params` kwarg -- but the `sql_params` reaching this method have already
+        been through JinjaSql's `prepare_query()`, which renames every key (see caller), so that
+        fallback never actually recovers anything. Passing `context` explicitly is what makes it
+        work (raised in PR #6162 review).
         """
-        LOG.info(log_json(msg=f"triggering {operation}", table=table))
+        LOG.info(log_json(msg=f"triggering {operation}", table=table, context=context))
         row_count = None
         result = None
         with connection.cursor() as cursor:
@@ -139,7 +142,7 @@ class ReportDBAccessorBase:
 
             except OperationalError as exc:
                 db_exc = get_extended_exception_by_type(exc)
-                LOG.warning(log_json(os.getpid(), msg=str(db_exc), context=db_exc.as_dict()))
+                LOG.warning(log_json(os.getpid(), msg=str(db_exc), context={**(context or {}), **db_exc.as_dict()}))
                 raise db_exc from exc
 
         running_time = time.time() - t1
