@@ -180,14 +180,33 @@ class DelayedCeleryTasks(models.Model):
         provider_uuid,
         queue_name,
         timeout_seconds=settings.DELAYED_TASK_TIME,
+        billing_month=None,
     ):
         """
         Saves data regarding to the celery task being delayed.
+
+        When billing_month is provided, rows are keyed by
+        (task_name, provider_uuid, metadata.billing_month) so callers can
+        keep one pending task per calendar month. Omitting billing_month
+        preserves the legacy (task_name, provider_uuid) lookup.
         """
-        existing_task = cls.objects.filter(task_name=task_name, provider_uuid=provider_uuid).first()
+        filters = {"task_name": task_name, "provider_uuid": provider_uuid}
+        billing_month_str = None
+        if billing_month is not None:
+            billing_month_str = (
+                billing_month.isoformat() if hasattr(billing_month, "isoformat") else str(billing_month)
+            )
+            filters["metadata__billing_month"] = billing_month_str
+
+        existing_task = cls.objects.filter(**filters).first()
 
         if existing_task:
-            # The task already exist extend the timeout.
+            # Refresh payload so the latest args/kwargs/queue win on fire.
+            if not task_kwargs.get("tracing_id") and existing_task.task_kwargs.get("tracing_id"):
+                task_kwargs = {**task_kwargs, "tracing_id": existing_task.task_kwargs["tracing_id"]}
+            existing_task.task_args = task_args
+            existing_task.task_kwargs = task_kwargs
+            existing_task.queue_name = queue_name
             existing_task.set_timeout(timeout_seconds)
             existing_task.save()
             return existing_task
@@ -195,12 +214,14 @@ class DelayedCeleryTasks(models.Model):
         if not task_kwargs.get("tracing_id"):
             task_kwargs["tracing_id"] = str(uuid4())
 
+        metadata = {"billing_month": billing_month_str} if billing_month_str is not None else {}
         new_task = cls(
             task_name=task_name,
             task_args=task_args,
             task_kwargs=task_kwargs,
             provider_uuid=provider_uuid,
             queue_name=queue_name,
+            metadata=metadata,
         )
         new_task.set_timeout(timeout_seconds)
         new_task.save()

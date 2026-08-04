@@ -24,6 +24,7 @@ from api.iam.models import Tenant
 from api.provider.models import Provider
 from api.utils import DateHelper
 from api.utils import get_months_in_date_range
+from api.utils import to_date
 from common.queues import CostModelQueue
 from common.queues import DEFAULT
 from common.queues import DownloadQueue
@@ -72,6 +73,7 @@ from reporting_common.states import ManifestStep
 LOG = logging.getLogger(__name__)
 
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
+UPDATE_COST_MODEL_COSTS_TASK = "masu.processor.tasks.update_cost_model_costs"
 
 
 def deduplicate_summary_reports(reports_to_summarize, manifest_list):
@@ -221,6 +223,60 @@ def delayed_summarize_current_month(schema_name: str, provider_uuids: list, prov
         if schema_name == settings.QE_SCHEMA:
             # bypass the wait for QE
             id.delete()
+
+
+def delayed_update_cost_model_costs(schema_name, provider_uuid, start_date, end_date, queue_name, tracing_id=None):
+    """Delay cost-model cost updates, coalescing per provider and billing month.
+
+    Cross-month ranges are split into one DelayedCeleryTasks row per calendar
+    month. Further edits for the same provider/month reset the timeout and keep
+    the widest date range (min start, max end).
+
+    Dates are stored as named ``task_kwargs`` (``start_date`` / ``end_date``) so
+    coalesce does not depend on positional ``task_args`` indexes.
+    ``task_args`` remains ``[schema_name, provider_uuid]`` for ``send_task``.
+    """
+    start = to_date(start_date)
+    end = to_date(end_date)
+
+    for month_start, month_end in DateHelper().list_month_tuples(start, end):
+        billing_month = month_start.replace(day=1)
+        billing_month_str = billing_month.isoformat()
+        merged_start = month_start
+        merged_end = month_end
+
+        existing = DelayedCeleryTasks.objects.filter(
+            task_name=UPDATE_COST_MODEL_COSTS_TASK,
+            provider_uuid=provider_uuid,
+            metadata__billing_month=billing_month_str,
+        ).first()
+        if existing:
+            existing_start = to_date(existing.task_kwargs.get("start_date"))
+            existing_end = to_date(existing.task_kwargs.get("end_date"))
+            if existing_start:
+                merged_start = min(merged_start, existing_start)
+            if existing_end:
+                merged_end = max(merged_end, existing_end)
+
+        task_kwargs = {
+            "start_date": str(merged_start),
+            "end_date": str(merged_end),
+            "queue_name": queue_name,
+        }
+        if tracing_id is not None:
+            task_kwargs["tracing_id"] = str(tracing_id)
+
+        row = DelayedCeleryTasks.create_or_reset_timeout(
+            task_name=UPDATE_COST_MODEL_COSTS_TASK,
+            task_args=[schema_name, str(provider_uuid)],
+            task_kwargs=task_kwargs,
+            provider_uuid=provider_uuid,
+            queue_name=queue_name,
+            billing_month=billing_month,
+        )
+        if schema_name == settings.QE_SCHEMA:
+            # bypass the wait for QE
+            row.delete()
 
 
 def record_all_manifest_files(manifest_id, report_files, tracing_id):
