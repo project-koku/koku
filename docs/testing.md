@@ -1,5 +1,8 @@
 # Testing Koku
 
+> **For AI agents:** see [`docs/agent/testing.md`](agent/testing.md) for mocks,
+> base classes, and tox patterns. This page covers legacy tox/Docker workflows.
+
 ## Unit testing
 
 Unit testing for Koku is handled through
