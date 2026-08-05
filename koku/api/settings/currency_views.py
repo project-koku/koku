@@ -9,6 +9,7 @@ from collections import defaultdict
 from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+from querystring_parser import parser
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -23,6 +24,8 @@ from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import get_enabled_currency_codes
 from api.currency.currencies import is_valid_iso_currency
 from api.provider.models import Provider
+from api.report.constants import URL_ENCODED_SAFE
+from api.settings.utils import ListField
 from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
@@ -40,6 +43,47 @@ from reporting.provider.gcp.models import GCPCostSummaryP
 from reporting.user_settings.models import UserSettings
 
 LOG = logging.getLogger(__name__)
+
+VALID_PARAMS = {"filter", "limit", "offset"}
+VALID_FILTER_PARAMS = {"enabled", "currency"}
+
+
+def _parse_filter_list(value):
+    """Normalize a filter value to a flat list of strings."""
+    if value is None:
+        return []
+    return ListField().to_python(value)
+
+
+def _parse_currency_list_filters(request):
+    """Parse and validate filter params for the currency list endpoint."""
+    query_params = parser.parse(request.query_params.urlencode(safe=URL_ENCODED_SAFE))
+
+    invalid_params = set(query_params.keys()) - VALID_PARAMS
+    if invalid_params:
+        raise ValidationError({invalid_params.pop(): "Unsupported parameter or invalid value"})
+
+    filter_params = query_params.get("filter") or {}
+    if not isinstance(filter_params, dict):
+        filter_params = {}
+
+    invalid_filters = set(filter_params.keys()) - VALID_FILTER_PARAMS
+    if invalid_filters:
+        raise ValidationError({invalid_filters.pop(): "Unsupported parameter or invalid value"})
+
+    enabled_filter = filter_params.get("enabled")
+    if enabled_filter is not None:
+        if isinstance(enabled_filter, list):
+            enabled_filter = enabled_filter[0]
+        enabled_filter = str(enabled_filter).lower()
+        if enabled_filter not in ("true", "1", "false", "0"):
+            raise ValidationError({"enabled": "Unsupported parameter or invalid value"})
+
+    currency_filter = _parse_filter_list(filter_params.get("currency"))
+    if currency_filter:
+        currency_filter = [code.upper() for code in currency_filter]
+
+    return enabled_filter, currency_filter
 
 
 def _get_cloud_providers_using_currency(code, customer):
@@ -59,13 +103,15 @@ def _get_cloud_providers_using_currency(code, customer):
 class CurrencySettingsView(APIView):
     """List all ISO 4217 currencies with enabled status and dynamic-rate availability.
 
-    Supports ``?search=`` and ``?enabled=`` query params for filtering.
+    Supports ``filter[enabled]`` and ``filter[currency]`` query params for filtering.
     """
 
     permission_classes = [SettingsAccessPermission]
 
     @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
+        enabled_filter, currency_filter = _parse_currency_list_filters(request)
+
         enabled_codes = get_enabled_currency_codes()
         dynamic_codes = get_dynamic_rate_currencies()
 
@@ -76,8 +122,7 @@ class CurrencySettingsView(APIView):
             code = rate["base_currency"]
             rates_by_base[code].append(rate)
 
-        enabled_filter = request.query_params.get("enabled")
-        if enabled_filter is not None and enabled_filter.lower() in ("true", "1"):
+        if enabled_filter is not None and enabled_filter in ("true", "1"):
             sorted_codes = sorted(enabled_codes)
         elif enabled_filter is not None:
             all_codes = get_all_iso_currency_codes()
@@ -94,9 +139,9 @@ class CurrencySettingsView(APIView):
             info["static_rates"] = rates_by_base.get(code, [])
             result.append(info)
 
-        search_term = request.query_params.get("search", "").strip().upper()
-        if search_term:
-            result = [c for c in result if search_term in c["code"]]
+        if currency_filter:
+            currency_filter_set = set(currency_filter)
+            result = [c for c in result if c["code"] in currency_filter_set]
 
         return ListPaginator(result, request).paginated_response
 

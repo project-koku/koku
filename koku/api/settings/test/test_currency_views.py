@@ -81,7 +81,7 @@ class CurrencySettingsViewTest(IamTestCase):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.create(currency_code="USD")
 
-        url = reverse("currency-list") + "?enabled=true&limit=500"
+        url = reverse("currency-list") + "?filter[enabled]=true&limit=500"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         codes = [c["code"] for c in response.data["data"]]
@@ -91,19 +91,66 @@ class CurrencySettingsViewTest(IamTestCase):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.create(currency_code="USD")
 
-        url = reverse("currency-list") + "?enabled=false&limit=500"
+        url = reverse("currency-list") + "?filter[enabled]=false&limit=500"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         codes = [c["code"] for c in response.data["data"]]
         self.assertNotIn("USD", codes)
         self.assertFalse(any(c["enabled"] for c in response.data["data"]))
 
-    def test_list_search_by_code(self):
-        url = reverse("currency-list") + "?search=USD"
+    def test_list_filter_by_currency(self):
+        url = reverse("currency-list") + "?filter[currency]=USD"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         codes = [c["code"] for c in response.data["data"]]
         self.assertEqual(codes, ["USD"])
+
+    def test_list_filter_by_multiple_currencies_csv(self):
+        url = reverse("currency-list") + "?filter[currency]=USD,EUR&limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [c["code"] for c in response.data["data"]]
+        self.assertEqual(codes, ["EUR", "USD"])
+
+    def test_list_filter_by_multiple_currencies_repeated(self):
+        url = reverse("currency-list") + "?filter[currency]=USD&filter[currency]=EUR&limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [c["code"] for c in response.data["data"]]
+        self.assertEqual(codes, ["EUR", "USD"])
+
+    def test_list_filter_by_currency_case_insensitive(self):
+        url = reverse("currency-list") + "?filter[currency]=usd"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [c["code"] for c in response.data["data"]]
+        self.assertEqual(codes, ["USD"])
+
+    def test_list_filter_enabled_and_currency_combined(self):
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+
+        url = reverse("currency-list") + "?filter[enabled]=true&filter[currency]=USD&filter[currency]=GBP&limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [c["code"] for c in response.data["data"]]
+        self.assertEqual(codes, ["USD"])
+
+    def test_list_legacy_enabled_param_rejected(self):
+        url = reverse("currency-list") + "?enabled=true"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_list_legacy_search_param_rejected(self):
+        url = reverse("currency-list") + "?search=USD"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_list_invalid_filter_key_rejected(self):
+        url = reverse("currency-list") + "?filter[invalid_field]=USD"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class EnabledCurrencyViewTest(IamTestCase):
