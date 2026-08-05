@@ -59,8 +59,6 @@ def update_cost_model_costs(request):
     except Provider.DoesNotExist:
         return Response({"Error": "Provider does not exist."}, status=status.HTTP_400_BAD_REQUEST)
 
-    months = get_months_in_date_range(start=start_date, end=end_date)
-
     if delayed:
         tracing_id = str(uuid.uuid4())
         LOG.info(
@@ -69,24 +67,23 @@ def update_cost_model_costs(request):
             provider_uuid,
             tracing_id,
         )
-        for month in months:
-            delayed_update_cost_model_costs(
-                schema_name,
-                provider_uuid,
-                month[0],
-                month[1],
-                queue_name=queue_name,
-                tracing_id=tracing_id,
-            )
+        delayed_update_cost_model_costs(
+            schema_name,
+            provider_uuid,
+            start_date,
+            end_date,
+            queue_name=queue_name,
+            tracing_id=tracing_id,
+        )
         return Response({DELAYED_RESULT_KEY: tracing_id})
 
-    for month in months:
+    for month_start, month_end in get_months_in_date_range(start=start_date, end=end_date):
         LOG.info("Calling update_cost_model_costs async task.")
         async_result = (
-            cost_task.s(schema_name, provider_uuid, month[0], month[1], queue_name=queue_name)
+            cost_task.s(schema_name, provider_uuid, month_start, month_end, queue_name=queue_name)
             .set(queue=queue_name)
             .apply_async()
         )
-        async_results.append({str(month): str(async_result)})
+        async_results.append({str(month_start): str(async_result)})
 
     return Response({RESULT_KEY: async_results})

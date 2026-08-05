@@ -225,6 +225,52 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertEqual(second.queue_name, "new_queue")
         self.assertGreater(second.timeout_timestamp, original_timeout)
 
+    def test_create_or_reset_timeout_merge_date_range(self):
+        """merge_date_range widens start/end against the locked existing row."""
+        provider_uuid = self.aws_provider_uuid
+        billing_month = date(2026, 7, 1)
+        first = DelayedCeleryTasks.create_or_reset_timeout(
+            task_name=UPDATE_COST_MODEL_COSTS_TASK,
+            task_args=[self.schema_name, str(provider_uuid)],
+            task_kwargs={
+                "start_date": "2026-07-10",
+                "end_date": "2026-07-15",
+                "tracing_id": "keep-me",
+            },
+            provider_uuid=provider_uuid,
+            queue_name=PriorityQueue.DEFAULT,
+            billing_month=billing_month,
+            merge_date_range=True,
+        )
+        second = DelayedCeleryTasks.create_or_reset_timeout(
+            task_name=UPDATE_COST_MODEL_COSTS_TASK,
+            task_args=[self.schema_name, str(provider_uuid)],
+            task_kwargs={
+                "start_date": "2026-07-01",
+                "end_date": "2026-07-12",
+                "queue_name": PriorityQueue.XL,
+            },
+            provider_uuid=provider_uuid,
+            queue_name=PriorityQueue.XL,
+            billing_month=billing_month,
+            merge_date_range=True,
+        )
+
+        self.assertEqual(first.pk, second.pk)
+        second.refresh_from_db()
+        self.assertEqual(second.task_kwargs.get("start_date"), "2026-07-01")
+        self.assertEqual(second.task_kwargs.get("end_date"), "2026-07-15")
+        self.assertEqual(second.task_kwargs.get("tracing_id"), "keep-me")
+        self.assertEqual(second.queue_name, PriorityQueue.XL)
+        self.assertEqual(
+            DelayedCeleryTasks.objects.filter(
+                task_name=UPDATE_COST_MODEL_COSTS_TASK,
+                provider_uuid=provider_uuid,
+                metadata__billing_month="2026-07-01",
+            ).count(),
+            1,
+        )
+
     def test_delayed_update_cost_model_costs_coalesces_max_range(self):
         """Same-month edits coalesce to one row with the widest date range."""
         provider_uuid = self.aws_provider.uuid
@@ -279,6 +325,25 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertEqual(rows[1].metadata.get("billing_month"), "2026-08-01")
         self.assertEqual(rows[1].task_kwargs.get("start_date"), "2026-08-01")
         self.assertEqual(rows[1].task_kwargs.get("end_date"), "2026-08-05")
+
+    def test_delayed_update_cost_model_costs_invalid_date_range(self):
+        """Inverted start/end creates no delayed rows."""
+        provider_uuid = self.aws_provider.uuid
+        delayed_update_cost_model_costs(
+            self.schema_name,
+            provider_uuid,
+            date(2026, 8, 21),
+            date(2026, 8, 1),
+            queue_name=PriorityQueue.DEFAULT,
+            tracing_id="bad-range",
+        )
+
+        self.assertEqual(
+            DelayedCeleryTasks.objects.filter(
+                task_name=UPDATE_COST_MODEL_COSTS_TASK, provider_uuid=provider_uuid
+            ).count(),
+            0,
+        )
 
     def test_delayed_update_cost_model_costs_independent_months(self):
         """A new month slice does not change an existing prior-month delayed row."""

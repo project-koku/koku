@@ -8,12 +8,14 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.db import models
+from django.db import transaction
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 from django.utils import timezone
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import to_date
 from koku import celery_app
 from reporting_common.states import CombinedChoices
 from reporting_common.states import ReportStep
@@ -171,6 +173,27 @@ class DelayedCeleryTasks(models.Model):
         expired_records = cls.objects.filter(timeout_timestamp__lt=now)
         expired_records.delete()
 
+    @staticmethod
+    def _merge_task_kwargs_date_range(existing_kwargs, new_kwargs):
+        """Widen start/end in new_kwargs against an existing delayed payload."""
+        merged = {**new_kwargs}
+        existing_start = to_date(existing_kwargs.get("start_date"))
+        existing_end = to_date(existing_kwargs.get("end_date"))
+        new_start = to_date(new_kwargs.get("start_date"))
+        new_end = to_date(new_kwargs.get("end_date"))
+
+        if existing_start and new_start:
+            merged["start_date"] = str(min(existing_start, new_start))
+        elif existing_start:
+            merged["start_date"] = str(existing_start)
+
+        if existing_end and new_end:
+            merged["end_date"] = str(max(existing_end, new_end))
+        elif existing_end:
+            merged["end_date"] = str(existing_end)
+
+        return merged
+
     @classmethod
     def create_or_reset_timeout(
         cls,
@@ -181,6 +204,7 @@ class DelayedCeleryTasks(models.Model):
         queue_name,
         timeout_seconds=settings.DELAYED_TASK_TIME,
         billing_month=None,
+        merge_date_range=False,
     ):
         """
         Saves data regarding to the celery task being delayed.
@@ -189,6 +213,11 @@ class DelayedCeleryTasks(models.Model):
         (task_name, provider_uuid, metadata.billing_month) so callers can
         keep one pending task per calendar month. Omitting billing_month
         preserves the legacy (task_name, provider_uuid) lookup.
+
+        Lookup/update runs under ``select_for_update`` so concurrent resets
+        for the same key serialize. When ``merge_date_range`` is True, the
+        stored ``start_date`` / ``end_date`` are widened (min/max) against the
+        locked row before save.
         """
         filters = {"task_name": task_name, "provider_uuid": provider_uuid}
         billing_month_str = None
@@ -198,34 +227,37 @@ class DelayedCeleryTasks(models.Model):
             )
             filters["metadata__billing_month"] = billing_month_str
 
-        existing_task = cls.objects.filter(**filters).first()
+        with transaction.atomic():
+            existing_task = cls.objects.select_for_update().filter(**filters).first()
 
-        if existing_task:
-            # Refresh payload so the latest args/kwargs/queue win on fire.
-            if not task_kwargs.get("tracing_id") and existing_task.task_kwargs.get("tracing_id"):
-                task_kwargs = {**task_kwargs, "tracing_id": existing_task.task_kwargs["tracing_id"]}
-            existing_task.task_args = task_args
-            existing_task.task_kwargs = task_kwargs
-            existing_task.queue_name = queue_name
-            existing_task.set_timeout(timeout_seconds)
-            existing_task.save()
-            return existing_task
+            if existing_task:
+                if merge_date_range:
+                    task_kwargs = cls._merge_task_kwargs_date_range(existing_task.task_kwargs, task_kwargs)
+                # Refresh payload so the latest args/kwargs/queue win on fire.
+                if not task_kwargs.get("tracing_id") and existing_task.task_kwargs.get("tracing_id"):
+                    task_kwargs = {**task_kwargs, "tracing_id": existing_task.task_kwargs["tracing_id"]}
+                existing_task.task_args = task_args
+                existing_task.task_kwargs = task_kwargs
+                existing_task.queue_name = queue_name
+                existing_task.set_timeout(timeout_seconds)
+                existing_task.save()
+                return existing_task
 
-        if not task_kwargs.get("tracing_id"):
-            task_kwargs["tracing_id"] = str(uuid4())
+            if not task_kwargs.get("tracing_id"):
+                task_kwargs["tracing_id"] = str(uuid4())
 
-        metadata = {"billing_month": billing_month_str} if billing_month_str is not None else {}
-        new_task = cls(
-            task_name=task_name,
-            task_args=task_args,
-            task_kwargs=task_kwargs,
-            provider_uuid=provider_uuid,
-            queue_name=queue_name,
-            metadata=metadata,
-        )
-        new_task.set_timeout(timeout_seconds)
-        new_task.save()
-        return new_task
+            metadata = {"billing_month": billing_month_str} if billing_month_str is not None else {}
+            new_task = cls(
+                task_name=task_name,
+                task_args=task_args,
+                task_kwargs=task_kwargs,
+                provider_uuid=provider_uuid,
+                queue_name=queue_name,
+                metadata=metadata,
+            )
+            new_task.set_timeout(timeout_seconds)
+            new_task.save()
+            return new_task
 
 
 @receiver(pre_delete, sender=DelayedCeleryTasks)

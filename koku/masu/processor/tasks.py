@@ -230,7 +230,8 @@ def delayed_update_cost_model_costs(schema_name, provider_uuid, start_date, end_
 
     Cross-month ranges are split into one DelayedCeleryTasks row per calendar
     month. Further edits for the same provider/month reset the timeout and keep
-    the widest date range (min start, max end).
+    the widest date range (min start, max end) under ``select_for_update`` in
+    ``DelayedCeleryTasks.create_or_reset_timeout``.
 
     Dates are stored as named ``task_kwargs`` (``start_date`` / ``end_date``) so
     coalesce does not depend on positional ``task_args`` indexes.
@@ -239,28 +240,27 @@ def delayed_update_cost_model_costs(schema_name, provider_uuid, start_date, end_
     start = to_date(start_date)
     end = to_date(end_date)
 
-    for month_start, month_end in DateHelper().list_month_tuples(start, end):
+    months = DateHelper().list_month_tuples(start, end)
+    if not months:
+        LOG.warning(
+            log_json(
+                tracing_id,
+                msg="Skipping delayed update_cost_model_costs; invalid or empty date range",
+                context={
+                    "schema": schema_name,
+                    "provider_uuid": str(provider_uuid),
+                    "start_date": str(start),
+                    "end_date": str(end),
+                },
+            )
+        )
+        return
+
+    for month_start, month_end in months:
         billing_month = month_start.replace(day=1)
-        billing_month_str = billing_month.isoformat()
-        merged_start = month_start
-        merged_end = month_end
-
-        existing = DelayedCeleryTasks.objects.filter(
-            task_name=UPDATE_COST_MODEL_COSTS_TASK,
-            provider_uuid=provider_uuid,
-            metadata__billing_month=billing_month_str,
-        ).first()
-        if existing:
-            existing_start = to_date(existing.task_kwargs.get("start_date"))
-            existing_end = to_date(existing.task_kwargs.get("end_date"))
-            if existing_start:
-                merged_start = min(merged_start, existing_start)
-            if existing_end:
-                merged_end = max(merged_end, existing_end)
-
         task_kwargs = {
-            "start_date": str(merged_start),
-            "end_date": str(merged_end),
+            "start_date": str(month_start),
+            "end_date": str(month_end),
             "queue_name": queue_name,
         }
         if tracing_id is not None:
@@ -273,6 +273,7 @@ def delayed_update_cost_model_costs(schema_name, provider_uuid, start_date, end_
             provider_uuid=provider_uuid,
             queue_name=queue_name,
             billing_month=billing_month,
+            merge_date_range=True,
         )
         if schema_name == settings.QE_SCHEMA:
             # bypass the wait for QE

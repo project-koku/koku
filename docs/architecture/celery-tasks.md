@@ -824,7 +824,9 @@ instead of immediately enqueueing `update_cost_model_costs` on the PriorityQueue
 - **Payload**: `task_args=[schema_name, provider_uuid]`; date range in named
   `task_kwargs` (`start_date` / `end_date`) so coalesce is not index-based
 - **Coalesce**: further edits for the same provider/month reset the timeout and
-  keep the widest date range (`min` start, `max` end)
+  keep the widest date range (`min` start, `max` end) inside
+  `DelayedCeleryTasks.create_or_reset_timeout` (`merge_date_range=True`) under
+  `transaction.atomic()` + `select_for_update()` so concurrent widens serialize
 - **Month split**: cross-month ranges become one delayed row per calendar month
   (`DateHelper.list_month_tuples`)
 - **Latency**: after the last edit, wait is approximately `DELAYED_TASK_TIME`
