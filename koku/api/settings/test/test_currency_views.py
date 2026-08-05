@@ -187,6 +187,11 @@ class CurrencySettingsViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_list_invalid_filter_enabled_value_rejected(self):
+        url = reverse("currency-list") + "?filter[enabled]=maybe"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
 
 class EnabledCurrencyViewTest(IamTestCase):
     """Tests for POST/DELETE on settings/currency/enabled/<code>/."""
