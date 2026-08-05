@@ -239,7 +239,23 @@ def delayed_update_cost_model_costs(schema_name, provider_uuid, start_date, end_
     start = to_date(start_date)
     end = to_date(end_date)
 
-    for month_start, month_end in DateHelper().list_month_tuples(start, end):
+    months = DateHelper().list_month_tuples(start, end)
+    if not months:
+        LOG.warning(
+            log_json(
+                tracing_id,
+                msg="Skipping delayed update_cost_model_costs; invalid or empty date range",
+                context={
+                    "schema": schema_name,
+                    "provider_uuid": str(provider_uuid),
+                    "start_date": str(start),
+                    "end_date": str(end),
+                },
+            )
+        )
+        return
+
+    for month_start, month_end in months:
         billing_month = month_start.replace(day=1)
         billing_month_str = billing_month.isoformat()
         merged_start = month_start

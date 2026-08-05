@@ -280,6 +280,25 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertEqual(rows[1].task_kwargs.get("start_date"), "2026-08-01")
         self.assertEqual(rows[1].task_kwargs.get("end_date"), "2026-08-05")
 
+    def test_delayed_update_cost_model_costs_invalid_date_range(self):
+        """Inverted start/end creates no delayed rows."""
+        provider_uuid = self.aws_provider.uuid
+        delayed_update_cost_model_costs(
+            self.schema_name,
+            provider_uuid,
+            date(2026, 8, 21),
+            date(2026, 8, 1),
+            queue_name=PriorityQueue.DEFAULT,
+            tracing_id="bad-range",
+        )
+
+        self.assertEqual(
+            DelayedCeleryTasks.objects.filter(
+                task_name=UPDATE_COST_MODEL_COSTS_TASK, provider_uuid=provider_uuid
+            ).count(),
+            0,
+        )
+
     def test_delayed_update_cost_model_costs_independent_months(self):
         """A new month slice does not change an existing prior-month delayed row."""
         provider_uuid = self.aws_provider.uuid
