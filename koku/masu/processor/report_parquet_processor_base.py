@@ -4,6 +4,7 @@
 #
 """Processor for Parquet files."""
 import logging
+import time
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -207,7 +208,7 @@ class ReportParquetProcessorBase:
         return created
 
     def sync_hive_partitions(self):
-        """Sync hive partition metadata for new partitions."""
+        """Sync hive partition metadata."""
         LOG.info(
             log_json(
                 msg="syncing trino/hive partitions",
@@ -217,7 +218,42 @@ class ReportParquetProcessorBase:
         )
         sql = "CALL system.sync_partition_metadata('" f"{self._schema_name}', " f"'{self._table_name}', " "'FULL')"
         LOG.info(sql)
-        self._execute_trino_sql(sql, self._schema_name)
+        max_retries = 3
+        for attempt in range(max_retries + 1):
+            try:
+                with get_report_db_accessor().connect(
+                    host=settings.TRINO_HOST,
+                    port=settings.TRINO_PORT,
+                    user="admin",
+                    catalog="hive",
+                    schema=self._schema_name,
+                ) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(sql)
+                        rows = cur.fetchall()
+                        LOG.debug(f"sync_hive_partitions rows: {str(rows)}. Type: {type(rows)}")
+                return
+            except (TrinoQueryError, ProgrammingError, Error) as err:
+                if attempt < max_retries:
+                    backoff = min(2**attempt, 30)
+                    LOG.warning(
+                        log_json(
+                            msg=f"sync_hive_partitions retrying (attempt {attempt + 1})",
+                            schema=self._schema_name,
+                            table=self._table_name,
+                            exc_info=err,
+                        )
+                    )
+                    time.sleep(backoff)
+                else:
+                    LOG.error(
+                        log_json(
+                            msg=f"sync_hive_partitions failed after {attempt + 1} attempts",
+                            schema=self._schema_name,
+                            table=self._table_name,
+                            exc_info=err,
+                        )
+                    )
 
     def write_to_self_hosted_table(self, data_frame, metadata):
         """Write dataframe to self-hosted PostgreSQL table.
