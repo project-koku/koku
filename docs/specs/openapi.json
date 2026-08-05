@@ -6123,7 +6123,7 @@
                     {
                         "in": "query",
                         "name": "filter[currency]",
-                        "description": "Filter by exact ISO 4217 currency code (case-insensitive). Accepts comma-separated values or repeated parameters for multiple currencies (OR filter).",
+                        "description": "Filter by currency code using case-insensitive substring match on the ISO 4217 code. Accepts comma-separated values or repeated parameters for multiple search terms (OR filter). Non-matching values return an empty list.",
                         "schema": {
                             "type": "array",
                             "items": {

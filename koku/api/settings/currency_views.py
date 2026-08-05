@@ -86,6 +86,12 @@ def _parse_currency_list_filters(request):
     return enabled_filter, currency_filter
 
 
+def _currency_matches_filter(code, currency_filter):
+    """Return True if ``code`` contains any filter term (case-insensitive substring)."""
+    code_upper = code.upper()
+    return any(term in code_upper for term in currency_filter)
+
+
 def _get_cloud_providers_using_currency(code, customer):
     """Return cloud providers whose billing data uses ``code`` as a base currency."""
     aws_uuids = AWSCostSummaryP.objects.filter(currency_code=code).values_list("source_uuid", flat=True).distinct()
@@ -140,8 +146,7 @@ class CurrencySettingsView(APIView):
             result.append(info)
 
         if currency_filter:
-            currency_filter_set = set(currency_filter)
-            result = [c for c in result if c["code"] in currency_filter_set]
+            result = [c for c in result if _currency_matches_filter(c["code"], currency_filter)]
 
         return ListPaginator(result, request).paginated_response
 

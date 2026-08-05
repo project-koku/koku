@@ -62,6 +62,14 @@ class CurrencySettingsViewTest(IamTestCase):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
 
+    def _assert_codes_match_filter_terms(self, codes, terms):
+        terms_upper = [term.upper() for term in terms]
+        for code in codes:
+            self.assertTrue(
+                any(term in code for term in terms_upper),
+                msg=f"{code} does not match any filter term in {terms_upper}",
+            )
+
     def test_list_returns_all_currencies_with_enabled_flag(self):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.create(currency_code="USD")
@@ -98,33 +106,60 @@ class CurrencySettingsViewTest(IamTestCase):
         self.assertNotIn("USD", codes)
         self.assertFalse(any(c["enabled"] for c in response.data["data"]))
 
-    def test_list_filter_by_currency(self):
-        url = reverse("currency-list") + "?filter[currency]=USD"
+    def test_list_filter_by_currency_substring_match(self):
+        url = reverse("currency-list") + "?filter[currency]=USD&limit=500"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         codes = [c["code"] for c in response.data["data"]]
-        self.assertEqual(codes, ["USD"])
+        self.assertIn("USD", codes)
+        self._assert_codes_match_filter_terms(codes, ["USD"])
+
+        partial_url = reverse("currency-list") + "?filter[currency]=US&limit=500"
+        partial_response = self.client.get(partial_url, **self.headers)
+        self.assertEqual(partial_response.status_code, status.HTTP_200_OK)
+        partial_codes = [c["code"] for c in partial_response.data["data"]]
+        self.assertIn("USD", partial_codes)
+
+    def test_list_filter_by_currency_no_match_returns_empty(self):
+        url = reverse("currency-list") + "?filter[currency]=ZZZ"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["data"], [])
 
     def test_list_filter_by_multiple_currencies_csv(self):
         url = reverse("currency-list") + "?filter[currency]=USD,EUR&limit=500"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         codes = [c["code"] for c in response.data["data"]]
-        self.assertEqual(codes, ["EUR", "USD"])
+        self.assertIn("USD", codes)
+        self.assertIn("EUR", codes)
+        self._assert_codes_match_filter_terms(codes, ["USD", "EUR"])
 
     def test_list_filter_by_multiple_currencies_repeated(self):
         url = reverse("currency-list") + "?filter[currency]=USD&filter[currency]=EUR&limit=500"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         codes = [c["code"] for c in response.data["data"]]
-        self.assertEqual(codes, ["EUR", "USD"])
+        self.assertIn("USD", codes)
+        self.assertIn("EUR", codes)
+        self._assert_codes_match_filter_terms(codes, ["USD", "EUR"])
 
-    def test_list_filter_by_currency_case_insensitive(self):
-        url = reverse("currency-list") + "?filter[currency]=usd"
+    def test_list_filter_by_multiple_currencies_partial_or(self):
+        url = reverse("currency-list") + "?filter[currency]=US&filter[currency]=GB&limit=500"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         codes = [c["code"] for c in response.data["data"]]
-        self.assertEqual(codes, ["USD"])
+        self.assertIn("USD", codes)
+        self.assertIn("GBP", codes)
+        self._assert_codes_match_filter_terms(codes, ["US", "GB"])
+
+    def test_list_filter_by_currency_case_insensitive(self):
+        url = reverse("currency-list") + "?filter[currency]=usd&limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [c["code"] for c in response.data["data"]]
+        self.assertIn("USD", codes)
+        self._assert_codes_match_filter_terms(codes, ["USD"])
 
     def test_list_filter_enabled_and_currency_combined(self):
         with tenant_context(self.tenant):
