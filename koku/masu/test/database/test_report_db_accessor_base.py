@@ -230,8 +230,16 @@ class RawSqlRetryIdempotencyGuardTest(TestCase):
     `transaction.atomic()` alongside other statements, blindly retrying just the raw
     SQL call on deadlock could silently replay only part of a larger unit of work
     (raised in PR #6162 review). This is a static trip-wire, not a full guarantee:
-    it fails loudly if `transaction.atomic` is introduced into one of these files, so
-    a human re-verifies the safety argument rather than it silently rotting.
+    it fails loudly if one of these two methods is called from inside a
+    `transaction.atomic()` block/decorator in one of these files, so a human
+    re-verifies the safety argument rather than it silently rotting.
+
+    Note this deliberately does NOT flag every `transaction.atomic()` usage in these
+    files -- only ones that actually wrap a call to the two retried methods. PR #6232
+    (COST-7995) added an unrelated `transaction.atomic()` block to
+    `ocp_report_db_accessor.populate_markup_cost()` that takes a Postgres advisory
+    lock around a plain Django ORM `.update()`; it never calls either retried method,
+    so it carries none of the risk this guard exists for and must not trip it.
     """
 
     # All current subclasses of ReportDBAccessorBase (the only source of
@@ -243,6 +251,8 @@ class RawSqlRetryIdempotencyGuardTest(TestCase):
         "database/gcp_report_db_accessor.py",
         "database/ocp_report_db_accessor.py",
     )
+
+    RETRIED_RAW_SQL_METHODS = ("_execute_raw_sql_query", "_prepare_and_execute_raw_sql_query")
 
     @staticmethod
     def _is_transaction_atomic_attr(node):
@@ -265,26 +275,82 @@ class RawSqlRetryIdempotencyGuardTest(TestCase):
             node = node.func
         return cls._is_transaction_atomic_attr(node)
 
+    @classmethod
+    def _contains_retried_raw_sql_call(cls, node):
+        """True if `node`'s subtree calls `_execute_raw_sql_query`/`_prepare_and_execute_raw_sql_query`."""
+        return any(
+            isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Attribute)
+            and n.func.attr in cls.RETRIED_RAW_SQL_METHODS
+            for n in ast.walk(node)
+        )
+
+    @classmethod
+    def _offending_atomic_usages(cls, source: str) -> list:
+        """Return the `transaction.atomic` AST nodes in `source` that wrap a retried raw-SQL call."""
+        tree = ast.parse(source)
+        offending = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.With):
+                atomic_items = [
+                    item.context_expr for item in node.items if cls._is_transaction_atomic_usage(item.context_expr)
+                ]
+                if atomic_items and cls._contains_retried_raw_sql_call(node):
+                    offending.extend(atomic_items)
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                atomic_decorators = [deco for deco in node.decorator_list if cls._is_transaction_atomic_usage(deco)]
+                if atomic_decorators and cls._contains_retried_raw_sql_call(node):
+                    offending.extend(atomic_decorators)
+        return offending
+
     def test_no_atomic_block_in_raw_sql_accessor_files(self):
         masu_dir = pathlib.Path(inspect.getfile(masu)).resolve().parent
         for relative_path in self.ACCESSOR_FILES:
             path = masu_dir / relative_path
-            tree = ast.parse(path.read_text(), filename=str(path))
-            offending = []
-            for node in ast.walk(tree):
-                if isinstance(node, ast.With):
-                    offending.extend(
-                        item.context_expr
-                        for item in node.items
-                        if self._is_transaction_atomic_usage(item.context_expr)
-                    )
-                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    offending.extend(deco for deco in node.decorator_list if self._is_transaction_atomic_usage(deco))
+            offending = self._offending_atomic_usages(path.read_text())
             self.assertFalse(
                 offending,
-                f"masu/{relative_path} now uses transaction.atomic() as a real `with` block or "
-                "decorator. Re-verify no _execute_raw_sql_query/_prepare_and_execute_raw_sql_query "
-                "call is nested inside it -- the deadlock-retry safety argument in "
+                f"masu/{relative_path} now calls _execute_raw_sql_query/_prepare_and_execute_raw_sql_query "
+                "from inside a transaction.atomic() block or decorator. Re-verify this is intentional -- "
+                "the deadlock-retry safety argument in "
                 "ReportDBAccessorBase._execute_raw_sql_query's docstring assumes these calls are "
                 "always independently autocommitted.",
             )
+
+    def test_atomic_block_without_raw_sql_call_is_not_offending(self):
+        """PR #6232's advisory-lock pattern (atomic block, no retried call inside) must not trip the guard."""
+        source = """
+from django.db import connection, transaction
+
+class Accessor:
+    def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [cluster_id])
+            SomeModel.objects.filter(cluster_id=cluster_id).update(markup=markup)
+"""
+        self.assertEqual(self._offending_atomic_usages(source), [])
+
+    def test_atomic_block_wrapping_raw_sql_call_is_offending(self):
+        """A retried raw-SQL call nested inside `transaction.atomic()` must trip the guard."""
+        source = """
+from django.db import transaction
+
+class Accessor:
+    def delete_then_insert(self, table, sql, sql_params):
+        with transaction.atomic():
+            self._execute_raw_sql_query(table, sql, sql_params=sql_params)
+"""
+        self.assertEqual(len(self._offending_atomic_usages(source)), 1)
+
+    def test_atomic_decorator_wrapping_raw_sql_call_is_offending(self):
+        """A retried raw-SQL call inside a `@transaction.atomic()`-decorated method must trip the guard."""
+        source = """
+from django.db import transaction
+
+class Accessor:
+    @transaction.atomic()
+    def delete_then_insert(self, table, sql, sql_params):
+        self._prepare_and_execute_raw_sql_query(table, sql, sql_params)
+"""
+        self.assertEqual(len(self._offending_atomic_usages(source)), 1)
