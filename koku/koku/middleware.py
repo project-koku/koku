@@ -463,6 +463,13 @@ class RequestTimeoutError(Exception):
     """Raised when a request exceeds the soft timeout."""
 
 
+def sentry_before_send(event, hint):
+    exc_info = hint.get("exc_info")
+    if exc_info and exc_info[0] is RequestTimeoutError:
+        event.setdefault("tags", {})["timeout"] = "soft"
+    return event
+
+
 def _parse_soft_timeout(default=90):
     raw = os.environ.get("REQUEST_SOFT_TIMEOUT")
     if raw is None:

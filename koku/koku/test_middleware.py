@@ -658,25 +658,25 @@ class SentryBeforeSendTest(IamTestCase):
     """Tests for the sentry before_send hook."""
 
     def test_before_send_tags_timeout_events(self):
-        from koku.sentry import before_send
+        from koku.middleware import sentry_before_send
 
         event = {}
         hint = {"exc_info": (RequestTimeoutError, RequestTimeoutError("test"), None)}
-        result = before_send(event, hint)
+        result = sentry_before_send(event, hint)
         self.assertEqual(result["tags"]["timeout"], "soft")
 
     def test_before_send_passes_through_other_events(self):
-        from koku.sentry import before_send
+        from koku.middleware import sentry_before_send
 
         event = {"tags": {"existing": "value"}}
         hint = {"exc_info": (ValueError, ValueError("test"), None)}
-        result = before_send(event, hint)
+        result = sentry_before_send(event, hint)
         self.assertEqual(result["tags"], {"existing": "value"})
 
     def test_before_send_handles_no_exc_info(self):
-        from koku.sentry import before_send
+        from koku.middleware import sentry_before_send
 
         event = {"message": "test"}
         hint = {}
-        result = before_send(event, hint)
+        result = sentry_before_send(event, hint)
         self.assertEqual(result, event)
