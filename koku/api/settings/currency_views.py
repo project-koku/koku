@@ -51,7 +51,7 @@ def _get_cloud_providers_using_currency(code, customer):
     return list(
         Provider.objects.filter(
             Q(uuid__in=aws_uuids) | Q(uuid__in=azure_uuids) | Q(uuid__in=gcp_uuids),
-            customer=customer.pk,
+            customer=customer,
         ).values("uuid", "name", "type")
     )
 
@@ -120,10 +120,14 @@ class EnabledCurrencyView(APIView):
         code = self._validate_code(kwargs["code"])
         _, created = EnabledCurrency.objects.get_or_create(currency_code=code)
         if created:
-            
-            
-            LOG.warning(log_json(msg="**DEBUG**: Trying to populate dynamic monthly rates after enabling the currency", currency=code))    
-            
+
+            LOG.warning(
+                log_json(
+                    msg="**DEBUG**: Trying to populate dynamic monthly rates after enabling the currency",
+                    currency=code,
+                )
+            )
+
             populate_dynamic_monthly_rates(code=code)
             schema_name = request.user.customer.schema_name
             invalidate_view_cache_for_tenant_and_all_source_types(schema_name)

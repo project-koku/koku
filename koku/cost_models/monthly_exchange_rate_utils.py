@@ -115,7 +115,7 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
 
     if code in enabled_codes:
         LOG.warning(log_json(msg="**DEBUG**: fresh currency is in the enabled list"))
-    
+
     current_month = DateHelper().this_month_start.date()
     updated_count = 0
     erd = ExchangeRateDictionary.objects.first()

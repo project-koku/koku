@@ -171,7 +171,9 @@ class Forecast:
         When constant currency is enabled, uses per-month Subquery from
         MonthlyExchangeRate. Otherwise uses ExchangeRateDictionary via Case/When.
         """
-        if is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
+        if is_feature_flag_enabled_by_schema(
+            self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True
+        ):
             exchange_rate_annotation = build_monthly_rate_annotation(
                 OuterRef(self.provider_map.cost_units_key), self.currency
             )
@@ -201,7 +203,9 @@ class Forecast:
         cost_predictions = {}
         with tenant_context(self.params.tenant):
             if (
-                is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True)
+                is_feature_flag_enabled_by_schema(
+                    self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True
+                )
                 and self.currency
             ):
                 base_currencies = set(
@@ -653,7 +657,9 @@ class OCPForecast(Forecast):
         When constant currency is enabled, uses OCP-specific dual annotations.
         Falls back to ExchangeRateDictionary via Case/When when the flag is off.
         """
-        if is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
+        if is_feature_flag_enabled_by_schema(
+            self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True
+        ):
             cost_model_currency = Subquery(
                 CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
                     "currency"

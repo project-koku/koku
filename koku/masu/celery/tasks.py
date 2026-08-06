@@ -335,7 +335,9 @@ def get_daily_currency_rates():
     for tenant in tenants:
         try:
             with schema_context(tenant.schema_name):
-                LOG.debug(log_json(msg="**DEBUG** Populating monthly exchange rates for tenant", schema=tenant.schema_name))
+                LOG.debug(
+                    log_json(msg="**DEBUG** Populating monthly exchange rates for tenant", schema=tenant.schema_name)
+                )
                 rates_changed = populate_dynamic_monthly_rates(backfill_past_months=True)
                 if rates_changed:
                     updated_count += 1
@@ -344,7 +346,9 @@ def get_daily_currency_rates():
                     skipped_count += 1
         except Exception as e:
             LOG.error(
-                log_json(msg="**DEBUG** Failed to populate monthly exchange rates", schema=tenant.schema_name, error=str(e))
+                log_json(
+                    msg="**DEBUG** Failed to populate monthly exchange rates", schema=tenant.schema_name, error=str(e)
+                )
             )
 
     LOG.info(
