@@ -174,15 +174,16 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         self.assertEqual(result, [])
         self.assertEqual(mock_cursor.execute.call_count, 3)
         # Backoff is 2**attempt + 0.5: attempt 0 -> 1.5, attempt 1 -> 2.5
-        mock_sleep.assert_has_calls([call(1.5), call(2.5)])
+        self.assertEqual(mock_sleep.call_args_list, [call(1.5), call(2.5)])
         warning_logs = [o for o in cm.output if "retrying (attempt" in o]
         self.assertEqual(len(warning_logs), 2)
         self.assertIn(self.schema_name, warning_logs[0])
         error_logs = [o for o in cm.output if "failed after 3 attempts" in o]
         self.assertEqual(len(error_logs), 1)
 
+    @patch("masu.processor.report_parquet_processor_base.time.sleep")
     @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
-    def test_execute_trino_sql_with_retries_no_retry_on_non_retryable_errors(self, mock_accessor):
+    def test_execute_trino_sql_with_retries_no_retry_on_non_retryable_errors(self, mock_accessor, mock_sleep):
         """Given a non-retryable error (ProgrammingError or Django Error),
         when _execute_trino_sql_with_retries is called,
         then it logs the error and returns [] without retrying.
@@ -194,6 +195,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         for case in cases:
             with self.subTest(error=type(case["error"]).__name__):
                 mock_accessor.reset_mock()
+                mock_sleep.reset_mock()
                 mock_cursor = MagicMock()
                 mock_cursor.execute.side_effect = case["error"]
                 self._mock_trino_accessor(mock_accessor, mock_cursor)
@@ -208,6 +210,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
                 self.assertEqual(len(non_retryable_logs), 1)
                 self.assertIn(self.schema_name, non_retryable_logs[0])
                 self.assertIn("test", non_retryable_logs[0])
+                mock_sleep.assert_not_called()
 
     @patch("masu.processor.report_parquet_processor_base.random.uniform", return_value=0.5)
     @patch("masu.processor.report_parquet_processor_base.time.sleep")
