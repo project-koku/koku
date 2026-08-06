@@ -7,8 +7,8 @@ import shutil
 import tempfile
 import uuid
 from datetime import date
-from unittest.mock import MagicMock
 from unittest.mock import call
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pandas as pd
@@ -129,9 +129,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
             for expected_log in expected_logs:
                 self.assertIn(expected_log, logger.output)
 
-    @patch(
-        "masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_trino_sql_with_retries"
-    )
+    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_trino_sql_with_retries")
     def test_sync_hive_partitions(self, mock_execute):
         """Given a processor with a valid schema and table,
         when sync_hive_partitions is called,
@@ -143,9 +141,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.sync_hive_partitions()
             self.assertIn(expected_log, logger.output)
-        expected_sql = (
-            f"CALL system.sync_partition_metadata('{self.schema_name}', '{self.table_name}', 'FULL')"
-        )
+        expected_sql = f"CALL system.sync_partition_metadata('{self.schema_name}', '{self.table_name}', 'FULL')"
         mock_execute.assert_called_once_with(expected_sql, self.schema_name, caller="sync_hive_partitions")
 
     def _mock_trino_accessor(self, mock_accessor, mock_cursor):
@@ -165,7 +161,9 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         then it retries 2 times (3 total attempts), sleeps between each, and returns [].
         """
         mock_cursor = MagicMock()
-        trino_error = TrinoQueryError({"errorName": "ALREADY_EXISTS", "message": "One or more Partitions Already exist"})
+        trino_error = TrinoQueryError(
+            {"errorName": "ALREADY_EXISTS", "message": "One or more Partitions Already exist"}
+        )
         mock_cursor.execute.side_effect = trino_error
         self._mock_trino_accessor(mock_accessor, mock_cursor)
 
@@ -219,7 +217,9 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         when _execute_trino_sql_with_retries is called,
         then it retries once, sleeps once, and returns the rows from the successful attempt.
         """
-        trino_error = TrinoQueryError({"errorName": "ALREADY_EXISTS", "message": "One or more Partitions Already exist"})
+        trino_error = TrinoQueryError(
+            {"errorName": "ALREADY_EXISTS", "message": "One or more Partitions Already exist"}
+        )
         mock_cursor = MagicMock()
         mock_cursor.execute.side_effect = [trino_error, None]
         mock_cursor.fetchall.return_value = [("ok",)]
