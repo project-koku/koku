@@ -52,7 +52,7 @@ class WriteFreezeTest(IamTestCase):
                 serializer.save()
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_create_allowed_when_freeze_inactive(self, mock_task, mock_flag):
         """Test that create succeeds when write-freeze is not active."""
         with tenant_context(self.tenant):
@@ -63,7 +63,7 @@ class WriteFreezeTest(IamTestCase):
             self.assertIsNotNone(cost_model.uuid)
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=True)
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_update_blocked_when_freeze_active(self, mock_task, mock_flag):
         """Test that update raises ValidationError when write-freeze is active."""
         with tenant_context(self.tenant):
@@ -84,7 +84,7 @@ class WriteFreezeTest(IamTestCase):
                 serializer.save()
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_update_allowed_when_freeze_inactive(self, mock_task, mock_flag):
         """Test that update succeeds when write-freeze is not active."""
         with tenant_context(self.tenant):
@@ -127,7 +127,7 @@ class WriteFreezeTest(IamTestCase):
             mock_flag.assert_called_with(self.customer.schema_name)
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_freeze_not_called_on_read(self, mock_task, mock_flag):
         """Test that the freeze flag is not checked on read operations."""
         with tenant_context(self.tenant):
@@ -158,7 +158,7 @@ class WriteFreezeTest(IamTestCase):
                 serializer.save()
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_on_prem_default_allows_writes(self, mock_task, mock_flag):
         """Test that default (False) flag allows writes (on-prem MockUnleashClient behavior)."""
         with tenant_context(self.tenant):
@@ -169,7 +169,7 @@ class WriteFreezeTest(IamTestCase):
             self.assertIsNotNone(cost_model.uuid)
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=True)
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_freeze_skipped_when_no_customer(self, mock_task, mock_flag):
         """Test that write-freeze check is skipped when customer is None (allows writes)."""
         with tenant_context(self.tenant):
