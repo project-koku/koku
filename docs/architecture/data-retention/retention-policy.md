@@ -45,7 +45,7 @@ If the helper returns `None` (DB read failure), `_remove_expired_data` **skips t
 | **D. _(merged into C)_** | `reporting_ocp_vm_summary_p`, `reporting_ocp_cost_breakdown_p` | Covered via `UI_SUMMARY_TABLES` (COST-7904) | FK CASCADE on `source_uuid` |
 | **E. Rates-to-usage** | `rates_to_usage` | In partition-drop list | **Not** deleted — `source_uuid` is `UUIDField`, not in self-hosted delete |
 | **F. Report periods & label summaries** | `reporting_ocpusagereportperiod`, pod/volume label summaries | `cascade_delete` when period expired | CASCADE via `report_period` / provider |
-| **G. Tag value index** | `reporting_ocptags_values` | No time dimension; orphan `(key, value)` rows deleted after purge via `cleanup_ocp_tags_values()` (also after volume label-summary rebuild; disabled-key deletes remain in label SQL) | No provider FK; same orphan cleanup after provider purge |
+| **G. Tag value index** | `reporting_ocptags_values` | Same orphan cleanup after provider purge  | No provider FK; SQL only removes rows for **disabled** tag keys |
 | **H. Manifests (public)** | `reporting_common_costusagereportmanifest` | `purge_expired_report_manifest` | Provider cascade |
 | **I. Cost model / financial config** | `cost_model`, `price_list`, exchange rates, settings | Not purged by N-month job | Maps removed on provider delete; models persist until user deletes |
 | **J. Cluster metadata** | `reporting_ocp_clusters`, nodes, projects, PVCs | Not purged by N-month job | Provider cascade on source delete |
