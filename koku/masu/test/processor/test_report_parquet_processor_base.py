@@ -147,8 +147,8 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
     def _mock_trino_accessor(self, mock_accessor, mock_cursor):
         """Configure mock_accessor to return mock_cursor through the connection context managers."""
         mock_conn = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_accessor.return_value.connect.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_accessor.return_value.connect.return_value.__enter__.return_value = mock_conn
 
     @patch("masu.processor.report_parquet_processor_base.random.uniform", return_value=0.5)
     @patch("masu.processor.report_parquet_processor_base.time.sleep")
