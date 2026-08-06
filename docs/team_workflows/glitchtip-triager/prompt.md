@@ -44,7 +44,15 @@ The agent **must not** edit the whitelist file. Team members add rules via norma
 
 ## Koku domain context
 
-Read `AGENTS.md` when you need architecture context:
+Read `AGENTS.md` and `docs/agent/backend-gotchas.md` when you need domain/backend context:
+
+- **In a local checkout:** [`AGENTS.md`](../../AGENTS.md), [`docs/agent/backend-gotchas.md`](../../docs/agent/backend-gotchas.md)
+- **Otherwise (automation / no checkout):**
+  ```bash
+  gh api repos/project-koku/koku/contents/AGENTS.md --jq '.content' | base64 -d
+  gh api repos/project-koku/koku/contents/docs/agent/backend-gotchas.md --jq '.content' | base64 -d
+  ```
+  For architecture design: [`docs/architecture/README.md`](../../docs/architecture/README.md) or the same `gh api` pattern under `docs/architecture/README.md`.
 
 - Tenant-scoped models live in `reporting` / `cost_models` (`schema_context` required in tests).
 - Dual SQL paths: `masu/database/trino_sql/` vs `masu/database/self_hosted_sql/`.
