@@ -4,6 +4,7 @@
 #
 """Processor for Parquet files."""
 import logging
+import random
 import time
 
 from dateutil.relativedelta import relativedelta
@@ -207,6 +208,69 @@ class ReportParquetProcessorBase:
 
         return created
 
+    def _execute_trino_sql_with_retries(self, sql, schema_name: str, caller="", max_retries=3):  # pragma: no cover
+        """Execute Trino SQL with retries on transient TrinoQueryError exceptions.
+
+        Returns the result rows on success, or an empty list on failure.
+        Non-retryable errors (ProgrammingError, Error) are logged and return immediately.
+        """
+        for attempt in range(max_retries + 1):
+            try:
+                with get_report_db_accessor().connect(
+                    host=settings.TRINO_HOST,
+                    port=settings.TRINO_PORT,
+                    user="admin",
+                    catalog="hive",
+                    schema=schema_name,
+                ) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(sql)
+                        rows = cur.fetchall()
+                        LOG.debug(f"{caller} returned {len(rows)} rows")
+                return rows
+            except TrinoQueryError as err:
+                if attempt < max_retries:
+                    backoff = min(2**attempt, 30) + random.uniform(0, 1)
+                    LOG.warning(
+                        log_json(
+                            msg=f"{caller} retrying (attempt {attempt + 1})",
+                            schema=schema_name,
+                            table=self._table_name,
+                            exc_info=err,
+                        )
+                    )
+                    time.sleep(backoff)
+                else:
+                    LOG.error(
+                        log_json(
+                            msg=f"{caller} failed after {attempt + 1} attempts",
+                            schema=schema_name,
+                            table=self._table_name,
+                            exc_info=err,
+                        )
+                    )
+            except ProgrammingError as err:
+                LOG.warning(
+                    log_json(
+                        msg=f"{caller} failed with non-retryable error",
+                        schema=schema_name,
+                        table=self._table_name,
+                        exc_info=err,
+                    )
+                )
+                return []
+            except Error as err:
+                LOG.error(
+                    log_json(
+                        msg=f"{caller} failed with non-retryable error",
+                        schema=schema_name,
+                        table=self._table_name,
+                        exc_info=err,
+                    )
+                )
+                return []
+        return []
+
     def sync_hive_partitions(self):
         """Sync hive partition metadata."""
         LOG.info(
@@ -218,42 +282,7 @@ class ReportParquetProcessorBase:
         )
         sql = "CALL system.sync_partition_metadata('" f"{self._schema_name}', " f"'{self._table_name}', " "'FULL')"
         LOG.info(sql)
-        max_retries = 3
-        for attempt in range(max_retries + 1):
-            try:
-                with get_report_db_accessor().connect(
-                    host=settings.TRINO_HOST,
-                    port=settings.TRINO_PORT,
-                    user="admin",
-                    catalog="hive",
-                    schema=self._schema_name,
-                ) as conn:
-                    with conn.cursor() as cur:
-                        cur.execute(sql)
-                        rows = cur.fetchall()
-                        LOG.debug(f"sync_hive_partitions rows: {str(rows)}. Type: {type(rows)}")
-                return
-            except (TrinoQueryError, ProgrammingError, Error) as err:
-                if attempt < max_retries:
-                    backoff = min(2**attempt, 30)
-                    LOG.warning(
-                        log_json(
-                            msg=f"sync_hive_partitions retrying (attempt {attempt + 1})",
-                            schema=self._schema_name,
-                            table=self._table_name,
-                            exc_info=err,
-                        )
-                    )
-                    time.sleep(backoff)
-                else:
-                    LOG.error(
-                        log_json(
-                            msg=f"sync_hive_partitions failed after {attempt + 1} attempts",
-                            schema=self._schema_name,
-                            table=self._table_name,
-                            exc_info=err,
-                        )
-                    )
+        self._execute_trino_sql_with_retries(sql, self._schema_name, caller="sync_hive_partitions")
 
     def write_to_self_hosted_table(self, data_frame, metadata):
         """Write dataframe to self-hosted PostgreSQL table.
