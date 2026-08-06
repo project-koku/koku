@@ -346,6 +346,11 @@ HIVE_DATABASE_NAME = ENVIRONMENT.get_value("HIVE_DATABASE_NAME", default="hive")
 HIVE_DATABASE_PASSWORD = ENVIRONMENT.get_value("HIVE_DATABASE_PASSWORD", default="hive")
 HIVE_PARTITION_DELETE_RETRIES = 5
 
+# Postgres deadlocks are expected, transient conditions under concurrent writers.
+# The deadlock detector always rolls one transaction back cleanly, so retrying the
+# statement is safe and is the standard recommended way to handle them.
+DB_DEADLOCK_RETRIES = 4
+
 #
 TENANT_MODEL = "api.Tenant"
 TENANT_DOMAIN_MODEL = "api.Domain"
