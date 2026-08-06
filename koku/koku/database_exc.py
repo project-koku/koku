@@ -204,7 +204,7 @@ class ExtendedDBException(Exception):
 class ExtendedDeadlockDetected(ExtendedDBException):
     REGEXP = re.compile(
         r"deadlock detected.*?\nDETAIL:\s*?"
-        + r"Process (\d+).+? transaction (\d+).*?blocked by process (\d+).*?\n"
+        + r"Process (\d+).+? transaction (\d+).*?blocked by process (\d+).*?\n\s*"
         + r"Process (\d+).+? transaction (\d+).*?blocked by process (\d+).*?\n",
         flags=re.DOTALL,
     )

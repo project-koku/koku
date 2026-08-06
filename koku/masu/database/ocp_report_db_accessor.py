@@ -13,7 +13,9 @@ import uuid
 from uuid import uuid4
 
 from dateutil.parser import parse
+from django.db import connection
 from django.db import IntegrityError
+from django.db import transaction
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
@@ -647,30 +649,33 @@ AND (month = {{month_no_zero}} OR month = {{month}})
 
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
-        OCPUsageLineItemDailySummary.objects.filter(
-            cluster_id=cluster_id,
-            usage_start__gte=start_date,
-            usage_start__lte=end_date,
-        ).update(
-            infrastructure_markup_cost=(
-                (
-                    Coalesce(
-                        F("infrastructure_raw_cost"),
-                        Value(0, output_field=DecimalField()),
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [cluster_id])
+            OCPUsageLineItemDailySummary.objects.filter(
+                cluster_id=cluster_id,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+            ).update(
+                infrastructure_markup_cost=(
+                    (
+                        Coalesce(
+                            F("infrastructure_raw_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
                     )
-                )
-                * markup
-            ),
-            infrastructure_project_markup_cost=(
-                (
-                    Coalesce(
-                        F("infrastructure_project_raw_cost"),
-                        Value(0, output_field=DecimalField()),
+                    * markup
+                ),
+                infrastructure_project_markup_cost=(
+                    (
+                        Coalesce(
+                            F("infrastructure_project_raw_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
                     )
-                )
-                * markup
-            ),
-        )
+                    * markup
+                ),
+            )
 
     def populate_distributed_cost_sql(  # noqa: C901
         self,
