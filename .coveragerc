@@ -15,6 +15,7 @@ omit =
   *feature_flags.py
   *probe_server.py
   *settings.py
+  *sentry.py
   *urls.py
   *wsgi.py
   */migrations/*
