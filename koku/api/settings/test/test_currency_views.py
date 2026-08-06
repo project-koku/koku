@@ -218,11 +218,14 @@ class CurrencySettingsViewTest(IamTestCase):
             EnabledCurrency.objects.create(currency_code="USD")
             for provider_type, summary_model, currency_field, code in cloud_providers:
                 EnabledCurrency.objects.create(currency_code=code)
-                provider = Provider.objects.create(
-                    name=f"{provider_type} {code}",
-                    type=provider_type,
-                    customer=self.customer,
-                )
+
+        for provider_type, summary_model, currency_field, code in cloud_providers:
+            provider = Provider.objects.create(
+                name=f"{provider_type} {code}",
+                type=provider_type,
+                customer=self.customer,
+            )
+            with tenant_context(self.tenant):
                 tenant_provider = TenantAPIProvider.objects.create(
                     uuid=provider.uuid, name=provider.name, type=provider.type, provider=provider
                 )
@@ -376,13 +379,13 @@ class EnabledCurrencyViewTest(IamTestCase):
             (Provider.PROVIDER_AZURE, AzureCostSummaryP, "currency", "CAD"),
             (Provider.PROVIDER_GCP, GCPCostSummaryP, "currency", "EUR"),
         ]
-        with tenant_context(self.tenant):
-            for provider_type, summary_model, currency_field, code in cloud_providers:
-                provider = Provider.objects.create(
-                    name=f"{provider_type} {code} Source",
-                    type=provider_type,
-                    customer=self.customer,
-                )
+        for provider_type, summary_model, currency_field, code in cloud_providers:
+            provider = Provider.objects.create(
+                name=f"{provider_type} {code} Source",
+                type=provider_type,
+                customer=self.customer,
+            )
+            with tenant_context(self.tenant):
                 tenant_provider = TenantAPIProvider.objects.create(
                     uuid=provider.uuid, name=provider.name, type=provider.type, provider=provider
                 )
@@ -394,6 +397,7 @@ class EnabledCurrencyViewTest(IamTestCase):
                     **{currency_field: code},
                 )
 
+        with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="AUD")
