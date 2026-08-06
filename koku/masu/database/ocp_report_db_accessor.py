@@ -10,6 +10,7 @@ import logging
 import os
 import pkgutil
 import uuid
+from decimal import Decimal
 from uuid import uuid4
 
 from dateutil.parser import parse
@@ -670,38 +671,51 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         summary_range: SummaryRangeConfig,
         provider_uuid: uuid.UUID,
         distribution_info: dict,
+        infra_to_cm_rate: Decimal = Decimal(1),
+        cost_model_currency: str = "USD",
+        cost_model_id=None,
+        use_rtu: bool = False,
     ) -> SummaryRangeConfig:
         """
         Populate the distribution cost model options.
+
+        When ``use_rtu`` is True (Unleash RTU flag ON), uses per-rate
+        ``*_rtu.sql`` templates that read/write ``rates_to_usage``.
+        When False (safe default), uses legacy ``distribute_*_cost.sql``
+        templates that write directly to the daily summary.
 
         args:
             start_date (datetime, str): The start_date to calculate monthly_cost.
             end_date (datetime, str): The end_date to calculate monthly_cost.
             distribution: Choice of monthly distribution ex. memory
             provider_uuid (str): The str of the provider UUID
+            infra_to_cm_rate: Exchange rate from infra raw_currency to cost_model_currency.
+            cost_model_currency: The cost model's currency code.
+            use_rtu: When True, use per-rate RTU distribution SQL.
         """
 
+        path_suffix = "_rtu" if use_rtu else ""
         distribution_configs = {
             metric_constants.PLATFORM_COST: DistributionConfig(
-                sql_file="distribute_platform_cost.sql",
+                sql_file=f"distribute_platform_cost{path_suffix}.sql",
                 cost_model_rate_type="platform_distributed",
             ),
             metric_constants.WORKER_UNALLOCATED: DistributionConfig(
-                sql_file="distribute_worker_cost.sql",
+                sql_file=f"distribute_worker_cost{path_suffix}.sql",
                 cost_model_rate_type="worker_distributed",
             ),
             metric_constants.STORAGE_UNATTRIBUTED: DistributionConfig(
-                sql_file="distribute_unattributed_storage_cost.sql",
+                sql_file=f"distribute_unattributed_storage_cost{path_suffix}.sql",
                 cost_model_rate_type="unattributed_storage",
-                distribute_by_default=True,  # Distributed without cost model
+                distribute_by_default=True,
             ),
             metric_constants.NETWORK_UNATTRIBUTED: DistributionConfig(
-                sql_file="distribute_unattributed_network_cost.sql",
+                sql_file=f"distribute_unattributed_network_cost{path_suffix}.sql",
                 cost_model_rate_type="unattributed_network",
-                distribute_by_default=True,  # Distributed without cost model
+                distribute_by_default=True,
             ),
             metric_constants.GPU_UNALLOCATED: DistributionConfig(
-                sql_file="distribute_unallocated_gpu_cost.sql",
+                sql_file=f"distribute_unallocated_gpu_cost{path_suffix}.sql",
                 cost_model_rate_type="gpu_distributed",
                 query_type="trino",
                 required_table="openshift_gpu_usage_line_items_daily",
@@ -711,6 +725,20 @@ AND (month = {{month_no_zero}} OR month = {{month}})
 
         table_name = self._table_map["line_item_daily_summary"]
         dh = DateHelper()
+        # Per-rate SQL shares denominator/namespace_usage temp tables (Option B).
+        if use_rtu and (
+            report_period_for_temp_tables := self.report_periods_for_provider_uuid(
+                provider_uuid, summary_range.start_date
+            )
+        ):
+            self._create_distribution_temp_tables(
+                {
+                    "schema": self.schema,
+                    "start_date": summary_range.start_date,
+                    "end_date": summary_range.end_date,
+                    "report_period_id": report_period_for_temp_tables.id,
+                }
+            )
         for cost_model_key, config in distribution_configs.items():
             sql_params = {
                 "start_date": summary_range.start_date,
@@ -718,6 +746,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 "schema": self.schema,
                 "source_uuid": provider_uuid,
                 "cost_model_rate_type": config.cost_model_rate_type,
+                "cost_model_id": cost_model_id,
             }
             # Handle distributions that require full month data
             if config.requires_full_month:
@@ -773,6 +802,8 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             sql_params["report_period_id"] = report_period.id
 
             self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
+            if use_rtu:
+                self._delete_distributed_rtu_rows(sql_params, cost_model_key)
             populate = distribution_info.get(cost_model_key, config.distribute_by_default)
             if not populate:
                 continue
@@ -792,6 +823,12 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 )
                 continue
             sql_params["distribution"] = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
+            if cost_model_key in (
+                metric_constants.NETWORK_UNATTRIBUTED,
+                metric_constants.STORAGE_UNATTRIBUTED,
+            ):
+                sql_params["infra_to_cm_rate"] = float(infra_to_cm_rate)
+                sql_params["cost_model_currency"] = cost_model_currency
             sql = pkgutil.get_data("masu.database", config.get_full_path())
             sql = sql.decode("utf-8")
             log_msg = f"distributing {cost_model_key}"
@@ -833,6 +870,44 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         LOG.info(log_json(msg=f"removing {cost_model_key} distribution", context=sql_params))
         self._prepare_and_execute_raw_sql_query(
             self._table_map["line_item_daily_summary"],
+            delete_sql,
+            sql_params,
+            operation="DELETE",
+        )
+
+    def _create_distribution_temp_tables(self, sql_params):
+        """Materialize the denominator/namespace_usage aggregates shared by the
+        four per-rate distribution SQL files (Option B perf fix), so
+        populate_distributed_cost_sql's loop scans
+        reporting_ocpusagelineitem_daily_summary twice instead of four times.
+        """
+        sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/distribute_cost/create_distribution_temp_tables.sql",
+        )
+        sql = sql.decode("utf-8")
+        self._prepare_and_execute_raw_sql_query(
+            "rates_to_usage",
+            sql,
+            sql_params,
+            operation="CREATE TEMP TABLE: distribution denominator/namespace_usage",
+        )
+
+    def _delete_distributed_rtu_rows(self, sql_params, cost_model_key):
+        """Delete distributed rows from rates_to_usage before re-inserting."""
+        delete_sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/distribute_cost/delete_distributed_rates_to_usage.sql",
+        )
+        delete_sql = delete_sql.decode("utf-8")
+        LOG.info(
+            log_json(
+                msg=f"removing {cost_model_key} RTU distribution rows",
+                context=sql_params,
+            )
+        )
+        self._prepare_and_execute_raw_sql_query(
+            "rates_to_usage",
             delete_sql,
             sql_params,
             operation="DELETE",
@@ -1237,7 +1312,14 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         LOG.info(log_json(msg="populating markup rates_to_usage", context=sql_params))
         self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
 
-    def aggregate_rates_to_daily_summary(self, start_date, end_date, source_uuid, report_period_id):
+    def aggregate_rates_to_daily_summary(
+        self,
+        start_date,
+        end_date,
+        source_uuid,
+        report_period_id,
+        cost_model_currency="USD",
+    ):
         """Aggregate RatesToUsage rows into daily summary cost columns."""
 
         table_name = self._table_map["line_item_daily_summary"]
@@ -1252,6 +1334,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "end_date": end_date,
             "source_uuid": source_uuid,
             "report_period_id": report_period_id,
+            "cost_model_currency": cost_model_currency,
         }
         LOG.info(log_json(msg="aggregating rates_to_usage → daily summary", context=sql_params))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
