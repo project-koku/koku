@@ -2,7 +2,6 @@
 import sentry_sdk
 
 from .env import ENVIRONMENT
-from .middleware import sentry_before_send
 
 BLOCK_LIST = {
     "/api/cost-management/v1/status/",
@@ -20,12 +19,18 @@ def traces_sampler(sampling_context):
     return 0.05
 
 
+def before_send(event, hint):
+    from koku.middleware import sentry_before_send
+
+    return sentry_before_send(event, hint)
+
+
 if ENVIRONMENT.bool("KOKU_ENABLE_SENTRY", default=False):
     sentry_sdk.init(
         dsn=ENVIRONMENT("KOKU_SENTRY_DSN"),
         environment=ENVIRONMENT("KOKU_SENTRY_ENVIRONMENT"),
         traces_sampler=traces_sampler,
-        before_send=sentry_before_send,
+        before_send=before_send,
     )
     print("Sentry setup.")
 else:
