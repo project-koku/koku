@@ -208,7 +208,7 @@ class ReportParquetProcessorBase:
 
         return created
 
-    def _execute_trino_sql_with_retries(self, sql, schema_name: str, caller="", max_retries=3):  # pragma: no cover
+    def _execute_trino_sql_with_retries(self, sql, schema_name: str, caller="", max_retries=3):
         """Execute Trino SQL with retries on transient TrinoQueryError exceptions.
 
         Returns the result rows on success, or an empty list on failure.
@@ -236,8 +236,8 @@ class ReportParquetProcessorBase:
                             msg=f"{caller} retrying (attempt {attempt + 1})",
                             schema=schema_name,
                             table=self._table_name,
-                            exc_info=err,
-                        )
+                        ),
+                        exc_info=err,
                     )
                     time.sleep(backoff)
                 else:
@@ -246,8 +246,8 @@ class ReportParquetProcessorBase:
                             msg=f"{caller} failed after {attempt + 1} attempts",
                             schema=schema_name,
                             table=self._table_name,
-                            exc_info=err,
-                        )
+                        ),
+                        exc_info=err,
                     )
             except ProgrammingError as err:
                 LOG.warning(
@@ -255,8 +255,8 @@ class ReportParquetProcessorBase:
                         msg=f"{caller} failed with non-retryable error",
                         schema=schema_name,
                         table=self._table_name,
-                        exc_info=err,
-                    )
+                    ),
+                    exc_info=err,
                 )
                 return []
             except Error as err:
@@ -265,8 +265,8 @@ class ReportParquetProcessorBase:
                         msg=f"{caller} failed with non-retryable error",
                         schema=schema_name,
                         table=self._table_name,
-                        exc_info=err,
-                    )
+                    ),
+                    exc_info=err,
                 )
                 return []
         return []
