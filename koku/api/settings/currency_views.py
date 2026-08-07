@@ -44,6 +44,8 @@ LOG = logging.getLogger(__name__)
 
 def _get_cloud_providers_using_currency(code, customer):
     """Return cloud providers whose billing data uses ``code`` as a base currency."""
+    if not customer or not customer.pk:
+        return []
     aws_uuids = AWSCostSummaryP.objects.filter(currency_code=code).values_list("source_uuid", flat=True).distinct()
     azure_uuids = AzureCostSummaryP.objects.filter(currency=code).values_list("source_uuid", flat=True).distinct()
     gcp_uuids = GCPCostSummaryP.objects.filter(currency=code).values_list("source_uuid", flat=True).distinct()
