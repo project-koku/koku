@@ -41,11 +41,11 @@ If the helper returns `None` (DB read failure), `_remove_expired_data` **skips t
 | :---- | :---- | :---- | :---- |
 | **A. Self-hosted line items** | 13 tables from `get_self_hosted_table_names()` | In OCP cleaner partition-drop list (on-prem) | `delete_self_hosted_data_by_source` |
 | **B. Daily summary** | `reporting_ocpusagelineitem_daily_summary` | Partition drop + report-period cascade | FK via report period / provider cascade |
-| **C. UI summaries (OCP)** | 12 tables in OCP `UI_SUMMARY_TABLES` | Partition drop | FK CASCADE on `source_uuid` |
-| **D. VM / cost-breakdown UI** | `reporting_ocp_vm_summary_p`, `reporting_ocp_cost_breakdown_p` | **Not** in partition-drop list | FK CASCADE on `source_uuid` |
+| **C. UI summaries (OCP)** | 14 tables in OCP `UI_SUMMARY_TABLES` (includes VM + cost-breakdown) | Partition drop | FK CASCADE on `source_uuid` |
+| **D. _(merged into C)_** | `reporting_ocp_vm_summary_p`, `reporting_ocp_cost_breakdown_p` | Covered via `UI_SUMMARY_TABLES` (COST-7904) | FK CASCADE on `source_uuid` |
 | **E. Rates-to-usage** | `rates_to_usage` | In partition-drop list | **Not** deleted — `source_uuid` is `UUIDField`, not in self-hosted delete |
 | **F. Report periods & label summaries** | `reporting_ocpusagereportperiod`, pod/volume label summaries | `cascade_delete` when period expired | CASCADE via `report_period` / provider |
-| **G. Tag value index** | `reporting_ocptags_values` | No time dimension; not in cleaner | No provider FK; SQL only removes rows for **disabled** tag keys |
+| **G. Tag value index** | `reporting_ocptags_values` | Same orphan cleanup after provider purge  | No provider FK; SQL only removes rows for **disabled** tag keys |
 | **H. Manifests (public)** | `reporting_common_costusagereportmanifest` | `purge_expired_report_manifest` | Provider cascade |
 | **I. Cost model / financial config** | `cost_model`, `price_list`, exchange rates, settings | Not purged by N-month job | Maps removed on provider delete; models persist until user deletes |
 | **J. Cluster metadata** | `reporting_ocp_clusters`, nodes, projects, PVCs | Not purged by N-month job | Provider cascade on source delete |
@@ -76,6 +76,6 @@ Pipeline detail: [retention-pipeline.md](retention-pipeline.md).
 
 **Time-based:** Celery Beat → `ExpiredDataRemover` → provider cleaners (drop expired partitions; cascade-delete expired bills / report periods; purge manifests) + SaaS `remove_expired_trino_partitions`.
 
-On-prem OCP partition-drop parents (**27**): daily summary + `rates_to_usage` + 12 `UI_SUMMARY_TABLES` + 13 self-hosted tables.
+On-prem OCP partition-drop parents (**29**): daily summary + `rates_to_usage` + 14 `UI_SUMMARY_TABLES` + 13 self-hosted tables.
 
-**Source delete:** `delete_source` → `Provider._cascade_delete()` → `post_delete` → `delete_archived_data` → (on-prem) `delete_self_hosted_data_by_source()`. Tables without FK / without an explicit delete path are not cleaned (classes E and G).
+**Source delete:** `delete_source` → `Provider._cascade_delete()` → `post_delete` → `delete_archived_data` → (on-prem) `delete_self_hosted_data_by_source()`. OCP cleaner provider purge also calls `cleanup_ocp_tags_values()` (class G). Class E (`rates_to_usage`) still lacks source-delete cleanup (COST-7736).

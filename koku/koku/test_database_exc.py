@@ -67,6 +67,37 @@ class TestDatabaseExc(IamTestCase):
         self.assertEqual(type(eedict), dict)
         self.assertTrue({"process1_pid", "process2_pid"}.issubset(set(eedict)))
 
+    def test_deadlock_exception_with_indented_continuation_line(self):
+        """Test deadlock message parsing when the DETAIL continuation line is indented.
+
+        Real Postgres deadlock messages indent the second "Process ..." line of the
+        DETAIL block to visually align it under the first, e.g.:
+
+            DETAIL:  Process 922 waits for ShareLock on transaction 131824610; ...
+                     Process 920 waits for ShareLock on transaction 131824621; ...
+
+        The regex previously required the second "Process" to appear immediately
+        after the newline with no leading whitespace, so it silently failed to
+        parse this (very common) real-world format -- process1/process2 stayed
+        None, degrading the deadlock PID diagnostics without raising any error.
+        """
+        ddexc = DeadlockDetected(
+            "deadlock detected"
+            + os.linesep
+            + "DETAIL:  Process 922 waits for ShareLock on transaction 131824610; blocked by process 920."
+            + os.linesep
+            + "        Process 920 waits for ShareLock on transaction 131824621; blocked by process 922."
+            + os.linesep
+            + "HINT:  See server log for query details."
+        )
+        eexc = dbex.get_extended_exception_by_type(ddexc)
+
+        self.assertEqual(type(eexc), dbex.ExtendedDeadlockDetected)
+        self.assertEqual(sorted([eexc.process1, eexc.process2]), sorted([922, 920]))
+        eedict = eexc.as_dict()
+        self.assertIn(eedict["process1_pid"], (922, 920))
+        self.assertIn(eedict["process2_pid"], (922, 920))
+
     def test_bad_exception(self):
         class BadException(Exception):
             pass
