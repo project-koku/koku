@@ -25,6 +25,7 @@ from reporting.provider.aws.models import AWSCostSummaryP
 from reporting.provider.azure.models import AzureCostSummaryP
 from reporting.provider.gcp.models import GCPCostSummaryP
 from reporting.provider.models import TenantAPIProvider
+from reporting.user_settings.models import UserSettings
 
 
 CACHE_OVERRIDE = {
@@ -104,6 +105,145 @@ class CurrencySettingsViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         codes = [c["code"] for c in response.data["data"]]
         self.assertEqual(codes, ["USD"])
+
+    def test_is_disableable_true_for_free_enabled_currency(self):
+        """A freely enabled currency with no dependencies returns is_disableable=True."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="CHF")
+
+        url = reverse("currency-list") + "?search=CHF"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        chf = response.data["data"][0]
+        self.assertTrue(chf["is_disableable"])
+
+    def test_is_disableable_false_for_disabled_currency(self):
+        """A disabled currency always returns is_disableable=False."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+
+        url = reverse("currency-list") + "?search=CHF"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        chf = response.data["data"][0]
+        self.assertFalse(chf["is_disableable"])
+
+    @override_settings(KOKU_DEFAULT_CURRENCY="USD")
+    def test_is_disableable_false_for_system_default_currency(self):
+        """System default currency returns is_disableable=False."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="CHF")
+
+        url = reverse("currency-list") + "?search=USD"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        usd = response.data["data"][0]
+        self.assertFalse(usd["is_disableable"])
+
+    def test_is_disableable_false_when_only_one_enabled(self):
+        """The sole enabled currency returns is_disableable=False."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="CHF")
+
+        url = reverse("currency-list") + "?search=CHF"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        chf = response.data["data"][0]
+        self.assertFalse(chf["is_disableable"])
+
+    def test_is_disableable_false_for_currency_used_by_cost_model(self):
+        """Currency used by a CostModel returns is_disableable=False."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="GBP")
+            CostModel.objects.create(
+                name="GBP Model",
+                description="test",
+                source_type="OCP",
+                rates={},
+                markup={},
+                currency="GBP",
+            )
+
+        url = reverse("currency-list") + "?search=GBP"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        gbp = response.data["data"][0]
+        self.assertFalse(gbp["is_disableable"])
+
+    def test_is_disableable_false_for_currency_used_by_price_list(self):
+        """Currency used by a PriceList returns is_disableable=False."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+            PriceList.objects.create(
+                name="EUR PL",
+                description="test",
+                currency="EUR",
+                effective_start_date="2026-01-01",
+                effective_end_date="2026-12-31",
+                rates=[],
+            )
+
+        url = reverse("currency-list") + "?search=EUR"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        eur = response.data["data"][0]
+        self.assertFalse(eur["is_disableable"])
+
+    def test_is_disableable_false_for_account_default_currency(self):
+        """Account default currency (UserSettings) returns is_disableable=False."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="NOK")
+            UserSettings.objects.all().delete()
+            UserSettings.objects.create(settings={"currency": "NOK"})
+
+        url = reverse("currency-list") + "?search=NOK"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        nok = response.data["data"][0]
+        self.assertFalse(nok["is_disableable"])
+
+    def test_is_disableable_false_for_cloud_provider_base_currencies(self):
+        """Currencies used by cloud billing summary data return is_disableable=False."""
+        cloud_providers = [
+            (Provider.PROVIDER_AWS, AWSCostSummaryP, "currency_code", "AUD"),
+            (Provider.PROVIDER_AZURE, AzureCostSummaryP, "currency", "CAD"),
+            (Provider.PROVIDER_GCP, GCPCostSummaryP, "currency", "NZD"),
+        ]
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            for provider_type, summary_model, currency_field, code in cloud_providers:
+                EnabledCurrency.objects.create(currency_code=code)
+
+        for provider_type, summary_model, currency_field, code in cloud_providers:
+            provider = Provider.objects.create(
+                name=f"{provider_type} {code}",
+                type=provider_type,
+                customer=self.customer,
+            )
+            with tenant_context(self.tenant):
+                tenant_provider = TenantAPIProvider.objects.create(
+                    uuid=provider.uuid, name=provider.name, type=provider.type, provider=provider
+                )
+                summary_model.objects.create(
+                    id=uuid4(),
+                    usage_start="2026-01-01",
+                    usage_end="2026-01-01",
+                    source_uuid=tenant_provider,
+                    **{currency_field: code},
+                )
+
+        for _, _, _, code in cloud_providers:
+            with self.subTest(code=code):
+                url = reverse("currency-list") + f"?search={code}"
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                entry = response.data["data"][0]
+                self.assertFalse(entry["is_disableable"], f"{code} should not be disableable")
 
 
 class EnabledCurrencyViewTest(IamTestCase):
@@ -239,13 +379,13 @@ class EnabledCurrencyViewTest(IamTestCase):
             (Provider.PROVIDER_AZURE, AzureCostSummaryP, "currency", "CAD"),
             (Provider.PROVIDER_GCP, GCPCostSummaryP, "currency", "EUR"),
         ]
-        with tenant_context(self.tenant):
-            for provider_type, summary_model, currency_field, code in cloud_providers:
-                provider = Provider.objects.create(
-                    name=f"{provider_type} {code} Source",
-                    type=provider_type,
-                    customer=self.customer,
-                )
+        for provider_type, summary_model, currency_field, code in cloud_providers:
+            provider = Provider.objects.create(
+                name=f"{provider_type} {code} Source",
+                type=provider_type,
+                customer=self.customer,
+            )
+            with tenant_context(self.tenant):
                 tenant_provider = TenantAPIProvider.objects.create(
                     uuid=provider.uuid, name=provider.name, type=provider.type, provider=provider
                 )
@@ -257,6 +397,7 @@ class EnabledCurrencyViewTest(IamTestCase):
                     **{currency_field: code},
                 )
 
+        with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
             EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="AUD")
@@ -281,8 +422,6 @@ class EnabledCurrencyViewTest(IamTestCase):
 
     def test_disable_account_default_currency_blocked(self):
         """Disabling the account default currency must return 400."""
-        from reporting.user_settings.models import UserSettings
-
         with tenant_context(self.tenant):
             EnabledCurrency.objects.create(currency_code="USD")
             EnabledCurrency.objects.create(currency_code="GBP")
