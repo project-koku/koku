@@ -7,11 +7,16 @@ import shutil
 import tempfile
 import uuid
 from datetime import date
+from unittest.mock import call
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pandas as pd
 from django.conf import settings
+from django.db import Error
+from django.db import ProgrammingError
 from django.test.utils import override_settings
+from trino.exceptions import TrinoQueryError
 
 from api.common import log_json
 from koku.cache import build_trino_schema_exists_key
@@ -124,15 +129,116 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
             for expected_log in expected_logs:
                 self.assertIn(expected_log, logger.output)
 
-    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_trino_sql")
+    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_trino_sql_with_retries")
     def test_sync_hive_partitions(self, mock_execute):
-        """Test that hive partitions are synced."""
+        """Given a processor with a valid schema and table,
+        when sync_hive_partitions is called,
+        then it logs the sync attempt and delegates to _execute_trino_sql_with_retries.
+        """
         expected_log = self.log_output_info + str(
             log_json(msg="syncing trino/hive partitions", schema=self.schema_name, table=self.table_name)
         )
         with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.sync_hive_partitions()
             self.assertIn(expected_log, logger.output)
+        expected_sql = f"CALL system.sync_partition_metadata('{self.schema_name}', '{self.table_name}', 'FULL')"
+        mock_execute.assert_called_once_with(expected_sql, self.schema_name, caller="sync_hive_partitions")
+
+    def _mock_trino_accessor(self, mock_accessor, mock_cursor):
+        """Configure mock_accessor to return mock_cursor through the connection context managers."""
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_accessor.return_value.connect.return_value.__enter__.return_value = mock_conn
+
+    @patch("masu.processor.report_parquet_processor_base.random.uniform", return_value=0.5)
+    @patch("masu.processor.report_parquet_processor_base.time.sleep")
+    @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
+    def test_execute_trino_sql_with_retries_retries_on_trino_query_error(
+        self, mock_accessor, mock_sleep, mock_uniform
+    ):
+        """Given a TrinoQueryError on every attempt,
+        when _execute_trino_sql_with_retries is called with max_retries=2,
+        then it retries 2 times (3 total attempts), sleeps between each, and returns [].
+        """
+        mock_cursor = MagicMock()
+        trino_error = TrinoQueryError(
+            {"errorName": "ALREADY_EXISTS", "message": "One or more Partitions Already exist"}
+        )
+        mock_cursor.execute.side_effect = trino_error
+        self._mock_trino_accessor(mock_accessor, mock_cursor)
+
+        with self.assertLogs(self.log_base, level="WARNING") as cm:
+            result = self.processor._execute_trino_sql_with_retries(
+                "SELECT 1", self.schema_name, caller="test", max_retries=2
+            )
+        self.assertEqual(result, [])
+        self.assertEqual(mock_cursor.execute.call_count, 3)
+        # Backoff is 2**attempt + 0.5: attempt 0 -> 1.5, attempt 1 -> 2.5
+        self.assertEqual(mock_sleep.call_args_list, [call(1.5), call(2.5)])
+        warning_logs = [o for o in cm.output if "retrying (attempt" in o]
+        self.assertEqual(len(warning_logs), 2)
+        self.assertIn(self.schema_name, warning_logs[0])
+        error_logs = [o for o in cm.output if "failed after 3 attempts" in o]
+        self.assertEqual(len(error_logs), 1)
+
+    @patch("masu.processor.report_parquet_processor_base.time.sleep")
+    @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
+    def test_execute_trino_sql_with_retries_no_retry_on_non_retryable_errors(self, mock_accessor, mock_sleep):
+        """Given a non-retryable error (ProgrammingError or Django Error),
+        when _execute_trino_sql_with_retries is called,
+        then it logs the error and returns [] without retrying.
+        """
+        cases = [
+            {"error": ProgrammingError("bad sql"), "log_level": "WARNING"},
+            {"error": Error("django error"), "log_level": "ERROR"},
+        ]
+        for case in cases:
+            with self.subTest(error=type(case["error"]).__name__):
+                mock_accessor.reset_mock()
+                mock_sleep.reset_mock()
+                mock_cursor = MagicMock()
+                mock_cursor.execute.side_effect = case["error"]
+                self._mock_trino_accessor(mock_accessor, mock_cursor)
+
+                with self.assertLogs(self.log_base, level=case["log_level"]) as cm:
+                    result = self.processor._execute_trino_sql_with_retries(
+                        "SELECT 1", self.schema_name, caller="test", max_retries=2
+                    )
+                self.assertEqual(result, [])
+                self.assertEqual(mock_cursor.execute.call_count, 1)
+                non_retryable_logs = [o for o in cm.output if "non-retryable error" in o]
+                self.assertEqual(len(non_retryable_logs), 1)
+                self.assertIn(self.schema_name, non_retryable_logs[0])
+                self.assertIn("test", non_retryable_logs[0])
+                mock_sleep.assert_not_called()
+
+    @patch("masu.processor.report_parquet_processor_base.random.uniform", return_value=0.5)
+    @patch("masu.processor.report_parquet_processor_base.time.sleep")
+    @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
+    def test_execute_trino_sql_with_retries_succeeds_after_retry(self, mock_accessor, mock_sleep, mock_uniform):
+        """Given a TrinoQueryError on the first attempt and success on the second,
+        when _execute_trino_sql_with_retries is called,
+        then it retries once, sleeps once, and returns the rows from the successful attempt.
+        """
+        trino_error = TrinoQueryError(
+            {"errorName": "ALREADY_EXISTS", "message": "One or more Partitions Already exist"}
+        )
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = [trino_error, None]
+        mock_cursor.fetchall.return_value = [("ok",)]
+        self._mock_trino_accessor(mock_accessor, mock_cursor)
+
+        with self.assertLogs(self.log_base, level="WARNING") as cm:
+            result = self.processor._execute_trino_sql_with_retries(
+                "SELECT 1", self.schema_name, caller="test", max_retries=2
+            )
+        self.assertEqual(result, [("ok",)])
+        self.assertEqual(mock_cursor.execute.call_count, 2)
+        # Backoff is 2**0 + 0.5 -> 1.5
+        mock_sleep.assert_called_once_with(1.5)
+        warning_logs = [o for o in cm.output if "retrying (attempt 1)" in o]
+        self.assertEqual(len(warning_logs), 1)
+        self.assertIn(self.schema_name, warning_logs[0])
 
     @patch.object(ReportParquetProcessorBase, "_execute_trino_sql")
     def test_schema_exists_cache_value_in_cache(self, trino_mock):
