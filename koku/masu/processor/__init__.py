@@ -23,7 +23,7 @@ GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_st
 OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
 TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
 DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
-COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"
+COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"  # TODO: Clean up
 COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
 CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lookup_enabled"
 OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
@@ -179,3 +179,17 @@ def is_ingress_rbac_grace_period_enabled(schema):  # pragma: no cover
     context = {"schema": schema}
     enabled = UNLEASH_CLIENT.is_enabled("cost-management.backend.ingress-rbac-grace-period-enabled", context)
     return enabled
+
+
+def is_ocp_tag_cleanup_disabled(schema):  # pragma: no cover
+    """
+    Kill switch for cleanup_ocp_tags_values in ocp_report_db_cleaner.py
+
+    This is a temporary safeguard to allow us to turn off purge of ocp tags if we
+    experience issues in production.
+    """
+    context = {"schema": schema}
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ocp-tag-cleanup", context)
+    if res:
+        LOG.info(log_json(msg="OCP tag cleanup disabled", context=context))
+    return res
