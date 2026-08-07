@@ -7,6 +7,7 @@ import base64
 import copy
 import json
 import logging
+import threading
 import time
 from unittest.mock import MagicMock
 from unittest.mock import Mock
@@ -36,6 +37,8 @@ from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
 from koku.middleware import KokuTenantSchemaExistsMiddleware
+from koku.middleware import RequestTimeoutError
+from koku.middleware import RequestTimeoutMiddleware
 from koku.middleware import RequestTimingMiddleware
 from koku.test_rbac import mocked_requests_get_500_text
 
@@ -583,3 +586,97 @@ class RequestTimingMiddlewareTest(IamTestCase):
                 if "response_time" in msg:
                     logged = True
             self.assertTrue(logged)
+
+
+class RequestTimeoutMiddlewareTest(IamTestCase):
+    """Tests for the request timeout middleware."""
+
+    def setUp(self):
+        super().setUp()
+        self.middleware = RequestTimeoutMiddleware(Mock())
+
+    @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.signal.alarm")
+    @patch("koku.middleware.signal.signal")
+    def test_process_request_sets_alarm(self, mock_signal, mock_alarm, mock_thread):
+        mock_thread.return_value = threading.main_thread()
+        request = Mock(method="GET", path="/api/v1/reports/aws/costs/")
+        self.middleware.process_request(request)
+        mock_signal.assert_called_once()
+        mock_alarm.assert_called_once_with(RequestTimeoutMiddleware.SOFT_TIMEOUT)
+
+    @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.signal.alarm")
+    def test_process_response_cancels_alarm(self, mock_alarm, mock_thread):
+        mock_thread.return_value = threading.main_thread()
+        request = Mock()
+        response = Mock(status_code=200)
+        result = self.middleware.process_response(request, response)
+        mock_alarm.assert_called_once_with(0)
+        self.assertEqual(result, response)
+
+    @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.signal.alarm")
+    def test_timeout_raises_request_timeout_error(self, mock_alarm, mock_thread):
+        mock_thread.return_value = threading.main_thread()
+        request = Mock(method="GET", path="/api/v1/reports/openshift/costs/", start_time=time.time() - 85)
+        with patch("koku.middleware.signal.signal") as mock_signal:
+            self.middleware.process_request(request)
+            handler = mock_signal.call_args[0][1]
+        with self.assertRaises(RequestTimeoutError) as ctx:
+            handler(None, None)
+        self.assertIn("GET", str(ctx.exception))
+        self.assertIn("/api/v1/reports/openshift/costs/", str(ctx.exception))
+
+    @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.signal.alarm")
+    def test_timeout_handler_without_start_time(self, mock_alarm, mock_thread):
+        mock_thread.return_value = threading.main_thread()
+        request = Mock(method="POST", path="/api/v1/cost-models/", spec=["method", "path"])
+        with patch("koku.middleware.signal.signal") as mock_signal:
+            self.middleware.process_request(request)
+            handler = mock_signal.call_args[0][1]
+        with self.assertRaises(RequestTimeoutError) as ctx:
+            handler(None, None)
+        self.assertIn("POST", str(ctx.exception))
+        self.assertIn("/api/v1/cost-models/", str(ctx.exception))
+
+    @patch("koku.middleware.signal.alarm")
+    @patch("koku.middleware.signal.signal")
+    def test_skips_alarm_in_non_main_thread(self, mock_signal, mock_alarm):
+        with patch("koku.middleware.threading.current_thread", return_value=threading.Thread()):
+            request = Mock(method="GET", path="/api/v1/reports/aws/costs/")
+            self.middleware.process_request(request)
+        mock_signal.assert_not_called()
+        mock_alarm.assert_not_called()
+
+    def test_soft_timeout_default(self):
+        self.assertEqual(RequestTimeoutMiddleware.SOFT_TIMEOUT, 90)
+
+
+class SentryBeforeSendTest(IamTestCase):
+    """Tests for the sentry before_send hook."""
+
+    def test_before_send_tags_timeout_events(self):
+        from koku.middleware import sentry_before_send
+
+        event = {}
+        hint = {"exc_info": (RequestTimeoutError, RequestTimeoutError("test"), None)}
+        result = sentry_before_send(event, hint)
+        self.assertEqual(result["tags"]["timeout"], "soft")
+
+    def test_before_send_passes_through_other_events(self):
+        from koku.middleware import sentry_before_send
+
+        event = {"tags": {"existing": "value"}}
+        hint = {"exc_info": (ValueError, ValueError("test"), None)}
+        result = sentry_before_send(event, hint)
+        self.assertEqual(result["tags"], {"existing": "value"})
+
+    def test_before_send_handles_no_exc_info(self):
+        from koku.middleware import sentry_before_send
+
+        event = {"message": "test"}
+        hint = {}
+        result = sentry_before_send(event, hint)
+        self.assertEqual(result, event)

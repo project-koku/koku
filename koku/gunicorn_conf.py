@@ -44,7 +44,7 @@ workers = ENVIRONMENT.int("GUNICORN_WORKERS", default=(cpu_resources * 2 + 1))
 gunicorn_threads = ENVIRONMENT.bool("GUNICORN_THREADS", default=False)
 if gunicorn_threads:
     threads = cpu_resources * 2 + 1
-timeout = ENVIRONMENT.int("TIMEOUT", default=90)
+timeout = ENVIRONMENT.int("TIMEOUT", default=100)
 graceful_timeout = ENVIRONMENT.int("GRACEFUL_TIMEOUT", default=180)
 
 
