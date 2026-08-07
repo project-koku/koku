@@ -319,22 +319,46 @@ def get_daily_currency_rates():
     """Fetch exchange rates when configured, then upsert/backfill MER per tenant."""
     url = settings.CURRENCY_URL
     if url:
+        LOG.info(log_json(msg="Fetching dynamic exchange rates", url=url))
         rate_metrics = _fetch_and_store_exchange_rates(url)
+        LOG.info(log_json(msg="**DEBUG** Fetched exchange rates", currency_count=len(rate_metrics)))
     else:
-        LOG.info(log_json(msg="CURRENCY_URL not configured; skipping dynamic exchange rate fetch"))
+        LOG.info(log_json(msg="**DEBUG** CURRENCY_URL not configured; "))
         rate_metrics = {}
 
-    for tenant in Tenant.objects.exclude(schema_name="public"):
+    tenants = Tenant.objects.exclude(schema_name="public")
+    tenant_count = tenants.count()
+    LOG.info(log_json(msg="**DEBUG** Populating monthly exchange rates", tenant_count=tenant_count))
+
+    updated_count = 0
+    skipped_count = 0
+    for tenant in tenants:
         try:
             with schema_context(tenant.schema_name):
+                LOG.debug(
+                    log_json(msg="**DEBUG** Populating monthly exchange rates for tenant", schema=tenant.schema_name)
+                )
                 rates_changed = populate_dynamic_monthly_rates(backfill_past_months=True)
                 if rates_changed:
+                    updated_count += 1
                     invalidate_view_cache_for_tenant_and_all_source_types(tenant.schema_name)
+                else:
+                    skipped_count += 1
         except Exception as e:
             LOG.error(
-                log_json(msg="Failed to populate monthly exchange rates", schema=tenant.schema_name, error=str(e))
+                log_json(
+                    msg="**DEBUG** Failed to populate monthly exchange rates", schema=tenant.schema_name, error=str(e)
+                )
             )
 
+    LOG.info(
+        log_json(
+            msg="**DEBUG** Monthly exchange rate population complete",
+            tenants_updated=updated_count,
+            tenants_skipped=skipped_count,
+            tenant_total=tenant_count,
+        )
+    )
     return rate_metrics
 
 
