@@ -54,29 +54,32 @@ team service-docs: `operations/release-process.md`.
        ↓
 [check migrations]
        ↓
-[optional] Trino CJI MR  and/or  PG CJI MR  → monitor job success
+[if PG and/or Trino] CJI migration MR(s) → monitor job success
        ↓
 [required] Deploy MR (ref → TARGET_SHA) → monitor pods
        ↓
 [prod] Slack announce → GitHub release notes → close Jira
 ```
 
+PG: default to DBM CJI before deploy (team practice). Trino: always MGMT CJI.
 ### Migration decision tree
 
 ```
 No migrations
   → deploy MR only
 
-PG Django migrations
-  → Ask author: init container (usual) OR manual CJI?
-       init → deploy MR (init runs on deploy)
-       CJI  → migration MR → monitor → deploy MR
+PG Django migrations (team practice: almost always manual CJI)
+  → Default: migration MR (DBM_IMAGE_TAG + DBM_INVOCATION) → monitor → deploy MR
+  → Confirm with the migration author that the CJI is appropriate / already planned.
+  → Rare exception: author says init container alone is enough → deploy MR only
 
-Trino migrations (ALWAYS manual)
+Trino migrations (ALWAYS manual CJI)
   → Ask for full migrate_trino_tables command
   → migration MR → monitor → deploy MR
 ```
 
+Note: pods still have an init-container migrate path, but **production releases in this
+team almost always run PG via the DBM ClowdJobInvocation first**, then promote `ref`.
 ---
 
 ## Scripts

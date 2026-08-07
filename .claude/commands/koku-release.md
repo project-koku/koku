@@ -22,7 +22,7 @@ monitoring. If env is missing, explain Prerequisites from the guide and stop.
 
 1. `bash dev/scripts/release/analyze.sh` → confirm TARGET_SHA + QE clear
 2. `bash dev/scripts/release/analyze.sh migrations <TARGET_SHA>` → decision tree
-   (PG init vs CJI; Trino always manual)
+   (PG: default DBM CJI; Trino always manual)
 3. If needed: `prepare-mr.py migration …` → push after approval → `monitor-mr.sh` →
    `monitor.sh db-migration|mgmt-cmd …`
 4. `prepare-mr.py deploy …` → push after approval → `monitor-mr.sh`

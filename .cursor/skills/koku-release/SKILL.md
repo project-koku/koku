@@ -48,14 +48,13 @@ Decision tree — do not skip or reorder:
 ```
 No migrations → Step 3
 
-PG migrations → ask: init container (usual) OR manual CJI?
-  init → Step 3
-  CJI  → Step 2A → 2B → Step 3
+PG migrations → default to manual CJI (DBM_*) — team practice (~always)
+  Confirm with migration author, then Step 2A → 2B → Step 3
+  Rare: author says init container alone is enough → Step 3
 
 Trino (ALWAYS manual) → ask for full migrate_trino_tables command
   → Step 2A → 2B → Step 3
 ```
-
 ### Step 2A — Create migration MR
 
 Announce in `#crc-cost-mgmt-sre` before proceeding.

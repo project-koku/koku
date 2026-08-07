@@ -131,7 +131,7 @@ print((now - published).days)
   fi
   if (( PG_COUNT > 0 )); then
     echo "   ⚠️  PG Django migrations: ${PG_COUNT} file(s)"
-    echo "      (usually run automatically via init container; confirm with author if CJI needed)"
+    echo "      (team practice: run via DBM CJI MR before deploy; confirm with author)"
     echo "$PG_MIGRATIONS" | sed 's/^/      /'
   fi
   if (( TRINO_COUNT > 0 )); then
@@ -207,7 +207,7 @@ print((now - published).days)
 
   MIGRATION_LINE="No migrations in this release."
   if [[ "$MIGRATION_STATUS" == "pg" ]]; then
-    MIGRATION_LINE="⚠️ PG migrations detected — confirm with author if manual CJI is needed."
+    MIGRATION_LINE="⚠️ PG migrations detected — plan DBM CJI MR before deploy (confirm with author)."
   elif [[ "$MIGRATION_STATUS" == "trino" ]]; then
     MIGRATION_LINE="🔴 Trino migrations detected — manual migration MR required before deploy."
   elif [[ "$MIGRATION_STATUS" == "pg+trino" ]]; then
@@ -258,9 +258,9 @@ if [[ "$cmd" == "migrations" ]]; then
     echo "$PG_MIGRATIONS" | sed 's/^/   /'
     echo ""
     echo "   ⚠️  PG migrations found."
-    echo "   These usually run automatically via init container on deploy."
-    echo "   A manual CJI MR is ONLY needed if the migration author says so."
-    echo "   → Confirm with the migration author before creating a CJI MR."
+    echo "   Team practice: run them via a DBM CJI MR (DBM_IMAGE_TAG + DBM_INVOCATION)"
+    echo "   before the deploy MR. Confirm with the migration author."
+    echo "   Rare exception: author says init container alone is enough → deploy only."
   else
     echo "   (none)"
   fi
