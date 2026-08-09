@@ -491,12 +491,18 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": LOGGING_FORMATTER,
         },
-        "file": {
-            "level": KOKU_LOGGING_LEVEL,
-            "class": "logging.FileHandler",
-            "filename": LOGGING_FILE,
-            "formatter": LOGGING_FORMATTER,
-        },
+        **(
+            {
+                "file": {
+                    "level": KOKU_LOGGING_LEVEL,
+                    "class": "logging.FileHandler",
+                    "filename": LOGGING_FILE,
+                    "formatter": LOGGING_FORMATTER,
+                }
+            }
+            if "file" in LOGGING_HANDLERS
+            else {}
+        ),
     },
     "loggers": {
         "gunicorn.access": {
