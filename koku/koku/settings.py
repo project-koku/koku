@@ -491,18 +491,6 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": LOGGING_FORMATTER,
         },
-        **(
-            {
-                "file": {
-                    "level": KOKU_LOGGING_LEVEL,
-                    "class": "logging.FileHandler",
-                    "filename": LOGGING_FILE,
-                    "formatter": LOGGING_FORMATTER,
-                }
-            }
-            if "file" in LOGGING_HANDLERS
-            else {}
-        ),
     },
     "loggers": {
         "gunicorn.access": {
@@ -583,6 +571,14 @@ LOGGING = {
         },
     },
 }
+
+if "file" in LOGGING_HANDLERS:
+    LOGGING["handlers"]["file"] = {
+        "level": KOKU_LOGGING_LEVEL,
+        "class": "logging.FileHandler",
+        "filename": LOGGING_FILE,
+        "formatter": LOGGING_FORMATTER,
+    }
 
 if "watchtower" in LOGGING_HANDLERS:
     LOGGING["handlers"]["watchtower"] = WATCHTOWER_HANDLER

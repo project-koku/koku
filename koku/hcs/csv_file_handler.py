@@ -1,5 +1,4 @@
 import logging
-import os
 import tempfile
 
 import pandas as pd
@@ -70,17 +69,14 @@ class CSVFileHandler:
         if finalize and finalize_date:
             metadata["finalized-date"] = finalize_date
         extra_args = {"Metadata": metadata}
-        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".csv") as tmp:
             my_df.to_csv(tmp.name, header=cols, index=False)
-            tmp_path = tmp.name
-        try:
-            with open(tmp_path, "rb") as fin:
-                upload_key = f"{s3_path}/{filename}"
-                s3_obj = {"bucket_name": settings.S3_HCS_BUCKET_NAME, "key": upload_key}
-                upload = self._s3_resource.Object(**s3_obj)
-                upload.upload_fileobj(fin, ExtraArgs=extra_args)
-        except (EndpointConnectionError, ClientError) as err:
-            msg = f"unable to copy data to {upload_key}, bucket {settings.S3_HCS_BUCKET_NAME}. Reason: {str(err)}"
-            LOG.warning(log_json(tracing_id, msg=msg, context=context))
-        finally:
-            os.remove(tmp_path)
+            try:
+                with open(tmp.name, "rb") as fin:
+                    upload_key = f"{s3_path}/{filename}"
+                    s3_obj = {"bucket_name": settings.S3_HCS_BUCKET_NAME, "key": upload_key}
+                    upload = self._s3_resource.Object(**s3_obj)
+                    upload.upload_fileobj(fin, ExtraArgs=extra_args)
+            except (EndpointConnectionError, ClientError) as err:
+                msg = f"unable to copy data to {upload_key}, bucket {settings.S3_HCS_BUCKET_NAME}. Reason: {str(err)}"
+                LOG.warning(log_json(tracing_id, msg=msg, context=context))
