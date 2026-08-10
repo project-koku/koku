@@ -6091,6 +6091,93 @@
                 ]
             }
         },
+        "/settings/currency/": {
+            "get": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "List all ISO 4217 currencies with tenant enablement status",
+                "operationId": "getSettingsCurrency",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[enabled]",
+                        "description": "Filter by tenant enablement status. Use true or 1 for enabled currencies only; false or 0 for disabled currencies only. Omit to return all currencies with enabled currencies listed first.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "true",
+                                "false",
+                                "1",
+                                "0"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[currency]",
+                        "description": "Filter by currency code using case-insensitive substring match on the ISO 4217 code. Accepts comma-separated values or repeated parameters for multiple search terms (OR filter). Non-matching values return an empty list.",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "USD",
+                            "EUR"
+                        ]
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of currency settings objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CurrencySettingsPagination"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/settings/cost-groups/": {
             "get": {
                 "tags": [
@@ -7526,9 +7613,32 @@
                     },
                     "static_rates": {
                         "type": "array",
-                        "items": {}
+                        "items": {
+                            "$ref": "#/components/schemas/StaticExchangeRateOut"
+                        }
                     }
                 }
+            },
+            "CurrencySettingsPagination": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/CurrencySettingsItem"
+                                }
+                            }
+                        }
+                    }
+                ]
             },
             "Currencies": {
                 "required": [
@@ -12121,6 +12231,59 @@
                         }
                     }
                 ]
+            },
+            "StaticExchangeRateOut": {
+                "required": [
+                    "uuid",
+                    "name",
+                    "base_currency",
+                    "target_currency",
+                    "exchange_rate",
+                    "start_date",
+                    "end_date",
+                    "created_timestamp",
+                    "updated_timestamp"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "USD-EUR"
+                    },
+                    "base_currency": {
+                        "type": "string",
+                        "example": "USD"
+                    },
+                    "target_currency": {
+                        "type": "string",
+                        "example": "EUR"
+                    },
+                    "exchange_rate": {
+                        "type": "number",
+                        "example": 0.87
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-04-01"
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-06-30"
+                    },
+                    "created_timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
             },
             "Status": {
                 "required": [
