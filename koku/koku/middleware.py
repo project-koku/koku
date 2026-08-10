@@ -5,6 +5,8 @@
 """Custom Koku Middleware."""
 import binascii
 import logging
+import os
+import signal
 import threading
 import time
 from http import HTTPStatus
@@ -454,6 +456,57 @@ class RequestTimingMiddleware(MiddlewareMixin):
             time_taken_ms = int((time.time() - request.start_time) * 1000)
             stmt.update({"response_time": time_taken_ms})
             LOG.info(stmt)
+        return response
+
+
+class RequestTimeoutError(Exception):
+    """Raised when a request exceeds the soft timeout."""
+
+
+def sentry_before_send(event, hint):
+    exc_info = hint.get("exc_info")
+    if exc_info and exc_info[0] is RequestTimeoutError:
+        event.setdefault("tags", {})["timeout"] = "soft"
+    return event
+
+
+def _parse_soft_timeout(default=90):
+    raw = os.environ.get("REQUEST_SOFT_TIMEOUT")
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+class RequestTimeoutMiddleware(MiddlewareMixin):
+    """Abort requests that exceed a soft timeout, before gunicorn kills the worker.
+
+    Uses SIGALRM to raise RequestTimeoutError with full request context,
+    replacing the uninformative SystemExit:1 that gunicorn's SIGABRT produces.
+    Only active in the main thread (sync workers); with threaded workers,
+    gunicorn's hard timeout remains the fallback.
+    """
+
+    SOFT_TIMEOUT = _parse_soft_timeout()
+
+    def process_request(self, request):
+        if threading.current_thread() is not threading.main_thread():
+            return
+
+        def handler(signum, frame):
+            duration = time.time() - getattr(request, "start_time", time.time())
+            raise RequestTimeoutError(
+                f"Request exceeded {self.SOFT_TIMEOUT}s: {request.method} {request.path} ({duration:.1f}s elapsed)"
+            )
+
+        signal.signal(signal.SIGALRM, handler)
+        signal.alarm(self.SOFT_TIMEOUT)
+
+    def process_response(self, request, response):
+        if threading.current_thread() is threading.main_thread():
+            signal.alarm(0)
         return response
 
 

@@ -14,7 +14,9 @@ from decimal import Decimal
 from uuid import uuid4
 
 from dateutil.parser import parse
+from django.db import connection
 from django.db import IntegrityError
+from django.db import transaction
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
@@ -53,6 +55,7 @@ from reporting.provider.azure.models import (
 from reporting.provider.gcp.models import (
     TRINO_LINE_ITEM_DAILY_TABLE as GCP_TRINO_LINE_ITEM_DAILY_TABLE,
 )
+from reporting.provider.ocp.models import COST_BREAKDOWN_UI_SUMMARY_TABLE
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
@@ -112,7 +115,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "source_uuid": source_uuid,
         }
         for table_name in tables:
-            if table_name == VM_UI_SUMMARY_TABLE:
+            # VM and cost-breakdown are populated outside the standard ui_summary SQL loop.
+            if table_name in (VM_UI_SUMMARY_TABLE, COST_BREAKDOWN_UI_SUMMARY_TABLE):
                 continue
             sql = pkgutil.get_data("masu.database", f"sql/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
@@ -634,32 +638,45 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         )
         LOG.info(log_json(msg=f"finished updating {table_name}", context=ctx))
 
+    def cleanup_ocp_tags_values(self):
+        """Delete reporting_ocptags_values rows absent from label summaries."""
+        sql_params = {"schema": self.schema}
+        LOG.info(log_json(msg="cleaning up orphaned ocp tag values", schema=self.schema))
+        self._execute_processing_script(
+            "masu.database",
+            "sql/openshift/reporting_ocptags_values_cleanup.sql",
+            sql_params,
+        )
+
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
-        OCPUsageLineItemDailySummary.objects.filter(
-            cluster_id=cluster_id,
-            usage_start__gte=start_date,
-            usage_start__lte=end_date,
-        ).update(
-            infrastructure_markup_cost=(
-                (
-                    Coalesce(
-                        F("infrastructure_raw_cost"),
-                        Value(0, output_field=DecimalField()),
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [cluster_id])
+            OCPUsageLineItemDailySummary.objects.filter(
+                cluster_id=cluster_id,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+            ).update(
+                infrastructure_markup_cost=(
+                    (
+                        Coalesce(
+                            F("infrastructure_raw_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
                     )
-                )
-                * markup
-            ),
-            infrastructure_project_markup_cost=(
-                (
-                    Coalesce(
-                        F("infrastructure_project_raw_cost"),
-                        Value(0, output_field=DecimalField()),
+                    * markup
+                ),
+                infrastructure_project_markup_cost=(
+                    (
+                        Coalesce(
+                            F("infrastructure_project_raw_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
                     )
-                )
-                * markup
-            ),
-        )
+                    * markup
+                ),
+            )
 
     def populate_distributed_cost_sql(  # noqa: C901
         self,

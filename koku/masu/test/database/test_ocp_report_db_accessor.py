@@ -2005,6 +2005,65 @@ class OCPReportDBAccessorTest(MasuTestCase):
         # The CASE must fall back to 0 for unmatched models (ELSE 0)
         self.assertIn("ELSE 0", rendered_sql)
 
+    def test_cleanup_ocp_tags_values_removes_orphans_keeps_referenced(self):
+        """COST-7904: orphan tag values deleted; rows still in label summaries kept."""
+        from model_bakery import baker
+
+        from reporting.provider.ocp.models import OCPTagsValues
+        from reporting.provider.ocp.models import OCPUsagePodLabelSummary
+
+        orphan_key = "cost7904_orphan_key"
+        orphan_value = "cost7904_orphan_value"
+        live_key = "cost7904_live_key"
+        live_value = "cost7904_live_value"
+
+        with schema_context(self.schema):
+            OCPTagsValues.objects.filter(key__in=[orphan_key, live_key]).delete()
+            report_period = OCPUsageReportPeriod.objects.filter(provider_id=self.ocp_provider_uuid).first()
+            self.assertIsNotNone(report_period)
+
+            baker.make(
+                OCPTagsValues,
+                key=orphan_key,
+                value=orphan_value,
+                cluster_ids=["cost7904-cluster"],
+                cluster_aliases=["cost7904-alias"],
+                namespaces=["cost7904-ns"],
+                nodes=["cost7904-node"],
+            )
+            baker.make(
+                OCPTagsValues,
+                key=live_key,
+                value=live_value,
+                cluster_ids=["cost7904-cluster"],
+                cluster_aliases=["cost7904-alias"],
+                namespaces=["cost7904-ns"],
+                nodes=["cost7904-node"],
+            )
+            baker.make(
+                OCPUsagePodLabelSummary,
+                key=live_key,
+                values=[live_value],
+                report_period=report_period,
+                namespace="cost7904-ns",
+                node="cost7904-node",
+            )
+
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.cleanup_ocp_tags_values()
+
+        with schema_context(self.schema):
+            self.assertFalse(
+                OCPTagsValues.objects.filter(key=orphan_key, value=orphan_value).exists(),
+                "Orphan tag value should be deleted",
+            )
+            self.assertTrue(
+                OCPTagsValues.objects.filter(key=live_key, value=live_value).exists(),
+                "Referenced tag value should be retained",
+            )
+            OCPUsagePodLabelSummary.objects.filter(key=live_key, namespace="cost7904-ns").delete()
+            OCPTagsValues.objects.filter(key__in=[orphan_key, live_key]).delete()
+
 
 @override_settings(ONPREM=False)
 class OCPReportDBAccessorGPUUITest(MasuTestCase):

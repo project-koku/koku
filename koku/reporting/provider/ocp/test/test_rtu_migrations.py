@@ -10,6 +10,7 @@ from django.db import connection
 from django.db import transaction
 from django.test import TransactionTestCase
 from django_tenants.utils import tenant_context
+from model_bakery import baker
 
 from api.models import Tenant
 from api.provider.models import Provider
@@ -26,7 +27,7 @@ MIGRATE_FROM = ("reporting", "0352_rtu_schema_improvements")
 MIGRATE_TO = ("reporting", "0353_rtu_schema_improvements")
 
 
-def _latest_reporting_migration():
+def _latest_reporting_migration() -> tuple[str, str]:
     """Return the current leaf migration node for the ``reporting`` app.
 
     Deliberately dynamic (rather than hardcoded to 0353) so this suite keeps
@@ -84,7 +85,8 @@ class _RatesToUsageMigrationMixin:
         # TenantAPIProvider/Rate/CostModel classes as "not the right type"
         # when the target field belongs to a different (historical) model
         # version, even though the underlying table/column is identical.
-        return self._rtu_model.objects.create(
+        return baker.make(
+            self._rtu_model,
             rate_id=rate.uuid if rate is not None else None,
             cost_model_id=cost_model.uuid if cost_model is not None else None,
             source_uuid_id=self.ocp_provider_uuid,

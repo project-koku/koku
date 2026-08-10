@@ -246,6 +246,65 @@ class OCPReportDBCleanerTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertFalse(table_exists(self.schema, test_part.table_name))
 
+    @patch("masu.processor.ocp.ocp_report_db_cleaner.execute_delete_sql")
+    @patch("masu.processor.ocp.ocp_report_db_cleaner.cascade_delete")
+    @patch("masu.processor.ocp.ocp_report_db_cleaner.PartitionedTable")
+    @patch("masu.processor.ocp.ocp_report_db_cleaner.OCPReportDBAccessor")
+    def test_purge_by_date_calls_cleanup_ocp_tags_values(self, mock_accessor_cls, mock_pt, mock_cascade, mock_delete):
+        """COST-7904: date-based purge cleans orphan tag values after deletes."""
+        from unittest.mock import MagicMock
+
+        mock_accessor = mock_accessor_cls.return_value.__enter__.return_value
+        mock_qs = MagicMock()
+        mock_qs.__iter__ = MagicMock(return_value=iter([]))
+        mock_qs.query = MagicMock()
+        mock_accessor.get_report_periods_before_date.return_value = mock_qs
+        mock_accessor._table_map = {"line_item_daily_summary": "reporting_ocpusagelineitem_daily_summary"}
+
+        cleaner = OCPReportDBCleaner(self.schema)
+        cleaner.purge_expired_report_data_by_date(datetime.datetime(2020, 1, 1, tzinfo=settings.UTC))
+
+        mock_accessor.cleanup_ocp_tags_values.assert_called_once()
+
+    @patch("masu.processor.ocp.ocp_report_db_cleaner.execute_delete_sql")
+    @patch("masu.processor.ocp.ocp_report_db_cleaner.cascade_delete")
+    @patch("masu.processor.ocp.ocp_report_db_cleaner.PartitionedTable")
+    @patch("masu.processor.ocp.ocp_report_db_cleaner.OCPReportDBAccessor")
+    def test_purge_by_date_simulate_skips_cleanup_ocp_tags_values(
+        self, mock_accessor_cls, mock_pt, mock_cascade, mock_delete
+    ):
+        """COST-7904: simulate purge must not delete orphan tag values."""
+        from unittest.mock import MagicMock
+
+        mock_accessor = mock_accessor_cls.return_value.__enter__.return_value
+        mock_qs = MagicMock()
+        mock_qs.__iter__ = MagicMock(return_value=iter([]))
+        mock_qs.query = MagicMock()
+        mock_accessor.get_report_periods_before_date.return_value = mock_qs
+        mock_accessor._table_map = {"line_item_daily_summary": "reporting_ocpusagelineitem_daily_summary"}
+
+        cleaner = OCPReportDBCleaner(self.schema)
+        cleaner.purge_expired_report_data_by_date(datetime.datetime(2020, 1, 1, tzinfo=settings.UTC), simulate=True)
+
+        mock_accessor.cleanup_ocp_tags_values.assert_not_called()
+
+    @patch("masu.processor.ocp.ocp_report_db_cleaner.cascade_delete")
+    @patch("masu.processor.ocp.ocp_report_db_cleaner.OCPReportDBAccessor")
+    def test_purge_by_provider_calls_cleanup_ocp_tags_values(self, mock_accessor_cls, mock_cascade):
+        """COST-7904: provider purge cleans orphan tag values after deletes."""
+        from unittest.mock import MagicMock
+
+        mock_accessor = mock_accessor_cls.return_value.__enter__.return_value
+        mock_qs = MagicMock()
+        mock_qs.all.return_value = []
+        mock_qs.query = MagicMock()
+        mock_accessor.get_usage_period_query_by_provider.return_value = mock_qs
+
+        cleaner = OCPReportDBCleaner(self.schema)
+        cleaner.purge_expired_report_data(provider_uuid=self.ocp_provider_uuid)
+
+        mock_accessor.cleanup_ocp_tags_values.assert_called_once()
+
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.delete_hive_partition_by_month")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.find_expired_trino_partitions")
     def test_purge_expired_trino_partitions_no_partitions(self, mock_find_partitions, mock_delete):
