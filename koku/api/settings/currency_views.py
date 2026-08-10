@@ -44,6 +44,8 @@ LOG = logging.getLogger(__name__)
 
 def _get_cloud_providers_using_currency(code, customer):
     """Return cloud providers whose billing data uses ``code`` as a base currency."""
+    if not customer or not customer.pk:
+        return []
     aws_uuids = AWSCostSummaryP.objects.filter(currency_code=code).values_list("source_uuid", flat=True).distinct()
     azure_uuids = AzureCostSummaryP.objects.filter(currency=code).values_list("source_uuid", flat=True).distinct()
     gcp_uuids = GCPCostSummaryP.objects.filter(currency=code).values_list("source_uuid", flat=True).distinct()
@@ -54,6 +56,39 @@ def _get_cloud_providers_using_currency(code, customer):
             customer=customer,
         ).values("uuid", "name", "type")
     )
+
+
+def _get_non_disableable_codes(enabled_codes):
+    """Return the set of currency codes that cannot be disabled.
+
+    Uses batched queries — one per blocking criterion — to avoid N+1 when
+    building the currency list in the GET response. Cloud summary queries are
+    scoped to ``enabled_codes`` since is_disableable is only meaningful for
+    currently enabled currencies.
+    """
+    blocked = {KOKU_DEFAULT_CURRENCY}
+
+    account_settings = UserSettings.objects.first()
+    if account_settings and isinstance(account_settings.settings, dict):
+        account_currency = account_settings.settings.get("currency")
+        if account_currency:
+            blocked.add(account_currency)
+
+    blocked |= set(CostModel.objects.values_list("currency", flat=True).distinct())
+    blocked |= set(PriceList.objects.values_list("currency", flat=True).distinct())
+    blocked |= set(
+        AWSCostSummaryP.objects.filter(currency_code__in=enabled_codes)
+        .values_list("currency_code", flat=True)
+        .distinct()
+    )
+    blocked |= set(
+        AzureCostSummaryP.objects.filter(currency__in=enabled_codes).values_list("currency", flat=True).distinct()
+    )
+    blocked |= set(
+        GCPCostSummaryP.objects.filter(currency__in=enabled_codes).values_list("currency", flat=True).distinct()
+    )
+
+    return blocked
 
 
 class CurrencySettingsView(APIView):
@@ -86,12 +121,17 @@ class CurrencySettingsView(APIView):
             all_codes = get_all_iso_currency_codes()
             sorted_codes = sorted(enabled_codes) + sorted(all_codes - enabled_codes)
 
+        only_one_enabled = len(enabled_codes) == 1
+        non_disableable = _get_non_disableable_codes(enabled_codes)
+
         result = []
         for code in sorted_codes:
             info = get_currency_info(code)
-            info["enabled"] = code in enabled_codes
+            is_enabled = code in enabled_codes
+            info["enabled"] = is_enabled
             info["has_dynamic_rate"] = code.lower() in dynamic_codes
             info["static_rates"] = rates_by_base.get(code, [])
+            info["is_disableable"] = is_enabled and not only_one_enabled and code not in non_disableable
             result.append(info)
 
         search_term = request.query_params.get("search", "").strip().upper()

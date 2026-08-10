@@ -39,7 +39,7 @@ and must be updated to call `get_data_retention_months(schema)`:
 | `AWSReportDBCleaner` | `masu/processor/aws/aws_report_db_cleaner.py` | `PartitionedTable` rows + `cascade_delete` bills |
 | `AzureReportDBCleaner` | `masu/processor/azure/azure_report_db_cleaner.py` | Same pattern |
 | `GCPReportDBCleaner` | `masu/processor/gcp/gcp_report_db_cleaner.py` | Same pattern |
-| `OCPReportDBCleaner` | `masu/processor/ocp/ocp_report_db_cleaner.py` | Postgres partitions + `cascade_delete` usage periods + Trino `delete_hive_partition_by_month` |
+| `OCPReportDBCleaner` | `masu/processor/ocp/ocp_report_db_cleaner.py` | Postgres partitions + `cascade_delete` usage periods + `cleanup_ocp_tags_values()` + Trino `delete_hive_partition_by_month` |
 | `ReportManifestDBAccessor` | `masu/database/report_manifest_db_accessor.py` | `purge_expired_report_manifest` / `purge_expired_report_manifest_provider_uuid` |
 
 ### Trino Paths (NOT affected — on-prem does not use Trino)
