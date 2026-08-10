@@ -30,9 +30,19 @@ FORK_REMOTE_ENV = os.environ.get("APP_INTERFACE_FORK_REMOTE", "").strip()
 
 
 def run(cmd, cwd=None, capture=False):
-    result = subprocess.run(cmd, shell=True, cwd=cwd or APP_INTERFACE, capture_output=capture, text=True)
+    """Run a command as an argv list (no shell)."""
+    if isinstance(cmd, str):
+        raise TypeError("run() expects a list of arguments, not a shell string")
+    result = subprocess.run(
+        cmd,
+        shell=False,
+        cwd=cwd or APP_INTERFACE,
+        capture_output=capture,
+        text=True,
+        check=False,
+    )
     if result.returncode != 0:
-        print(f"ERROR running: {cmd}", file=sys.stderr)
+        print(f"ERROR running: {' '.join(cmd)}", file=sys.stderr)
         if capture:
             print(result.stderr, file=sys.stderr)
         sys.exit(1)
@@ -52,7 +62,12 @@ def require_app_interface():
 def resolve_fork_remote() -> str:
     if FORK_REMOTE_ENV:
         result = subprocess.run(
-            f"git remote get-url {FORK_REMOTE_ENV}", shell=True, cwd=APP_INTERFACE, capture_output=True, text=True
+            ["git", "remote", "get-url", FORK_REMOTE_ENV],
+            shell=False,
+            cwd=APP_INTERFACE,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         if result.returncode != 0:
             print(
@@ -62,9 +77,9 @@ def resolve_fork_remote() -> str:
             sys.exit(1)
         return FORK_REMOTE_ENV
 
-    remotes = run("git remote", capture=True) or ""
+    remotes = run(["git", "remote"], capture=True) or ""
     for name in remotes.split():
-        url = run(f"git remote get-url {name}", capture=True) or ""
+        url = run(["git", "remote", "get-url", name], capture=True) or ""
         match = re.search(r"gitlab\.cee\.redhat\.com[:/]([^/]+)/app-interface", url)
         if match and match.group(1) != "service":
             return name
@@ -80,7 +95,7 @@ def resolve_fork_remote() -> str:
 
 
 def fork_mr_new_base_url(remote: str) -> str:
-    url = run(f"git remote get-url {remote}", capture=True) or ""
+    url = run(["git", "remote", "get-url", remote], capture=True) or ""
     match = re.search(r"gitlab\.cee\.redhat\.com[:/]([^/]+)/app-interface", url)
     if not match:
         print(f"ERROR: Could not parse fork URL: {url}", file=sys.stderr)
@@ -154,7 +169,14 @@ def set_prod_ref(content, new_sha):
 
 def git_switch_branch(branch, base="origin/master"):
     print("Fetching latest origin/master (requires VPN)...")
-    result = subprocess.run("git fetch origin", shell=True, cwd=APP_INTERFACE, capture_output=True, text=True)
+    result = subprocess.run(
+        ["git", "fetch", "origin"],
+        shell=False,
+        cwd=APP_INTERFACE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     if result.returncode != 0:
         print("", file=sys.stderr)
         print("ERROR: git fetch origin failed.", file=sys.stderr)
@@ -165,7 +187,7 @@ def git_switch_branch(branch, base="origin/master"):
         print(result.stderr, file=sys.stderr)
         sys.exit(1)
     print("Fetch OK.")
-    run(f"git switch --no-track -c {branch} {base}")
+    run(["git", "switch", "--no-track", "-c", branch, base])
 
 
 def print_section(title):
@@ -206,8 +228,8 @@ def cmd_deploy(args):
     content = read_deploy()
     new_content = set_prod_ref(content, sha)
     write_deploy(new_content, content)
-    run(f"git add {DEPLOY_FILE}")
-    run(f'git commit -m "{commit_msg}"')
+    run(["git", "add", str(DEPLOY_FILE)])
+    run(["git", "commit", "-m", commit_msg])
 
     mr_url = f"{mr_base}?merge_request[source_branch]={branch}" f"&merge_request[title]=hccm:+promote+{short}+to+prod"
 
@@ -289,8 +311,8 @@ def cmd_migration(args):
         new_content = set_field(new_content, "MGMT_INVOCATION", new_inv)
         new_content = set_field(new_content, "MGMT_COMMAND", args.command)
     write_deploy(new_content, content)
-    run(f"git add {DEPLOY_FILE}")
-    run(f'git commit -m "{commit_msg}"')
+    run(["git", "add", str(DEPLOY_FILE)])
+    run(["git", "commit", "-m", commit_msg])
 
     mr_url = (
         f"{mr_base}?merge_request[source_branch]={branch}"

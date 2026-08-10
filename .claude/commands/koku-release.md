@@ -14,7 +14,7 @@ monitoring. If env is missing, explain Prerequisites from the guide and stop.
 ## Hard rules
 
 - No git push / `gh release create` without explicit confirmation.
-- Migration gate absolute before deploy MR.
+- Migration gate is absolute before deploy MR.
 - Never self-approve prod MRs.
 - Confirm QE/blockers before promoting.
 

@@ -28,7 +28,7 @@ for line in content.splitlines():
     if 'hccm-prod.yml' in line:
         in_prod = True
         continue
-    if in_prod and line.strip().startswith('ref:') and '\$ref' not in line:
+    if in_prod and line.strip().startswith('ref:') and '$ref' not in line:
         print(line.split('ref:')[1].strip())
         break
 PYEOF
