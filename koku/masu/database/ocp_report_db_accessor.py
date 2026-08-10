@@ -128,6 +128,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params["month"] = start_date.strftime("%m")
 
         self._populate_gpu_ui_summary_table_with_usage_only(sql_params)
+        if COST_BREAKDOWN_UI_SUMMARY_TABLE in tables:
+            self._populate_cost_breakdown_ui_summary_table(sql_params)
         if summary_range.summarize_previous_month and not summary_range.is_current_month:
             # Don't resummarize virtualization UI table if we are summarizing previous month
             return
@@ -208,6 +210,24 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         else:
             # SaaS: execute via Trino
             self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
+
+    def _populate_cost_breakdown_ui_summary_table(self, params):
+        """Populate the OCP cost-breakdown UI summary table from rates_to_usage.
+
+        Unlike the other tables in the standard ui_summary loop, this is a
+        multi-statement script (six sequential DELETE/INSERT steps that build
+        the breakdown tree bottom-up), so it must run through
+        _execute_processing_script rather than the single-statement
+        _prepare_and_execute_raw_sql_query used by the loop. This SQL reads
+        only from rates_to_usage and reporting_ocpusagelineitem_daily_summary
+        (both PostgreSQL-native), so it runs identically on-prem and in SaaS.
+        """
+        sql_params = copy.deepcopy(params)
+        self._execute_processing_script(
+            "masu.database",
+            f"sql/openshift/ui_summary/{COST_BREAKDOWN_UI_SUMMARY_TABLE}.sql",
+            sql_params,
+        )
 
     def _reporting_period_has_gpu_data(self, source_uuid: uuid.UUID, start_date) -> bool:
         """
