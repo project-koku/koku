@@ -24,7 +24,7 @@ from cost_models.rate_sync import derive_metric_type  # noqa: F401 — back-comp
 from cost_models.rate_sync import extract_default_rate  # noqa: F401
 from cost_models.rate_sync import generate_custom_name  # noqa: F401
 from cost_models.rate_sync import sync_rate_table
-from masu.processor.tasks import update_cost_model_costs
+from masu.processor.tasks import delayed_update_cost_model_costs
 from masu.util.ocp.operator_versions import LATEST_OPERATOR_VERSION
 from reporting_common.models import CostUsageReportManifest
 
@@ -128,9 +128,7 @@ class CostModelManager:
 
             def _dispatch():
                 for schema_name, p_uuid, start, end, tid, queue in deferred_tasks:
-                    update_cost_model_costs.s(schema_name, p_uuid, start, end, tracing_id=tid, queue_name=queue).set(
-                        queue=queue
-                    ).apply_async()
+                    delayed_update_cost_model_costs(schema_name, p_uuid, start, end, queue_name=queue, tracing_id=tid)
 
             transaction.on_commit(_dispatch)
 

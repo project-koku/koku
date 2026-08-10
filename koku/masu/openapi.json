@@ -785,7 +785,7 @@
         "/update_cost_model_costs/": {
             "get": {
                 "operationId": "update_cost_model_costs_list",
-                "description": "Update report summary tables in the database.",
+                "description": "Update report summary tables in the database. When delayed=true, cost-model updates are coalesced via DelayedCeleryTasks and the response returns a tracing_id instead of Celery task IDs.",
                 "parameters": [
                     {
                         "name": "provider_uuid",
@@ -806,6 +806,17 @@
                         "schema": {
                             "type": "string",
                             "example": "acct12345"
+                        }
+                    },
+                    {
+                        "name": "delayed",
+                        "in": "query",
+                        "description": "When true, debounce via DelayedCeleryTasks (delayed_update_cost_model_costs) instead of enqueueing Celery tasks immediately. Response returns a tracing_id.",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false,
+                            "example": true
                         }
                     }
                 ],
@@ -2779,8 +2790,19 @@
                 "type": "object",
                 "properties": {
                     "Update Cost Model Cost Task ID": {
+                        "type": "array",
+                        "description": "Returned for the immediate (default) path. One Celery task ID entry per month.",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "Update Cost Model Cost Tracing ID": {
                         "type": "string",
                         "format": "uuid",
+                        "description": "Returned when delayed=true. Shared tracing_id stored on DelayedCeleryTasks rows.",
                         "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
                     }
                 }
