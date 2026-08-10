@@ -716,12 +716,8 @@ class TestGPUUnallocatedDistributionRTU(_ReportPeriodMixin, MasuTestCase):
                 monthly_cost_type="Tag",
                 cost_model_id=self.cost_model_id,
             )
-            RatesToUsage.objects.create(
-                all_labels={"gpu-model": "A100"}, calculated_cost=Decimal("30.00"), **common
-            )
-            RatesToUsage.objects.create(
-                all_labels={"gpu-model": "H100"}, calculated_cost=Decimal("70.00"), **common
-            )
+            RatesToUsage.objects.create(all_labels={"gpu-model": "A100"}, calculated_cost=Decimal("30.00"), **common)
+            RatesToUsage.objects.create(all_labels={"gpu-model": "H100"}, calculated_cost=Decimal("70.00"), **common)
 
     def _seed_gpu_usage_rows(self):
         """Seed usage: A100 used only by proj-a; H100 split 10%/90% proj-a/proj-b."""
@@ -798,9 +794,9 @@ class TestGPUUnallocatedDistributionRTU(_ReportPeriodMixin, MasuTestCase):
             # proj-a: 100% of A100 ($30) + 10% of H100 ($7) = $37
             # proj-b: 90% of H100 ($63)
             by_namespace = dict(
-                recipient_rows.values("namespace").annotate(total=Sum("distributed_cost")).values_list(
-                    "namespace", "total"
-                )
+                recipient_rows.values("namespace")
+                .annotate(total=Sum("distributed_cost"))
+                .values_list("namespace", "total")
             )
             self.assertAlmostEqual(float(by_namespace.get("proj-a", 0)), 37.0, places=2)
             self.assertAlmostEqual(float(by_namespace.get("proj-b", 0)), 63.0, places=2)
