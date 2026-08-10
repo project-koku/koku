@@ -20,6 +20,7 @@ from django.db.models import Q
 from django.db.models import Sum
 from django_tenants.utils import schema_context
 
+from api.metrics import constants as metric_constants
 from api.utils import DateHelper
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
@@ -29,6 +30,7 @@ from reporting.provider.ocp.models import OCPCostUIBreakDownP
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import RatesToUsage
+from reporting.provider.ocp.self_hosted_models import OCPGPUUsageLineItemDaily
 
 TOLERANCE = Decimal("0.01")
 
@@ -634,6 +636,189 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                 null_cm_rows.count(),
                 0,
                 f"Distribution rows with NULL cost_model_id found for types: {null_types}",
+            )
+
+
+class TestGPUUnallocatedDistributionRTU(_ReportPeriodMixin, MasuTestCase):
+    """Regression test: GPU unallocated cost distribution for multi-model nodes.
+
+    ``gpu_rtu_cost`` in distribute_unallocated_gpu_cost_rtu.sql previously grouped
+    by node only (not GPU model), collapsing a multi-model node's per-model costs
+    into a single total. That total was then re-applied in full once per model
+    via a cross join through a separate ``gpu_model_map`` CTE and a MAX(...)
+    aggregate, over-distributing cost to real namespaces and leaving an incorrect
+    non-zero residual on the internal "GPU unallocated" accounting bucket instead
+    of netting to zero. The fix groups gpu_rtu_cost by gpu-model up front and
+    sums (rather than takes the max of) each namespace's per-model contributions.
+    """
+
+    NODE = "gpu-node-cost-breakdown-test"
+
+    def setUp(self):
+        super().setUp()
+        self.dh = DateHelper()
+        self.provider_uuid = self.ocp_provider.uuid
+
+        # GPU distribution requires a full month and only runs for the *previous*
+        # month (either via the day-2 safety-net trigger or, as here, the natural
+        # trigger when previous-month data is processed directly -- see
+        # populate_distributed_cost_sql's requires_full_month gate). Using the
+        # latest (current-month) report period from _get_report_period() would be
+        # silently skipped by that gate on any day other than the 2nd. Anchor this
+        # test to last month explicitly so it is deterministic regardless of
+        # which day it runs on.
+        current_rp = self._get_report_period()
+        last_month_start = self.dh.last_month_start
+        last_month_end = self.dh.month_end(last_month_start)
+        with schema_context(self.schema):
+            self.rp, _ = OCPUsageReportPeriod.objects.get_or_create(
+                cluster_id=current_rp.cluster_id,
+                report_period_start=last_month_start,
+                provider_id=self.provider_uuid,
+                defaults={"cluster_alias": current_rp.cluster_alias, "report_period_end": last_month_end},
+            )
+        self.start_date = last_month_start.date() if hasattr(last_month_start, "date") else last_month_start
+        self.end_date = last_month_end.date() if hasattr(last_month_end, "date") else last_month_end
+        self.usage_start = self.start_date
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        self.cost_model_id = updater._cost_model_id
+        if not self.cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+
+    def _seed_gpu_rtu_source_rows(self):
+        """Seed per-model GPU-unallocated RTU rows, matching monthly_cost_gpu_rtu.sql output.
+
+        That template groups by (node, gpu_model_name) and writes one row per
+        model with its own calculated_cost and all_labels->>'gpu-model' -- this
+        mirrors that shape directly rather than running the full monthly-cost
+        pipeline, since the RTU distribution SQL under test only cares about
+        rows already in this shape.
+        """
+        with schema_context(self.schema):
+            RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid, usage_start=self.usage_start, node=self.NODE
+            ).delete()
+            common = dict(
+                report_period_id=self.rp.id,
+                source_uuid_id=self.provider_uuid,
+                usage_start=self.usage_start,
+                usage_end=self.usage_start,
+                node=self.NODE,
+                namespace="GPU unallocated",
+                cluster_id=self.ocp_cluster_id,
+                cluster_alias=self.ocp_cluster_id,
+                custom_name="GPU unallocated cost",
+                # "gpu" matches OCPReportDBAccessor._get_routing_metric_type()'s output for
+                # any GPU-related metric name -- the real value monthly_cost_gpu_rtu.sql writes.
+                metric_type="gpu",
+                cost_model_rate_type="Infrastructure",
+                monthly_cost_type="Tag",
+                cost_model_id=self.cost_model_id,
+            )
+            RatesToUsage.objects.create(
+                all_labels={"gpu-model": "A100"}, calculated_cost=Decimal("30.00"), **common
+            )
+            RatesToUsage.objects.create(
+                all_labels={"gpu-model": "H100"}, calculated_cost=Decimal("70.00"), **common
+            )
+
+    def _seed_gpu_usage_rows(self):
+        """Seed usage: A100 used only by proj-a; H100 split 10%/90% proj-a/proj-b."""
+        with schema_context(self.schema):
+            OCPGPUUsageLineItemDaily.objects.filter(
+                source=str(self.provider_uuid), usage_start=self.usage_start, node=self.NODE
+            ).delete()
+            year = self.usage_start.strftime("%Y")
+            month = self.usage_start.strftime("%m")
+            for model, namespace, uptime in (
+                ("A100", "proj-a", 10),
+                ("H100", "proj-a", 10),
+                ("H100", "proj-b", 90),
+            ):
+                OCPGPUUsageLineItemDaily.objects.create(
+                    source=str(self.provider_uuid),
+                    year=year,
+                    month=month,
+                    usage_start=self.usage_start,
+                    node=self.NODE,
+                    namespace=namespace,
+                    gpu_model_name=model,
+                    gpu_pod_uptime=uptime,
+                    mig_slice_count=1,
+                )
+
+    def _run_gpu_distribution(self):
+        summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
+        distribution_info = {"distribution_type": "cpu", metric_constants.GPU_UNALLOCATED: True}
+        with patch(
+            "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data",
+            return_value=True,
+        ):
+            with OCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_distributed_cost_sql(
+                    summary_range,
+                    self.provider_uuid,
+                    distribution_info,
+                    cost_model_id=self.cost_model_id,
+                    use_rtu=True,
+                )
+
+    def test_multi_model_node_distributes_exact_source_cost(self):
+        """A multi-GPU-model node must distribute exactly its total source cost.
+
+        Total source cost across both models is $100 (A100=$30, H100=$70). The
+        pre-fix SQL distributed $190 -- the combined $100 re-applied in full for
+        each of the 2 models -- and left a -$90 residual on "GPU unallocated"
+        instead of $0. The fix must distribute exactly $100, split proportionally
+        per model per namespace, and leave the source bucket at exactly $0.
+        """
+        self._seed_gpu_rtu_source_rows()
+        self._seed_gpu_usage_rows()
+        self._run_gpu_distribution()
+
+        with schema_context(self.schema):
+            recipient_rows = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start=self.usage_start,
+                node=self.NODE,
+                monthly_cost_type="gpu_distributed",
+            ).exclude(namespace="GPU unallocated")
+            if not recipient_rows.exists():
+                self.fail("Expected gpu_distributed recipient rows were not created")
+
+            total_distributed = recipient_rows.aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+            self.assertAlmostEqual(
+                float(total_distributed),
+                100.0,
+                places=2,
+                msg=f"GPU distribution must conserve total source cost ($100), got ${total_distributed}",
+            )
+
+            # proj-a: 100% of A100 ($30) + 10% of H100 ($7) = $37
+            # proj-b: 90% of H100 ($63)
+            by_namespace = dict(
+                recipient_rows.values("namespace").annotate(total=Sum("distributed_cost")).values_list(
+                    "namespace", "total"
+                )
+            )
+            self.assertAlmostEqual(float(by_namespace.get("proj-a", 0)), 37.0, places=2)
+            self.assertAlmostEqual(float(by_namespace.get("proj-b", 0)), 63.0, places=2)
+
+            # The internal "GPU unallocated" bucket must net to zero: source cost
+            # fully moved out to real namespaces, none left over- or under-negated.
+            source_and_negation = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start=self.usage_start,
+                node=self.NODE,
+                namespace="GPU unallocated",
+            ).values_list("calculated_cost", "distributed_cost")
+            net_balance = sum((c or Decimal(0)) + (d or Decimal(0)) for c, d in source_and_negation)
+            self.assertAlmostEqual(
+                float(net_balance),
+                0.0,
+                places=2,
+                msg=f"GPU unallocated bucket must net to zero after distribution, got {net_balance}",
             )
 
 

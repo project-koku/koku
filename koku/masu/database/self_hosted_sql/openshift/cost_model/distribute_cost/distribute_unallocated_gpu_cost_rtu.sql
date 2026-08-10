@@ -16,6 +16,7 @@ WITH gpu_rtu_cost AS (
         rtu.cluster_alias,
         rtu.report_period_id,
         rtu.node,
+        rtu.all_labels->>'gpu-model' AS gpu_model,
         rtu.custom_name,
         rtu.metric_type,
         rtu.cost_model_rate_type,
@@ -29,22 +30,13 @@ WITH gpu_rtu_cost AS (
             'worker_distributed', 'platform_distributed', 'gpu_distributed',
             'unattributed_storage', 'unattributed_network'
         ))
+    -- Grouping by gpu-model keeps each model's cost isolated so it is only
+    -- distributed among the usage rows for that same model (see namespace_usage_information).
+    -- Without this, a node with multiple GPU models would have its combined cost
+    -- re-applied in full once per model, over-distributing to real namespaces.
     GROUP BY rtu.usage_start, rtu.source_uuid, rtu.cluster_id, rtu.cluster_alias,
-             rtu.report_period_id, rtu.node,
+             rtu.report_period_id, rtu.node, rtu.all_labels->>'gpu-model',
              rtu.custom_name, rtu.metric_type, rtu.cost_model_rate_type
-),
-gpu_model_map AS (
-    SELECT
-        node,
-        all_labels->>'gpu-model' AS gpu_model,
-        usage_start
-    FROM {{schema | sqlsafe}}.rates_to_usage
-    WHERE namespace = 'GPU unallocated'
-      AND usage_start >= DATE({{start_date}})
-      AND usage_start <= DATE({{end_date}})
-      AND source_uuid = {{source_uuid}}::uuid
-      AND metric_type = 'gpu'
-    GROUP BY node, all_labels->>'gpu-model', usage_start
 ),
 namespace_usage_information AS (
     SELECT gpu_model_name,
@@ -53,7 +45,7 @@ namespace_usage_information AS (
         SUM(gpu_pod_uptime * COALESCE(gpu_usage.mig_slice_count, 1)) AS pod_usage_slice_hours,
         gpu_usage.usage_start
     FROM {{schema | sqlsafe}}.openshift_gpu_usage_line_items_daily AS gpu_usage
-    WHERE source = {{source_uuid}}
+    WHERE source = {{source_uuid | string}}
       AND year = {{year}}
       AND month = {{month}}
       AND gpu_usage.usage_start >= DATE({{start_date}})
@@ -80,14 +72,14 @@ SELECT
     gc.metric_type,
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    MAX(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost),
+    -- SUM (not MAX): a namespace can have usage on more than one GPU model on the
+    -- same node, and each model's contribution must accumulate into one output row.
+    SUM(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost),
     {{cost_model_id}}::uuid
 FROM gpu_rtu_cost gc
-JOIN gpu_model_map gm
-    ON gm.node = gc.node AND gm.usage_start = gc.usage_start
 JOIN namespace_usage_information nsp
     ON nsp.node = gc.node
-    AND nsp.gpu_model_name = gm.gpu_model
+    AND nsp.gpu_model_name = gc.gpu_model
     AND nsp.usage_start = gc.usage_start
 JOIN total_usage tu
     ON tu.node = nsp.node
@@ -95,7 +87,7 @@ JOIN total_usage tu
     AND tu.usage_start = nsp.usage_start
 GROUP BY nsp.usage_start, nsp.node, nsp.namespace,
          gc.source_uuid, gc.custom_name, gc.metric_type, gc.cost_model_rate_type
-HAVING MAX(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost) != 0;
+HAVING SUM(nsp.pod_usage_slice_hours / NULLIF(tu.total_slice_hours, 0) * gc.rate_cost) != 0;
 
 -- Negate source: derive negation from the distributed output rows just inserted.
 -- Sums distributed_cost of gpu_distributed rows and inserts exact negative,
