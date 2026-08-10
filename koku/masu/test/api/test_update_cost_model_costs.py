@@ -119,3 +119,26 @@ class UpdateCostModelCostTest(MasuTestCase):
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
         mock_update.delay.assert_not_called()
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.update_cost_model_costs.delayed_update_cost_model_costs")
+    @patch("masu.api.update_cost_model_costs.cost_task")
+    def test_get_update_cost_model_costs_delayed(self, mock_update, mock_delayed, _):
+        """Test delayed=true uses DelayedCeleryTasks and returns a tracing_id."""
+        params = {
+            "schema": self.schema,
+            "provider_uuid": self.ocp_provider_uuid,
+            "delayed": "true",
+        }
+        expected_key = "Update Cost Model Cost Tracing ID"
+
+        response = self.client.get(reverse("update_cost_model_costs"), params)
+        body = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(expected_key, body)
+        self.assertIsNotNone(body[expected_key])
+        mock_update.s.assert_not_called()
+        mock_delayed.assert_called()
+        _, kwargs = mock_delayed.call_args
+        self.assertEqual(kwargs.get("tracing_id"), body[expected_key])

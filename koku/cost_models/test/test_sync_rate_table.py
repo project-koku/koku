@@ -38,7 +38,7 @@ class SyncRateTableTest(IamTestCase):
             "rates": rates,
         }
         manager = CostModelManager()
-        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+        with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
             return manager.create(**data)
 
     def test_create_populates_rate_rows(self):
@@ -190,7 +190,7 @@ class SyncRateTableTest(IamTestCase):
                     "cost_type": "Supplementary",
                 }
             ]
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=new_rates)
             mapping = PriceListCostModelMap.objects.get(cost_model=cm)
             self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 2)
@@ -212,7 +212,7 @@ class SyncRateTableTest(IamTestCase):
             ]
             cm = self._create_cost_model(rates)
             manager = CostModelManager(cost_model_uuid=cm.uuid)
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=[rates[0]])
             mapping = PriceListCostModelMap.objects.get(cost_model=cm)
             self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 1)
@@ -242,7 +242,7 @@ class SyncRateTableTest(IamTestCase):
                 }
             ]
             manager = CostModelManager(cost_model_uuid=cm.uuid)
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=updated_rates)
             rate = Rate.objects.get(price_list=mapping.price_list)
             self.assertEqual(rate.uuid, original_uuid)
@@ -260,7 +260,7 @@ class SyncRateTableTest(IamTestCase):
             ]
             cm = self._create_cost_model(rates)
             manager = CostModelManager(cost_model_uuid=cm.uuid)
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(
                     rates=[
                         {
@@ -283,7 +283,7 @@ class SyncRateTableTest(IamTestCase):
                 "rates": [],
             }
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 cm = manager.create(**data)
             self.assertFalse(PriceListCostModelMap.objects.filter(cost_model=cm).exists())
 
@@ -302,7 +302,7 @@ class SyncRateTableTest(IamTestCase):
             self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 1)
 
             manager = CostModelManager(cost_model_uuid=cm.uuid)
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=[])
             self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 0)
 
@@ -343,7 +343,7 @@ class SyncRateTableTest(IamTestCase):
                     "rate_id": fake_uuid,
                 }
             ]
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=updated_rates)
             mapping = PriceListCostModelMap.objects.get(cost_model=cm)
             self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 1)
@@ -373,7 +373,7 @@ class SyncRateTableTest(IamTestCase):
                     "custom_name": "renamed-rate",
                 }
             ]
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=updated_rates)
             rate = Rate.objects.get(price_list=mapping.price_list)
             self.assertEqual(rate.uuid, original_uuid)
@@ -415,7 +415,7 @@ class SyncRateTableTest(IamTestCase):
                     "cost_type": "Supplementary",
                 },
             ]
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=updated_rates)
             rate = Rate.objects.get(uuid=cpu_rate.uuid)
             self.assertEqual(rate.uuid, cpu_rate.uuid)
@@ -448,7 +448,7 @@ class SyncRateTableTest(IamTestCase):
                     "custom_name": original_rate.custom_name,
                 }
             ]
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=updated_rates)
             rate = Rate.objects.get(price_list=mapping.price_list)
             self.assertEqual(rate.uuid, original_rate.uuid)
@@ -483,7 +483,7 @@ class SyncRateTableTest(IamTestCase):
                     "custom_name": original_rate.custom_name,
                 }
             ]
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=updated_rates)
             rate = Rate.objects.get(price_list=mapping.price_list)
             self.assertEqual(rate.uuid, original_uuid)
