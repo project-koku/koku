@@ -650,7 +650,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
 
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
-        with transaction.atomic():
+        with schema_context(self.schema), transaction.atomic():
             with connection.cursor() as cursor:
                 cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [cluster_id])
             OCPUsageLineItemDailySummary.objects.filter(
@@ -839,7 +839,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 metric_constants.NETWORK_UNATTRIBUTED,
                 metric_constants.STORAGE_UNATTRIBUTED,
             ):
-                sql_params["infra_to_cm_rate"] = float(infra_to_cm_rate)
+                sql_params["infra_to_cm_rate"] = infra_to_cm_rate
                 sql_params["cost_model_currency"] = cost_model_currency
             sql = pkgutil.get_data("masu.database", config.get_full_path())
             sql = sql.decode("utf-8")

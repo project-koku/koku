@@ -1572,15 +1572,15 @@ class TestPriceListValidityGuard(_ReportPeriodMixin, MasuTestCase):
         sr = self._make_summary_range()
         updater.update_summary_cost_model_costs(sr)
 
-        mock_cleanup.assert_called()
+        mock_cleanup.assert_called_once_with(sr.start_date, sr.end_date)
         mock_rtu.assert_not_called()
-        mock_dist.assert_called()
-        mock_vm.assert_called()
-        mock_monthly.assert_called()
+        mock_dist.assert_called_once_with(sr, use_rtu=True)
+        mock_vm.assert_called_once_with(sr.start_date, sr.end_date, use_rtu=True)
+        mock_monthly.assert_called_once_with(sr.start_date, sr.end_date, use_rtu=True)
         # Markup runs unconditionally regardless of price-list effective dates --
         # it uses its own CostModelDBAccessor(price_list_effective_on=None) and is
         # independent of whether tiered/tag rates have coverage for this month.
-        mock_markup.assert_called()
+        mock_markup.assert_called_once_with(sr.start_date, sr.end_date, use_rtu=True)
 
     # TC-7492-02: RTU still called when price_list_effective_on is None (feature flag disabled)
     @_make_orchestration_patches(rtu_enabled=True)

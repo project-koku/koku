@@ -62,7 +62,6 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_network_summary_by_node_p",
     "reporting_ocp_network_summary_by_project_p",
     "reporting_ocp_gpu_summary_p",
-    "reporting_ocp_cost_breakdown_p",
     VM_UI_SUMMARY_TABLE,
     COST_BREAKDOWN_UI_SUMMARY_TABLE,
 )
