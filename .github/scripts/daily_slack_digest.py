@@ -22,6 +22,9 @@ FORCE_RUN = os.environ.get("FORCE_RUN", "").lower() in {"1", "true", "yes"}
 
 TIMEZONE = ZoneInfo("Europe/Lisbon")
 POST_HOUR = 7
+# GitHub schedule jobs are often delayed; accept the next Lisbon hour too so a
+# late 06:00 UTC fire (or the 07:00 UTC backup) still posts during DST.
+POST_HOUR_LATE = POST_HOUR + 1
 
 JIRA_PROJECT = "COST"
 # Cost Management Dev Board — counts must use this board, not project-wide status.
@@ -75,7 +78,7 @@ def should_run() -> bool:
     if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
         return True
     if os.environ.get("GITHUB_EVENT_NAME") == "schedule":
-        return lisbon_now().hour == POST_HOUR
+        return lisbon_now().hour in {POST_HOUR, POST_HOUR_LATE}
     return True
 
 
@@ -264,7 +267,7 @@ def post_slack(text: str) -> None:
 
 def main() -> None:
     if not should_run():
-        print(f"Skipping: Lisbon hour is {lisbon_now().hour}, want {POST_HOUR}")
+        print(f"Skipping: Lisbon hour is {lisbon_now().hour}, " f"want {POST_HOUR} or {POST_HOUR_LATE}")
         return
 
     missing = [

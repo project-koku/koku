@@ -4,7 +4,7 @@ on:
   schedule:
     # Weekdays only. GitHub cron is UTC-only, so fire at 06:00 and 07:00 UTC
     # to cover Lisbon 07:00 in both WEST (UTC+0) and WEST DST (UTC+1).
-    # The script posts only when Europe/Lisbon local hour is 7 (one Slack message).
+    # The script posts when Europe/Lisbon local hour is 7 or 8 (GH delays).
     - cron: "0 6,7 * * 1-5"
   workflow_dispatch:
 
