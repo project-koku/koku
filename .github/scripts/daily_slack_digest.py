@@ -10,6 +10,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 JIRA_BASE_URL = os.environ.get("JIRA_BASE_URL", "https://redhat.atlassian.net").rstrip("/")
@@ -21,7 +22,12 @@ DRY_RUN = os.environ.get("DRY_RUN", "").lower() in {"1", "true", "yes"}
 FORCE_RUN = os.environ.get("FORCE_RUN", "").lower() in {"1", "true", "yes"}
 
 TIMEZONE = ZoneInfo("Europe/Lisbon")
-POST_HOUR = 7
+# GitHub schedule jobs are often delayed; accept 7 and 8 Lisbon so a late
+# 06:00 UTC fire (or the 07:00 UTC backup) still posts during DST.
+# Dedup is via DIGEST_POSTED_MARKER (Actions cache) so both crons cannot
+# double-post on the same Lisbon calendar day.
+ACCEPTED_HOURS = frozenset({7, 8})
+DIGEST_POSTED_MARKER = Path(os.environ.get("DIGEST_POSTED_MARKER", ".digest-posted"))
 
 JIRA_PROJECT = "COST"
 # Cost Management Dev Board — counts must use this board, not project-wide status.
@@ -69,14 +75,22 @@ def lisbon_now() -> datetime:
     return datetime.now(tz=TIMEZONE)
 
 
-def should_run() -> bool:
+def should_run(hour: int) -> bool:
     if FORCE_RUN:
         return True
     if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
         return True
     if os.environ.get("GITHUB_EVENT_NAME") == "schedule":
-        return lisbon_now().hour == POST_HOUR
+        return hour in ACCEPTED_HOURS
     return True
+
+
+def already_posted_today() -> bool:
+    return DIGEST_POSTED_MARKER.is_file()
+
+
+def mark_posted_today() -> None:
+    DIGEST_POSTED_MARKER.write_text(f"{lisbon_now().isoformat()}\n", encoding="utf-8")
 
 
 def request_json(
@@ -263,8 +277,15 @@ def post_slack(text: str) -> None:
 
 
 def main() -> None:
-    if not should_run():
-        print(f"Skipping: Lisbon hour is {lisbon_now().hour}, want {POST_HOUR}")
+    now = lisbon_now()
+    if not should_run(now.hour):
+        accepted = ", ".join(str(h) for h in sorted(ACCEPTED_HOURS))
+        print(f"Skipping: Lisbon hour is {now.hour}, want {accepted}")
+        return
+
+    # Schedule-only: Actions cache restores this marker after a successful post.
+    if os.environ.get("GITHUB_EVENT_NAME") == "schedule" and already_posted_today():
+        print(f"Skipping: digest already posted for {now.date().isoformat()}")
         return
 
     missing = [
@@ -300,6 +321,8 @@ def main() -> None:
 
     print("Posting to Slack…")
     post_slack(message)
+    if os.environ.get("GITHUB_EVENT_NAME") == "schedule":
+        mark_posted_today()
     print("Done.")
 
 
