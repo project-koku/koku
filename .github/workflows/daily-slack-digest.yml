@@ -4,11 +4,12 @@ on:
   schedule:
     # Weekdays only. GitHub cron is UTC-only, so fire at 06:00 and 07:00 UTC
     # to cover Lisbon 07:00 in both WEST (UTC+0) and WEST DST (UTC+1).
-    # The script posts only when Europe/Lisbon local hour is 7 (one Slack message).
+    # The script posts when Europe/Lisbon local hour is 7 or 8 (GH delays).
     - cron: "0 6,7 * * 1-5"
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: read
   pull-requests: read
 
@@ -16,6 +17,10 @@ jobs:
   digest:
     name: Post digest
     runs-on: ubuntu-latest
+    # Serialize schedule slots so the second cron sees today's cache marker.
+    concurrency:
+      group: daily-slack-digest
+      cancel-in-progress: false
 
     steps:
       - name: Harden Runner
@@ -31,6 +36,18 @@ jobs:
         with:
           python-version: "3.12"
 
+      # One Slack post per Lisbon calendar day across the 06:00 and 07:00 UTC crons.
+      - name: Lisbon date
+        id: lisbon
+        run: echo "date=$(TZ=Europe/Lisbon date +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore today's post marker
+        if: github.event_name == 'schedule'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .digest-posted
+          key: daily-slack-digest-${{ steps.lisbon.outputs.date }}
+
       - name: Post daily digest
         env:
           JIRA_BASE_URL: https://redhat.atlassian.net
@@ -40,5 +57,6 @@ jobs:
           DIGEST_JIRA_ACCOUNT_IDS: ${{ secrets.DIGEST_JIRA_ACCOUNT_IDS }}
           DIGEST_GITHUB_LOGINS: ${{ secrets.DIGEST_GITHUB_LOGINS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DIGEST_POSTED_MARKER: .digest-posted
           FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
         run: python3 .github/scripts/daily_slack_digest.py
