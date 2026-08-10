@@ -48,6 +48,9 @@ UI_SUMMARY_TABLES_MARKUP_SUBSET = (
 # Populated via _populate_virtualization_ui_summary_table(), not the standard UI summary loop.
 VM_UI_SUMMARY_TABLE = "reporting_ocp_vm_summary_p"
 
+# Partition create/cleanup via UI_SUMMARY_TABLES; populated by Phase 4 breakdown SQL (not the standard loop).
+COST_BREAKDOWN_UI_SUMMARY_TABLE = "reporting_ocp_cost_breakdown_p"
+
 UI_SUMMARY_TABLES = (
     *UI_SUMMARY_TABLES_MARKUP_SUBSET,
     "reporting_ocp_pod_summary_p",
@@ -60,6 +63,7 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_network_summary_by_project_p",
     "reporting_ocp_gpu_summary_p",
     VM_UI_SUMMARY_TABLE,
+    COST_BREAKDOWN_UI_SUMMARY_TABLE,
 )
 
 
