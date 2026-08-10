@@ -18,6 +18,7 @@ from unittest.mock import patch
 
 from django.db.models import Q
 from django.db.models import Sum
+from django.test import override_settings
 from django_tenants.utils import schema_context
 
 from api.metrics import constants as metric_constants
@@ -747,18 +748,56 @@ class TestGPUUnallocatedDistributionRTU(_ReportPeriodMixin, MasuTestCase):
     def _run_gpu_distribution(self):
         summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
         distribution_info = {"distribution_type": "cpu", metric_constants.GPU_UNALLOCATED: True}
-        with patch(
-            "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data",
-            return_value=True,
+        with (
+            patch(
+                "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._reporting_period_has_gpu_data",
+                return_value=True,
+            ),
+            # gpu_distributed's DistributionConfig has query_type="trino", so
+            # populate_distributed_cost_sql checks table existence via Trino
+            # before executing. Mock it so unit tests never hit a real Trino
+            # endpoint (this passed under ONPREM=True on helios08 only because
+            # a live Trino cluster happened to be reachable there; the default
+            # CI test config has none).
+            patch("masu.util.ocp.common.trino_table_exists", return_value=True),
+            # Force ONPREM so DistributionConfig.get_full_path() selects the
+            # self_hosted_sql/ (pure PostgreSQL) template under test -- the one
+            # this regression covers -- instead of the Trino-flavored trino_sql/
+            # template.
+            override_settings(ONPREM=True),
         ):
             with OCPReportDBAccessor(self.schema) as accessor:
-                accessor.populate_distributed_cost_sql(
-                    summary_range,
-                    self.provider_uuid,
-                    distribution_info,
-                    cost_model_id=self.cost_model_id,
-                    use_rtu=True,
-                )
+
+                def _execute_self_hosted_sql_via_postgres(sql, bind_params=None):
+                    # gpu_distributed's DistributionConfig.is_trino is hardcoded True
+                    # (pre-existing, unrelated to this fix -- confirmed present on
+                    # upstream/main), so populate_distributed_cost_sql always routes
+                    # execution through _execute_trino_multipart_sql_query even when
+                    # ONPREM has selected the PostgreSQL-only self_hosted_sql template.
+                    # Since that template is plain PostgreSQL, render and run it
+                    # directly against the real test database -- the same mechanism
+                    # _prepare_and_execute_raw_sql_query already uses for every other
+                    # PostgreSQL-path distribution -- instead of requiring a live
+                    # Trino cluster in unit tests.
+                    accessor._prepare_and_execute_raw_sql_query(
+                        accessor._table_map["line_item_daily_summary"],
+                        sql,
+                        bind_params,
+                        operation="INSERT: gpu_distributed (test)",
+                    )
+
+                with patch.object(
+                    accessor,
+                    "_execute_trino_multipart_sql_query",
+                    side_effect=_execute_self_hosted_sql_via_postgres,
+                ):
+                    accessor.populate_distributed_cost_sql(
+                        summary_range,
+                        self.provider_uuid,
+                        distribution_info,
+                        cost_model_id=self.cost_model_id,
+                        use_rtu=True,
+                    )
 
     def test_multi_model_node_distributes_exact_source_cost(self):
         """A multi-GPU-model node must distribute exactly its total source cost.
