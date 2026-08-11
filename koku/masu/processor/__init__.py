@@ -110,9 +110,9 @@ def is_customer_penalty(schema):  # pragma: no cover
 
 
 def is_celery_task_delay_disabled(schema):  # pragma: no cover
-    """Disable DelayedCeleryTasks wait so the task fires immediately (like QE_SCHEMA)."""
+    """Disable DelayedCeleryTasks wait so the task fires immediately."""
     context = {"schema": schema}
-    return UNLEASH_CLIENT.is_enabled(DISABLE_CELERY_TASK_DELAY_FLAG, context)
+    return UNLEASH_CLIENT.is_enabled(DISABLE_CELERY_TASK_DELAY_FLAG, context, fallback_development_true)
 
 
 def is_rate_limit_customer_large(schema):  # pragma: no cover

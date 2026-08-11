@@ -831,8 +831,7 @@ instead of immediately enqueueing `update_cost_model_costs` on the PriorityQueue
   (`DateHelper.list_month_tuples`)
 - **Latency**: after the last edit, wait is approximately `DELAYED_TASK_TIME`
   (default 3600s) plus up to one Beat poll interval (`DELAYED_TASK_POLLING_MINUTES`)
-- **QE / bypass**: when `schema_name == settings.QE_SCHEMA`, the schema matches
-  `SCHEMA_SUFFIX`, or Unleash flag
+- **Bypass**: when Unleash flag
   `cost-management.backend.disable-celery-task-delay` is ON for the schema, the
   delayed row is deleted immediately so `pre_delete` fires the real task promptly
 
