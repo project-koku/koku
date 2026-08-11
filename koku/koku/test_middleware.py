@@ -680,3 +680,30 @@ class SentryBeforeSendTest(IamTestCase):
         hint = {}
         result = sentry_before_send(event, hint)
         self.assertEqual(result, event)
+
+
+class IsDelayDisabledTest(IamTestCase):
+    """Test is_delay_disabled bypass conditions."""
+
+    @override_settings(QE_SCHEMA="org_qe", SCHEMA_SUFFIX="")
+    @patch("koku.middleware.is_celery_task_delay_disabled", return_value=False)
+    def test_qe_schema_disables_delay(self, _mock_flag):
+        self.assertTrue(MD.is_delay_disabled("org_qe"))
+        self.assertFalse(MD.is_delay_disabled("org1234567"))
+
+    @override_settings(QE_SCHEMA=None, SCHEMA_SUFFIX="_dev")
+    @patch("koku.middleware.is_celery_task_delay_disabled", return_value=False)
+    def test_schema_suffix_disables_delay(self, _mock_flag):
+        self.assertTrue(MD.is_delay_disabled("org1234567_dev"))
+        self.assertFalse(MD.is_delay_disabled("org1234567"))
+
+    @override_settings(QE_SCHEMA=None, SCHEMA_SUFFIX="")
+    @patch("koku.middleware.is_celery_task_delay_disabled", return_value=True)
+    def test_unleash_flag_disables_delay(self, mock_flag):
+        self.assertTrue(MD.is_delay_disabled("org1234567"))
+        mock_flag.assert_called_once_with("org1234567")
+
+    @override_settings(QE_SCHEMA=None, SCHEMA_SUFFIX="")
+    @patch("koku.middleware.is_celery_task_delay_disabled", return_value=False)
+    def test_delay_enabled_by_default(self, _mock_flag):
+        self.assertFalse(MD.is_delay_disabled("org1234567"))

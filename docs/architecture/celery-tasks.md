@@ -831,8 +831,10 @@ instead of immediately enqueueing `update_cost_model_costs` on the PriorityQueue
   (`DateHelper.list_month_tuples`)
 - **Latency**: after the last edit, wait is approximately `DELAYED_TASK_TIME`
   (default 3600s) plus up to one Beat poll interval (`DELAYED_TASK_POLLING_MINUTES`)
-- **QE**: when `schema_name == settings.QE_SCHEMA`, the delayed row is deleted
-  immediately so `pre_delete` fires the real task promptly
+- **QE / bypass**: when `schema_name == settings.QE_SCHEMA`, the schema matches
+  `SCHEMA_SUFFIX`, or Unleash flag
+  `cost-management.backend.disable-celery-task-delay` is ON for the schema, the
+  delayed row is deleted immediately so `pre_delete` fires the real task promptly
 
 Pipeline (`update_summary_tables` / OCP-on-cloud) still enqueues immediately.
 The Masu `update_cost_model_costs` API defaults to immediate enqueue; pass

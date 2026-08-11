@@ -34,7 +34,7 @@ from common.queues import PriorityQueue
 from common.queues import RefreshQueue
 from common.queues import SummaryQueue
 from koku import celery_app
-from koku.middleware import is_qe_schema
+from koku.middleware import is_delay_disabled
 from koku.middleware import KokuTenantMiddleware
 from koku.trino_database import TrinoQueryNotFoundError
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -221,7 +221,7 @@ def delayed_summarize_current_month(schema_name: str, provider_uuids: list, prov
             provider_uuid=provider_uuid,
             queue_name=queue,
         )
-        if is_qe_schema(schema_name):
+        if is_delay_disabled(schema_name):
             # bypass the wait for QE
             id.delete()
 
@@ -276,7 +276,7 @@ def delayed_update_cost_model_costs(schema_name, provider_uuid, start_date, end_
             billing_month=billing_month,
             merge_date_range=True,
         )
-        if is_qe_schema(schema_name):
+        if is_delay_disabled(schema_name):
             row.delete()
 
 

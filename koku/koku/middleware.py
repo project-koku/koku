@@ -41,6 +41,7 @@ from koku.cache import CacheEnum
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
+from masu.processor import is_celery_task_delay_disabled
 
 MAX_CACHE_SIZE = 10000
 USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
@@ -53,12 +54,14 @@ UNIQUE_ACCOUNT_COUNTER = Counter("hccm_unique_account", "Unique Account Counter"
 UNIQUE_USER_COUNTER = Counter("hccm_unique_user", "Unique User Counter", ["account", "user"])
 
 
-def is_qe_schema(schema_name: str) -> bool:
+def is_delay_disabled(schema_name: str) -> bool:
     if settings.QE_SCHEMA and schema_name == settings.QE_SCHEMA:
         return True
     # Must guard: "".endswith("") is True in Python
     suffix = settings.SCHEMA_SUFFIX
-    return bool(suffix) and schema_name.endswith(suffix)
+    if bool(suffix) and schema_name.endswith(suffix):
+        return True
+    return is_celery_task_delay_disabled(schema_name)
 
 
 def is_no_auth(request):
