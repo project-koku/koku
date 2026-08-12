@@ -7,7 +7,6 @@ from datetime import date
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from django.test import override_settings
 from django.utils import timezone
 from django_tenants.utils import schema_context
 
@@ -124,8 +123,9 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertIsNotNone(stats.failed_status)
         self.assertEqual(stats.status, CombinedChoices.FAILED)
 
+    @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
     @patch("masu.processor.tasks.get_customer_queue")
-    def test_delayed_summarize_current_month(self, mock_get_customer_queue):
+    def test_delayed_summarize_current_month(self, mock_get_customer_queue, _mock_delay_disabled):
         mock_get_customer_queue.return_value = SummaryQueue.DEFAULT
         test_matrix = {
             Provider.PROVIDER_AWS: self.aws_provider,
@@ -153,13 +153,32 @@ class TestCostUsageReportStatus(MasuTestCase):
                     self.assertEqual(db_entry.task_args, [self.schema_name])
                     self.assertEqual(db_entry.queue_name, SummaryQueue.DEFAULT)
 
+    @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
     @patch("masu.processor.tasks.get_customer_queue")
-    def test_large_customer(self, mock_get_customer_queue):
+    def test_large_customer(self, mock_get_customer_queue, _mock_delay_disabled):
         mock_get_customer_queue.return_value = SummaryQueue.XL
         delayed_summarize_current_month(self.schema_name, [self.aws_provider.uuid], Provider.PROVIDER_AWS)
         with schema_context(self.schema):
             db_entry = DelayedCeleryTasks.objects.get(provider_uuid=self.aws_provider.uuid)
             self.assertEqual(db_entry.queue_name, SummaryQueue.XL)
+
+    @patch("reporting_common.models.celery_app")
+    @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=True)
+    @patch("masu.processor.tasks.get_customer_queue")
+    def test_delayed_summarize_bypasses_when_flag_enabled(
+        self, mock_get_customer_queue, _mock_delay_disabled, mock_celery_app
+    ):
+        """When disable-celery-task-delay is ON, the row is deleted and send_task fires."""
+        mock_get_customer_queue.return_value = SummaryQueue.DEFAULT
+        result = MagicMock()
+        result.id = "mocked_result_id"
+        mock_celery_app.send_task.return_value = result
+
+        delayed_summarize_current_month(self.schema_name, [self.aws_provider.uuid], Provider.PROVIDER_AWS)
+
+        with schema_context(self.schema):
+            self.assertFalse(DelayedCeleryTasks.objects.filter(provider_uuid=self.aws_provider.uuid).exists())
+        mock_celery_app.send_task.assert_called_once()
 
     @patch("reporting_common.models.celery_app")
     def test_trigger_celery_task(self, mock_celery_app):
@@ -271,7 +290,8 @@ class TestCostUsageReportStatus(MasuTestCase):
             1,
         )
 
-    def test_delayed_update_cost_model_costs_coalesces_max_range(self):
+    @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
+    def test_delayed_update_cost_model_costs_coalesces_max_range(self, _mock_delay_disabled):
         """Same-month edits coalesce to one row with the widest date range."""
         provider_uuid = self.aws_provider.uuid
         delayed_update_cost_model_costs(
@@ -301,7 +321,8 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertEqual(row.queue_name, PriorityQueue.XL)
         self.assertEqual(row.task_kwargs.get("tracing_id"), "trace-2")
 
-    def test_delayed_update_cost_model_costs_splits_cross_month(self):
+    @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
+    def test_delayed_update_cost_model_costs_splits_cross_month(self, _mock_delay_disabled):
         """Cross-month ranges create one delayed row per calendar month."""
         provider_uuid = self.aws_provider.uuid
         delayed_update_cost_model_costs(
@@ -326,7 +347,8 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertEqual(rows[1].task_kwargs.get("start_date"), "2026-08-01")
         self.assertEqual(rows[1].task_kwargs.get("end_date"), "2026-08-05")
 
-    def test_delayed_update_cost_model_costs_invalid_date_range(self):
+    @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
+    def test_delayed_update_cost_model_costs_invalid_date_range(self, _mock_delay_disabled):
         """Inverted start/end creates no delayed rows."""
         provider_uuid = self.aws_provider.uuid
         delayed_update_cost_model_costs(
@@ -345,7 +367,8 @@ class TestCostUsageReportStatus(MasuTestCase):
             0,
         )
 
-    def test_delayed_update_cost_model_costs_independent_months(self):
+    @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
+    def test_delayed_update_cost_model_costs_independent_months(self, _mock_delay_disabled):
         """A new month slice does not change an existing prior-month delayed row."""
         provider_uuid = self.aws_provider.uuid
         delayed_update_cost_model_costs(
@@ -378,16 +401,16 @@ class TestCostUsageReportStatus(MasuTestCase):
         )
 
     @patch("reporting_common.models.celery_app")
-    @override_settings(QE_SCHEMA="org1234567")
-    def test_delayed_update_cost_model_costs_qe_bypass(self, mock_celery_app):
-        """QE schema deletes the delayed row immediately, firing the real task."""
+    @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=True)
+    def test_delayed_update_cost_model_costs_delay_bypass(self, _mock_delay_disabled, mock_celery_app):
+        """When disable-celery-task-delay is ON, the row is deleted and send_task fires."""
         result = MagicMock()
         result.id = "qe_result_id"
         mock_celery_app.send_task.return_value = result
 
         provider_uuid = self.aws_provider.uuid
         delayed_update_cost_model_costs(
-            "org1234567",
+            self.schema_name,
             provider_uuid,
             date(2026, 7, 1),
             date(2026, 7, 15),
@@ -404,7 +427,7 @@ class TestCostUsageReportStatus(MasuTestCase):
         mock_celery_app.send_task.assert_called_once()
         args, kwargs = mock_celery_app.send_task.call_args
         self.assertEqual(args[0], UPDATE_COST_MODEL_COSTS_TASK)
-        self.assertEqual(kwargs["args"], ["org1234567", str(provider_uuid)])
+        self.assertEqual(kwargs["args"], [self.schema_name, str(provider_uuid)])
         self.assertEqual(kwargs["kwargs"]["start_date"], "2026-07-01")
         self.assertEqual(kwargs["kwargs"]["end_date"], "2026-07-15")
         self.assertEqual(kwargs["queue"], PriorityQueue.DEFAULT)
