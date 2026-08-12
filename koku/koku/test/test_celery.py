@@ -10,8 +10,10 @@ from django.test import SimpleTestCase
 
 from api.iam.test.iam_test_case import IamTestCase
 from koku import is_task_currently_running
+from koku.celery import CHECK_REPORT_UPDATES_BEAT_NAME
 from koku.celery import CURRENCY_RATES_BEAT_NAME
 from koku.celery import register_daily_currency_rates_beat
+from koku.celery import register_report_check_beat
 from koku.celery import register_saas_only_beats
 from koku.celery import SAAS_ONLY_BEAT_NAMES
 
@@ -164,3 +166,50 @@ class SaasOnlyBeatScheduleTest(SimpleTestCase):
             with self.subTest(beat_name=beat_name):
                 self.assertIn(beat_name, beat_schedule)
                 self.assertEqual(beat_schedule[beat_name]["task"], task_name)
+
+
+class ReportCheckBeatScheduleTest(SimpleTestCase):
+    """Tests for check-report-updates-batched beat registration."""
+
+    def test_report_check_beat_not_registered_when_onprem_even_if_schedule_enabled(self):
+        """On-prem never registers report-check beat even if SCHEDULE_REPORT_CHECKS is true."""
+        beat_schedule = {}
+        scheduled = register_report_check_beat(
+            beat_schedule,
+            onprem=True,
+            schedule_report_checks=True,
+            schedule=crontab(minute=0),
+        )
+
+        self.assertFalse(scheduled)
+        self.assertNotIn(CHECK_REPORT_UPDATES_BEAT_NAME, beat_schedule)
+
+    def test_report_check_beat_registered_when_not_onprem_and_schedule_enabled(self):
+        """SaaS registers report-check beat when SCHEDULE_REPORT_CHECKS is enabled."""
+        beat_schedule = {}
+        scheduled = register_report_check_beat(
+            beat_schedule,
+            onprem=False,
+            schedule_report_checks=True,
+            schedule=crontab(minute=0),
+        )
+
+        self.assertTrue(scheduled)
+        self.assertIn(CHECK_REPORT_UPDATES_BEAT_NAME, beat_schedule)
+        self.assertEqual(
+            beat_schedule[CHECK_REPORT_UPDATES_BEAT_NAME]["task"],
+            "masu.celery.tasks.check_report_updates",
+        )
+
+    def test_report_check_beat_not_registered_when_schedule_disabled(self):
+        """Report-check beat stays unregistered when SCHEDULE_REPORT_CHECKS is false."""
+        beat_schedule = {}
+        scheduled = register_report_check_beat(
+            beat_schedule,
+            onprem=False,
+            schedule_report_checks=False,
+            schedule=crontab(minute=0),
+        )
+
+        self.assertFalse(scheduled)
+        self.assertNotIn(CHECK_REPORT_UPDATES_BEAT_NAME, beat_schedule)

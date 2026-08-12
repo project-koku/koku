@@ -25,6 +25,7 @@ from koku.probe_server import start_probe_server
 LOG = logging.getLogger(__name__)
 
 CURRENCY_RATES_BEAT_NAME = "get_daily_currency_rates"
+CHECK_REPORT_UPDATES_BEAT_NAME = "check-report-updates-batched"
 SAAS_ONLY_BEAT_NAMES = (
     "finalize_hcs_reports",
     "scrape_azure_storage_capacities",
@@ -82,6 +83,18 @@ def register_saas_only_beats(
     beat_schedule["finalize_hcs_reports"] = {
         "task": "hcs.tasks.collect_hcs_report_finalization",
         "schedule": finalize_hcs_schedule or crontab(0, 0, day_of_month="15"),
+    }
+    return True
+
+
+def register_report_check_beat(beat_schedule, *, onprem=False, schedule_report_checks=False, schedule=None):
+    """Register the batched report-check beat for SaaS when SCHEDULE_REPORT_CHECKS is enabled."""
+    if onprem or not schedule_report_checks:
+        return False
+    beat_schedule[CHECK_REPORT_UPDATES_BEAT_NAME] = {
+        "task": "masu.celery.tasks.check_report_updates",
+        "schedule": schedule or crontab(minute=0),
+        "kwargs": {},
     }
     return True
 
@@ -176,20 +189,22 @@ app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
 WORKER_PROC_ALIVE_TIMEOUT = ENVIRONMENT.int("WORKER_PROC_ALIVE_TIMEOUT", default=4)
 app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
 
-# Toggle to enable/disable scheduled checks for new reports.
-if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
+# Toggle to enable/disable scheduled checks for new reports (SaaS only).
+schedule_report_checks = ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False)
+report_download_schedule = None
+if schedule_report_checks and not settings.ONPREM:
     download_fallback = validate_cron_expression("0 * * * *")
-    download_task = "masu.celery.tasks.check_report_updates"
     # The schedule to scan for new reports.
     download_expression = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE", default=download_fallback)
     REPORT_DOWNLOAD_SCHEDULE = validate_cron_expression(download_expression, download_fallback)
-    report_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
-    CHECK_REPORT_UPDATES_DEF = {
-        "task": download_task,
-        "schedule": report_schedule,
-        "kwargs": {},
-    }
-    app.conf.beat_schedule["check-report-updates-batched"] = CHECK_REPORT_UPDATES_DEF
+    report_download_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
+if schedule_report_checks and not register_report_check_beat(
+    app.conf.beat_schedule,
+    onprem=settings.ONPREM,
+    schedule_report_checks=schedule_report_checks,
+    schedule=report_download_schedule,
+):
+    LOG.info("Report check beat not registered (ONPREM=%s)", settings.ONPREM)
 
 # Specify the day of the month for removal of expired report data.
 REMOVE_EXPIRED_REPORT_DATA_ON_DAY = ENVIRONMENT.int("REMOVE_EXPIRED_REPORT_DATA_ON_DAY", default=1)
@@ -252,7 +267,6 @@ if not register_daily_currency_rates_beat(app.conf.beat_schedule, settings.CURRE
         settings.ONPREM,
         not bool((settings.CURRENCY_URL or "").strip()),
     )
-
 
 # Specify the frequency for checking delayed summary tasks
 DELAYED_TASK_POLLING_MINUTES = ENVIRONMENT.get_value("DELAYED_TASK_POLLING_MINUTES", default="30")
