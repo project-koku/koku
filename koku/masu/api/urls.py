@@ -51,7 +51,8 @@ ROUTER = DefaultRouter()
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 ROUTER.register(r"manifests", ManifestStatusViewSet, basename="manifests")
 
-# On-prem whitelist: only these masu endpoints are registered when ONPREM=True.
+# On-prem whitelist: only these masu endpoints are registered when ONPREM=True,
+# unless IQE_TEST_RUN=True is set to allow integration tests to exercise the full API.
 # status/ is included for liveness/readiness probes.
 urlpatterns = [
     path("status/", get_status, name="server-status"),
@@ -70,7 +71,7 @@ urlpatterns = [
     path("db-performance/schema-sizes/", schema_sizes, name="schema_sizes"),
 ]
 
-if not settings.ONPREM:
+if not settings.ONPREM or settings.IQE_TEST_RUN:
     urlpatterns += [
         path("download/", download_report, name="report_download"),
         path("ingress_reports/", ingress_reports, name="ingress_reports"),

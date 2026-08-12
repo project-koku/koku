@@ -284,6 +284,9 @@ parameters:
 - name: ONPREM
   description: toggles onprem data processing logic
   value: "False"
+- name: IQE_TEST_RUN
+  description: enables SaaS-only masu endpoints even when ONPREM=True, so IQE/integration tests can reach them
+  value: "False"
 - name: CURRENCY_URL
   description: Exchange rate API URL for dynamic currency rates. Empty disables the daily currency beat.
   value: ""
