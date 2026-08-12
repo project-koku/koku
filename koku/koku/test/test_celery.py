@@ -12,6 +12,8 @@ from api.iam.test.iam_test_case import IamTestCase
 from koku import is_task_currently_running
 from koku.celery import CURRENCY_RATES_BEAT_NAME
 from koku.celery import register_daily_currency_rates_beat
+from koku.celery import register_saas_only_beats
+from koku.celery import SAAS_ONLY_BEAT_NAMES
 
 
 class CeleryTest(IamTestCase):
@@ -95,3 +97,39 @@ class CurrencyRatesBeatScheduleTest(SimpleTestCase):
 
                 self.assertFalse(scheduled)
                 self.assertNotIn(CURRENCY_RATES_BEAT_NAME, beat_schedule)
+
+
+class SaasOnlyBeatScheduleTest(SimpleTestCase):
+    """Tests for SaaS-only Celery beat registration gated by ONPREM."""
+
+    EXPECTED_SAAS_ONLY_TASKS = {
+        "finalize_hcs_reports": "hcs.tasks.collect_hcs_report_finalization",
+        "scrape_azure_storage_capacities": "masu.celery.tasks.scrape_azure_storage_capacities",
+        "crawl_account_hierarchy": "masu.celery.tasks.crawl_account_hierarchy",
+        "source_status_beat": "sources.tasks.source_status_beat",
+        "delete_source_beat": "sources.tasks.delete_source_beat",
+    }
+
+    def test_saas_only_beats_not_registered_when_onprem(self):
+        """SaaS-only beats are omitted when onprem=True."""
+        beat_schedule = {}
+        scheduled = register_saas_only_beats(beat_schedule, onprem=True)
+
+        self.assertFalse(scheduled)
+        for beat_name in self.EXPECTED_SAAS_ONLY_TASKS:
+            with self.subTest(beat_name=beat_name):
+                self.assertNotIn(beat_name, beat_schedule)
+        for beat_name in SAAS_ONLY_BEAT_NAMES:
+            with self.subTest(constant_beat_name=beat_name):
+                self.assertNotIn(beat_name, beat_schedule)
+
+    def test_saas_only_beats_registered_when_not_onprem(self):
+        """SaaS-only beats are registered with current task wiring when onprem=False."""
+        beat_schedule = {}
+        scheduled = register_saas_only_beats(beat_schedule, onprem=False)
+
+        self.assertTrue(scheduled)
+        for beat_name, task_name in self.EXPECTED_SAAS_ONLY_TASKS.items():
+            with self.subTest(beat_name=beat_name):
+                self.assertIn(beat_name, beat_schedule)
+                self.assertEqual(beat_schedule[beat_name]["task"], task_name)

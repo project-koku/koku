@@ -25,6 +25,13 @@ from koku.probe_server import start_probe_server
 LOG = logging.getLogger(__name__)
 
 CURRENCY_RATES_BEAT_NAME = "get_daily_currency_rates"
+SAAS_ONLY_BEAT_NAMES = (
+    "finalize_hcs_reports",
+    "scrape_azure_storage_capacities",
+    "crawl_account_hierarchy",
+    "source_status_beat",
+    "delete_source_beat",
+)
 
 
 def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=None):
@@ -38,6 +45,43 @@ def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=Non
     beat_schedule[CURRENCY_RATES_BEAT_NAME] = {
         "task": "masu.celery.tasks.get_daily_currency_rates",
         "schedule": schedule or crontab(hour=1, minute=0),
+    }
+    return True
+
+
+def register_saas_only_beats(
+    beat_schedule,
+    *,
+    onprem=False,
+    delete_source_schedule=None,
+    source_status_schedule=None,
+    scrape_azure_schedule=None,
+    crawl_account_schedule=None,
+    finalize_hcs_schedule=None,
+):
+    """Register SaaS-only Celery beats; skip entirely when on-prem."""
+    if onprem:
+        return False
+
+    beat_schedule["delete_source_beat"] = {
+        "task": "sources.tasks.delete_source_beat",
+        "schedule": delete_source_schedule or crontab(minute="0", hour="4"),
+    }
+    beat_schedule["source_status_beat"] = {
+        "task": "sources.tasks.source_status_beat",
+        "schedule": source_status_schedule or crontab(hour=3, minute=0),
+    }
+    beat_schedule["scrape_azure_storage_capacities"] = {
+        "task": "masu.celery.tasks.scrape_azure_storage_capacities",
+        "schedule": scrape_azure_schedule or crontab(hour=2, minute=0),
+    }
+    beat_schedule["crawl_account_hierarchy"] = {
+        "task": "masu.celery.tasks.crawl_account_hierarchy",
+        "schedule": crawl_account_schedule or crontab(hour=0, minute=0),
+    }
+    beat_schedule["finalize_hcs_reports"] = {
+        "task": "hcs.tasks.collect_hcs_report_finalization",
+        "schedule": finalize_hcs_schedule or crontab(0, 0, day_of_month="15"),
     }
     return True
 
@@ -188,46 +232,23 @@ app.conf.beat_schedule["autovacuum-tune-schemas"] = {
     "args": [],
 }
 
-# task to clean up sources with `pending_delete=t`
-app.conf.beat_schedule["delete_source_beat"] = {
-    "task": "sources.tasks.delete_source_beat",
-    "schedule": crontab(minute="0", hour="4"),
-}
-
-# Specify the frequency for pushing source status.
+# SaaS-only beats (HCS, Azure scrape, AWS org crawl, Sources status/delete)
 status_fallback = validate_cron_expression("0 3 * * *")
 status_expression = ENVIRONMENT.get_value("SOURCE_STATUS_SCHEDULE", default=status_fallback)
 SOURCE_STATUS_SCHEDULE = validate_cron_expression(status_expression, status_fallback)
 source_status_schedule = crontab(*SOURCE_STATUS_SCHEDULE.split(" ", 5))
 
-# task to push source status`
-app.conf.beat_schedule["source_status_beat"] = {
-    "task": "sources.tasks.source_status_beat",
-    "schedule": source_status_schedule,
-}
-
-# Beat used to collect Azure disk capacities
-app.conf.beat_schedule["scrape_azure_storage_capacities"] = {
-    "task": "masu.celery.tasks.scrape_azure_storage_capacities",
-    "schedule": crontab(hour=2, minute=0),
-}
-
-
-# Beat used to crawl the account hierarchy
-app.conf.beat_schedule["crawl_account_hierarchy"] = {
-    "task": "masu.celery.tasks.crawl_account_hierarchy",
-    "schedule": crontab(hour=0, minute=0),
-}
+if not register_saas_only_beats(
+    app.conf.beat_schedule,
+    onprem=settings.ONPREM,
+    source_status_schedule=source_status_schedule,
+):
+    LOG.info("SaaS-only Celery beats not registered (ONPREM=%s)", settings.ONPREM)
 
 # Beat used to fetch daily rates (only when CURRENCY_URL is configured)
 if not register_daily_currency_rates_beat(app.conf.beat_schedule, settings.CURRENCY_URL):
     LOG.info("Daily currency rates beat not registered (CURRENCY_URL is empty)")
 
-# Beat used for HCS report finalization
-app.conf.beat_schedule["finalize_hcs_reports"] = {
-    "task": "hcs.tasks.collect_hcs_report_finalization",
-    "schedule": crontab(0, 0, day_of_month="15"),
-}
 
 # Specify the frequency for checking delayed summary tasks
 DELAYED_TASK_POLLING_MINUTES = ENVIRONMENT.get_value("DELAYED_TASK_POLLING_MINUTES", default="30")
