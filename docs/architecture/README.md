@@ -179,6 +179,7 @@ Output: proposed new/changed markdown files only (no application code unless ask
 | [`csv-processing-azure.md`](csv-processing-azure.md) | Azure cost export processing |
 | [`csv-processing-gcp.md`](csv-processing-gcp.md) | GCP billing export processing |
 | [`csv-processing-ocp.md`](csv-processing-ocp.md) | OpenShift report processing |
+| [`delayed-celery-tasks.md`](delayed-celery-tasks.md) | `DelayedCeleryTasks` debounce/coalesce mechanism, Beat sweep, `pre_delete` trigger |
 
 ### Feature hubs (subdirectories)
 
