@@ -50,23 +50,14 @@ def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=Non
     return True
 
 
-def register_saas_only_beats(
-    beat_schedule,
-    *,
-    onprem=False,
-    delete_source_schedule=None,
-    source_status_schedule=None,
-    scrape_azure_schedule=None,
-    crawl_account_schedule=None,
-    finalize_hcs_schedule=None,
-):
+def register_saas_only_beats(beat_schedule, *, onprem=False, source_status_schedule=None):
     """Register SaaS-only Celery beats; skip entirely when on-prem."""
     if onprem:
         return False
 
     beat_schedule["delete_source_beat"] = {
         "task": "sources.tasks.delete_source_beat",
-        "schedule": delete_source_schedule or crontab(minute="0", hour="4"),
+        "schedule": crontab(minute="0", hour="4"),
     }
     beat_schedule["source_status_beat"] = {
         "task": "sources.tasks.source_status_beat",
@@ -74,15 +65,15 @@ def register_saas_only_beats(
     }
     beat_schedule["scrape_azure_storage_capacities"] = {
         "task": "masu.celery.tasks.scrape_azure_storage_capacities",
-        "schedule": scrape_azure_schedule or crontab(hour=2, minute=0),
+        "schedule": crontab(hour=2, minute=0),
     }
     beat_schedule["crawl_account_hierarchy"] = {
         "task": "masu.celery.tasks.crawl_account_hierarchy",
-        "schedule": crawl_account_schedule or crontab(hour=0, minute=0),
+        "schedule": crontab(hour=0, minute=0),
     }
     beat_schedule["finalize_hcs_reports"] = {
         "task": "hcs.tasks.collect_hcs_report_finalization",
-        "schedule": finalize_hcs_schedule or crontab(0, 0, day_of_month="15"),
+        "schedule": crontab(0, 0, day_of_month="15"),
     }
     return True
 
