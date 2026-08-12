@@ -13,7 +13,6 @@ from celery.schedules import crontab
 from django.conf import settings
 from django.test import SimpleTestCase
 from redis.exceptions import AuthenticationError
-from redis.exceptions import RedisError
 
 from api.iam.test.iam_test_case import IamTestCase
 from koku import is_task_currently_running
@@ -126,11 +125,17 @@ class CeleryBrokerSecurityTest(SimpleTestCase):
     def test_task_always_eager_not_enabled_in_settings(self):
         """CELERY_TASK_ALWAYS_EAGER must not be enabled outside of tests."""
         self.assertFalse(getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False))
+        self.assertFalse(celery_app.conf.task_always_eager)
 
     def test_broker_and_results_use_redis_url(self):
         """Broker and result backend share REDIS_URL (cache + Celery)."""
         self.assertEqual(settings.CELERY_BROKER_URL, settings.REDIS_URL)
         self.assertEqual(settings.CELERY_RESULTS_URL, settings.REDIS_URL)
+        self.assertEqual(celery_app.conf.broker_url, settings.CELERY_BROKER_URL)
+        self.assertEqual(
+            celery_app.conf.result_backend,
+            settings.CELERY_RESULTS_URL or getattr(settings, "CELERY_RESULT_BACKEND", None),
+        )
 
     @unittest.skipUnless(
         os.environ.get("COST_7860_AUTH_BROKER_URL"),
@@ -155,8 +160,14 @@ class CeleryBrokerSecurityTest(SimpleTestCase):
         authed = redis.Redis.from_url(auth_url, socket_connect_timeout=2, socket_timeout=2)
         self.assertEqual(authed.ping(), True)
 
-        # Same host/port/db without credentials — must be rejected by requirepass.
-        open_url = f"{parsed.scheme}://{parsed.hostname}:{parsed.port or 6379}{parsed.path or '/0'}"
+        # Same host/port/db/query without credentials — must be rejected by requirepass.
+        host = parsed.hostname
+        port = parsed.port or 6379
+        if host and ":" in host and not host.startswith("["):
+            netloc = f"[{host}]:{port}"
+        else:
+            netloc = f"{host}:{port}"
+        open_url = parsed._replace(netloc=netloc).geturl()
         unauth = redis.Redis.from_url(open_url, socket_connect_timeout=2, socket_timeout=2)
-        with self.assertRaises((AuthenticationError, RedisError)):
+        with self.assertRaises(AuthenticationError):
             unauth.ping()
