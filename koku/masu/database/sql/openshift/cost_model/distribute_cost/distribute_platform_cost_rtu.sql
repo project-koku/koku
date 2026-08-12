@@ -23,6 +23,11 @@ WITH platform_rtu_cost AS (
         AND rtu.report_period_id = {{report_period_id}}
         AND rtu.source_uuid = {{source_uuid}}::uuid
         AND cat.name = 'Platform'
+        -- Exclude markup RTU rows (metric_type='markup', inserted by
+        -- insert_markup_rates_to_usage.sql): their dollar amount is already
+        -- included below via platform_infra's lids.infrastructure_markup_cost.
+        -- Counting both would double the markup contribution to this pool.
+        AND rtu.metric_type != 'markup'
         AND (rtu.monthly_cost_type IS NULL OR rtu.monthly_cost_type NOT IN (
             'worker_distributed', 'platform_distributed', 'gpu_distributed',
             'unattributed_storage', 'unattributed_network'
@@ -139,11 +144,69 @@ JOIN platform_rtu_cost pc
     ON pc.usage_start = nt.usage_start AND pc.cluster_id = nt.cluster_id
 JOIN platform_total_rate pt
     ON pt.usage_start = nt.usage_start AND pt.cluster_id = nt.cluster_id
-WHERE CASE WHEN pt.total_rate_cost > 0 THEN nt.total_distributed * (pc.rate_cost / pt.total_rate_cost) ELSE 0 END != 0;
+WHERE CASE WHEN pt.total_rate_cost > 0 THEN nt.total_distributed * (pc.rate_cost / pt.total_rate_cost) ELSE 0 END != 0
 
--- Negate source: per-node negation for each Platform namespace.
--- Includes infrastructure costs from daily_summary. Per-node granularity
--- avoids NULL node ("No-node") entries in the API.
+UNION ALL
+
+-- Infra-only fallback: when the cost model has zero non-markup rates across
+-- the *entire* Platform category for this cluster/date (e.g. a markup-only
+-- cost model), namespace_totals above produces nothing (its INNER JOIN to
+-- platform_total_rate requires at least one rate row), so infra_total would
+-- otherwise never be distributed. Distribute it directly here. Guards:
+-- total_rate_cost IS NULL (no RTU rows) or <= 0.
+SELECT
+    uuid_generate_v4(),
+    nu.report_period_id,
+    {{source_uuid}}::uuid,
+    nu.usage_start,
+    nu.usage_start,
+    nu.cluster_id,
+    nu.cluster_alias,
+    nu.namespace,
+    nu.node,
+    nu.cost_category_id,
+    '', '',
+    {{cost_model_rate_type}},
+    {{cost_model_rate_type}},
+    {% if distribution == 'cpu' %}
+    CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+         ELSE (nu.ns_cpu / d.usage_cpu_sum) * pi.infra_total
+    END,
+    {% else %}
+    CASE WHEN d.usage_memory_sum <= 0 THEN 0
+         ELSE (nu.ns_memory / d.usage_memory_sum) * pi.infra_total
+    END,
+    {% endif %}
+    {{cost_model_id}}::uuid
+FROM platform_infra pi
+JOIN denominator d
+    ON d.usage_start = pi.usage_start AND d.cluster_id = pi.cluster_id
+JOIN namespace_usage nu
+    ON nu.usage_start = pi.usage_start AND nu.cluster_id = pi.cluster_id
+LEFT JOIN platform_total_rate pt
+    ON pt.usage_start = pi.usage_start AND pt.cluster_id = pi.cluster_id
+WHERE (pt.total_rate_cost IS NULL OR pt.total_rate_cost <= 0)
+AND pi.infra_total != 0
+{% if distribution == 'cpu' %}
+AND CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+         ELSE (nu.ns_cpu / d.usage_cpu_sum) * pi.infra_total
+    END != 0;
+{% else %}
+AND CASE WHEN d.usage_memory_sum <= 0 THEN 0
+         ELSE (nu.ns_memory / d.usage_memory_sum) * pi.infra_total
+    END != 0;
+{% endif %}
+
+-- Negate source: per-namespace, per-node negation for each real Platform
+-- namespace. Driven from daily_summary (every real Platform namespace/node)
+-- rather than from the RTU rate rows, with a LEFT JOIN to the RTU rate
+-- aggregate: a namespace with real infra cost but zero non-markup RTU rows
+-- (e.g. a Platform pod with no CPU/memory usage that day, or a markup-only
+-- cost model) must still be negated -- otherwise its infra cost is both
+-- distributed to projects (via the whole-pool total above) AND left sitting
+-- on the source namespace, double-counting it. Includes infrastructure costs
+-- from daily_summary. Per-node granularity avoids NULL node ("No-node")
+-- entries in the API.
 INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
     uuid, report_period_id, source_uuid, usage_start, usage_end,
     cluster_id, cluster_alias, namespace, node,
@@ -152,79 +215,82 @@ INSERT INTO {{schema | sqlsafe}}.rates_to_usage (
 )
 SELECT
     uuid_generate_v4(),
-    rtu_agg.report_period_id,
-    rtu_agg.source_uuid,
-    rtu_agg.usage_start,
-    rtu_agg.usage_start,
-    rtu_agg.cluster_id,
-    rtu_agg.cluster_alias,
-    rtu_agg.namespace,
-    rtu_agg.node,
-    rtu_agg.cost_category_id,
+    MAX(lids.report_period_id),
+    {{source_uuid}}::uuid,
+    lids.usage_start,
+    lids.usage_start,
+    lids.cluster_id,
+    MAX(lids.cluster_alias),
+    lids.namespace,
+    lids.node,
+    MAX(lids.cost_category_id),
     '', '',
     {{cost_model_rate_type}},
     {{cost_model_rate_type}},
-    -(rtu_agg.cost_model_total + COALESCE(pi_ns.infra_total, 0)),
+    -(
+        COALESCE(MAX(rtu_agg.cost_model_total), 0) +
+        SUM(
+            COALESCE(lids.infrastructure_raw_cost, 0) +
+            COALESCE(lids.infrastructure_markup_cost, 0)
+        )
+    ),
     {{cost_model_id}}::uuid
-FROM (
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
+    ON lids.cost_category_id = cat.id
+LEFT JOIN (
     SELECT
-        rtu.report_period_id,
         rtu.source_uuid,
         rtu.usage_start,
         rtu.cluster_id,
         rtu.namespace,
         rtu.node,
-        MAX(rtu.cluster_alias) AS cluster_alias,
-        MAX(rtu.cost_category_id) AS cost_category_id,
         SUM(COALESCE(rtu.calculated_cost, 0)) AS cost_model_total
     FROM {{schema | sqlsafe}}.rates_to_usage rtu
-    JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
-        ON rtu.cost_category_id = cat.id
+    JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat2
+        ON rtu.cost_category_id = cat2.id
     WHERE rtu.usage_start >= {{start_date}}::date
         AND rtu.usage_start <= {{end_date}}::date
         AND rtu.report_period_id = {{report_period_id}}
         AND rtu.source_uuid = {{source_uuid}}::uuid
-        AND cat.name = 'Platform'
+        AND cat2.name = 'Platform'
+        -- Exclude markup RTU rows (metric_type='markup', inserted by
+        -- insert_markup_rates_to_usage.sql): their dollar amount is already
+        -- included below via lids.infrastructure_markup_cost.
+        -- Counting both would double the markup contribution to this pool.
+        AND rtu.metric_type != 'markup'
         AND (rtu.monthly_cost_type IS NULL OR rtu.monthly_cost_type NOT IN (
             'worker_distributed', 'platform_distributed', 'gpu_distributed',
             'unattributed_storage', 'unattributed_network'
         ))
-    GROUP BY rtu.report_period_id, rtu.source_uuid, rtu.usage_start,
-             rtu.cluster_id, rtu.namespace, rtu.node
+    GROUP BY rtu.source_uuid, rtu.usage_start, rtu.cluster_id,
+             rtu.namespace, rtu.node
 ) rtu_agg
-LEFT JOIN (
-    SELECT
-        lids.usage_start,
-        lids.cluster_id,
-        lids.namespace,
-        lids.node,
-        SUM(
-            COALESCE(lids.infrastructure_raw_cost, 0) +
-            COALESCE(lids.infrastructure_markup_cost, 0)
-        ) AS infra_total
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
-    JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category cat
-        ON lids.cost_category_id = cat.id
-    WHERE lids.usage_start >= {{start_date}}::date
-        AND lids.usage_start <= {{end_date}}::date
-        AND lids.report_period_id = {{report_period_id}}
-        AND cat.name = 'Platform'
-        AND lids.cost_model_rate_type IS NULL
-    GROUP BY lids.usage_start, lids.cluster_id, lids.namespace, lids.node
-) pi_ns
-    ON pi_ns.usage_start = rtu_agg.usage_start
-    AND pi_ns.cluster_id = rtu_agg.cluster_id
-    AND pi_ns.namespace = rtu_agg.namespace
+    ON rtu_agg.usage_start = lids.usage_start
+    AND rtu_agg.cluster_id = lids.cluster_id
+    AND rtu_agg.namespace = lids.namespace
     -- COALESCE instead of IS NOT DISTINCT FROM (Option E perf fix): node is
     -- occasionally NULL for cluster-level rows, but "= " with NULL-safe
     -- sentinels lets the planner use a regular equality (index-eligible) join
     -- instead of the non-mergejoinable IS NOT DISTINCT FROM operator.
-    AND COALESCE(pi_ns.node, '') = COALESCE(rtu_agg.node, '')
-WHERE EXISTS (
-    SELECT 1 FROM {{schema | sqlsafe}}.rates_to_usage dist
-    WHERE dist.monthly_cost_type = {{cost_model_rate_type}}
-    AND dist.source_uuid = rtu_agg.source_uuid
-    AND dist.usage_start = rtu_agg.usage_start
-    AND dist.cluster_id = rtu_agg.cluster_id
-)
-AND (rtu_agg.cost_model_total + COALESCE(pi_ns.infra_total, 0)) != 0;
+    AND COALESCE(rtu_agg.node, '') = COALESCE(lids.node, '')
+WHERE lids.usage_start >= {{start_date}}::date
+    AND lids.usage_start <= {{end_date}}::date
+    AND lids.report_period_id = {{report_period_id}}
+    AND cat.name = 'Platform'
+    AND lids.cost_model_rate_type IS NULL
+    AND EXISTS (
+        SELECT 1 FROM {{schema | sqlsafe}}.rates_to_usage dist
+        WHERE dist.monthly_cost_type = {{cost_model_rate_type}}
+        AND dist.source_uuid = {{source_uuid}}::uuid
+        AND dist.usage_start = lids.usage_start
+        AND dist.cluster_id = lids.cluster_id
+    )
+GROUP BY lids.usage_start, lids.cluster_id, lids.namespace, lids.node
+HAVING (
+    COALESCE(MAX(rtu_agg.cost_model_total), 0) +
+    SUM(
+        COALESCE(lids.infrastructure_raw_cost, 0) +
+        COALESCE(lids.infrastructure_markup_cost, 0)
+    )
+) != 0;

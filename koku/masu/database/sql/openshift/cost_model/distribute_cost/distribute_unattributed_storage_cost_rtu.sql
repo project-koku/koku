@@ -24,6 +24,11 @@ WITH storage_rtu_cost AS (
         AND rtu.report_period_id = {{report_period_id}}
         AND rtu.source_uuid = {{source_uuid}}::uuid
         AND rtu.namespace = 'Storage unattributed'
+        -- Exclude markup RTU rows (metric_type='markup', inserted by
+        -- insert_markup_rates_to_usage.sql): their dollar amount is already
+        -- included below via storage_infra's lids.infrastructure_markup_cost.
+        -- Counting both would double the markup contribution to this pool.
+        AND rtu.metric_type != 'markup'
         AND (rtu.monthly_cost_type IS NULL OR rtu.monthly_cost_type NOT IN (
             'worker_distributed', 'platform_distributed', 'gpu_distributed',
             'unattributed_storage', 'unattributed_network'
@@ -226,6 +231,11 @@ FROM (
         AND rtu.usage_start <= {{end_date}}::date
         AND rtu.source_uuid = {{source_uuid}}::uuid
         AND rtu.namespace = 'Storage unattributed'
+        -- Exclude markup RTU rows (metric_type='markup', inserted by
+        -- insert_markup_rates_to_usage.sql): their dollar amount is already
+        -- included below via storage_infra's lids.infrastructure_markup_cost.
+        -- Counting both would double the markup contribution to this pool.
+        AND rtu.metric_type != 'markup'
         AND (rtu.monthly_cost_type IS NULL OR rtu.monthly_cost_type NOT IN (
             'worker_distributed', 'platform_distributed', 'gpu_distributed',
             'unattributed_storage', 'unattributed_network'
@@ -292,7 +302,13 @@ AND NOT EXISTS (
     SELECT 1 FROM {{schema | sqlsafe}}.rates_to_usage rtu
     WHERE rtu.usage_start = lids.usage_start
         AND rtu.source_uuid = {{source_uuid}}::uuid
+        AND rtu.cluster_id = lids.cluster_id
         AND rtu.namespace = 'Storage unattributed'
+        -- Exclude markup RTU rows (metric_type='markup', inserted by
+        -- insert_markup_rates_to_usage.sql): their dollar amount is already
+        -- included below via storage_infra's lids.infrastructure_markup_cost.
+        -- Counting both would double the markup contribution to this pool.
+        AND rtu.metric_type != 'markup'
         AND (rtu.monthly_cost_type IS NULL OR rtu.monthly_cost_type NOT IN (
             'worker_distributed', 'platform_distributed', 'gpu_distributed',
             'unattributed_storage', 'unattributed_network'

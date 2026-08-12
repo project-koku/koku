@@ -21,6 +21,11 @@ WITH worker_rtu_cost AS (
         AND rtu.report_period_id = {{report_period_id}}
         AND rtu.source_uuid = {{source_uuid}}::uuid
         AND rtu.namespace = 'Worker unallocated'
+        -- Exclude markup RTU rows (metric_type='markup', inserted by
+        -- insert_markup_rates_to_usage.sql): their dollar amount is already
+        -- included below via worker_infra's lids.infrastructure_markup_cost.
+        -- Counting both would double the markup contribution to this pool.
+        AND rtu.metric_type != 'markup'
         AND (rtu.monthly_cost_type IS NULL OR rtu.monthly_cost_type NOT IN (
             'worker_distributed', 'platform_distributed', 'gpu_distributed',
             'unattributed_storage', 'unattributed_network'
@@ -135,7 +140,57 @@ JOIN worker_rtu_cost wc
     ON wc.usage_start = nt.usage_start AND wc.cluster_id = nt.cluster_id
 JOIN worker_total_rate wt
     ON wt.usage_start = nt.usage_start AND wt.cluster_id = nt.cluster_id
-WHERE CASE WHEN wt.total_rate_cost > 0 THEN nt.total_distributed * (wc.rate_cost / wt.total_rate_cost) ELSE 0 END != 0;
+WHERE CASE WHEN wt.total_rate_cost > 0 THEN nt.total_distributed * (wc.rate_cost / wt.total_rate_cost) ELSE 0 END != 0
+
+UNION ALL
+
+-- Infra-only fallback: when the cost model has zero non-markup rates for
+-- Worker unallocated (e.g. a markup-only cost model), namespace_totals above
+-- produces nothing (its INNER JOIN to worker_total_rate requires at least one
+-- rate row), so infra_total would otherwise never be distributed. Distribute
+-- it directly here. Guards: total_rate_cost IS NULL (no RTU rows) or <= 0.
+SELECT
+    uuid_generate_v4(),
+    nu.report_period_id,
+    {{source_uuid}}::uuid,
+    nu.usage_start,
+    nu.usage_start,
+    nu.cluster_id,
+    nu.cluster_alias,
+    nu.namespace,
+    nu.node,
+    nu.cost_category_id,
+    '', '',
+    {{cost_model_rate_type}},
+    {{cost_model_rate_type}},
+    {% if distribution == 'cpu' %}
+    CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+         ELSE (nu.ns_cpu / d.usage_cpu_sum) * wi.infra_total
+    END,
+    {% else %}
+    CASE WHEN d.usage_memory_sum <= 0 THEN 0
+         ELSE (nu.ns_memory / d.usage_memory_sum) * wi.infra_total
+    END,
+    {% endif %}
+    {{cost_model_id}}::uuid
+FROM worker_infra wi
+JOIN denominator d
+    ON d.usage_start = wi.usage_start AND d.cluster_id = wi.cluster_id
+JOIN namespace_usage nu
+    ON nu.usage_start = wi.usage_start AND nu.cluster_id = wi.cluster_id
+LEFT JOIN worker_total_rate wt
+    ON wt.usage_start = wi.usage_start AND wt.cluster_id = wi.cluster_id
+WHERE (wt.total_rate_cost IS NULL OR wt.total_rate_cost <= 0)
+AND wi.infra_total != 0
+{% if distribution == 'cpu' %}
+AND CASE WHEN d.usage_cpu_sum <= 0 THEN 0
+         ELSE (nu.ns_cpu / d.usage_cpu_sum) * wi.infra_total
+    END != 0;
+{% else %}
+AND CASE WHEN d.usage_memory_sum <= 0 THEN 0
+         ELSE (nu.ns_memory / d.usage_memory_sum) * wi.infra_total
+    END != 0;
+{% endif %}
 
 -- Negate source: per-node negation of Worker unallocated costs.
 -- Computes per-node cost-model total from source RTU + per-node infrastructure
@@ -176,6 +231,11 @@ FROM (
         AND rtu.usage_start <= {{end_date}}::date
         AND rtu.source_uuid = {{source_uuid}}::uuid
         AND rtu.namespace = 'Worker unallocated'
+        -- Exclude markup RTU rows (metric_type='markup', inserted by
+        -- insert_markup_rates_to_usage.sql): their dollar amount is already
+        -- included below via worker_infra's lids.infrastructure_markup_cost.
+        -- Counting both would double the markup contribution to this pool.
+        AND rtu.metric_type != 'markup'
         AND (rtu.monthly_cost_type IS NULL OR rtu.monthly_cost_type NOT IN (
             'worker_distributed', 'platform_distributed', 'gpu_distributed',
             'unattributed_storage', 'unattributed_network'
@@ -213,4 +273,56 @@ WHERE EXISTS (
     AND dist.usage_start = src.usage_start
     AND dist.cluster_id = src.cluster_id
 )
-AND (src.cost_model_total + COALESCE(infra.infra_total, 0)) != 0;
+AND (src.cost_model_total + COALESCE(infra.infra_total, 0)) != 0
+
+UNION ALL
+
+-- Infra-only fallback negation: negate per-node infrastructure costs when no
+-- cost model RTU rows exist for Worker unallocated (markup-only cost model).
+-- No distribution-row guard needed: this SQL only runs when distribution is
+-- enabled in the cost model (checked by populate_distributed_cost_sql).
+SELECT
+    uuid_generate_v4(),
+    MAX(lids.report_period_id),
+    {{source_uuid}}::uuid,
+    lids.usage_start,
+    lids.usage_start,
+    lids.cluster_id,
+    MAX(lids.cluster_alias),
+    'Worker unallocated',
+    lids.node,
+    '', '',
+    {{cost_model_rate_type}},
+    {{cost_model_rate_type}},
+    -SUM(
+        COALESCE(lids.infrastructure_raw_cost, 0) +
+        COALESCE(lids.infrastructure_markup_cost, 0)
+    ),
+    {{cost_model_id}}::uuid
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary lids
+WHERE lids.usage_start >= {{start_date}}::date
+    AND lids.usage_start <= {{end_date}}::date
+    AND lids.report_period_id = {{report_period_id}}
+    AND lids.namespace = 'Worker unallocated'
+    AND lids.cost_model_rate_type IS NULL
+AND NOT EXISTS (
+    SELECT 1 FROM {{schema | sqlsafe}}.rates_to_usage rtu
+    WHERE rtu.usage_start = lids.usage_start
+        AND rtu.source_uuid = {{source_uuid}}::uuid
+        AND rtu.cluster_id = lids.cluster_id
+        AND rtu.namespace = 'Worker unallocated'
+        -- Exclude markup RTU rows (metric_type='markup', inserted by
+        -- insert_markup_rates_to_usage.sql): their dollar amount is already
+        -- included below via lids.infrastructure_markup_cost.
+        -- Counting both would double the markup contribution to this pool.
+        AND rtu.metric_type != 'markup'
+        AND (rtu.monthly_cost_type IS NULL OR rtu.monthly_cost_type NOT IN (
+            'worker_distributed', 'platform_distributed', 'gpu_distributed',
+            'unattributed_storage', 'unattributed_network'
+        ))
+)
+GROUP BY lids.usage_start, lids.cluster_id, lids.node
+HAVING SUM(
+    COALESCE(lids.infrastructure_raw_cost, 0) +
+    COALESCE(lids.infrastructure_markup_cost, 0)
+) != 0;

@@ -13,6 +13,7 @@ fallback.
 See docs/architecture/cost-breakdown/phased-delivery.md § Concern 1 Resolution.
 See docs/architecture/cost-breakdown/risk-register.md § R18.
 """
+import uuid
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -30,6 +31,7 @@ from masu.util.common import SummaryRangeConfig
 from reporting.provider.ocp.models import OCPCostUIBreakDownP
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import OpenshiftCostCategory
 from reporting.provider.ocp.models import RatesToUsage
 from reporting.provider.ocp.self_hosted_models import OCPGPUUsageLineItemDaily
 
@@ -1202,4 +1204,657 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
             float(post_totals["dc"] or 0),
             places=10,
             msg="Idempotency: distributed_cost total changed",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Markup double-count regression (PR #6163 maintainer review,
+# pullrequestreview-4910210286): with the RTU flag on, _update_markup_cost()
+# inserts a markup row into rates_to_usage (metric_type='markup') *in
+# addition to* setting infrastructure_markup_cost directly on the daily
+# summary row it was computed from. distribute_platform_cost_rtu.sql (and the
+# structurally identical worker/storage/network templates) then double-count
+# that markup dollar amount: once via the *_rtu_cost CTE (no metric_type
+# exclusion) and again via the *_infra CTE (reads
+# lids.infrastructure_markup_cost directly). Neither the existing markup
+# tests (TestMarkupRTUIntegration, never run distribution) nor the existing
+# distribution tests (TestDistributionIntegration, always use the on-prem
+# fixture where infrastructure_raw_cost is 0) exercise both together, and the
+# conservation-style assertions in TestDistributionIntegration compare
+# recipient totals against a source total that itself never includes the
+# daily-summary infra contribution -- so this bug is invisible to them even
+# in principle. Isolated in its own test class (not merged into
+# TestDistributionIntegration) so that seeding a nonzero infrastructure_raw_cost
+# here cannot skew that class's shared conservation checks, which assume 0.
+# ---------------------------------------------------------------------------
+class TestMarkupDistributionDoubleCountRTU(_ReportPeriodMixin, MasuTestCase):
+    """Regression test: RTU distribution must not double-count markup."""
+
+    # OCP_ON_PREM_COST_MODEL test fixture (api/report/test/util/constants.py)
+    # always configures a 10% markup.
+    MARKUP_RATE = Decimal("10") / 100
+
+    def setUp(self):
+        super().setUp()
+        self.dh = DateHelper()
+        self.rp = self._get_report_period()
+        start = self.rp.report_period_start
+        end = self.dh.month_end(start)
+        self.start_date = start.date() if hasattr(start, "date") else start
+        self.end_date = end.date() if hasattr(end, "date") else end
+        self.provider_uuid = self.ocp_provider.uuid
+
+        self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not self.updater._cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        self.updater._load_rates(self.start_date)
+        if not (self.updater._infra_rates or self.updater._supplementary_rates):
+            self.skipTest("No rates loaded for OCP provider")
+        self.updater._update_usage_rates_to_usage(self.start_date, self.end_date)
+
+        with schema_context(self.schema):
+            usage_count = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                monthly_cost_type__isnull=True,
+            ).count()
+        if usage_count == 0:
+            self.skipTest("No RTU usage rows after seeding")
+
+    def _seed_infra_cost_on_category(self, cost_category_name=None, namespace=None):
+        """Set a known, nonzero infrastructure_raw_cost on a base usage row
+        (cost_model_rate_type IS NULL) matching the given category or
+        namespace. Returns the amount seeded.
+
+        'Platform' is a real cost_category already present on baseline
+        on-prem usage rows, so the existing row is reused directly. The
+        synthetic 'Worker unallocated'/'Storage unattributed'/'Network
+        unattributed' namespaces are normally produced by upstream
+        production SQL (unallocated-capacity detection), not present as raw
+        usage rows in this fixture -- clone an existing base row's shape and
+        relabel it, since this test only needs a (cost_model_rate_type IS
+        NULL, infrastructure_raw_cost=200) source row for the *_infra CTE,
+        not realistic usage/capacity numbers.
+        """
+        self.infra_raw_cost = Decimal("200.00")
+        with schema_context(self.schema):
+            qs = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                cost_model_rate_type__isnull=True,
+            )
+            if cost_category_name:
+                qs = qs.filter(cost_category__name=cost_category_name)
+            if namespace:
+                qs = qs.filter(namespace=namespace)
+            row = qs.first()
+            if row:
+                OCPUsageLineItemDailySummary.objects.filter(uuid=row.uuid).update(
+                    infrastructure_raw_cost=self.infra_raw_cost
+                )
+                return self.infra_raw_cost
+
+            if not namespace:
+                self.skipTest(
+                    f"No base usage row found for cost_category={cost_category_name} "
+                    "-- cannot seed infra cost for this regression test"
+                )
+            template = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                cost_model_rate_type__isnull=True,
+            ).first()
+            if not template:
+                self.skipTest("No base usage row available to clone from")
+            template.pk = None
+            template.uuid = uuid.uuid4()
+            template.namespace = namespace
+            template.cost_category = None
+            template.infrastructure_raw_cost = self.infra_raw_cost
+            template.infrastructure_markup_cost = None
+            template.infrastructure_project_raw_cost = None
+            template.infrastructure_project_markup_cost = None
+            template.cost_model_cpu_cost = None
+            template.cost_model_memory_cost = None
+            template.cost_model_volume_cost = None
+            template.cost_model_rate_type = None
+            template.monthly_cost_type = None
+            template.distributed_cost = None
+            template.save()
+        return self.infra_raw_cost
+
+    def _run_markup_and_distribution(self, distribution_info):
+        """Run the same orchestration order production code uses: markup
+        (usage + monthly RTU already seeded in setUp) then distribution."""
+        self.updater._update_markup_cost(self.start_date, self.end_date, use_rtu=True)
+
+        summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_distributed_cost_sql(
+                summary_range,
+                self.provider_uuid,
+                distribution_info,
+                cost_model_id=self.updater._cost_model_id,
+                use_rtu=True,
+            )
+
+    def _expected_vs_actual_total(self, monthly_cost_type, source_filter, infra_cost):
+        """Independently compute the correct pool total (rate-cost rows,
+        excluding markup, + infra_raw_cost + markup counted exactly once)
+        and compare it against what distribution actually produced.
+        """
+        with schema_context(self.schema):
+            rate_cost_total = RatesToUsage.objects.filter(
+                source_filter,
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                monthly_cost_type__isnull=True,
+            ).exclude(metric_type="markup").aggregate(t=Sum("calculated_cost"))["t"] or Decimal(0)
+            expected_markup = infra_cost * self.MARKUP_RATE
+            expected_total = rate_cost_total + infra_cost + expected_markup
+
+            # Recipient rows only: exclude rows that match the *source* identity
+            # (cost_category='Platform', or namespace='Worker unallocated' etc).
+            # Those are the negation rows that remove the cost from its origin.
+            # NOTE: custom_name='' does NOT reliably distinguish negation from
+            # recipient rows -- the storage/network (and, when no cost-model
+            # rate exists, worker/platform) "infra-only fallback" INSERT also
+            # writes custom_name='' on its *recipient* rows, so excluding on
+            # custom_name silently drops legitimate recipients too.
+            actual_total = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                monthly_cost_type=monthly_cost_type,
+            ).exclude(source_filter).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+        return expected_total, actual_total, expected_markup
+
+    def test_platform_distribution_does_not_double_count_markup(self):
+        """platform_distributed recipient total must not include markup twice.
+
+        This is the exact scenario from the maintainer's review comment:
+        with RTU on, does distribute_platform_cost_rtu.sql's platform_rtu_cost
+        (RTU markup row) plus platform_infra (lids.infrastructure_markup_cost)
+        double-count markup? Yes, prior to the fix -- by exactly
+        infra_raw_cost * markup_rate.
+        """
+        infra_cost = self._seed_infra_cost_on_category(cost_category_name="Platform")
+        self._run_markup_and_distribution({"distribution_type": "cpu", "platform_cost": True, "worker_cost": True})
+
+        expected_total, actual_total, expected_markup = self._expected_vs_actual_total(
+            "platform_distributed", Q(cost_category__name="Platform"), infra_cost
+        )
+        self.assertAlmostEqual(
+            float(actual_total),
+            float(expected_total),
+            places=2,
+            msg=(
+                f"platform_distributed recipient total (${actual_total}) does not match the "
+                f"independently-computed expected total (${expected_total}); markup appears "
+                f"double-counted (excess would be ${expected_markup})"
+            ),
+        )
+
+    def test_worker_distribution_does_not_double_count_markup(self):
+        """worker_distributed recipient total must not include markup twice."""
+        infra_cost = self._seed_infra_cost_on_category(namespace="Worker unallocated")
+        self._run_markup_and_distribution({"distribution_type": "cpu", "platform_cost": True, "worker_cost": True})
+
+        expected_total, actual_total, expected_markup = self._expected_vs_actual_total(
+            "worker_distributed", Q(namespace="Worker unallocated"), infra_cost
+        )
+        self.assertAlmostEqual(
+            float(actual_total),
+            float(expected_total),
+            places=2,
+            msg=(
+                f"worker_distributed recipient total (${actual_total}) does not match the "
+                f"independently-computed expected total (${expected_total}); markup appears "
+                f"double-counted (excess would be ${expected_markup})"
+            ),
+        )
+
+    def test_storage_distribution_does_not_double_count_markup(self):
+        """unattributed_storage recipient total must not include markup twice."""
+        infra_cost = self._seed_infra_cost_on_category(namespace="Storage unattributed")
+        self._run_markup_and_distribution({"distribution_type": "cpu"})
+
+        expected_total, actual_total, expected_markup = self._expected_vs_actual_total(
+            "unattributed_storage", Q(namespace="Storage unattributed"), infra_cost
+        )
+        self.assertAlmostEqual(
+            float(actual_total),
+            float(expected_total),
+            places=2,
+            msg=(
+                f"unattributed_storage recipient total (${actual_total}) does not match the "
+                f"independently-computed expected total (${expected_total}); markup appears "
+                f"double-counted (excess would be ${expected_markup})"
+            ),
+        )
+
+    def test_network_distribution_does_not_double_count_markup(self):
+        """unattributed_network recipient total must not include markup twice."""
+        infra_cost = self._seed_infra_cost_on_category(namespace="Network unattributed")
+        self._run_markup_and_distribution({"distribution_type": "cpu"})
+
+        expected_total, actual_total, expected_markup = self._expected_vs_actual_total(
+            "unattributed_network", Q(namespace="Network unattributed"), infra_cost
+        )
+        self.assertAlmostEqual(
+            float(actual_total),
+            float(expected_total),
+            places=2,
+            msg=(
+                f"unattributed_network recipient total (${actual_total}) does not match the "
+                f"independently-computed expected total (${expected_total}); markup appears "
+                f"double-counted (excess would be ${expected_markup})"
+            ),
+        )
+
+
+class TestInfraOnlyFallbackDistributionRTU(_ReportPeriodMixin, MasuTestCase):
+    """Regression tests for the infra-only fallback + negation-scoping fixes.
+
+    Covers three distinct gaps found while spiking the markup double-count
+    fix (all newly introduced by this PR, not pre-existing):
+
+    1. Worker/Platform: a markup-only cost model (zero non-markup rates)
+       previously left the whole Worker/Platform infra+markup pool
+       stranded -- namespace_totals' INNER JOIN to *_total_rate produced
+       zero rows, so nothing was ever distributed or negated.
+    2. Platform only: even when *some* Platform rate exists, a specific
+       real Platform-tagged namespace with zero non-markup RTU rows of its
+       own (e.g. no CPU/memory usage recorded that day) was never negated,
+       because the old negation query was driven FROM the RTU rows
+       themselves rather than from daily_summary.
+    3. Storage/Network: the fallback negation's NOT EXISTS guard was
+       missing a cluster_id filter, so a source_uuid with multiple
+       cluster_id values could have one cluster's real rate incorrectly
+       suppress another cluster's fallback negation.
+    """
+
+    MARKUP_RATE = Decimal("10") / 100
+
+    def setUp(self):
+        super().setUp()
+        self.dh = DateHelper()
+        self.rp = self._get_report_period()
+        start = self.rp.report_period_start
+        end = self.dh.month_end(start)
+        self.start_date = start.date() if hasattr(start, "date") else start
+        self.end_date = end.date() if hasattr(end, "date") else end
+        self.provider_uuid = self.ocp_provider.uuid
+
+        self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        if not self.updater._cost_model_id:
+            self.skipTest("No cost model for OCP provider")
+        self.updater._load_rates(self.start_date)
+        if not (self.updater._infra_rates or self.updater._supplementary_rates):
+            self.skipTest("No rates loaded for OCP provider")
+        self.updater._update_usage_rates_to_usage(self.start_date, self.end_date)
+
+        with schema_context(self.schema):
+            usage_count = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                monthly_cost_type__isnull=True,
+            ).count()
+        if usage_count == 0:
+            self.skipTest("No RTU usage rows after seeding")
+
+    def _seed_infra_row(
+        self,
+        namespace=None,
+        cost_category_name=None,
+        cluster_id=None,
+        infra_raw_cost=Decimal("200.00"),
+        infra_markup_cost=None,
+        usage_start=None,
+    ):
+        """Clone an existing base usage row (cost_model_rate_type IS NULL),
+        relabel it to the given namespace/cost_category/cluster_id, and set
+        known infrastructure_raw_cost/infrastructure_markup_cost values.
+
+        infra_markup_cost is set directly on the summary row (as
+        populate_markup_cost() would do for a real cluster) since the
+        distribution SQL's negation/infra-only-fallback CTEs read markup
+        exclusively from lids.infrastructure_markup_cost, never from an
+        RTU metric_type='markup' row.
+
+        By default the cloned row keeps the template's own usage_start (the
+        real cluster's fixture data is only populated on specific days, not
+        every day in [start_date, end_date], so real-cluster callers must
+        land on one of those days to join against the real
+        denominator/namespace_usage aggregates). Pass usage_start explicitly
+        only when seeding a companion row (e.g. _seed_consumer_row) that must
+        land on the exact same day -- the per-day denominator/namespace_usage/
+        *_infra CTEs are all keyed on (usage_start, cluster_id), so mismatched
+        seeded dates silently produce zero joined rows. Returns the new row's
+        uuid.
+        """
+        with schema_context(self.schema):
+            template = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                cost_model_rate_type__isnull=True,
+            ).first()
+            if not template:
+                self.skipTest("No base usage row available to clone from")
+            template.pk = None
+            new_uuid = uuid.uuid4()
+            template.uuid = new_uuid
+            if usage_start is not None:
+                template.usage_start = usage_start
+                template.usage_end = usage_start
+            if namespace is not None:
+                template.namespace = namespace
+            if cluster_id is not None:
+                template.cluster_id = cluster_id
+            if cost_category_name:
+                cat, _ = OpenshiftCostCategory.objects.get_or_create(name=cost_category_name)
+                template.cost_category = cat
+            else:
+                template.cost_category = None
+            template.infrastructure_raw_cost = infra_raw_cost
+            template.infrastructure_markup_cost = infra_markup_cost
+            template.infrastructure_project_raw_cost = None
+            template.infrastructure_project_markup_cost = None
+            template.cost_model_cpu_cost = None
+            template.cost_model_memory_cost = None
+            template.cost_model_volume_cost = None
+            template.cost_model_rate_type = None
+            template.monthly_cost_type = None
+            template.distributed_cost = None
+            template.save()
+            return new_uuid
+
+    def _seed_consumer_row(self, cluster_id, namespace="zzz-test-shadow-consumer-ns", usage_start=None):
+        """Clone an existing base usage row into a *real*, non-overhead
+        namespace under the given cluster_id, preserving its CPU/memory
+        usage so the shared denominator/namespace_usage temp tables have a
+        valid recipient to distribute to for that cluster_id. Without this,
+        a synthetic cluster_id that only has an overhead-pool row (e.g.
+        'Storage unattributed') is entirely absent from
+        tmp_dist_namespace_usage_all/tmp_dist_denominator_all (they exclude
+        overhead namespaces), so any per-cluster infra pool would have
+        nowhere to land -- an artifact of the test fixture, not a real
+        production scenario where every cluster has real workloads.
+
+        Pass usage_start explicitly to pin this row to match a companion
+        infra-pool row created via _seed_infra_row -- see that method's
+        docstring for why this must match exactly.
+        """
+        with schema_context(self.schema):
+            template = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    source_uuid=self.provider_uuid,
+                    usage_start__gte=self.start_date,
+                    usage_start__lte=self.end_date,
+                    cost_model_rate_type__isnull=True,
+                    data_source="Pod",
+                )
+                .exclude(namespace__in=["Worker unallocated", "Storage unattributed", "Network unattributed"])
+                .first()
+            )
+            if not template:
+                self.skipTest("No base Pod usage row available to clone from")
+            template.pk = None
+            template.uuid = uuid.uuid4()
+            if usage_start is not None:
+                template.usage_start = usage_start
+                template.usage_end = usage_start
+            template.cluster_id = cluster_id
+            template.namespace = namespace
+            template.cost_category = None
+            template.infrastructure_raw_cost = None
+            template.infrastructure_markup_cost = None
+            template.infrastructure_project_raw_cost = None
+            template.infrastructure_project_markup_cost = None
+            template.cost_model_cpu_cost = None
+            template.cost_model_memory_cost = None
+            template.cost_model_volume_cost = None
+            template.cost_model_rate_type = None
+            template.monthly_cost_type = None
+            template.distributed_cost = None
+            template.save()
+            return template.uuid
+
+    def _delete_non_markup_rtu(self, namespace=None, cost_category_name=None, cluster_id=None):
+        """Force the 'zero non-markup rate' condition by deleting any
+        consumption-rate RTU rows for the given namespace/category/cluster,
+        leaving only markup rows (if any) behind.
+        """
+        with schema_context(self.schema):
+            qs = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                monthly_cost_type__isnull=True,
+            ).exclude(metric_type="markup")
+            if namespace:
+                qs = qs.filter(namespace=namespace)
+            if cost_category_name:
+                qs = qs.filter(cost_category__name=cost_category_name)
+            if cluster_id:
+                qs = qs.filter(cluster_id=cluster_id)
+            qs.delete()
+
+    def _run_markup_and_distribution(self, distribution_info):
+        self.updater._update_markup_cost(self.start_date, self.end_date, use_rtu=True)
+        summary_range = SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date)
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_distributed_cost_sql(
+                summary_range,
+                self.provider_uuid,
+                distribution_info,
+                cost_model_id=self.updater._cost_model_id,
+                use_rtu=True,
+            )
+
+    def _net_total(self, monthly_cost_type, cluster_id=None):
+        with schema_context(self.schema):
+            qs = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                monthly_cost_type=monthly_cost_type,
+            )
+            if cluster_id:
+                qs = qs.filter(cluster_id=cluster_id)
+            return qs.aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+
+    def test_worker_zero_rate_pool_is_distributed_and_negated_exactly(self):
+        """A markup-only cost model (zero non-markup Worker rates) must not
+        strand the infra+markup pool -- it must be fully distributed to
+        real namespaces and fully negated from 'Worker unallocated', net
+        zero. Prior to the infra-only fallback, namespace_totals' INNER
+        JOIN to worker_total_rate produced zero rows for the whole pool,
+        so nothing was distributed or negated at all.
+        """
+        self._seed_infra_row(namespace="Worker unallocated", infra_raw_cost=Decimal("200.00"))
+        self._delete_non_markup_rtu(namespace="Worker unallocated")
+
+        self._run_markup_and_distribution({"distribution_type": "cpu", "platform_cost": True, "worker_cost": True})
+
+        expected_markup = Decimal("200.00") * self.MARKUP_RATE
+        expected_pool = Decimal("200.00") + expected_markup
+        net_total = self._net_total("worker_distributed")
+        self.assertAlmostEqual(
+            float(net_total),
+            0.0,
+            places=2,
+            msg=f"worker_distributed pool did not net to zero (got ${net_total}); pool was ${expected_pool}",
+        )
+        with schema_context(self.schema):
+            recipient_total = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                monthly_cost_type="worker_distributed",
+            ).exclude(namespace="Worker unallocated").aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+        self.assertAlmostEqual(
+            float(recipient_total),
+            float(expected_pool),
+            places=2,
+            msg=(
+                f"worker_distributed recipients got ${recipient_total}, expected ${expected_pool} "
+                "(infra-only fallback did not distribute the zero-rate pool)"
+            ),
+        )
+
+    def test_platform_zero_rate_pool_is_distributed_and_negated_exactly(self):
+        """Same as above, for the whole Platform category pool.
+
+        Asserts recipient_total explicitly (not just net==0): with the old
+        code (no infra-only fallback, no restructured negation), deleting
+        every non-markup Platform RTU row makes *both* the recipient
+        distribution and the negation produce zero rows -- net==0 trivially,
+        without proving either side actually ran. Checking recipient_total
+        directly catches that vacuous-pass case.
+        """
+        expected_markup = Decimal("200.00") * self.MARKUP_RATE
+        expected_pool = Decimal("200.00") + expected_markup
+        self._seed_infra_row(cost_category_name="Platform", infra_raw_cost=Decimal("200.00"))
+        self._delete_non_markup_rtu(cost_category_name="Platform")
+
+        self._run_markup_and_distribution({"distribution_type": "cpu", "platform_cost": True, "worker_cost": True})
+
+        net_total = self._net_total("platform_distributed")
+        self.assertAlmostEqual(
+            float(net_total),
+            0.0,
+            places=2,
+            msg=f"platform_distributed pool did not net to zero (got ${net_total})",
+        )
+        with schema_context(self.schema):
+            recipient_total = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                monthly_cost_type="platform_distributed",
+            ).exclude(cost_category__name="Platform").aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+        self.assertAlmostEqual(
+            float(recipient_total),
+            float(expected_pool),
+            places=2,
+            msg=(
+                f"platform_distributed recipients got ${recipient_total}, expected ${expected_pool} "
+                "(infra-only fallback did not distribute the zero-rate pool)"
+            ),
+        )
+
+    def test_platform_negation_covers_namespace_with_zero_own_rate_in_mixed_pool(self):
+        """When the Platform pool has *some* real rate (from one namespace)
+        but a second, distinct real Platform namespace has zero non-markup
+        RTU rows of its own, that second namespace's infra+markup must
+        still be negated. Prior to restructuring the negation to be driven
+        from daily_summary (LEFT JOIN to the RTU rate aggregate), a
+        namespace absent from the RTU-driven FROM clause was silently
+        skipped by negation -- even though its infra was already included
+        in the whole-pool recipient distribution, causing a real double
+        count.
+        """
+        # Namespace A: existing baseline Platform row, keeps its real non-markup
+        # RTU rows from setUp (so the pool as a whole has total_rate_cost > 0).
+        self._seed_infra_row(cost_category_name="Platform", infra_raw_cost=Decimal("200.00"))
+
+        # Namespace B: a second, distinct real Platform namespace with infra but
+        # deliberately zero non-markup RTU rows of its own.
+        self._seed_infra_row(
+            namespace="zzz-test-platform-zero-rate-ns",
+            cost_category_name="Platform",
+            infra_raw_cost=Decimal("150.00"),
+        )
+        self._delete_non_markup_rtu(namespace="zzz-test-platform-zero-rate-ns")
+
+        self._run_markup_and_distribution({"distribution_type": "cpu", "platform_cost": True, "worker_cost": True})
+
+        net_total = self._net_total("platform_distributed")
+        self.assertAlmostEqual(
+            float(net_total),
+            0.0,
+            places=2,
+            msg=f"platform_distributed pool did not net to zero in the mixed-namespace scenario (got ${net_total})",
+        )
+        with schema_context(self.schema):
+            namespace_b_negation = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                monthly_cost_type="platform_distributed",
+                namespace="zzz-test-platform-zero-rate-ns",
+            ).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+        expected_b_markup = Decimal("150.00") * self.MARKUP_RATE
+        expected_b_negation = -(Decimal("150.00") + expected_b_markup)
+        self.assertAlmostEqual(
+            float(namespace_b_negation),
+            float(expected_b_negation),
+            places=2,
+            msg=(
+                f"zero-own-rate Platform namespace was not negated (got ${namespace_b_negation}, "
+                f"expected ${expected_b_negation}) -- its infra+markup is double-counted"
+            ),
+        )
+
+    def test_storage_negation_scoped_by_cluster_id_not_leaked_across_clusters(self):
+        """The fallback negation's NOT EXISTS guard must be scoped by
+        cluster_id: a real Storage rate existing under one cluster_id must
+        not suppress the fallback negation for a *different* cluster_id
+        under the same source_uuid. Prior to the fix, the guard checked
+        only (usage_start, source_uuid, namespace), so it could find the
+        real cluster's rate row and incorrectly treat the fake cluster as
+        'already covered', permanently stranding its infra+markup.
+        """
+        real_cluster_id = self.ocp_cluster_id
+        shadow_cluster_id = f"{real_cluster_id}-shadow-test"
+
+        # Real cluster keeps its baseline non-markup RTU rows from setUp
+        # (rate_cost > 0 for that cluster).
+        self._seed_infra_row(namespace="Storage unattributed", infra_raw_cost=Decimal("50.00"))
+
+        # Shadow "cluster": same source_uuid, different cluster_id, with its own
+        # real infra + markup, but zero non-markup RTU rows of its own -- and a
+        # real consuming namespace so the recipient side has somewhere to land
+        # (a cluster with only the overhead-pool row is not a realistic fixture;
+        # tmp_dist_namespace_usage_all/denominator exclude overhead namespaces).
+        shadow_markup = Decimal("300.00") * self.MARKUP_RATE
+        shadow_pool_uuid = self._seed_infra_row(
+            namespace="Storage unattributed",
+            cluster_id=shadow_cluster_id,
+            infra_raw_cost=Decimal("300.00"),
+            infra_markup_cost=shadow_markup,
+        )
+        with schema_context(self.schema):
+            shadow_pool_usage_start = OCPUsageLineItemDailySummary.objects.get(uuid=shadow_pool_uuid).usage_start
+        self._seed_consumer_row(shadow_cluster_id, usage_start=shadow_pool_usage_start)
+
+        self._run_markup_and_distribution({"distribution_type": "cpu"})
+
+        net_shadow = self._net_total("unattributed_storage", cluster_id=shadow_cluster_id)
+        self.assertAlmostEqual(
+            float(net_shadow),
+            0.0,
+            places=2,
+            msg=(
+                f"shadow cluster's unattributed_storage pool did not net to zero (got ${net_shadow}) -- "
+                "the real cluster's rate incorrectly suppressed the shadow cluster's fallback negation"
+            ),
+        )
+        with schema_context(self.schema):
+            shadow_negation = RatesToUsage.objects.filter(
+                source_uuid=self.provider_uuid,
+                monthly_cost_type="unattributed_storage",
+                cluster_id=shadow_cluster_id,
+                namespace="Storage unattributed",
+            ).aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
+        expected_shadow_negation = -(Decimal("300.00") + shadow_markup)
+        self.assertAlmostEqual(
+            float(shadow_negation),
+            float(expected_shadow_negation),
+            places=2,
+            msg=(
+                f"shadow cluster was not negated (got ${shadow_negation}, expected "
+                f"${expected_shadow_negation}) -- cross-cluster NOT EXISTS leak stranded its infra+markup"
+            ),
         )
