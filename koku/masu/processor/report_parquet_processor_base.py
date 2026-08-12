@@ -268,7 +268,7 @@ class ReportParquetProcessorBase:
             except ProgrammingError as err:
                 LOG.warning(
                     log_json(
-                        msg=f"{caller} failed with non-retryable error",
+                        msg=f"{caller} totally fake message",
                         schema=schema_name,
                         table=self._table_name,
                     ),
