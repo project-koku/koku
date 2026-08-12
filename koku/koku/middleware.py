@@ -53,14 +53,6 @@ UNIQUE_ACCOUNT_COUNTER = Counter("hccm_unique_account", "Unique Account Counter"
 UNIQUE_USER_COUNTER = Counter("hccm_unique_user", "Unique User Counter", ["account", "user"])
 
 
-def is_qe_schema(schema_name: str) -> bool:
-    if settings.QE_SCHEMA and schema_name == settings.QE_SCHEMA:
-        return True
-    # Must guard: "".endswith("") is True in Python
-    suffix = settings.SCHEMA_SUFFIX
-    return bool(suffix) and schema_name.endswith(suffix)
-
-
 def is_no_auth(request):
     """Check condition for needing to authenticate the user."""
     # Paths that don't require authentication:
