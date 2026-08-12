@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1785214301 AS base
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1786380870 AS base
 
 USER root
 
