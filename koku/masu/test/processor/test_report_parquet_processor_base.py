@@ -178,8 +178,10 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         warning_logs = [o for o in cm.output if "retrying (attempt" in o]
         self.assertEqual(len(warning_logs), 2)
         self.assertIn(self.schema_name, warning_logs[0])
+        self.assertIn("ALREADY_EXISTS", warning_logs[0])
         error_logs = [o for o in cm.output if "failed after 3 attempts" in o]
         self.assertEqual(len(error_logs), 1)
+        self.assertIn("ALREADY_EXISTS", error_logs[0])
 
     @patch("masu.processor.report_parquet_processor_base.time.sleep")
     @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
@@ -212,6 +214,30 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
                 self.assertIn("test", non_retryable_logs[0])
                 mock_sleep.assert_not_called()
 
+    @patch("masu.processor.report_parquet_processor_base.time.sleep")
+    @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
+    def test_execute_trino_sql_with_retries_no_retry_on_unknown_trino_error(self, mock_accessor, mock_sleep):
+        """Given a TrinoQueryError with an error_name not in the retryable allowlist,
+        when _execute_trino_sql_with_retries is called,
+        then it logs ERROR with the error_name and returns [] without retrying.
+        """
+        trino_error = TrinoQueryError({"errorName": "SYNTAX_ERROR", "message": "unexpected token"})
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = trino_error
+        self._mock_trino_accessor(mock_accessor, mock_cursor)
+
+        with self.assertLogs(self.log_base, level="ERROR") as cm:
+            result = self.processor._execute_trino_sql_with_retries(
+                "SELECT 1", self.schema_name, caller="test", max_retries=2
+            )
+        self.assertEqual(result, [])
+        self.assertEqual(mock_cursor.execute.call_count, 1)
+        mock_sleep.assert_not_called()
+        error_logs = [o for o in cm.output if "non-retryable TrinoQueryError" in o]
+        self.assertEqual(len(error_logs), 1)
+        self.assertIn("SYNTAX_ERROR", error_logs[0])
+        self.assertIn(self.schema_name, error_logs[0])
+
     @patch("masu.processor.report_parquet_processor_base.random.uniform", return_value=0.5)
     @patch("masu.processor.report_parquet_processor_base.time.sleep")
     @patch("masu.processor.report_parquet_processor_base.get_report_db_accessor")
@@ -239,6 +265,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         warning_logs = [o for o in cm.output if "retrying (attempt 1)" in o]
         self.assertEqual(len(warning_logs), 1)
         self.assertIn(self.schema_name, warning_logs[0])
+        self.assertIn("ALREADY_EXISTS", warning_logs[0])
 
     @patch.object(ReportParquetProcessorBase, "_execute_trino_sql")
     def test_schema_exists_cache_value_in_cache(self, trino_mock):

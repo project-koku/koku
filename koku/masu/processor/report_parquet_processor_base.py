@@ -29,6 +29,8 @@ from reporting.models import TenantAPIProvider
 
 LOG = logging.getLogger(__name__)
 
+_RETRYABLE_TRINO_ERRORS = frozenset({"ALREADY_EXISTS", "HIVE_METASTORE_ERROR", "HIVE_FILESYSTEM_ERROR", "JDBC_ERROR"})
+
 
 class PostgresSummaryTableError(Exception):
     """Postgres summary table is not defined."""
@@ -209,10 +211,11 @@ class ReportParquetProcessorBase:
         return created
 
     def _execute_trino_sql_with_retries(self, sql, schema_name: str, caller="", max_retries=3):
-        """Execute Trino SQL with retries on transient TrinoQueryError exceptions.
+        """Execute Trino SQL with retries on known transient TrinoQueryError exceptions.
 
-        Returns the result rows on success, or an empty list on failure.
-        Non-retryable errors (ProgrammingError, Error) are logged and return immediately.
+        Only errors in _RETRYABLE_TRINO_ERRORS are retried with exponential backoff.
+        Unknown TrinoQueryErrors are logged at ERROR (with error_name) and return [] immediately.
+        ProgrammingError and Django Error are also non-retryable and return [] immediately.
         """
         for attempt in range(max_retries + 1):
             try:
@@ -229,6 +232,17 @@ class ReportParquetProcessorBase:
                         LOG.debug(f"{caller} returned {len(rows)} rows")
                 return rows
             except TrinoQueryError as err:
+                if err.error_name not in _RETRYABLE_TRINO_ERRORS:
+                    LOG.error(
+                        log_json(
+                            msg=f"{caller} failed with non-retryable TrinoQueryError",
+                            schema=schema_name,
+                            table=self._table_name,
+                            error_name=err.error_name,
+                        ),
+                        exc_info=err,
+                    )
+                    return []
                 if attempt < max_retries:
                     backoff = min(2**attempt, 30) + random.uniform(0, 1)
                     LOG.warning(
@@ -236,6 +250,7 @@ class ReportParquetProcessorBase:
                             msg=f"{caller} retrying (attempt {attempt + 1})",
                             schema=schema_name,
                             table=self._table_name,
+                            error_name=err.error_name,
                         ),
                         exc_info=err,
                     )
@@ -246,6 +261,7 @@ class ReportParquetProcessorBase:
                             msg=f"{caller} failed after {attempt + 1} attempts",
                             schema=schema_name,
                             table=self._table_name,
+                            error_name=err.error_name,
                         ),
                         exc_info=err,
                     )
