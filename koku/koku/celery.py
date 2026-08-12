@@ -35,13 +35,13 @@ SAAS_ONLY_BEAT_NAMES = (
 )
 
 
-def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=None, onprem=False):
-    """Register the daily currency rates beat when URL is set and not on-prem.
+def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=None):
+    """Register the daily currency rates beat only when CURRENCY_URL is set.
 
-    On-prem deployments skip this beat even if CURRENCY_URL is configured so
-    workers do not attempt outbound exchange-rate API calls.
+    Works for SaaS and on-prem (legacy currency path). Empty CURRENCY_URL means
+    the beat is not scheduled and workers do not attempt outbound FX API calls.
     """
-    if onprem or not (currency_url or "").strip():
+    if not (currency_url or "").strip():
         return False
     beat_schedule[CURRENCY_RATES_BEAT_NAME] = {
         "task": "masu.celery.tasks.get_daily_currency_rates",
@@ -251,13 +251,9 @@ if not register_saas_only_beats(
 ):
     LOG.info("SaaS-only Celery beats not registered (ONPREM=%s)", settings.ONPREM)
 
-# Beat used to fetch daily rates (SaaS only; requires CURRENCY_URL)
-if not register_daily_currency_rates_beat(app.conf.beat_schedule, settings.CURRENCY_URL, onprem=settings.ONPREM):
-    LOG.info(
-        "Daily currency rates beat not registered (ONPREM=%s, CURRENCY_URL empty=%s)",
-        settings.ONPREM,
-        not bool((settings.CURRENCY_URL or "").strip()),
-    )
+# Beat used to fetch daily rates (only when CURRENCY_URL is configured)
+if not register_daily_currency_rates_beat(app.conf.beat_schedule, settings.CURRENCY_URL):
+    LOG.info("Daily currency rates beat not registered (CURRENCY_URL is empty)")
 
 # Specify the frequency for checking delayed summary tasks
 DELAYED_TASK_POLLING_MINUTES = ENVIRONMENT.get_value("DELAYED_TASK_POLLING_MINUTES", default="30")
