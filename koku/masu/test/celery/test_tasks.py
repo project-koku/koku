@@ -204,6 +204,39 @@ class TestCeleryTasks(MasuTestCase):
             calls.append(call(table, partition_column, provider_uuid))
         mock_delete_partitions.assert_has_calls(calls)
 
+    @patch("masu.celery.tasks.is_ocp_tag_cleanup_disabled", return_value=False)
+    @patch("masu.celery.tasks.OCPReportDBAccessor.cleanup_ocp_tags_values")
+    @patch("masu.celery.tasks.OCPReportDBAccessor.delete_hive_partitions_by_source")
+    @patch("masu.celery.tasks.deleted_archived_with_prefix")
+    def test_delete_archived_data_ocp_cleans_up_orphan_tag_values(
+        self, mock_delete, mock_delete_partitions, mock_cleanup_tags, mock_tag_cleanup_disabled
+    ):
+        """Test that deleting an OCP source's archived data also prunes orphan tag values."""
+        schema_name = "org1234567"
+        provider_type = Provider.PROVIDER_OCP
+        provider_uuid = "00000000-0000-0000-0000-000000000001"
+
+        tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
+
+        mock_tag_cleanup_disabled.assert_called_once_with(schema_name)
+        mock_cleanup_tags.assert_called_once()
+
+    @patch("masu.celery.tasks.is_ocp_tag_cleanup_disabled", return_value=True)
+    @patch("masu.celery.tasks.OCPReportDBAccessor.cleanup_ocp_tags_values")
+    @patch("masu.celery.tasks.OCPReportDBAccessor.delete_hive_partitions_by_source")
+    @patch("masu.celery.tasks.deleted_archived_with_prefix")
+    def test_delete_archived_data_ocp_skips_orphan_tag_cleanup_when_disabled(
+        self, mock_delete, mock_delete_partitions, mock_cleanup_tags, mock_tag_cleanup_disabled
+    ):
+        """Test that the orphan tag value cleanup is skipped when the kill switch is enabled."""
+        schema_name = "org1234567"
+        provider_type = Provider.PROVIDER_OCP
+        provider_uuid = "00000000-0000-0000-0000-000000000001"
+
+        tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
+
+        mock_cleanup_tags.assert_not_called()
+
     def test_crawl_account_hierarchy_with_provider_uuid(self):
         """Test that only accounts associated with the provider_uuid are polled."""
         p = self.baker.make(Provider, type=Provider.PROVIDER_AWS)
