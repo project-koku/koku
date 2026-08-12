@@ -75,10 +75,13 @@ class CurrencyRatesBeatScheduleTest(SimpleTestCase):
     """Tests for conditional registration of the daily currency rates beat."""
 
     def test_register_daily_currency_rates_beat_with_url(self):
-        """Beat is registered when CURRENCY_URL is set."""
+        """Beat is registered when CURRENCY_URL is set and not on-prem."""
         beat_schedule = {}
         scheduled = register_daily_currency_rates_beat(
-            beat_schedule, "https://exchange-rates.example/v6/latest/USD", schedule=crontab(hour=1, minute=0)
+            beat_schedule,
+            "https://exchange-rates.example/v6/latest/USD",
+            schedule=crontab(hour=1, minute=0),
+            onprem=False,
         )
 
         self.assertTrue(scheduled)
@@ -87,6 +90,34 @@ class CurrencyRatesBeatScheduleTest(SimpleTestCase):
             beat_schedule[CURRENCY_RATES_BEAT_NAME]["task"],
             "masu.celery.tasks.get_daily_currency_rates",
         )
+
+    def test_register_daily_currency_rates_beat_with_url_when_not_onprem(self):
+        """SaaS still registers the currency beat when a URL is configured."""
+        beat_schedule = {}
+        scheduled = register_daily_currency_rates_beat(
+            beat_schedule,
+            "https://exchange-rates.example/v6/latest/USD",
+            onprem=False,
+        )
+
+        self.assertTrue(scheduled)
+        self.assertIn(CURRENCY_RATES_BEAT_NAME, beat_schedule)
+        self.assertEqual(
+            beat_schedule[CURRENCY_RATES_BEAT_NAME]["task"],
+            "masu.celery.tasks.get_daily_currency_rates",
+        )
+
+    def test_register_daily_currency_rates_beat_skipped_when_onprem(self):
+        """Beat is not registered on-prem even when CURRENCY_URL is set."""
+        beat_schedule = {}
+        scheduled = register_daily_currency_rates_beat(
+            beat_schedule,
+            "https://exchange-rates.example/v6/latest/USD",
+            onprem=True,
+        )
+
+        self.assertFalse(scheduled)
+        self.assertNotIn(CURRENCY_RATES_BEAT_NAME, beat_schedule)
 
     def test_register_daily_currency_rates_beat_without_url(self):
         """Beat is not registered when CURRENCY_URL is empty, None, or whitespace."""
