@@ -10,6 +10,7 @@ import logging
 import os
 import pkgutil
 import uuid
+from contextlib import contextmanager
 from decimal import Decimal
 from uuid import uuid4
 
@@ -698,6 +699,41 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 ),
             )
 
+    @contextmanager
+    def _distribution_provider_lock(self, provider_uuid):
+        """Serialize concurrent distribution/aggregation calls for the same provider.
+
+        Two overlapping-but-different-range invocations of
+        populate_distributed_cost_sql/aggregate_rates_to_daily_summary/
+        populate_markup_rates_to_usage for the SAME provider (e.g. a cost-model
+        update racing a resummarize; WorkerCache's cache key includes
+        start_date/end_date, so it does not dedupe these -- see PR #6162) can
+        interleave their per-category DELETE and INSERT and silently double
+        distributed_cost, with no deadlock or exception raised to catch it
+        (each call is its own independent, autocommitted statement -- see
+        ReportDBAccessorBase._execute_raw_sql_query).
+
+        Deliberately uses session-scoped pg_advisory_lock/pg_advisory_unlock,
+        NOT pg_advisory_xact_lock wrapped in transaction.atomic(): the methods
+        this brackets call _prepare_and_execute_raw_sql_query, which retries on
+        deadlock, and that retry is only safe when each call remains its own
+        independent, autocommitted unit of work (see
+        RawSqlRetryIdempotencyGuardTest). Wrapping those calls in
+        transaction.atomic() would abort the whole transaction on a deadlock,
+        breaking the per-statement retry instead of fixing this race. This
+        lock brackets the already-autocommitted calls with separate LOCK/UNLOCK
+        statements on the same session instead, so retry-on-deadlock semantics
+        for every statement in between are completely unchanged.
+        """
+        lock_key = str(provider_uuid)
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_lock(hashtext(%s))", [lock_key])
+        try:
+            yield
+        finally:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_unlock(hashtext(%s))", [lock_key])
+
     def populate_distributed_cost_sql(  # noqa: C901
         self,
         summary_range: SummaryRangeConfig,
@@ -716,6 +752,10 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         When False (safe default), uses legacy ``distribute_*_cost.sql``
         templates that write directly to the daily summary.
 
+        Runs under _distribution_provider_lock (see its docstring) to
+        serialize concurrent, overlapping-range invocations for the same
+        provider and prevent silently doubling distributed_cost.
+
         args:
             start_date (datetime, str): The start_date to calculate monthly_cost.
             end_date (datetime, str): The end_date to calculate monthly_cost.
@@ -725,88 +765,155 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             cost_model_currency: The cost model's currency code.
             use_rtu: When True, use per-rate RTU distribution SQL.
         """
+        with self._distribution_provider_lock(provider_uuid):
+            path_suffix = "_rtu" if use_rtu else ""
+            distribution_configs = {
+                metric_constants.PLATFORM_COST: DistributionConfig(
+                    sql_file=f"distribute_platform_cost{path_suffix}.sql",
+                    cost_model_rate_type="platform_distributed",
+                ),
+                metric_constants.WORKER_UNALLOCATED: DistributionConfig(
+                    sql_file=f"distribute_worker_cost{path_suffix}.sql",
+                    cost_model_rate_type="worker_distributed",
+                ),
+                metric_constants.STORAGE_UNATTRIBUTED: DistributionConfig(
+                    sql_file=f"distribute_unattributed_storage_cost{path_suffix}.sql",
+                    cost_model_rate_type="unattributed_storage",
+                    distribute_by_default=True,
+                ),
+                metric_constants.NETWORK_UNATTRIBUTED: DistributionConfig(
+                    sql_file=f"distribute_unattributed_network_cost{path_suffix}.sql",
+                    cost_model_rate_type="unattributed_network",
+                    distribute_by_default=True,
+                ),
+                metric_constants.GPU_UNALLOCATED: DistributionConfig(
+                    sql_file=f"distribute_unallocated_gpu_cost{path_suffix}.sql",
+                    cost_model_rate_type="gpu_distributed",
+                    query_type="trino",
+                    required_table="openshift_gpu_usage_line_items_daily",
+                    requires_full_month=True,
+                ),
+            }
 
-        path_suffix = "_rtu" if use_rtu else ""
-        distribution_configs = {
-            metric_constants.PLATFORM_COST: DistributionConfig(
-                sql_file=f"distribute_platform_cost{path_suffix}.sql",
-                cost_model_rate_type="platform_distributed",
-            ),
-            metric_constants.WORKER_UNALLOCATED: DistributionConfig(
-                sql_file=f"distribute_worker_cost{path_suffix}.sql",
-                cost_model_rate_type="worker_distributed",
-            ),
-            metric_constants.STORAGE_UNATTRIBUTED: DistributionConfig(
-                sql_file=f"distribute_unattributed_storage_cost{path_suffix}.sql",
-                cost_model_rate_type="unattributed_storage",
-                distribute_by_default=True,
-            ),
-            metric_constants.NETWORK_UNATTRIBUTED: DistributionConfig(
-                sql_file=f"distribute_unattributed_network_cost{path_suffix}.sql",
-                cost_model_rate_type="unattributed_network",
-                distribute_by_default=True,
-            ),
-            metric_constants.GPU_UNALLOCATED: DistributionConfig(
-                sql_file=f"distribute_unallocated_gpu_cost{path_suffix}.sql",
-                cost_model_rate_type="gpu_distributed",
-                query_type="trino",
-                required_table="openshift_gpu_usage_line_items_daily",
-                requires_full_month=True,
-            ),
-        }
-
-        table_name = self._table_map["line_item_daily_summary"]
-        dh = DateHelper()
-        # Per-rate SQL shares denominator/namespace_usage temp tables (Option B).
-        if use_rtu and (
-            report_period_for_temp_tables := self.report_periods_for_provider_uuid(
-                provider_uuid, summary_range.start_date
-            )
-        ):
-            self._create_distribution_temp_tables(
-                {
-                    "schema": self.schema,
+            table_name = self._table_map["line_item_daily_summary"]
+            dh = DateHelper()
+            # Per-rate SQL shares denominator/namespace_usage temp tables (Option B).
+            if use_rtu and (
+                report_period_for_temp_tables := self.report_periods_for_provider_uuid(
+                    provider_uuid, summary_range.start_date
+                )
+            ):
+                self._create_distribution_temp_tables(
+                    {
+                        "schema": self.schema,
+                        "start_date": summary_range.start_date,
+                        "end_date": summary_range.end_date,
+                        "report_period_id": report_period_for_temp_tables.id,
+                    }
+                )
+            for cost_model_key, config in distribution_configs.items():
+                sql_params = {
                     "start_date": summary_range.start_date,
                     "end_date": summary_range.end_date,
-                    "report_period_id": report_period_for_temp_tables.id,
+                    "schema": self.schema,
+                    "source_uuid": provider_uuid,
+                    "cost_model_rate_type": config.cost_model_rate_type,
+                    "cost_model_id": cost_model_id,
                 }
-            )
-        for cost_model_key, config in distribution_configs.items():
-            sql_params = {
-                "start_date": summary_range.start_date,
-                "end_date": summary_range.end_date,
-                "schema": self.schema,
-                "source_uuid": provider_uuid,
-                "cost_model_rate_type": config.cost_model_rate_type,
-                "cost_model_id": cost_model_id,
-            }
-            # Handle distributions that require full month data
-            if config.requires_full_month:
-                if summary_range.is_current_month:
-                    # Trigger distribution for previous month on the second of the current month
-                    if dh.now_utc.day == 2:
-                        if OCPUsageLineItemDailySummary.objects.filter(
-                            source_uuid=provider_uuid,
-                            usage_start__gte=summary_range.start_of_previous_month,
-                            usage_start__lte=summary_range.end_of_previous_month,
-                            cost_model_rate_type=config.cost_model_rate_type,
-                        ).exists():
-                            msg = f"Skipping {cost_model_key} distribution - previous month already finalized"
+                # Handle distributions that require full month data
+                if config.requires_full_month:
+                    if summary_range.is_current_month:
+                        # Trigger distribution for previous month on the second of the current month
+                        if dh.now_utc.day == 2:
+                            if OCPUsageLineItemDailySummary.objects.filter(
+                                source_uuid=provider_uuid,
+                                usage_start__gte=summary_range.start_of_previous_month,
+                                usage_start__lte=summary_range.end_of_previous_month,
+                                cost_model_rate_type=config.cost_model_rate_type,
+                            ).exists():
+                                msg = f"Skipping {cost_model_key} distribution - previous month already finalized"
+                                LOG.info(
+                                    log_json(
+                                        msg=msg,
+                                        context={
+                                            "schema": self.schema,
+                                            "provider_uuid": str(provider_uuid),
+                                        },
+                                    )
+                                )
+                                continue
+                            sql_params["start_date"] = summary_range.start_of_previous_month
+                            sql_params["end_date"] = summary_range.end_of_previous_month
+                            summary_range.summarize_previous_month = True
+                        else:
+                            msg = f"Skipping {cost_model_key} distribution requires full month"
                             LOG.info(
                                 log_json(
                                     msg=msg,
                                     context={
                                         "schema": self.schema,
-                                        "provider_uuid": str(provider_uuid),
+                                        "cost_model_key": cost_model_key,
                                     },
                                 )
                             )
                             continue
-                        sql_params["start_date"] = summary_range.start_of_previous_month
-                        sql_params["end_date"] = summary_range.end_of_previous_month
-                        summary_range.summarize_previous_month = True
                     else:
-                        msg = f"Skipping {cost_model_key} distribution requires full month"
+                        sql_params["start_date"] = summary_range.start_of_month
+                        sql_params["end_date"] = summary_range.end_of_month
+
+                report_period = self.report_periods_for_provider_uuid(provider_uuid, sql_params["start_date"])
+                if not report_period:
+                    msg = f"no report period for OCP provider, skipping {cost_model_key} distribution update"
+                    context = {
+                        "schema": self.schema,
+                        "provider_uuid": provider_uuid,
+                        "start_date": sql_params["start_date"],
+                    }
+                    LOG.info(log_json(msg=msg, context=context))
+                    continue
+                sql_params["report_period_id"] = report_period.id
+
+                self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
+                if use_rtu:
+                    self._delete_distributed_rtu_rows(sql_params, cost_model_key)
+                populate = distribution_info.get(cost_model_key, config.distribute_by_default)
+                if not populate:
+                    continue
+                # Gate: skip GPU distribution if cluster has no GPU data for the period
+                if cost_model_key == metric_constants.GPU_UNALLOCATED and not self._reporting_period_has_gpu_data(
+                    provider_uuid, sql_params["start_date"]
+                ):
+                    msg = "Skipping GPU full-month summary: no GPU data for cluster"
+                    LOG.info(
+                        log_json(
+                            msg=msg,
+                            context={
+                                "schema": self.schema,
+                                "provider_uuid": str(provider_uuid),
+                            },
+                        )
+                    )
+                    continue
+                sql_params["distribution"] = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
+                if cost_model_key in (
+                    metric_constants.NETWORK_UNATTRIBUTED,
+                    metric_constants.STORAGE_UNATTRIBUTED,
+                ):
+                    sql_params["infra_to_cm_rate"] = infra_to_cm_rate
+                    sql_params["cost_model_currency"] = cost_model_currency
+                sql = pkgutil.get_data("masu.database", config.get_full_path())
+                sql = sql.decode("utf-8")
+                log_msg = f"distributing {cost_model_key}"
+                LOG.info(log_json(msg=log_msg, context=sql_params))
+
+                # Execute using appropriate query engine
+                if config.is_trino:
+                    # Check if required table exists before executing Trino query
+                    if config.has_table_requirement and not config.table_exists(self.schema):
+                        msg = (
+                            f"Skipping {cost_model_key} distribution - "
+                            f"required table '{config.required_table}' does not exist"
+                        )
                         LOG.info(
                             log_json(
                                 msg=msg,
@@ -817,81 +924,16 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                             )
                         )
                         continue
+                    start_date_parsed = DateHelper().parse_to_date(sql_params["start_date"])
+                    sql_params["year"] = start_date_parsed.strftime("%Y")
+                    sql_params["month"] = start_date_parsed.strftime("%m")
+                    self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
                 else:
-                    sql_params["start_date"] = summary_range.start_of_month
-                    sql_params["end_date"] = summary_range.end_of_month
-
-            report_period = self.report_periods_for_provider_uuid(provider_uuid, sql_params["start_date"])
-            if not report_period:
-                msg = f"no report period for OCP provider, skipping {cost_model_key} distribution update"
-                context = {
-                    "schema": self.schema,
-                    "provider_uuid": provider_uuid,
-                    "start_date": sql_params["start_date"],
-                }
-                LOG.info(log_json(msg=msg, context=context))
-                continue
-            sql_params["report_period_id"] = report_period.id
-
-            self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
-            if use_rtu:
-                self._delete_distributed_rtu_rows(sql_params, cost_model_key)
-            populate = distribution_info.get(cost_model_key, config.distribute_by_default)
-            if not populate:
-                continue
-            # Gate: skip GPU distribution if cluster has no GPU data for the period
-            if cost_model_key == metric_constants.GPU_UNALLOCATED and not self._reporting_period_has_gpu_data(
-                provider_uuid, sql_params["start_date"]
-            ):
-                msg = "Skipping GPU full-month summary: no GPU data for cluster"
-                LOG.info(
-                    log_json(
-                        msg=msg,
-                        context={
-                            "schema": self.schema,
-                            "provider_uuid": str(provider_uuid),
-                        },
+                    self._prepare_and_execute_raw_sql_query(
+                        table_name, sql, sql_params, operation=f"INSERT: {log_msg}"
                     )
-                )
-                continue
-            sql_params["distribution"] = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
-            if cost_model_key in (
-                metric_constants.NETWORK_UNATTRIBUTED,
-                metric_constants.STORAGE_UNATTRIBUTED,
-            ):
-                sql_params["infra_to_cm_rate"] = infra_to_cm_rate
-                sql_params["cost_model_currency"] = cost_model_currency
-            sql = pkgutil.get_data("masu.database", config.get_full_path())
-            sql = sql.decode("utf-8")
-            log_msg = f"distributing {cost_model_key}"
-            LOG.info(log_json(msg=log_msg, context=sql_params))
 
-            # Execute using appropriate query engine
-            if config.is_trino:
-                # Check if required table exists before executing Trino query
-                if config.has_table_requirement and not config.table_exists(self.schema):
-                    msg = (
-                        f"Skipping {cost_model_key} distribution - "
-                        f"required table '{config.required_table}' does not exist"
-                    )
-                    LOG.info(
-                        log_json(
-                            msg=msg,
-                            context={
-                                "schema": self.schema,
-                                "cost_model_key": cost_model_key,
-                            },
-                        )
-                    )
-                    continue
-                start_date_parsed = DateHelper().parse_to_date(sql_params["start_date"])
-                sql_params["year"] = start_date_parsed.strftime("%Y")
-                sql_params["month"] = start_date_parsed.strftime("%m")
-                self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
-            else:
-                self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
-
-        return summary_range
+            return summary_range
 
     def _delete_monthly_cost_model_rate_type_data(self, sql_params, cost_model_key):
         delete_sql = pkgutil.get_data(
@@ -1327,6 +1369,11 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         populate_markup_cost ORM UPDATE) and inserts per-row markup
         entries into rates_to_usage for the breakdown tree.
         report_period_id is read from lids.report_period_id, not passed as a bind.
+
+        Runs under _distribution_provider_lock (see its docstring): the
+        underlying SQL also does DELETE-then-INSERT for the same
+        provider/date-range, so it is exposed to the identical concurrent-
+        invocation double-count risk as populate_distributed_cost_sql.
         """
         sql = pkgutil.get_data(
             "masu.database",
@@ -1342,7 +1389,8 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "cost_model_id": cost_model_id,
         }
         LOG.info(log_json(msg="populating markup rates_to_usage", context=sql_params))
-        self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
+        with self._distribution_provider_lock(source_uuid):
+            self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
 
     def aggregate_rates_to_daily_summary(
         self,
@@ -1352,7 +1400,13 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         report_period_id,
         cost_model_currency="USD",
     ):
-        """Aggregate RatesToUsage rows into daily summary cost columns."""
+        """Aggregate RatesToUsage rows into daily summary cost columns.
+
+        Runs under _distribution_provider_lock (see its docstring): this
+        method's SQL also does DELETE-then-INSERT for the same
+        provider/date-range, so it is exposed to the identical concurrent-
+        invocation double-count risk as populate_distributed_cost_sql.
+        """
 
         table_name = self._table_map["line_item_daily_summary"]
         sql = pkgutil.get_data(
@@ -1369,7 +1423,8 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "cost_model_currency": cost_model_currency,
         }
         LOG.info(log_json(msg="aggregating rates_to_usage → daily summary", context=sql_params))
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+        with self._distribution_provider_lock(source_uuid):
+            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def validate_rates_against_daily_summary(self, start_date, end_date, source_uuid, report_period_id):
         """CI-only: return diff rows between RTU aggregates and daily summary. Empty = correct."""
