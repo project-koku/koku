@@ -831,8 +831,20 @@ instead of immediately enqueueing `update_cost_model_costs` on the PriorityQueue
   (`DateHelper.list_month_tuples`)
 - **Latency**: after the last edit, wait is approximately `DELAYED_TASK_TIME`
   (default 3600s) plus up to one Beat poll interval (`DELAYED_TASK_POLLING_MINUTES`)
-- **QE**: when `schema_name == settings.QE_SCHEMA`, the delayed row is deleted
-  immediately so `pre_delete` fires the real task promptly
+- **Bypass**: when Unleash flag
+  `cost-management.backend.disable-celery-task-delay` is ON for the schema, the
+  delayed row is deleted immediately so `pre_delete` fires the real task promptly.
+  Uses `fallback_development_true` so local/CI skip the stall when Unleash is
+  unavailable. Unit tests that assert delayed rows persist must mock the flag OFF.
+- **Which `is_celery_task_delay_disabled` to mock**: both `delayed_summarize_current_month`
+  and `delayed_update_cost_model_costs` live in
+  [`masu/processor/tasks.py`](../../koku/masu/processor/tasks.py) and import the
+  checker from `masu.processor`. Always patch the **import site**, regardless of
+  which higher-level caller triggers it (e.g. tag-mapping's
+  `resummarize_current_month_by_tag_keys` or the cost-model API):
+  `@patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)`.
+  Patching `masu.processor.is_celery_task_delay_disabled` (the definition site) has
+  no effect on the caller's already-bound reference.
 
 Pipeline (`update_summary_tables` / OCP-on-cloud) still enqueues immediately.
 The Masu `update_cost_model_costs` API defaults to immediate enqueue; pass
