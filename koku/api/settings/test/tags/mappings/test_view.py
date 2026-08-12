@@ -24,6 +24,10 @@ class TestSettingsTagMappingView(MasuTestCase):
         """Set up the tests."""
         super().setUp()
         self.client = APIClient()
+        # Keep delay enabled so resummarize does not send_task against Redis in CI/dev.
+        delay_patcher = patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
+        delay_patcher.start()
+        self.addCleanup(delay_patcher.stop)
 
         with tenant_context(self.tenant):
             self.enabled_uuid_list = list(EnabledTagKeys.objects.filter(enabled=True).values_list("uuid", flat=True))

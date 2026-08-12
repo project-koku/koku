@@ -1,5 +1,5 @@
 import logging
-import os
+import tempfile
 
 import pandas as pd
 from botocore.exceptions import ClientError
@@ -65,19 +65,18 @@ class CSVFileHandler:
     ):  # pragma: no cover
         """Copy hcs data to S3 bucket."""
         my_df = pd.DataFrame(data)
-        my_df.to_csv(filename, header=cols, index=False)
         metadata = {"finalized": str(finalize)}
         if finalize and finalize_date:
             metadata["finalized-date"] = finalize_date
         extra_args = {"Metadata": metadata}
-        with open(filename, "rb") as fin:
+        with tempfile.NamedTemporaryFile(suffix=".csv") as tmp:
+            my_df.to_csv(tmp.name, header=cols, index=False)
             try:
-                upload_key = f"{s3_path}/{filename}"
-                s3_obj = {"bucket_name": settings.S3_HCS_BUCKET_NAME, "key": upload_key}
-                upload = self._s3_resource.Object(**s3_obj)
-                upload.upload_fileobj(fin, ExtraArgs=extra_args)
+                with open(tmp.name, "rb") as fin:
+                    upload_key = f"{s3_path}/{filename}"
+                    s3_obj = {"bucket_name": settings.S3_HCS_BUCKET_NAME, "key": upload_key}
+                    upload = self._s3_resource.Object(**s3_obj)
+                    upload.upload_fileobj(fin, ExtraArgs=extra_args)
             except (EndpointConnectionError, ClientError) as err:
                 msg = f"unable to copy data to {upload_key}, bucket {settings.S3_HCS_BUCKET_NAME}. Reason: {str(err)}"
                 LOG.warning(log_json(tracing_id, msg=msg, context=context))
-                return
-        os.remove(filename)

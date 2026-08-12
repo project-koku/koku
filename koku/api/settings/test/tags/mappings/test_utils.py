@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django_tenants.utils import tenant_context
 
 from api.models import Provider
@@ -20,7 +22,8 @@ class TestTagMappingUtils(MasuTestCase):
             Provider.PROVIDER_OCP: self.ocp_provider.uuid,
         }
 
-    def test_find_tag_key_providers(self):
+    @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
+    def test_find_tag_key_providers(self, _mock_delay_disabled):
         with tenant_context(self.tenant):
             for ptype, uuid in self.test_matrix.items():
                 with self.subTest(ptype=ptype, uuid=uuid):
@@ -28,14 +31,16 @@ class TestTagMappingUtils(MasuTestCase):
                     resummarize_current_month_by_tag_keys(uuids, self.schema_name)
                     self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=uuid).exists())
 
-    def test_multiple_returns(self):
+    @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
+    def test_multiple_returns(self, _mock_delay_disabled):
         with tenant_context(self.tenant):
             uuids = EnabledTagKeys.objects.all().values_list("uuid", flat=True)
             resummarize_current_month_by_tag_keys(uuids, self.schema_name)
             for uuid in self.test_matrix.values():
                 self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=uuid).exists())
 
-    def test_ocp_on_cloud_resummarize(self):
+    @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
+    def test_ocp_on_cloud_resummarize(self, _mock_delay_disabled):
         with tenant_context(self.tenant):
             infra_map = ProviderInfrastructureMap.objects.create(
                 infrastructure_type=Provider.PROVIDER_AWS, infrastructure_provider=self.aws_provider
