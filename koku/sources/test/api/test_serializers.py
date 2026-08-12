@@ -8,6 +8,7 @@ from datetime import timezone
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from django.test.utils import override_settings
 from faker import Faker
 from model_bakery import baker
 from rest_framework.serializers import ValidationError
@@ -364,3 +365,97 @@ class AdminSourcesSerializerValidateTest(IamTestCase):
             serializer.validated_data["authentication"]["credentials"]["cluster_id"],
             "new-cluster-id",
         )
+
+
+class AdminSourcesSerializerOnPremTest(IamTestCase):
+    """On-prem Sources create accepts OCP only; cloud types are rejected."""
+
+    def setUp(self):
+        """Set up tests."""
+        super().setUp()
+        self.mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
+        self.context = {"request": self.mock_request}
+
+    @override_settings(ONPREM=True)
+    def test_create_rejects_aws_source_when_onprem(self):
+        """AWS source_type is rejected when ONPREM=True; no Sources row created."""
+        source_data = {
+            "name": "onprem-aws-rejected",
+            "source_type": "AWS",
+            "authentication": {"credentials": {"role_arn": "arn:aws::foo:bar"}},
+            "billing_source": {"data_source": {"bucket": "/tmp/s3bucket"}},
+        }
+        before_count = Sources.objects.filter(name="onprem-aws-rejected").count()
+        serializer = AdminSourcesSerializer(data=source_data, context=self.context)
+        with self.assertRaises(ValidationError):
+            serializer.is_valid(raise_exception=True)
+        self.assertEqual(Sources.objects.filter(name="onprem-aws-rejected").count(), before_count)
+
+    @override_settings(ONPREM=True)
+    def test_create_rejects_aws_source_type_id_when_onprem(self):
+        """Amazon source_type_id is rejected when ONPREM=True."""
+        source_data = {
+            "name": "onprem-amazon-id-rejected",
+            "source_type_id": "2",  # amazon / AWS
+        }
+        serializer = AdminSourcesSerializer(data=source_data, context=self.context)
+        with self.assertRaises(ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    @override_settings(ONPREM=True)
+    def test_create_allows_ocp_source_when_onprem(self):
+        """OCP source_type remains valid when ONPREM=True."""
+        source_data = {
+            "name": "onprem-ocp-allowed",
+            "source_type": "OCP",
+            "authentication": {"credentials": {"cluster_id": "onprem-cluster-1"}},
+        }
+        serializer = AdminSourcesSerializer(data=source_data, context=self.context)
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            self.assertTrue(serializer.is_valid(raise_exception=True))
+            self.assertEqual(serializer.validated_data["source_type"], Provider.PROVIDER_OCP)
+
+    @override_settings(ONPREM=True)
+    def test_update_rejects_aws_source_type_id_when_onprem(self):
+        """PATCH with source_type_id for amazon is rejected on an OCP source when ONPREM."""
+        customer = self._create_customer_data()
+        ocp = Sources(
+            source_id=9401,
+            auth_header={},
+            account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
+            offset=9401,
+            source_type=Provider.PROVIDER_OCP,
+            name="ocp-patch-type-id",
+            authentication={"credentials": {"cluster_id": "cluster-9401"}},
+        )
+        ocp.save()
+        serializer = AdminSourcesSerializer(
+            instance=ocp,
+            data={"source_type_id": "2"},
+            partial=True,
+            context=self.context,
+        )
+        with self.assertRaises(ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    @override_settings(ONPREM=True)
+    def test_create_rejects_azure_and_gcp_and_local_when_onprem(self):
+        """Non-OCP provider types (including *-local) are rejected when ONPREM=True."""
+        cases = (
+            ("Azure", {"credentials": {"client_id": "c", "tenant_id": "t", "client_secret": "s"}}),
+            ("GCP", {"credentials": {"project_id": "p"}}),
+            ("AWS-local", {"credentials": {"role_arn": "arn:aws::local"}}),
+            ("Azure-local", {"credentials": {"client_id": "c", "tenant_id": "t", "client_secret": "s"}}),
+            ("GCP-local", {"credentials": {"project_id": "p"}}),
+        )
+        for source_type, authentication in cases:
+            with self.subTest(source_type=source_type):
+                source_data = {
+                    "name": f"onprem-{source_type.lower()}-rejected",
+                    "source_type": source_type,
+                    "authentication": authentication,
+                }
+                serializer = AdminSourcesSerializer(data=source_data, context=self.context)
+                with self.assertRaises(ValidationError):
+                    serializer.is_valid(raise_exception=True)
