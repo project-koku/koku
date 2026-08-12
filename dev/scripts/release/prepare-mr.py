@@ -28,25 +28,115 @@ APP_INTERFACE = Path(os.environ.get("APP_INTERFACE_DIR", Path.home() / "developm
 DEPLOY_FILE = APP_INTERFACE / "data/services/insights/hccm/deploy-clowder.yml"
 FORK_REMOTE_ENV = os.environ.get("APP_INTERFACE_FORK_REMOTE", "").strip()
 
+_GIT_NAME_RE = re.compile(r"^[a-zA-Z0-9._-]+$")
+_SHA_RE = re.compile(r"^[0-9a-f]{7,40}$", re.IGNORECASE)
+_BRANCH_RE = re.compile(r"^hccm-prod(-migrations)?-[0-9a-f]{7}$", re.IGNORECASE)
+_COMMIT_MSG_RE = re.compile(r"^hccm: promote [0-9a-f]{7}( migrations)? to prod$", re.IGNORECASE)
 
-def run(cmd, cwd=None, capture=False):
-    """Run a command as an argv list (no shell)."""
-    if isinstance(cmd, str):
-        raise TypeError("run() expects a list of arguments, not a shell string")
+
+def _exit_on_git_failure(label: str, result: subprocess.CompletedProcess[str]) -> None:
+    if result.returncode == 0:
+        return
+    print(f"ERROR running: {label}", file=sys.stderr)
+    if result.stderr:
+        print(result.stderr, file=sys.stderr)
+    sys.exit(1)
+
+
+def validate_target_sha(sha: str) -> str:
+    if not _SHA_RE.fullmatch(sha):
+        print("ERROR: --target-sha must be a git commit SHA (7-40 hex chars)", file=sys.stderr)
+        sys.exit(1)
+    return sha.lower()
+
+
+def _validate_git_remote_name(remote: str) -> str:
+    if not _GIT_NAME_RE.fullmatch(remote):
+        print(f"ERROR: invalid git remote name: {remote!r}", file=sys.stderr)
+        sys.exit(1)
+    return remote
+
+
+def _validate_branch_name(branch: str) -> str:
+    if not _BRANCH_RE.fullmatch(branch):
+        print(f"ERROR: invalid branch name: {branch!r}", file=sys.stderr)
+        sys.exit(1)
+    return branch
+
+
+def _validate_commit_message(message: str) -> str:
+    if not _COMMIT_MSG_RE.fullmatch(message):
+        print(f"ERROR: invalid commit message: {message!r}", file=sys.stderr)
+        sys.exit(1)
+    return message
+
+
+def git_list_remotes() -> str:
     result = subprocess.run(
-        cmd,
+        ["git", "remote"],
         shell=False,
-        cwd=cwd or APP_INTERFACE,
-        capture_output=capture,
+        cwd=APP_INTERFACE,
+        capture_output=True,
         text=True,
         check=False,
     )
-    if result.returncode != 0:
-        print(f"ERROR running: {' '.join(cmd)}", file=sys.stderr)
-        if capture:
-            print(result.stderr, file=sys.stderr)
+    _exit_on_git_failure("git remote", result)
+    return result.stdout.strip()
+
+
+def git_remote_url(remote: str) -> str:
+    remote = _validate_git_remote_name(remote)
+    result = subprocess.run(
+        ["git", "remote", "get-url", remote],
+        shell=False,
+        cwd=APP_INTERFACE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    _exit_on_git_failure(f"git remote get-url {remote}", result)
+    return result.stdout.strip()
+
+
+def git_switch_new_branch(branch: str, base: str = "origin/master") -> None:
+    branch = _validate_branch_name(branch)
+    if base != "origin/master":
+        print(f"ERROR: unsupported base branch: {base!r}", file=sys.stderr)
         sys.exit(1)
-    return result.stdout.strip() if capture else None
+    result = subprocess.run(
+        ["git", "switch", "--no-track", "-c", branch, base],
+        shell=False,
+        cwd=APP_INTERFACE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    _exit_on_git_failure(f"git switch -c {branch}", result)
+
+
+def git_add_deploy_file() -> None:
+    result = subprocess.run(
+        ["git", "add", str(DEPLOY_FILE)],
+        shell=False,
+        cwd=APP_INTERFACE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    _exit_on_git_failure(f"git add {DEPLOY_FILE}", result)
+
+
+def git_commit(message: str) -> None:
+    message = _validate_commit_message(message)
+    result = subprocess.run(
+        ["git", "commit", "-m", message],
+        shell=False,
+        cwd=APP_INTERFACE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    _exit_on_git_failure("git commit", result)
 
 
 def require_app_interface():
@@ -61,25 +151,13 @@ def require_app_interface():
 
 def resolve_fork_remote() -> str:
     if FORK_REMOTE_ENV:
-        result = subprocess.run(
-            ["git", "remote", "get-url", FORK_REMOTE_ENV],
-            shell=False,
-            cwd=APP_INTERFACE,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            print(
-                f"ERROR: APP_INTERFACE_FORK_REMOTE='{FORK_REMOTE_ENV}' " f"is not a remote in {APP_INTERFACE}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+        _validate_git_remote_name(FORK_REMOTE_ENV)
+        git_remote_url(FORK_REMOTE_ENV)
         return FORK_REMOTE_ENV
 
-    remotes = run(["git", "remote"], capture=True) or ""
+    remotes = git_list_remotes()
     for name in remotes.split():
-        url = run(["git", "remote", "get-url", name], capture=True) or ""
+        url = git_remote_url(name)
         match = re.search(r"gitlab\.cee\.redhat\.com[:/]([^/]+)/app-interface", url)
         if match and match.group(1) != "service":
             return name
@@ -95,7 +173,7 @@ def resolve_fork_remote() -> str:
 
 
 def fork_mr_new_base_url(remote: str) -> str:
-    url = run(["git", "remote", "get-url", remote], capture=True) or ""
+    url = git_remote_url(remote)
     match = re.search(r"gitlab\.cee\.redhat\.com[:/]([^/]+)/app-interface", url)
     if not match:
         print(f"ERROR: Could not parse fork URL: {url}", file=sys.stderr)
@@ -187,7 +265,7 @@ def git_switch_branch(branch, base="origin/master"):
         print(result.stderr, file=sys.stderr)
         sys.exit(1)
     print("Fetch OK.")
-    run(["git", "switch", "--no-track", "-c", branch, base])
+    git_switch_new_branch(branch, base)
 
 
 def print_section(title):
@@ -228,8 +306,8 @@ def cmd_deploy(args):
     content = read_deploy()
     new_content = set_prod_ref(content, sha)
     write_deploy(new_content, content)
-    run(["git", "add", str(DEPLOY_FILE)])
-    run(["git", "commit", "-m", commit_msg])
+    git_add_deploy_file()
+    git_commit(commit_msg)
 
     mr_url = f"{mr_base}?merge_request[source_branch]={branch}" f"&merge_request[title]=hccm:+promote+{short}+to+prod"
 
@@ -311,8 +389,8 @@ def cmd_migration(args):
         new_content = set_field(new_content, "MGMT_INVOCATION", new_inv)
         new_content = set_field(new_content, "MGMT_COMMAND", args.command)
     write_deploy(new_content, content)
-    run(["git", "add", str(DEPLOY_FILE)])
-    run(["git", "commit", "-m", commit_msg])
+    git_add_deploy_file()
+    git_commit(commit_msg)
 
     mr_url = (
         f"{mr_base}?merge_request[source_branch]={branch}"
@@ -341,6 +419,7 @@ def main():
 
     args = parser.parse_args()
     require_app_interface()
+    args.target_sha = validate_target_sha(args.target_sha)
 
     if args.command == "deploy":
         cmd_deploy(args)
