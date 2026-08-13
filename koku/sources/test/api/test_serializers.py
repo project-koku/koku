@@ -35,8 +35,9 @@ class MockSourcesClient:
         self._url = address
 
 
+@override_settings(ONPREM=False)
 class AdminSourcesSerializerTests(IamTestCase):
-    """Test Cases for the sources endpoint."""
+    """Test Cases for the sources endpoint (SaaS admin create paths)."""
 
     def setUp(self):
         """Set up tests."""
