@@ -337,10 +337,14 @@ class TestDistributionIntegration(_ReportPeriodMixin, MasuTestCase):
                 for entry in rate_rows:
                     ns_total = ns_totals.get(entry["namespace"], Decimal(0))
                     expected = rate_share * ns_total
+                    # Relative (not absolute-places) tolerance: cost values here can
+                    # reach the billions, where float64 representation noise (~1e-6)
+                    # exceeds the ~5e-7 absolute threshold that places=6 demands --
+                    # failing on float64 noise rather than a real cross-check mismatch.
                     self.assertAlmostEqual(
                         float(entry["actual"]),
                         float(expected),
-                        places=6,
+                        delta=abs(float(expected)) * 1e-6,
                         msg=f"Option 2 cross-check failed for rate={rate_name}, ns={entry['namespace']}",
                     )
 
