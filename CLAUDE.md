@@ -30,8 +30,13 @@ docs/specs/openapi.json     # OpenAPI spec (main API)
 
 ## PR workflow and releases
 
+**Commit messages:** imperative mood; first line under 72 characters; reference
+Jira/GitHub issue when known (e.g. `COST-1234: Add MIG slice support`).
+
 1. Open PRs as **DRAFT**.  Mark **Ready for Review** when done.
-2. Add the `smoke-test` label to kick off IQE smoke tests.
+2. Add `smokes-required` + `hot-fix-smoke-tests` labels (Konflux CI gate +
+   IQE smoke tests).  For non-code PRs (docs, dashboards), use
+   `ok-to-skip-smokes` instead.
 3. Smoke tests **must pass** before merging (unless the PR only touches
    non-build files like docs).
 4. Merges to `main` **auto-deploy to stage**.
@@ -43,43 +48,18 @@ docs/specs/openapi.json     # OpenAPI spec (main API)
 
 ## Feature flags (Unleash) — gate risky changes
 
-New features, SQL pipeline changes, and any code path change that could
-negatively affect production **must** be gated behind an Unleash feature flag
-with a default of **OFF** (`dev_fallback=True` for dev/test).
+Agent guide (naming, UI stickiness, CI):
+[`docs/agent/unleash-flags.md`](docs/agent/unleash-flags.md).
 
-**What must be flagged:**
-- New or changed SQL INSERT/UPDATE/DELETE templates in the pipeline
-- New pipeline steps or changes to the cost model update flow
-- New tables, FK relationships, or changes to FK on_delete behavior
-- Changes to data written to reporting/summary tables
+Gate risky pipeline/SQL/data-path changes behind an **enablement** flag
+(`cost-management.backend.<feature>`): ON = new path, default OFF in stage/prod.
+Use `dev_fallback=True` for local/dev. Do **not** use `disable-*` for feature
+rollout (ops kill-switches only). Define constants in
+`koku/masu/processor/__init__.py`. Keep the legacy path until the flag has been
+ON in production for at least one billing cycle.
 
-API-only additions that are purely additive (new endpoints, new optional
-fields) may skip flagging if they don't affect data processing.
-
-**Pattern:**
-
-```python
-# 1. Define in koku/masu/processor/__init__.py
-MY_FEATURE_UNLEASH_FLAG = "cost-management.backend.my_feature_name"
-
-# 2. Gate the code path
-from masu.processor import is_feature_flag_enabled_by_schema, MY_FEATURE_UNLEASH_FLAG
-
-if is_feature_flag_enabled_by_schema(schema, MY_FEATURE_UNLEASH_FLAG, dev_fallback=True):
-    # new path
-else:
-    # legacy path — must remain functional
-```
-
-The legacy path must remain functional and tested.  Do not delete legacy SQL
-files or code until the flag has been enabled in production for at least one
-full billing cycle and validated.
-
-See existing flags in `koku/masu/processor/__init__.py` for naming convention
-(`cost-management.backend.<feature_name>`).  For flags checked from multiple
-call sites, define a wrapper function in `__init__.py` (e.g.,
-`is_customer_large()`) instead of inlining `is_feature_flag_enabled_by_schema()`
-everywhere.
+API-only additive changes may skip a flag. Details load on demand from the agent
+guide (and scoped `.cursor/rules` / `.claude/rules` when editing flag code).
 
 ## Key rules (detail in `.claude/rules/`)
 
@@ -109,7 +89,7 @@ everywhere.
 | API views or serializers | `docs/specs/openapi.json` |
 | Environment variables | `deploy/clowdapp.yaml`, `koku/koku/settings.py`, `.env.example` |
 | Celery tasks | Ensure `@celery_app.task(name=...)` matches function name (exception: legacy names for backwards compat) |
-| New Unleash flag | `koku/masu/processor/__init__.py` (constant); `koku/koku/feature_flags.py` only if on-prem default needed |
+| New Unleash flag | `koku/masu/processor/__init__.py` (constant); `koku/koku/feature_flags.py` only if on-prem default needed; follow [`docs/agent/unleash-flags.md`](docs/agent/unleash-flags.md) |
 | Provider-specific code (aws/azure/gcp/ocp) | Check other providers for parity |
 | Django models (field changes) | Include migration in same or paired PR |
 | New periodic Celery task | Add beat_schedule entry in `koku/koku/celery.py` |

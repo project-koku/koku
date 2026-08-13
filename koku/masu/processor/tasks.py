@@ -24,6 +24,7 @@ from api.iam.models import Tenant
 from api.provider.models import Provider
 from api.utils import DateHelper
 from api.utils import get_months_in_date_range
+from api.utils import to_date
 from common.queues import CostModelQueue
 from common.queues import DEFAULT
 from common.queues import DownloadQueue
@@ -40,6 +41,7 @@ from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
+from masu.processor import is_celery_task_delay_disabled
 from masu.processor import is_cost_model_processing_disabled
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
@@ -72,6 +74,7 @@ from reporting_common.states import ManifestStep
 LOG = logging.getLogger(__name__)
 
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
+UPDATE_COST_MODEL_COSTS_TASK = "masu.processor.tasks.update_cost_model_costs"
 
 
 def deduplicate_summary_reports(reports_to_summarize, manifest_list):
@@ -218,9 +221,62 @@ def delayed_summarize_current_month(schema_name: str, provider_uuids: list, prov
             provider_uuid=provider_uuid,
             queue_name=queue,
         )
-        if schema_name == settings.QE_SCHEMA:
-            # bypass the wait for QE
+        if is_celery_task_delay_disabled(schema_name):
             id.delete()
+
+
+def delayed_update_cost_model_costs(schema_name, provider_uuid, start_date, end_date, queue_name, tracing_id=None):
+    """Delay cost-model cost updates, coalescing per provider and billing month.
+
+    Cross-month ranges are split into one DelayedCeleryTasks row per calendar
+    month. Further edits for the same provider/month reset the timeout and keep
+    the widest date range (min start, max end) under ``select_for_update`` in
+    ``DelayedCeleryTasks.create_or_reset_timeout``.
+
+    Dates are stored as named ``task_kwargs`` (``start_date`` / ``end_date``) so
+    coalesce does not depend on positional ``task_args`` indexes.
+    ``task_args`` remains ``[schema_name, provider_uuid]`` for ``send_task``.
+    """
+    start = to_date(start_date)
+    end = to_date(end_date)
+
+    months = DateHelper().list_month_tuples(start, end)
+    if not months:
+        LOG.warning(
+            log_json(
+                tracing_id,
+                msg="Skipping delayed update_cost_model_costs; invalid or empty date range",
+                context={
+                    "schema": schema_name,
+                    "provider_uuid": str(provider_uuid),
+                    "start_date": str(start),
+                    "end_date": str(end),
+                },
+            )
+        )
+        return
+
+    for month_start, month_end in months:
+        billing_month = month_start.replace(day=1)
+        task_kwargs = {
+            "start_date": str(month_start),
+            "end_date": str(month_end),
+            "queue_name": queue_name,
+        }
+        if tracing_id is not None:
+            task_kwargs["tracing_id"] = str(tracing_id)
+
+        row = DelayedCeleryTasks.create_or_reset_timeout(
+            task_name=UPDATE_COST_MODEL_COSTS_TASK,
+            task_args=[schema_name, str(provider_uuid)],
+            task_kwargs=task_kwargs,
+            provider_uuid=provider_uuid,
+            queue_name=queue_name,
+            billing_month=billing_month,
+            merge_date_range=True,
+        )
+        if is_celery_task_delay_disabled(schema_name):
+            row.delete()
 
 
 def record_all_manifest_files(manifest_id, report_files, tracing_id):
@@ -947,6 +1003,11 @@ def update_cost_model_costs(  # noqa: C901
         )
         return
     task_name = "masu.processor.tasks.update_cost_model_costs"
+    # Include start_date/end_date so non-overlapping ranges (e.g. different months) for the
+    # same provider can run concurrently instead of queueing behind each other. The deadlock
+    # this key was previously narrowed to work around is fixed at the SQL layer instead (see
+    # insert_usage_rates_to_usage.sql's DELETE scope); retry-on-deadlock in
+    # _execute_raw_sql_query covers the residual risk from genuinely overlapping ranges.
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
         worker_cache = WorkerCache()

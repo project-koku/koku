@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9-minimal:latest AS base
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1786380870 AS base
 
 USER root
 
@@ -71,12 +71,7 @@ RUN \
 USER koku
 
 # create the static files
-RUN \
-    python koku/manage.py collectstatic --noinput && \
-    # This `app.log` file is created during the `collectstatic` step. We need to
-    # remove it else the random OCP user will not be able to access it. This file
-    # will be recreated by the Pod when the application starts.
-    rm ${APP_HOME}/app.log
+RUN python koku/manage.py collectstatic --noinput
 
 EXPOSE 8000
 

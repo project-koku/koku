@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the ReportSummaryUpdater object."""
-import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -118,7 +117,6 @@ class ReportSummaryUpdaterTest(MasuTestCase):
                 )
         return provider
 
-    @unittest.skip("Hotfix: enable_cloud_bill_currencies call in update_summary_tables is temporarily disabled")
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
     def test_enable_cloud_bill_currencies_enables_missing(self, mock_populate):
         """Cloud bill currencies missing from EnabledCurrency are enabled."""
@@ -134,7 +132,6 @@ class ReportSummaryUpdaterTest(MasuTestCase):
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="AUD").exists())
         mock_populate.assert_called_once_with(code="AUD")
 
-    @unittest.skip("Hotfix: enable_cloud_bill_currencies call in update_summary_tables is temporarily disabled")
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
     def test_enable_cloud_bill_currencies_skips_invalid_iso(self, mock_populate):
         """Invalid ISO currency codes are skipped without enabling."""
@@ -150,7 +147,6 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         with tenant_context(self.tenant):
             self.assertFalse(EnabledCurrency.objects.filter(currency_code="FOO").exists())
 
-    @unittest.skip("Hotfix: enable_cloud_bill_currencies call in update_summary_tables is temporarily disabled")
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
     def test_enable_cloud_bill_currencies_skips_already_enabled(self, mock_populate):
         """Currencies already in EnabledCurrency do not trigger rate population."""
@@ -165,7 +161,6 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
         mock_populate.assert_not_called()
 
-    @unittest.skip("Hotfix: enable_cloud_bill_currencies call in update_summary_tables is temporarily disabled")
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
     @patch("masu.processor.report_summary_updater.EnabledCurrency.objects")
     def test_enable_cloud_bill_currencies_noop_for_non_cloud(self, mock_enabled_currency, mock_populate):
@@ -176,7 +171,6 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_enabled_currency.get_or_create.assert_not_called()
         mock_populate.assert_not_called()
 
-    @unittest.skip("Hotfix: enable_cloud_bill_currencies call in update_summary_tables is temporarily disabled")
     @patch("masu.processor.report_summary_updater.invalidate_view_cache_for_tenant_and_source_type")
     @patch(
         "masu.processor.report_summary_updater.enable_cloud_bill_currencies",

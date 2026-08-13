@@ -13,7 +13,9 @@ import uuid
 from uuid import uuid4
 
 from dateutil.parser import parse
+from django.db import connection
 from django.db import IntegrityError
+from django.db import transaction
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
@@ -52,6 +54,7 @@ from reporting.provider.azure.models import (
 from reporting.provider.gcp.models import (
     TRINO_LINE_ITEM_DAILY_TABLE as GCP_TRINO_LINE_ITEM_DAILY_TABLE,
 )
+from reporting.provider.ocp.models import COST_BREAKDOWN_UI_SUMMARY_TABLE
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
@@ -111,7 +114,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "source_uuid": source_uuid,
         }
         for table_name in tables:
-            if table_name == VM_UI_SUMMARY_TABLE:
+            # VM and cost-breakdown are populated outside the standard ui_summary SQL loop.
+            if table_name in (VM_UI_SUMMARY_TABLE, COST_BREAKDOWN_UI_SUMMARY_TABLE):
                 continue
             sql = pkgutil.get_data("masu.database", f"sql/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
@@ -633,32 +637,45 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         )
         LOG.info(log_json(msg=f"finished updating {table_name}", context=ctx))
 
+    def cleanup_ocp_tags_values(self):
+        """Delete reporting_ocptags_values rows absent from label summaries."""
+        sql_params = {"schema": self.schema}
+        LOG.info(log_json(msg="cleaning up orphaned ocp tag values", schema=self.schema))
+        self._execute_processing_script(
+            "masu.database",
+            "sql/openshift/reporting_ocptags_values_cleanup.sql",
+            sql_params,
+        )
+
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
-        OCPUsageLineItemDailySummary.objects.filter(
-            cluster_id=cluster_id,
-            usage_start__gte=start_date,
-            usage_start__lte=end_date,
-        ).update(
-            infrastructure_markup_cost=(
-                (
-                    Coalesce(
-                        F("infrastructure_raw_cost"),
-                        Value(0, output_field=DecimalField()),
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [cluster_id])
+            OCPUsageLineItemDailySummary.objects.filter(
+                cluster_id=cluster_id,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+            ).update(
+                infrastructure_markup_cost=(
+                    (
+                        Coalesce(
+                            F("infrastructure_raw_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
                     )
-                )
-                * markup
-            ),
-            infrastructure_project_markup_cost=(
-                (
-                    Coalesce(
-                        F("infrastructure_project_raw_cost"),
-                        Value(0, output_field=DecimalField()),
+                    * markup
+                ),
+                infrastructure_project_markup_cost=(
+                    (
+                        Coalesce(
+                            F("infrastructure_project_raw_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
                     )
-                )
-                * markup
-            ),
-        )
+                    * markup
+                ),
+            )
 
     def populate_distributed_cost_sql(  # noqa: C901
         self,
@@ -833,15 +850,23 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             operation="DELETE",
         )
 
-    def _delete_monthly_cost_model_data(self, sql_params, ctx):
-        delete_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/delete_monthly_cost.sql")
+    def _delete_monthly_cost_model_data(self, sql_params, ctx, use_rtu=False):
+        """Delete stale monthly-cost rows from before re-inserting."""
+        if use_rtu:
+            sql_file = "sql/openshift/cost_model/delete_monthly_cost_rates_to_usage.sql"
+            table_name = "rates_to_usage"
+        else:
+            sql_file = "sql/openshift/cost_model/delete_monthly_cost.sql"
+            table_name = self._table_map["line_item_daily_summary"]
+
+        delete_sql = pkgutil.get_data("masu.database", sql_file)
         delete_sql = delete_sql.decode("utf-8")
         if sql_params.get("rate_type"):
             LOG.info(log_json(msg="removing monthly costs", context=ctx))
         else:
             LOG.info(log_json(msg="removing stale monthly costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(
-            self._table_map["line_item_daily_summary"],
+            table_name,
             delete_sql,
             sql_params,
             operation="DELETE",
@@ -951,6 +976,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 "cost_type": cost_type,
             },
             ctx,
+            use_rtu,
         )
         if not rate:
             # since we don't have a rate, we have no new costs to calculate.
@@ -975,7 +1001,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         insert_sql = pkgutil.get_data("masu.database", cost_type_file)
         insert_sql = insert_sql.decode("utf-8")
         LOG.info(log_json(msg="populating monthly costs", context=ctx))
-        if self.get_sql_folder_name() in cost_type_file:
+        if cost_type == "OCP_VM_CORE":
             start_date = DateHelper().parse_to_date(sql_params["start_date"])
             sql_params["year"] = start_date.strftime("%Y")
             sql_params["month"] = start_date.strftime("%m")
