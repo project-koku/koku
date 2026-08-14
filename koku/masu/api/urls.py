@@ -51,30 +51,15 @@ ROUTER = DefaultRouter()
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 ROUTER.register(r"manifests", ManifestStatusViewSet, basename="manifests")
 
-
+# On-prem whitelist: only these masu endpoints are registered when ONPREM=True,
+# unless IQE_TEST_RUN=True is set to allow integration tests to exercise the full API.
+# status/ is included for liveness/readiness probes.
 urlpatterns = [
     path("status/", get_status, name="server-status"),
-    path("download/", download_report, name="report_download"),
-    path("ingress_reports/", ingress_reports, name="ingress_reports"),
-    path("update_exchange_rates/", update_exchange_rates, name="update_exchange_rates"),
-    path("update_azure_storage_capacity/", update_azure_storage_capacity, name="update_azure_storage_capacity"),
-    path("enabled_tags/", EnabledTagView.as_view(), name="enabled_tags"),
-    path("expired_data/", expired_data, name="expired_data"),
-    path("hcs_report_data/", hcs_report_data, name="hcs_report_data"),
-    path("hcs_report_finalization/", hcs_report_finalization, name="hcs_report_finalization"),
     path("report_data/", report_data, name="report_data"),
-    path("source_cleanup/", cleanup, name="cleanup"),
-    path("notification/", notification, name="notification"),
-    path("recheck_infra_map/", recheck_infra_map, name="recheck_infra_map"),
-    path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
-    path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
-    path("additional_context/", additional_context, name="additional_context"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
     path("celery_queue_tasks/", celery_queue_tasks, name="celery_queue_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
-    path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
-    path("bigquery_cost/<uuid:source_uuid>/", bigquery_cost, name="bigquery_cost"),
-    path("validate_cost_data/", validate_cost_data, name="validate_cost_data"),
     path("db-performance", db_performance_redirect, name="db_perf_no_slash_redirect"),
     path("db-performance/", db_performance_redirect, name="db_perf_slash_redirect"),
     path("db-performance/db-settings/", dbsettings, name="db_settings"),
@@ -83,23 +68,38 @@ urlpatterns = [
     path("db-performance/stat-statements/", stat_statements, name="stmt_stats"),
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
     path("db-performance/explain-query/", explain_query, name="explain_query"),
-    path("db-performance/db-version/", pg_engine_version, name="db_version"),
     path("db-performance/schema-sizes/", schema_sizes, name="schema_sizes"),
-    path("invalidate_cache/", invalidate_cache, name="invalidate_cache"),
-    path("monthly_exchange_rates/", monthly_exchange_rates, name="monthly_exchange_rates"),
 ]
 
-if settings.DEBUG:
+if not settings.ONPREM or settings.IQE_TEST_RUN:
     urlpatterns += [
-        path("ingest_ocp_payload/", ingest_ocp_payload, name="local ocp ingress"),
-    ]
-
-if not settings.ONPREM:
-    urlpatterns += [
+        path("download/", download_report, name="report_download"),
+        path("ingress_reports/", ingress_reports, name="ingress_reports"),
+        path("update_exchange_rates/", update_exchange_rates, name="update_exchange_rates"),
+        path("update_azure_storage_capacity/", update_azure_storage_capacity, name="update_azure_storage_capacity"),
+        path("enabled_tags/", EnabledTagView.as_view(), name="enabled_tags"),
+        path("expired_data/", expired_data, name="expired_data"),
+        path("hcs_report_data/", hcs_report_data, name="hcs_report_data"),
+        path("hcs_report_finalization/", hcs_report_finalization, name="hcs_report_finalization"),
+        path("source_cleanup/", cleanup, name="cleanup"),
+        path("notification/", notification, name="notification"),
+        path("recheck_infra_map/", recheck_infra_map, name="recheck_infra_map"),
+        path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
+        path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
+        path("additional_context/", additional_context, name="additional_context"),
+        path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
+        path("bigquery_cost/<uuid:source_uuid>/", bigquery_cost, name="bigquery_cost"),
+        path("validate_cost_data/", validate_cost_data, name="validate_cost_data"),
+        path("invalidate_cache/", invalidate_cache, name="invalidate_cache"),
+        path("monthly_exchange_rates/", monthly_exchange_rates, name="monthly_exchange_rates"),
         path("trino/query/", trino_query, name="trino_query"),
         path("trino/api/", trino_ui, name="trino_ui"),
         path("expired_trino_partitions/", expired_trino_partitions, name="expired_trino_partitions"),
         path("purge_trino_files/", purge_trino_files, name="purge_trino_files"),
     ]
+    urlpatterns += ROUTER.urls
 
-urlpatterns += ROUTER.urls
+if settings.DEBUG:
+    urlpatterns += [
+        path("ingest_ocp_payload/", ingest_ocp_payload, name="local ocp ingress"),
+    ]
