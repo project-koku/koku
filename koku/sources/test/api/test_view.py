@@ -136,6 +136,7 @@ class SourcesViewTests(IamTestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(body.get("meta").get("count"), 1)
 
+    @unittest.skipIf(settings.ONPREM, "AWS S3 regions Sources action is SaaS-only")
     def test_aws_s3_regions(self):
         """Given a request for AWS S3 regions, a subset of all available regions should be returned"""
         all_regions = {
@@ -177,6 +178,7 @@ class SourcesViewTests(IamTestCase):
         self.assertLessEqual(all_regions, set(regions))
         self.assertTrue(all_regions.issubset(set(regions)))
 
+    @unittest.skipIf(settings.ONPREM, "AWS S3 regions Sources action is SaaS-only")
     def test_aws_s3_regions_pagination(self):
         """Test that the API response is paginated"""
         limit = 4
