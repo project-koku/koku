@@ -3,90 +3,88 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the SourceTypesView."""
-import unittest
-
-from django.conf import settings
 from django.test.utils import override_settings
-from django.urls import reverse
+from rest_framework.test import APIRequestFactory
 
 from api.iam.test.iam_test_case import IamTestCase
 from sources.api.source_type_mapping import CMMO_ID_TO_SOURCE_NAME
+from sources.api.source_type_views import SourceTypesView
 
 
-@unittest.skipUnless(settings.ONPREM, "ONPREM-only: source_types endpoint requires ONPREM=True")
-@override_settings(ROOT_URLCONF="koku.urls")
+@override_settings(ONPREM=True)
 class SourceTypesViewTest(IamTestCase):
-    """Test Cases for the source_types endpoint."""
+    """Test Cases for the source_types endpoint (on-prem OpenShift-only catalog)."""
 
     def setUp(self):
         """Set up tests."""
         super().setUp()
-        customer = self._create_customer_data()
-        user_data = self._create_user_data()
-        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
+        self.factory = APIRequestFactory()
+
+    def _get(self, query_params=None):
+        """Invoke SourceTypesView.get with optional query params."""
+        request = self.factory.get("/source_types", data=query_params or {})
+        return SourceTypesView.as_view()(request)
 
     def test_list_source_types(self):
-        """Test GET returns the list of source types."""
-        url = reverse("source-types")
-        response = self.client.get(url, **self.request_context["request"].META)
+        """Test GET returns OpenShift only on-prem (cloud CMMO types are hidden)."""
+        response = self._get()
 
         self.assertEqual(response.status_code, 200)
-        body = response.json()
-        self.assertEqual(body["meta"]["count"], len(CMMO_ID_TO_SOURCE_NAME))
-        self.assertEqual(len(body["data"]), len(CMMO_ID_TO_SOURCE_NAME))
-
-        # Verify all source types are present
-        returned_names = {st["name"] for st in body["data"]}
-        expected_names = set(CMMO_ID_TO_SOURCE_NAME.values())
-        self.assertEqual(returned_names, expected_names)
+        body = response.data
+        self.assertEqual(body["meta"]["count"], 1)
+        self.assertEqual(len(body["data"]), 1)
+        self.assertEqual(body["data"][0]["name"], "openshift")
+        self.assertEqual(body["data"][0]["id"], "1")
+        # Mapping still documents cloud types for SaaS/CMMO, but on-prem list is OCP-only
+        self.assertGreater(len(CMMO_ID_TO_SOURCE_NAME), 1)
 
     def test_filter_by_name_match(self):
         """Test GET with filter[name] that matches."""
-        url = reverse("source-types")
-        response = self.client.get(
-            url,
-            {"filter[name]": "openshift"},
-            **self.request_context["request"].META,
-        )
+        response = self._get({"filter[name]": "openshift"})
 
         self.assertEqual(response.status_code, 200)
-        body = response.json()
+        body = response.data
         self.assertEqual(body["meta"]["count"], 1)
         self.assertEqual(body["data"][0]["name"], "openshift")
         self.assertEqual(body["data"][0]["id"], "1")
 
     def test_filter_by_name_no_match(self):
         """Test GET with filter[name] that does not match."""
-        url = reverse("source-types")
-        response = self.client.get(
-            url,
-            {"filter[name]": "nonexistent"},
-            **self.request_context["request"].META,
-        )
+        response = self._get({"filter[name]": "nonexistent"})
 
         self.assertEqual(response.status_code, 200)
-        body = response.json()
+        body = response.data
         self.assertEqual(body["meta"]["count"], 0)
         self.assertEqual(len(body["data"]), 0)
 
     def test_filter_by_name_amazon(self):
-        """Test GET with filter[name]=amazon."""
-        url = reverse("source-types")
-        response = self.client.get(
-            url,
-            {"filter[name]": "amazon"},
-            **self.request_context["request"].META,
-        )
+        """Test GET with filter[name]=amazon returns empty on-prem (cloud types hidden)."""
+        response = self._get({"filter[name]": "amazon"})
 
         self.assertEqual(response.status_code, 200)
-        body = response.json()
-        self.assertEqual(body["meta"]["count"], 1)
-        self.assertEqual(body["data"][0]["name"], "amazon")
-        self.assertEqual(body["data"][0]["id"], "2")
+        body = response.data
+        self.assertEqual(body["meta"]["count"], 0)
+        self.assertEqual(len(body["data"]), 0)
 
     def test_no_auth_required(self):
         """Test that the endpoint does not require authentication."""
-        url = reverse("source-types")
-        # SourceTypesView has AllowAny permissions and is in no_auth_list
-        response = self.client.get(url)
+        # SourceTypesView has AllowAny permissions
+        response = self._get()
         self.assertEqual(response.status_code, 200)
+
+
+@override_settings(ONPREM=False)
+class SourceTypesViewSaasCatalogTest(IamTestCase):
+    """When ONPREM is false, SourceTypesView still lists all CMMO types if invoked."""
+
+    def test_list_includes_cloud_types_when_not_onprem(self):
+        """SaaS catalog includes amazon/azure/google (view unused on SaaS URLs, but unfiltered)."""
+        factory = APIRequestFactory()
+        request = factory.get("/source_types")
+        response = SourceTypesView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        body = response.data
+        self.assertEqual(body["meta"]["count"], len(CMMO_ID_TO_SOURCE_NAME))
+        returned_names = {st["name"] for st in body["data"]}
+        self.assertEqual(returned_names, set(CMMO_ID_TO_SOURCE_NAME.values()))
