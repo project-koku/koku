@@ -168,18 +168,8 @@ class SourcesViewSet(*MIXIN_LIST):
     filterset_class = SourceFilter
     http_method_names = HTTP_METHOD_LIST
 
-    @classmethod
-    def get_extra_actions(cls):
-        """Omit cloud-only Sources actions when running on-prem."""
-        actions = super().get_extra_actions()
-        if settings.ONPREM:
-            return [action for action in actions if action.__name__ != "aws_s3_regions"]
-        return actions
-
     @action(methods=["get"], detail=False, permission_classes=SOURCES_PERMISSION_CLASSES, url_path="aws-s3-regions")
     def aws_s3_regions(self, request):
-        if settings.ONPREM:
-            raise Http404()
         regions = get_available_regions("s3")
         return ListPaginator(regions, request).paginated_response
 

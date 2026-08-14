@@ -225,7 +225,7 @@ consumers. Base class: `IamTestCase` / `MasuTestCase`.
         masu.test.processor.test_expired_data_remover \
         masu.test.processor.test_remove_expired \
         masu.test.external.test_kafka_retention_gate \
-        api.test_utils.MaterializsedViewStartTest
+        api.test.test_utils.MaterializsedViewStartTest
 
 #### Tier 3 — Contract
 
@@ -245,7 +245,7 @@ RBAC enforcement, env-var overrides. Base class: `IamTestCase` +
         masu.test.processor.test_expired_data_remover \
         masu.test.processor.test_remove_expired \
         masu.test.external.test_kafka_retention_gate \
-        api.test_utils.MaterializsedViewStartTest
+        api.test.test_utils.MaterializsedViewStartTest
 
 #### With Coverage
 
@@ -257,7 +257,7 @@ RBAC enforcement, env-var overrides. Base class: `IamTestCase` +
         masu.test.processor.test_expired_data_remover \
         masu.test.processor.test_remove_expired \
         masu.test.external.test_kafka_retention_gate \
-        api.test_utils.MaterializsedViewStartTest \
+        api.test.test_utils.MaterializsedViewStartTest \
     && coverage report --show-missing
 
 ---
