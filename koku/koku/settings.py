@@ -58,6 +58,10 @@ DEBUG = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 
 ONPREM = ENVIRONMENT.bool("ONPREM", default=False)
 
+# Enables masu endpoints that are normally SaaS-only so IQE/integration tests can reach them.
+# Never enable this in production.
+IQE_TEST_RUN = ENVIRONMENT.bool("IQE_TEST_RUN", default=False)
+
 # Allow org admins to bypass RBAC permission checks
 ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)
 
