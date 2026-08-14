@@ -56,7 +56,7 @@ ops commands. They do not use `RETAIN_NUM_MONTHS` and need no changes.
 | # | Path | Trigger | What It Deletes |
 |---|------|---------|----------------|
 | 6 | `delete_source_beat` → `delete_source` | Beat daily 04:00 | Sources/providers marked for deletion |
-| 7 | `delete_archived_data` | `Provider.post_delete` signal | S3 CSV/parquet + Trino rows for deleted provider |
+| 7 | `delete_archived_data` | `Provider.post_delete` signal | S3 CSV/parquet + Trino rows for deleted provider; OCP also prunes orphan `reporting_ocptags_values` rows via `cleanup_ocp_tags_values()` |
 | 8 | `purge_s3_files` / `purge_manifest_records` | Manual API (Unleash-gated) | S3 objects + manifests by prefix |
 | 9 | `ParquetReportProcessor._delete_old_data` | ETL pipeline (per file) | Dedup: clears old parquet/Postgres data for reprocessed window |
 | 10 | `trigger_delayed_tasks` | Beat every 30 min | Expired `DelayedCeleryTasks` rows (fires queued work) |
