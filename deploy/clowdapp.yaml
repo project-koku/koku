@@ -5474,6 +5474,8 @@ objects:
           value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
         - name: TENANT_MULTIPROCESSING_CHUNKS
           value: ${TENANT_MULTIPROCESSING_CHUNKS}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
         resources:
           limits:
@@ -5517,6 +5519,8 @@ objects:
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${MGMT_IMAGE}:${MGMT_IMAGE_TAG}
         resources:
           limits:
