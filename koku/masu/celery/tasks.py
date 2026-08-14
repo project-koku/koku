@@ -35,6 +35,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
+from masu.processor import is_ocp_tag_cleanup_disabled
 from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
@@ -247,6 +248,11 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
             # For SaaS, delete Hive partitions in Trino
             for table, partition_column in TRINO_MANAGED_TABLES.items():
                 accessor.delete_hive_partitions_by_source(table, partition_column, provider_uuid)
+
+        # The provider's report periods (and their label summaries) are cascade-deleted
+        # synchronously before this task runs; prune any resulting orphan tag index rows.
+        if not is_ocp_tag_cleanup_disabled(schema_name):
+            accessor.cleanup_ocp_tags_values()
 
 
 # This task will process the autovacuum tuning as a background process
