@@ -105,6 +105,8 @@ objects:
           value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
         - name: TENANT_MULTIPROCESSING_CHUNKS
           value: ${TENANT_MULTIPROCESSING_CHUNKS}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
     # ====================================================
     #      koku Management Command Job
     # ====================================================
@@ -151,6 +153,8 @@ objects:
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
 
     # The bulk of your App. This is where your running apps will live
     deployments:
@@ -283,6 +287,9 @@ parameters:
   value: "True"
 - name: ONPREM
   description: toggles onprem data processing logic
+  value: "False"
+- name: IQE_TEST_RUN
+  description: enables SaaS-only masu endpoints even when ONPREM=True, so IQE/integration tests can reach them
   value: "False"
 - name: CURRENCY_URL
   description: Exchange rate API URL for dynamic currency rates. Empty disables the daily currency beat.

@@ -58,6 +58,10 @@ DEBUG = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 
 ONPREM = ENVIRONMENT.bool("ONPREM", default=False)
 
+# Enables masu endpoints that are normally SaaS-only so IQE/integration tests can reach them.
+# Never enable this in production.
+IQE_TEST_RUN = ENVIRONMENT.bool("IQE_TEST_RUN", default=False)
+
 # Allow org admins to bypass RBAC permission checks
 ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)
 
@@ -679,6 +683,10 @@ except JSONDecodeError:
 ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool("ENABLE_PRERELEASE_FEATURES", default=False)
 
 # Celery configuration
+#
+# Broker security: CELERY_BROKER_URL shares REDIS_URL (cache + broker).
+# Production on-prem must set REDIS_PASSWORD (and optionally REDIS_SSL). Serializers are
+# pinned to JSON only — never enable pickle. Do not set CELERY_TASK_ALWAYS_EAGER outside tests.
 
 # Set Broker
 CELERY_BROKER_URL = REDIS_URL
@@ -692,6 +700,10 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_CONCURRENCY = 1
 CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = REDIS_HEALTH_CHECK_INTERVAL
 CELERY_REDIS_RETRY_ON_TIMEOUT = REDIS_RETRY_ON_TIMEOUT
+CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 if REDIS_SSL:
     _celery_ssl_conf = {"ssl_cert_reqs": REDIS_SSL_CERT_REQS}
     if REDIS_SSL_CA_CERTS:

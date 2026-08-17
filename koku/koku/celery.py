@@ -25,19 +25,67 @@ from koku.probe_server import start_probe_server
 LOG = logging.getLogger(__name__)
 
 CURRENCY_RATES_BEAT_NAME = "get_daily_currency_rates"
+CHECK_REPORT_UPDATES_BEAT_NAME = "check-report-updates-batched"
+SAAS_ONLY_BEAT_NAMES = (
+    "finalize_hcs_reports",
+    "scrape_azure_storage_capacities",
+    "crawl_account_hierarchy",
+    "source_status_beat",
+    "delete_source_beat",
+)
 
 
 def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=None):
     """Register the daily currency rates beat only when CURRENCY_URL is set.
 
-    On-prem / airgapped deployments leave CURRENCY_URL empty so this beat is
-    not scheduled and workers do not attempt outbound exchange-rate API calls.
+    Works for SaaS and on-prem (legacy currency path). Empty CURRENCY_URL means
+    the beat is not scheduled and workers do not attempt outbound FX API calls.
     """
     if not (currency_url or "").strip():
         return False
     beat_schedule[CURRENCY_RATES_BEAT_NAME] = {
         "task": "masu.celery.tasks.get_daily_currency_rates",
         "schedule": schedule or crontab(hour=1, minute=0),
+    }
+    return True
+
+
+def register_saas_only_beats(beat_schedule, *, onprem=False, source_status_schedule=None):
+    """Register SaaS-only Celery beats; skip entirely when on-prem."""
+    if onprem:
+        return False
+
+    beat_schedule["delete_source_beat"] = {
+        "task": "sources.tasks.delete_source_beat",
+        "schedule": crontab(minute="0", hour="4"),
+    }
+    beat_schedule["source_status_beat"] = {
+        "task": "sources.tasks.source_status_beat",
+        "schedule": source_status_schedule or crontab(hour=3, minute=0),
+    }
+    beat_schedule["scrape_azure_storage_capacities"] = {
+        "task": "masu.celery.tasks.scrape_azure_storage_capacities",
+        "schedule": crontab(hour=2, minute=0),
+    }
+    beat_schedule["crawl_account_hierarchy"] = {
+        "task": "masu.celery.tasks.crawl_account_hierarchy",
+        "schedule": crontab(hour=0, minute=0),
+    }
+    beat_schedule["finalize_hcs_reports"] = {
+        "task": "hcs.tasks.collect_hcs_report_finalization",
+        "schedule": crontab(0, 0, day_of_month="15"),
+    }
+    return True
+
+
+def register_report_check_beat(beat_schedule, *, onprem=False, schedule_report_checks=False, schedule=None):
+    """Register the batched report-check beat for SaaS when SCHEDULE_REPORT_CHECKS is enabled."""
+    if onprem or not schedule_report_checks:
+        return False
+    beat_schedule[CHECK_REPORT_UPDATES_BEAT_NAME] = {
+        "task": "masu.celery.tasks.check_report_updates",
+        "schedule": schedule or crontab(minute=0),
+        "kwargs": {},
     }
     return True
 
@@ -132,20 +180,22 @@ app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
 WORKER_PROC_ALIVE_TIMEOUT = ENVIRONMENT.int("WORKER_PROC_ALIVE_TIMEOUT", default=4)
 app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
 
-# Toggle to enable/disable scheduled checks for new reports.
-if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
+# Toggle to enable/disable scheduled checks for new reports (SaaS only).
+schedule_report_checks = ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False)
+report_download_schedule = None
+if schedule_report_checks and not settings.ONPREM:
     download_fallback = validate_cron_expression("0 * * * *")
-    download_task = "masu.celery.tasks.check_report_updates"
     # The schedule to scan for new reports.
     download_expression = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE", default=download_fallback)
     REPORT_DOWNLOAD_SCHEDULE = validate_cron_expression(download_expression, download_fallback)
-    report_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
-    CHECK_REPORT_UPDATES_DEF = {
-        "task": download_task,
-        "schedule": report_schedule,
-        "kwargs": {},
-    }
-    app.conf.beat_schedule["check-report-updates-batched"] = CHECK_REPORT_UPDATES_DEF
+    report_download_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
+if schedule_report_checks and not register_report_check_beat(
+    app.conf.beat_schedule,
+    onprem=settings.ONPREM,
+    schedule_report_checks=schedule_report_checks,
+    schedule=report_download_schedule,
+):
+    LOG.info("Report check beat not registered (ONPREM=%s)", settings.ONPREM)
 
 # Specify the day of the month for removal of expired report data.
 REMOVE_EXPIRED_REPORT_DATA_ON_DAY = ENVIRONMENT.int("REMOVE_EXPIRED_REPORT_DATA_ON_DAY", default=1)
@@ -188,46 +238,22 @@ app.conf.beat_schedule["autovacuum-tune-schemas"] = {
     "args": [],
 }
 
-# task to clean up sources with `pending_delete=t`
-app.conf.beat_schedule["delete_source_beat"] = {
-    "task": "sources.tasks.delete_source_beat",
-    "schedule": crontab(minute="0", hour="4"),
-}
-
-# Specify the frequency for pushing source status.
+# SaaS-only beats (HCS, Azure scrape, AWS org crawl, Sources status/delete)
 status_fallback = validate_cron_expression("0 3 * * *")
 status_expression = ENVIRONMENT.get_value("SOURCE_STATUS_SCHEDULE", default=status_fallback)
 SOURCE_STATUS_SCHEDULE = validate_cron_expression(status_expression, status_fallback)
 source_status_schedule = crontab(*SOURCE_STATUS_SCHEDULE.split(" ", 5))
 
-# task to push source status`
-app.conf.beat_schedule["source_status_beat"] = {
-    "task": "sources.tasks.source_status_beat",
-    "schedule": source_status_schedule,
-}
-
-# Beat used to collect Azure disk capacities
-app.conf.beat_schedule["scrape_azure_storage_capacities"] = {
-    "task": "masu.celery.tasks.scrape_azure_storage_capacities",
-    "schedule": crontab(hour=2, minute=0),
-}
-
-
-# Beat used to crawl the account hierarchy
-app.conf.beat_schedule["crawl_account_hierarchy"] = {
-    "task": "masu.celery.tasks.crawl_account_hierarchy",
-    "schedule": crontab(hour=0, minute=0),
-}
+if not register_saas_only_beats(
+    app.conf.beat_schedule,
+    onprem=settings.ONPREM,
+    source_status_schedule=source_status_schedule,
+):
+    LOG.info("SaaS-only Celery beats not registered (ONPREM=%s)", settings.ONPREM)
 
 # Beat used to fetch daily rates (only when CURRENCY_URL is configured)
 if not register_daily_currency_rates_beat(app.conf.beat_schedule, settings.CURRENCY_URL):
     LOG.info("Daily currency rates beat not registered (CURRENCY_URL is empty)")
-
-# Beat used for HCS report finalization
-app.conf.beat_schedule["finalize_hcs_reports"] = {
-    "task": "hcs.tasks.collect_hcs_report_finalization",
-    "schedule": crontab(0, 0, day_of_month="15"),
-}
 
 # Specify the frequency for checking delayed summary tasks
 DELAYED_TASK_POLLING_MINUTES = ENVIRONMENT.get_value("DELAYED_TASK_POLLING_MINUTES", default="30")

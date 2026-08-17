@@ -654,6 +654,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: GUNICORN_LOG_LEVEL
@@ -5472,6 +5474,8 @@ objects:
           value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
         - name: TENANT_MULTIPROCESSING_CHUNKS
           value: ${TENANT_MULTIPROCESSING_CHUNKS}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
         resources:
           limits:
@@ -5515,6 +5519,8 @@ objects:
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${MGMT_IMAGE}:${MGMT_IMAGE_TAG}
         resources:
           limits:
@@ -5650,6 +5656,10 @@ parameters:
   value: "True"
 - description: toggles onprem data processing logic
   name: ONPREM
+  value: "False"
+- description: enables SaaS-only masu endpoints even when ONPREM=True, so IQE/integration
+    tests can reach them
+  name: IQE_TEST_RUN
   value: "False"
 - description: Exchange rate API URL for dynamic currency rates. Empty disables the
     daily currency beat.
