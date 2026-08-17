@@ -33,6 +33,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.test import MasuTestCase
 from masu.util.common import SummaryRangeConfig
+from reporting.provider.ocp.models import COST_BREAKDOWN_UI_SUMMARY_TABLE
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import RatesToUsage
@@ -2661,6 +2662,82 @@ class TestLegacyDistributePath(_ReportPeriodMixin, MasuTestCase):
         mock_agg.assert_not_called()
         mock_markup_rtu.assert_not_called()
         mock_ui.assert_called_once()
+
+    @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.clear_cost_breakdown_ui_summary_table")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
+    def test_legacy_distribute_clears_cost_breakdown_instead_of_rebuilding(
+        self,
+        mock_rp,
+        mock_agg,
+        mock_markup,
+        mock_dist_sql,
+        mock_markup_rtu,
+        mock_ui,
+        mock_clear_breakdown,
+        mock_partitions,
+    ):
+        """use_rtu=False: cost breakdown is cleared for the period, not rebuilt from rates_to_usage.
+
+        reporting_ocp_cost_breakdown_p is populated exclusively from rates_to_usage
+        (see OCPReportDBAccessor._populate_cost_breakdown_ui_summary_table), which this
+        legacy run never writes to. Per maintainer review
+        (https://github.com/project-koku/koku/pull/6163#discussion_r3792234620),
+        rebuilding it here would either produce nothing, or -- if the RTU flag was
+        previously ON for this exact period -- silently rebuild from now-stale
+        rates_to_usage rows that no longer match the freshly-computed legacy costs.
+        """
+        mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+        mock_rp.return_value = MagicMock(id=1)
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        sr = self._make_summary_range()
+        updater.distribute_costs_and_update_ui_summary(sr, use_rtu=False)
+
+        mock_clear_breakdown.assert_called_once_with(self.ocp_provider_uuid, sr.start_date, sr.end_date)
+        mock_ui.assert_called_once()
+        _, ui_kwargs = mock_ui.call_args
+        self.assertNotIn(COST_BREAKDOWN_UI_SUMMARY_TABLE, ui_kwargs.get("tables", ()))
+
+    @patch.object(OCPCostModelCostUpdater, "_ensure_rates_to_usage_partitions")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.clear_cost_breakdown_ui_summary_table")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_ui_summary_tables")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_distributed_cost_sql")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_cost")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.aggregate_rates_to_daily_summary")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
+    def test_rtu_distribute_still_populates_cost_breakdown(
+        self,
+        mock_rp,
+        mock_agg,
+        mock_markup,
+        mock_dist_sql,
+        mock_markup_rtu,
+        mock_ui,
+        mock_clear_breakdown,
+        mock_partitions,
+    ):
+        """use_rtu=True: cost breakdown is populated as before (no behavior change on the RTU path)."""
+        mock_dist_sql.side_effect = lambda sr, *a, **kw: sr
+        mock_rp.return_value = MagicMock(id=1)
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.ocp_provider)
+        sr = self._make_summary_range()
+        updater.distribute_costs_and_update_ui_summary(sr, use_rtu=True)
+
+        mock_clear_breakdown.assert_not_called()
+        mock_ui.assert_called_once()
+        args, kwargs = mock_ui.call_args
+        self.assertEqual(args[1], self.ocp_provider_uuid)
+        # No explicit `tables` override on the RTU path: default UI_SUMMARY_TABLES
+        # (which includes cost breakdown) is used.
+        self.assertNotIn("tables", kwargs)
 
 
 class TestRTUCapacityColumns(_ReportPeriodMixin, MasuTestCase):

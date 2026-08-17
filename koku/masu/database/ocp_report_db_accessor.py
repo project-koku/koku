@@ -58,6 +58,7 @@ from reporting.provider.gcp.models import (
 )
 from reporting.provider.ocp.models import COST_BREAKDOWN_UI_SUMMARY_TABLE
 from reporting.provider.ocp.models import OCPCluster
+from reporting.provider.ocp.models import OCPCostUIBreakDownP
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
@@ -229,6 +230,32 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             f"sql/openshift/ui_summary/{COST_BREAKDOWN_UI_SUMMARY_TABLE}.sql",
             sql_params,
         )
+
+    def clear_cost_breakdown_ui_summary_table(self, source_uuid, start_date, end_date):
+        """Clear cost-breakdown rows for a period processed via the legacy (non-RTU) path.
+
+        reporting_ocp_cost_breakdown_p is built exclusively from rates_to_usage
+        (see _populate_cost_breakdown_ui_summary_table). rates_to_usage is only
+        written to when the RTU Unleash flag is enabled for a given run, and
+        the flag is evaluated fresh per schema per billing month -- it can
+        toggle between runs. If a period is (re)processed with the flag OFF,
+        rebuilding breakdown would either produce nothing (flag never been ON
+        for this source) or, if the flag WAS ON for a prior run of this same
+        period, rebuild from stale rates_to_usage rows that no longer match
+        the freshly-computed legacy costs -- silently disagreeing with the
+        rest of the UI for that period. Per the Phase 4 design (see
+        docs/architecture/cost-breakdown/phased-delivery.md, Phase 4
+        Rollback), an empty breakdown table is the accepted state when this
+        feature's data source isn't populated, so callers processing a period
+        with use_rtu=False should call this instead of
+        _populate_cost_breakdown_ui_summary_table.
+        """
+        with schema_context(self.schema):
+            OCPCostUIBreakDownP.objects.filter(
+                source_uuid=source_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+            ).delete()
 
     def _reporting_period_has_gpu_data(self, source_uuid: uuid.UUID, start_date) -> bool:
         """

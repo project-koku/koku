@@ -26,7 +26,9 @@ from masu.util.common import SummaryRangeConfig
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
+from reporting.provider.ocp.models import COST_BREAKDOWN_UI_SUMMARY_TABLE
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
@@ -933,7 +935,22 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                         self._cost_model_id,
                     )
                     RTU_MARKUP_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
-                accessor.populate_ui_summary_tables(month_range, self._provider_uuid)
+                if use_rtu:
+                    accessor.populate_ui_summary_tables(month_range, self._provider_uuid)
+                else:
+                    # Cost breakdown is built exclusively from rates_to_usage, which this
+                    # (legacy) run does not write to. Skip rebuilding it from whatever is
+                    # currently there -- if the flag was previously ON for this period, that
+                    # would silently rebuild from stale RTU rows -- and clear it instead. See
+                    # OCPReportDBAccessor.clear_cost_breakdown_ui_summary_table docstring.
+                    accessor.populate_ui_summary_tables(
+                        month_range,
+                        self._provider_uuid,
+                        tables=tuple(t for t in UI_SUMMARY_TABLES if t != COST_BREAKDOWN_UI_SUMMARY_TABLE),
+                    )
+                    accessor.clear_cost_breakdown_ui_summary_table(
+                        self._provider_uuid, month_range.start_date, month_range.end_date
+                    )
                 if report_period := accessor.report_periods_for_provider_uuid(
                     self._provider_uuid, month_range.summary_start
                 ):
