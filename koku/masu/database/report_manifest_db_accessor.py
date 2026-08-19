@@ -162,19 +162,23 @@ class ReportManifestDBAccessor:
 
     def purge_expired_report_manifest(self, provider_type, expired_date):
         """
-        Deletes Cost usage Report Manifests older than expired_date.
+        Deletes CostUsageReportManifests for billing periods on or before expired_date.
+
+        Inclusive of expired_date so manifest cleanup matches report-period and
+        partition purge (keep last N calendar months).
 
         Args:
             provider_type   (String) the provider type to delete associated manifests
-            expired_date (datetime.datetime) delete all manifests older than this date, exclusive.
+            expired_date (datetime.datetime) delete manifests with billing_period_start
+                on or before this date (inclusive).
         """
         manifests_to_delete = CostUsageReportManifest.objects.filter(
-            provider__type=provider_type, billing_period_start_datetime__lt=expired_date
+            provider__type=provider_type, billing_period_start_datetime__lte=expired_date
         )
         count = manifests_to_delete.count()
         cascade_delete(manifests_to_delete.query.model, manifests_to_delete)
         LOG.info(
-            "Removed %s CostUsageReportManifest(s) for provider type %s that had a billing period start date before %s",
+            "Removed %s CostUsageReportManifest(s) for provider type %s " "with billing period start on or before %s",
             count,
             provider_type,
             expired_date,
@@ -182,19 +186,23 @@ class ReportManifestDBAccessor:
 
     def purge_expired_report_manifest_provider_uuid(self, provider_uuid, expired_date):
         """
-        Delete cost usage reports older than expired_date and provider_uuid.
+        Delete CostUsageReportManifests for a provider with billing periods on or before expired_date.
+
+        Inclusive of expired_date so manifest cleanup matches report-period and
+        partition purge (keep last N calendar months).
 
         Args:
             provider_uuid (uuid) The provider uuid to use to delete associated manifests
-            expired_date (datetime.datetime) delete all manifests older than this date, exclusive.
+            expired_date (datetime.datetime) delete manifests with billing_period_start
+                on or before this date (inclusive).
         """
         manifests_to_delete = CostUsageReportManifest.objects.filter(
-            provider_id=provider_uuid, billing_period_start_datetime__lt=expired_date
+            provider_id=provider_uuid, billing_period_start_datetime__lte=expired_date
         )
         count = manifests_to_delete.count()
         cascade_delete(manifests_to_delete.query.model, manifests_to_delete)
         LOG.info(
-            "Removed %s CostUsageReportManifest(s) for provider_uuid %s that had a billing period start date before %s",
+            "Removed %s CostUsageReportManifest(s) for provider_uuid %s " "with billing period start on or before %s",
             count,
             provider_uuid,
             expired_date,
