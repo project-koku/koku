@@ -10,6 +10,8 @@ import logging
 import os
 import pkgutil
 import uuid
+from contextlib import contextmanager
+from decimal import Decimal
 from uuid import uuid4
 
 from dateutil.parser import parse
@@ -56,6 +58,7 @@ from reporting.provider.gcp.models import (
 )
 from reporting.provider.ocp.models import COST_BREAKDOWN_UI_SUMMARY_TABLE
 from reporting.provider.ocp.models import OCPCluster
+from reporting.provider.ocp.models import OCPCostUIBreakDownP
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
@@ -127,6 +130,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params["month"] = start_date.strftime("%m")
 
         self._populate_gpu_ui_summary_table_with_usage_only(sql_params)
+        if COST_BREAKDOWN_UI_SUMMARY_TABLE in tables:
+            self._populate_cost_breakdown_ui_summary_table(sql_params)
         if summary_range.summarize_previous_month and not summary_range.is_current_month:
             # Don't resummarize virtualization UI table if we are summarizing previous month
             return
@@ -207,6 +212,50 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         else:
             # SaaS: execute via Trino
             self._execute_trino_multipart_sql_query(populate_gpu_usage_info, bind_params=sql_params)
+
+    def _populate_cost_breakdown_ui_summary_table(self, params):
+        """Populate the OCP cost-breakdown UI summary table from rates_to_usage.
+
+        Unlike the other tables in the standard ui_summary loop, this is a
+        multi-statement script (six sequential DELETE/INSERT steps that build
+        the breakdown tree bottom-up), so it must run through
+        _execute_processing_script rather than the single-statement
+        _prepare_and_execute_raw_sql_query used by the loop. This SQL reads
+        only from rates_to_usage and reporting_ocpusagelineitem_daily_summary
+        (both PostgreSQL-native), so it runs identically on-prem and in SaaS.
+        """
+        sql_params = copy.deepcopy(params)
+        self._execute_processing_script(
+            "masu.database",
+            f"sql/openshift/ui_summary/{COST_BREAKDOWN_UI_SUMMARY_TABLE}.sql",
+            sql_params,
+        )
+
+    def clear_cost_breakdown_ui_summary_table(self, source_uuid, start_date, end_date):
+        """Clear cost-breakdown rows for a period processed via the legacy (non-RTU) path.
+
+        reporting_ocp_cost_breakdown_p is built exclusively from rates_to_usage
+        (see _populate_cost_breakdown_ui_summary_table). rates_to_usage is only
+        written to when the RTU Unleash flag is enabled for a given run, and
+        the flag is evaluated fresh per schema per billing month -- it can
+        toggle between runs. If a period is (re)processed with the flag OFF,
+        rebuilding breakdown would either produce nothing (flag never been ON
+        for this source) or, if the flag WAS ON for a prior run of this same
+        period, rebuild from stale rates_to_usage rows that no longer match
+        the freshly-computed legacy costs -- silently disagreeing with the
+        rest of the UI for that period. Per the Phase 4 design (see
+        docs/architecture/cost-breakdown/phased-delivery.md, Phase 4
+        Rollback), an empty breakdown table is the accepted state when this
+        feature's data source isn't populated, so callers processing a period
+        with use_rtu=False should call this instead of
+        _populate_cost_breakdown_ui_summary_table.
+        """
+        with schema_context(self.schema):
+            OCPCostUIBreakDownP.objects.filter(
+                source_uuid=source_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+            ).delete()
 
     def _reporting_period_has_gpu_data(self, source_uuid: uuid.UUID, start_date) -> bool:
         """
@@ -649,7 +698,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
 
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
-        with transaction.atomic():
+        with schema_context(self.schema), transaction.atomic():
             with connection.cursor() as cursor:
                 cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [cluster_id])
             OCPUsageLineItemDailySummary.objects.filter(
@@ -677,43 +726,123 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 ),
             )
 
-    def populate_distributed_cost_sql(  # noqa: C901
+    @contextmanager
+    def _distribution_provider_lock(self, provider_uuid):
+        """Serialize concurrent distribution/aggregation calls for the same provider.
+
+        Two overlapping-but-different-range invocations of
+        populate_distributed_cost_sql/aggregate_rates_to_daily_summary/
+        populate_markup_rates_to_usage for the SAME provider (e.g. a cost-model
+        update racing a resummarize; WorkerCache's cache key includes
+        start_date/end_date, so it does not dedupe these -- see PR #6162) can
+        interleave their per-category DELETE and INSERT and silently double
+        distributed_cost, with no deadlock or exception raised to catch it
+        (each call is its own independent, autocommitted statement -- see
+        ReportDBAccessorBase._execute_raw_sql_query).
+
+        Deliberately uses session-scoped pg_advisory_lock/pg_advisory_unlock,
+        NOT pg_advisory_xact_lock wrapped in transaction.atomic(): the methods
+        this brackets call _prepare_and_execute_raw_sql_query, which retries on
+        deadlock, and that retry is only safe when each call remains its own
+        independent, autocommitted unit of work (see
+        RawSqlRetryIdempotencyGuardTest). Wrapping those calls in
+        transaction.atomic() would abort the whole transaction on a deadlock,
+        breaking the per-statement retry instead of fixing this race. This
+        lock brackets the already-autocommitted calls with separate LOCK/UNLOCK
+        statements on the same session instead, so retry-on-deadlock semantics
+        for every statement in between are completely unchanged.
+        """
+        lock_key = str(provider_uuid)
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_lock(hashtext(%s))", [lock_key])
+        try:
+            yield
+        finally:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_unlock(hashtext(%s))", [lock_key])
+
+    def populate_distributed_cost_sql(
         self,
         summary_range: SummaryRangeConfig,
         provider_uuid: uuid.UUID,
         distribution_info: dict,
+        infra_to_cm_rate: Decimal = Decimal(1),
+        cost_model_currency: str = "USD",
+        cost_model_id=None,
+        use_rtu: bool = False,
     ) -> SummaryRangeConfig:
         """
         Populate the distribution cost model options.
+
+        When ``use_rtu`` is True (Unleash RTU flag ON), uses per-rate
+        ``*_rtu.sql`` templates that read/write ``rates_to_usage``.
+        When False (safe default), uses legacy ``distribute_*_cost.sql``
+        templates that write directly to the daily summary.
+
+        Runs under _distribution_provider_lock (see its docstring) to
+        serialize concurrent, overlapping-range invocations for the same
+        provider and prevent silently doubling distributed_cost.
 
         args:
             start_date (datetime, str): The start_date to calculate monthly_cost.
             end_date (datetime, str): The end_date to calculate monthly_cost.
             distribution: Choice of monthly distribution ex. memory
             provider_uuid (str): The str of the provider UUID
+            infra_to_cm_rate: Exchange rate from infra raw_currency to cost_model_currency.
+            cost_model_currency: The cost model's currency code.
+            use_rtu: When True, use per-rate RTU distribution SQL.
+        """
+        with self._distribution_provider_lock(provider_uuid):
+            return self._populate_distributed_cost_sql_unlocked(
+                summary_range,
+                provider_uuid,
+                distribution_info,
+                infra_to_cm_rate,
+                cost_model_currency,
+                cost_model_id,
+                use_rtu,
+            )
+
+    def _populate_distributed_cost_sql_unlocked(  # noqa: C901
+        self,
+        summary_range: SummaryRangeConfig,
+        provider_uuid: uuid.UUID,
+        distribution_info: dict,
+        infra_to_cm_rate: Decimal = Decimal(1),
+        cost_model_currency: str = "USD",
+        cost_model_id=None,
+        use_rtu: bool = False,
+    ) -> SummaryRangeConfig:
+        """Body of populate_distributed_cost_sql, run while holding _distribution_provider_lock.
+
+        Split out so the lock-acquisition wrapper above doesn't force this
+        entire (long) body to be re-indented one level -- keeps this method's
+        diff-against-history clean and isolates the locking concern from the
+        distribution logic itself.
         """
 
+        path_suffix = "_rtu" if use_rtu else ""
         distribution_configs = {
             metric_constants.PLATFORM_COST: DistributionConfig(
-                sql_file="distribute_platform_cost.sql",
+                sql_file=f"distribute_platform_cost{path_suffix}.sql",
                 cost_model_rate_type="platform_distributed",
             ),
             metric_constants.WORKER_UNALLOCATED: DistributionConfig(
-                sql_file="distribute_worker_cost.sql",
+                sql_file=f"distribute_worker_cost{path_suffix}.sql",
                 cost_model_rate_type="worker_distributed",
             ),
             metric_constants.STORAGE_UNATTRIBUTED: DistributionConfig(
-                sql_file="distribute_unattributed_storage_cost.sql",
+                sql_file=f"distribute_unattributed_storage_cost{path_suffix}.sql",
                 cost_model_rate_type="unattributed_storage",
-                distribute_by_default=True,  # Distributed without cost model
+                distribute_by_default=True,
             ),
             metric_constants.NETWORK_UNATTRIBUTED: DistributionConfig(
-                sql_file="distribute_unattributed_network_cost.sql",
+                sql_file=f"distribute_unattributed_network_cost{path_suffix}.sql",
                 cost_model_rate_type="unattributed_network",
-                distribute_by_default=True,  # Distributed without cost model
+                distribute_by_default=True,
             ),
             metric_constants.GPU_UNALLOCATED: DistributionConfig(
-                sql_file="distribute_unallocated_gpu_cost.sql",
+                sql_file=f"distribute_unallocated_gpu_cost{path_suffix}.sql",
                 cost_model_rate_type="gpu_distributed",
                 query_type="trino",
                 required_table="openshift_gpu_usage_line_items_daily",
@@ -723,6 +852,20 @@ AND (month = {{month_no_zero}} OR month = {{month}})
 
         table_name = self._table_map["line_item_daily_summary"]
         dh = DateHelper()
+        # Per-rate SQL shares denominator/namespace_usage temp tables (Option B).
+        if use_rtu and (
+            report_period_for_temp_tables := self.report_periods_for_provider_uuid(
+                provider_uuid, summary_range.start_date
+            )
+        ):
+            self._create_distribution_temp_tables(
+                {
+                    "schema": self.schema,
+                    "start_date": summary_range.start_date,
+                    "end_date": summary_range.end_date,
+                    "report_period_id": report_period_for_temp_tables.id,
+                }
+            )
         for cost_model_key, config in distribution_configs.items():
             sql_params = {
                 "start_date": summary_range.start_date,
@@ -730,6 +873,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 "schema": self.schema,
                 "source_uuid": provider_uuid,
                 "cost_model_rate_type": config.cost_model_rate_type,
+                "cost_model_id": cost_model_id,
             }
             # Handle distributions that require full month data
             if config.requires_full_month:
@@ -785,6 +929,8 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             sql_params["report_period_id"] = report_period.id
 
             self._delete_monthly_cost_model_rate_type_data(sql_params, cost_model_key)
+            if use_rtu:
+                self._delete_distributed_rtu_rows(sql_params, cost_model_key)
             populate = distribution_info.get(cost_model_key, config.distribute_by_default)
             if not populate:
                 continue
@@ -804,6 +950,12 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                 )
                 continue
             sql_params["distribution"] = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
+            if cost_model_key in (
+                metric_constants.NETWORK_UNATTRIBUTED,
+                metric_constants.STORAGE_UNATTRIBUTED,
+            ):
+                sql_params["infra_to_cm_rate"] = infra_to_cm_rate
+                sql_params["cost_model_currency"] = cost_model_currency
             sql = pkgutil.get_data("masu.database", config.get_full_path())
             sql = sql.decode("utf-8")
             log_msg = f"distributing {cost_model_key}"
@@ -845,6 +997,44 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         LOG.info(log_json(msg=f"removing {cost_model_key} distribution", context=sql_params))
         self._prepare_and_execute_raw_sql_query(
             self._table_map["line_item_daily_summary"],
+            delete_sql,
+            sql_params,
+            operation="DELETE",
+        )
+
+    def _create_distribution_temp_tables(self, sql_params):
+        """Materialize the denominator/namespace_usage aggregates shared by the
+        four per-rate distribution SQL files (Option B perf fix), so
+        populate_distributed_cost_sql's loop scans
+        reporting_ocpusagelineitem_daily_summary twice instead of four times.
+        """
+        sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/distribute_cost/create_distribution_temp_tables.sql",
+        )
+        sql = sql.decode("utf-8")
+        self._prepare_and_execute_raw_sql_query(
+            "rates_to_usage",
+            sql,
+            sql_params,
+            operation="CREATE TEMP TABLE: distribution denominator/namespace_usage",
+        )
+
+    def _delete_distributed_rtu_rows(self, sql_params, cost_model_key):
+        """Delete distributed rows from rates_to_usage before re-inserting."""
+        delete_sql = pkgutil.get_data(
+            "masu.database",
+            "sql/openshift/cost_model/distribute_cost/delete_distributed_rates_to_usage.sql",
+        )
+        delete_sql = delete_sql.decode("utf-8")
+        LOG.info(
+            log_json(
+                msg=f"removing {cost_model_key} RTU distribution rows",
+                context=sql_params,
+            )
+        )
+        self._prepare_and_execute_raw_sql_query(
+            "rates_to_usage",
             delete_sql,
             sql_params,
             operation="DELETE",
@@ -1232,6 +1422,11 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         populate_markup_cost ORM UPDATE) and inserts per-row markup
         entries into rates_to_usage for the breakdown tree.
         report_period_id is read from lids.report_period_id, not passed as a bind.
+
+        Runs under _distribution_provider_lock (see its docstring): the
+        underlying SQL also does DELETE-then-INSERT for the same
+        provider/date-range, so it is exposed to the identical concurrent-
+        invocation double-count risk as populate_distributed_cost_sql.
         """
         sql = pkgutil.get_data(
             "masu.database",
@@ -1247,10 +1442,24 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "cost_model_id": cost_model_id,
         }
         LOG.info(log_json(msg="populating markup rates_to_usage", context=sql_params))
-        self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
+        with self._distribution_provider_lock(source_uuid):
+            self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
 
-    def aggregate_rates_to_daily_summary(self, start_date, end_date, source_uuid, report_period_id):
-        """Aggregate RatesToUsage rows into daily summary cost columns."""
+    def aggregate_rates_to_daily_summary(
+        self,
+        start_date,
+        end_date,
+        source_uuid,
+        report_period_id,
+        cost_model_currency="USD",
+    ):
+        """Aggregate RatesToUsage rows into daily summary cost columns.
+
+        Runs under _distribution_provider_lock (see its docstring): this
+        method's SQL also does DELETE-then-INSERT for the same
+        provider/date-range, so it is exposed to the identical concurrent-
+        invocation double-count risk as populate_distributed_cost_sql.
+        """
 
         table_name = self._table_map["line_item_daily_summary"]
         sql = pkgutil.get_data(
@@ -1264,9 +1473,11 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "end_date": end_date,
             "source_uuid": source_uuid,
             "report_period_id": report_period_id,
+            "cost_model_currency": cost_model_currency,
         }
         LOG.info(log_json(msg="aggregating rates_to_usage → daily summary", context=sql_params))
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+        with self._distribution_provider_lock(source_uuid):
+            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def validate_rates_against_daily_summary(self, start_date, end_date, source_uuid, report_period_id):
         """CI-only: return diff rows between RTU aggregates and daily summary. Empty = correct."""
