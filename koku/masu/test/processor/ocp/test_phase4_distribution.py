@@ -14,6 +14,7 @@ See docs/architecture/cost-breakdown/phased-delivery.md § Concern 1 Resolution.
 See docs/architecture/cost-breakdown/risk-register.md § R18.
 """
 import uuid
+from collections import defaultdict
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -1082,6 +1083,85 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
             f"Distribution source namespaces found in project subtree: {source_ns_list}. "
             "This causes double-counting with the overhead subtree.",
         )
+
+    # ------------------------------------------------------------------
+    # P1 regression: depth-4/5 leaf paths must be unique per namespace/node
+    # ------------------------------------------------------------------
+    def test_depth4_paths_unique_per_namespace(self):
+        """[P1] Project leaf paths must be unique per namespace, not just per rate name.
+
+        Before the fix, two namespaces charged the same cost-model rate (the
+        common case -- a single rate applies to every namespace) produced
+        identical `path` strings at depth 4, since `path` was built only from
+        the rate category and custom_name. This caused the tree view
+        (OCPCostBreakdownView._build_tree, keyed by `path`) to silently drop
+        every namespace but the last one sharing a path.
+
+        NOTE: path uniqueness only needs to hold *within* a single
+        (usage_start, cluster_id) -- OCPCostBreakdownView builds one tree per
+        date group, and the SQL docstring states multi-cluster sources
+        produce multiple per-cluster roots. The same path legitimately
+        recurs across different days/clusters, since usage_start/cluster_id
+        are separate columns, not path segments.
+        """
+        with schema_context(self.schema):
+            project_leaves = list(
+                self._breakdown_qs(depth=4, top_category="project").values(
+                    "usage_start", "cluster_id", "namespace", "path"
+                )
+            )
+
+        distinct_namespaces = {row["namespace"] for row in project_leaves}
+        if len(distinct_namespaces) < 2:
+            self.skipTest("Need at least 2 namespaces sharing a rate to exercise path disambiguation")
+
+        by_day_and_cluster = defaultdict(list)
+        for row in project_leaves:
+            by_day_and_cluster[(row["usage_start"], row["cluster_id"])].append(row["path"])
+
+        for (usage_start, cluster_id), paths in by_day_and_cluster.items():
+            self.assertEqual(
+                len(paths),
+                len(set(paths)),
+                f"Depth-4 project leaf paths collide across namespaces on {usage_start} "
+                f"for cluster {cluster_id}: {paths}. "
+                "The tree view will silently drop rows with duplicate paths.",
+            )
+        for row in project_leaves:
+            self.assertIn(
+                row["namespace"],
+                row["path"],
+                f"namespace {row['namespace']!r} is not embedded in path {row['path']!r}",
+            )
+
+    def test_depth5_paths_unique_per_recipient(self):
+        """[P1] Overhead leaf paths must be unique per distribution recipient.
+
+        Same class of bug as test_depth4_paths_unique_per_namespace, but for
+        depth-5 overhead leaves, whose recipient is identified by namespace
+        and/or node depending on distribution type. Scoped per
+        (usage_start, cluster_id) for the same reason as above.
+        """
+        with schema_context(self.schema):
+            overhead_leaves = list(
+                self._breakdown_qs(depth=5, top_category="overhead").values(
+                    "usage_start", "cluster_id", "namespace", "node", "path"
+                )
+            )
+        if len(overhead_leaves) < 2:
+            self.skipTest("Need at least 2 overhead leaves to exercise path disambiguation")
+
+        by_day_and_cluster = defaultdict(list)
+        for row in overhead_leaves:
+            by_day_and_cluster[(row["usage_start"], row["cluster_id"])].append(row["path"])
+
+        for (usage_start, cluster_id), paths in by_day_and_cluster.items():
+            self.assertEqual(
+                len(paths),
+                len(set(paths)),
+                f"Depth-5 overhead leaf paths collide across recipients on {usage_start} "
+                f"for cluster {cluster_id}: {paths}.",
+            )
 
     # ------------------------------------------------------------------
     # Tree structure: valid depths

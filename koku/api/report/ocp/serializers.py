@@ -514,24 +514,41 @@ class OCPMigProfilesQueryParamSerializer(OCPQueryParamSerializer):
 
 
 class CostBreakdownFlatItemSerializer(serializers.Serializer):
-    """Response serializer for flat breakdown items."""
+    """Response serializer for flat breakdown items.
+
+    Field set mirrors the "cost_breakdown" annotations in
+    api/report/ocp/provider_map.py and the columns written by
+    masu/database/sql/openshift/ui_summary/reporting_ocp_cost_breakdown_p.sql.
+    Used as a contract-conformance check (see test_views.py) rather than for
+    runtime (de)serialization, since OCPCostBreakdownView builds the response
+    from raw query rows like every other OCP report view.
+    """
 
     depth = serializers.IntegerField()
     custom_name = serializers.CharField()
     path = serializers.CharField()
-    parent_path = serializers.CharField()
+    # Blank for the depth-1 root node, which has no parent (see step 6 of
+    # reporting_ocp_cost_breakdown_p.sql: parent_path = '').
+    parent_path = serializers.CharField(allow_blank=True)
+    top_category = serializers.CharField()
+    breakdown_category = serializers.CharField()
+    metric_type = serializers.CharField()
+    # NULL for the depth 1-3 aggregate rows and the depth-4 overhead aggregate row
+    # (see reporting_ocp_cost_breakdown_p.sql steps 3-6); only populated on the
+    # depth-4 project and depth-5 overhead leaves sourced directly from RTU.
+    cost_model_rate_type = serializers.CharField(allow_null=True)
     cost_value = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
     distributed_cost = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
-    metric_type = serializers.CharField()
 
 
-class CostBreakdownTreeNodeSerializer(serializers.Serializer):
-    """Response serializer for tree breakdown nodes."""
+class CostBreakdownTreeNodeSerializer(CostBreakdownFlatItemSerializer):
+    """Response serializer for tree breakdown nodes.
 
-    custom_name = serializers.CharField()
-    cost_value = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
-    distributed_cost = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
-    metric_type = serializers.CharField()
+    OCPCostBreakdownView._build_tree() nests flat rows via `**item`, so every
+    field on CostBreakdownFlatItemSerializer is still present on each tree
+    node in addition to `children`.
+    """
+
     children = serializers.ListField(child=serializers.DictField(), required=False, default=list)
 
 

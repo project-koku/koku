@@ -29,13 +29,18 @@ from api.models import User
 from api.provider.models import Provider
 from api.query_handler import TruncDayString
 from api.report.ocp.provider_map import OCPProviderMap
+from api.report.ocp.serializers import CostBreakdownFlatItemSerializer
+from api.report.ocp.serializers import CostBreakdownTreeNodeSerializer
+from api.report.ocp.view import OCPCostBreakdownView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
 from api.report.test.util.constants import OCP_NAMESPACES
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
+from masu.test import MasuTestCase
 from reporting.models import OCPUsageLineItemDailySummary
+from reporting.provider.ocp.models import OCPCostUIBreakDownP
 
 
 def date_to_string(dt):
@@ -1956,8 +1961,95 @@ class OCPReportViewTest(IamTestCase):
         self.assertAlmostEqual(Decimal(str(total_cost)), expected_total, places=2)
 
 
-class OCPCostBreakdownViewTest(IamTestCase):
-    """E2E tests for the /breakdown/openshift/cost/ endpoint."""
+class OCPCostBreakdownViewTest(MasuTestCase):
+    """E2E tests for the /breakdown/openshift/cost/ endpoint.
+
+    Uses MasuTestCase (rather than IamTestCase) so tests can seed
+    OCPCostUIBreakDownP rows directly against a real OCP provider/tenant,
+    which lets these tests assert on actual response *content* rather than
+    only status codes and key presence.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # The breakdown endpoint defaults to filter[time_scope_value]=-10,
+        # filter[time_scope_units]=day (see OCPCostBreakdownQueryParamSerializer),
+        # so seeded rows must fall within the last 10 days, not just "this month".
+        self.breakdown_usage_date = self.dh.today.date()
+        self._seed_breakdown_rows()
+
+    def _make_breakdown_row(self, **overrides):
+        defaults = {
+            "usage_start": self.breakdown_usage_date,
+            "usage_end": self.breakdown_usage_date,
+            "source_uuid_id": self.ocp_provider_uuid,
+            "cluster_id": self.ocp_cluster_id,
+            "cluster_alias": self.ocp_cluster_id,
+            "namespace": None,
+            "node": None,
+            "custom_name": "total_cost",
+            "metric_type": "aggregate",
+            "cost_model_rate_type": None,
+            "cost_value": None,
+            "distributed_cost": None,
+            "raw_currency": "USD",
+            "path": "total_cost",
+            "depth": 1,
+            "parent_path": "",
+            "top_category": "total",
+            "breakdown_category": "total",
+        }
+        defaults.update(overrides)
+        with tenant_context(self.tenant):
+            return OCPCostUIBreakDownP.objects.create(**defaults)
+
+    def _seed_breakdown_rows(self):
+        """Seed a small, deterministic tree: root, two namespaces sharing a
+        rate name (project leaves), and one overhead leaf.
+
+        The two project leaves sharing "CPU usage" reproduce the exact shape
+        of the P1 path-collision bug: before the fix, both would render to
+        the identical `path` "project.usage_cost.CPU usage".
+        """
+        with tenant_context(self.tenant):
+            OCPCostUIBreakDownP.objects.filter(
+                source_uuid_id=self.ocp_provider_uuid,
+                usage_start=self.breakdown_usage_date,
+            ).delete()
+
+        self._make_breakdown_row(
+            cost_value=Decimal("200.0"),
+            distributed_cost=Decimal("40.0"),
+        )
+        for namespace, cost_value in (("ns-a", Decimal("120.0")), ("ns-b", Decimal("80.0"))):
+            self._make_breakdown_row(
+                namespace=namespace,
+                custom_name="CPU usage",
+                metric_type="cpu_core_usage_per_hour",
+                cost_model_rate_type="Supplementary",
+                path=f"project.usage_cost.{namespace}.CPU usage",
+                parent_path="project.usage_cost",
+                depth=4,
+                top_category="project",
+                breakdown_category="usage_cost",
+                cost_value=cost_value,
+            )
+        self._make_breakdown_row(
+            namespace="ns-a",
+            custom_name="Node cost",
+            metric_type="node_cost_per_month",
+            cost_model_rate_type="Infrastructure",
+            path="overhead.platform_distributed.infrastructure.ns-a.Node cost",
+            parent_path="overhead.platform_distributed.infrastructure",
+            depth=5,
+            top_category="overhead",
+            breakdown_category="infrastructure",
+            distributed_cost=Decimal("40.0"),
+        )
+
+    @staticmethod
+    def _flat_rows(response):
+        return [row for date_group in response.data.get("data", []) for row in date_group.get("values", [])]
 
     def test_breakdown_url_resolves(self):
         """Breakdown URL name resolves correctly."""
@@ -2058,3 +2150,153 @@ class OCPCostBreakdownViewTest(IamTestCase):
         url = reverse("ocp-cost-breakdown") + "?filter[path]=project.usage_cost"
         response = APIClient().get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    # ------------------------------------------------------------------
+    # P0 regression: cost_value/distributed_cost missing from response rows
+    # ------------------------------------------------------------------
+    def test_breakdown_flat_view_includes_cost_value_and_distributed_cost(self):
+        """[P0] Flat response rows must include cost_value/distributed_cost.
+
+        Regression test for a bug where these fields existed in "aggregates"
+        (meta.total) but not in "annotations" (per-row data) in
+        api/report/ocp/provider_map.py, so API responses silently omitted
+        the actual dollar amounts for every row.
+        """
+        url = reverse("ocp-cost-breakdown")
+        response = APIClient().get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        rows = self._flat_rows(response)
+        project_leaves = [r for r in rows if r.get("depth") == 4 and r.get("top_category") == "project"]
+        self.assertTrue(project_leaves, "Expected the seeded depth-4 project leaves in the response")
+
+        for row in project_leaves:
+            self.assertIn("cost_value", row, f"cost_value missing from breakdown row: {row}")
+            self.assertIn("distributed_cost", row, f"distributed_cost missing from breakdown row: {row}")
+            self.assertIsNotNone(row["cost_value"], f"cost_value should be populated for a project leaf: {row}")
+
+        seeded_total = sum(Decimal(str(r["cost_value"])) for r in project_leaves)
+        self.assertEqual(seeded_total, Decimal("200.0"))
+
+    # ------------------------------------------------------------------
+    # P1 regression: path collisions across namespaces sharing a rate name
+    # ------------------------------------------------------------------
+    def test_breakdown_flat_view_paths_disambiguated_by_namespace(self):
+        """[P1] Rows for different namespaces sharing a rate name must have distinct paths.
+
+        Before the fix, ns-a and ns-b would both render to
+        "project.usage_cost.CPU usage", causing one to silently disappear
+        in the tree view (see test_build_tree_collapses_rows_with_duplicate_path).
+        """
+        url = reverse("ocp-cost-breakdown")
+        response = APIClient().get(url, **self.headers)
+        rows = self._flat_rows(response)
+        project_leaf_paths = {r["path"] for r in rows if r.get("depth") == 4 and r.get("top_category") == "project"}
+        self.assertEqual(
+            len(project_leaf_paths),
+            2,
+            f"Expected 2 distinct paths for the 2 seeded namespaces sharing a rate name, got: {project_leaf_paths}",
+        )
+
+    # ------------------------------------------------------------------
+    # Contract conformance: documented response serializers match reality
+    # ------------------------------------------------------------------
+    def test_breakdown_flat_rows_conform_to_documented_serializer(self):
+        """Flat rows must validate against CostBreakdownFlatItemSerializer.
+
+        Keeps the documented response contract in api/report/ocp/serializers.py
+        from silently drifting out of sync with the actual view output again
+        (this is exactly how the P0 bug went undetected).
+        """
+        url = reverse("ocp-cost-breakdown")
+        response = APIClient().get(url, **self.headers)
+        rows = self._flat_rows(response)
+        self.assertTrue(rows, "Expected seeded breakdown rows in the response")
+        for row in rows:
+            serializer = CostBreakdownFlatItemSerializer(data=row)
+            self.assertTrue(
+                serializer.is_valid(), f"Breakdown row failed contract validation: {serializer.errors} for row {row}"
+            )
+
+    def test_breakdown_tree_nodes_conform_to_documented_serializer(self):
+        """Tree nodes must validate against CostBreakdownTreeNodeSerializer."""
+        url = reverse("ocp-cost-breakdown") + "?view=tree"
+        response = APIClient().get(url, **self.headers)
+        checked_any = False
+        for date_group in response.data.get("data", []):
+            tree = date_group.get("tree")
+            if tree:
+                checked_any = True
+                self._assert_tree_node_conforms(tree)
+        self.assertTrue(checked_any, "Expected at least one non-empty tree in the response")
+
+    def _assert_tree_node_conforms(self, node):
+        children = node.get("children", [])
+        serializer = CostBreakdownTreeNodeSerializer(data=node)
+        self.assertTrue(
+            serializer.is_valid(), f"Tree node failed contract validation: {serializer.errors} for node {node}"
+        )
+        for child in children:
+            self._assert_tree_node_conforms(child)
+
+
+class OCPCostBreakdownTreeBuilderTest(IamTestCase):
+    """Unit tests for OCPCostBreakdownView._build_tree() path-collision handling.
+
+    These are DB-free: they document the exact vulnerability class that the
+    P1 path-disambiguation fix in reporting_ocp_cost_breakdown_p.sql closes
+    (see TestBreakdownPopulationSQL.test_depth4_paths_unique_per_namespace
+    in masu/test/processor/ocp/test_phase4_distribution.py for the SQL-level
+    regression test that guarantees the SQL never feeds colliding paths in).
+    """
+
+    def test_build_tree_collapses_rows_with_duplicate_path(self):
+        """_build_tree keys nodes by `path`; duplicate paths silently overwrite."""
+        rows = [
+            {"path": "total_cost", "parent_path": "", "depth": 1, "cost_value": 200.0},
+            {
+                "path": "project.usage_cost.CPU usage",
+                "parent_path": "total_cost",
+                "depth": 4,
+                "namespace": "ns-a",
+                "cost_value": 120.0,
+            },
+            {
+                "path": "project.usage_cost.CPU usage",
+                "parent_path": "total_cost",
+                "depth": 4,
+                "namespace": "ns-b",
+                "cost_value": 80.0,
+            },
+        ]
+        tree = OCPCostBreakdownView._build_tree(rows)
+        self.assertEqual(
+            len(tree["children"]),
+            1,
+            "The second row with a duplicate path should silently overwrite the first",
+        )
+        self.assertEqual(tree["children"][0]["namespace"], "ns-b")
+
+    def test_build_tree_preserves_siblings_with_unique_paths(self):
+        """With unique paths (the post-fix shape), both siblings survive."""
+        rows = [
+            {"path": "total_cost", "parent_path": "", "depth": 1, "cost_value": 200.0},
+            {
+                "path": "project.usage_cost.ns-a.CPU usage",
+                "parent_path": "total_cost",
+                "depth": 4,
+                "namespace": "ns-a",
+                "cost_value": 120.0,
+            },
+            {
+                "path": "project.usage_cost.ns-b.CPU usage",
+                "parent_path": "total_cost",
+                "depth": 4,
+                "namespace": "ns-b",
+                "cost_value": 80.0,
+            },
+        ]
+        tree = OCPCostBreakdownView._build_tree(rows)
+        self.assertEqual(len(tree["children"]), 2)
+        namespaces = {child["namespace"] for child in tree["children"]}
+        self.assertEqual(namespaces, {"ns-a", "ns-b"})

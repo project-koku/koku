@@ -1321,6 +1321,8 @@ class OCPProviderMap(ProviderMap):
                             "custom_name": F("custom_name"),
                             "metric_type": F("metric_type"),
                             "cost_model_rate_type": F("cost_model_rate_type"),
+                            "cost_value": F("cost_value"),
+                            "distributed_cost": F("distributed_cost"),
                         },
                         "group_by_options": ["cluster", "project", "node"],
                         "filter": [{}],
