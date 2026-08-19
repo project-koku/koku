@@ -9,6 +9,7 @@ from contextlib import ExitStack
 from datetime import date
 
 from django.conf import settings
+from django.db import transaction
 
 from api.common import log_json
 from koku.database import cascade_delete
@@ -113,7 +114,19 @@ class OCPReportDBCleaner:
                 # against them instead of silently losing a concurrently-inserted row.
                 # Spiked empirically: see
                 # masu/test/database/test_expired_data_purge_rtu_race.py.
-                with accessor._distribution_provider_lock(provider_uuid):
+                #
+                # Broader deadlock preflight, Finding G: the inner transaction.atomic()
+                # is a defensive rollback boundary, not just for cascade_delete (which
+                # already wraps each of its own statements in transaction.atomic()).
+                # delete_self_hosted_data_by_source/cleanup_ocp_tags_values below do
+                # not have that protection themselves; without this boundary, a DB-level
+                # error from either of them, if this method is ever called from within
+                # an ambient transaction, would abort that transaction before this
+                # lock's own finally: pg_advisory_unlock(...) runs, leaking the
+                # session-scoped lock. See
+                # masu/test/database/test_sync_rate_table_lock_leak.py for the mechanism
+                # (found and fixed for sync_rate_table under the same audit).
+                with accessor._distribution_provider_lock(provider_uuid), transaction.atomic():
                     cascade_delete(usage_period_objs.query.model, usage_period_objs)
 
                     # For on-prem, also delete from self-hosted tables
@@ -186,8 +199,11 @@ class OCPReportDBCleaner:
                 # cascade risk as purge_expired_report_data (see its comment above), but
                 # this scheduled, date-based path spans every provider in the schema with
                 # an expired report period, not just one -- lock all of them up front.
+                # Broader deadlock preflight, Finding G: see the comment on the
+                # single-provider lock above in purge_expired_report_data -- same
+                # defensive rollback-boundary rationale applies here.
                 provider_uuids = list(all_usage_periods.values_list("provider_id", flat=True).distinct())
-                with _multi_provider_distribution_lock(accessor, provider_uuids):
+                with _multi_provider_distribution_lock(accessor, provider_uuids), transaction.atomic():
                     # Remove all data related to the report period
                     cascade_delete(all_usage_periods.query.model, all_usage_periods)
                     LOG.info(
