@@ -62,6 +62,7 @@ the sibling Finding E/F/G spikes in this directory) for the established pattern
 of using explicit synchronization instead of a wall-clock sleep.
 """
 import threading
+import time
 import uuid
 from datetime import date
 
@@ -73,8 +74,8 @@ from django_tenants.utils import schema_context
 
 from koku.database import execute_delete_sql
 from reporting.partition.models import PartitionedTable
-from reporting.provider.ocp.models import OCPCostSummaryP
 from reporting.provider.models import TenantAPIProvider
+from reporting.provider.ocp.models import OCPCostSummaryP
 
 
 SCHEMA = "org1234567"
@@ -150,8 +151,6 @@ class PartitionDropWriteDeadlockTest(django.test.TransactionTestCase):
             connection.close()
 
     def _concurrent_write(self, results, key="write"):
-        import time
-
         try:
             t0 = time.monotonic()
             with schema_context(SCHEMA):
@@ -181,8 +180,6 @@ class PartitionDropWriteDeadlockTest(django.test.TransactionTestCase):
         causal link between "no lock" and "unrelated writers stall" is
         unambiguous.
         """
-        import time
-
         results = {}
 
         t_drop = threading.Thread(target=self._drop_old_partitions, args=(results, "reporting_ocp_cost_summary_p"))
