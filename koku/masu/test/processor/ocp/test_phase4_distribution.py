@@ -1164,6 +1164,87 @@ class TestBreakdownPopulationSQL(_ReportPeriodMixin, MasuTestCase):
             )
 
     # ------------------------------------------------------------------
+    # GA readiness audit regression: path/parent_path must not truncate
+    # ------------------------------------------------------------------
+    def test_worst_case_path_length_does_not_truncate(self):
+        """[GA audit] Max-length namespace+node+custom_name must not exceed path column width.
+
+        namespace/node on rates_to_usage allow up to 253 chars each (k8s name
+        convention) and custom_name allows 50. The depth-4 and depth-5 path
+        expressions concatenate namespace + node + custom_name plus fixed
+        segment prefixes, so the worst case is ~577 (depth 4) / ~598 (depth 5)
+        chars -- both exceed the CharField(max_length=512) this column used
+        to have. If path/parent_path ever regress to a bounded CharField,
+        this test must fail with a StringDataRightTruncation error rather
+        than silently passing. See docs/agent/ga-readiness-review-patterns.md
+        pattern 6.
+        """
+        long_namespace = "n" * 253
+        long_node = "d" * 253
+        long_custom_name = "c" * 50
+
+        with schema_context(self.schema):
+            RatesToUsage.objects.create(
+                source_uuid_id=self.provider_uuid,
+                report_period_id=self.rp.id,
+                usage_start=self.start_date,
+                usage_end=self.start_date,
+                cluster_id=self.rp.cluster_id,
+                namespace=long_namespace,
+                node=long_node,
+                custom_name=long_custom_name,
+                metric_type="cpu_usage",
+                calculated_cost=Decimal("12.34"),
+            )
+            RatesToUsage.objects.create(
+                source_uuid_id=self.provider_uuid,
+                report_period_id=self.rp.id,
+                usage_start=self.start_date,
+                usage_end=self.start_date,
+                cluster_id=self.rp.cluster_id,
+                namespace=long_namespace,
+                node=long_node,
+                custom_name=long_custom_name,
+                metric_type="cpu_usage",
+                cost_model_rate_type="Infrastructure",
+                monthly_cost_type="Node_Core_Month",
+                distributed_cost=Decimal("56.78"),
+            )
+
+        with (
+            patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False),
+            patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False),
+        ):
+            with OCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_ui_summary_tables(
+                    SummaryRangeConfig(start_date=self.start_date, end_date=self.end_date),
+                    self.provider_uuid,
+                    tables=["reporting_ocp_cost_breakdown_p"],
+                )
+
+        expected_depth4_path = f"project.usage_cost.{long_namespace}.{long_node}.{long_custom_name}"
+        expected_depth5_path = (
+            f"overhead.Node_Core_Month.infrastructure.{long_namespace}.{long_node}.{long_custom_name}"
+        )
+        self.assertEqual(len(expected_depth4_path), 577)
+        self.assertEqual(len(expected_depth5_path), 598)
+
+        with schema_context(self.schema):
+            depth4_paths = list(
+                self._breakdown_qs(depth=4, top_category="project", namespace=long_namespace).values_list(
+                    "path", flat=True
+                )
+            )
+            depth5_paths = list(
+                self._breakdown_qs(depth=5, top_category="overhead", namespace=long_namespace).values_list(
+                    "path", flat=True
+                )
+            )
+
+        self.assertEqual(depth4_paths, [expected_depth4_path], "Depth-4 path was truncated or malformed")
+        self.assertEqual(depth5_paths, [expected_depth5_path], "Depth-5 path was truncated or malformed")
+
+    # ------------------------------------------------------------------
     # Tree structure: valid depths
     # ------------------------------------------------------------------
     def test_tree_has_valid_depth_range(self):
