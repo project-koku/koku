@@ -4,6 +4,8 @@
 #
 """Removes report data from database."""
 import logging
+from contextlib import contextmanager
+from contextlib import ExitStack
 from datetime import date
 
 from django.conf import settings
@@ -23,6 +25,19 @@ LOG = logging.getLogger(__name__)
 
 class OCPReportDBCleanerError(Exception):
     """Raise an error during OCP report cleaning."""
+
+
+@contextmanager
+def _multi_provider_distribution_lock(accessor, provider_uuids):
+    """Hold accessor._distribution_provider_lock for every provider_uuid at once, sorted.
+
+    Sorting avoids a lock-ordering deadlock against any other caller that
+    locks an overlapping set of providers in a different order.
+    """
+    with ExitStack() as stack:
+        for provider_uuid in sorted(set(map(str, provider_uuids))):
+            stack.enter_context(accessor._distribution_provider_lock(provider_uuid))
+        yield
 
 
 class OCPReportDBCleaner:
@@ -68,7 +83,10 @@ class OCPReportDBCleaner:
             usage_period_objs = accessor.get_usage_period_query_by_provider(provider_uuid)
             for usage_period in usage_period_objs.all():
                 removed_items.append(
-                    {"usage_period_id": usage_period.id, "interval_start": str(usage_period.report_period_start)}
+                    {
+                        "usage_period_id": usage_period.id,
+                        "interval_start": str(usage_period.report_period_start),
+                    }
                 )
                 all_report_periods.append(usage_period.id)
                 all_cluster_ids.add(usage_period.cluster_id)
@@ -86,15 +104,25 @@ class OCPReportDBCleaner:
             )
 
             if not simulate:
-                cascade_delete(usage_period_objs.query.model, usage_period_objs)
+                # COST-7249 deadlock preflight, Finding F: this cascade reaches
+                # rates_to_usage (via OCPUsageReportPeriod) with no lock, racing any
+                # concurrent RTU write for the same provider. Every RTU write step
+                # (populate_distributed_cost_sql, aggregate_rates_to_daily_summary,
+                # populate_markup_rates_to_usage, etc.) already takes this same
+                # provider-scoped lock, so acquiring it here serializes this purge
+                # against them instead of silently losing a concurrently-inserted row.
+                # Spiked empirically: see
+                # masu/test/database/test_expired_data_purge_rtu_race.py.
+                with accessor._distribution_provider_lock(provider_uuid):
+                    cascade_delete(usage_period_objs.query.model, usage_period_objs)
 
-                # For on-prem, also delete from self-hosted tables
-                if settings.ONPREM:
-                    accessor.delete_self_hosted_data_by_source(provider_uuid)
+                    # For on-prem, also delete from self-hosted tables
+                    if settings.ONPREM:
+                        accessor.delete_self_hosted_data_by_source(provider_uuid)
 
-                # Label summaries cascade with report periods; prune orphan tag index rows.
-                if not is_ocp_tag_cleanup_disabled(self._schema):
-                    accessor.cleanup_ocp_tags_values()
+                    # Label summaries cascade with report periods; prune orphan tag index rows.
+                    if not is_ocp_tag_cleanup_disabled(self._schema):
+                        accessor.cleanup_ocp_tags_values()
 
         return removed_items
 
@@ -122,7 +150,10 @@ class OCPReportDBCleaner:
             # Iterate over the remainder as they could involve much larger amounts of data
             for usage_period in all_usage_periods:
                 removed_items.append(
-                    {"usage_period_id": usage_period.id, "interval_start": str(usage_period.report_period_start)}
+                    {
+                        "usage_period_id": usage_period.id,
+                        "interval_start": str(usage_period.report_period_start),
+                    }
                 )
                 all_report_periods.append(usage_period.id)
 
@@ -143,21 +174,33 @@ class OCPReportDBCleaner:
                         partition_parameters__from__lte=partition_from,
                     )
                 )
-                LOG.info(log_json(msg="deleted table partitions", count=del_count, schema=self._schema))
-
-                # Remove all data related to the report period
-                cascade_delete(all_usage_periods.query.model, all_usage_periods)
                 LOG.info(
                     log_json(
-                        msg="deleted ocp-usage-report-periods",
-                        report_periods=all_report_periods,
+                        msg="deleted table partitions",
+                        count=del_count,
                         schema=self._schema,
                     )
                 )
 
-                if not is_ocp_tag_cleanup_disabled(self._schema):
-                    # Label summaries cascade with report periods; prune orphan tag index rows.
-                    accessor.cleanup_ocp_tags_values()
+                # COST-7249 deadlock preflight, Finding F: same unlocked rates_to_usage
+                # cascade risk as purge_expired_report_data (see its comment above), but
+                # this scheduled, date-based path spans every provider in the schema with
+                # an expired report period, not just one -- lock all of them up front.
+                provider_uuids = list(all_usage_periods.values_list("provider_id", flat=True).distinct())
+                with _multi_provider_distribution_lock(accessor, provider_uuids):
+                    # Remove all data related to the report period
+                    cascade_delete(all_usage_periods.query.model, all_usage_periods)
+                    LOG.info(
+                        log_json(
+                            msg="deleted ocp-usage-report-periods",
+                            report_periods=all_report_periods,
+                            schema=self._schema,
+                        )
+                    )
+
+                    if not is_ocp_tag_cleanup_disabled(self._schema):
+                        # Label summaries cascade with report periods; prune orphan tag index rows.
+                        accessor.cleanup_ocp_tags_values()
 
         return removed_items
 
