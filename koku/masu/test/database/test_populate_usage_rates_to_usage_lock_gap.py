@@ -37,6 +37,7 @@ import time
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from unittest.mock import patch
 
 import django.test
 from django.conf import settings
@@ -121,8 +122,6 @@ class PopulateUsageRatesToUsageLockGapTest(django.test.TransactionTestCase):
             RatesToUsage.objects.filter(report_period_id=self.report_period.id).delete()
             OCPUsageLineItemDailySummary.objects.filter(report_period_id=self.report_period.id).delete()
             OCPUsageReportPeriod.objects.filter(pk=self.report_period.pk).delete()
-        from unittest.mock import patch
-
         with patch("masu.celery.tasks.delete_archived_data.delay", lambda *a, **k: None):
             try:
                 self.provider.delete()
