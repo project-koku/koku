@@ -44,13 +44,13 @@ from datetime import datetime
 from unittest.mock import patch
 
 import django.test
-import koku.database as koku_database
 from django.conf import settings
 from django.db import connection
 from django.db import IntegrityError
 from django.db import OperationalError
 from django_tenants.utils import schema_context
 
+import koku.database as koku_database
 from api.iam.models import Customer
 from api.provider.models import Provider
 from koku.test_provider_delete_cascade import create_test_provider
