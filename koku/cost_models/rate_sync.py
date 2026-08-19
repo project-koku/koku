@@ -12,6 +12,7 @@ from decimal import Decimal
 from decimal import InvalidOperation
 
 from django.db import connection
+from django.db import transaction
 
 from api.metrics.constants import COST_MODEL_METRIC_MAP
 from api.metrics.constants import UNLEASH_METRICS_GPU
@@ -249,10 +250,24 @@ def sync_rate_table(price_list, rates_data):
     through, guarantees the fix can't be bypassed by a new call site later.
     Spiked empirically: see
     masu/test/database/test_cost_model_rate_delete_rtu_race.py.
+
+    Broader deadlock preflight, Finding G: CostModelManager.create/update
+    (two of the five call sites above) are @transaction.atomic, and
+    PriceListViewSet._ensure_rate_sync wraps its own call in transaction.atomic()
+    too -- so this function can run inside an already-open transaction. The
+    inner transaction.atomic() below is required, not decorative: it gives
+    Postgres a rollback boundary (a savepoint, when nested) so a DB-level
+    error raised by the body below is fully rolled back *before* the lock's
+    own `finally: pg_advisory_unlock(...)` runs. Without it, the unlock
+    statement would itself execute against an already-aborted transaction,
+    fail, and leak the session-scoped advisory lock on that connection until
+    it's closed -- exactly how Provider.delete() already guards its own
+    cascade (see api/provider/models.py). Spiked empirically: see
+    masu/test/database/test_sync_rate_table_lock_leak.py.
     """
     LOG.info(f"Syncing {len(rates_data)} rates to Rate table for PriceList {price_list.uuid}")
     provider_uuids = _provider_uuids_for_price_list(price_list)
-    with _multi_provider_distribution_lock(provider_uuids):
+    with _multi_provider_distribution_lock(provider_uuids), transaction.atomic():
         return _sync_rate_table_locked(price_list, rates_data)
 
 
