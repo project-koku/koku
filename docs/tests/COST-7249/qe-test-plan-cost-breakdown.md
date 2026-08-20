@@ -159,7 +159,8 @@ def test_api_breakdown_cost_conservation(application, cost_breakdown_source):
     """
     report = call_api(BREAKDOWN_PATH, application, other_params={"view": "tree"})
     for date_group in report["data"]:
-        for tree_root in date_group.get("tree", []):
+        tree_root = date_group.get("tree")
+        if tree_root:
             _assert_cost_conservation(tree_root)
 
 def _assert_cost_conservation(node):
@@ -181,7 +182,7 @@ def _assert_cost_conservation(node):
 | BD-30 | Empty cluster (no usage data) returns empty data, not error | Response 200; `data` is empty list or values are empty |
 | BD-31 | Cluster with no cost model returns breakdown with zero costs | Response 200; cost values are 0 or null |
 | BD-32 | Previous month data via `time_scope_value=-2` | Response 200; data dates are from 2 months ago |
-| BD-33 | Multi-currency breakdown respects rate currency | `raw_currency` field matches the rate's currency |
+| BD-33 | Multi-currency breakdown respects rate currency | `raw_currency` is used internally (exchange-rate join / `cost_units_key`) and is **not** returned as a per-row field by `CostBreakdownFlatItemSerializer`; assert instead that `?currency=<code>` changes the reported `cost_value`/`distributed_cost` totals by the expected exchange rate |
 | BD-34 | GPU metrics appear when GPU rates are in cost model | Leaf with GPU metric_type exists |
 | BD-35 | `exclude[project]` + `exclude[node]` work | Excluded values absent from results |
 

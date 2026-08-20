@@ -27,7 +27,6 @@ import django.test
 from django.db import connection
 from django.db.utils import OperationalError
 from django_tenants.utils import schema_context
-from django_tenants.utils import tenant_context
 
 from api.models import Tenant
 from api.provider.models import Provider
@@ -53,10 +52,14 @@ class PopulateCostBreakdownConcurrencyTest(django.test.TransactionTestCase):
         self.schema = KokuTestRunner.schema
         self.tenant = Tenant.objects.get(schema_name=self.schema)
 
-        with tenant_context(self.tenant):
-            provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
-        if not provider:
-            self.skipTest("No OCP provider fixture available")
+        # Provider is a public-schema model; no tenant/schema context needed.
+        provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
+        self.assertIsNotNone(
+            provider,
+            "No OCP provider fixture -- expected ModelBakeryDataLoader to have seeded it "
+            "during setup_databases(). Failing loudly instead of skipping so this "
+            "regression coverage cannot silently stop running.",
+        )
         self.provider_uuid = provider.uuid
 
         with schema_context(self.schema):
@@ -65,8 +68,13 @@ class PopulateCostBreakdownConcurrencyTest(django.test.TransactionTestCase):
                 .order_by("-report_period_start")
                 .first()
             )
-        if not rp:
-            self.skipTest("No report period for OCP provider")
+        self.assertIsNotNone(
+            rp,
+            f"No report period for OCP provider {self.provider_uuid} -- expected "
+            "ModelBakeryDataLoader to have seeded it during setup_databases(). Failing "
+            "loudly instead of skipping so this regression coverage cannot silently "
+            "stop running.",
+        )
         self.report_period_id = rp.id
         self.cluster_id = rp.cluster_id
         self.start_date = rp.report_period_start.date()

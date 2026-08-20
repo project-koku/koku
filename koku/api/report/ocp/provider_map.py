@@ -1308,8 +1308,10 @@ class OCPProviderMap(ProviderMap):
                     "cost_breakdown": {
                         "tables": {"query": OCPCostUIBreakDownP},
                         "aggregates": {
-                            "cost_value": Sum("cost_value"),
-                            "distributed_cost": Sum("distributed_cost"),
+                            "cost_value": Sum(Coalesce(F("cost_value"), Value(0, output_field=DecimalField()))),
+                            "distributed_cost": Sum(
+                                Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField()))
+                            ),
                         },
                         "default_ordering": {"path": "asc"},
                         "annotations": {

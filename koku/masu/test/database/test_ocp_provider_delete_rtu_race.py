@@ -64,10 +64,15 @@ class ProviderDeleteRTURaceTest(django.test.TransactionTestCase):
         from koku.koku_test_runner import KokuTestRunner
 
         self.schema = KokuTestRunner.schema
-        with schema_context(self.schema):
-            self.customer = Customer.objects.filter(schema_name=self.schema).first()
-        if not self.customer:
-            self.skipTest("No test customer fixture available")
+        # Customer is a public-schema model; no tenant/schema context needed.
+        self.customer = Customer.objects.filter(schema_name=self.schema).first()
+        self.assertIsNotNone(
+            self.customer,
+            "No test customer fixture for schema "
+            f"{self.schema} -- expected ModelBakeryDataLoader to have seeded it during "
+            "setup_databases(). Failing loudly instead of skipping so this regression "
+            "coverage cannot silently stop running.",
+        )
 
         self.provider = Provider(
             uuid=uuid.uuid4(),

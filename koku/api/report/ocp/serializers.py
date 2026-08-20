@@ -579,7 +579,10 @@ class OCPCostBreakdownFilterSerializer(BaseFilterSerializer):
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
-    path = StringOrListField(child=serializers.RegexField(r"^[a-zA-Z0-9_.\-]+$", max_length=200), required=False)
+    # Path leaf segments can be a rate display name (e.g. "project.usage_cost.ns-a.CPU usage"),
+    # which may contain spaces, so a client can round-trip a `path` value from a response
+    # into this filter. Injection characters remain blocked.
+    path = StringOrListField(child=serializers.RegexField(r"^[a-zA-Z0-9_.\- ]+$", max_length=200), required=False)
     depth = StringOrListField(child=serializers.IntegerField(min_value=1, max_value=5), required=False)
     top_category = StringOrListField(
         child=serializers.ChoiceField(choices=(("project", "project"), ("overhead", "overhead"), ("total", "total"))),

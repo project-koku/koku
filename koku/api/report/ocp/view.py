@@ -8,6 +8,7 @@ import logging
 from rest_framework import status
 from rest_framework.response import Response
 
+from api.common import log_json
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.throttling import OcpTagQueryThrottle
 from api.models import Provider
@@ -128,7 +129,12 @@ class OCPCostBreakdownView(OCPView):
                 LOG.warning("Duplicate path in breakdown data, overwriting: %s", path)
             nodes[path] = {**item, "children": []}
 
-        root = None
+        # A flat `values` list normally contains exactly one depth-1 root (the caller
+        # is expected to scope the query, e.g. by cluster, before requesting the tree
+        # view). If more than one depth-1 node is present -- e.g. an unscoped query
+        # spanning multiple clusters -- only the first root's subtree is returned;
+        # the rest are logged (not silently dropped) so callers can add scoping.
+        roots = []
         for path, node in nodes.items():
             parent_path = node.get("parent_path", "")
             if parent_path and parent_path in nodes:
@@ -136,9 +142,18 @@ class OCPCostBreakdownView(OCPView):
             elif parent_path:
                 LOG.warning("Orphan node in breakdown tree (parent_path=%s not found): %s", parent_path, path)
             if node.get("depth") == 1:
-                root = node
+                roots.append(node)
 
-        return root or {}
+        if len(roots) > 1:
+            LOG.warning(
+                "Multiple depth-1 roots in breakdown tree data; only the first is returned. "
+                "Scope the query (e.g. filter[cluster] or group_by[cluster]) to avoid dropping data. "
+                "Returned root path=%s; dropped root paths=%s",
+                roots[0].get("path"),
+                [node.get("path") for node in roots[1:]],
+            )
+
+        return roots[0] if roots else {}
 
     @classmethod
     def _transform_to_tree(cls, data_item):
@@ -155,12 +170,13 @@ class OCPCostBreakdownView(OCPView):
 
     def get(self, request, **kwargs):
         """Get cost breakdown with audit logging and optional tree view."""
+        schema = getattr(getattr(request.user, "customer", None), "schema_name", None)
         LOG.info(
-            "cost_breakdown API request",
-            extra={
-                "user": getattr(request.user, "username", None),
-                "path_params": dict(request.query_params),
-            },
+            log_json(
+                msg="cost_breakdown API request",
+                schema=schema,
+                query_params=dict(request.query_params),
+            )
         )
         response = super().get(request, **kwargs)
 

@@ -2134,22 +2134,46 @@ class OCPCostBreakdownViewTest(MasuTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_breakdown_filter_depth(self):
-        """filter[depth]=4 returns 200."""
+        """filter[depth]=4 returns only the two ns-a/ns-b project leaves."""
         url = reverse("ocp-cost-breakdown") + "?filter[depth]=4"
         response = APIClient().get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+        rows = self._flat_rows(response)
+        self.assertTrue(rows, "Expected the seeded depth-4 rows in the response")
+        self.assertTrue(all(r.get("depth") == 4 for r in rows), f"Non-depth-4 rows leaked through filter: {rows}")
+        paths = {r.get("path") for r in rows}
+        self.assertEqual(paths, {"project.usage_cost.ns-a.CPU usage", "project.usage_cost.ns-b.CPU usage"})
+
     def test_breakdown_filter_top_category(self):
-        """filter[top_category]=project returns 200."""
+        """filter[top_category]=project excludes the overhead row."""
         url = reverse("ocp-cost-breakdown") + "?filter[top_category]=project"
         response = APIClient().get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+        rows = self._flat_rows(response)
+        self.assertTrue(rows, "Expected the seeded project rows in the response")
+        self.assertTrue(
+            all(r.get("top_category") == "project" for r in rows), f"Non-project rows leaked through filter: {rows}"
+        )
+        self.assertFalse(
+            any(r.get("top_category") == "overhead" for r in rows), "Overhead row should be excluded by the filter"
+        )
+
     def test_breakdown_filter_path(self):
-        """filter[path]=project.usage_cost returns 200."""
+        """filter[path]=project.usage_cost matches the two depth-4 rows via startswith."""
         url = reverse("ocp-cost-breakdown") + "?filter[path]=project.usage_cost"
         response = APIClient().get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        rows = self._flat_rows(response)
+        self.assertTrue(rows, "Expected the seeded project.usage_cost rows in the response")
+        self.assertTrue(
+            all(r.get("path", "").startswith("project.usage_cost") for r in rows),
+            f"Rows outside project.usage_cost leaked through filter: {rows}",
+        )
+        paths = {r.get("path") for r in rows}
+        self.assertEqual(paths, {"project.usage_cost.ns-a.CPU usage", "project.usage_cost.ns-b.CPU usage"})
 
     # ------------------------------------------------------------------
     # P0 regression: cost_value/distributed_cost missing from response rows
