@@ -2051,6 +2051,15 @@ class OCPCostBreakdownViewTest(MasuTestCase):
     def _flat_rows(response):
         return [row for date_group in response.data.get("data", []) for row in date_group.get("values", [])]
 
+    # The two depth-4 project leaf paths created by _seed_breakdown_rows. The
+    # breakdown endpoint is not scoped to a single provider/date range by the
+    # filters these tests exercise, so other standing fixture data (e.g. the
+    # OCP-on-Prem provider's own cost-model pipeline output, seeded once for
+    # the whole test session by ModelBakeryDataLoader) can also legitimately
+    # produce depth-4/project rows. Tests must check these seeded paths are
+    # *present*, not that they are the only rows returned.
+    _seeded_project_leaf_paths = frozenset({"project.usage_cost.ns-a.CPU usage", "project.usage_cost.ns-b.CPU usage"})
+
     def test_breakdown_url_resolves(self):
         """Breakdown URL name resolves correctly."""
         url = reverse("ocp-cost-breakdown")
@@ -2134,7 +2143,14 @@ class OCPCostBreakdownViewTest(MasuTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_breakdown_filter_depth(self):
-        """filter[depth]=4 returns only the two ns-a/ns-b project leaves."""
+        """filter[depth]=4 includes the two ns-a/ns-b project leaves seeded by this test.
+
+        The endpoint is not scoped to a single provider/date range by this filter alone,
+        so other standing fixture data (e.g. the OCP-on-Prem provider's own cost-model
+        pipeline output seeded once for the whole test session) can also legitimately
+        appear at depth 4. Assert the seeded rows are present and correctly shaped
+        rather than that they are the *only* depth-4 rows in the schema.
+        """
         url = reverse("ocp-cost-breakdown") + "?filter[depth]=4"
         response = APIClient().get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -2143,7 +2159,10 @@ class OCPCostBreakdownViewTest(MasuTestCase):
         self.assertTrue(rows, "Expected the seeded depth-4 rows in the response")
         self.assertTrue(all(r.get("depth") == 4 for r in rows), f"Non-depth-4 rows leaked through filter: {rows}")
         paths = {r.get("path") for r in rows}
-        self.assertEqual(paths, {"project.usage_cost.ns-a.CPU usage", "project.usage_cost.ns-b.CPU usage"})
+        self.assertTrue(
+            self._seeded_project_leaf_paths.issubset(paths),
+            f"Expected seeded paths {self._seeded_project_leaf_paths} missing from filtered result: {paths}",
+        )
 
     def test_breakdown_filter_top_category(self):
         """filter[top_category]=project excludes the overhead row."""
@@ -2161,7 +2180,12 @@ class OCPCostBreakdownViewTest(MasuTestCase):
         )
 
     def test_breakdown_filter_path(self):
-        """filter[path]=project.usage_cost matches the two depth-4 rows via startswith."""
+        """filter[path]=project.usage_cost matches the two seeded ns-a/ns-b rows via startswith.
+
+        See test_breakdown_filter_depth for why this asserts a subset rather than
+        an exact set: other standing project.usage_cost.* rows can legitimately
+        co-exist in the schema.
+        """
         url = reverse("ocp-cost-breakdown") + "?filter[path]=project.usage_cost"
         response = APIClient().get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -2173,7 +2197,10 @@ class OCPCostBreakdownViewTest(MasuTestCase):
             f"Rows outside project.usage_cost leaked through filter: {rows}",
         )
         paths = {r.get("path") for r in rows}
-        self.assertEqual(paths, {"project.usage_cost.ns-a.CPU usage", "project.usage_cost.ns-b.CPU usage"})
+        self.assertTrue(
+            self._seeded_project_leaf_paths.issubset(paths),
+            f"Expected seeded paths {self._seeded_project_leaf_paths} missing from filtered result: {paths}",
+        )
 
     # ------------------------------------------------------------------
     # P0 regression: cost_value/distributed_cost missing from response rows
@@ -2191,7 +2218,13 @@ class OCPCostBreakdownViewTest(MasuTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         rows = self._flat_rows(response)
-        project_leaves = [r for r in rows if r.get("depth") == 4 and r.get("top_category") == "project"]
+        project_leaves = [
+            r
+            for r in rows
+            if r.get("depth") == 4
+            and r.get("top_category") == "project"
+            and r.get("path") in self._seeded_project_leaf_paths
+        ]
         self.assertTrue(project_leaves, "Expected the seeded depth-4 project leaves in the response")
 
         for row in project_leaves:
@@ -2199,6 +2232,9 @@ class OCPCostBreakdownViewTest(MasuTestCase):
             self.assertIn("distributed_cost", row, f"distributed_cost missing from breakdown row: {row}")
             self.assertIsNotNone(row["cost_value"], f"cost_value should be populated for a project leaf: {row}")
 
+        # Scoped to this test's own seeded paths -- other standing fixture data
+        # (e.g. the OCP-on-Prem provider's own cost-model pipeline output) can
+        # also produce depth-4/project rows and would otherwise inflate this sum.
         seeded_total = sum(Decimal(str(r["cost_value"])) for r in project_leaves)
         self.assertEqual(seeded_total, Decimal("200.0"))
 
@@ -2215,10 +2251,18 @@ class OCPCostBreakdownViewTest(MasuTestCase):
         url = reverse("ocp-cost-breakdown")
         response = APIClient().get(url, **self.headers)
         rows = self._flat_rows(response)
-        project_leaf_paths = {r["path"] for r in rows if r.get("depth") == 4 and r.get("top_category") == "project"}
+        # Scoped to this test's own seeded paths -- see test_breakdown_filter_depth
+        # for why other depth-4/project rows can legitimately co-exist in the schema.
+        project_leaf_paths = {
+            r["path"]
+            for r in rows
+            if r.get("depth") == 4
+            and r.get("top_category") == "project"
+            and r["path"] in self._seeded_project_leaf_paths
+        }
         self.assertEqual(
-            len(project_leaf_paths),
-            2,
+            project_leaf_paths,
+            self._seeded_project_leaf_paths,
             f"Expected 2 distinct paths for the 2 seeded namespaces sharing a rate name, got: {project_leaf_paths}",
         )
 
