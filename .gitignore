@@ -156,6 +156,7 @@ dev/containers/unleash/cache/
 .cursor/*
 !.cursor/rules/
 !.cursor/commands/
+!.cursor/skills/
 # Claude Code — share commands/rules, keep everything else local
 .claude/*
 !.claude/commands/
