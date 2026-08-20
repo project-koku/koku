@@ -18,8 +18,12 @@ from collections import defaultdict
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.db.models import DecimalField
+from django.db.models import F
 from django.db.models import Q
 from django.db.models import Sum
+from django.db.models import Value
+from django.db.models.functions import Coalesce
 from django.test import override_settings
 from django_tenants.utils import schema_context
 
@@ -1430,17 +1434,26 @@ class TestMarkupDistributionDoubleCountRTU(_ReportPeriodMixin, MasuTestCase):
     def _seed_infra_cost_on_category(self, cost_category_name=None, namespace=None):
         """Set a known, nonzero infrastructure_raw_cost on a base usage row
         (cost_model_rate_type IS NULL) matching the given category or
-        namespace. Returns the amount seeded.
+        namespace. Returns the *total* infrastructure_raw_cost across every
+        row matching that category/namespace in [start_date, end_date] --
+        not just the amount this call seeds.
 
         'Platform' is a real cost_category already present on baseline
-        on-prem usage rows, so the existing row is reused directly. The
-        synthetic 'Worker unallocated'/'Storage unattributed'/'Network
-        unattributed' namespaces are normally produced by upstream
-        production SQL (unallocated-capacity detection), not present as raw
-        usage rows in this fixture -- clone an existing base row's shape and
-        relabel it, since this test only needs a (cost_model_rate_type IS
-        NULL, infrastructure_raw_cost=200) source row for the *_infra CTE,
-        not realistic usage/capacity numbers.
+        on-prem usage rows, so the existing row is reused directly -- but
+        the standing on-prem fixture can have *multiple* Platform-tagged
+        rows (one per node/day), each with its own pre-existing, nonzero
+        infrastructure_raw_cost. Returning only the seeded $200 (and
+        ignoring the others) previously made downstream expected-total
+        calculations under-count the real pool by however much those other
+        rows contributed, causing flaky, baseline-dependent assertion
+        failures. The synthetic 'Worker unallocated'/'Storage
+        unattributed'/'Network unattributed' namespaces are normally
+        produced by upstream production SQL (unallocated-capacity
+        detection), not present as raw usage rows in this fixture -- clone
+        an existing base row's shape and relabel it, since this test only
+        needs a (cost_model_rate_type IS NULL, infrastructure_raw_cost=200)
+        source row for the *_infra CTE, not realistic usage/capacity
+        numbers.
         """
         self.infra_raw_cost = Decimal("200.00")
         with schema_context(self.schema):
@@ -1459,7 +1472,7 @@ class TestMarkupDistributionDoubleCountRTU(_ReportPeriodMixin, MasuTestCase):
                 OCPUsageLineItemDailySummary.objects.filter(uuid=row.uuid).update(
                     infrastructure_raw_cost=self.infra_raw_cost
                 )
-                return self.infra_raw_cost
+                return self._total_infra_cost_for(cost_category_name=cost_category_name, namespace=namespace)
 
             if not namespace:
                 self.skipTest(
@@ -1489,7 +1502,29 @@ class TestMarkupDistributionDoubleCountRTU(_ReportPeriodMixin, MasuTestCase):
             template.monthly_cost_type = None
             template.distributed_cost = None
             template.save()
-        return self.infra_raw_cost
+        return self._total_infra_cost_for(cost_category_name=cost_category_name, namespace=namespace)
+
+    def _total_infra_cost_for(self, cost_category_name=None, namespace=None):
+        """Sum infrastructure_raw_cost across all base usage rows matching
+        the given category/namespace in [start_date, end_date]. See
+        _seed_infra_cost_on_category for why this must be a real total
+        rather than just the newly-seeded amount.
+        """
+        with schema_context(self.schema):
+            qs = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                cost_model_rate_type__isnull=True,
+            )
+            if cost_category_name:
+                qs = qs.filter(cost_category__name=cost_category_name)
+            if namespace:
+                qs = qs.filter(namespace=namespace)
+            total = qs.aggregate(t=Sum(Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))))[
+                "t"
+            ]
+        return total or Decimal(0)
 
     def _run_markup_and_distribution(self, distribution_info):
         """Run the same orchestration order production code uses: markup
@@ -1510,6 +1545,18 @@ class TestMarkupDistributionDoubleCountRTU(_ReportPeriodMixin, MasuTestCase):
         """Independently compute the correct pool total (rate-cost rows,
         excluding markup, + infra_raw_cost + markup counted exactly once)
         and compare it against what distribution actually produced.
+
+        rate_cost_total intentionally spans *all* monthly_cost_type values
+        (usage rows where it is NULL, and monthly rows like 'Node'/
+        'Cluster'): the on-prem baseline fixture can have real per-month
+        Node/Cluster costs already applied to Platform-tagged
+        infrastructure, and those get swept into the same
+        platform_distributed pool by distribute_platform_cost_rtu.sql. This
+        test doesn't clear those rows (only test_platform_zero_rate_pool_*
+        in TestInfraOnlyFallbackDistributionRTU simulates a fully zeroed-out
+        cost model), so the independently-computed expected total must
+        account for them too, or it silently under-counts the real pool by
+        however much the baseline fixture happens to contribute.
         """
         with schema_context(self.schema):
             rate_cost_total = RatesToUsage.objects.filter(
@@ -1517,7 +1564,6 @@ class TestMarkupDistributionDoubleCountRTU(_ReportPeriodMixin, MasuTestCase):
                 source_uuid=self.provider_uuid,
                 usage_start__gte=self.start_date,
                 usage_start__lte=self.end_date,
-                monthly_cost_type__isnull=True,
             ).exclude(metric_type="markup").aggregate(t=Sum("calculated_cost"))["t"] or Decimal(0)
             expected_markup = infra_cost * self.MARKUP_RATE
             expected_total = rate_cost_total + infra_cost + expected_markup
@@ -1795,13 +1841,21 @@ class TestInfraOnlyFallbackDistributionRTU(_ReportPeriodMixin, MasuTestCase):
         """Force the 'zero non-markup rate' condition by deleting any
         consumption-rate RTU rows for the given namespace/category/cluster,
         leaving only markup rows (if any) behind.
+
+        Deletes across *all* monthly_cost_type values (usage rows where it
+        is NULL, and monthly rows like 'Node'/'Cluster'), not just usage
+        rows -- a markup-only cost model has zero rates of every kind, and
+        the on-prem baseline fixture's real per-month Node/Cluster costs on
+        Platform-tagged infrastructure would otherwise survive this delete
+        and keep contributing real dollars to the "zero rate" pool this
+        test constructs, inflating the expected/actual comparison far
+        beyond the amount this test itself seeds.
         """
         with schema_context(self.schema):
             qs = RatesToUsage.objects.filter(
                 source_uuid=self.provider_uuid,
                 usage_start__gte=self.start_date,
                 usage_start__lte=self.end_date,
-                monthly_cost_type__isnull=True,
             ).exclude(metric_type="markup")
             if namespace:
                 qs = qs.filter(namespace=namespace)
@@ -1835,6 +1889,36 @@ class TestInfraOnlyFallbackDistributionRTU(_ReportPeriodMixin, MasuTestCase):
                 qs = qs.filter(cluster_id=cluster_id)
             return qs.aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
 
+    def _measure_infra_pool(self, namespace=None, cost_category_name=None):
+        """Sum infrastructure_raw_cost across all *existing* base usage rows
+        (cost_model_rate_type IS NULL) for the given namespace/category
+        within [start_date, end_date].
+
+        The standing on-prem baseline fixture (seeded once for the whole
+        test session) can already contain real, nonzero-cost rows for these
+        namespaces/categories -- e.g. genuine 'Platform' overhead usage --
+        so the true zero-rate pool this test's distribution call must
+        redistribute is "whatever already exists" plus whatever this test
+        additionally seeds, not solely the row(s) the test itself creates.
+        Call this *before* seeding to get the pre-existing baseline, which
+        the caller then adds its own seeded amount to.
+        """
+        with schema_context(self.schema):
+            qs = OCPUsageLineItemDailySummary.objects.filter(
+                source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
+                cost_model_rate_type__isnull=True,
+            )
+            if namespace:
+                qs = qs.filter(namespace=namespace)
+            if cost_category_name:
+                qs = qs.filter(cost_category__name=cost_category_name)
+            total = qs.aggregate(t=Sum(Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))))[
+                "t"
+            ]
+        return total or Decimal(0)
+
     def test_worker_zero_rate_pool_is_distributed_and_negated_exactly(self):
         """A markup-only cost model (zero non-markup Worker rates) must not
         strand the infra+markup pool -- it must be fully distributed to
@@ -1843,13 +1927,14 @@ class TestInfraOnlyFallbackDistributionRTU(_ReportPeriodMixin, MasuTestCase):
         JOIN to worker_total_rate produced zero rows for the whole pool,
         so nothing was distributed or negated at all.
         """
+        baseline_infra = self._measure_infra_pool(namespace="Worker unallocated")
         self._seed_infra_row(namespace="Worker unallocated", infra_raw_cost=Decimal("200.00"))
         self._delete_non_markup_rtu(namespace="Worker unallocated")
 
         self._run_markup_and_distribution({"distribution_type": "cpu", "platform_cost": True, "worker_cost": True})
 
-        expected_markup = Decimal("200.00") * self.MARKUP_RATE
-        expected_pool = Decimal("200.00") + expected_markup
+        total_infra = baseline_infra + Decimal("200.00")
+        expected_pool = total_infra * (1 + self.MARKUP_RATE)
         net_total = self._net_total("worker_distributed")
         self.assertAlmostEqual(
             float(net_total),
@@ -1860,6 +1945,8 @@ class TestInfraOnlyFallbackDistributionRTU(_ReportPeriodMixin, MasuTestCase):
         with schema_context(self.schema):
             recipient_total = RatesToUsage.objects.filter(
                 source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
                 monthly_cost_type="worker_distributed",
             ).exclude(namespace="Worker unallocated").aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
         self.assertAlmostEqual(
@@ -1882,13 +1969,14 @@ class TestInfraOnlyFallbackDistributionRTU(_ReportPeriodMixin, MasuTestCase):
         without proving either side actually ran. Checking recipient_total
         directly catches that vacuous-pass case.
         """
-        expected_markup = Decimal("200.00") * self.MARKUP_RATE
-        expected_pool = Decimal("200.00") + expected_markup
+        baseline_infra = self._measure_infra_pool(cost_category_name="Platform")
         self._seed_infra_row(cost_category_name="Platform", infra_raw_cost=Decimal("200.00"))
         self._delete_non_markup_rtu(cost_category_name="Platform")
 
         self._run_markup_and_distribution({"distribution_type": "cpu", "platform_cost": True, "worker_cost": True})
 
+        total_infra = baseline_infra + Decimal("200.00")
+        expected_pool = total_infra * (1 + self.MARKUP_RATE)
         net_total = self._net_total("platform_distributed")
         self.assertAlmostEqual(
             float(net_total),
@@ -1899,6 +1987,8 @@ class TestInfraOnlyFallbackDistributionRTU(_ReportPeriodMixin, MasuTestCase):
         with schema_context(self.schema):
             recipient_total = RatesToUsage.objects.filter(
                 source_uuid=self.provider_uuid,
+                usage_start__gte=self.start_date,
+                usage_start__lte=self.end_date,
                 monthly_cost_type="platform_distributed",
             ).exclude(cost_category__name="Platform").aggregate(t=Sum("distributed_cost"))["t"] or Decimal(0)
         self.assertAlmostEqual(
