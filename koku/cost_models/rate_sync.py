@@ -12,8 +12,11 @@ from decimal import Decimal
 from decimal import InvalidOperation
 
 from django.db import connection
+from django.db import OperationalError
 from django.db import transaction
+from psycopg2 import errorcodes
 
+from api.common import log_json
 from api.metrics.constants import COST_MODEL_METRIC_MAP
 from api.metrics.constants import UNLEASH_METRICS_GPU
 from cost_models.models import CostModelMap
@@ -21,6 +24,25 @@ from cost_models.models import PriceListCostModelMap
 from cost_models.models import Rate
 
 LOG = logging.getLogger(__name__)
+
+# COST-8126: bounds how long _provider_distribution_lock will wait for a
+# concurrent holder of the same provider's advisory lock before giving up.
+# 30s comfortably covers legitimate concurrent RTU write/distribution work
+# (which in practice holds this same lock key for well under a second) while
+# still failing an API request in bounded time instead of hanging forever on
+# a stuck or leaked lock.
+PROVIDER_LOCK_TIMEOUT_MS = 30_000
+
+
+class ProviderDistributionLockTimeout(Exception):
+    """Raised when _provider_distribution_lock cannot acquire its advisory lock in time.
+
+    Signals a controlled, bounded failure (Postgres SQLSTATE 55P03 --
+    lock_not_available) instead of blocking the caller indefinitely. Callers
+    should treat this the same as other transient DB contention (safe to
+    retry at the task/request level), not as a data-integrity failure.
+    """
+
 
 _FULL_METRIC_MAP = {**COST_MODEL_METRIC_MAP, **UNLEASH_METRICS_GPU}
 
@@ -180,7 +202,7 @@ def _classify_incoming_rates(rates_data, existing_by_uuid, existing_by_name, all
 
 
 @contextmanager
-def _provider_distribution_lock(provider_uuid):
+def _provider_distribution_lock(provider_uuid, timeout_ms=PROVIDER_LOCK_TIMEOUT_MS):
     """Acquire the same session-scoped advisory lock used by the RTU write/delete paths.
 
     Keyed identically (pg_advisory_lock(hashtext(str(provider_uuid)))) to
@@ -188,10 +210,43 @@ def _provider_distribution_lock(provider_uuid):
     this primitive, so this serializes against every RTU write step and
     against Provider.delete() for the same provider, without needing a shared
     import between the masu, api, and cost_models apps.
+
+    COST-8126: bounds the pg_advisory_lock wait with a session-scoped
+    lock_timeout, so a stuck or unusually long-held lock elsewhere fails this
+    call with ProviderDistributionLockTimeout instead of hanging the caller
+    (a synchronous API request, for sync_rate_table's callers) indefinitely.
+
+    Uses a plain `SET lock_timeout` (not `SET LOCAL`), not
+    `transaction.atomic()`: this acquisition runs outside any transaction --
+    sync_rate_table's own `with _multi_provider_distribution_lock(...),
+    transaction.atomic():` acquires every lock *before* its transaction
+    begins. `SET LOCAL` has no effect outside a transaction, so a plain `SET`
+    is required; `RESET lock_timeout` in the finally below bounds its effect
+    to just this acquisition so it can't leak onto unrelated statements later
+    on this pooled connection. Confirmed empirically that a 55P03 failure
+    here does not poison the session (no open transaction to abort), so
+    RESET and every statement after it on this connection behave normally.
     """
     lock_key = str(provider_uuid)
     with connection.cursor() as cursor:
-        cursor.execute("SELECT pg_advisory_lock(hashtext(%s))", [lock_key])
+        cursor.execute("SET lock_timeout = %s", [f"{timeout_ms}ms"])
+        try:
+            cursor.execute("SELECT pg_advisory_lock(hashtext(%s))", [lock_key])
+        except OperationalError as exc:
+            if getattr(exc.__cause__, "pgcode", None) != errorcodes.LOCK_NOT_AVAILABLE:
+                raise
+            LOG.error(
+                log_json(
+                    msg="timed out waiting for provider distribution lock",
+                    provider_uuid=lock_key,
+                    timeout_ms=timeout_ms,
+                )
+            )
+            raise ProviderDistributionLockTimeout(
+                f"Timed out after {timeout_ms}ms waiting for the distribution lock on provider {lock_key}"
+            ) from exc
+        finally:
+            cursor.execute("RESET lock_timeout")
     try:
         yield
     finally:
