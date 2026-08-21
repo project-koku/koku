@@ -73,8 +73,10 @@ class ExpiredDataPurgeRTURaceTest(django.test.TransactionTestCase):
         self.schema = KokuTestRunner.schema
         with schema_context(self.schema):
             self.customer = Customer.objects.filter(schema_name=self.schema).first()
-        if not self.customer:
-            self.skipTest("No test customer fixture available")
+        self.assertIsNotNone(
+            self.customer,
+            f"No Customer fixture for schema {self.schema}; the RTU race regression cannot run.",
+        )
 
         self.provider = Provider(
             uuid=uuid.uuid4(),
@@ -140,7 +142,7 @@ class ExpiredDataPurgeRTURaceTest(django.test.TransactionTestCase):
         finally:
             connection.close()
 
-    def _run_purge_with_mid_cascade_release(self, results, barrier):
+    def _run_purge_with_mid_cascade_release(self, results, barrier, insert_committed_event):
         """Same as _run_purge, but releases the unprotected writer deterministically mid-cascade.
 
         cascade_delete() issues raw SQL via execute_delete_sql() rather than
@@ -148,7 +150,13 @@ class ExpiredDataPurgeRTURaceTest(django.test.TransactionTestCase):
         signals. To force the race window open deterministically, this wraps
         koku.database.execute_delete_sql itself: when it is about to delete
         RatesToUsage rows for this test's report_period, it releases the
-        concurrent writer via the barrier before actually issuing the DELETE.
+        concurrent writer via the barrier, then blocks on
+        insert_committed_event -- set by the writer only after its INSERT has
+        actually committed -- instead of a fixed wall-clock sleep. This removes
+        the timing assumption (no guessing how long the writer's connection
+        setup/INSERT will take under a loaded CI runner) while preserving the
+        documented ordering: the writer's row must land before this specific
+        DELETE's WHERE clause is (re-)evaluated at execution time.
         """
         real_execute_delete_sql = koku_database.execute_delete_sql
 
@@ -156,12 +164,10 @@ class ExpiredDataPurgeRTURaceTest(django.test.TransactionTestCase):
             model = getattr(getattr(query, "query", None), "model", None)
             if model is RatesToUsage:
                 barrier.wait()
-                # Give the concurrent writer time to land its INSERT before this
-                # DELETE actually executes -- its parent report_period row is not
-                # deleted until later in the cascade, so the INSERT lands cleanly,
-                # but this specific DELETE's WHERE clause is re-evaluated at
-                # execution time and will still catch (and silently discard) it.
-                time.sleep(1.0)
+                if not insert_committed_event.wait(timeout=15):
+                    raise AssertionError(
+                        "Concurrent writer never signaled its INSERT committed within 15s"
+                    )
             return real_execute_delete_sql(query)
 
         with patch("koku.database.execute_delete_sql", side_effect=_traced_execute_delete_sql):
@@ -178,8 +184,14 @@ class ExpiredDataPurgeRTURaceTest(django.test.TransactionTestCase):
             metric_type="cpu_usage",
         )
 
-    def _run_unprotected_insert(self, results, barrier):
-        """Uncoordinated concurrent write into rates_to_usage for the SAME provider/report_period."""
+    def _run_unprotected_insert(self, results, barrier, insert_committed_event):
+        """Uncoordinated concurrent write into rates_to_usage for the SAME provider/report_period.
+
+        Sets insert_committed_event only after the INSERT has actually
+        committed (Django's default autocommit mode commits each .create()
+        call immediately), so the purge thread's traced execute_delete_sql
+        can wait on a real signal instead of a fixed sleep.
+        """
         try:
             barrier.wait()
             with schema_context(self.schema):
@@ -192,6 +204,7 @@ class ExpiredDataPurgeRTURaceTest(django.test.TransactionTestCase):
         except Exception as exc:  # noqa: BLE001
             results["insert"] = f"{type(exc).__name__}: {exc}"
         finally:
+            insert_committed_event.set()
             connection.close()
 
     def _run_protected_insert(self, results, barrier, hold_seconds=1.5):
@@ -229,10 +242,17 @@ class ExpiredDataPurgeRTURaceTest(django.test.TransactionTestCase):
         locks and this test's expectations need updating.
         """
         barrier = threading.Barrier(2, timeout=15)
+        insert_committed_event = threading.Event()
         results = {"purge": None, "insert": None}
 
-        t_purge = threading.Thread(target=self._run_purge_with_mid_cascade_release, args=(results, barrier))
-        t_insert = threading.Thread(target=self._run_unprotected_insert, args=(results, barrier))
+        t_purge = threading.Thread(
+            target=self._run_purge_with_mid_cascade_release,
+            args=(results, barrier, insert_committed_event),
+        )
+        t_insert = threading.Thread(
+            target=self._run_unprotected_insert,
+            args=(results, barrier, insert_committed_event),
+        )
         t_purge.start()
         t_insert.start()
         t_purge.join(timeout=20)

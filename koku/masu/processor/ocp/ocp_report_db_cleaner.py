@@ -171,52 +171,68 @@ class OCPReportDBCleaner:
                 all_report_periods.append(usage_period.id)
 
             if not simulate:
-                # Will call trigger to detach, truncate, and drop partitions
-                LOG.info(
-                    log_json(
-                        msg="deleting table partitions total for tables",
-                        tables=table_names,
-                        partitions=partition_from,
-                    )
-                )
-                del_count = execute_delete_sql(
-                    PartitionedTable.objects.filter(
-                        schema_name=self._schema,
-                        partition_of_table_name__in=table_names,
-                        partition_parameters__default=False,
-                        partition_parameters__from__lte=partition_from,
-                    )
-                )
-                LOG.info(
-                    log_json(
-                        msg="deleted table partitions",
-                        count=del_count,
-                        schema=self._schema,
-                    )
-                )
-
                 # COST-7249 deadlock preflight, Finding F: same unlocked rates_to_usage
-                # cascade risk as purge_expired_report_data (see its comment above), but
-                # this scheduled, date-based path spans every provider in the schema with
-                # an expired report period, not just one -- lock all of them up front.
+                # risk as purge_expired_report_data (see its comment above), but this
+                # scheduled, date-based path spans every provider in the schema with an
+                # expired report period, not just one -- lock all of them up front.
+                #
+                # COST-8114 follow-up: the lock must be acquired *before* the
+                # rates_to_usage partition drop below, not just before the
+                # report-period cascade_delete. table_names includes "rates_to_usage",
+                # and the trigger-driven detach/truncate/drop below destroys those
+                # partitions outright -- a concurrent RTU writer correctly holding
+                # accessor._distribution_provider_lock for one of these providers
+                # (as every real RTU write step does) contends with nothing if the
+                # partition drop runs unlocked, and its freshly written row can be
+                # destroyed by the drop rather than by cascade_delete. Evaluating
+                # provider_uuids here, before any partition is touched, and holding
+                # the lock across both the partition drop and the cascade_delete below
+                # closes that gap for the whole date-based purge.
+                #
                 # Broader deadlock preflight, Finding G: see the comment on the
                 # single-provider lock above in purge_expired_report_data -- same
-                # defensive rollback-boundary rationale applies here.
+                # defensive rollback-boundary rationale applies to the inner
+                # transaction.atomic() around cascade_delete/tag cleanup below.
                 provider_uuids = list(all_usage_periods.values_list("provider_id", flat=True).distinct())
-                with _multi_provider_distribution_lock(accessor, provider_uuids), transaction.atomic():
-                    # Remove all data related to the report period
-                    cascade_delete(all_usage_periods.query.model, all_usage_periods)
+                with _multi_provider_distribution_lock(accessor, provider_uuids):
+                    # Will call trigger to detach, truncate, and drop partitions
                     LOG.info(
                         log_json(
-                            msg="deleted ocp-usage-report-periods",
-                            report_periods=all_report_periods,
+                            msg="deleting table partitions total for tables",
+                            tables=table_names,
+                            partitions=partition_from,
+                        )
+                    )
+                    del_count = execute_delete_sql(
+                        PartitionedTable.objects.filter(
+                            schema_name=self._schema,
+                            partition_of_table_name__in=table_names,
+                            partition_parameters__default=False,
+                            partition_parameters__from__lte=partition_from,
+                        )
+                    )
+                    LOG.info(
+                        log_json(
+                            msg="deleted table partitions",
+                            count=del_count,
                             schema=self._schema,
                         )
                     )
 
-                    if not is_ocp_tag_cleanup_disabled(self._schema):
-                        # Label summaries cascade with report periods; prune orphan tag index rows.
-                        accessor.cleanup_ocp_tags_values()
+                    with transaction.atomic():
+                        # Remove all data related to the report period
+                        cascade_delete(all_usage_periods.query.model, all_usage_periods)
+                        LOG.info(
+                            log_json(
+                                msg="deleted ocp-usage-report-periods",
+                                report_periods=all_report_periods,
+                                schema=self._schema,
+                            )
+                        )
+
+                        if not is_ocp_tag_cleanup_disabled(self._schema):
+                            # Label summaries cascade with report periods; prune orphan tag index rows.
+                            accessor.cleanup_ocp_tags_values()
 
         return removed_items
 
