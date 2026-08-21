@@ -42,6 +42,7 @@ from unittest.mock import patch
 
 import django.test
 from django.db import connection
+from django.db import DataError
 from django_tenants.utils import schema_context
 
 from api.iam.models import Customer
@@ -117,7 +118,10 @@ class SyncRateTableLockLeakTest(django.test.TransactionTestCase):
         return str(self.provider.uuid)
 
     def _is_lock_held(self):
-        """Query pg_locks from a brand-new connection to see if the advisory lock is still held."""
+        """Query pg_locks on the current (still-open) connection; pg_locks is global, so this
+        reports the lock even when this backend is the holder. Do not open or close a connection
+        here -- closing releases the lock and hides the bug.
+        """
         with connection.cursor() as cursor:
             cursor.execute(
                 "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' "
@@ -154,8 +158,8 @@ class SyncRateTableLockLeakTest(django.test.TransactionTestCase):
             with patch(
                 "cost_models.models.Rate.objects.bulk_create",
                 side_effect=self._real_db_level_failure,
-            ):
-                with self.assertRaises(Exception):
+            ) as mock_bulk_create:
+                with self.assertRaises(DataError):
                     manager.update(
                         rates=[
                             {
@@ -166,6 +170,11 @@ class SyncRateTableLockLeakTest(django.test.TransactionTestCase):
                             }
                         ]
                     )
+            # Guard against a vacuous pass: if bulk_create were never reached (e.g. a
+            # serializer error or fixture problem raised first), the DataError assertion
+            # above could never fire either, but a looser assertRaises(Exception) would
+            # have silently accepted that too.
+            mock_bulk_create.assert_called_once()
 
             # The connection used by this thread is now back to a clean state at the
             # Django/ORM level (@transaction.atomic on update() rolled back on exception
@@ -199,8 +208,8 @@ class SyncRateTableLockLeakTest(django.test.TransactionTestCase):
             with patch(
                 "cost_models.models.Rate.objects.bulk_create",
                 side_effect=self._real_db_level_failure,
-            ):
-                with self.assertRaises(Exception):
+            ) as mock_bulk_create:
+                with self.assertRaises(DataError):
                     manager.update(
                         rates=[
                             {
@@ -211,6 +220,7 @@ class SyncRateTableLockLeakTest(django.test.TransactionTestCase):
                             }
                         ]
                     )
+            mock_bulk_create.assert_called_once()
         # Deliberately keep this thread's connection open and in the pool (do not close it),
         # to mimic a real Celery worker's persistent DB connection after a task fails.
 
