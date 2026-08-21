@@ -165,9 +165,7 @@ class ExpiredDataPurgeRTURaceTest(django.test.TransactionTestCase):
             if model is RatesToUsage:
                 barrier.wait()
                 if not insert_committed_event.wait(timeout=15):
-                    raise AssertionError(
-                        "Concurrent writer never signaled its INSERT committed within 15s"
-                    )
+                    raise AssertionError("Concurrent writer never signaled its INSERT committed within 15s")
             return real_execute_delete_sql(query)
 
         with patch("koku.database.execute_delete_sql", side_effect=_traced_execute_delete_sql):
