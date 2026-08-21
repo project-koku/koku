@@ -66,10 +66,15 @@ class PopulateUsageRatesToUsageLockGapTest(django.test.TransactionTestCase):
         from koku.koku_test_runner import KokuTestRunner
 
         self.schema = KokuTestRunner.schema
-        with schema_context(self.schema):
-            self.customer = Customer.objects.filter(schema_name=self.schema).first()
-        if not self.customer:
-            self.skipTest("No test customer fixture available")
+        # Customer is a public-schema model -- looking it up under schema_context here would
+        # be harmless in practice (the query is schema-agnostic), but it's misleading and
+        # inconsistent with the rest of the codebase's convention of never wrapping
+        # public-schema queries in tenant/schema context.
+        self.customer = Customer.objects.filter(schema_name=self.schema).first()
+        self.assertIsNotNone(
+            self.customer,
+            f"No Customer fixture for schema {self.schema}; the RTU lock-gap regression cannot run.",
+        )
 
         self.provider = Provider(
             uuid=uuid.uuid4(),
@@ -96,8 +101,9 @@ class PopulateUsageRatesToUsageLockGapTest(django.test.TransactionTestCase):
             # by provider) so this test doesn't need to hand-build a full price list + rate
             # fixture just to get the INSERT branch to have something to write.
             cmm = CostModelMap.objects.exclude(cost_model__isnull=True).first()
-            if not cmm:
-                self.skipTest("No seeded cost model fixture available")
+            self.assertIsNotNone(
+                cmm, "No seeded CostModelMap fixture available; the RTU lock-gap regression cannot run."
+            )
             self.cost_model_id = cmm.cost_model_id
 
             OCPUsageLineItemDailySummary.objects.create(
