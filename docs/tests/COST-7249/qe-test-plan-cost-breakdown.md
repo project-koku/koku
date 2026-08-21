@@ -160,7 +160,7 @@ def test_api_breakdown_cost_conservation(application, cost_breakdown_source):
     report = call_api(BREAKDOWN_PATH, application, other_params={"view": "tree"})
     for date_group in report["data"]:
         tree_root = date_group.get("tree")
-        if tree_root:
+        if tree_root is not None:
             _assert_cost_conservation(tree_root)
 
 def _assert_cost_conservation(node):

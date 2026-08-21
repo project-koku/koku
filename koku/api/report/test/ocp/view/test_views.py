@@ -2012,10 +2012,14 @@ class OCPCostBreakdownViewTest(MasuTestCase):
         the identical `path` "project.usage_cost.CPU usage".
         """
         with tenant_context(self.tenant):
-            OCPCostUIBreakDownP.objects.filter(
-                source_uuid_id=self.ocp_provider_uuid,
-                usage_start=self.breakdown_usage_date,
-            ).delete()
+            # Delete the whole table, not just rows matching this provider/date.
+            # Other test classes in this module (e.g. TestBreakdownPopulationSQL,
+            # TestDistributionIntegration) populate this table via raw SQL, which
+            # runs as its own autocommitted unit of work and is NOT rolled back by
+            # Django's TestCase transaction wrapping. A provider/date-scoped
+            # delete here can therefore still leave those rows behind, polluting
+            # this class's otherwise-deterministic fixture.
+            OCPCostUIBreakDownP.objects.all().delete()
 
         self._make_breakdown_row(
             cost_value=Decimal("200.0"),
