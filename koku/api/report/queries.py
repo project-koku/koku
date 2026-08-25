@@ -241,6 +241,22 @@ class ReportQueryHandler(QueryHandler):
         return "openshift" in self.parameters.request.path
 
     @property
+    def _distinct_arrays_split_enabled(self):
+        """Whether clusters/source_uuid are computed via separate parallel-safe queries.
+
+        Base handlers keep the legacy inline ARRAY_AGG; OCP overrides this to gate
+        the split behind a feature flag.
+        """
+        return False
+
+    def _rank_metadata_annotations(self):
+        """ArrayAgg annotations for the ranked query's clusters/source_uuid metadata."""
+        annotations = {"source_uuid": ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True)}
+        if self.is_openshift:
+            annotations["clusters"] = ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True)
+        return annotations
+
+    @property
     def is_aws(self):
         """Determine if we are working with an AWS API."""
         return "aws" in self.parameters.request.path
@@ -1380,17 +1396,21 @@ class ReportQueryHandler(QueryHandler):
         for grouped_col in rank_group_by:
             rank_annotations.pop(grouped_col, None)
 
+        rank_metadata_annotations = self._rank_metadata_annotations()
         ranks = (
             query.annotate(**self.annotations)
             .annotate(**extra_rank_group_annotations)
             .values(*rank_group_by)
             .annotate(**rank_annotations)
-            .annotate(source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True))
         )
+        # When the split is enabled the DISTINCT array aggregates are computed in a
+        # separate query (below) so this ranked aggregation can parallelize.
+        if not self._distinct_arrays_split_enabled:
+            ranks = ranks.annotate(source_uuid=rank_metadata_annotations["source_uuid"])
         if self.is_aws and "account" in self._get_group_by():
             ranks = ranks.annotate(**{"account_alias": F("account_alias__account_alias")})
-        if self.is_openshift:
-            ranks = ranks.annotate(clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True))
+        if self.is_openshift and not self._distinct_arrays_split_enabled:
+            ranks = ranks.annotate(clusters=rank_metadata_annotations["clusters"])
 
         # The Window annotation MUST happen after aggregations in Django 4.2 or later.
         # https://forum.djangoproject.com/t/django-4-2-behavior-change-when-using-arrayagg-on-unnested-arrayfield-postgresql-specific/21547
@@ -1404,9 +1424,29 @@ class ReportQueryHandler(QueryHandler):
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
-        return self._ranked_list(data, distinct_ranks, set(rank_annotations), rank_group_by=rank_group_by)
 
-    def _ranked_list(self, data_list, ranks, rank_fields=None, rank_group_by=None):  # noqa C901
+        # When the split is enabled, compute clusters/source_uuid in a separate
+        # DISTINCT aggregation (no currency math / window) so the ranked query
+        # above can parallelize.  Grouped identically to the ranks.
+        rank_metadata_rows = None
+        if self._distinct_arrays_split_enabled and rank_metadata_annotations:
+            rank_metadata_rows = list(
+                query.annotate(**self.annotations)
+                .annotate(**extra_rank_group_annotations)
+                .values(*rank_group_by)
+                .annotate(**rank_metadata_annotations)
+            )
+        return self._ranked_list(
+            data,
+            distinct_ranks,
+            set(rank_annotations),
+            rank_group_by=rank_group_by,
+            rank_metadata_rows=rank_metadata_rows,
+        )
+
+    def _ranked_list(  # noqa C901
+        self, data_list, ranks, rank_fields=None, rank_group_by=None, rank_metadata_rows=None
+    ):
         """Get list of ranked items less than top.
 
         Args:
@@ -1443,6 +1483,15 @@ class ReportQueryHandler(QueryHandler):
         rank_data_frame = rank_data_frame.drop(
             columns=["cost_total", "cost_total_distributed", "usage"], errors="ignore"
         )
+        if rank_metadata_rows:
+            # Merge in clusters/source_uuid from the separate (parallel-safe)
+            # metadata query, keyed on the rank group columns.
+            metadata_frame = pd.DataFrame(rank_metadata_rows)
+            metadata_keys = [
+                col for col in rank_group_by if col in metadata_frame.columns and col in rank_data_frame.columns
+            ]
+            if metadata_keys:
+                rank_data_frame = rank_data_frame.merge(metadata_frame, on=metadata_keys, how="left")
 
         # Determine what to get values for in our rank data frame
         if self.is_aws and "account" in group_by:
