@@ -40,12 +40,12 @@ enabled = 0
 gpgkey = file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
 gpgcheck = 1
 
-[codeready-builder-for-ubi-9-$basearch-builder-rpms]
-name = Red Hat Universal Base Image 9 (RPMs) - CodeReady Builder
+[codeready-builder-for-ubi-9-$basearch-rpms]
+name = Red Hat Universal Base Image 9 - CodeReady Builder (RPMs)
 baseurl = https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/$basearch/codeready-builder/os
-enabled = 0
-gpgkey = file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+enabled = 1
 gpgcheck = 1
+gpgkey = file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
 
 [codeready-builder-for-ubi-9-$basearch-debug-rpms]
 name = Red Hat Universal Base Image 9 (Debug RPMs) - CodeReady Builder
