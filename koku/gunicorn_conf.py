@@ -1,6 +1,9 @@
 """Gunicorn configuration file."""
+import faulthandler
 import io
 import multiprocessing
+import sys
+import threading
 import traceback
 
 import environ
@@ -57,19 +60,77 @@ def on_starting(server):
 
 def post_fork(server, worker):
     """Called just after a worker has been forked."""
+    faulthandler.enable(file=sys.stderr, all_threads=True)
     UNLEASH_CLIENT.unleash_instance_id += f"_pid_{worker.pid}"
     worker.log.info("Initializing UNLEASH_CLIENT for gunicorn worker.")
     UNLEASH_CLIENT.initialize_client()
 
 
-def worker_abort(worker):
-    """Log the stack trace when a worker timeout occurs"""
+def _get_all_thread_stacks():
+    """Return human-readable and Sentry-formatted stacks for every Python thread."""
     buffer = io.StringIO()
-    traceback.print_stack(file=buffer)
-    data = buffer.getvalue()
-    buffer.close()
+    threads_by_id = {thread.ident: thread for thread in threading.enumerate()}
+    current_thread_id = threading.get_ident()
+    sentry_threads = []
+
+    for thread_id, frame in sys._current_frames().items():
+        thread = threads_by_id.get(thread_id)
+        thread_name = thread.name if thread else "unknown"
+        buffer.write(f"Thread {thread_name} (id: {thread_id}):\n")
+        traceback.print_stack(frame, file=buffer)
+
+        frames = []
+        for summary in traceback.extract_stack(frame):
+            sentry_frame = {
+                "filename": summary.filename,
+                "function": summary.name,
+                "lineno": summary.lineno,
+            }
+            if summary.line:
+                sentry_frame["context_line"] = summary.line
+            frames.append(sentry_frame)
+
+        sentry_threads.append(
+            {
+                "id": thread_id,
+                "name": thread_name,
+                "current": thread_id == current_thread_id,
+                "stacktrace": {"frames": frames},
+            }
+        )
+
+    return buffer.getvalue(), sentry_threads
+
+
+def _capture_worker_timeout(worker, sentry_threads):
+    """Best-effort Sentry capture for a worker abort; never block its termination."""
+    if not ENVIRONMENT.bool("KOKU_ENABLE_SENTRY", default=False):
+        return
+
+    try:
+        import sentry_sdk
+
+        sentry_sdk.capture_event(
+            {
+                "level": "error",
+                "message": {"formatted": f"Gunicorn worker timeout (pid:{worker.pid})"},
+                "tags": {"timeout": "hard"},
+                "threads": {"values": sentry_threads},
+            }
+        )
+        # Gunicorn exits immediately after this hook; give the async transport a
+        # bounded opportunity to send the diagnostic event.
+        sentry_sdk.flush(timeout=1)
+    except Exception:
+        worker.log.warning("Unable to send worker-timeout stack trace to Sentry.", exc_info=True)
+
+
+def worker_abort(worker):
+    """Log and, when possible, report all thread stacks for a worker timeout."""
+    data, sentry_threads = _get_all_thread_stacks()
 
     worker.log.error(f"Killing worker (pid:{worker.pid})\n{data}")
+    _capture_worker_timeout(worker, sentry_threads)
 
 
 def child_exit(server, worker):
