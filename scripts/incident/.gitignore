@@ -1,0 +1,9 @@
+# Customer payload backups and sensitive exports — do not commit
+payloads/
+payloads-midnight/
+state-farm-downloading-payload-raw.json
+manifest.csv
+manifest-midnight-only.csv
+urls.tsv
+urls-midnight-only.tsv
+download-log.csv
