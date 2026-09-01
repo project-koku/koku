@@ -576,6 +576,10 @@ parameters:
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
+- description: Emit Kafka listener diagnostics before the 18-minute poll interval; diagnostic-only.
+  displayName: Kafka listener watchdog timeout in seconds
+  name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
+  value: "900"
 
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
