@@ -303,11 +303,10 @@ class IngressDeadLetterQueue(models.Model):
         db_table = "reporting_common_ingress_dead_letter_queue"
         indexes = [
             models.Index(fields=["org_id"], name="ingress_dlq_org_id_idx"),
-            models.Index(fields=["request_id"], name="ingress_dlq_request_id_idx"),
             models.Index(fields=["schema_name"], name="ingress_dlq_schema_name_idx"),
         ]
 
-    request_id = models.CharField(max_length=255)
+    request_id = models.CharField(max_length=255, unique=True)
     account = models.CharField(max_length=150, null=True)
     org_id = models.CharField(max_length=36, null=True)
     schema_name = models.TextField(null=True)

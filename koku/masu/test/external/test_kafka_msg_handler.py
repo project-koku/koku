@@ -16,6 +16,7 @@ import uuid
 from datetime import date
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import pandas as pd
@@ -24,6 +25,7 @@ from confluent_kafka import KafkaError
 from django.db import InterfaceError
 from django.db import OperationalError
 from model_bakery import baker
+from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError
 
 import masu.external.kafka_msg_handler as msg_handler
@@ -32,10 +34,12 @@ from kafka_utils.utils import UPLOAD_TOPIC
 from masu.config import Config
 from masu.external.kafka_msg_handler import EmptyPayloadFileError
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
+from masu.processor import INGRESS_DEAD_LETTER_QUEUE_FLAG
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.processor.report_processor import ReportProcessorError
 from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
+from masu.util.aws.common import UploadError
 from masu.util.ocp import common as utils
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import IngressDeadLetterQueue
@@ -52,6 +56,18 @@ def raise_exception():
 def raise_OSError(*_args, **_kwargs):
     """Raise an OSError (accepts any call signature for use as a mock side_effect)."""
     raise OSError()
+
+
+def _kafka_error_from_http_status(status_code):
+    """Return a side_effect that raises KafkaMsgHandlerError caused by an HTTPError."""
+    response = Mock()
+    response.status_code = status_code
+    http_err = HTTPError(response=response)
+
+    def _raise(*_args, **_kwargs):
+        raise KafkaMsgHandlerError("Unable to download file") from http_err
+
+    return _raise
 
 
 class FakeManifest:
@@ -700,9 +716,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "http://insights-upload.com/quarantine/file_to_validate",
             {"org_id": self.org_id, "account": self.acct, "request_id": request_id},
         )
-        fake_payload_path = Path(tempfile.mkdtemp()) / "payload.tar.gz"
+        fake_payload_path = Path("fake") / "payload.tar.gz"
         with (
-            patch("masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema", return_value=False),
+            patch(
+                "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema", return_value=False
+            ) as mock_flag,
             patch("masu.external.kafka_msg_handler.download_payload", return_value=fake_payload_path),
             patch("masu.external.kafka_msg_handler.extract_payload", return_value=(None, None)) as mock_extract,
             patch("masu.external.kafka_msg_handler.copy_data_to_s3_bucket") as mock_copy,
@@ -712,6 +730,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.assertEqual(status, msg_handler.SUCCESS_CONFIRM_STATUS)
         self.assertIsNone(report_metas)
         self.assertIsNone(manifest_uuid)
+        mock_flag.assert_called_once_with(self.schema, INGRESS_DEAD_LETTER_QUEUE_FLAG)
         mock_extract.assert_called_once()
         mock_copy.assert_not_called()
         self.assertFalse(IngressDeadLetterQueue.objects.filter(request_id=request_id).exists())
@@ -719,31 +738,35 @@ class KafkaMsgHandlerTest(MasuTestCase):
     def test_handle_message_dlq_flag_on_skips_extract(self):
         """Test that a flagged customer parks the payload in the DLQ instead of extracting."""
         request_id = "test-dlq-request-id"
+        payload_url = "http://insights-upload.com/quarantine/file_to_validate"
         hccm_msg = MockMessage(
             UPLOAD_TOPIC,
-            "http://insights-upload.com/quarantine/file_to_validate",
+            payload_url,
             {"org_id": self.org_id, "account": self.acct, "request_id": request_id},
         )
         payload_dir = Path(tempfile.mkdtemp())
         payload_file = payload_dir / "testdlqrequestid.tar.gz"
         payload_file.write_bytes(b"fake-tarball")
-        now = self.dh.now_utc
+        frozen_now = datetime(2026, 6, 15, 12, 0, 0)
         expected_s3_path = (
             f"{Config.WAREHOUSE_PATH}/dead_letter_queue/{self.schema}"
-            f"/{now.strftime('%Y')}/{now.strftime('%m')}/{now.strftime('%d')}"
+            f"/{frozen_now.strftime('%Y')}/{frozen_now.strftime('%m')}/{frozen_now.strftime('%d')}"
         )
         expected_filename = "testdlqrequestid.tar.gz"
         with (
-            patch("masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema", return_value=True),
+            patch("masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema", return_value=True) as mock_flag,
             patch("masu.external.kafka_msg_handler.download_payload", return_value=payload_file),
             patch("masu.external.kafka_msg_handler.copy_data_to_s3_bucket") as mock_copy,
             patch("masu.external.kafka_msg_handler.extract_payload") as mock_extract,
+            patch("masu.external.kafka_msg_handler.DateHelper") as mock_dh,
         ):
+            mock_dh.return_value.now_utc = frozen_now
             status, report_metas, manifest_uuid = msg_handler.handle_message(hccm_msg)
 
         self.assertEqual(status, msg_handler.SUCCESS_CONFIRM_STATUS)
         self.assertIsNone(report_metas)
         self.assertIsNone(manifest_uuid)
+        mock_flag.assert_called_once_with(self.schema, INGRESS_DEAD_LETTER_QUEUE_FLAG)
         mock_extract.assert_not_called()
         mock_copy.assert_called_once()
         self.assertEqual(mock_copy.call_args.args[1], expected_s3_path)
@@ -754,7 +777,16 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.assertEqual(dlq.account, self.acct)
         self.assertEqual(dlq.schema_name, self.schema)
         self.assertEqual(dlq.s3_key, f"{expected_s3_path}/{expected_filename}")
-        self.assertEqual(dlq.payload.get("request_id"), request_id)
+        self.assertEqual(
+            dlq.payload,
+            {
+                "request_id": request_id,
+                "url": payload_url,
+                "account": self.acct,
+                "org_id": self.org_id,
+            },
+        )
+        self.assertNotIn("b64_identity", dlq.payload)
         self.assertFalse(payload_dir.exists())
 
     def test_handle_message_dlq_s3_failure_raises(self):
@@ -773,7 +805,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             patch("masu.external.kafka_msg_handler.download_payload", return_value=payload_file),
             patch(
                 "masu.external.kafka_msg_handler.copy_data_to_s3_bucket",
-                side_effect=Exception("s3 upload failed"),
+                side_effect=UploadError("s3 upload failed"),
             ),
             patch("masu.external.kafka_msg_handler.extract_payload") as mock_extract,
         ):
@@ -782,12 +814,13 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         mock_extract.assert_not_called()
         self.assertFalse(payload_dir.exists())
+        self.assertEqual(IngressDeadLetterQueue.objects.filter(request_id=request_id).count(), 1)
         dlq = IngressDeadLetterQueue.objects.get(request_id=request_id)
         self.assertIsNone(dlq.s3_key)
 
-    def test_handle_message_dlq_download_failure_raises(self):
-        """Test that a DLQ download failure raises KafkaMsgHandlerError so the consumer rewinds."""
-        request_id = "test-dlq-download-failure"
+    def test_handle_message_dlq_download_4xx_returns_failure(self):
+        """Test that a DLQ HTTP 4xx download commits failure instead of rewinding."""
+        request_id = "test-dlq-download-4xx"
         hccm_msg = MockMessage(
             UPLOAD_TOPIC,
             "http://insights-upload.com/quarantine/file_to_validate",
@@ -797,7 +830,35 @@ class KafkaMsgHandlerTest(MasuTestCase):
             patch("masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema", return_value=True),
             patch(
                 "masu.external.kafka_msg_handler.download_payload",
-                side_effect=msg_handler.KafkaMsgHandlerError("download failed"),
+                side_effect=_kafka_error_from_http_status(404),
+            ),
+            patch("masu.external.kafka_msg_handler.copy_data_to_s3_bucket") as mock_copy,
+            patch("masu.external.kafka_msg_handler.extract_payload") as mock_extract,
+        ):
+            status, report_metas, manifest_uuid = msg_handler.handle_message(hccm_msg)
+
+        self.assertEqual(status, msg_handler.FAILURE_CONFIRM_STATUS)
+        self.assertIsNone(report_metas)
+        self.assertIsNone(manifest_uuid)
+        mock_extract.assert_not_called()
+        mock_copy.assert_not_called()
+        self.assertEqual(IngressDeadLetterQueue.objects.filter(request_id=request_id).count(), 1)
+        dlq = IngressDeadLetterQueue.objects.get(request_id=request_id)
+        self.assertIsNone(dlq.s3_key)
+
+    def test_handle_message_dlq_download_5xx_raises(self):
+        """Test that a DLQ HTTP 5xx download raises KafkaMsgHandlerError so the consumer rewinds."""
+        request_id = "test-dlq-download-5xx"
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC,
+            "http://insights-upload.com/quarantine/file_to_validate",
+            {"org_id": self.org_id, "account": self.acct, "request_id": request_id},
+        )
+        with (
+            patch("masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema", return_value=True),
+            patch(
+                "masu.external.kafka_msg_handler.download_payload",
+                side_effect=_kafka_error_from_http_status(503),
             ),
             patch("masu.external.kafka_msg_handler.extract_payload") as mock_extract,
         ):
@@ -805,6 +866,90 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 msg_handler.handle_message(hccm_msg)
 
         mock_extract.assert_not_called()
+        self.assertEqual(IngressDeadLetterQueue.objects.filter(request_id=request_id).count(), 1)
+        dlq = IngressDeadLetterQueue.objects.get(request_id=request_id)
+        self.assertIsNone(dlq.s3_key)
+
+    def test_handle_message_dlq_already_parked_skips_download(self):
+        """Test that a second message for a parked request_id does not insert or re-download."""
+        request_id = "test-dlq-idempotent"
+        existing_key = "data/dead_letter_queue/org1234567/2026/06/15/testdlqidempotent.tar.gz"
+        IngressDeadLetterQueue.objects.create(
+            request_id=request_id,
+            account=self.acct,
+            org_id=self.org_id,
+            schema_name=self.schema,
+            payload={"request_id": request_id, "url": "http://insights-upload.com/quarantine/file_to_validate"},
+            s3_key=existing_key,
+        )
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC,
+            "http://insights-upload.com/quarantine/file_to_validate",
+            {"org_id": self.org_id, "account": self.acct, "request_id": request_id},
+        )
+        with (
+            patch("masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema", return_value=True),
+            patch("masu.external.kafka_msg_handler.download_payload") as mock_download,
+            patch("masu.external.kafka_msg_handler.copy_data_to_s3_bucket") as mock_copy,
+            patch("masu.external.kafka_msg_handler.extract_payload") as mock_extract,
+        ):
+            status, report_metas, manifest_uuid = msg_handler.handle_message(hccm_msg)
+
+        self.assertEqual(status, msg_handler.SUCCESS_CONFIRM_STATUS)
+        self.assertIsNone(report_metas)
+        self.assertIsNone(manifest_uuid)
+        mock_download.assert_not_called()
+        mock_copy.assert_not_called()
+        mock_extract.assert_not_called()
+        self.assertEqual(IngressDeadLetterQueue.objects.filter(request_id=request_id).count(), 1)
+        self.assertEqual(IngressDeadLetterQueue.objects.get(request_id=request_id).s3_key, existing_key)
+
+    def test_handle_message_dlq_unknown_org_uses_legacy_path(self):
+        """Test that an unknown org_id skips the DLQ gate and uses the extract path."""
+        request_id = "test-dlq-unknown-org"
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC,
+            "http://insights-upload.com/quarantine/file_to_validate",
+            {"org_id": "9999999", "account": "unknown", "request_id": request_id},
+        )
+        fake_payload_path = Path("fake") / "payload.tar.gz"
+        with (
+            patch("masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema") as mock_flag,
+            patch("masu.external.kafka_msg_handler.download_payload", return_value=fake_payload_path),
+            patch("masu.external.kafka_msg_handler.extract_payload", return_value=(None, None)) as mock_extract,
+            patch("masu.external.kafka_msg_handler.copy_data_to_s3_bucket") as mock_copy,
+        ):
+            status, report_metas, manifest_uuid = msg_handler.handle_message(hccm_msg)
+
+        self.assertEqual(status, msg_handler.SUCCESS_CONFIRM_STATUS)
+        self.assertIsNone(report_metas)
+        self.assertIsNone(manifest_uuid)
+        mock_flag.assert_not_called()
+        mock_extract.assert_called_once()
+        mock_copy.assert_not_called()
+        self.assertFalse(IngressDeadLetterQueue.objects.filter(request_id=request_id).exists())
+
+    def test_handle_message_dlq_download_connection_error_raises(self):
+        """Test that a DLQ connection error raises KafkaMsgHandlerError so the consumer rewinds."""
+        request_id = "test-dlq-download-connection"
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC,
+            "http://insights-upload.com/quarantine/file_to_validate",
+            {"org_id": self.org_id, "account": self.acct, "request_id": request_id},
+        )
+        with (
+            patch("masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema", return_value=True),
+            patch(
+                "masu.external.kafka_msg_handler.download_payload",
+                side_effect=RequestsConnectionError("connection failed"),
+            ),
+            patch("masu.external.kafka_msg_handler.extract_payload") as mock_extract,
+        ):
+            with self.assertRaises(KafkaMsgHandlerError):
+                msg_handler.handle_message(hccm_msg)
+
+        mock_extract.assert_not_called()
+        self.assertEqual(IngressDeadLetterQueue.objects.filter(request_id=request_id).count(), 1)
         dlq = IngressDeadLetterQueue.objects.get(request_id=request_id)
         self.assertIsNone(dlq.s3_key)
 
@@ -1234,6 +1379,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 with patch.object(Config, "DATA_DIR", fake_data_dir):
                     with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                         msg_handler.download_payload("test_request_id", payload_url, {})
+                    self.assertEqual(os.listdir(fake_data_dir), [])
 
     def test_download_payload_unable_to_write(self):
         """Test that download_payload raises KafkaMsgHandlerError when the file cannot be written."""
@@ -1245,6 +1391,17 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     with patch("masu.external.kafka_msg_handler.Path.write_bytes", side_effect=PermissionError):
                         with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                             msg_handler.download_payload("test_request_id", payload_url, {})
+
+    def test_download_payload_connection_error_cleans_temp_dir(self):
+        """Test that a non-HTTP download error still raises and removes the DATA_DIR temp dir."""
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        with requests_mock.mock() as m:
+            m.get(payload_url, exc=RequestsConnectionError)
+            with tempfile.TemporaryDirectory() as fake_data_dir:
+                with patch.object(Config, "DATA_DIR", fake_data_dir):
+                    with self.assertRaises(RequestsConnectionError):
+                        msg_handler.download_payload("test_request_id", payload_url, {})
+                    self.assertEqual(os.listdir(fake_data_dir), [])
 
     def test_extract_payload_wrong_file_type(self):
         """Test that extract_payload raises KafkaMsgHandlerError when the file is not a valid tar.gz."""
