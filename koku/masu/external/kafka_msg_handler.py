@@ -575,7 +575,7 @@ def send_to_dead_letter_queue(request_id, value, schema_name, context):
         now = DateHelper().now_utc
         s3_path = (
             f"{Config.WAREHOUSE_PATH}/dead_letter_queue/{schema_name}"
-            f"/year={now.strftime('%Y')}/month={now.strftime('%m')}/day={now.strftime('%d')}"
+            f"/{now.strftime('%Y')}/{now.strftime('%m')}/{now.strftime('%d')}"
         )
         sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
         filename = f"{sanitized_request_id}.tar.gz"

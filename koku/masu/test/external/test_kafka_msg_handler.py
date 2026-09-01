@@ -730,7 +730,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         now = self.dh.now_utc
         expected_s3_path = (
             f"{Config.WAREHOUSE_PATH}/dead_letter_queue/{self.schema}"
-            f"/year={now.strftime('%Y')}/month={now.strftime('%m')}/day={now.strftime('%d')}"
+            f"/{now.strftime('%Y')}/{now.strftime('%m')}/{now.strftime('%d')}"
         )
         expected_filename = "testdlqrequestid.tar.gz"
         with (
