@@ -55,6 +55,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.ros_report_shipper import ROSReportShipper
 from masu.processor import CROSS_ORG_CLUSTER_LOOKUP_FLAG
+from masu.processor import INGRESS_DEAD_LETTER_QUEUE_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
@@ -66,11 +67,14 @@ from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.prometheus_stats import KAFKA_LISTENER_INFLIGHT_MESSAGE_AGE_SECONDS
 from masu.prometheus_stats import KAFKA_LISTENER_WATCHDOG_DIAGNOSTICS_COUNTER
+from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.aws.common import UploadError
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.models import IngressDeadLetterQueue
 from reporting_common.states import CombinedChoices
 from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
@@ -406,28 +410,27 @@ def download_payload(request_id, url, context):
     # the pod goes down.
     os.makedirs(Config.DATA_DIR, exist_ok=True)
     temp_dir = tempfile.mkdtemp(dir=Config.DATA_DIR)
-
-    # Download file from quarantine bucket as tar.gz
     try:
-        download_response = requests.get(url)
-        download_response.raise_for_status()
-    except requests.exceptions.HTTPError as err:
-        shutil.rmtree(temp_dir)
-        msg = f"Unable to download file. Error: {str(err)}"
-        LOG.warning(log_json(request_id, msg=msg), exc_info=err)
-        raise KafkaMsgHandlerError(msg) from err
+        try:
+            download_response = requests.get(url)
+            download_response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            msg = f"Unable to download file. Error: {str(err)}"
+            LOG.warning(log_json(request_id, msg=msg), exc_info=err)
+            raise KafkaMsgHandlerError(msg) from err
 
-    sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
-    temp_file = Path(temp_dir, sanitized_request_id).with_suffix(".tar.gz")
-    try:
-        temp_file.write_bytes(download_response.content)
-    except OSError as error:
-        shutil.rmtree(temp_dir)
-        msg = f"Unable to write file. Error: {str(error)}"
-        LOG.warning(log_json(request_id, msg=msg, context=context), exc_info=error)
-        raise KafkaMsgHandlerError(msg) from error
-
-    return temp_file
+        sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
+        temp_file = Path(temp_dir, sanitized_request_id).with_suffix(".tar.gz")
+        try:
+            temp_file.write_bytes(download_response.content)
+        except OSError as error:
+            msg = f"Unable to write file. Error: {str(error)}"
+            LOG.warning(log_json(request_id, msg=msg, context=context), exc_info=error)
+            raise KafkaMsgHandlerError(msg) from error
+        return temp_file
+    except Exception:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise
 
 
 def read_manifest_from_tarball(request_id, tarball_path, context) -> utils.Manifest:
@@ -673,6 +676,96 @@ def send_confirmation(request_id, status):  # pragma: no cover
     producer.poll(0)
 
 
+def _is_permanent_download_error(error):
+    """Return True when retrying the ingress download cannot recover the payload."""
+    cause = error.__cause__
+    if isinstance(cause, requests.exceptions.HTTPError) and cause.response is not None:
+        return 400 <= cause.response.status_code < 500
+    return False
+
+
+def _get_or_create_dlq_entry(request_id, value, schema_name):
+    """Return the DLQ row for request_id, creating it when this is the first attempt."""
+    dlq_payload = {key: value.get(key) for key in ("request_id", "url", "account", "org_id")}
+    try:
+        dlq_entry, _created = IngressDeadLetterQueue.objects.get_or_create(
+            request_id=request_id,
+            defaults={
+                "account": value.get("account"),
+                "org_id": value.get("org_id"),
+                "schema_name": schema_name,
+                "payload": dlq_payload,
+            },
+        )
+    except IntegrityError:
+        dlq_entry = IngressDeadLetterQueue.objects.get(request_id=request_id)
+    return dlq_entry
+
+
+def send_to_dead_letter_queue(request_id, value, schema_name, context):
+    """Persist the Kafka message and copy the raw ingress payload to S3 without processing.
+
+    Returns SUCCESS_CONFIRM_STATUS when the payload is parked (or already parked).
+    Returns FAILURE_CONFIRM_STATUS for permanent download errors so the consumer commits.
+    Raises KafkaMsgHandlerError (or DB errors) so the consumer rewinds on transient failures.
+    """
+    dlq_entry = _get_or_create_dlq_entry(request_id, value, schema_name)
+    if dlq_entry.s3_key:
+        LOG.info(
+            log_json(
+                request_id,
+                msg="ingress payload already stored in dead letter queue",
+                context=context,
+                s3_key=dlq_entry.s3_key,
+            )
+        )
+        return SUCCESS_CONFIRM_STATUS
+
+    payload_path = None
+    try:
+        LOG.info(log_json(request_id, msg="sending ingress payload to dead letter queue", context=context))
+        payload_path = download_payload(request_id, value["url"], context)
+        now = DateHelper().now_utc
+        s3_path = (
+            f"{Config.WAREHOUSE_PATH}/dead_letter_queue/{schema_name}"
+            f"/{now.strftime('%Y')}/{now.strftime('%m')}/{now.strftime('%d')}"
+        )
+        sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
+        filename = f"{sanitized_request_id}.tar.gz"
+        with open(payload_path, "rb") as fin:
+            copy_data_to_s3_bucket(request_id, s3_path, filename, fin, context=context)
+        dlq_entry.s3_key = f"{s3_path}/{filename}"
+        dlq_entry.save(update_fields=["s3_key"])
+        LOG.info(
+            log_json(
+                request_id,
+                msg="ingress payload stored in dead letter queue",
+                context=context,
+                s3_key=dlq_entry.s3_key,
+            )
+        )
+        return SUCCESS_CONFIRM_STATUS
+    except (OperationalError, InterfaceError):
+        raise
+    except (UploadError, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as error:
+        msg = f"Unable to send payload to dead letter queue. Error: {type(error).__name__}: {error}"
+        LOG.warning(log_json(request_id, msg=msg, context=context))
+        raise KafkaMsgHandlerError(msg) from error
+    except KafkaMsgHandlerError as error:
+        if _is_permanent_download_error(error):
+            msg = f"Unable to send payload to dead letter queue. Error: {type(error).__name__}: {error}"
+            LOG.warning(log_json(request_id, msg=msg, context=context))
+            return FAILURE_CONFIRM_STATUS
+        raise
+    except KeyError as error:
+        msg = f"Unable to send payload to dead letter queue. Error: {type(error).__name__}: {error}"
+        LOG.warning(log_json(request_id, msg=msg, context=context))
+        return FAILURE_CONFIRM_STATUS
+    finally:
+        if payload_path is not None:
+            shutil.rmtree(payload_path.parent, ignore_errors=True)
+
+
 def handle_message(kmsg):
     """
     Handle messages from message pending queue.
@@ -703,6 +796,12 @@ def handle_message(kmsg):
         msg = f"Received unknown organization message: {str(value)}"
         LOG.info(log_json(request_id, msg=msg, context=context))
         return FAILURE_CONFIRM_STATUS, None, None
+
+    schema_name = Customer.objects.filter(org_id=org_id).values_list("schema_name", flat=True).first()
+    # Park-and-skip: keep default dev_fallback=False so local/dev still extracts payloads.
+    if schema_name and is_feature_flag_enabled_by_schema(schema_name, INGRESS_DEAD_LETTER_QUEUE_FLAG):
+        context["schema"] = schema_name
+        return send_to_dead_letter_queue(request_id, value, schema_name, context), None, None
 
     try:
         msg = f"Downloading Payload for msg: {str(value)}"
