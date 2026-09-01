@@ -9,11 +9,14 @@ import logging
 import os
 import re
 import shutil
+import sys
 import tempfile
 import threading
 import time
 import traceback
+from dataclasses import dataclass
 from datetime import datetime
+from datetime import timezone
 from pathlib import Path
 from tarfile import FilterError
 from tarfile import ReadError
@@ -21,6 +24,7 @@ from tarfile import TarFile
 
 import pandas as pd
 import requests
+import sentry_sdk
 from confluent_kafka import TopicPartition
 from django.conf import settings
 from django.db import connections
@@ -62,6 +66,8 @@ from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.aws.common import copy_data_to_s3_bucket
+from masu.prometheus_stats import KAFKA_LISTENER_INFLIGHT_MESSAGE_AGE_SECONDS
+from masu.prometheus_stats import KAFKA_LISTENER_WATCHDOG_DIAGNOSTICS_COUNTER
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.aws.common import UploadError
 from masu.util.common import get_path_prefix
@@ -78,6 +84,8 @@ SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
 MANIFEST_ACCESSOR = ReportManifestDBAccessor()
 _MAX_MANIFEST_BYTES = 10 * 1_024 * 1_024  # 10 MB — orders of magnitude above any real manifest
+KAFKA_MAX_POLL_INTERVAL_SECONDS = 18 * 60
+KAFKA_WATCHDOG_METRIC_UPDATE_SECONDS = 5
 
 
 class KafkaMsgHandlerError(Exception):
@@ -86,6 +94,115 @@ class KafkaMsgHandlerError(Exception):
 
 class EmptyPayloadFileError(pd.errors.EmptyDataError):
     """Empty payload file error."""
+
+
+@dataclass
+class KafkaMessageWatchdog:
+    """Emit diagnostics when a Kafka message handler exceeds its time budget.
+
+    The watchdog only observes the handler. In particular, it does not touch the
+    consumer, so it cannot commit, seek, pause, or discard an in-flight message.
+    """
+
+    context: dict
+    timeout_seconds: int
+
+    def __post_init__(self):
+        self.validate_timeout(self.timeout_seconds)
+        self._start_monotonic = time.monotonic()
+        self._stop_event = threading.Event()
+        self._thread = None
+
+    @staticmethod
+    def validate_timeout(timeout_seconds):
+        if not 0 < timeout_seconds < KAFKA_MAX_POLL_INTERVAL_SECONDS:
+            raise ValueError(
+                "KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS must be greater than 0 "
+                f"and less than {KAFKA_MAX_POLL_INTERVAL_SECONDS} seconds"
+            )
+
+    def __enter__(self):
+        KAFKA_LISTENER_INFLIGHT_MESSAGE_AGE_SECONDS.set(0)
+        self._thread = threading.Thread(target=self._monitor, name="kafka_message_watchdog", daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback_value):
+        self._stop_event.set()
+        if self._thread:
+            self._thread.join(timeout=1)
+        KAFKA_LISTENER_INFLIGHT_MESSAGE_AGE_SECONDS.set(0)
+        return False
+
+    def _monitor(self):
+        diagnostic_emitted = False
+        while not self._stop_event.is_set():
+            elapsed_seconds = time.monotonic() - self._start_monotonic
+            KAFKA_LISTENER_INFLIGHT_MESSAGE_AGE_SECONDS.set(elapsed_seconds)
+            if elapsed_seconds >= self.timeout_seconds and not diagnostic_emitted:
+                self._emit_diagnostic(elapsed_seconds)
+                diagnostic_emitted = True
+            wait_seconds = (
+                KAFKA_WATCHDOG_METRIC_UPDATE_SECONDS
+                if diagnostic_emitted
+                else min(KAFKA_WATCHDOG_METRIC_UPDATE_SECONDS, self.timeout_seconds - elapsed_seconds)
+            )
+            self._stop_event.wait(wait_seconds)
+
+    def _emit_diagnostic(self, elapsed_seconds):
+        thread_stacks = {
+            f"{thread.name}:{thread.ident}": "".join(traceback.format_stack(frame))
+            for thread_id, frame in sys._current_frames().items()
+            for thread in threading.enumerate()
+            if thread.ident == thread_id
+        }
+        diagnostic_context = {
+            **self.context,
+            "elapsed_seconds": round(elapsed_seconds, 3),
+            "thread_stacks": thread_stacks,
+        }
+        LOG.error(
+            log_json(
+                self.context["request_id"],
+                msg="Kafka listener message processing exceeded watchdog threshold",
+                context=diagnostic_context,
+            )
+        )
+        KAFKA_LISTENER_WATCHDOG_DIAGNOSTICS_COUNTER.inc()
+        with sentry_sdk.push_scope() as scope:
+            scope.set_tag("execution_path", "kafka_listener")
+            scope.set_tag("failure_type", "processing_watchdog")
+            scope.set_context("kafka_message", diagnostic_context)
+            sentry_sdk.capture_message("Kafka listener message processing exceeded watchdog threshold", level="error")
+
+
+def _message_watchdog_context(msg, service):
+    """Build safe, early message context for a listener watchdog diagnostic."""
+    context = {
+        "execution_path": "kafka_listener",
+        "operation": "process_messages",
+        "topic": msg.topic(),
+        "partition": msg.partition(),
+        "offset": msg.offset(),
+        "service": service,
+        "request_id": "no_request_id",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        value = json.loads(msg.value().decode("utf-8"))
+    except (AttributeError, UnicodeDecodeError, json.JSONDecodeError):
+        LOG.warning("Unable to extract Kafka watchdog message context", exc_info=True)
+        return context
+
+    context["request_id"] = value.get("request_id", "no_request_id")
+    context["account"] = value.get("account")
+    context["org_id"] = value.get("org_id")
+    if org_id := value.get("org_id"):
+        org_id = str(org_id)
+        if settings.SCHEMA_SUFFIX and not org_id.endswith(settings.SCHEMA_SUFFIX):
+            org_id = f"{org_id}{settings.SCHEMA_SUFFIX}"
+        context["schema"] = f"org{org_id}"
+    return context
 
 
 def get_data_frame(file_path: os.PathLike):
@@ -914,11 +1031,12 @@ def process_messages(msg):
 
 def listen_for_messages_loop():
     """Wrap listen_for_messages in while true."""
+    KafkaMessageWatchdog.validate_timeout(Config.KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS)
     kafka_conf = {
         "group.id": "hccm-group",
         "queued.max.messages.kbytes": 1024,
         "enable.auto.commit": False,
-        "max.poll.interval.ms": 1080000,  # 18 minutes
+        "max.poll.interval.ms": KAFKA_MAX_POLL_INTERVAL_SECONDS * 1000,
     }
     consumer = get_consumer(kafka_conf)
     consumer.subscribe([UPLOAD_TOPIC])
@@ -966,13 +1084,15 @@ def listen_for_messages(msg, consumer):
     """
     offset = msg.offset()
     partition = msg.partition()
-    topic_partition = TopicPartition(topic=UPLOAD_TOPIC, partition=partition, offset=offset)
+    topic_partition = TopicPartition(topic=msg.topic(), partition=partition, offset=offset)
     try:
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
         service = extract_from_header(msg.headers(), "service")
         LOG.debug(f"service: {service} | {msg.headers()}")
         if service == "hccm":
-            process_messages(msg)
+            watchdog_context = _message_watchdog_context(msg, service)
+            with KafkaMessageWatchdog(watchdog_context, Config.KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS):
+                process_messages(msg)
         LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
         consumer.commit()
     except (InterfaceError, OperationalError, ReportProcessorDBError) as error:
