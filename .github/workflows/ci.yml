@@ -82,7 +82,7 @@ jobs:
           done
 
   units:
-    name: Units - ${{ matrix.python-version }}
+    name: Units - ${{ matrix.python-version }} (${{ matrix.shard }})
     needs: changed-files
     runs-on: ubuntu-latest
     strategy:
@@ -91,6 +91,9 @@ jobs:
       matrix:
         python-version:
           - "3.11"
+        shard:
+          - main
+          - onprem-sources
     env:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
@@ -141,7 +144,8 @@ jobs:
 
       - name: Check migrations
         if: |
-          needs.changed-files.outputs.run_tests == 'true'
+          matrix.shard == 'main'
+          && needs.changed-files.outputs.run_tests == 'true'
           && !(contains(github.event.pull_request.labels.*.name, 'skip-migration-check'))
         run: bash .github/scripts/check_migrations.sh
         env:
@@ -155,9 +159,12 @@ jobs:
           PROMETHEUS_MULTIPROC_DIR: /tmp
 
       - name: Run unit tests
-        if: needs.changed-files.outputs.run_tests == 'true'
+        if: matrix.shard == 'main' && needs.changed-files.outputs.run_tests == 'true'
         id: unit_tests_run
-        run: pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/
+        run: |
+          pipenv run coverage run --parallel-mode --concurrency=multiprocessing \
+            ./koku/manage.py test --noinput --verbosity 2 --parallel auto ./koku/
+          pipenv run coverage combine
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
           DATABASE_ENGINE: postgresql
@@ -173,8 +180,9 @@ jobs:
           ENHANCED_ORG_ADMIN: True
 
       - name: Run ONPREM sources tests
-        if: needs.changed-files.outputs.run_tests == 'true'
-        run: pipenv run coverage run --append ./koku/manage.py test --noinput --verbosity 2 sources.test
+        if: matrix.shard == 'onprem-sources' && needs.changed-files.outputs.run_tests == 'true'
+        id: onprem_tests_run
+        run: pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 sources.test
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
           DATABASE_ENGINE: postgresql
@@ -191,17 +199,32 @@ jobs:
       - name: Show test status
         if: needs.changed-files.outputs.run_tests == 'true'
         id: show_test_status
-        run: echo "Unit tests and migration check were '${{ steps.unit_tests_run.outcome }}'"
+        run: |
+          if [ "${{ matrix.shard }}" = "main" ]; then
+            echo "Main unit tests were '${{ steps.unit_tests_run.outcome }}'"
+          else
+            echo "ONPREM sources tests were '${{ steps.onprem_tests_run.outcome }}'"
+          fi
 
       - name: Convert coverage report to XML
-        if: steps.unit_tests_run.outcome == 'success'
+        if: |
+          needs.changed-files.outputs.run_tests == 'true'
+          && (
+            (matrix.shard == 'main' && steps.unit_tests_run.outcome == 'success')
+            || (matrix.shard == 'onprem-sources' && steps.onprem_tests_run.outcome == 'success')
+          )
         run: pipenv run coverage xml
 
       - name: Upload test coverage file
-        if: steps.unit_tests_run.outcome == 'success'
+        if: |
+          needs.changed-files.outputs.run_tests == 'true'
+          && (
+            (matrix.shard == 'main' && steps.unit_tests_run.outcome == 'success')
+            || (matrix.shard == 'onprem-sources' && steps.onprem_tests_run.outcome == 'success')
+          )
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: coverage
+          name: coverage-${{ matrix.shard }}
           path: coverage.xml
           overwrite: true
 
@@ -227,11 +250,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download coverage result from units
+      - name: Download coverage results from units
         if: needs.changed-files.outputs.run_tests == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: coverage
+          pattern: coverage-*
+          path: coverage-reports
 
       - name: Upload coverage to Codecov
         if: needs.changed-files.outputs.run_tests == 'true'
@@ -239,9 +263,9 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          files: ./coverage.xml
+          files: coverage-reports/coverage-main/coverage.xml,coverage-reports/coverage-onprem-sources/coverage.xml
           flags: unittests
-          name: Python-${{ matrix.python-version}}
+          name: Python-3.11
           fail_ci_if_error: true
           plugins: noop
 
