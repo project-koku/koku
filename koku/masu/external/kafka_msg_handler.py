@@ -51,6 +51,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.ros_report_shipper import ROSReportShipper
 from masu.processor import CROSS_ORG_CLUSTER_LOOKUP_FLAG
+from masu.processor import INGRESS_DEAD_LETTER_QUEUE_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
@@ -60,11 +61,13 @@ from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
+from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.models import IngressDeadLetterQueue
 from reporting_common.states import CombinedChoices
 from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
@@ -556,6 +559,49 @@ def send_confirmation(request_id, status):  # pragma: no cover
     producer.poll(0)
 
 
+def send_to_dead_letter_queue(request_id, value, schema_name, context):
+    """Persist the Kafka message and copy the raw ingress payload to S3 without processing."""
+    dlq_entry = IngressDeadLetterQueue.objects.create(
+        request_id=request_id,
+        account=value.get("account"),
+        org_id=value.get("org_id"),
+        schema_name=schema_name,
+        payload=value,
+    )
+    payload_path = None
+    try:
+        LOG.info(log_json(request_id, msg="sending ingress payload to dead letter queue", context=context))
+        payload_path = download_payload(request_id, value["url"], context)
+        now = DateHelper().now_utc
+        s3_path = (
+            f"{Config.WAREHOUSE_PATH}/dead_letter_queue/{schema_name}"
+            f"/year={now.strftime('%Y')}/month={now.strftime('%m')}/day={now.strftime('%d')}"
+        )
+        sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
+        filename = f"{sanitized_request_id}.tar.gz"
+        with open(payload_path, "rb") as fin:
+            copy_data_to_s3_bucket(request_id, s3_path, filename, fin, context=context)
+        dlq_entry.s3_key = f"{s3_path}/{filename}"
+        dlq_entry.save(update_fields=["s3_key"])
+        LOG.info(
+            log_json(
+                request_id,
+                msg="ingress payload stored in dead letter queue",
+                context=context,
+                s3_key=dlq_entry.s3_key,
+            )
+        )
+    except (OperationalError, InterfaceError):
+        raise
+    except Exception as error:
+        msg = f"Unable to send payload to dead letter queue. Error: {type(error).__name__}: {error}"
+        LOG.warning(log_json(request_id, msg=msg, context=context))
+        raise KafkaMsgHandlerError(msg) from error
+    finally:
+        if payload_path is not None:
+            shutil.rmtree(payload_path.parent, ignore_errors=True)
+
+
 def handle_message(kmsg):
     """
     Handle messages from message pending queue.
@@ -586,6 +632,12 @@ def handle_message(kmsg):
         msg = f"Received unknown organization message: {str(value)}"
         LOG.info(log_json(request_id, msg=msg, context=context))
         return FAILURE_CONFIRM_STATUS, None, None
+
+    schema_name = Customer.objects.filter(org_id=org_id).values_list("schema_name", flat=True).first()
+    if schema_name and is_feature_flag_enabled_by_schema(schema_name, INGRESS_DEAD_LETTER_QUEUE_FLAG):
+        context["schema"] = schema_name
+        send_to_dead_letter_queue(request_id, value, schema_name, context)
+        return SUCCESS_CONFIRM_STATUS, None, None
 
     try:
         msg = f"Downloading Payload for msg: {str(value)}"
