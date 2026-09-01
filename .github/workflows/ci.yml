@@ -228,6 +228,19 @@ jobs:
           path: coverage.xml
           overwrite: true
 
+  units-gate:
+    name: Units - 3.11
+    needs: [changed-files, units]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify unit test shards
+        run: |
+          if [ "${{ needs.changed-files.outputs.run_tests }}" = "true" ] && [ "${{ needs.units.result }}" != "success" ]; then
+            echo "One or more unit test shards failed"
+            exit 1
+          fi
+
   coverage:
     name: Coverage
     needs: [changed-files, units]
