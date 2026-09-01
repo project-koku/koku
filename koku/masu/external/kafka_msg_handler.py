@@ -65,9 +65,9 @@ from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
-from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.prometheus_stats import KAFKA_LISTENER_INFLIGHT_MESSAGE_AGE_SECONDS
 from masu.prometheus_stats import KAFKA_LISTENER_WATCHDOG_DIAGNOSTICS_COUNTER
+from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.aws.common import UploadError
 from masu.util.common import get_path_prefix
