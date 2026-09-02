@@ -93,7 +93,7 @@ class OCPReportDistinctArraysParallelTest(IamTestCase):
             # Guard against the degenerate case where both are empty (would make
             # the equality assertion vacuous). Every case below has data.
             self.assertTrue(legacy, msg=f"no metadata arrays collected for {view.__name__} {url}")
-            if "group_by[node]" in suffix:
+            if "group_by[node]" in suffix and view.report in {"cpu", "memory", "volume"}:
                 node_counts = [
                     metadata["capacity_count"]
                     for key, metadata in split.items()
