@@ -160,12 +160,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             else:
                 annotations["project"] = F("namespace")
 
-        if is_grouped_by_node(self.parameters):
-            # This adds the instance counts to the node group by.
-            if self._mapper.report_type_map.get("capacity_aggregate", {}).get("node"):
-                self.report_annotations.update(
-                    self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {})
-                )
         for tag_db_name, _, original_tag in self._tag_group_by:
             annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
 
@@ -279,7 +273,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
     @property
     def report_annotations(self):
         """Return annotations with OCP-specific infra_exchange_rate for CSV output."""
-        annotations = self._mapper.report_type_map.get("annotations", {})
+        annotations = dict(self._mapper.report_type_map.get("annotations", {}))
+        if is_grouped_by_node(self.parameters):
+            # Add instance counts to node reports without mutating the shared mapper.
+            annotations.update(self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {}))
         if self._distinct_arrays_split_enabled:
             # The metadata arrays are computed separately so the main aggregation
             # can parallelize; drop them from the heavy annotation set.

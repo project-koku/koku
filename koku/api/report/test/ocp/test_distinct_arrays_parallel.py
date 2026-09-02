@@ -31,14 +31,22 @@ def _collect_metadata_arrays(node, acc):
 
     Returns a mapping of a stable row identity (the frozenset of the leaf row's
     string-valued fields -- date plus the group-by labels) to the *sets* of
-    clusters and source_uuid found on that row.
+    clusters/source_uuid and the node capacity count found on that row.
     """
     if isinstance(node, dict):
         if "source_uuid" in node or "clusters" in node:
-            key = frozenset((k, v) for k, v in node.items() if isinstance(v, str))
-            entry = acc.setdefault(key, {"source_uuid": set(), "clusters": set()})
+            key = frozenset(
+                (k, v)
+                for k, v in node.items()
+                if isinstance(v, str) and k not in {"clusters", "source_uuid", "capacity_count"}
+            )
+            entry = acc.setdefault(key, {"source_uuid": set(), "clusters": set(), "capacity_count": None})
             entry["source_uuid"] |= {str(v) for v in (node.get("source_uuid") or [])}
             entry["clusters"] |= {str(v) for v in (node.get("clusters") or [])}
+            if "capacity_count" in node:
+                entry["capacity_count"] = node["capacity_count"]
+            elif isinstance(node.get("capacity"), dict):
+                entry["capacity_count"] = node["capacity"].get("count", {}).get("value")
         for value in node.values():
             _collect_metadata_arrays(value, acc)
     elif isinstance(node, list):
@@ -75,16 +83,27 @@ class OCPReportDistinctArraysParallelTest(IamTestCase):
     def _assert_parity(self, matrix, csv_output=False):
         for view, suffix in matrix:
             url = f"?{self.LAST_MONTH}&{suffix}" if suffix else f"?{self.LAST_MONTH}"
-            legacy = self._run_and_collect(view, url, split_enabled=False, csv_output=csv_output)
             split = self._run_and_collect(view, url, split_enabled=True, csv_output=csv_output)
+            legacy = self._run_and_collect(view, url, split_enabled=False, csv_output=csv_output)
             self.assertEqual(
                 legacy,
                 split,
-                msg=f"clusters/source_uuid parity failed for {view.__name__} {url}",
+                msg=f"metadata/capacity-count parity failed for {view.__name__} {url}",
             )
             # Guard against the degenerate case where both are empty (would make
             # the equality assertion vacuous). Every case below has data.
             self.assertTrue(legacy, msg=f"no metadata arrays collected for {view.__name__} {url}")
+            if "group_by[node]" in suffix:
+                node_counts = [
+                    metadata["capacity_count"]
+                    for key, metadata in split.items()
+                    if any(field == "node" for field, _ in key)
+                ]
+                self.assertTrue(node_counts, msg=f"no node capacity counts collected for {view.__name__} {url}")
+                self.assertTrue(
+                    all(count is not None for count in node_counts),
+                    msg=f"missing node capacity count for {view.__name__} {url}",
+                )
 
     def test_distinct_arrays_parity_no_limit(self):
         """Split path matches legacy arrays without filter[limit] (main query)."""
