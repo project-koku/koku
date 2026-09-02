@@ -470,6 +470,8 @@ objects:
           value: ${TRINO_S3A_OR_S3}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
+        - name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
+          value: ${KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS}
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -5988,6 +5990,11 @@ parameters:
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
+- description: Emit Kafka listener diagnostics before the 18-minute poll interval;
+    diagnostic-only.
+  displayName: Kafka listener watchdog timeout in seconds
+  name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
+  value: "900"
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
