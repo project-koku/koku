@@ -1049,6 +1049,7 @@ Large customers are rate-limited to prevent resource exhaustion:
 
 - **Max tasks per worker**: Configured via `MAX_CELERY_TASKS_PER_WORKER` (default: 10)
 - **Worker alive timeout**: Configured via `WORKER_PROC_ALIVE_TIMEOUT` (default: 4 seconds)
+- **Probe liveness heartbeat**: Configured via `PROBE_LIVENESS_HEARTBEAT_SECONDS` (default: 60). Worker `/livez` fails if the Celery parent heartbeat is older than this. Long-running child tasks stay live while the parent still ticks. Listener `/livez` is separate (consumer thread alive/dead, not this timer).
 - **Broker retry**: Max 4 retries with exponential backoff (max 3 seconds)
 
 ---
@@ -1141,6 +1142,7 @@ Key environment variables affecting task behavior:
 - `DELAYED_TASK_POLLING_MINUTES` - Interval for delayed task checking
 - `MAX_CELERY_TASKS_PER_WORKER` - Worker recycling threshold
 - `WORKER_PROC_ALIVE_TIMEOUT` - Worker startup timeout
+- `PROBE_LIVENESS_HEARTBEAT_SECONDS` - Seconds of stale Celery parent heartbeat before worker `/livez` fails (default 60)
 - `MAX_UPDATE_RETRIES` - Maximum retry attempts for updates
 - `MAX_SOURCE_DELETE_RETRIES` - Maximum retry attempts for source deletion
 - `XL_REPORT_COUNT` - Threshold for marking provider as XL

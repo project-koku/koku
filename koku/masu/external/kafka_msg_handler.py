@@ -50,6 +50,7 @@ from kafka_utils.utils import get_producer
 from kafka_utils.utils import is_kafka_connected
 from kafka_utils.utils import UPLOAD_TOPIC
 from kafka_utils.utils import VALIDATION_TOPIC
+from koku.probe_server import register_consumer_thread
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
@@ -1121,10 +1122,11 @@ def koku_listener_thread():  # pragma: no cover
         exit(0)
 
 
-def initialize_kafka_handler():  # pragma: no cover
+def initialize_kafka_handler():
     """Start Listener thread."""
     if Config.KAFKA_CONNECT:
         event_loop_thread = threading.Thread(target=koku_listener_thread)
         event_loop_thread.daemon = True
         event_loop_thread.start()
+        register_consumer_thread(event_loop_thread)
         event_loop_thread.join()
