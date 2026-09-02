@@ -4,6 +4,7 @@
 #
 """Test Case extension to collect common test data."""
 import functools
+import logging
 from base64 import b64encode
 from copy import deepcopy
 from json import dumps as json_dumps
@@ -97,6 +98,11 @@ class IamTestCase(TestCase):
         """Tear down the class."""
         connection.set_schema_to_public()
         super().tearDownClass()
+
+    def setUp(self):
+        """Reset logging so assertLogs works after tests that disable logging."""
+        logging.disable(logging.NOTSET)
+        super().setUp()
 
     @classmethod
     def _create_customer_data(cls, account=KokuTestRunner.account, org_id=KokuTestRunner.org_id):
