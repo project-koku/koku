@@ -6,6 +6,7 @@ from datetime import datetime
 from datetime import timedelta
 from pprint import pprint
 
+from celery import bootsteps
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
@@ -18,9 +19,12 @@ from kombu.exceptions import OperationalError
 from .database import FKViolation
 from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
+from koku.probe_server import install_parent_heartbeat
+from koku.probe_server import parent_heartbeat_liveness_response
 from koku.probe_server import ProbeResponse
 from koku.probe_server import ProbeServer
 from koku.probe_server import start_probe_server
+from koku.probe_server import touch_parent_heartbeat
 
 LOG = logging.getLogger(__name__)
 
@@ -114,23 +118,27 @@ class LoggingCelery(Celery):
         return super().task(*args, **kwargs)
 
 
-class WorkerProbeServer(ProbeServer):  # pragma: no cover
+class WorkerProbeServer(ProbeServer):
     """HTTP server for liveness/readiness probes."""
 
     _collector = lambda *args: None  # noqa: E731
     _last_query_time = datetime.min
 
     @classmethod
-    def update_last_query_time(cls, value):
+    def update_last_query_time(cls, value):  # pragma: no cover
         """Update the last query time."""
         cls._last_query_time = value
 
-    def metrics_check(self):
+    def metrics_check(self):  # pragma: no cover
         """Get the metrics."""
         if datetime.now() - timedelta(minutes=1) > self._last_query_time:
             self.update_last_query_time(datetime.now())
             self._collector()
         super(ProbeServer, self).do_GET()
+
+    def liveness_check(self):
+        """Fail /livez when the Celery parent heartbeat is missing or stale after startup."""
+        self._write_response(parent_heartbeat_liveness_response(self.ready))
 
     def readiness_check(self):
         """Set the readiness check response."""
@@ -146,6 +154,23 @@ class WorkerProbeServer(ProbeServer):  # pragma: no cover
             status = 200
             msg = "ok"
         self._write_response(ProbeResponse(status, msg))
+
+
+class ParentHeartbeatStep(bootsteps.StartStopStep):
+    """Re-arm parent /livez heartbeat on every asynloop start, including reconnect.
+
+    Celery 5.6.3 ``asynloop`` calls ``hub.timer.clear()`` on broker connection
+    errors. ``celeryd_after_setup`` runs once, so ``call_repeatedly`` must be
+    installed again here — the same parent hub/timer, not a daemon thread.
+    """
+
+    label = "ParentHeartbeat"
+
+    def register_with_event_loop(self, worker, hub) -> None:
+        """Re-install the heartbeat after hub.timer.clear() on reconnect."""
+        timer = getattr(hub, "timer", None) or getattr(worker, "timer", None)
+        if timer is not None:
+            install_parent_heartbeat(timer)
 
 
 def validate_cron_expression(expression, default="0 * * * *"):
@@ -169,6 +194,7 @@ app = LoggingCelery(
     "koku", log="koku.log:TaskRootLogging", backend=settings.CELERY_RESULTS_URL, broker=settings.CELERY_BROKER_URL
 )
 app.config_from_object("django.conf:settings", namespace="CELERY")
+app.steps["worker"].add(ParentHeartbeatStep)
 
 print("celery autodiscover tasks")
 
@@ -283,24 +309,29 @@ if "scheduler" in hostname:
 
 
 @celeryd_after_setup.connect
-def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
+def wait_for_migrations(sender, instance, **kwargs):
     """Wait for migrations to complete before completing worker startup."""
     from masu.celery.tasks import collect_queue_metrics
 
     from .database import check_migrations
 
     httpd = start_probe_server(WorkerProbeServer)
+    # Touch before the hub/timer is running so kube does not kill the pod during migration wait.
+    touch_parent_heartbeat()
 
     # This is a special case because check_migrations() returns three values
     # True means migrations are up-to-date
     while check_migrations() != True:  # noqa
         LOG.warning("Migrations not done. Sleeping")
+        touch_parent_heartbeat()
         time.sleep(5)
 
     httpd.RequestHandlerClass.ready = True  # Set `ready` to true to indicate migrations are done.
     httpd.RequestHandlerClass._collector = collect_queue_metrics
+    # Parent hub/timer: same loop that freezes if the worker is wedged (not a daemon thread).
+    install_parent_heartbeat(instance.timer)
 
-    if ENVIRONMENT.bool("DEBUG_ATTACH", default=False):
+    if ENVIRONMENT.bool("DEBUG_ATTACH", default=False):  # pragma: no cover
         import debugpy
 
         debugpy.listen(("0.0.0.0", 5678))
