@@ -16,10 +16,10 @@ Usage:
     # 1) Test access (no uploads) — bucket name from internal runbook
     python upload_payloads.py check-access --bucket YOUR_BUCKET
 
-    # 2) Dry-run keys
-    python upload_payloads.py upload --bucket YOUR_BUCKET --schema org1234567 --dry-run
+    # 2) Dry-run keys (schema from manifest org_id per row, or pass --schema to restrict)
+    python upload_payloads.py upload --bucket YOUR_BUCKET --dry-run
 
-    # 3) Upload midnight subset
+    # 3) Upload midnight subset for one tenant only
     python upload_payloads.py upload \\
         --bucket YOUR_BUCKET \\
         --schema org1234567 \\
@@ -113,20 +113,21 @@ def cmd_check_access(bucket: str) -> int:
 
     print(identity.stdout.strip())
     listing = run_aws(["s3", "ls", f"s3://{bucket}/"])
-    if listing.returncode != 0:
-        print(f"Cannot list s3://{bucket}/", file=sys.stderr)
-        print(listing.stderr.strip(), file=sys.stderr)
-        return 1
-
-    print(f"OK: list access on s3://{bucket}/")
-    print(listing.stdout.strip() or "(bucket empty or no prefix output)")
+    if listing.returncode == 0:
+        print(f"OK: list access on s3://{bucket}/")
+        print(listing.stdout.strip() or "(bucket empty or no prefix output)")
+    else:
+        print(
+            f"Note: cannot list s3://{bucket}/ (ListBucket may be denied; continuing write probe)",
+            file=sys.stderr,
+        )
 
     probe_key = f"{WAREHOUSE_PATH}/.ingress-upload-probe"
     probe_body = Path("/tmp/ingress-upload-probe.txt")
     probe_body.write_text("probe\n", encoding="utf-8")
     put = run_aws(["s3", "cp", str(probe_body), f"s3://{bucket}/{probe_key}"])
     if put.returncode != 0:
-        print("List works but PutObject failed (read-only creds?).", file=sys.stderr)
+        print("PutObject probe failed (read-only creds or missing write access).", file=sys.stderr)
         print(put.stderr.strip(), file=sys.stderr)
         return 1
 
@@ -171,32 +172,54 @@ def write_log(path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
-def cmd_upload(args: argparse.Namespace) -> int:
-    if not args.manifest.is_file():
-        print(f"Manifest not found: {args.manifest}", file=sys.stderr)
-        return 1
-    if not args.input_dir.is_dir():
-        print(f"Input dir not found: {args.input_dir}", file=sys.stderr)
-        return 1
+def _resolve_row_schema(
+    row: dict,
+    expected_schema: str,
+    skipped_org: list[str],
+    skipped_schema: list[str],
+) -> str | None:
+    request_id = row["request_id"]
+    row_org_id = (row.get("org_id") or "").strip()
+    if not row_org_id:
+        skipped_org.append(request_id)
+        print(f"  skip  {request_id}  (manifest row missing org_id)", file=sys.stderr)
+        return None
 
-    schema = args.schema or schema_from_org_id(args.org_id or "")
-    if not schema:
-        print("Provide --schema or --org-id", file=sys.stderr)
-        return 1
+    row_schema = schema_from_org_id(row_org_id)
+    if expected_schema and row_schema != expected_schema:
+        skipped_schema.append(request_id)
+        print(
+            f"  skip  {request_id}  (org_id {row_org_id} -> {row_schema}, expected {expected_schema})",
+            file=sys.stderr,
+        )
+        return None
+    return row_schema
 
-    provider_uuid_map = load_provider_uuid_map(args.provider_uuid_map)
-    rows = load_manifest(args.manifest)
+
+def _upload_manifest_rows(
+    args: argparse.Namespace,
+    rows: list[dict],
+    expected_schema: str,
+    provider_uuid_map: dict[str, str],
+) -> tuple[list[dict], list[str], list[str], list[str]]:
     results: list[dict] = []
     missing_local: list[str] = []
+    skipped_schema: list[str] = []
+    skipped_org: list[str] = []
 
     for row in rows:
         request_id = row["request_id"]
+        row_schema = _resolve_row_schema(row, expected_schema, skipped_org, skipped_schema)
+        if row_schema is None:
+            continue
+
         local_path = args.input_dir / f"{request_id}.tgz"
         if not local_path.is_file():
             missing_local.append(request_id)
             continue
+
         s3_key = build_s3_key(
-            schema=schema,
+            schema=row_schema,
             request_id=request_id,
             kafka_timestamp=row["kafka_timestamp"],
             cluster_id=row.get("cluster_id", ""),
@@ -206,6 +229,28 @@ def cmd_upload(args: argparse.Namespace) -> int:
         results.append(result)
         print(f"{result['status']:>7}  {request_id}  s3://{args.bucket}/{s3_key}")
 
+    return results, missing_local, skipped_org, skipped_schema
+
+
+def cmd_upload(args: argparse.Namespace) -> int:
+    if not args.manifest.is_file():
+        print(f"Manifest not found: {args.manifest}", file=sys.stderr)
+        return 1
+    if not args.input_dir.is_dir():
+        print(f"Input dir not found: {args.input_dir}", file=sys.stderr)
+        return 1
+
+    expected_schema = args.schema or (schema_from_org_id(args.org_id) if args.org_id else "")
+    provider_uuid_map = load_provider_uuid_map(args.provider_uuid_map)
+    rows = load_manifest(args.manifest)
+    results, missing_local, skipped_org, skipped_schema = _upload_manifest_rows(
+        args, rows, expected_schema, provider_uuid_map
+    )
+
+    if skipped_org:
+        print(f"\nSkipped (missing org_id in manifest): {len(skipped_org)}", file=sys.stderr)
+    if skipped_schema:
+        print(f"Skipped (schema mismatch vs --schema/--org-id): {len(skipped_schema)}", file=sys.stderr)
     if missing_local:
         print(f"\nMissing local files: {len(missing_local)}", file=sys.stderr)
 
@@ -223,7 +268,7 @@ def cmd_upload(args: argparse.Namespace) -> int:
         )
     if args.dry_run:
         print("(dry-run — nothing uploaded)")
-    return 1 if errors or missing_local else 0
+    return 1 if errors or missing_local or skipped_org or skipped_schema else 0
 
 
 def main() -> int:
@@ -235,8 +280,8 @@ def main() -> int:
 
     upload = sub.add_parser("upload", help="Upload .tgz files from manifest")
     upload.add_argument("--bucket", required=True)
-    upload.add_argument("--schema", help="Tenant schema, e.g. org1234567")
-    upload.add_argument("--org-id", help="Alternative to --schema (org prefix added if missing)")
+    upload.add_argument("--schema", help="Restrict uploads to this tenant schema (org per manifest row)")
+    upload.add_argument("--org-id", help="Same as --schema (org prefix added if missing)")
     upload.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     upload.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT_DIR)
     upload.add_argument("--provider-uuid-map", type=Path, help="TSV: cluster_id<TAB>provider_uuid")

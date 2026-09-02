@@ -6,7 +6,7 @@ processing is slow, wedged, or at risk of losing data from ingress quarantine (~
 **Related:** ingress dead-letter queue (Unleash flag) — forward path for problematic tenants; see COST-8164.
 
 **Prod-specific names** (Kibana URL, log index pattern, listener log stream, bucket names):
-use the internal [service-docs runbook](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/operations/runbook.md) — do not copy them into public git.
+use the internal [service-docs runbook](https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/docs/operations/runbook.md) — do not copy them into public git.
 
 ---
 
@@ -34,7 +34,7 @@ Messages where the listener **already logged** `Downloading Payload for msg:` in
 
 | Item | Where to find it |
 |------|------------------|
-| Prod Kibana URL | service-docs runbook — Kibana section |
+| Prod Kibana URL | [service-docs runbook — Kibana](https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/docs/operations/runbook.md#kibana) |
 | Log index pattern | Cost Management CloudWatch/Kibana index for your environment |
 | Log stream filter | Ingress listener deployment name in that namespace |
 | Target log line | `Downloading Payload for msg: {...}` |
@@ -95,8 +95,11 @@ If `hits.total` exceeds 500, repeat with `search_after` using the last hit's `so
 ### Save export
 
 1. Run the query in Dev Tools
-2. Copy the full JSON response (or use Kibana export if available in your environment)
+2. Save the full JSON response body to disk (Dev Tools → copy response JSON)
 3. Save locally as `scripts/incident/kibana-downloading-payload-export.json` (local only — see README)
+
+The parser accepts standard `_search` JSON (`hits.hits[]._source`). Kibana console exports
+that use triple-quoted `@message` values are also supported.
 
 ---
 
@@ -163,6 +166,8 @@ Human SSO roles are often **read-only** on the warehouse bucket. Options:
 
 ```bash
 python3 upload_payloads.py check-access --bucket YOUR_BUCKET
+python3 upload_payloads.py upload --bucket YOUR_BUCKET --dry-run
+# Optional: restrict to one tenant when manifest might span orgs
 python3 upload_payloads.py upload --bucket YOUR_BUCKET --schema org1234567 --dry-run
 ```
 
@@ -182,5 +187,5 @@ Use test placeholders (`org1234567`, account `10001`) in examples only.
 
 ## See also
 
-- [service-docs runbook — Kibana](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/operations/runbook.md)
+- [service-docs runbook — Kibana](https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/docs/operations/runbook.md#kibana)
 - Listener message handler: `koku/masu/external/kafka_msg_handler.py`

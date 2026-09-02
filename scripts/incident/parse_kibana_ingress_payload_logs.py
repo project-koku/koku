@@ -29,11 +29,13 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_INPUT = SCRIPT_DIR / "kibana-downloading-payload-export.json"
 DEFAULT_OUTPUT_DIR = SCRIPT_DIR
 
+# Fallback for Kibana console paste where @message uses triple quotes (not strict JSON).
 HIT_BLOCK_RE = re.compile(
     r'"@message"\s*:\s*"""(.*?)"""\s*,\s*\n\s*"@timestamp"\s*:\s*"([^"]+)"'
     r'(?:\s*,\s*\n\s*"@log_stream"\s*:\s*"([^"]*)")?',
     re.DOTALL,
 )
+MESSAGE_TRIPLE_QUOTE_RE = re.compile(r'"@message"\s*:\s*"""(.*?)"""', re.DOTALL)
 MSG_PREFIX = "Downloading Payload for msg: "
 
 REQUEST_ID_RE = re.compile(r"'request_id': '([^']+)'")
@@ -48,9 +50,60 @@ MIDNIGHT_HOUR_START = 0
 MIDNIGHT_HOUR_END = 2  # exclusive upper bound: 00:00 <= t < 02:00 UTC
 
 
-def load_hits_from_export(path: Path) -> list[dict]:
-    """Extract hit fields from Kibana export (not strict JSON)."""
-    text = path.read_text(encoding="utf-8")
+def _sanitize_kibana_console_json(text: str) -> str:
+    """Convert Kibana console triple-quoted @message values into valid JSON strings."""
+
+    def replace_msg(match: re.Match[str]) -> str:
+        return '"@message": ' + json.dumps(match.group(1))
+
+    return MESSAGE_TRIPLE_QUOTE_RE.sub(replace_msg, text)
+
+
+def _normalize_hit_source(source: dict) -> dict:
+    return {
+        "@message": source["@message"],
+        "@timestamp": source.get("@timestamp", ""),
+        "@log_stream": source.get("@log_stream", ""),
+    }
+
+
+def _hits_from_search_response(data: dict) -> list[dict]:
+    raw_hits = data.get("hits", {}).get("hits", [])
+    normalized: list[dict] = []
+    for hit in raw_hits:
+        if not isinstance(hit, dict):
+            continue
+        source = hit.get("_source")
+        if not isinstance(source, dict) or "@message" not in source:
+            continue
+        normalized.append(_normalize_hit_source(source))
+    return normalized
+
+
+def _load_hits_from_json_text(text: str) -> list[dict]:
+    for candidate in (text, _sanitize_kibana_console_json(text)):
+        try:
+            data = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+
+        if isinstance(data, list):
+            hits: list[dict] = []
+            for item in data:
+                if isinstance(item, dict):
+                    hits.extend(_hits_from_search_response(item))
+            if hits:
+                return hits
+            continue
+
+        if isinstance(data, dict):
+            hits = _hits_from_search_response(data)
+            if hits:
+                return hits
+    return []
+
+
+def _load_hits_from_regex_fallback(text: str) -> list[dict]:
     hits = []
     for match in HIT_BLOCK_RE.finditer(text):
         message, log_timestamp, log_stream = match.group(1), match.group(2), match.group(3) or ""
@@ -61,6 +114,15 @@ def load_hits_from_export(path: Path) -> list[dict]:
                 "@log_stream": log_stream,
             }
         )
+    return hits
+
+
+def load_hits_from_export(path: Path) -> list[dict]:
+    """Extract hit fields from a Kibana Dev Tools _search JSON save."""
+    text = path.read_text(encoding="utf-8")
+    hits = _load_hits_from_json_text(text)
+    if not hits:
+        hits = _load_hits_from_regex_fallback(text)
     if not hits:
         raise ValueError(f"No log hits found in {path} — check export format")
     return hits
@@ -79,7 +141,7 @@ def _extract_kafka_fields(message: str) -> dict:
         "url": _regex_field(URL_RE, message, "url"),
         "size": int(_regex_field(SIZE_RE, message, "size")),
         "timestamp": _regex_field(KAFKA_TS_RE, message, "timestamp"),
-        "account": _regex_field(ACCOUNT_RE, message, "account"),
+        "account": (ACCOUNT_RE.search(message) or [None, ""])[1],
         "org_id": _regex_field(ORG_ID_RE, message, "org_id"),
         "b64_identity": (B64_IDENTITY_RE.search(message) or [None, ""])[1],
     }
@@ -206,6 +268,10 @@ def main() -> int:
         except (ValueError, SyntaxError, KeyError) as exc:
             errors += 1
             print(f"WARN: skip hit: {exc}", file=sys.stderr)
+
+    if not parsed:
+        print("No valid payload records parsed", file=sys.stderr)
+        return 1
 
     rows = dedupe_rows(parsed)
     midnight_rows = [r for r in rows if is_midnight_payload(r)]

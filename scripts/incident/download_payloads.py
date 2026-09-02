@@ -13,17 +13,22 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
+import shutil
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from urllib.parse import urlparse
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_MANIFEST = SCRIPT_DIR / "manifest.csv"
 DEFAULT_OUTPUT_DIR = SCRIPT_DIR / "payloads"
 DEFAULT_LOG = SCRIPT_DIR / "download-log.csv"
+CHUNK_SIZE = 1024 * 1024
 
 LOG_FIELDS = ["request_id", "status", "bytes", "error"]
 
@@ -42,9 +47,36 @@ def load_rows(path: Path) -> list[dict]:
         return list(csv.DictReader(fh))
 
 
-def download_one(request_id: str, url: str, output_dir: Path, skip_existing: bool) -> dict:
+def _parse_expected_size(row: dict) -> int | None:
+    raw = row.get("size", "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def _archive_is_complete(path: Path, expected_size: int | None) -> bool:
+    if not path.is_file():
+        return False
+    actual_size = path.stat().st_size
+    if actual_size <= 0:
+        return False
+    if expected_size is not None and actual_size != expected_size:
+        return False
+    return True
+
+
+def download_one(
+    request_id: str,
+    url: str,
+    output_dir: Path,
+    skip_existing: bool,
+    expected_size: int | None,
+) -> dict:
     out_path = output_dir / f"{request_id}.tgz"
-    if skip_existing and out_path.is_file() and out_path.stat().st_size > 0:
+    if skip_existing and _archive_is_complete(out_path, expected_size):
         return {
             "request_id": request_id,
             "status": "skipped",
@@ -52,14 +84,38 @@ def download_one(request_id: str, url: str, output_dir: Path, skip_existing: boo
             "error": "",
         }
 
+    if urlparse(url).scheme != "https":
+        return {
+            "request_id": request_id,
+            "status": "error",
+            "bytes": 0,
+            "error": f"unsupported URL scheme (https required): {url[:80]}",
+        }
+
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".part", dir=output_dir)
+    os.close(tmp_fd)
+    tmp_file = Path(tmp_path)
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "koku-incident-backup/1.0"})
-        with urllib.request.urlopen(req, timeout=300) as resp:
-            data = resp.read()
-        out_path.write_bytes(data)
-        return {"request_id": request_id, "status": "ok", "bytes": len(data), "error": ""}
+        with urllib.request.urlopen(req, timeout=300) as resp, tmp_file.open("wb") as fh:
+            shutil.copyfileobj(resp, fh, CHUNK_SIZE)
+
+        bytes_written = tmp_file.stat().st_size
+        if expected_size is not None and bytes_written != expected_size:
+            return {
+                "request_id": request_id,
+                "status": "error",
+                "bytes": bytes_written,
+                "error": f"size mismatch: expected {expected_size}, got {bytes_written}",
+            }
+
+        os.replace(tmp_path, out_path)
+        return {"request_id": request_id, "status": "ok", "bytes": bytes_written, "error": ""}
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         return {"request_id": request_id, "status": "error", "bytes": 0, "error": str(exc)}
+    finally:
+        if tmp_file.is_file():
+            tmp_file.unlink()
 
 
 def write_log(path: Path, rows: list[dict]) -> None:
@@ -97,6 +153,7 @@ def main() -> int:
                 row["url"],
                 args.output_dir,
                 args.skip_existing,
+                _parse_expected_size(row),
             ): row["request_id"]
             for row in rows
         }
