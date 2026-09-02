@@ -35,7 +35,6 @@ from masu.util.aws import common as utils
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
-DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
 CUSTOMER_NAME = FAKE.word()
 REPORT = FAKE.word()
@@ -163,7 +162,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     def setUp(self, fake_session):
         """Set up shared variables."""
         super().setUp()
-        os.makedirs(DATA_DIR, exist_ok=True)
+        os.makedirs(Config.TMP_DIR, exist_ok=True)
 
         self.credentials = {"role_arn": self.auth_credential}
         self.data_source = {"bucket": self.fake_bucket_name}
@@ -215,7 +214,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     def tearDown(self):
         """Remove test generated data."""
-        shutil.rmtree(DATA_DIR, ignore_errors=True)
+        shutil.rmtree(Config.TMP_DIR, ignore_errors=True)
 
     @patch("masu.external.downloader.aws.aws_report_downloader.create_daily_archives")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._check_size")
@@ -467,7 +466,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     def test_remove_manifest_file(self):
         """Test that we remove the manifest file."""
-        manifest_file = f"{DATA_DIR}/test_manifest.json"
+        manifest_file = f"{Config.TMP_DIR}/test_manifest.json"
 
         with open(manifest_file, "w") as f:
             f.write("Test")

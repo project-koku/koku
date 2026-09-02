@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Configuration loader for Masu application."""
+import importlib
+import os
+import tempfile
 from tempfile import mkdtemp
 
 from django.conf import settings
@@ -12,6 +15,16 @@ from koku.env import ENVIRONMENT
 
 DEFAULT_ACCOUNT_ACCCESS_TYPE = "db"
 DEFAULT_TMP_DIR = mkdtemp()
+
+# Modules that bind DATA_DIR at import time; refreshed by configure_worker_data_dir().
+_DOWNLOADER_MODULES = (
+    "masu.external.downloader.aws.aws_report_downloader",
+    "masu.external.downloader.aws_local.aws_local_report_downloader",
+    "masu.external.downloader.azure.azure_report_downloader",
+    "masu.external.downloader.azure_local.azure_local_report_downloader",
+    "masu.external.downloader.gcp.gcp_report_downloader",
+    "masu.external.downloader.gcp_local.gcp_local_report_downloader",
+)
 DEFAULT_REPORT_PROCESSING_BATCH_SIZE = 100000
 DEFAULT_MASU_DATE_OVERRIDE = None
 DEFAULT_INITIAL_INGEST_NUM_MONTHS = 3
@@ -86,3 +99,23 @@ class Config:
 
     DEL_RECORD_LIMIT = ENVIRONMENT.int("DELETE_CYCLE_RECORD_LIMIT", default=DEFAULT_DEL_RECORD_LIMIT)
     MAX_ITERATIONS = ENVIRONMENT.int("DELETE_CYCLE_MAX_RETRY", default=DEFAULT_MAX_ITERATIONS)
+
+
+def configure_worker_data_dir(worker_id=None):
+    """Assign an isolated data directory for a parallel test worker."""
+    suffix = f"worker-{worker_id}" if worker_id is not None else "main"
+    data_dir = os.path.join(tempfile.gettempdir(), f"koku-test-{suffix}-{os.getpid()}")
+    os.makedirs(data_dir, exist_ok=True)
+
+    Config.DATA_DIR = data_dir
+    Config.TMP_DIR = f"{data_dir}/processing"
+    Config.INSIGHTS_LOCAL_REPORT_DIR = f"{data_dir}/insights_local"
+    os.makedirs(Config.TMP_DIR, exist_ok=True)
+    os.makedirs(Config.INSIGHTS_LOCAL_REPORT_DIR, exist_ok=True)
+
+    for module_name in _DOWNLOADER_MODULES:
+        module = importlib.import_module(module_name)
+        if hasattr(module, "DATA_DIR"):
+            module.DATA_DIR = Config.TMP_DIR
+
+    return data_dir

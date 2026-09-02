@@ -20,7 +20,6 @@ from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 from reporting_common.models import CostUsageReportStatus
 
-DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
 CUSTOMER_NAME = FAKE.word()
 
@@ -60,7 +59,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         self.csv_key = f"{local_dir}/{self.csv_file_name}"
         shutil.copy2(test_report, self.csv_key)
 
-        os.makedirs(DATA_DIR, exist_ok=True)
+        os.makedirs(Config.TMP_DIR, exist_ok=True)
 
         self.report_downloader = ReportDownloader(
             customer_name=self.customer_name,
@@ -82,7 +81,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
 
     def tearDown(self):
         """Remove test generated data."""
-        shutil.rmtree(DATA_DIR, ignore_errors=True)
+        shutil.rmtree(Config.TMP_DIR, ignore_errors=True)
         shutil.rmtree(self.local_storage)
 
     def test_initializer(self):
@@ -113,7 +112,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
                     return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
                 ):
                     self.report_downloader.download_report(report_context)
-                    expected_path = "{}/{}/{}".format(DATA_DIR, self.customer_name, "azure")
+                    expected_path = "{}/{}/{}".format(Config.TMP_DIR, self.customer_name, "azure")
                     self.assertTrue(os.path.isdir(expected_path))
 
     def test_get_manifest(self):
