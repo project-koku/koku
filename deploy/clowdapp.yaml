@@ -5910,7 +5910,8 @@ parameters:
   displayName: Worker Proc Alive Timeout
   name: WORKER_PROC_ALIVE_TIMEOUT
   value: "4"
-- description: Seconds of stale Celery parent heartbeat before worker /livez fails (default 60). Long-running tasks stay live while the parent still ticks.
+- description: Seconds of stale Celery parent heartbeat before worker /livez fails
+    (default 60). Long-running tasks stay live while the parent still ticks.
   displayName: Probe liveness heartbeat seconds
   name: PROBE_LIVENESS_HEARTBEAT_SECONDS
   value: "60"
