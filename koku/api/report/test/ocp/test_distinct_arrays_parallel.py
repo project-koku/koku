@@ -46,7 +46,8 @@ def _collect_metadata_arrays(node, acc):
             if "capacity_count" in node:
                 entry["capacity_count"] = node["capacity_count"]
             elif isinstance(capacity := node.get("capacity"), dict):
-                entry["capacity_count"] = capacity.get("count", {}).get("value")
+                count = capacity.get("count")
+                entry["capacity_count"] = count.get("value") if isinstance(count, dict) else count
         for value in node.values():
             _collect_metadata_arrays(value, acc)
     elif isinstance(node, list):
