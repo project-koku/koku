@@ -33,6 +33,15 @@ URLS = [
 GROUP_BYS = ["project", "cluster", "node", "account", "region", "instance_type", "service", "product_family"]
 
 
+def icontains_unique_namespace(namespaces):
+    """Return a namespace that only matches itself under icontains group_by[project]."""
+    unique_namespaces = sorted(set(namespaces), key=len, reverse=True)
+    for namespace in unique_namespaces:
+        if sum(1 for peer in unique_namespaces if namespace.lower() in peer.lower()) == 1:
+            return namespace
+    raise AssertionError(f"No icontains-unique namespace in {unique_namespaces}")
+
+
 class OCPAWSReportViewTest(IamTestCase):
     """Tests the report view."""
 
@@ -340,17 +349,10 @@ class OCPAWSReportViewTest(IamTestCase):
     def test_execute_query_ocp_aws_storage_group_by_project(self):
         """Test that grouping by project filters data."""
         with tenant_context(self.tenant):
-            # Force Django to do GROUP BY to get nodes
-            projects = (
-                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
-                .filter(product_family__contains="Storage")
-                .values(*["namespace"])
-                .annotate(project_count=Count("namespace"))
-                .order_by("namespace")
-                .all()
-            )
-            self.assertNotEqual(len(projects), 0)
-            project_of_interest = projects[0].get("namespace")
+            namespaces = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
+                usage_start__gte=self.ten_days_ago, product_family__contains="Storage"
+            ).values_list("namespace", flat=True)
+            project_of_interest = icontains_unique_namespace(namespaces)
 
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -660,15 +662,10 @@ class OCPAWSReportViewTest(IamTestCase):
     def test_execute_query_ocp_aws_costs_group_by_project(self):
         """Test that grouping by project filters data."""
         with tenant_context(self.tenant):
-            # Force Django to do GROUP BY to get nodes
-            projects = (
-                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
-                .values(*["namespace"])
-                .annotate(project_count=Count("namespace"))
-                .order_by("namespace")
-                .all()
-            )
-            project_of_interest = projects[0].get("namespace")
+            namespaces = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
+                usage_start__gte=self.ten_days_ago
+            ).values_list("namespace", flat=True)
+            project_of_interest = icontains_unique_namespace(namespaces)
 
         url = reverse("reports-openshift-aws-costs")
         client = APIClient()
@@ -707,15 +704,10 @@ class OCPAWSReportViewTest(IamTestCase):
     def test_execute_query_ocp_aws_instance_type_by_project(self):
         """Test that the instance type API runs when grouped by project."""
         with tenant_context(self.tenant):
-            # Force Django to do GROUP BY to get nodes
-            projects = (
-                OCPAWSCostLineItemProjectDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
-                .values(*["namespace"])
-                .annotate(project_count=Count("namespace"))
-                .all()
-            )
-            self.assertNotEqual(len(projects), 0)
-            project_of_interest = projects[0].get("namespace")
+            namespaces = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
+                usage_start__gte=self.ten_days_ago
+            ).values_list("namespace", flat=True)
+            project_of_interest = icontains_unique_namespace(namespaces)
 
         url = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
