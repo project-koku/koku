@@ -1,5 +1,4 @@
 """Gunicorn configuration file."""
-import faulthandler
 import io
 import multiprocessing
 import sys
@@ -60,7 +59,6 @@ def on_starting(server):
 
 def post_fork(server, worker):
     """Called just after a worker has been forked."""
-    faulthandler.enable(file=sys.stderr, all_threads=True)
     UNLEASH_CLIENT.unleash_instance_id += f"_pid_{worker.pid}"
     worker.log.info("Initializing UNLEASH_CLIENT for gunicorn worker.")
     UNLEASH_CLIENT.initialize_client()
@@ -70,7 +68,6 @@ def _get_all_thread_stacks():
     """Return human-readable and Sentry-formatted stacks for every Python thread."""
     buffer = io.StringIO()
     threads_by_id = {thread.ident: thread for thread in threading.enumerate()}
-    current_thread_id = threading.get_ident()
     sentry_threads = []
 
     for thread_id, frame in sys._current_frames().items():
@@ -94,7 +91,6 @@ def _get_all_thread_stacks():
             {
                 "id": thread_id,
                 "name": thread_name,
-                "current": thread_id == current_thread_id,
                 "stacktrace": {"frames": frames},
             }
         )
@@ -113,7 +109,7 @@ def _capture_worker_timeout(worker, sentry_threads):
         sentry_sdk.capture_event(
             {
                 "level": "error",
-                "message": {"formatted": f"Gunicorn worker timeout (pid:{worker.pid})"},
+                "message": f"Gunicorn worker timeout (pid:{worker.pid})",
                 "tags": {"timeout": "hard"},
                 "threads": {"values": sentry_threads},
             }
@@ -129,7 +125,7 @@ def worker_abort(worker):
     """Log and, when possible, report all thread stacks for a worker timeout."""
     data, sentry_threads = _get_all_thread_stacks()
 
-    worker.log.error(f"Killing worker (pid:{worker.pid})\n{data}")
+    worker.log.warning(f"Killing worker (pid:{worker.pid})\n{data}")
     _capture_worker_timeout(worker, sentry_threads)
 
 
