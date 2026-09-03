@@ -11,6 +11,7 @@ from django.core.management.base import BaseCommand
 from kafka_utils.utils import check_kafka_connection
 from koku.database import check_migrations
 from koku.feature_flags import UNLEASH_CLIENT
+from koku.probe_server import consumer_thread_liveness_response
 from koku.probe_server import ProbeResponse
 from koku.probe_server import ProbeServer
 from koku.probe_server import start_probe_server
@@ -22,6 +23,10 @@ LOG = logging.getLogger(__name__)
 
 class ListenerProbeServer(ProbeServer):
     """HTTP server for liveness/readiness probes."""
+
+    def liveness_check(self):
+        """Fail /livez after ready if the Kafka consumer thread is not alive."""
+        self._write_response(consumer_thread_liveness_response(self.ready))
 
     def readiness_check(self):
         """Set the readiness check response."""
