@@ -113,6 +113,8 @@ objects:
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
+        - name: REQUEST_FAULTHANDLER_TIMEOUT
+          value: ${REQUEST_FAULTHANDLER_TIMEOUT}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -300,6 +302,8 @@ objects:
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
+        - name: REQUEST_FAULTHANDLER_TIMEOUT
+          value: ${REQUEST_FAULTHANDLER_TIMEOUT}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -5830,6 +5834,11 @@ parameters:
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"
+- description: Seconds before a stuck sync request's Python stacks are written to
+    stderr
+  displayName: Faulthandler request timeout
+  name: REQUEST_FAULTHANDLER_TIMEOUT
+  value: "95"
 - displayName: Celery log level
   name: CELERY_LOG_LEVEL
   value: INFO
