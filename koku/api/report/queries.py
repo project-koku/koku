@@ -1238,6 +1238,13 @@ class ReportQueryHandler(QueryHandler):
             "gpu_count",
             "usage_efficiency",
             "wasted_cost",
+            # cost_breakdown (OCPCostBreakdownOrderBySerializer) numeric fields.
+            # Without this, sorting falls through to the string-sort branch
+            # below, which calls .lower() and raises AttributeError on
+            # Decimal/int values.
+            "cost_value",
+            "distributed_cost",
+            "depth",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
