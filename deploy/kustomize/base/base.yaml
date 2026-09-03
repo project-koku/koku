@@ -415,6 +415,10 @@ parameters:
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"
+- description: Seconds before a stuck sync request's Python stacks are written to stderr
+  displayName: Faulthandler request timeout
+  name: REQUEST_FAULTHANDLER_TIMEOUT
+  value: "95"
 - displayName: Celery log level
   name: CELERY_LOG_LEVEL
   value: INFO

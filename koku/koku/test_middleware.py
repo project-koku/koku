@@ -7,6 +7,7 @@ import base64
 import copy
 import json
 import logging
+import sys
 import threading
 import time
 from unittest.mock import MagicMock
@@ -596,28 +597,38 @@ class RequestTimeoutMiddlewareTest(IamTestCase):
         self.middleware = RequestTimeoutMiddleware(Mock())
 
     @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.faulthandler.dump_traceback_later")
     @patch("koku.middleware.signal.alarm")
     @patch("koku.middleware.signal.signal")
-    def test_process_request_sets_alarm(self, mock_signal, mock_alarm, mock_thread):
+    def test_process_request_sets_timeouts(self, mock_signal, mock_alarm, mock_faulthandler, mock_thread):
         mock_thread.return_value = threading.main_thread()
         request = Mock(method="GET", path="/api/v1/reports/aws/costs/")
         self.middleware.process_request(request)
         mock_signal.assert_called_once()
         mock_alarm.assert_called_once_with(RequestTimeoutMiddleware.SOFT_TIMEOUT)
+        mock_faulthandler.assert_called_once_with(
+            RequestTimeoutMiddleware.FAULTHANDLER_TIMEOUT,
+            repeat=False,
+            file=sys.stderr,
+            exit=False,
+        )
 
     @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.faulthandler.cancel_dump_traceback_later")
     @patch("koku.middleware.signal.alarm")
-    def test_process_response_cancels_alarm(self, mock_alarm, mock_thread):
+    def test_process_response_cancels_timeouts(self, mock_alarm, mock_faulthandler, mock_thread):
         mock_thread.return_value = threading.main_thread()
         request = Mock()
         response = Mock(status_code=200)
         result = self.middleware.process_response(request, response)
         mock_alarm.assert_called_once_with(0)
+        mock_faulthandler.assert_called_once_with()
         self.assertEqual(result, response)
 
     @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.faulthandler.dump_traceback_later")
     @patch("koku.middleware.signal.alarm")
-    def test_timeout_raises_request_timeout_error(self, mock_alarm, mock_thread):
+    def test_timeout_raises_request_timeout_error(self, mock_alarm, mock_faulthandler, mock_thread):
         mock_thread.return_value = threading.main_thread()
         request = Mock(method="GET", path="/api/v1/reports/openshift/costs/", start_time=time.time() - 85)
         with patch("koku.middleware.signal.signal") as mock_signal:
@@ -629,8 +640,9 @@ class RequestTimeoutMiddlewareTest(IamTestCase):
         self.assertIn("/api/v1/reports/openshift/costs/", str(ctx.exception))
 
     @patch("koku.middleware.threading.current_thread")
+    @patch("koku.middleware.faulthandler.dump_traceback_later")
     @patch("koku.middleware.signal.alarm")
-    def test_timeout_handler_without_start_time(self, mock_alarm, mock_thread):
+    def test_timeout_handler_without_start_time(self, mock_alarm, mock_faulthandler, mock_thread):
         mock_thread.return_value = threading.main_thread()
         request = Mock(method="POST", path="/api/v1/cost-models/", spec=["method", "path"])
         with patch("koku.middleware.signal.signal") as mock_signal:
@@ -643,15 +655,27 @@ class RequestTimeoutMiddlewareTest(IamTestCase):
 
     @patch("koku.middleware.signal.alarm")
     @patch("koku.middleware.signal.signal")
-    def test_skips_alarm_in_non_main_thread(self, mock_signal, mock_alarm):
+    @patch("koku.middleware.faulthandler.dump_traceback_later")
+    def test_skips_timeouts_in_non_main_thread(self, mock_faulthandler, mock_signal, mock_alarm):
         with patch("koku.middleware.threading.current_thread", return_value=threading.Thread()):
             request = Mock(method="GET", path="/api/v1/reports/aws/costs/")
             self.middleware.process_request(request)
         mock_signal.assert_not_called()
         mock_alarm.assert_not_called()
+        mock_faulthandler.assert_not_called()
 
     def test_soft_timeout_default(self):
         self.assertEqual(RequestTimeoutMiddleware.SOFT_TIMEOUT, 90)
+
+    def test_faulthandler_timeout_default(self):
+        self.assertEqual(RequestTimeoutMiddleware.FAULTHANDLER_TIMEOUT, 95)
+
+    def test_faulthandler_timeout_uses_default_for_invalid_value(self):
+        for value in ("0", "-1", "invalid"):
+            with self.subTest(value=value), patch.dict(
+                "koku.middleware.os.environ", {"REQUEST_FAULTHANDLER_TIMEOUT": value}
+            ):
+                self.assertEqual(MD._parse_faulthandler_timeout(), 95)
 
 
 class SentryBeforeSendTest(IamTestCase):
