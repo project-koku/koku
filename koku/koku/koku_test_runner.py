@@ -12,6 +12,7 @@ from dev.scripts.insert_org_tree import UploadAwsTree
 from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
+from django.test.runner import ParallelTestSuite
 from django.test.utils import get_unique_databases_and_mirrors
 
 from api.models import Customer
@@ -19,6 +20,7 @@ from api.models import Provider
 from api.models import Tenant
 from api.report.test.util.model_bakery_loader import ModelBakeryDataLoader
 from koku.env import ENVIRONMENT
+from koku.parallel_test_worker import init_worker as _koku_parallel_init_worker
 
 
 OCP_ON_AWS_CLUSTER_ID = "OCP-on-AWS"
@@ -33,8 +35,16 @@ if GITHUB_ACTIONS:
     sys.stdout = open(os.devnull, "w")
 
 
+class KokuParallelTestSuite(ParallelTestSuite):
+    """Parallel test suite with per-worker Masu temp directories."""
+
+    init_worker = _koku_parallel_init_worker
+
+
 class KokuTestRunner(DiscoverRunner):
     """Koku Test Runner for Unit Tests."""
+
+    parallel_test_suite = KokuParallelTestSuite
 
     account = "10001"
     org_id = "1234567"

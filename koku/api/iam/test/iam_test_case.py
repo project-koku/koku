@@ -4,11 +4,13 @@
 #
 """Test Case extension to collect common test data."""
 import functools
+import logging
 from base64 import b64encode
 from copy import deepcopy
 from json import dumps as json_dumps
 from unittest.mock import Mock
 from uuid import UUID
+from uuid import uuid4
 
 import trino
 from django.conf import settings
@@ -98,6 +100,11 @@ class IamTestCase(TestCase):
         connection.set_schema_to_public()
         super().tearDownClass()
 
+    def setUp(self):
+        """Reset logging so assertLogs works after tests that disable logging."""
+        logging.disable(logging.NOTSET)
+        super().setUp()
+
     @classmethod
     def _create_customer_data(cls, account=KokuTestRunner.account, org_id=KokuTestRunner.org_id):
         """Create customer data."""
@@ -117,7 +124,8 @@ class IamTestCase(TestCase):
             "openshift.node": {"read": ["*"]},
         }
         profile = cls.fake.simple_profile()
-        return {"username": profile["username"], "email": profile["mail"], "access": access}
+        # Faker simple_profile() reuses names like "psmith"; username is unique on User.
+        return {"username": f"{profile['username']}_{uuid4().hex[:8]}", "email": profile["mail"], "access": access}
 
     @classmethod
     def _create_customer(cls, account, org_id, create_tenant=False):
@@ -177,7 +185,8 @@ class IamTestCase(TestCase):
         request.META = {RH_IDENTITY_HEADER: mock_header}
         if create_user:
             tempUser = User.objects.get_or_create(
-                username=user_data["username"], email=user_data["email"], customer=cls.customer
+                username=user_data["username"],
+                defaults={"email": user_data["email"], "customer": cls.customer},
             )[0]
             tempUser.save()
             request.user = tempUser

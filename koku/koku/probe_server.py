@@ -6,14 +6,90 @@
 import json
 import logging
 import threading
+import time
 from abc import ABC
 from abc import abstractmethod
 from http.server import HTTPServer
+from typing import Any
 
 from prometheus_client.exposition import MetricsHandler
 
 from koku.env import ENVIRONMENT
 from masu.prometheus_stats import WORKER_REGISTRY
+
+# Parent-process heartbeat for WorkerProbeServer /livez. Updated by the Celery
+# parent loop (wait_for_migrations + hub/timer), never by a daemon ticker thread.
+_parent_heartbeat_at: float | None = None
+# Kafka/sources consumer thread for ListenerProbeServer / SourcesProbeServer /livez.
+_consumer_thread: threading.Thread | None = None
+
+
+def get_probe_liveness_heartbeat_seconds() -> int:
+    """Seconds after which a missing parent heartbeat fails worker /livez."""
+    return ENVIRONMENT.int("PROBE_LIVENESS_HEARTBEAT_SECONDS", default=60)
+
+
+def touch_parent_heartbeat() -> None:
+    """Record that the Celery parent loop is still running."""
+    global _parent_heartbeat_at
+    _parent_heartbeat_at = time.monotonic()
+
+
+def reset_parent_heartbeat() -> None:
+    """Clear the parent heartbeat (tests)."""
+    global _parent_heartbeat_at
+    _parent_heartbeat_at = None
+
+
+def parent_heartbeat_is_fresh(*, now: float | None = None) -> bool:
+    """Return True if the parent heartbeat was touched within the threshold."""
+    if _parent_heartbeat_at is None:
+        return False
+    current = time.monotonic() if now is None else now
+    return (current - _parent_heartbeat_at) < get_probe_liveness_heartbeat_seconds()
+
+
+def install_parent_heartbeat(timer: Any) -> None:
+    """Register a recurring parent heartbeat on the Celery hub/timer.
+
+    `timer` must expose `call_repeatedly(interval, callback)` and be driven by
+    the same parent event loop that would freeze if the worker is wedged.
+    Do not pass a dedicated daemon thread.
+    """
+    touch_parent_heartbeat()
+    interval = max(get_probe_liveness_heartbeat_seconds() // 3, 1)
+    timer.call_repeatedly(interval, touch_parent_heartbeat)
+
+
+def register_consumer_thread(thread: threading.Thread | None) -> None:
+    """Record the Kafka/sources consumer thread for listener /livez checks."""
+    global _consumer_thread
+    _consumer_thread = thread
+
+
+def reset_consumer_thread() -> None:
+    """Clear the registered consumer thread (tests)."""
+    global _consumer_thread
+    _consumer_thread = None
+
+
+def consumer_thread_is_alive() -> bool:
+    """Return True if a consumer thread is registered and still running."""
+    return _consumer_thread is not None and _consumer_thread.is_alive()
+
+
+def parent_heartbeat_liveness_response(ready: bool) -> "ProbeResponse":
+    """HTTP status for worker /livez from heartbeat freshness and startup state."""
+    if not ready or parent_heartbeat_is_fresh():
+        return ProbeResponse(200, "ok")
+    return ProbeResponse(503, "parent heartbeat stale")
+
+
+def consumer_thread_liveness_response(ready: bool) -> "ProbeResponse":
+    """HTTP status for listener /livez from consumer thread liveness and startup state."""
+    if not ready or consumer_thread_is_alive():
+        return ProbeResponse(200, "ok")
+    return ProbeResponse(503, "consumer thread not alive")
 
 
 LOG = logging.getLogger(__name__)
