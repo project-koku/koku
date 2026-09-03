@@ -31,6 +31,8 @@
           value: ${TRINO_S3A_OR_S3}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
+        - name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
+          value: ${KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS}
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:

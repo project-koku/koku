@@ -470,6 +470,8 @@ objects:
           value: ${TRINO_S3A_OR_S3}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
+        - name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
+          value: ${KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS}
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -1339,6 +1341,8 @@ objects:
           value: ${WORKER_CELERY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1527,6 +1531,8 @@ objects:
           value: ${WORKER_COST_MODEL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1720,6 +1726,8 @@ objects:
           value: ${WORKER_COST_MODEL_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -1913,6 +1921,8 @@ objects:
           value: ${WORKER_COST_MODEL_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2108,6 +2118,8 @@ objects:
           value: ${WORKER_DOWNLOAD_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2305,6 +2317,8 @@ objects:
           value: ${WORKER_DOWNLOAD_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2502,6 +2516,8 @@ objects:
           value: ${WORKER_DOWNLOAD_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2697,6 +2713,8 @@ objects:
           value: ${WORKER_OCP_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -2892,6 +2910,8 @@ objects:
           value: ${WORKER_OCP_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3087,6 +3107,8 @@ objects:
           value: ${WORKER_OCP_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3272,6 +3294,8 @@ objects:
           value: ${WORKER_PRIORITY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3462,6 +3486,8 @@ objects:
           value: ${WORKER_PRIORITY_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3652,6 +3678,8 @@ objects:
           value: ${WORKER_PRIORITY_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -3840,6 +3868,8 @@ objects:
           value: ${WORKER_REFRESH_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4022,6 +4052,8 @@ objects:
           value: ${WORKER_REFRESH_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4204,6 +4236,8 @@ objects:
           value: ${WORKER_REFRESH_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4398,6 +4432,8 @@ objects:
           value: ${WORKER_SUMMARY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4595,6 +4631,8 @@ objects:
           value: ${WORKER_SUMMARY_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4792,6 +4830,8 @@ objects:
           value: ${WORKER_SUMMARY_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -4979,6 +5019,8 @@ objects:
           value: ${WORKER_HCS_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -5165,6 +5207,8 @@ objects:
           value: ${WORKER_SUBS_EXTRACTION_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -5341,6 +5385,8 @@ objects:
           value: ${WORKER_SUBS_TRANSMISSION_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -5864,6 +5910,11 @@ parameters:
   displayName: Worker Proc Alive Timeout
   name: WORKER_PROC_ALIVE_TIMEOUT
   value: "4"
+- description: Seconds of stale Celery parent heartbeat before worker /livez fails
+    (default 60). Long-running tasks stay live while the parent still ticks.
+  displayName: Probe liveness heartbeat seconds
+  name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+  value: "60"
 - description: Demo account JSON
   displayName: Demo account JSON
   name: DEMO_ACCOUNTS
@@ -5940,6 +5991,11 @@ parameters:
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
+- description: Emit Kafka listener diagnostics before the 18-minute poll interval;
+    diagnostic-only.
+  displayName: Kafka listener watchdog timeout in seconds
+  name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
+  value: "900"
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
