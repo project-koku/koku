@@ -15,6 +15,7 @@ from koku.middleware import IdentityHeaderMiddleware
 from sources.api.source_status import SourceStatus
 from sources.config import Config
 from sources.kafka_listener import storage_callback
+from sources.kafka_listener import STORAGE_CALLBACK_DISPATCH_UID
 from sources.tasks import create_provider
 from sources.tasks import create_source_beat
 from sources.tasks import delete_source
@@ -29,10 +30,16 @@ class SourcesTasksTest(TestCase):
     def setUpClass(cls):
         """Set up the test class."""
         super().setUpClass()
-        post_save.disconnect(storage_callback, sender=Sources)
+        post_save.disconnect(dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID, sender=Sources)
         account = "12345"
         org_id = "3333333"
         IdentityHeaderMiddleware.create_customer(account, org_id, "POST")
+
+    @classmethod
+    def tearDownClass(cls):
+        """Restore the application post_save handler for other tests."""
+        post_save.connect(storage_callback, sender=Sources, dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID)
+        super().tearDownClass()
 
     def setUp(self):
         """Setup the test method."""

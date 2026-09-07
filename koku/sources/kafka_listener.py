@@ -48,6 +48,7 @@ LOG = logging.getLogger(__name__)
 
 PROCESS_QUEUE = queue.PriorityQueue()
 COUNT = itertools.count()  # next(COUNT) returns next sequential number
+STORAGE_CALLBACK_DISPATCH_UID = "sources.kafka_listener.storage_callback"
 
 
 class SourcesIntegrationError(ValidationError):
@@ -96,7 +97,7 @@ def _dispatch_onprem_provider_create(source_id):
         )
 
 
-@receiver(post_save, sender=Sources)
+@receiver(post_save, sender=Sources, dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID)
 def storage_callback(sender, instance, **kwargs):
     """Load Sources ready for Koku Synchronization when Sources table is updated."""
     queued_sync = False

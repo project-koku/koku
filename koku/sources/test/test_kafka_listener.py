@@ -36,6 +36,7 @@ from sources.kafka_listener import PROCESS_QUEUE
 from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import SourcesIntegrationError
 from sources.kafka_listener import storage_callback
+from sources.kafka_listener import STORAGE_CALLBACK_DISPATCH_UID
 from sources.kafka_message_processor import ApplicationMsgProcessor
 from sources.kafka_message_processor import AUTH_TYPES
 from sources.kafka_message_processor import AuthenticationMsgProcessor
@@ -124,10 +125,16 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     def setUpClass(cls):
         """Set up the test class."""
         super().setUpClass()
-        post_save.disconnect(storage_callback, sender=Sources)
+        post_save.disconnect(dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID, sender=Sources)
         account = "10001"
         org_id = "1234567"
         IdentityHeaderMiddleware.create_customer(account, org_id, "POST")
+
+    @classmethod
+    def tearDownClass(cls):
+        """Restore the application post_save handler for other tests."""
+        post_save.connect(storage_callback, sender=Sources, dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID)
+        super().tearDownClass()
 
     def setUp(self):
         """Setup the test method."""
