@@ -939,6 +939,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     #         process_synchronize_sources_msg((0, msg), test_queue)
     #         mock_clear_flag.assert_not_called()
 
+    @override_settings(ONPREM=False)
     def test_storage_callback_create(self):
         """Test storage callback puts create task onto queue."""
         local_source = Sources(**self.aws_local_source, pending_update=True)
@@ -948,6 +949,19 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             storage_callback("", local_source)
             _, msg = PROCESS_QUEUE.get_nowait()
             self.assertEqual(msg.get("operation"), "create")
+
+    @override_settings(ONPREM=True)
+    @patch("sources.kafka_listener._dispatch_onprem_provider_create")
+    def test_storage_callback_create_onprem_dispatches_celery(self, mock_dispatch):
+        """On-prem create events are dispatched to Celery instead of the in-process queue."""
+        local_source = Sources(**self.aws_local_source, pending_update=True)
+        local_source.save()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            storage_callback("", local_source)
+
+        mock_dispatch.assert_called_once_with(local_source.source_id)
+        self.assertTrue(PROCESS_QUEUE.empty())
 
     def test_storage_callback_update(self):
         """Test storage callback puts update task onto queue."""

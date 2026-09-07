@@ -7,6 +7,9 @@ import logging
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import IntegrityError
+from django.db import InterfaceError
+from django.db import OperationalError
 
 from api.common import log_json
 from api.provider.models import Sources
@@ -16,6 +19,8 @@ from common.queues import SummaryQueue
 from koku import celery_app
 from sources.api.source_status import SourceStatus
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
+from sources.sources_provider_coordinator import SourcesProviderCoordinatorError
+from sources.storage import load_providers_to_create
 from sources.storage import load_providers_to_delete
 from sources.storage import mark_provider_as_inactive
 
@@ -39,6 +44,44 @@ def delete_source(self, source_id, auth_header, koku_uuid, account_number, org_i
     coordinator = SourcesProviderCoordinator(source_id, auth_header, account_number, org_id)
     coordinator.destroy_account(koku_uuid, self.request.retries)  # noqa: F821
     LOG.info(log_json(msg="deleted provider", provider_uuid=koku_uuid, source_id=source_id))
+
+
+@celery_app.task(
+    name="sources.tasks.create_provider",
+    bind=True,
+    autoretry_for=(IntegrityError, InterfaceError, OperationalError, SourcesProviderCoordinatorError),
+    retry_backoff=True,
+    max_retries=settings.MAX_SOURCE_DELETE_RETRIES,
+    queue=PriorityQueue.DEFAULT,
+)
+def create_provider(self, source_id):
+    """Create a Koku provider for an on-prem source that is not yet linked."""
+    source = Sources.objects.filter(source_id=source_id).first()
+    if not source or source.koku_uuid or source.pending_delete:
+        LOG.info(
+            log_json(
+                msg="skipping on-prem provider create",
+                context={"source_id": source_id, "has_koku_uuid": bool(source and source.koku_uuid)},
+            )
+        )
+        return
+
+    LOG.info(log_json(msg="creating on-prem provider from source", context={"source_id": source_id}))
+    coordinator = SourcesProviderCoordinator(source.source_id, source.auth_header, source.account_id, source.org_id)
+    coordinator.create_account(source)
+    LOG.info(log_json(msg="created on-prem provider from source", context={"source_id": source_id}))
+
+
+@celery_app.task(name="sources.tasks.create_source_beat", queue=SummaryQueue.DEFAULT)
+def create_source_beat():
+    """Re-enqueue on-prem sources that still need a linked provider."""
+    if not settings.ONPREM:
+        return
+
+    for event in load_providers_to_create():
+        provider = event.get("provider")
+        if provider:
+            create_provider.delay(provider.source_id)
 
 
 @celery_app.task(name="sources.tasks.delete_source_beat", queue=SummaryQueue.DEFAULT)

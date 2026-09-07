@@ -37,6 +37,7 @@ SAAS_ONLY_BEAT_NAMES = (
     "source_status_beat",
     "delete_source_beat",
 )
+ONPREM_ONLY_BEAT_NAMES = ("create_source_beat",)
 
 
 def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=None):
@@ -50,6 +51,18 @@ def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=Non
     beat_schedule[CURRENCY_RATES_BEAT_NAME] = {
         "task": "masu.celery.tasks.get_daily_currency_rates",
         "schedule": schedule or crontab(hour=1, minute=0),
+    }
+    return True
+
+
+def register_onprem_only_beats(beat_schedule, *, onprem=False):
+    """Register on-prem-only Celery beats; skip entirely when not on-prem."""
+    if not onprem:
+        return False
+
+    beat_schedule["create_source_beat"] = {
+        "task": "sources.tasks.create_source_beat",
+        "schedule": crontab(minute="*/5"),
     }
     return True
 
@@ -276,6 +289,9 @@ if not register_saas_only_beats(
     source_status_schedule=source_status_schedule,
 ):
     LOG.info("SaaS-only Celery beats not registered (ONPREM=%s)", settings.ONPREM)
+
+if not register_onprem_only_beats(app.conf.beat_schedule, onprem=settings.ONPREM):
+    LOG.info("On-prem-only Celery beats not registered (ONPREM=%s)", settings.ONPREM)
 
 # Beat used to fetch daily rates (only when CURRENCY_URL is configured)
 if not register_daily_currency_rates_beat(app.conf.beat_schedule, settings.CURRENCY_URL):
