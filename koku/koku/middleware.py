@@ -4,9 +4,11 @@
 #
 """Custom Koku Middleware."""
 import binascii
+import faulthandler
 import logging
 import os
 import signal
+import sys
 import threading
 import time
 from http import HTTPStatus
@@ -480,16 +482,29 @@ def _parse_soft_timeout(default=90):
         return default
 
 
+def _parse_faulthandler_timeout(default=95):
+    raw = os.environ.get("REQUEST_FAULTHANDLER_TIMEOUT")
+    if raw is None:
+        return default
+    try:
+        timeout = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return timeout if timeout > 0 else default
+
+
 class RequestTimeoutMiddleware(MiddlewareMixin):
     """Abort requests that exceed a soft timeout, before gunicorn kills the worker.
 
     Uses SIGALRM to raise RequestTimeoutError with full request context,
     replacing the uninformative SystemExit:1 that gunicorn's SIGABRT produces.
-    Only active in the main thread (sync workers); with threaded workers,
-    gunicorn's hard timeout remains the fallback.
+    The faulthandler watchdog records every thread's Python stack shortly before
+    gunicorn's hard timeout. Both timeouts are process-wide, so they are active
+    only for sync workers (the main thread).
     """
 
     SOFT_TIMEOUT = _parse_soft_timeout()
+    FAULTHANDLER_TIMEOUT = _parse_faulthandler_timeout()
 
     def process_request(self, request):
         if threading.current_thread() is not threading.main_thread():
@@ -503,10 +518,17 @@ class RequestTimeoutMiddleware(MiddlewareMixin):
 
         signal.signal(signal.SIGALRM, handler)
         signal.alarm(self.SOFT_TIMEOUT)
+        faulthandler.dump_traceback_later(
+            self.FAULTHANDLER_TIMEOUT,
+            repeat=False,
+            file=sys.stderr,
+            exit=False,
+        )
 
     def process_response(self, request, response):
         if threading.current_thread() is threading.main_thread():
             signal.alarm(0)
+            faulthandler.cancel_dump_traceback_later()
         return response
 
 

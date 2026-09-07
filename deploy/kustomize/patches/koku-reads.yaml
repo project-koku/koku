@@ -106,6 +106,8 @@
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
+        - name: REQUEST_FAULTHANDLER_TIMEOUT
+          value: ${REQUEST_FAULTHANDLER_TIMEOUT}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
