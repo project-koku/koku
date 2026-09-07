@@ -87,7 +87,13 @@ def _dispatch_onprem_provider_create(source_id):
     """Enqueue on-prem provider creation after the source row is committed."""
     from sources.tasks import create_provider
 
-    create_provider.delay(source_id)
+    try:
+        create_provider.delay(source_id)
+    except Exception as error:
+        LOG.error(
+            f"[storage_callback] failed to enqueue on-prem provider creation "
+            f"(source_id={source_id}): {type(error).__name__}: {error}"
+        )
 
 
 @receiver(post_save, sender=Sources)

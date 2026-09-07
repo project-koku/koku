@@ -31,6 +31,7 @@ from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
 from sources import storage
 from sources.config import Config
+from sources.kafka_listener import _dispatch_onprem_provider_create
 from sources.kafka_listener import PROCESS_QUEUE
 from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import SourcesIntegrationError
@@ -962,6 +963,15 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
 
         mock_dispatch.assert_called_once_with(local_source.source_id)
         self.assertTrue(PROCESS_QUEUE.empty())
+
+    @patch("sources.tasks.create_provider.delay", side_effect=ConnectionError("broker down"))
+    def test_dispatch_onprem_provider_create_logs_enqueue_failure(self, mock_delay):
+        """Failed Celery enqueue is logged; create_source_beat can recover later."""
+        with self.assertLogs("sources.kafka_listener", level="ERROR") as logs:
+            _dispatch_onprem_provider_create(42)
+
+        self.assertIn("failed to enqueue on-prem provider creation", logs.output[0])
+        mock_delay.assert_called_once_with(42)
 
     def test_storage_callback_update(self):
         """Test storage callback puts update task onto queue."""

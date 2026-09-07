@@ -8,7 +8,6 @@ from datetime import timezone
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from django.db.models.signals import post_save
 from django.test.utils import override_settings
 from faker import Faker
 from model_bakery import baker
@@ -27,7 +26,6 @@ from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesSerializer
 from sources.api.source_type_mapping import PROVIDER_TYPE_TO_CMMO_ID
 from sources.config import Config
-from sources.kafka_listener import storage_callback
 
 fake = Faker()
 
@@ -429,16 +427,12 @@ class AdminSourcesSerializerOnPremTest(IamTestCase):
             "authentication": {"credentials": {"cluster_id": "onprem-cluster-async"}},
         }
         serializer = AdminSourcesSerializer(data=source_data, context=self.context)
-        post_save.connect(storage_callback, sender=Sources)
-        try:
-            with (
-                patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True),
-                self.captureOnCommitCallbacks(execute=True),
-            ):
-                self.assertTrue(serializer.is_valid(raise_exception=True))
-                instance = serializer.save()
-        finally:
-            post_save.disconnect(storage_callback, sender=Sources)
+        with (
+            patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True),
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            self.assertTrue(serializer.is_valid(raise_exception=True))
+            instance = serializer.save()
 
         self.assertIsNone(instance.koku_uuid)
         mock_create_provider.assert_not_called()
