@@ -111,12 +111,15 @@ def storage_callback(sender, instance, **kwargs):
 
     process_event = storage.screen_and_build_provider_sync_create_event(instance)
     if process_event:
-        _log_process_queue_event(PROCESS_QUEUE, process_event, "storage_callback")
-        LOG.debug(f"Create Event Queued for:\n{str(instance)}")
         if settings.ONPREM:
             source_id = instance.source_id
+            LOG.info(
+                f"[storage_callback] dispatching on-prem provider creation for {instance.name} (source_id={source_id})"
+            )
             transaction.on_commit(lambda: _dispatch_onprem_provider_create(source_id))
         else:
+            _log_process_queue_event(PROCESS_QUEUE, process_event, "storage_callback")
+            LOG.debug(f"Create Event Queued for:\n{str(instance)}")
             PROCESS_QUEUE.put_nowait((next(COUNT), process_event))
             queued_sync = True
 
