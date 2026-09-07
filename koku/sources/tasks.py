@@ -51,6 +51,7 @@ def delete_source(self, source_id, auth_header, koku_uuid, account_number, org_i
     bind=True,
     autoretry_for=(IntegrityError, InterfaceError, OperationalError, SourcesProviderCoordinatorError),
     retry_backoff=True,
+    # Reuses MAX_SOURCE_DELETE_RETRIES (shared Celery retry budget for sources tasks).
     max_retries=settings.MAX_SOURCE_DELETE_RETRIES,
     queue=PriorityQueue.DEFAULT,
 )

@@ -420,9 +420,9 @@ class AdminSourcesSerializerOnPremTest(IamTestCase):
             self.assertEqual(serializer.validated_data["source_type"], Provider.PROVIDER_OCP)
 
     @override_settings(ONPREM=True)
-    @patch("sources.kafka_listener._dispatch_onprem_provider_create")
+    @patch("sources.tasks.create_provider.delay")
     @patch("api.provider.provider_builder.ProviderBuilder.create_provider_from_source")
-    def test_create_onprem_returns_before_provider_linked(self, mock_create_provider, mock_dispatch):
+    def test_create_onprem_returns_before_provider_linked(self, mock_create_provider, mock_create_provider_delay):
         """On-prem create returns quickly without waiting for provider/schema creation."""
         source_data = {
             "name": "onprem-ocp-async",
@@ -444,7 +444,7 @@ class AdminSourcesSerializerOnPremTest(IamTestCase):
 
         self.assertIsNone(instance.koku_uuid)
         mock_create_provider.assert_not_called()
-        mock_dispatch.assert_called_once_with(instance.source_id)
+        mock_create_provider_delay.assert_called_once_with(instance.source_id)
 
     @override_settings(ONPREM=True)
     def test_update_rejects_aws_source_type_id_when_onprem(self):
