@@ -1,0 +1,26 @@
+{
+    "took": 5,
+    "timed_out": false,
+    "hits": {
+        "total": {
+            "value": 1,
+            "relation": "eq"
+        },
+        "hits": [
+            {
+                "_index": "cwl-hccm-prod-2026.01.01",
+                "_id": "redacted-hit-id",
+                "_score": null,
+                "_source": {
+                    "@timestamp": "2026-01-01T00:05:00.000Z",
+                    "@log_stream": "koku-clowder-listener-redacted",
+                    "@message": "[2026-01-01 00:05:00,000] INFO None None None 1 {'message': \"Downloading Payload for msg: {'account': '10001', 'category': 'tar', 'request_id': 'abc123def4567890abcdef1234567890', 'org_id': '1234567', 'service': 'hccm', 'size': 150000, 'url': 'https://s3.example.com/ingress/abc123?X-Amz-Date=20260101T000500Z&X-Amz-Expires=86400', 'b64_identity': 'eyJpZGVudGl0eSI6eyJ0eXBlIjoiU3lzdGVtIiwic3lzdGVtIjp7ImNsdXN0ZXJfaWQiOiJjbHVzdGVyLXV1aWQtcGxhY2Vob2xkZXIifSwib3JnX2lkIjoiMTIzNDU2NyIsImFjY291bnRfbnVtYmVyIjoiMTAwMDEifSwiZW50aXRsZW1lbnRzIjp7fX0=', 'timestamp': '2026-01-01T00:04:59.000000000Z'}\", 'tracing_id': 'abc123def4567890abcdef1234567890', 'account': '10001', 'org_id': '1234567'}"
+                },
+                "sort": [
+                    1735689900000,
+                    "redacted-hit-id"
+                ]
+            }
+        ]
+    }
+}
