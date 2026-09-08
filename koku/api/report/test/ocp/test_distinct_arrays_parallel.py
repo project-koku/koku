@@ -145,6 +145,7 @@ class OCPReportDistinctArraysParallelTest(IamTestCase):
         node = "node-distinct-arrays"
         rows = [
             {"mig_profile": "1g.5gb", "mig_instance_id": "MIG-DISTINCT-0001"},
+            {"mig_profile": "1g.5gb", "mig_instance_id": "MIG-DISTINCT-0001"},
             {"mig_profile": "1g.5gb", "mig_instance_id": "MIG-DISTINCT-0002"},
             {"mig_profile": "1g.5gb", "mig_instance_id": "MIG-DISTINCT-0003"},
             {"mig_profile": "4g.20gb", "mig_instance_id": "MIG-DISTINCT-0004"},
@@ -170,10 +171,15 @@ class OCPReportDistinctArraysParallelTest(IamTestCase):
             )
             output = OCPReportQueryHandler(query_params).execute_query()
 
-        returned = sum(
-            len(profile.get("values", [])) for entry in output["data"] for profile in entry.get("mig_profiles", [])
-        )
-        self.assertEqual(returned, 3)
+        returned = [
+            (value["mig_id"], profile["mig_profile"])
+            for entry in output["data"]
+            for profile in entry.get("mig_profiles", [])
+            for value in profile.get("values", [])
+        ]
+        self.assertEqual(len(returned), 3)
+        self.assertEqual(len({mig_id for mig_id, _ in returned}), 3)
+        self.assertEqual({profile for _, profile in returned}, {"1g.5gb"})
 
     def test_distinct_arrays_parity_with_category(self):
         """Split path matches legacy arrays when a category param is active."""
