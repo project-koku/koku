@@ -68,6 +68,26 @@ def _extract_resource_definitions(resource_definitions):
     return result
 
 
+def _normalize_sources_acls(acls):
+    """Collapse "sources" application permissions onto the koku `sources` resource type.
+
+    RBAC returns sources permissions as ``sources:<resource>:<operation>`` -- e.g.
+    ``sources:*:*`` for the "Sources administrator" role. On-prem, RESOURCE_TYPES
+    has a single flat ``sources`` entry, and ``_extract_permission_data`` keys off
+    the middle segment, so ``sources:*:*`` would otherwise land under the ``*``
+    wildcard and get expanded across every resource type. Rewrite the middle
+    segment to ``sources`` so the permission maps to that single bucket.
+    """
+    normalized = []
+    for acl in acls:
+        acl = dict(acl)
+        parts = acl.get("permission", "").split(":")
+        if len(parts) == 3 and parts[0] == "sources":
+            acl["permission"] = f"sources:sources:{parts[2]}"
+        normalized.append(acl)
+    return normalized
+
+
 def _process_acls(acls):
     """Process acls to determine capabilities."""
     access = {}
@@ -235,11 +255,18 @@ class RbacService:
 
     def get_access_for_user(self, user):
         """Obtain access information for user."""
-        url = "{}://{}:{}{}?application=cost-management&limit=100".format(
-            self.protocol, self.host, self.port, self.path
-        )
+        base_url = "{}://{}:{}{}".format(self.protocol, self.host, self.port, self.path)
         headers = {"x-rh-identity": user.identity_header.get("encoded")}
-        acls = self._request_user_access(url, headers)
+        acls = self._request_user_access(f"{base_url}?application=cost-management&limit=100", headers)
+
+        if settings.ONPREM:
+            # The "Sources administrator" role (sources:*:*) lives in the "sources"
+            # RBAC application, which the cost-management filter above excludes.
+            # Fetch it separately so the user-access API can report a `sources`
+            # capability that gates the on-prem Settings > Integrations tab.
+            sources_acls = self._request_user_access(f"{base_url}?application=sources&limit=100", headers)
+            acls = list(acls) + _normalize_sources_acls(sources_acls)
+
         if isinstance(acls, list) and len(acls) == 0:
             return None
 
