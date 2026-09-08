@@ -9,6 +9,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.db import InterfaceError
+from django.db.models.signals import post_save
 from django.test import TestCase
 from faker import Faker
 
@@ -19,6 +20,8 @@ from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
 from sources import storage
 from sources.config import Config
+from sources.kafka_listener import storage_callback
+from sources.kafka_listener import STORAGE_CALLBACK_DISPATCH_UID
 
 faker = Faker()
 
@@ -56,6 +59,18 @@ class MockProvider:
 
 class SourcesStorageTest(TestCase):
     """Test cases for Sources Storage."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Disable async source sync while testing storage helpers in isolation."""
+        super().setUpClass()
+        post_save.disconnect(dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID, sender=Sources)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Restore the application post_save handler for other tests."""
+        post_save.connect(storage_callback, sender=Sources, dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID)
+        super().tearDownClass()
 
     def setUp(self):
         """Test case setup."""

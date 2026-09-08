@@ -31,10 +31,12 @@ from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
 from sources import storage
 from sources.config import Config
+from sources.kafka_listener import _dispatch_onprem_provider_create
 from sources.kafka_listener import PROCESS_QUEUE
 from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import SourcesIntegrationError
 from sources.kafka_listener import storage_callback
+from sources.kafka_listener import STORAGE_CALLBACK_DISPATCH_UID
 from sources.kafka_message_processor import ApplicationMsgProcessor
 from sources.kafka_message_processor import AUTH_TYPES
 from sources.kafka_message_processor import AuthenticationMsgProcessor
@@ -123,10 +125,16 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     def setUpClass(cls):
         """Set up the test class."""
         super().setUpClass()
-        post_save.disconnect(storage_callback, sender=Sources)
+        post_save.disconnect(dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID, sender=Sources)
         account = "10001"
         org_id = "1234567"
         IdentityHeaderMiddleware.create_customer(account, org_id, "POST")
+
+    @classmethod
+    def tearDownClass(cls):
+        """Restore the application post_save handler for other tests."""
+        post_save.connect(storage_callback, sender=Sources, dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID)
+        super().tearDownClass()
 
     def setUp(self):
         """Setup the test method."""
@@ -939,6 +947,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
     #         process_synchronize_sources_msg((0, msg), test_queue)
     #         mock_clear_flag.assert_not_called()
 
+    @override_settings(ONPREM=False)
     def test_storage_callback_create(self):
         """Test storage callback puts create task onto queue."""
         local_source = Sources(**self.aws_local_source, pending_update=True)
@@ -948,6 +957,28 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             storage_callback("", local_source)
             _, msg = PROCESS_QUEUE.get_nowait()
             self.assertEqual(msg.get("operation"), "create")
+
+    @override_settings(ONPREM=True)
+    @patch("sources.kafka_listener._dispatch_onprem_provider_create")
+    def test_storage_callback_create_onprem_dispatches_celery(self, mock_dispatch):
+        """On-prem create events are dispatched to Celery instead of the in-process queue."""
+        local_source = Sources(**self.aws_local_source, pending_update=True)
+        local_source.save()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            storage_callback("", local_source)
+
+        mock_dispatch.assert_called_once_with(local_source.source_id)
+        self.assertTrue(PROCESS_QUEUE.empty())
+
+    @patch("sources.tasks.create_provider.delay", side_effect=ConnectionError("broker down"))
+    def test_dispatch_onprem_provider_create_logs_enqueue_failure(self, mock_delay):
+        """Failed Celery enqueue is logged; create_source_beat can recover later."""
+        with self.assertLogs("sources.kafka_listener", level="ERROR") as logs:
+            _dispatch_onprem_provider_create(42)
+
+        self.assertIn("failed to enqueue on-prem provider creation", logs.output[0])
+        mock_delay.assert_called_once_with(42)
 
     def test_storage_callback_update(self):
         """Test storage callback puts update task onto queue."""

@@ -8,6 +8,7 @@ from datetime import timezone
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from django.db.models.signals import post_save
 from django.test.utils import override_settings
 from faker import Faker
 from model_bakery import baker
@@ -26,6 +27,8 @@ from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesSerializer
 from sources.api.source_type_mapping import PROVIDER_TYPE_TO_CMMO_ID
 from sources.config import Config
+from sources.kafka_listener import storage_callback
+from sources.kafka_listener import STORAGE_CALLBACK_DISPATCH_UID
 
 fake = Faker()
 
@@ -415,6 +418,33 @@ class AdminSourcesSerializerOnPremTest(IamTestCase):
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             self.assertTrue(serializer.is_valid(raise_exception=True))
             self.assertEqual(serializer.validated_data["source_type"], Provider.PROVIDER_OCP)
+
+    @override_settings(ONPREM=True)
+    @patch("sources.tasks.create_provider.delay")
+    @patch("api.provider.provider_builder.ProviderBuilder.create_provider_from_source")
+    def test_create_onprem_returns_before_provider_linked(self, mock_create_provider, mock_create_provider_delay):
+        """On-prem create returns quickly without waiting for provider/schema creation."""
+        source_data = {
+            "name": "onprem-ocp-async",
+            "source_type": "OCP",
+            "authentication": {"credentials": {"cluster_id": "onprem-cluster-async"}},
+        }
+        serializer = AdminSourcesSerializer(data=source_data, context=self.context)
+        post_save.connect(
+            storage_callback,
+            sender=Sources,
+            dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID,
+        )
+        with (
+            patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True),
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            self.assertTrue(serializer.is_valid(raise_exception=True))
+            instance = serializer.save()
+
+        self.assertIsNone(instance.koku_uuid)
+        mock_create_provider.assert_not_called()
+        mock_create_provider_delay.assert_called_once_with(instance.source_id)
 
     @override_settings(ONPREM=True)
     def test_update_rejects_aws_source_type_id_when_onprem(self):
