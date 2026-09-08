@@ -434,7 +434,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date", self.order]
 
-            annotations = self._mapper.report_type_map.get("annotations", {})
+            annotations = self.report_annotations
             query_data = query.values(*query_group_by).annotate(**annotations)
 
             if "account" in query_group_by:

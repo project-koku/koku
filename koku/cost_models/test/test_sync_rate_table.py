@@ -38,7 +38,7 @@ class SyncRateTableTest(IamTestCase):
             "rates": rates,
         }
         manager = CostModelManager()
-        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+        with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
             return manager.create(**data)
 
     def test_create_populates_rate_rows(self):
@@ -190,7 +190,7 @@ class SyncRateTableTest(IamTestCase):
                     "cost_type": "Supplementary",
                 }
             ]
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=new_rates)
             mapping = PriceListCostModelMap.objects.get(cost_model=cm)
             self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 2)
@@ -212,7 +212,7 @@ class SyncRateTableTest(IamTestCase):
             ]
             cm = self._create_cost_model(rates)
             manager = CostModelManager(cost_model_uuid=cm.uuid)
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=[rates[0]])
             mapping = PriceListCostModelMap.objects.get(cost_model=cm)
             self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 1)
@@ -242,7 +242,7 @@ class SyncRateTableTest(IamTestCase):
                 }
             ]
             manager = CostModelManager(cost_model_uuid=cm.uuid)
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=updated_rates)
             rate = Rate.objects.get(price_list=mapping.price_list)
             self.assertEqual(rate.uuid, original_uuid)
@@ -260,7 +260,7 @@ class SyncRateTableTest(IamTestCase):
             ]
             cm = self._create_cost_model(rates)
             manager = CostModelManager(cost_model_uuid=cm.uuid)
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(
                     rates=[
                         {
@@ -283,7 +283,7 @@ class SyncRateTableTest(IamTestCase):
                 "rates": [],
             }
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 cm = manager.create(**data)
             self.assertFalse(PriceListCostModelMap.objects.filter(cost_model=cm).exists())
 
@@ -302,7 +302,7 @@ class SyncRateTableTest(IamTestCase):
             self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 1)
 
             manager = CostModelManager(cost_model_uuid=cm.uuid)
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=[])
             self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 0)
 
@@ -322,10 +322,8 @@ class SyncRateTableTest(IamTestCase):
             with self.assertRaises(CostModelException):
                 self._create_cost_model(rates)
 
-    def test_update_with_nonexistent_rate_id_raises_exception(self):
-        """Test that a valid UUID not belonging to this price list raises CostModelException."""
-        from cost_models.cost_model_manager import CostModelException
-
+    def test_update_with_nonexistent_rate_id_falls_back(self):
+        """SI-11: A nonexistent rate_id must fall back to custom_name, not raise."""
         with tenant_context(self.tenant):
             rates = [
                 {
@@ -345,9 +343,10 @@ class SyncRateTableTest(IamTestCase):
                     "rate_id": fake_uuid,
                 }
             ]
-            with self.assertRaises(CostModelException):
-                with patch("cost_models.cost_model_manager.update_cost_model_costs"):
-                    manager.update(rates=updated_rates)
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                manager.update(rates=updated_rates)
+            mapping = PriceListCostModelMap.objects.get(cost_model=cm)
+            self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 1)
 
     def test_update_by_rate_id_preserves_uuid_across_rename(self):
         """Test that matching by rate_id preserves UUID even when custom_name changes."""
@@ -374,7 +373,7 @@ class SyncRateTableTest(IamTestCase):
                     "custom_name": "renamed-rate",
                 }
             ]
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=updated_rates)
             rate = Rate.objects.get(price_list=mapping.price_list)
             self.assertEqual(rate.uuid, original_uuid)
@@ -416,8 +415,76 @@ class SyncRateTableTest(IamTestCase):
                     "cost_type": "Supplementary",
                 },
             ]
-            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
                 manager.update(rates=updated_rates)
             rate = Rate.objects.get(uuid=cpu_rate.uuid)
             self.assertEqual(rate.uuid, cpu_rate.uuid)
             self.assertEqual(rate.custom_name, "wrong-name-but-rate-id-wins")
+
+    def test_update_with_nonexistent_rate_id_falls_back_to_custom_name(self):
+        """SI-11: A valid UUID not matching any Rate row must fall back to custom_name matching.
+
+        This prevents 400 errors when the UI round-trips a stale rate_id.
+        The explicit custom_name ensures the fallback path matches the existing rate.
+        """
+        with tenant_context(self.tenant):
+            rates = [
+                {
+                    "metric": {"name": self.metric},
+                    "tiered_rates": self.tiered_rates,
+                    "cost_type": "Infrastructure",
+                }
+            ]
+            cm = self._create_cost_model(rates)
+            mapping = PriceListCostModelMap.objects.get(cost_model=cm)
+            original_rate = Rate.objects.get(price_list=mapping.price_list)
+            manager = CostModelManager(cost_model_uuid=cm.uuid)
+            updated_rates = [
+                {
+                    "metric": {"name": self.metric},
+                    "tiered_rates": [{"unit": "USD", "value": 0.77}],
+                    "cost_type": "Infrastructure",
+                    "rate_id": str(uuid4()),
+                    "custom_name": original_rate.custom_name,
+                }
+            ]
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                manager.update(rates=updated_rates)
+            rate = Rate.objects.get(price_list=mapping.price_list)
+            self.assertEqual(rate.uuid, original_rate.uuid)
+            self.assertEqual(rate.default_rate, Decimal("0.77"))
+
+    def test_update_with_custom_name_preserves_uuid(self):
+        """SI-11: Update with custom_name from the API response preserves Rate UUID.
+
+        Since custom_name is included in the API response, callers send it back
+        on updates.  The sync logic matches by custom_name and preserves the
+        Rate UUID instead of deleting and recreating.
+        """
+        with tenant_context(self.tenant):
+            rates = [
+                {
+                    "metric": {"name": self.metric},
+                    "tiered_rates": self.tiered_rates,
+                    "cost_type": "Infrastructure",
+                }
+            ]
+            cm = self._create_cost_model(rates)
+            mapping = PriceListCostModelMap.objects.get(cost_model=cm)
+            original_rate = Rate.objects.get(price_list=mapping.price_list)
+            original_uuid = original_rate.uuid
+
+            manager = CostModelManager(cost_model_uuid=cm.uuid)
+            updated_rates = [
+                {
+                    "metric": {"name": self.metric},
+                    "tiered_rates": [{"unit": "USD", "value": 0.55}],
+                    "cost_type": "Infrastructure",
+                    "custom_name": original_rate.custom_name,
+                }
+            ]
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                manager.update(rates=updated_rates)
+            rate = Rate.objects.get(price_list=mapping.price_list)
+            self.assertEqual(rate.uuid, original_uuid)
+            self.assertEqual(rate.default_rate, Decimal("0.55"))

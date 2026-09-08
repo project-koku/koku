@@ -141,7 +141,7 @@ class PriceListManager:
         from api.utils import DateHelper
         from common.queues import get_customer_queue
         from common.queues import PriorityQueue
-        from masu.processor.tasks import update_cost_model_costs
+        from masu.processor.tasks import delayed_update_cost_model_costs
 
         dh = DateHelper()
         today = dh.today.date()
@@ -173,14 +173,14 @@ class PriceListManager:
                 f"for provider {provider.uuid} with tracing_id {tracing_id}"
             )
             try:
-                update_cost_model_costs.s(
+                delayed_update_cost_model_costs(
                     schema_name,
                     provider.uuid,
                     start_date,
                     end_date,
-                    tracing_id=tracing_id,
                     queue_name=fallback_queue,
-                ).set(queue=fallback_queue).apply_async()
+                    tracing_id=tracing_id,
+                )
             except Exception as exc:
                 LOG.warning(f"Failed to dispatch recalculation for provider {provider.uuid}: {exc}")
 

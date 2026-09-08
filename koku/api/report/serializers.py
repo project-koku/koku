@@ -10,7 +10,7 @@ from django.utils.translation import gettext
 from rest_framework import serializers
 from rest_framework.fields import DateField
 
-from api.currency.currencies import CURRENCY_CHOICES
+from api.currency.currencies import CurrencyField
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.queries import ReportQueryHandler
@@ -356,7 +356,7 @@ class ParamSerializer(BaseSerializer):
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
 
-    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
+    currency = CurrencyField(required=False, enabled_only=True)
     category = StringOrListField(child=serializers.CharField(), required=False)
 
     order_by_allowlist = (

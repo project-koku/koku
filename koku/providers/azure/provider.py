@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure provider."""
-from azure.common import AzureException
 from azure.core.exceptions import AzureError
 from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
@@ -135,7 +134,6 @@ class AzureProvider(ProviderInterface):
             ClientAuthenticationError,
             ServiceRequestError,
             AzureError,
-            AzureException,
             AzureServiceError,
             HttpResponseError,
             TypeError,
@@ -205,7 +203,6 @@ class AzureProvider(ProviderInterface):
             ClientAuthenticationError,
             ServiceRequestError,
             AzureError,
-            AzureException,
             AzureServiceError,
             HttpResponseError,
             TypeError,

@@ -1,0 +1,62 @@
+name: Daily Slack Digest
+
+on:
+  schedule:
+    # Weekdays only. GitHub cron is UTC-only, so fire at 06:00 and 07:00 UTC
+    # to cover Lisbon 07:00 in both WEST (UTC+0) and WEST DST (UTC+1).
+    # The script posts when Europe/Lisbon local hour is 7 or 8 (GH delays).
+    - cron: "0 6,7 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  digest:
+    name: Post digest
+    runs-on: ubuntu-latest
+    # Serialize schedule slots so the second cron sees today's cache marker.
+    concurrency:
+      group: daily-slack-digest
+      cancel-in-progress: false
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      # One Slack post per Lisbon calendar day across the 06:00 and 07:00 UTC crons.
+      - name: Lisbon date
+        id: lisbon
+        run: echo "date=$(TZ=Europe/Lisbon date +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore today's post marker
+        if: github.event_name == 'schedule'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .digest-posted
+          key: daily-slack-digest-${{ steps.lisbon.outputs.date }}
+
+      - name: Post daily digest
+        env:
+          JIRA_BASE_URL: https://redhat.atlassian.net
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          DIGEST_JIRA_ACCOUNT_IDS: ${{ secrets.DIGEST_JIRA_ACCOUNT_IDS }}
+          DIGEST_GITHUB_LOGINS: ${{ secrets.DIGEST_GITHUB_LOGINS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DIGEST_POSTED_MARKER: .digest-posted
+          FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
+        run: python3 .github/scripts/daily_slack_digest.py

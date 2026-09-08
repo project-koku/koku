@@ -71,6 +71,15 @@ class User(models.Model):
         self.identity_header = None
         self.beta = False
 
+    @property
+    def is_authenticated(self):
+        """Required by DRF's IsAuthenticated since this model doesn't extend AbstractBaseUser.
+
+        Always returns True because IdentityHeaderMiddleware validates the
+        x-rh-identity header before a User instance is placed on the request.
+        """
+        return True
+
     class Meta:
         ordering = ["username"]
 

@@ -58,6 +58,10 @@ DEBUG = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 
 ONPREM = ENVIRONMENT.bool("ONPREM", default=False)
 
+# Enables masu endpoints that are normally SaaS-only so IQE/integration tests can reach them.
+# Never enable this in production.
+IQE_TEST_RUN = ENVIRONMENT.bool("IQE_TEST_RUN", default=False)
+
 # Allow org admins to bypass RBAC permission checks
 ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)
 
@@ -121,6 +125,7 @@ PROMETHEUS_AFTER_MIDDLEWARE = "django_prometheus.middleware.PrometheusAfterMiddl
 MIDDLEWARE = [
     PROMETHEUS_BEFORE_MIDDLEWARE,
     "koku.middleware.RequestTimingMiddleware",
+    "koku.middleware.RequestTimeoutMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "koku.middleware.DisableCSRF",
     "django.middleware.security.SecurityMiddleware",
@@ -174,7 +179,9 @@ UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.j
 MAX_GROUP_BY = ENVIRONMENT.int("MAX_GROUP_BY_OVERRIDE", default=3)
 
 ### Currency URL
-CURRENCY_URL = ENVIRONMENT.get_value("CURRENCY_URL", default="https://open.er-api.com/v6/latest/USD")
+# Empty by default. SaaS sets this via app-interface / deploy parameters.
+# When unset, the daily get_daily_currency_rates Celery beat is not scheduled.
+CURRENCY_URL = (ENVIRONMENT.get_value("CURRENCY_URL", default="") or "").strip()
 
 ### End Middleware
 
@@ -240,7 +247,7 @@ REDIS_CONNECTION_POOL_KWARGS = {
     "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
 }
 if REDIS_SSL:
-    REDIS_SSL_CERT_REQS = ssl.CERT_REQUIRED
+    REDIS_SSL_CERT_REQS = ssl.CERT_REQUIRED if REDIS_SSL_CA_CERTS else ssl.CERT_NONE
     REDIS_CONNECTION_POOL_KWARGS["ssl_cert_reqs"] = REDIS_SSL_CERT_REQS
     if REDIS_SSL_CA_CERTS:
         REDIS_CONNECTION_POOL_KWARGS["ssl_ca_certs"] = REDIS_SSL_CA_CERTS
@@ -296,7 +303,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.api: {
@@ -310,7 +317,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.rbac: {
@@ -322,7 +329,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "CONNECTION_POOL_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         CacheEnum.worker: {
@@ -343,6 +350,11 @@ HIVE_DATABASE_USER = ENVIRONMENT.get_value("HIVE_DATABASE_USER", default="hive")
 HIVE_DATABASE_NAME = ENVIRONMENT.get_value("HIVE_DATABASE_NAME", default="hive")
 HIVE_DATABASE_PASSWORD = ENVIRONMENT.get_value("HIVE_DATABASE_PASSWORD", default="hive")
 HIVE_PARTITION_DELETE_RETRIES = 5
+
+# Postgres deadlocks are expected, transient conditions under concurrent writers.
+# The deadlock detector always rolls one transaction back cleanly, so retrying the
+# statement is safe and is the standard recommended way to handle them.
+DB_DEADLOCK_RETRIES = 4
 
 #
 TENANT_MODEL = "api.Tenant"
@@ -483,12 +495,6 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": LOGGING_FORMATTER,
         },
-        "file": {
-            "level": KOKU_LOGGING_LEVEL,
-            "class": "logging.FileHandler",
-            "filename": LOGGING_FILE,
-            "formatter": LOGGING_FORMATTER,
-        },
     },
     "loggers": {
         "gunicorn.access": {
@@ -569,6 +575,14 @@ LOGGING = {
         },
     },
 }
+
+if "file" in LOGGING_HANDLERS:
+    LOGGING["handlers"]["file"] = {
+        "level": KOKU_LOGGING_LEVEL,
+        "class": "logging.FileHandler",
+        "filename": LOGGING_FILE,
+        "formatter": LOGGING_FORMATTER,
+    }
 
 if "watchtower" in LOGGING_HANDLERS:
     LOGGING["handlers"]["watchtower"] = WATCHTOWER_HANDLER
@@ -669,6 +683,10 @@ except JSONDecodeError:
 ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool("ENABLE_PRERELEASE_FEATURES", default=False)
 
 # Celery configuration
+#
+# Broker security: CELERY_BROKER_URL shares REDIS_URL (cache + broker).
+# Production on-prem must set REDIS_PASSWORD (and optionally REDIS_SSL). Serializers are
+# pinned to JSON only — never enable pickle. Do not set CELERY_TASK_ALWAYS_EAGER outside tests.
 
 # Set Broker
 CELERY_BROKER_URL = REDIS_URL
@@ -682,6 +700,10 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_CONCURRENCY = 1
 CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = REDIS_HEALTH_CHECK_INTERVAL
 CELERY_REDIS_RETRY_ON_TIMEOUT = REDIS_RETRY_ON_TIMEOUT
+CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 if REDIS_SSL:
     _celery_ssl_conf = {"ssl_cert_reqs": REDIS_SSL_CERT_REQS}
     if REDIS_SSL_CA_CERTS:

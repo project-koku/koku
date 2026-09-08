@@ -59,6 +59,8 @@
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -91,6 +93,8 @@
           value: ${WORKER_REFRESH_XL_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS

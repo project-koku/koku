@@ -1,0 +1,22 @@
+---
+description: Unleash feature-flag policy when editing flag definitions or gates
+globs:
+  - koku/masu/processor/__init__.py
+  - koku/koku/feature_flags.py
+  - koku/hcs/tasks.py
+  - koku/subs/tasks.py
+alwaysApply: false
+---
+
+# Unleash feature flags (scoped)
+
+Load [`docs/agent/unleash-flags.md`](../../docs/agent/unleash-flags.md) for the full checklist.
+
+## Rules
+
+- New **feature** flags: enablement only — `cost-management.backend.<feature>`. ON = new path. Prefer `dev_fallback=True`.
+- Do **not** name feature rollouts `disable-*` (ops kill-switches only).
+- Constants/helpers in `koku/masu/processor/__init__.py`; `ONPREM_FLAG_DEFAULTS` only when needed.
+- Unleash UI: strategy **stickiness = `schema`** (or `source_uuid` for source-scoped flags).
+- CI is not `development`: mock the flag explicitly when asserting the new path.
+- No markdown flag catalog — naming patterns + code are the source of truth.

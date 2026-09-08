@@ -552,6 +552,7 @@ class TestProcessorTasks(MasuTestCase):
         get_report_files(**self.get_report_args)
         mock_cache_remove.assert_called()
 
+    @override_settings(ONPREM=False)
     @patch("masu.processor.tasks.DataValidator")
     @patch(
         "masu.processor.tasks.is_validation_enabled",
@@ -563,9 +564,26 @@ class TestProcessorTasks(MasuTestCase):
         validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
         mock_validate_daily_data.assert_called()
 
+    @override_settings(ONPREM=False)
     @patch("masu.processor.tasks.DataValidator")
     def test_validate_data_task_skip(self, mock_validate_daily_data):
         """Test skipping validate data task."""
+        context = {"unit": "test"}
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
+            mock_validate_daily_data.assert_not_called()
+            expected = "skipping validation, disabled for schema"
+            found = any(expected in log for log in logger.output)
+            self.assertTrue(found)
+
+    @override_settings(ONPREM=True)
+    @patch("masu.processor.tasks.DataValidator")
+    @patch(
+        "masu.processor.tasks.is_validation_enabled",
+        return_value=True,
+    )
+    def test_validate_data_task_skip_onprem(self, mock_unleash, mock_validate_daily_data):
+        """Data validation is skipped on-prem for now."""
         context = {"unit": "test"}
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
@@ -1710,6 +1728,60 @@ class TestWorkerCacheThrottling(MasuTestCase):
         with self.assertRaises(ReportProcessorError):
             update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
             self.assertFalse(self.single_task_is_running(task_name, cache_args))
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.tasks.WorkerCache.single_task_is_running")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_cost_model_costs_cache_key_includes_date_range(
+        self, mock_inspect, mock_is_running, mock_lock, mock_release, mock_updater
+    ):
+        """COST-7249: the WorkerCache key must include start_date/end_date.
+
+        An earlier deadlock-mitigation attempt narrowed this key to
+        [schema, provider_uuid], serializing *all* same-provider cost model
+        updates regardless of date range. That sacrifices real concurrency:
+        e.g. Jan and Feb summaries for the same provider never touch the
+        same physical rows and should run in parallel rather than queue
+        behind each other. The deadlock's actual root cause -- the RTU
+        DELETE's overly broad scope -- is fixed at the SQL layer instead
+        (see insert_usage_rates_to_usage.sql); the residual
+        overlapping-date-range risk is handled by retry-on-deadlock
+        (_execute_raw_sql_query) rather than by task-level serialization.
+        """
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        mock_is_running.return_value = False
+        start_date = "2024-01-01"
+        end_date = "2024-01-31"
+
+        update_cost_model_costs(self.schema, self.aws_provider_uuid, start_date, end_date)
+
+        mock_lock.assert_called_once()
+        args, _ = mock_lock.call_args
+        cache_args = args[1]
+        self.assertEqual(cache_args, [self.schema, self.aws_provider_uuid, start_date, end_date])
+
+    @patch(
+        "masu.processor.tasks.is_cost_model_processing_disabled",
+        return_value=True,
+    )
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    @patch("masu.processor.tasks.update_cost_model_costs.s")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_cost_model_costs_unleash_disabled(
+        self, mock_inspect, mock_lock, mock_delay, mock_updater, mock_unleash
+    ):
+        """Test that cost model processing is skipped when the Unleash flag is enabled."""
+        start_date = self.dh.last_month_start.strftime("%Y-%m-%d")
+        end_date = self.dh.today.strftime("%Y-%m-%d")
+
+        update_cost_model_costs(self.schema, self.aws_provider_uuid, start_date, end_date)
+
+        mock_updater.assert_not_called()
+        mock_delay.assert_not_called()
+        mock_lock.assert_not_called()
 
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
     @patch("masu.processor.tasks.update_openshift_on_cloud.s")

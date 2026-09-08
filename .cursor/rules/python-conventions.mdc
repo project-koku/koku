@@ -1,0 +1,17 @@
+---
+description: Koku-specific Python style (Black 119, imports, patches)
+globs:
+  - "**/*.py"
+alwaysApply: false
+---
+
+# Python Conventions
+
+Project-specific only — ruff/Black enforce the rest.
+
+- Black line length **119** (see `ruff.toml`)
+- Type hints on public functions; prefer f-strings
+- Absolute imports from project root (`from masu...`, `from api...`)
+- Import order: stdlib → third-party → local (blank line between groups)
+- Multiple context managers / patches: `with (patch(...), patch(...)):`
+- Prefer specific exception types; put custom exceptions in dedicated `exceptions.py` modules

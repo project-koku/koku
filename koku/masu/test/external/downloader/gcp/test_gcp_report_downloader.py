@@ -17,7 +17,6 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
-from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
 from masu.test import MasuTestCase
@@ -76,7 +75,7 @@ class GCPReportDownloaderTest(MasuTestCase):
     def tearDown(self):
         """Remove files and directories created during the test run."""
         super().tearDown()
-        shutil.rmtree(DATA_DIR, ignore_errors=True)
+        shutil.rmtree(Config.TMP_DIR, ignore_errors=True)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
     @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")

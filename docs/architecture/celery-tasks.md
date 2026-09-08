@@ -742,9 +742,9 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 **Schedule**: Daily at 01:00
 
-**Always Enabled**: Yes
+**Enabled**: When `CURRENCY_URL` is a non-empty value (configured via environment / app-interface)
 
-**Description**: Fetches latest currency exchange rates.
+**Description**: Fetches latest currency exchange rates from the configured API and upserts monthly dynamic rates per tenant. When `CURRENCY_URL` is unset/empty (typical on-prem / airgapped), the beat is not registered so the worker does not attempt outbound requests.
 
 ---
 
@@ -813,6 +813,47 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 2. Removes expired delay records
 3. Executes ready tasks
 
+#### Delayed cost-model updates
+
+User-driven cost-model and price-list edits debounce via
+[`delayed_update_cost_model_costs`](../../koku/masu/processor/tasks.py)
+instead of immediately enqueueing `update_cost_model_costs` on the PriorityQueue.
+
+- **Debounce key**: `(task_name, provider_uuid, billing_month)` stored on
+  `DelayedCeleryTasks` (`metadata.billing_month`)
+- **Payload**: `task_args=[schema_name, provider_uuid]`; date range in named
+  `task_kwargs` (`start_date` / `end_date`) so coalesce is not index-based
+- **Coalesce**: further edits for the same provider/month reset the timeout and
+  keep the widest date range (`min` start, `max` end) inside
+  `DelayedCeleryTasks.create_or_reset_timeout` (`merge_date_range=True`) under
+  `transaction.atomic()` + `select_for_update()` so concurrent widens serialize
+- **Month split**: cross-month ranges become one delayed row per calendar month
+  (`DateHelper.list_month_tuples`)
+- **Latency**: after the last edit, wait is approximately `DELAYED_TASK_TIME`
+  (default 3600s) plus up to one Beat poll interval (`DELAYED_TASK_POLLING_MINUTES`)
+- **Bypass**: when Unleash flag
+  `cost-management.backend.disable-celery-task-delay` is ON for the schema, the
+  delayed row is deleted immediately so `pre_delete` fires the real task promptly.
+  Uses `fallback_development_true` so local/CI skip the stall when Unleash is
+  unavailable. Unit tests that assert delayed rows persist must mock the flag OFF.
+- **Which `is_celery_task_delay_disabled` to mock**: both `delayed_summarize_current_month`
+  and `delayed_update_cost_model_costs` live in
+  [`masu/processor/tasks.py`](../../koku/masu/processor/tasks.py) and import the
+  checker from `masu.processor`. Always patch the **import site**, regardless of
+  which higher-level caller triggers it (e.g. tag-mapping's
+  `resummarize_current_month_by_tag_keys` or the cost-model API):
+  `@patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)`.
+  Patching `masu.processor.is_celery_task_delay_disabled` (the definition site) has
+  no effect on the caller's already-bound reference.
+
+Pipeline (`update_summary_tables` / OCP-on-cloud) still enqueues immediately.
+The Masu `update_cost_model_costs` API defaults to immediate enqueue; pass
+`delayed=true` to use `delayed_update_cost_model_costs` and receive a
+`tracing_id` instead of Celery task IDs.
+
+Tag-mapping resummarize continues to use `delayed_summarize_current_month`
+(one row per provider for the current month; no billing-month key).
+
 ---
 
 ### `masu.celery.tasks.get_daily_currency_rates`
@@ -821,16 +862,17 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 **Queue**: `DEFAULT`
 
-**Description**: Fetches and updates daily currency exchange rates.
+**Description**: Fetches and updates daily currency exchange rates. Celery Beat schedules this task only when `CURRENCY_URL` is set.
 
 **Configuration**:
-- URL: `settings.CURRENCY_URL`
-- Retry strategy: 5 retries with exponential backoff
+- URL: `settings.CURRENCY_URL` (empty by default; set via environment / app-interface for SaaS)
+- Retry strategy: 5 retries with exponential backoff on the HTTP fetch
 
 **Workflow**:
-1. Fetches exchange rates from external API
-2. Updates `ExchangeRates` model for valid currencies
-3. Updates exchange rate cache
+1. If `CURRENCY_URL` is empty, skips the API fetch (logs and continues without dynamic discovery)
+2. Otherwise fetches exchange rates from the external API
+3. Updates `ExchangeRates` model for valid currencies and rebuilds the exchange rate cache
+4. Upserts `MonthlyExchangeRate` dynamic rows per tenant (and may invalidate report view cache)
 
 ---
 
@@ -1007,6 +1049,7 @@ Large customers are rate-limited to prevent resource exhaustion:
 
 - **Max tasks per worker**: Configured via `MAX_CELERY_TASKS_PER_WORKER` (default: 10)
 - **Worker alive timeout**: Configured via `WORKER_PROC_ALIVE_TIMEOUT` (default: 4 seconds)
+- **Probe liveness heartbeat**: Configured via `PROBE_LIVENESS_HEARTBEAT_SECONDS` (default: 60). Worker `/livez` fails if the Celery parent heartbeat is older than this. Long-running child tasks stay live while the parent still ticks. Listener `/livez` is separate (consumer thread alive/dead, not this timer).
 - **Broker retry**: Max 4 retries with exponential backoff (max 3 seconds)
 
 ---
@@ -1099,6 +1142,7 @@ Key environment variables affecting task behavior:
 - `DELAYED_TASK_POLLING_MINUTES` - Interval for delayed task checking
 - `MAX_CELERY_TASKS_PER_WORKER` - Worker recycling threshold
 - `WORKER_PROC_ALIVE_TIMEOUT` - Worker startup timeout
+- `PROBE_LIVENESS_HEARTBEAT_SECONDS` - Seconds of stale Celery parent heartbeat before worker `/livez` fails (default 60)
 - `MAX_UPDATE_RETRIES` - Maximum retry attempts for updates
 - `MAX_SOURCE_DELETE_RETRIES` - Maximum retry attempts for source deletion
 - `XL_REPORT_COUNT` - Threshold for marking provider as XL

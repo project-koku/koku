@@ -9,6 +9,7 @@ from datetime import timedelta
 from rest_framework import serializers
 
 from api.common import error_obj
+from api.currency.currencies import CurrencyField
 from api.metrics import constants as metric_constants
 from api.metrics.views import CostModelMetricMapJSONException
 from api.provider.models import Provider
@@ -33,7 +34,7 @@ class PriceListSerializer(BaseSerializer):
     uuid = serializers.UUIDField(read_only=True)
     name = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(allow_blank=True, required=False)
-    currency = serializers.CharField(required=False)
+    currency = CurrencyField(required=False, enabled_only=True)
     effective_start_date = serializers.DateField(required=False)
     effective_end_date = serializers.DateField(required=False)
     enabled = serializers.BooleanField(required=False)

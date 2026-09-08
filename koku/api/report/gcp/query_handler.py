@@ -182,7 +182,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date", self.order]
 
-            annotations = self._mapper.report_type_map.get("annotations")
+            annotations = copy.copy(self.report_annotations)
             for alias_key, alias_value in self.group_by_alias.items():
                 if alias_key in query_group_by:
                     annotations[f"{alias_key}_alias"] = F(alias_value)

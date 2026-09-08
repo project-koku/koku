@@ -123,6 +123,14 @@ class PriceListViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("Duplicate custom_name", str(response.data))
 
+    def test_create_price_list_disabled_currency(self):
+        """Test that creating a price list with a disabled currency fails."""
+        url = reverse("price-lists-list")
+        data = self.price_list_data.copy()
+        data["currency"] = "PLN"
+        response = self.client.post(url, data=data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_create_price_list_without_name(self):
         """Test that creating a price list without a name fails."""
         url = reverse("price-lists-list")

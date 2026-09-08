@@ -54,6 +54,7 @@ scipy = ">=1.16"
 boto3 = "*"
 sqlalchemy = ">=2.0.0"
 platformdirs = ">=4.3.6"  # floor set to satisfy tox's transitive dep (via fcache/unleashclient)
+babel = "*"
 
 [dev-packages]
 argh = ">=0.26.2"

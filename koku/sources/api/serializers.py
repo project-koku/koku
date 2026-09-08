@@ -116,10 +116,22 @@ class AdminSourcesSerializer(SourcesSerializer):
     def validate_source_type(self, source_type):
         """Validate credentials field."""
         if source_type.lower() in LCASE_PROVIDER_CHOICE_LIST:
-            return Provider.PROVIDER_CASE_MAPPING.get(source_type.lower())
+            mapped = Provider.PROVIDER_CASE_MAPPING.get(source_type.lower())
+            self._validate_onprem_source_type(mapped)
+            return mapped
         key = "source_type"
         message = f"Invalid source_type, {source_type}, provided."
         raise serializers.ValidationError(error_obj(key, message))
+
+    def _validate_onprem_source_type(self, source_type):
+        """On-prem deployments only support OpenShift sources."""
+        if settings.ONPREM and source_type != Provider.PROVIDER_OCP:
+            raise serializers.ValidationError(
+                error_obj(
+                    "source_type",
+                    f"source_type '{source_type}' is not supported on-premise; only OCP is allowed.",
+                )
+            )
 
     def _validate_source_id(self, source_id):
         sources_set = Sources.objects.all()
@@ -153,6 +165,10 @@ class AdminSourcesSerializer(SourcesSerializer):
                 data["source_type"] = provider_type
             else:
                 raise serializers.ValidationError({"source_type_id": f"Invalid source_type_id: {source_type_id}"})
+
+        # source_type_id bypasses field validators; enforce on create and update
+        if "source_type" in data:
+            self._validate_onprem_source_type(data["source_type"])
 
         if not self.instance:
             if "source_type" not in data:

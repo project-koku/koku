@@ -47,7 +47,7 @@ class RateIntegrationTest(IamTestCase):
         }
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_create_via_serializer_round_trip(self, mock_task, mock_flag):
         """Test full create round-trip: serializer -> manager -> Rate table -> API output."""
         with tenant_context(self.tenant):
@@ -69,9 +69,9 @@ class RateIntegrationTest(IamTestCase):
             self.assertEqual(cost_model.rates[0]["rate_id"], str(rate.uuid))
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_update_via_serializer_preserves_uuid(self, mock_task, mock_flag):
-        """Test that updating via serializer preserves Rate UUID stability."""
+        """Test that updating via serializer preserves Rate UUID stability via custom_name matching."""
         with tenant_context(self.tenant):
             data = self._build_cost_model_data()
             serializer = CostModelSerializer(data=data, context=self.request_context)
@@ -79,7 +79,8 @@ class RateIntegrationTest(IamTestCase):
             cost_model = serializer.save()
 
             mapping = PriceListCostModelMap.objects.get(cost_model=cost_model)
-            original_uuid = Rate.objects.get(price_list=mapping.price_list).uuid
+            original_rate = Rate.objects.get(price_list=mapping.price_list)
+            original_uuid = original_rate.uuid
             cost_model.refresh_from_db()
 
             update_data = self._build_cost_model_data(
@@ -88,8 +89,7 @@ class RateIntegrationTest(IamTestCase):
                         "metric": {"name": self.ocp_metric},
                         "tiered_rates": [{"unit": "USD", "value": 0.50}],
                         "cost_type": "Infrastructure",
-                        "rate_id": str(original_uuid),
-                        "custom_name": "cpu_core_usage_per_hour-Infrastructure",
+                        "custom_name": original_rate.custom_name,
                     }
                 ]
             )
@@ -102,9 +102,9 @@ class RateIntegrationTest(IamTestCase):
             self.assertEqual(rate.default_rate, Decimal("0.50"))
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
-    def test_to_representation_includes_rate_fields(self, mock_task, mock_flag):
-        """Test that API output includes rate_id and custom_name."""
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
+    def test_to_representation_excludes_rate_id_includes_custom_name(self, mock_task, mock_flag):
+        """SC-8: API output must not include rate_id but must include custom_name."""
         with tenant_context(self.tenant):
             data = self._build_cost_model_data()
             serializer = CostModelSerializer(data=data, context=self.request_context)
@@ -115,11 +115,11 @@ class RateIntegrationTest(IamTestCase):
             output = read_serializer.data
             rates = output.get("rates", [])
             self.assertTrue(len(rates) > 0)
-            self.assertIn("rate_id", rates[0])
+            self.assertNotIn("rate_id", rates[0])
             self.assertIn("custom_name", rates[0])
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_create_with_tag_rate_round_trip(self, mock_task, mock_flag):
         """Test full round-trip for tag-based rates."""
         with tenant_context(self.tenant):
@@ -151,7 +151,7 @@ class RateIntegrationTest(IamTestCase):
             self.assertIsNone(rate.default_rate)
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_price_list_json_synced_with_rate_table(self, mock_task, mock_flag):
         """Test that PriceList.rates JSON and Rate table stay in sync."""
         with tenant_context(self.tenant):
@@ -169,7 +169,7 @@ class RateIntegrationTest(IamTestCase):
             self.assertEqual(pl.rates[0]["custom_name"], rate.custom_name)
 
     @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
-    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_manager_create_update_delete_cycle(self, mock_task, mock_flag):
         """Test create -> add rate -> remove rate cycle at the manager level."""
         with tenant_context(self.tenant):
@@ -206,3 +206,53 @@ class RateIntegrationTest(IamTestCase):
             manager3 = CostModelManager(cost_model_uuid=cm.uuid)
             manager3.update(rates=[])
             self.assertEqual(Rate.objects.filter(price_list=mapping.price_list).count(), 0)
+
+    @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
+    def test_api_response_does_not_expose_rate_id(self, mock_task, mock_flag):
+        """SC-8: API response must not contain rate_id but must include custom_name."""
+        with tenant_context(self.tenant):
+            data = self._build_cost_model_data()
+            serializer = CostModelSerializer(data=data, context=self.request_context)
+            serializer.is_valid(raise_exception=True)
+            cost_model = serializer.save()
+
+            read_serializer = CostModelSerializer(instance=cost_model, context=self.request_context)
+            output = read_serializer.data
+            rates = output.get("rates", [])
+            self.assertTrue(len(rates) > 0)
+            for rate in rates:
+                self.assertNotIn("rate_id", rate, "Internal DB PK must not leak to API consumers")
+                self.assertIn("custom_name", rate, "custom_name should be visible to UI consumers")
+
+    @patch("cost_models.serializers.is_cost_model_writes_disabled", return_value=False)
+    @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
+    def test_round_trip_update_succeeds_without_rate_id(self, mock_task, mock_flag):
+        """SI-11: Create -> GET -> PUT round-trip must succeed without rate_id."""
+        with tenant_context(self.tenant):
+            data = self._build_cost_model_data()
+            create_serializer = CostModelSerializer(data=data, context=self.request_context)
+            create_serializer.is_valid(raise_exception=True)
+            cost_model = create_serializer.save()
+
+            mapping = PriceListCostModelMap.objects.get(cost_model=cost_model)
+
+            read_serializer = CostModelSerializer(instance=cost_model, context=self.request_context)
+            api_response = read_serializer.data
+
+            update_payload = {
+                "name": api_response["name"],
+                "description": api_response["description"],
+                "source_type": "OCP",
+                "rates": api_response["rates"],
+                "currency": api_response["currency"],
+                "source_uuids": [],
+            }
+            update_serializer = CostModelSerializer(
+                instance=cost_model, data=update_payload, context=self.request_context
+            )
+            update_serializer.is_valid(raise_exception=True)
+            update_serializer.save()
+
+            rate = Rate.objects.get(price_list=mapping.price_list)
+            self.assertEqual(rate.default_rate, Decimal("0.22"))

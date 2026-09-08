@@ -27,7 +27,6 @@ from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 from reporting_common.models import CostUsageReportStatus
 
-DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
 CUSTOMER_NAME = FAKE.word()
 REPORT = FAKE.word()
@@ -94,7 +93,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         self.fake_bucket_name = tempfile.mkdtemp()
         mytar = TarFile.open("./koku/masu/test/data/test_local_bucket.tar.gz")
         mytar.extractall(path=self.fake_bucket_name)
-        os.makedirs(DATA_DIR, exist_ok=True)
+        os.makedirs(Config.TMP_DIR, exist_ok=True)
 
         self.credentials = {"role_arn": self.fake_auth_credential}
         self.data_source = {"bucket": self.fake_bucket_name}
@@ -118,7 +117,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
 
     def tearDown(self):
         """Remove test generated data."""
-        shutil.rmtree(DATA_DIR, ignore_errors=True)
+        shutil.rmtree(Config.TMP_DIR, ignore_errors=True)
         shutil.rmtree(self.fake_bucket_name)
 
     def test_download_report(self):
@@ -202,7 +201,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                         "current_file": f"./koku/masu/test/data/{filename}",
                     }
                     report_downloader.download_report(report_context)
-        expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
+        expected_path = "{}/{}/{}".format(Config.TMP_DIR, self.fake_customer_name, "aws-local")
         self.assertTrue(os.path.isdir(expected_path))
 
         shutil.rmtree(fake_bucket)

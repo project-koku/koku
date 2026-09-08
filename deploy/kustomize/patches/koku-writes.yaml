@@ -66,6 +66,8 @@
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: CURRENCY_URL
+          value: ${CURRENCY_URL}
         - name: GUNICORN_LOG_LEVEL
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -111,6 +113,8 @@
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
+        - name: REQUEST_FAULTHANDLER_TIMEOUT
+          value: ${REQUEST_FAULTHANDLER_TIMEOUT}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS

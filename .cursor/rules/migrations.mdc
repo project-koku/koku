@@ -1,6 +1,7 @@
 ---
 description: Django migration patterns for partitioned tables
-globs: "**/migrations/*.py"
+globs:
+  - "**/migrations/*.py"
 alwaysApply: false
 ---
 

@@ -26,7 +26,8 @@ from rest_framework.filters import OrderingFilter
 
 from api.common.filters import CharListFilter
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
-from api.currency.currencies import VALID_CURRENCIES
+from api.currency.currencies import get_enabled_currency_codes
+from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.serializers import CostModelSerializer
@@ -46,8 +47,8 @@ class CostModelsFilter(FilterSet):
 
     def currency_filter(self, qs, name, values):
         """Filter currency if a valid currency is passed in"""
-        if values and values[0].upper() not in VALID_CURRENCIES:
-            error = {"currency": f'"{values[0]}" is not a valid choice.'}
+        if values and values[0].upper() not in get_enabled_currency_codes():
+            error = {"currency": f'"{values[0]}" is not an enabled currency.'}
             raise serializers.ValidationError(error)
         lookup = "__".join([name, "iexact"])
         queries = [Q(**{lookup: val}) for val in values]
@@ -174,12 +175,11 @@ class CostModelViewSet(viewsets.ModelViewSet):
         uuidParam = kwargs.get("uuid")
         try:
             manager = CostModelManager(cost_model_uuid=uuidParam)
-        except CostModel.DoesNotExist:
+            manager.update_provider_uuids([])
+        except (CostModel.DoesNotExist, CostModelException):
             LOG.info("CostModel does not exist.")
         except ValidationError as err:
             raise CostModelQueryException(err)
-        else:
-            manager.update_provider_uuids([])
         return super().destroy(request=request, args=args, kwargs=kwargs)
 
     @method_decorator(never_cache)

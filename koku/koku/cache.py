@@ -159,6 +159,11 @@ def build_trino_table_exists_key(schema_name, table_name):
     return f"table-exists-trino-{schema_name}-{table_name}"
 
 
+def build_enabled_currency_codes_key(schema_name):
+    """Return the cache key for a tenant's enabled currency codes."""
+    return f"enabled-currency-codes-{schema_name}"
+
+
 def get_cached_matching_tags(schema_name, provider_type):
     """Return cached OCP on Cloud matched tags if exists."""
     cache = caches[CacheEnum.default]

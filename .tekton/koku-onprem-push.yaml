@@ -1,0 +1,51 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  annotations:
+    build.appstudio.openshift.io/repo: https://github.com/project-koku/koku?rev={{ revision }}
+    build.appstudio.redhat.com/commit_sha: '{{ revision }}'
+    build.appstudio.redhat.com/target_branch: '{{ target_branch }}'
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "main"
+    pipelinesascode.tekton.dev/pipeline: "https://raw.githubusercontent.com/project-koku/koku-ci/main/pipelines/pipeline-build.yaml"
+  creationTimestamp: null
+
+  labels:
+    appstudio.openshift.io/application: koku
+    appstudio.openshift.io/component: koku-onprem
+    pipelines.appstudio.openshift.io/type: build
+
+  namespace: cost-mgmt-dev-tenant
+  name: koku-onprem-on-push
+
+spec:
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-koku
+
+  params:
+    - name: git-url
+      value: '{{ source_url }}'
+
+    - name: revision
+      value: '{{ revision }}'
+
+    - name: output-image
+      value: quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/koku-onprem:{{ revision }}
+
+    - name: dockerfile
+      value: Dockerfile
+
+    - name: path-context
+      value: .
+
+    - name: build-args
+      value:
+        - IMAGE_NAME=costmanagement/costmanagement-server-rhel9
+
+  pipelineRef:
+    name: pipeline-build
+
+  workspaces:
+    - name: git-auth
+      secret:
+        secretName: '{{ git_auth_secret }}'

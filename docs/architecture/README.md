@@ -31,7 +31,7 @@ Use this flow when product gives you a PRD (or equivalent: epic, RFC, Google Doc
 Before writing “how we will build it,” trace **today’s behavior** in `koku/`:
 
 - Find the orchestration path (Celery tasks, views, Kafka handlers).
-- Note **tenant vs public** data: tenant models live under `reporting/` and `cost_models/` and require `schema_context` / `tenant_context` (see `.cursor/rules/multi-tenancy.mdc` and `AGENTS.md`).
+- Note **tenant vs public** data: tenant models live under `reporting/` and `cost_models/` and require `schema_context` / `tenant_context` (see [`.cursor/rules/multi-tenancy.mdc`](../../.cursor/rules/multi-tenancy.mdc) and [`AGENTS.md`](../../AGENTS.md)).
 - If the feature touches SQL templates, check **dual paths**: `masu/database/sql/`, `masu/database/trino_sql/`, and `masu/database/self_hosted_sql/` (on-prem mirrors Trino where applicable).
 
 Architecture docs should **cite real modules, tasks, and tables** discovered in this step—not only the PRD’s assumptions.
@@ -90,7 +90,7 @@ Use a `poc/` subfolder only for **spike artifacts** (SQL sketches, scripts) that
 
 ### 6. Maintenance rule
 
-Per `.cursorrules`: **link to code instead of pasting large blocks** that will drift. When implementation merges, update or add links to the canonical files. If a workflow documented here changes (tasks, serializers, Kafka, cost model SQL), update the relevant architecture doc in the same PR when practical.
+Per [`.cursor/rules/architecture-docs.mdc`](../../.cursor/rules/architecture-docs.mdc): **link to code instead of pasting large blocks** that will drift. When implementation merges, update or add links to the canonical files. If a workflow documented here changes (tasks, serializers, Kafka, cost model SQL), update the relevant architecture doc in the same PR when practical.
 
 ---
 
@@ -110,7 +110,7 @@ The command follows the same principles as the subsections below; it is a single
 
 ### Prime context (attach or `@` mention)
 
-- `AGENTS.md` — repo layout, multi-tenancy, dual SQL paths, testing commands.
+- [`AGENTS.md`](../../AGENTS.md) — slim index, **Task Router**, agent behavior; on-demand catalog in [`docs/agent/README.md`](../../docs/agent/README.md).
 - `.cursor/rules/multi-tenancy.mdc` and `.cursor/rules/onprem-vs-saas.mdc` — schema and deployment constraints.
 - Relevant **existing** files under `docs/architecture/` so the agent matches tone and structure.
 
@@ -198,7 +198,7 @@ Output: proposed new/changed markdown files only (no application code unless ask
 
 ## Related project rules
 
-- **Architecture doc policy** (link vs duplicate, when to update): `.cursorrules` section “Architecture Documentation.”
+- **Architecture doc policy** (link vs duplicate, when to update): [`.cursor/rules/architecture-docs.mdc`](../../.cursor/rules/architecture-docs.mdc).
 - **Multi-tenancy** and **on-prem vs SaaS**: `.cursor/rules/multi-tenancy.mdc`, `.cursor/rules/onprem-vs-saas.mdc`.
 
 If you add a major new workflow or task, update [`celery-tasks.md`](celery-tasks.md) or the relevant CSV/architecture doc in the same change set when that remains the canonical map.

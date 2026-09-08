@@ -520,7 +520,7 @@ class PriceListManagerRecalcTest(MasuTestCase):
             )
             PriceListManager.attach_price_lists_to_cost_model(self.cost_model.uuid, [self.price_list.uuid])
 
-    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.tasks.delayed_update_cost_model_costs")
     def test_rate_change_triggers_recalculation(self, mock_task):
         """Test that changing rates triggers recalculation."""
         with tenant_context(self.tenant):
@@ -533,25 +533,25 @@ class PriceListManagerRecalcTest(MasuTestCase):
                 }
             ]
             manager.update(rates=new_rates)
-            mock_task.s.assert_called()
+            mock_task.assert_called()
 
-    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.tasks.delayed_update_cost_model_costs")
     def test_disable_does_not_trigger_recalculation(self, mock_task):
         """Test that disabling a price list does not trigger recalculation."""
         with tenant_context(self.tenant):
             manager = PriceListManager(self.price_list.uuid)
             manager.update(enabled=False)
-            mock_task.s.assert_not_called()
+            mock_task.assert_not_called()
 
-    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.tasks.delayed_update_cost_model_costs")
     def test_name_change_does_not_trigger_recalculation(self, mock_task):
         """Test that changing only the name does not trigger recalculation."""
         with tenant_context(self.tenant):
             manager = PriceListManager(self.price_list.uuid)
             manager.update(name="Renamed PL")
-            mock_task.s.assert_not_called()
+            mock_task.assert_not_called()
 
-    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.tasks.delayed_update_cost_model_costs")
     def test_no_recalc_if_price_list_outside_current_month(self, mock_task):
         """Test that recalculation is not triggered if the price list doesn't cover today."""
         with tenant_context(self.tenant):
@@ -576,7 +576,7 @@ class PriceListManagerRecalcTest(MasuTestCase):
                 }
             ]
             manager2.update(rates=new_rates)
-            mock_task.s.assert_not_called()
+            mock_task.assert_not_called()
 
 
 class PriceListManagerDuplicateTest(MasuTestCase):

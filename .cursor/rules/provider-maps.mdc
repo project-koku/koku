@@ -1,6 +1,7 @@
 ---
 description: Provider map patterns for API query handlers and aggregations
-globs: "**/provider_map.py"
+globs:
+  - "**/provider_map.py"
 alwaysApply: false
 ---
 

@@ -105,6 +105,8 @@ objects:
           value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
         - name: TENANT_MULTIPROCESSING_CHUNKS
           value: ${TENANT_MULTIPROCESSING_CHUNKS}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
     # ====================================================
     #      koku Management Command Job
     # ====================================================
@@ -151,6 +153,8 @@ objects:
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
 
     # The bulk of your App. This is where your running apps will live
     deployments:
@@ -284,6 +288,12 @@ parameters:
 - name: ONPREM
   description: toggles onprem data processing logic
   value: "False"
+- name: IQE_TEST_RUN
+  description: enables SaaS-only masu endpoints even when ONPREM=True, so IQE/integration tests can reach them
+  value: "False"
+- name: CURRENCY_URL
+  description: Exchange rate API URL for dynamic currency rates. Empty disables the daily currency beat.
+  value: ""
 - description: Image tag
   name: IMAGE_TAG
   required: true
@@ -405,6 +415,10 @@ parameters:
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"
+- description: Seconds before a stuck sync request's Python stacks are written to stderr
+  displayName: Faulthandler request timeout
+  name: REQUEST_FAULTHANDLER_TIMEOUT
+  value: "95"
 - displayName: Celery log level
   name: CELERY_LOG_LEVEL
   value: INFO
@@ -488,6 +502,10 @@ parameters:
   displayName: Worker Proc Alive Timeout
   name: WORKER_PROC_ALIVE_TIMEOUT
   value: "4"
+- description: Seconds of stale Celery parent heartbeat before worker /livez fails (default 60). Long-running tasks stay live while the parent still ticks.
+  displayName: Probe liveness heartbeat seconds
+  name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+  value: "60"
 
 - description: Demo account JSON
   displayName: Demo account JSON
@@ -566,6 +584,10 @@ parameters:
 - displayName: Kafka connect
   name: KAFKA_CONNECT
   value: "True"
+- description: Emit Kafka listener diagnostics before the 18-minute poll interval; diagnostic-only.
+  displayName: Kafka listener watchdog timeout in seconds
+  name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
+  value: "900"
 
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH

@@ -15,12 +15,17 @@ from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Max
+from django.db.models import OuterRef
+from django.db.models import Subquery
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
+from api.currency.utils import build_exchange_rate_case
+from api.currency.utils import build_monthly_rate_annotation
 from api.models import Provider
 from api.report.ocp.capacity.cluster_capacity import calculate_unused
 from api.report.ocp.capacity.cluster_capacity import ClusterCapacity
@@ -31,8 +36,17 @@ from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from masu.processor import CONSTANT_CURRENCY_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG
 
 LOG = logging.getLogger(__name__)
+
+# Metadata array annotations split out of the heavy aggregation queries when
+# OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG is enabled.  ARRAY_AGG(DISTINCT ...)
+# forces a serial GroupAggregate; computing these separately lets the main
+# aggregation parallelize.
+DISTINCT_METADATA_FIELDS = ("clusters", "source_uuid")
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -146,12 +160,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             else:
                 annotations["project"] = F("namespace")
 
-        if is_grouped_by_node(self.parameters):
-            # This adds the instance counts to the node group by.
-            if self._mapper.report_type_map.get("capacity_aggregate", {}).get("node"):
-                self.report_annotations.update(
-                    self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {})
-                )
         for tag_db_name, _, original_tag in self._tag_group_by:
             annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
 
@@ -178,19 +186,108 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get the exchange rate annotation based on the exchange_rates property."""
-        exchange_rate_whens = [
-            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
-            for uuid, cur in self.source_to_currency_map.items()
-        ]
-        infra_exchange_rate_whens = [
-            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
-            for k, v in self.exchange_rates.items()
-        ]
+        """Get per-month exchange rate annotations from MonthlyExchangeRate via Subquery.
+
+        When constant currency is enabled, OCP needs two annotations:
+        - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency)
+        - infra_exchange_rate: cloud bill currency (raw_currency column)
+
+        Falls back to the Case/When approach when the flag is off.
+        """
+        if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+            cost_model_currency = Subquery(
+                CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
+                    "currency"
+                )[:1],
+            )
+            exchange_rate_annotation = build_monthly_rate_annotation(cost_model_currency, self.currency)
+            infra_exchange_rate_annotation = build_monthly_rate_annotation(
+                OuterRef(self._mapper.cost_units_key), self.currency
+            )
+        else:
+            exchange_rate_whens = [
+                When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
+                for uuid, cur in self.source_to_currency_map.items()
+            ]
+            exchange_rate_annotation = Case(*exchange_rate_whens, default=1, output_field=DecimalField())
+            infra_exchange_rate_annotation = build_exchange_rate_case(
+                self._mapper.cost_units_key, self.currency, self.exchange_rates
+            )
+
         return {
-            "exchange_rate": Case(*exchange_rate_whens, default=1, output_field=DecimalField()),
-            "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
+            "exchange_rate": exchange_rate_annotation,
+            "infra_exchange_rate": infra_exchange_rate_annotation,
         }
+
+    def _get_base_currencies_for_conversion(self):
+        """Return base currencies from both raw_currency and cost model currencies."""
+        base_currencies = super()._get_base_currencies_for_conversion()
+        cm_currencies = set(
+            CostModel.objects.filter(
+                costmodelmap__provider_uuid__in=self.query_table.objects.filter(
+                    usage_start__gte=self.start_datetime.date(),
+                    usage_start__lte=self.end_datetime.date(),
+                ).values("source_uuid"),
+            ).values_list("currency", flat=True)
+        )
+        return (base_currencies | cm_currencies) - {None}
+
+    @cached_property
+    def _distinct_arrays_split_enabled(self):
+        """Whether to compute clusters/source_uuid via separate (parallel-safe) queries."""
+        return is_feature_flag_enabled_by_schema(self.tenant.schema_name, OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG)
+
+    def _distinct_metadata_annotations(self):
+        """Return the clusters/source_uuid ArrayAgg annotations for this report type."""
+        annotations = self._mapper.report_type_map.get("annotations", {})
+        return {field: annotations[field] for field in DISTINCT_METADATA_FIELDS if field in annotations}
+
+    def _backfill_distinct_group_metadata(self, query, query_group_by, query_data):
+        """Backfill clusters/source_uuid onto rows via a separate, cheap query.
+
+        With the split flag enabled the metadata arrays are removed from the main
+        aggregation so it can parallelize.  Recompute them here in a query grouped
+        identically (same filters/joins, no currency math), keyed by the group
+        tuple, and merge them onto each row.  Used for the non-limit path; the
+        limited path sources these arrays from the rank query instead.
+        """
+        meta_annotations = self._distinct_metadata_annotations()
+        if not meta_annotations:
+            return query_data
+        meta_by_key = {
+            tuple(row[group] for group in query_group_by): {field: row[field] for field in meta_annotations}
+            for row in query.values(*query_group_by).annotate(**meta_annotations)
+        }
+        merged = []
+        for row in query_data:
+            row = dict(row)
+            metadata = meta_by_key.get(tuple(row[group] for group in query_group_by))
+            if metadata:
+                row.update(metadata)
+            else:
+                for field in meta_annotations:
+                    row.setdefault(field, [])
+            merged.append(row)
+        return merged
+
+    @property
+    def report_annotations(self):
+        """Return annotations with OCP-specific infra_exchange_rate for CSV output."""
+        annotations = dict(self._mapper.report_type_map.get("annotations", {}))
+        if is_grouped_by_node(self.parameters):
+            # Add instance counts to node reports without mutating the shared mapper.
+            annotations.update(self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {}))
+        if self._distinct_arrays_split_enabled:
+            # The metadata arrays are computed separately so the main aggregation
+            # can parallelize; drop them from the heavy annotation set.
+            annotations = {k: v for k, v in annotations.items() if k not in DISTINCT_METADATA_FIELDS}
+        if self.is_csv_output:
+            annotations = {
+                **annotations,
+                "base_currency": Max(self._mapper.cost_units_key),
+                "exchange_rate": Coalesce(Max("infra_exchange_rate"), Value(1), output_field=DecimalField()),
+            }
+        return annotations
 
     def format_tags(self, tags_iterable):
         """
@@ -288,6 +385,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     # therefore others must be at the end.
                     # override implicit ordering when using ranked ordering.
                     query_order_by[-1] = "rank"
+            elif self._distinct_arrays_split_enabled:
+                # The main aggregation dropped the metadata arrays so it could
+                # parallelize; backfill them from a separate cheap query.
+                query_data = self._backfill_distinct_group_metadata(query, query_group_by, query_data)
 
             # Populate the 'total' section of the API response
             if query.exists():

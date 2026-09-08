@@ -39,7 +39,7 @@ and must be updated to call `get_data_retention_months(schema)`:
 | `AWSReportDBCleaner` | `masu/processor/aws/aws_report_db_cleaner.py` | `PartitionedTable` rows + `cascade_delete` bills |
 | `AzureReportDBCleaner` | `masu/processor/azure/azure_report_db_cleaner.py` | Same pattern |
 | `GCPReportDBCleaner` | `masu/processor/gcp/gcp_report_db_cleaner.py` | Same pattern |
-| `OCPReportDBCleaner` | `masu/processor/ocp/ocp_report_db_cleaner.py` | Postgres partitions + `cascade_delete` usage periods + Trino `delete_hive_partition_by_month` |
+| `OCPReportDBCleaner` | `masu/processor/ocp/ocp_report_db_cleaner.py` | Postgres partitions + `cascade_delete` usage periods + `cleanup_ocp_tags_values()` + Trino `delete_hive_partition_by_month` |
 | `ReportManifestDBAccessor` | `masu/database/report_manifest_db_accessor.py` | `purge_expired_report_manifest` / `purge_expired_report_manifest_provider_uuid` |
 
 ### Trino Paths (NOT affected — on-prem does not use Trino)
@@ -56,7 +56,7 @@ ops commands. They do not use `RETAIN_NUM_MONTHS` and need no changes.
 | # | Path | Trigger | What It Deletes |
 |---|------|---------|----------------|
 | 6 | `delete_source_beat` → `delete_source` | Beat daily 04:00 | Sources/providers marked for deletion |
-| 7 | `delete_archived_data` | `Provider.post_delete` signal | S3 CSV/parquet + Trino rows for deleted provider |
+| 7 | `delete_archived_data` | `Provider.post_delete` signal | S3 CSV/parquet + Trino rows for deleted provider; OCP also prunes orphan `reporting_ocptags_values` rows via `cleanup_ocp_tags_values()` |
 | 8 | `purge_s3_files` / `purge_manifest_records` | Manual API (Unleash-gated) | S3 objects + manifests by prefix |
 | 9 | `ParquetReportProcessor._delete_old_data` | ETL pipeline (per file) | Dedup: clears old parquet/Postgres data for reprocessed window |
 | 10 | `trigger_delayed_tasks` | Beat every 30 min | Expired `DelayedCeleryTasks` rows (fires queued work) |

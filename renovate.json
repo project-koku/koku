@@ -44,6 +44,14 @@
                 "pin"
             ],
             "enabled": false
+        },
+        {
+            "matchManagers": [
+                "dockerfile"
+            ],
+            "addLabels": [
+                "smoke-tests"
+            ]
         }
     ],
     "schedule": [

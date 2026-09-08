@@ -157,7 +157,6 @@ OCP_ON_AZURE_PERSPECTIVES = (
 # Empty dict for on-prem to allow safe imports without errors
 if getattr(settings, "ONPREM", False):
     TRINO_MANAGED_TABLES = {}
-    EXPIRE_MANAGED_TABLES = {}
 else:
     TRINO_MANAGED_TABLES = {
         "reporting_ocpusagelineitem_daily_summary": "source",
@@ -173,9 +172,4 @@ else:
         "managed_azure_openshift_disk_capacities_temp": "ocp_source",
         "managed_reporting_ocpazurecostlineitem_project_daily_summary_temp": "ocp_source",
         "managed_reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
-    }
-
-    # These are cleaned during expired_data flow
-    EXPIRE_MANAGED_TABLES = {
-        "reporting_ocpusagelineitem_daily_summary": "source",
     }

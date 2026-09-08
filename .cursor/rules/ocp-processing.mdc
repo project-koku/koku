@@ -1,6 +1,7 @@
 ---
 description: OpenShift data processing patterns and report types
-globs: "**/ocp/**/*.py"
+globs:
+  - "**/ocp/**/*.py"
 alwaysApply: false
 ---
 

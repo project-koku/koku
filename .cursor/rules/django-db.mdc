@@ -1,0 +1,17 @@
+---
+description: Django ORM, accessors, and DB performance patterns
+globs:
+  - "**/models.py"
+  - "**/*_db_accessor.py"
+  - "**/database/**/*.py"
+alwaysApply: false
+---
+
+# Django DB Patterns
+
+- Tenant models (`reporting`, `cost_models`) require `schema_context` / `tenant_context` — see [multi-tenancy.mdc](multi-tenancy.mdc)
+- Prefer `select_related` / `prefetch_related` to avoid N+1 queries
+- Use transactions for multi-step writes; bulk ops for large inserts/updates
+- Timezone-aware datetimes only
+- Partitioned tables: Django `on_delete` is unreliable — use `cascade_delete()` from `koku/koku/database.py`
+- Mixed-type ORM aggregations need explicit `output_field` (see [`docs/agent/backend-gotchas.md`](../../docs/agent/backend-gotchas.md))

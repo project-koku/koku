@@ -26,6 +26,7 @@ from api.provider.models import Sources
 from kafka_utils.utils import get_consumer
 from kafka_utils.utils import is_kafka_connected
 from kafka_utils.utils import SOURCES_TOPIC
+from koku.probe_server import register_consumer_thread
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.prometheus_stats import SOURCES_HTTP_CLIENT_ERROR_COUNTER
 from masu.prometheus_stats import SOURCES_KAFKA_LOOP_RETRY
@@ -369,9 +370,10 @@ def sources_integration_thread():  # pragma: no cover
     listen_for_messages_loop(cost_management_type_id)
 
 
-def initialize_sources_integration():  # pragma: no cover
+def initialize_sources_integration():
     """Start Sources integration thread."""
     event_loop_thread = threading.Thread(target=sources_integration_thread)
     event_loop_thread.start()
+    register_consumer_thread(event_loop_thread)
     event_loop_thread.join()
     LOG.info("Listening for kafka events")

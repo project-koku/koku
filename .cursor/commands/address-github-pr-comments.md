@@ -50,7 +50,7 @@ Systematically address and resolve all comments from GitHub pull request reviewe
 - [ ] All PR comments reviewed and categorized
 - [ ] Code changes implemented for applicable comments
 - [ ] Tests updated and passing
-- [ ] Code follows Koku project standards (.cursorrules)
+- [ ] Code follows Koku project standards (`.cursor/rules/*.mdc`)
 - [ ] All comments responded to appropriately
 - [ ] Changes committed and pushed to PR branch
 - [ ] PR description updated if needed
