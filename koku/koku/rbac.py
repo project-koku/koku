@@ -255,7 +255,7 @@ class RbacService:
 
     def get_access_for_user(self, user):
         """Obtain access information for user."""
-        base_url = "{}://{}:{}{}".format(self.protocol, self.host, self.port, self.path)
+        base_url = f"{self.protocol}://{self.host}:{self.port}{self.path}"
         headers = {"x-rh-identity": user.identity_header.get("encoded")}
         acls = self._request_user_access(f"{base_url}?application=cost-management&limit=100", headers)
 
