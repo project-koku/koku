@@ -34,7 +34,7 @@ from api.query_params import QueryParameters
 from api.utils import DateHelper
 from koku.dev_middleware import DevelopmentIdentityHeaderMiddleware
 from koku.koku_test_runner import KokuTestRunner
-from sources.kafka_listener import storage_callback
+from sources.kafka_listener import STORAGE_CALLBACK_DISPATCH_UID
 
 
 class FakeTrinoCur(trino.dbapi.Cursor):
@@ -79,7 +79,7 @@ class IamTestCase(TestCase):
     def setUpClass(cls):
         """Set up each test class."""
         super().setUpClass()
-        post_save.disconnect(storage_callback, sender=Sources)
+        post_save.disconnect(dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID, sender=Sources)
         post_save.disconnect(provider_post_save_refresh_cache, sender=Provider)
 
         cls.dh = DateHelper()
