@@ -25,6 +25,7 @@ def build_rbac_permissions(rbac_dict):
         "openshift.project": {"read": []},
         "cost_model": {"read": [], "write": []},
         "settings": {"read": [], "write": []},
+        "sources": {"read": [], "write": []},
     }
     return rbac_defaults | rbac_dict
 
@@ -35,7 +36,7 @@ def build_expected_ouput(testing_dict=None, default_access=False, default_write=
         testing_dict = {}
 
     expected_output = []
-    matrix_keys = ["any", "aws", "ocp", "azure", "gcp", "azure", "cost_model", "settings"]
+    matrix_keys = ["any", "aws", "ocp", "azure", "gcp", "azure", "cost_model", "settings", "sources"]
     for key in matrix_keys:
         test_info = testing_dict.get(key, {})
         expected_format = {
@@ -418,3 +419,35 @@ class UserAccessViewTest(IamTestCase):
         for result in response.data.get("data"):
             with self.subTest(result=result):
                 self.assertIn(result, expected_output)
+
+    @RbacPermissions(build_rbac_permissions({"sources": {"read": ["*"]}}))
+    def test_sources_view_read(self):
+        """Test user-access view reports sources access with the sources read wildcard permission."""
+        url = reverse("user-access")
+        response = self.client.get(url, **self.headers)
+        testing_matrix = {"sources": {"access": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
+
+    @RbacPermissions(build_rbac_permissions({"sources": {"read": ["*"], "write": ["*"]}}))
+    def test_sources_view_write(self):
+        """Test user-access view reports sources write with the sources write wildcard permission."""
+        url = reverse("user-access")
+        response = self.client.get(url, **self.headers)
+        testing_matrix = {"sources": {"access": True, "write": True}}
+        expected_output = build_expected_ouput(testing_matrix)
+        for result in response.data.get("data"):
+            with self.subTest(result=result):
+                self.assertIn(result, expected_output)
+
+    @RbacPermissions(build_rbac_permissions({"sources": {"read": ["*"]}}))
+    def test_sources_view_query_type(self):
+        """Test user-access view with an explicit ?type=sources query param."""
+        url = reverse("user-access")
+        response = self.client.get(f"{url}?type=sources", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data.get("data"))
+        self.assertTrue(response.data.get("access"))
+        self.assertFalse(response.data.get("write"))
