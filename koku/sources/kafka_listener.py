@@ -12,6 +12,7 @@ import threading
 import time
 
 from confluent_kafka import TopicPartition
+from django.conf import settings
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
 from django.db import IntegrityError
@@ -47,6 +48,7 @@ LOG = logging.getLogger(__name__)
 
 PROCESS_QUEUE = queue.PriorityQueue()
 COUNT = itertools.count()  # next(COUNT) returns next sequential number
+STORAGE_CALLBACK_DISPATCH_UID = "sources.kafka_listener.storage_callback"
 
 
 class SourcesIntegrationError(ValidationError):
@@ -82,28 +84,54 @@ def _log_process_queue_event(queue, event, trigger=""):
     LOG.info(f"[{trigger}] adding operation {operation} for {name} to process queue (size: {queue.qsize()})")
 
 
-@receiver(post_save, sender=Sources)
+def _dispatch_onprem_provider_create(source_id):
+    """Enqueue on-prem provider creation after the source row is committed."""
+    from sources.tasks import create_provider
+
+    try:
+        create_provider.delay(source_id)
+    except Exception as error:
+        LOG.error(
+            f"[storage_callback] failed to enqueue on-prem provider creation "
+            f"(source_id={source_id}): {type(error).__name__}: {error}"
+        )
+
+
+@receiver(post_save, sender=Sources, dispatch_uid=STORAGE_CALLBACK_DISPATCH_UID)
 def storage_callback(sender, instance, **kwargs):
     """Load Sources ready for Koku Synchronization when Sources table is updated."""
+    queued_sync = False
+
     if instance.koku_uuid and instance.pending_update and not instance.pending_delete:
         update_event = {"operation": "update", "provider": instance}
         _log_process_queue_event(PROCESS_QUEUE, update_event, "storage_callback")
         LOG.debug(f"Update Event Queued for:\n{str(instance)}")
         PROCESS_QUEUE.put_nowait((next(COUNT), update_event))
+        queued_sync = True
 
     if instance.pending_delete:
         delete_event = {"operation": "destroy", "provider": instance}
         _log_process_queue_event(PROCESS_QUEUE, delete_event, "storage_callback")
         LOG.debug(f"Delete Event Queued for:\n{str(instance)}")
         PROCESS_QUEUE.put_nowait((next(COUNT), delete_event))
+        queued_sync = True
 
     process_event = storage.screen_and_build_provider_sync_create_event(instance)
     if process_event:
-        _log_process_queue_event(PROCESS_QUEUE, process_event, "storage_callback")
-        LOG.debug(f"Create Event Queued for:\n{str(instance)}")
-        PROCESS_QUEUE.put_nowait((next(COUNT), process_event))
+        if settings.ONPREM:
+            source_id = instance.source_id
+            LOG.info(
+                f"[storage_callback] dispatching on-prem provider creation for {instance.name} (source_id={source_id})"
+            )
+            transaction.on_commit(lambda: _dispatch_onprem_provider_create(source_id))
+        else:
+            _log_process_queue_event(PROCESS_QUEUE, process_event, "storage_callback")
+            LOG.debug(f"Create Event Queued for:\n{str(instance)}")
+            PROCESS_QUEUE.put_nowait((next(COUNT), process_event))
+            queued_sync = True
 
-    execute_process_queue()
+    if queued_sync:
+        execute_process_queue()
 
 
 def execute_process_queue():

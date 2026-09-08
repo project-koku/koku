@@ -207,6 +207,10 @@ class AdminSourcesSerializer(SourcesSerializer):
         auth_header = get_auth_header(self.context.get("request"))
         validated_data["auth_header"] = auth_header
         source = Sources.objects.create(**validated_data)
+        if settings.ONPREM:
+            # Provider/schema creation is queued asynchronously (see storage_callback).
+            LOG.info("Admin created Source on-prem; provider creation queued.")
+            return source
         manager = ProviderBuilder(source.auth_header, source.account_id, source.org_id)
         try:
             provider = manager.create_provider_from_source(source)
