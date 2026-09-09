@@ -851,6 +851,26 @@ class SourcesViewRbacTests(IamTestCase):
         response = self.client.get(url, content_type="application/json")
         self.assertEqual(response.status_code, 403)
 
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
+    def test_list_with_provider_read_access(self):
+        """A provider viewer (e.g. Cost OpenShift Viewer) can list sources for the cost UI."""
+        cache.clear()
+        url = reverse("sources-list")
+        response = self.client.get(url, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
+    def test_create_with_provider_read_access_returns_403(self):
+        """Provider read access does not permit creating a source."""
+        url = reverse("sources-list")
+        payload = {
+            "name": "Forbidden Source",
+            "source_type": Provider.PROVIDER_OCP,
+            "authentication": {"credentials": {"cluster_id": "forbidden-cluster"}},
+        }
+        response = self.client.post(url, json.dumps(payload), content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+
     @RbacPermissions({})
     def test_retrieve_without_sources_access_returns_403(self):
         """Test that a user without sources access gets 403 on retrieve."""
