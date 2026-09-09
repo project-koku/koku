@@ -138,13 +138,13 @@ class SourcesAccessPermissionTest(TestCase):
                 perm = SourcesAccessPermission()
                 self.assertTrue(perm.has_permission(request=req, view=None))
 
-    def test_has_perm_provider_scoped_read_on_get(self):
-        """A provider viewer scoped to specific resources can still list sources."""
+    def test_has_perm_provider_scoped_read_denied_on_get(self):
+        """A provider viewer scoped to specific resources is denied (no per-source filtering on-prem)."""
         access = {"openshift.cluster": {"read": ["my-cluster"]}}
         user = Mock(spec=User, admin=False, access=access)
         req = Mock(user=user, method="GET")
         perm = SourcesAccessPermission()
-        self.assertTrue(perm.has_permission(request=req, view=None))
+        self.assertFalse(perm.has_permission(request=req, view=None))
 
     def test_has_perm_provider_empty_read_on_get(self):
         """A provider resource key with an empty read list does not grant access."""

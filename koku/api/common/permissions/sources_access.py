@@ -15,9 +15,9 @@ from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftNodePermission
 from api.common.permissions.openshift_access import OpenShiftProjectPermission
 
-# Provider resource types. A user who can read cost data for any of these also
-# needs to read the sources list to render the corresponding cost pages -- the
-# UI relies on it to detect whether data is available.
+# Provider resource types. A user with org-wide (wildcard) read on any of these
+# also needs to read the sources list to render the corresponding cost pages --
+# the UI relies on it to detect whether data is available.
 PROVIDER_RESOURCE_TYPES = (
     AwsAccessPermission.resource_type,
     AWSOUAccessPermission.resource_type,
@@ -33,10 +33,13 @@ PROVIDER_RESOURCE_TYPES = (
 class SourcesAccessPermission(permissions.BasePermission):
     """Determines if a user can view or manage sources.
 
-    Read operations (GET, HEAD, OPTIONS) require ``sources:*:read`` or read
-    access to any provider resource type (e.g. a "Cost OpenShift Viewer" whose
-    only permission is ``openshift.cluster`` read still needs the sources list
-    to render OCP cost pages).
+    Read operations (GET, HEAD, OPTIONS) require ``sources:*:read`` or org-wide
+    (wildcard) read on any provider resource type -- e.g. a "Cost OpenShift
+    Viewer" (``openshift.cluster:*``) still needs the sources list to render OCP
+    cost pages. Resource-scoped readers (e.g. ``openshift.cluster:["cluster-a"]``)
+    are not granted access: the on-prem sources endpoint does no per-source
+    filtering, so the response would expose every source's authentication and
+    billing metadata.
     Write operations (POST, PATCH, DELETE) require ``sources:*:write``.
     Org admins bypass RBAC checks.
     """
@@ -55,9 +58,11 @@ class SourcesAccessPermission(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             if "*" in access.get(self.resource_type, {}).get("read", []):
                 return True
-            # A provider viewer (no sources:*:read, but e.g. openshift.cluster
-            # read) still needs to list sources for the cost UI to work.
-            return any(access.get(res_type, {}).get("read", []) for res_type in PROVIDER_RESOURCE_TYPES)
+            # A provider viewer with org-wide (wildcard) read still needs to list
+            # sources for the cost UI. Scoped readers do not qualify -- there is
+            # no per-source filtering on-prem, so the list would leak every
+            # source's credentials and billing config.
+            return any("*" in access.get(res_type, {}).get("read", []) for res_type in PROVIDER_RESOURCE_TYPES)
 
         sources_write = access.get(self.resource_type, {}).get("write", [])
         return "*" in sources_write
