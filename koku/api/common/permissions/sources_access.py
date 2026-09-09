@@ -6,8 +6,8 @@
 from django.conf import settings
 from rest_framework import permissions
 
-from api.common.permissions.aws_access import AWSOUAccessPermission
 from api.common.permissions.aws_access import AwsAccessPermission
+from api.common.permissions.aws_access import AWSOUAccessPermission
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.common.permissions.gcp_access import GcpProjectPermission
