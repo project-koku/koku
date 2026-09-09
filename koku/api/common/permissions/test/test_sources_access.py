@@ -120,10 +120,56 @@ class SourcesAccessPermissionTest(TestCase):
         self.assertFalse(result)
 
     def test_has_perm_non_wildcard_read_denied(self):
-        """Test that non-wildcard read access is denied (sources is global, not per-resource)."""
+        """Test that non-wildcard sources read access is denied (sources is global, not per-resource)."""
         access = {"sources": {"read": ["some-source-id"]}}
         user = Mock(spec=User, admin=False, access=access)
         req = Mock(user=user, method="GET")
         perm = SourcesAccessPermission()
         result = perm.has_permission(request=req, view=None)
         self.assertFalse(result)
+
+    def test_has_perm_ocp_wildcard_read_on_get(self):
+        """An OpenShift viewer (e.g. Cost OpenShift Viewer) can list sources."""
+        for res_type in ("openshift.cluster", "openshift.node", "openshift.project"):
+            with self.subTest(res_type=res_type):
+                access = {res_type: {"read": ["*"]}}
+                user = Mock(spec=User, admin=False, access=access)
+                req = Mock(user=user, method="GET")
+                perm = SourcesAccessPermission()
+                self.assertTrue(perm.has_permission(request=req, view=None))
+
+    def test_has_perm_non_ocp_access_denied_on_get(self):
+        """On-prem only supports OCP; other resource types do not grant the sources list."""
+        for res_type in ("aws.account", "azure.subscription_guid", "gcp.account", "cost_model"):
+            with self.subTest(res_type=res_type):
+                access = {res_type: {"read": ["*"]}}
+                user = Mock(spec=User, admin=False, access=access)
+                req = Mock(user=user, method="GET")
+                perm = SourcesAccessPermission()
+                self.assertFalse(perm.has_permission(request=req, view=None))
+
+    def test_has_perm_ocp_scoped_read_denied_on_get(self):
+        """An OpenShift viewer scoped to specific clusters is denied (no per-source filtering on-prem)."""
+        access = {"openshift.cluster": {"read": ["my-cluster"]}}
+        user = Mock(spec=User, admin=False, access=access)
+        req = Mock(user=user, method="GET")
+        perm = SourcesAccessPermission()
+        self.assertFalse(perm.has_permission(request=req, view=None))
+
+    def test_has_perm_ocp_empty_read_on_get(self):
+        """An OpenShift resource key with an empty read list does not grant access."""
+        access = {"openshift.cluster": {"read": []}}
+        user = Mock(spec=User, admin=False, access=access)
+        req = Mock(user=user, method="GET")
+        perm = SourcesAccessPermission()
+        self.assertFalse(perm.has_permission(request=req, view=None))
+
+    def test_has_perm_ocp_read_does_not_grant_write(self):
+        """OpenShift read access does not allow POST/PATCH/DELETE on sources."""
+        access = {"openshift.cluster": {"read": ["*"]}}
+        user = Mock(spec=User, admin=False, access=access)
+        for method in ("POST", "PATCH", "DELETE"):
+            with self.subTest(method=method):
+                req = Mock(user=user, method=method)
+                perm = SourcesAccessPermission()
+                self.assertFalse(perm.has_permission(request=req, view=None))
