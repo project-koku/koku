@@ -24,6 +24,7 @@ import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Case
 from django.db.models import CharField
+from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
@@ -1395,6 +1396,13 @@ class ReportQueryHandler(QueryHandler):
         # Otherwise Django raises ValueError
         for grouped_col in rank_group_by:
             rank_annotations.pop(grouped_col, None)
+
+        if self._distinct_arrays_split_enabled and not rank_annotations:
+            # A ranked query must aggregate to produce one row per
+            # rank_group_by tuple. Ordering by a rank group field removes it
+            # from rank_annotations, so use an internal aggregate to retain
+            # SQL grouping. _ranked_list drops rank fields from the response.
+            rank_annotations["rank_group_count"] = Count("pk")
 
         rank_metadata_annotations = self._rank_metadata_annotations()
         ranks = (
