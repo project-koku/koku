@@ -14,14 +14,19 @@ paths).
 """
 from unittest.mock import patch
 
+from django_tenants.utils import schema_context
+from model_bakery import baker
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
+from api.report.ocp.view import OCPMigProfilesView
 from api.report.ocp.view import OCPNetworkView
 from api.report.ocp.view import OCPVolumeView
 from masu.processor import OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG
+from reporting.provider.ocp.models import OCPGpuSummaryP
 
 FLAG_TARGET = "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema"
 
@@ -127,8 +132,54 @@ class OCPReportDistinctArraysParallelTest(IamTestCase):
             (OCPCostView, "group_by[node]=*&filter[limit]=2"),
             (OCPCpuView, "group_by[cluster]=*&filter[limit]=1"),
             (OCPCostView, "group_by[project]=*&filter[limit]=1"),
+            # With an order field already in rank_group_by, the moved arrays
+            # must not be the only aggregate that preserves SQL grouping.
+            (OCPCpuView, "group_by[cluster]=*&order_by[cluster]=asc&filter[limit]=2"),
         ]
         self._assert_parity(matrix)
+
+    def test_mig_profiles_limit_groups_before_ranking_when_split_enabled(self):
+        """The split path must rank distinct MIG instances, not source rows."""
+        vendor = "nvidia-distinct-arrays"
+        model = "A100-distinct-arrays"
+        node = "node-distinct-arrays"
+        rows = [
+            {"mig_profile": "1g.5gb", "mig_instance_id": "MIG-DISTINCT-0001"},
+            {"mig_profile": "1g.5gb", "mig_instance_id": "MIG-DISTINCT-0001"},
+            {"mig_profile": "1g.5gb", "mig_instance_id": "MIG-DISTINCT-0002"},
+            {"mig_profile": "1g.5gb", "mig_instance_id": "MIG-DISTINCT-0003"},
+            {"mig_profile": "4g.20gb", "mig_instance_id": "MIG-DISTINCT-0004"},
+        ]
+        with schema_context(self.schema_name):
+            for row in rows:
+                baker.make(
+                    OCPGpuSummaryP,
+                    vendor_name=vendor,
+                    model_name=model,
+                    node=node,
+                    gpu_mode="MIG",
+                    raw_currency="USD",
+                    **row,
+                )
+
+        url = f"?filter[gpu_vendor]={vendor}&filter[gpu_model]={model}&filter[node]={node}" "&filter[limit]=3"
+        with patch(FLAG_TARGET, return_value=True):
+            query_params = self.mocked_query_params(
+                url,
+                OCPMigProfilesView,
+                path="/api/cost-management/v1/reports/openshift/gpu/mig_profiles/",
+            )
+            output = OCPReportQueryHandler(query_params).execute_query()
+
+        returned = [
+            (value["mig_id"], profile["mig_profile"])
+            for entry in output["data"]
+            for profile in entry.get("mig_profiles", [])
+            for value in profile.get("values", [])
+        ]
+        self.assertEqual(len(returned), 3)
+        self.assertEqual(len({mig_id for mig_id, _ in returned}), 3)
+        self.assertEqual({profile for _, profile in returned}, {"1g.5gb"})
 
     def test_distinct_arrays_parity_with_category(self):
         """Split path matches legacy arrays when a category param is active."""
