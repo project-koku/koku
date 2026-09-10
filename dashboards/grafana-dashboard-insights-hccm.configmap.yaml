@@ -35,7 +35,7 @@ data:
           "id": 9999,
           "options": {
             "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
-            "content": "**Quick start:** Select **Datasource** (`crcp01ue1` = prod, `crcs02ue1` = stage) — namespace auto-selects.<br>For RDS panels, also select **RDS Datasource** (`appsrep11ue1` = prod, `appsres11ue1` = stage) — db_instance auto-selects.",
+            "content": "**Quick start:** Select **Datasource** (`crcp01ue1` = prod, `crcs02ue1` = stage) — namespace auto-selects.<br>For RDS and Kafka panels, also select **RDS / AWS Metrics Datasource** (`appsrep11ue1` = prod, `appsres11ue1` = stage) — db_instance auto-selects.",
             "mode": "markdown"
           },
           "title": "",
@@ -6671,6 +6671,104 @@ data:
           "yaxis": {
             "align": false
           }
+        },
+        {
+          "collapsed": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${rds_datasource}"
+          },
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 174
+          },
+          "id": 114,
+          "panels": [],
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${rds_datasource}"
+              },
+              "refId": "A"
+            }
+          ],
+          "title": "Kafka",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${rds_datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Messages",
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 10000
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 175
+          },
+          "id": 113,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${rds_datasource}"
+              },
+              "expr": "aws_kafka_sum_offset_lag_sum{consumer_group=\"hccm-group\", topic=\"platform.upload.announce\"}",
+              "legendFormat": "{{cluster_name}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Upload Announcement Consumer Lag",
+          "type": "timeseries"
         }
       ],
       "refresh": "",
@@ -6719,7 +6817,7 @@ data:
             "current": {},
             "hide": 0,
             "includeAll": false,
-            "label": "RDS Datasource",
+            "label": "RDS / AWS Metrics Datasource",
             "multi": false,
             "name": "rds_datasource",
             "options": [],
