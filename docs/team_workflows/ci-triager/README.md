@@ -2,9 +2,19 @@
 
 ## What it does
 
-An AI agent running on [Ambient Code](https://github.com/ambient-code/platform) that monitors failing CI checks on Koku PRs, diagnoses the root cause, and posts **suggested changes** as PR review comments. The developer accepts or rejects each suggestion with one click.
+An AI agent that monitors failing CI checks on Koku PRs, diagnoses the root cause, and posts **suggested changes** as PR review comments. The developer accepts or rejects each suggestion with one click.
 
 The agent **never pushes commits directly**. It only reads code and posts suggestions.
+
+## Source of truth
+
+| Artifact | Location | Maintained by |
+|----------|----------|---------------|
+| Agent prompt | [`prompt.md`](prompt.md) | Team (PR) |
+| Session bootstrap | [`session-bootstrap.txt`](session-bootstrap.txt) | Team (PR) |
+| Konflux setup | [`konflux-setup.md`](konflux-setup.md) | Team (PR) |
+
+**Repo is the source of truth for behavior.** After merging prompt changes, update the scheduled session bootstrap in the runtime environment (see [Runtime setup](#runtime-setup)).
 
 ## How it works
 
@@ -36,14 +46,29 @@ Scheduled session (every 2 hours at minute 13 — cron: "13 */2 * * *")
 
 **Not in scope:** serializer regressions, complex logic bugs, IQE plugin fixes (private repo), multi-repo changes.
 
-## Infrastructure
+## Runtime setup
 
-### Ambient Code
+### Recommended session prompt (short)
 
-- **Platform:** Red Hat internal Ambient Code instance
+Paste [`session-bootstrap.txt`](session-bootstrap.txt) into the schedule / manual session instead of duplicating the full prompt:
+
+```text
+You are the CI Triager for project-koku/koku.
+
+Read and follow every step in:
+docs/team_workflows/ci-triager/prompt.md
+
+Use the repo checkout on branch main. Do not improvise steps not in that file.
+Post a run summary when finished.
+```
+
+This keeps the repo file authoritative and avoids drift from a stale copy in the runtime UI.
+
+### Schedule
+
 - **Session type:** Scheduled — runs every 2 hours at minute 13 (`13 */2 * * *`)
 - **Workspace:** `koku` project
-- **Prompt file:** [`docs/ci-triager/prompt.md`](prompt.md)
+- **Branch:** `main`
 
 ### Bot account
 
@@ -51,7 +76,7 @@ Scheduled session (every 2 hours at minute 13 — cron: "13 */2 * * *")
 - **Token type:** Classic PAT, scope `repo`
 - **Permissions:** Collaborator (Write) on `project-koku/koku`
 
-The PAT is stored in Ambient Code workspace settings (GitHub integration). No token is committed to the repository.
+The PAT is stored in workspace settings (GitHub integration). No token is committed to the repository.
 
 ### Konflux access (cluster Stone)
 
@@ -70,7 +95,7 @@ The agent reads Konflux PipelineRun logs via the **KubeArchive REST API** (Pipel
 
 ### Secrets and environment variables
 
-The `KONFLUX_TOKEN` (Konflux ServiceAccount token) is stored in the Ambient Code workspace as a **Custom Environment Variable** under **Workspace Settings → Custom Environment Variables**. It is injected automatically into every scheduled session — no manual step required.
+The `KONFLUX_TOKEN` (Konflux ServiceAccount token) is stored in the workspace as a **Custom Environment Variable**. It is injected automatically into every scheduled session — no manual step required.
 
 To update or rotate the token, generate a new one locally:
 
@@ -79,32 +104,32 @@ oc login --web
 oc create token konflux-bot-0 -n cost-mgmt-dev-tenant --duration=8760h
 ```
 
-Then paste the output into **Workspace Settings → Custom Environment Variables → `KONFLUX_TOKEN`** in the Ambient Code UI.
+Then paste the output into workspace **Custom Environment Variables → `KONFLUX_TOKEN`**.
 
 ## Scope: which PRs are monitored
 
 The agent monitors all **open PRs** authored by the main contributors to `project-koku/koku`:
 
-`bacciotti`, `djnakabaale`, `myersCody`, `lcouzens`, `masayag`, `jordigilh`, `ELK4N4`, `ydayagi`
+`bacciotti`, `djnakabaale`, `myersCody`, `lcouzens`, `masayag`, `jordigilh`, `ELK4N4`, `ydayagi`, `pedrolp85`, `dchorvat1`, `esebesto`, `jvcsizilio`, `martinpovolny`
 
 All PR states are covered (draft, ready for review, etc.). The agent skips PRs from other authors.
 
-## Initial setup (new Ambient Code environment)
+## Initial setup (new runtime environment)
 
-If the `/workspace/artifacts/` directory is empty (e.g., after workspace reset), run the setup script in a manual Ambient Code session by pasting the contents of [`docs/ci-triager/konflux-setup.md`](konflux-setup.md). It installs `kubectl`, `kubectl-ka`, and rebuilds the kubeconfig using the `KONFLUX_TOKEN` env var already set in Workspace Settings.
+If the `/workspace/artifacts/` directory is empty (e.g., after workspace reset), run the setup script in a manual workspace session by pasting the contents of [`konflux-setup.md`](konflux-setup.md). It installs `kubectl`, `kubectl-ka`, and rebuilds the kubeconfig using the `KONFLUX_TOKEN` env var already set in workspace settings.
 
 ## Maintenance
 
 ### Updating the agent prompt
 
-Edit [`docs/ci-triager/prompt.md`](prompt.md) and update the prompt text in the Ambient Code schedule settings.
+Edit [`prompt.md`](prompt.md) via a normal PR. Refresh the session bootstrap in the runtime schedule if needed.
 
 ### Renewing the bot PAT
 
 1. Log in to the `koku-ci-triager-bot` GitHub account
 2. Settings → Developer settings → Personal access tokens → Tokens (classic)
 3. Generate new token with scope `repo`
-4. Update the token in Ambient Code workspace settings (GitHub integration)
+4. Update the token in workspace settings (GitHub integration)
 
 ### Renewing the Konflux SA token
 
@@ -115,11 +140,19 @@ oc login --web
 oc create token konflux-bot-0 -n cost-mgmt-dev-tenant --duration=8760h
 ```
 
-Paste the output into **Workspace Settings → Custom Environment Variables → `KONFLUX_TOKEN`** in the Ambient Code UI. No manual session is needed — the new token will be picked up automatically on the next scheduled run.
+Paste the output into workspace **Custom Environment Variables → `KONFLUX_TOKEN`**. No manual session is needed — the new token will be picked up automatically on the next scheduled run.
 
 ### Triggering a manual session
 
-Open a manual session in Ambient Code with the `koku` workspace and paste or reference the prompt from [`docs/ci-triager/prompt.md`](prompt.md).
+Open a manual session with the `koku` workspace and paste or reference [`session-bootstrap.txt`](session-bootstrap.txt).
+
+## Relationship to other agents
+
+| Agent | Role |
+|-------|------|
+| **CI Triager** (this) | Diagnoses failing CI checks and posts fix suggestions |
+| **Agentic PR Labeler** | Proactively applies smoke test labels based on diff analysis |
+| **GlitchTip Triager** | Polls GlitchTip and opens draft PRs for safe fixes |
 
 ## Guardrails
 
@@ -133,6 +166,6 @@ Open a manual session in Ambient Code with the `koku` workspace and paste or ref
 
 | Item | Notes |
 |------|-------|
-| GitHub Action trigger | Replace cron schedule with event-driven trigger on CI failure (`ambient-code/ambient-action`) |
+| Event-driven trigger | Replace cron schedule with trigger on CI failure |
 | GitHub App | Replace machine user with a GitHub App for granular permissions and `[bot]` identity |
 | Metrics | Track auto-fix rate, false positives, token cost per session |
