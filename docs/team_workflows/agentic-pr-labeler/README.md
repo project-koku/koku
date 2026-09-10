@@ -57,10 +57,6 @@ This keeps the repo file authoritative and avoids drift from a stale copy in the
 
 The PAT is stored in workspace settings (GitHub integration). No token is committed to the repository.
 
-### Schedule
-
-Configure in the runtime environment (previously Ambient Code UAT; migrating to OpenShell/Hypershell).
-
 ## Scope: which PRs are managed
 
 **Pilot:** only PRs authored by `dchorvat1`. All PR states are covered (draft, ready for review, etc.). The agent skips PRs from other authors.

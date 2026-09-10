@@ -64,8 +64,6 @@ Optional overrides:
 - **Workspace:** `koku`
 - **Branch:** `main`
 
-Configure in the runtime environment (previously Ambient Code UAT; migrating to OpenShell/Hypershell).
-
 Each weekly run may examine up to 3 issues and open at most 1 draft PR (defaults).
 
 ## Processed ledger (`glitchtip-processed.json`)

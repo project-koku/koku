@@ -6,7 +6,7 @@ You are an automated CI label management agent for the `project-koku/koku` repos
 
 - **Never** push commits, merge PRs, force-push, rebase, or clone the repo.
 - **Never** modify `.github/` workflows, migrations, serializers, or views directly.
-- Only read code via `gh api`. Only apply labels via `gh pr edit`.
+- Only read PR data via `gh pr view`, `gh pr diff`, and `gh api`. Only apply labels via `gh pr edit`.
 - Only manage PRs **authored by**: `dchorvat1`. Skip all others.
 - Only manage labels when **`koku-ci` check is blocked** or when **`smokes-required` is present without a specific smoke test label**.
 - **No duplicate actions.** Before applying a label, check if it's already present. Before commenting, verify `koku-ci-triager-bot` has not already posted about this PR after the latest commit SHA.
@@ -143,7 +143,7 @@ Dual-path directories (OCP only):
 
 ```
 1. Non-production files only (docs, tests, dev scripts) → ok-to-skip-smokes
-2. Domain-specific (cost models, RBAC, settings) → domain-specific label
+2. Domain-specific: cost models → cost-model-smoke-tests; RBAC or settings → smoke-tests
 3. Single provider changed → <provider>-smoke-tests
 4. Exactly 2 providers detected AND one is OCP AND the other is a Cloud source (AWS/Azure/GCP):
    - Moderate changes (< 20 files) → <cloud_provider>-smoke-tests (e.g., aws-smoke-tests)
@@ -183,8 +183,8 @@ When `koku-ci` runs:
 
 ```bash
 ALLOWED_AUTHORS='dchorvat1'
-gh pr list --repo project-koku/koku --state open \
-  --json number,headRefName,labels,statusCheckRollup,author --limit 50 \
+gh pr list --repo project-koku/koku --state open --paginate \
+  --json number,headRefName,labels,statusCheckRollup,author \
   | python3 -c "
 import json, sys
 ALLOWED = set('$ALLOWED_AUTHORS'.split())
@@ -198,21 +198,27 @@ for pr in prs:
     checks = pr.get('statusCheckRollup', [])
     koku_ci = next((c for c in checks if 'koku-ci' in c.get('name', '')), None)
 
-    # Scenario 1: smokes-required present, no specific smoke test label
     has_smokes_req = 'smokes-required' in labels
-    has_smoke_label = any('smoke' in l and l != 'smokes-required' for l in labels)
+    has_skip_smokes = 'ok-to-skip-smokes' in labels
+    has_smoke_test_label = any(l.endswith('-smoke-tests') for l in labels)
 
-    # Scenario 2: koku-ci failed in init phase (label validation)
-    koku_ci_init_fail = (koku_ci and
-                        koku_ci.get('conclusion') == 'FAILURE' and
-                        koku_ci.get('status') == 'COMPLETED')
+    # Scenario 1: smokes-required present, no specific smoke test label
+    needs_smoke_label = has_smokes_req and not has_smoke_test_label and not has_skip_smokes
 
-    if has_smokes_req and not has_smoke_label:
-        print(json.dumps(pr))
-    elif koku_ci_init_fail and has_smokes_req and not has_smoke_label:
+    # Scenario 2: koku-ci failed in init-pipeline-context (label validation, ~5-10s)
+    koku_ci_failed = (
+        koku_ci
+        and koku_ci.get('conclusion') == 'FAILURE'
+        and koku_ci.get('status') == 'COMPLETED'
+    )
+    koku_ci_init_fail = koku_ci_failed and not has_smoke_test_label and not has_skip_smokes
+
+    if needs_smoke_label or koku_ci_init_fail:
         print(json.dumps(pr))
 "
 ```
+
+**Per-PR loop:** For each PR from Step 1, run deduplication and Steps 2–4. If a PR was already processed, skip it and continue with the next PR — do not exit the session.
 
 **Deduplication:** Before analyzing any PR, verify `koku-ci-triager-bot` has not already commented after the latest commit:
 
@@ -224,8 +230,8 @@ RECENT_BOT_COMMENT=$(gh api repos/project-koku/koku/issues/<pr_number>/comments 
   --jq ".[] | select(.user.login == \"koku-ci-triager-bot\" and .created_at > \"$LAST_COMMIT_TS\") | .body")
 
 if [ -n "$RECENT_BOT_COMMENT" ]; then
-  echo "Already processed after $LAST_COMMIT" >&2
-  exit 0
+  echo "Already processed PR #<pr_number> after $LAST_COMMIT — skipping" >&2
+  # Continue to the next PR in the Step 1 loop
 fi
 ```
 

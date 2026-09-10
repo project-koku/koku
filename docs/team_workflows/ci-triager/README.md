@@ -70,8 +70,6 @@ This keeps the repo file authoritative and avoids drift from a stale copy in the
 - **Workspace:** `koku` project
 - **Branch:** `main`
 
-Configure in the runtime environment (previously Ambient Code UAT; migrating to OpenShell/Hypershell).
-
 ### Bot account
 
 - **GitHub user:** `koku-ci-triager-bot`
@@ -118,7 +116,7 @@ All PR states are covered (draft, ready for review, etc.). The agent skips PRs f
 
 ## Initial setup (new runtime environment)
 
-If the `/workspace/artifacts/` directory is empty (e.g., after workspace reset), run the setup script in a manual session by pasting the contents of [`konflux-setup.md`](konflux-setup.md). It installs `kubectl`, `kubectl-ka`, and rebuilds the kubeconfig using the `KONFLUX_TOKEN` env var already set in Workspace Settings.
+If the `/workspace/artifacts/` directory is empty (e.g., after workspace reset), run the setup script in a manual workspace session by pasting the contents of [`konflux-setup.md`](konflux-setup.md). It installs `kubectl`, `kubectl-ka`, and rebuilds the kubeconfig using the `KONFLUX_TOKEN` env var already set in workspace settings.
 
 ## Maintenance
 
