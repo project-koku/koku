@@ -531,6 +531,23 @@ class RequestTimeoutMiddleware(MiddlewareMixin):
             faulthandler.cancel_dump_traceback_later()
         return response
 
+    def process_exception(self, request, exception):
+        """Report a soft timeout and return before the upstream proxy deadline."""
+        if not isinstance(exception, RequestTimeoutError):
+            return None
+
+        try:
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(exception)
+        except Exception:
+            LOG.warning("Unable to send request-timeout stack trace to Sentry.", exc_info=True)
+
+        return JsonResponse(
+            {"errors": [{"detail": "Request timed out.", "status": HTTPStatus.GATEWAY_TIMEOUT}]},
+            status=HTTPStatus.GATEWAY_TIMEOUT,
+        )
+
 
 class DisableCSRF(MiddlewareMixin):
     """Middleware to disable CSRF for 3scale usecase."""

@@ -113,6 +113,8 @@ objects:
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
+        - name: REQUEST_SOFT_TIMEOUT
+          value: ${REQUEST_SOFT_TIMEOUT}
         - name: REQUEST_FAULTHANDLER_TIMEOUT
           value: ${REQUEST_FAULTHANDLER_TIMEOUT}
         - name: CACHED_VIEWS_DISABLED
@@ -302,6 +304,8 @@ objects:
           value: ${GUNICORN_WORKERS}
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
+        - name: REQUEST_SOFT_TIMEOUT
+          value: ${REQUEST_SOFT_TIMEOUT}
         - name: REQUEST_FAULTHANDLER_TIMEOUT
           value: ${REQUEST_FAULTHANDLER_TIMEOUT}
         - name: CACHED_VIEWS_DISABLED
@@ -5834,6 +5838,11 @@ parameters:
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"
+- description: Seconds before a sync request is aborted and reported with request
+    context
+  displayName: Soft request timeout
+  name: REQUEST_SOFT_TIMEOUT
+  value: "90"
 - description: Seconds before a stuck sync request's Python stacks are written to
     stderr
   displayName: Faulthandler request timeout
