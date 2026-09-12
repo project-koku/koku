@@ -653,6 +653,21 @@ class RequestTimeoutMiddlewareTest(IamTestCase):
         self.assertIn("POST", str(ctx.exception))
         self.assertIn("/api/v1/cost-models/", str(ctx.exception))
 
+    def test_process_exception_reports_soft_timeout_and_returns_gateway_timeout(self):
+        sentry_sdk = Mock()
+        request = Mock()
+        timeout = RequestTimeoutError("Request exceeded 28s")
+
+        with patch.dict(sys.modules, {"sentry_sdk": sentry_sdk}):
+            response = self.middleware.process_exception(request, timeout)
+
+        sentry_sdk.capture_exception.assert_called_once_with(timeout)
+        self.assertEqual(response.status_code, 504)
+        self.assertJSONEqual(response.content, {"errors": [{"detail": "Request timed out.", "status": 504}]})
+
+    def test_process_exception_ignores_other_exceptions(self):
+        self.assertIsNone(self.middleware.process_exception(Mock(), ValueError("not a timeout")))
+
     @patch("koku.middleware.signal.alarm")
     @patch("koku.middleware.signal.signal")
     @patch("koku.middleware.faulthandler.dump_traceback_later")
