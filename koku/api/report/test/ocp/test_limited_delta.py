@@ -7,8 +7,6 @@ from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import uuid4
 
-from django.db import connection
-from django.test.utils import CaptureQueriesContext
 from django_tenants.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -72,29 +70,38 @@ class OCPRankedProjectDeltaTest(IamTestCase):
         with patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False):
             legacy = self._execute()
 
+        previous_rows_queries = []
+        original_get_previous_rows_query = OCPReportQueryHandler._get_previous_rows_query
+
+        def capture_previous_rows_query(handler, previous_query, query_data):
+            previous_rows_query = original_get_previous_rows_query(handler, previous_query, query_data)
+            previous_rows_queries.append(previous_rows_query)
+            return previous_rows_query
+
         with patch(
             "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema",
             side_effect=self._flag_enabled,
+        ), patch.object(
+            OCPReportQueryHandler,
+            "_get_previous_rows_query",
+            autospec=True,
+            side_effect=capture_previous_rows_query,
         ):
             handler = self._handler()
             self.assertTrue(
                 handler._limited_delta_for_ranked_projects_enabled,
                 (handler._report_type, handler.resolution, handler.parameters.parameters, handler._get_group_by()),
             )
-            with CaptureQueriesContext(connection) as captured:
-                optimized = handler.execute_query()
+            optimized = handler.execute_query()
 
         self.assertEqual(optimized, legacy)
-        self.assertTrue(
-            any(
-                'AS "cost_total" FROM "reporting_ocp_cost_summary_by_project_p" WHERE' in query["sql"]
-                and '"reporting_ocp_cost_summary_by_project_p"."namespace" IN' in query["sql"].split("WHERE", 1)[1]
-                and '"reporting_ocp_cost_summary_by_project_p"."namespace" IS NULL'
-                in query["sql"].split("WHERE", 1)[1]
-                for query in captured.captured_queries
-            ),
-            "The flagged previous-period lookup must be restricted to the ranked projects.",
-        )
+        self.assertEqual(1, len(previous_rows_queries))
+        with tenant_context(self.tenant):
+            self.assertCountEqual(
+                previous_rows_queries[0].values_list("namespace", flat=True),
+                ["ranked", None],
+                "The flagged previous-period lookup must be restricted to the ranked projects.",
+            )
 
     def test_flagged_lookup_includes_null_projects(self):
         """A selected unallocated project must not be lost to SQL ``IN`` null semantics."""
