@@ -665,6 +665,16 @@ class RequestTimeoutMiddlewareTest(IamTestCase):
         self.assertEqual(response.status_code, 504)
         self.assertJSONEqual(response.content, {"errors": [{"detail": "Request timed out.", "status": 504}]})
 
+    def test_process_exception_returns_gateway_timeout_when_sentry_capture_fails(self):
+        sentry_sdk = Mock()
+        sentry_sdk.capture_exception.side_effect = RuntimeError("Sentry unavailable")
+        timeout = RequestTimeoutError("Request exceeded 28s")
+
+        with patch.dict(sys.modules, {"sentry_sdk": sentry_sdk}), self.assertLogs("koku.middleware", "WARNING"):
+            response = self.middleware.process_exception(Mock(), timeout)
+
+        self.assertEqual(response.status_code, 504)
+
     def test_process_exception_ignores_other_exceptions(self):
         self.assertIsNone(self.middleware.process_exception(Mock(), ValueError("not a timeout")))
 
