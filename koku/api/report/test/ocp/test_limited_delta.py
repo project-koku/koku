@@ -24,10 +24,11 @@ LIMITED_DELTA_FLAG = "cost-management.backend.ocp_report_limited_delta"
 class OCPRankedProjectDeltaTest(IamTestCase):
     """The optional optimization must not change report results."""
 
+    cluster = "ranked-delta-cluster"
     url = (
         "?delta=cost&group_by[project]=*&filter[resolution]=monthly"
         "&filter[time_scope_value]=-1&filter[time_scope_units]=month"
-        "&filter[limit]=2&filter[offset]=0&order_by[distributed_cost]=desc"
+        "&filter[cluster]=ranked-delta-cluster&filter[limit]=2&filter[offset]=0&order_by[distributed_cost]=desc"
     )
 
     def setUp(self):
@@ -45,7 +46,7 @@ class OCPRankedProjectDeltaTest(IamTestCase):
             ):
                 OCPCostSummaryByProjectP.objects.create(
                     id=uuid4(),
-                    cluster_id="cluster",
+                    cluster_id=self.cluster,
                     namespace=namespace,
                     usage_start=usage_start,
                     usage_end=usage_start,
