@@ -39,6 +39,7 @@ from cost_models.models import CostModelMap
 from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG
+from masu.processor import OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG
 
 LOG = logging.getLogger(__name__)
 
@@ -205,11 +206,19 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 OuterRef(self._mapper.cost_units_key), self.currency
             )
         else:
-            exchange_rate_whens = [
-                When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
-                for uuid, cur in self.source_to_currency_map.items()
-            ]
-            exchange_rate_annotation = Case(*exchange_rate_whens, default=1, output_field=DecimalField())
+            source_to_currency_map = self.source_to_currency_map
+            if is_feature_flag_enabled_by_schema(
+                self.tenant.schema_name, OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG, dev_fallback=True
+            ) and all(currency == self.currency for currency in source_to_currency_map.values()):
+                exchange_rate_annotation = Value(1, output_field=DecimalField())
+            else:
+                exchange_rate_whens = [
+                    When(
+                        **{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))}
+                    )
+                    for uuid, cur in source_to_currency_map.items()
+                ]
+                exchange_rate_annotation = Case(*exchange_rate_whens, default=1, output_field=DecimalField())
             infra_exchange_rate_annotation = build_exchange_rate_case(
                 self._mapper.cost_units_key, self.currency, self.exchange_rates
             )
