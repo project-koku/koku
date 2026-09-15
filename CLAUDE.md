@@ -42,7 +42,9 @@ Jira/GitHub issue when known (e.g. `COST-1234: Add MIG slice support`).
 4. Merges to `main` **auto-deploy to stage**.
 5. Production releases are manual — Mon/Thu cadence via app-interface MRs.
    Use `make get-release-commit` to get the right commit hash (the commit
-   before midnight UTC, so IQE has tested it).
+   before midnight UTC, so IQE has tested it). Agent-assisted flow:
+   [`docs/agent/production-release.md`](docs/agent/production-release.md)
+   and `/koku-release` ([`.claude/commands/koku-release.md`](.claude/commands/koku-release.md)).
 6. Run `pre-commit run --all-files` before pushing.  Also run gitleaks
    with Red Hat patterns: `pre-commit run --config ~/.config/pre-commit/config.yaml`.
 

@@ -9,6 +9,7 @@ in [`AGENTS.md`](../../AGENTS.md), then open entries from this catalog.
 | Unit testing | [`testing.md`](testing.md) |
 | Backend ORM / date helpers | [`backend-gotchas.md`](backend-gotchas.md) |
 | Unleash feature flags (backend) | [`unleash-flags.md`](unleash-flags.md) |
+| Production release (HCCM) | [`production-release.md`](production-release.md) → scripts in [`../../dev/scripts/release/`](../../dev/scripts/release/) |
 | Celery tasks / pipeline | [`../architecture/celery-tasks.md`](../architecture/celery-tasks.md) |
 | Sources / data ingestion | [`../architecture/sources-and-data-ingestion.md`](../architecture/sources-and-data-ingestion.md) |
 | Feature architecture | [`../architecture/README.md`](../architecture/README.md) |

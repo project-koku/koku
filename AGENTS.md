@@ -67,6 +67,7 @@ Use this table for **architecture docs and cross-cutting tasks** — load **befo
 | Cost model SQL or distribution | [`docs/architecture/cost-models.md`](docs/architecture/cost-models.md) |
 | Editing architecture docs | [`.cursor/rules/architecture-docs.mdc`](.cursor/rules/architecture-docs.mdc) |
 | PRD → design docs | [`docs/architecture/README.md`](docs/architecture/README.md), `/architect` command |
+| Production release / promote to prod | [`docs/agent/production-release.md`](docs/agent/production-release.md), [`.cursor/skills/koku-release/SKILL.md`](.cursor/skills/koku-release/SKILL.md) |
 
 ---
 
