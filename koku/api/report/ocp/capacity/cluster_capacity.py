@@ -71,6 +71,7 @@ class ClusterCapacity:
     count_by_date: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
     count_by_date_cluster: defaultdict = field(default_factory=lambda: defaultdict(lambda: defaultdict(Decimal)))
     count_by_cluster: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
+    use_single_scan: bool = False
 
     @property
     def capacity_aggregate(self):
@@ -93,7 +94,13 @@ class ClusterCapacity:
         return self.capacity_aggregate.get("cluster_instance_counts", {})
 
     def __post_init__(self):
-        self._populate_count_values()
+        if not self._single_scan_enabled:
+            self._populate_count_values()
+
+    @property
+    def _single_scan_enabled(self):
+        """Whether one node-level aggregation can populate capacity and counts."""
+        return self.use_single_scan and self.count_annotations and self.capacity_annotations
 
     def _aggregate_capacity_count_by_cluster(self, node_instance_counts):
         """
@@ -211,6 +218,9 @@ class ClusterCapacity:
             # Short circuit for if the capacity annotations is
             # not present in the provider map.
             return False
+        if self._single_scan_enabled:
+            self._populate_capacity_and_count_values()
+            return True
         cap_key = list(self.capacity_annotations.keys())[0]
         cap_data = self.query.values(*["usage_start", "cluster_id"]).annotate(**self.capacity_annotations)
         for entry in cap_data:
@@ -218,6 +228,35 @@ class ClusterCapacity:
             if cluster_key:
                 usage_start = self._resolution_usage_converter(entry.get("usage_start", ""))
                 cap_value = entry.get(cap_key, 0)
+                self._add_capacity(cap_value, usage_start, cluster_key)
+
+    def _populate_capacity_and_count_values(self):
+        """Populate CPU/memory cluster capacity and counts with one aggregation."""
+        annotations = {**self.count_annotations, **self.capacity_annotations}
+        combined_data = list(self.query.values(*["usage_start", "node", "cluster_id"]).annotate(**annotations))
+
+        count_data = [entry for entry in combined_data if entry["node"] is not None]
+        self._aggregate_capacity_count_by_cluster(count_data)
+        self._aggregate_capacity_count_by_date(count_data)
+
+        cap_key = list(self.capacity_annotations.keys())[0]
+        capacity_by_day_cluster = defaultdict(dict)
+        for entry in combined_data:
+            cluster_key = entry.get("cluster", "")
+            if not cluster_key:
+                continue
+            raw_usage_start = entry.get("usage_start")
+            capacity_key = (entry.get("cluster_id"), cluster_key)
+            cap_value = entry.get(cap_key, 0)
+            if cap_value is None:
+                continue
+            previous_value = capacity_by_day_cluster[raw_usage_start].get(capacity_key)
+            if previous_value is None or cap_value > previous_value:
+                capacity_by_day_cluster[raw_usage_start][capacity_key] = cap_value
+
+        for raw_usage_start, cluster_capacities in capacity_by_day_cluster.items():
+            usage_start = self._resolution_usage_converter(raw_usage_start)
+            for (_, cluster_key), cap_value in cluster_capacities.items():
                 self._add_capacity(cap_value, usage_start, cluster_key)
 
     def _finalize_mapping(self, dataset_mapping):

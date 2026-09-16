@@ -39,6 +39,7 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
 from masu.processor import OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG
 from masu.processor import OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG
 from masu.processor import OCP_REPORT_LIMITED_DELTA_FLAG
@@ -484,8 +485,23 @@ class OCPReportQueryHandler(ReportQueryHandler):
         if self.query_exclusions:
             query = query.exclude(self.query_exclusions)
         with tenant_context(self.tenant):
-            _class = NodeCapacity if is_grouped_by_node(self.parameters) else ClusterCapacity
-            capacity = _class(self._mapper.report_type_map, query, self.resolution)
+            is_node_report = is_grouped_by_node(self.parameters)
+            capacity_class = NodeCapacity if is_node_report else ClusterCapacity
+            capacity_aggregate = self._mapper.report_type_map.get("capacity_aggregate", {})
+            use_single_scan = (
+                not is_node_report
+                and bool(capacity_aggregate.get("cluster"))
+                and bool(capacity_aggregate.get("cluster_instance_counts"))
+                and is_feature_flag_enabled_by_schema(
+                    self.tenant.schema_name, OCP_CAPACITY_SINGLE_SCAN_FLAG, dev_fallback=True
+                )
+            )
+            capacity = capacity_class(
+                self._mapper.report_type_map,
+                query,
+                self.resolution,
+                **({"use_single_scan": use_single_scan} if not is_node_report else {}),
+            )
             if not capacity.capacity_aggregate:
                 # short circuit for if the capacity dataclass in report provider map
                 return query_data, {}
