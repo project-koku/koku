@@ -415,6 +415,10 @@ parameters:
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"
+- description: Seconds before a sync request is aborted and reported with request context
+  displayName: Soft request timeout
+  name: REQUEST_SOFT_TIMEOUT
+  value: "90"
 - description: Seconds before a stuck sync request's Python stacks are written to stderr
   displayName: Faulthandler request timeout
   name: REQUEST_FAULTHANDLER_TIMEOUT
