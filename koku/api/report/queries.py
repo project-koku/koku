@@ -1693,6 +1693,15 @@ class ReportQueryHandler(QueryHandler):
                 prev_total_filters = Q(usage_start=date)
         return prev_total_filters
 
+    def _get_previous_rows_query(self, previous_query, query_data):
+        """Return the query used for per-row previous-period delta values.
+
+        Providers can narrow this queryset when doing so preserves all returned
+        row deltas. The full ``previous_query`` remains the source for the
+        response-level delta total.
+        """
+        return previous_query
+
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.
 
@@ -1707,7 +1716,8 @@ class ReportQueryHandler(QueryHandler):
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter).annotate(**self.annotations)
-        previous_dict = self._create_previous_totals(previous_query, delta_group_by)
+        previous_rows_query = self._get_previous_rows_query(previous_query, query_data)
+        previous_dict = self._create_previous_totals(previous_rows_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)
             previous_total = previous_dict.get(json_dumps(key)) or 0
