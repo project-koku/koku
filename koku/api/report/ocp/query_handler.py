@@ -17,6 +17,7 @@ from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import OuterRef
+from django.db.models import Q
 from django.db.models import Subquery
 from django.db.models import Value
 from django.db.models import When
@@ -40,6 +41,7 @@ from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG
 from masu.processor import OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG
+from masu.processor import OCP_REPORT_LIMITED_DELTA_FLAG
 
 LOG = logging.getLogger(__name__)
 
@@ -245,6 +247,22 @@ class OCPReportQueryHandler(ReportQueryHandler):
     def _distinct_arrays_split_enabled(self):
         """Whether to compute clusters/source_uuid via separate (parallel-safe) queries."""
         return is_feature_flag_enabled_by_schema(self.tenant.schema_name, OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG)
+
+    @cached_property
+    def _limited_delta_for_ranked_projects_enabled(self):
+        """Whether prior-period deltas can be limited to the returned projects."""
+        filter_params = self.parameters.get("filter") or {}
+        return (
+            self._report_type == "costs_by_project"
+            and self.resolution == "monthly"
+            and {"limit", "offset"}.issubset(filter_params)
+            and self._get_group_by() == ["project"]
+            and not self._category
+            and not self.is_csv_output
+            and is_feature_flag_enabled_by_schema(
+                self.tenant.schema_name, OCP_REPORT_LIMITED_DELTA_FLAG, dev_fallback=True
+            )
+        )
 
     def _distinct_metadata_annotations(self):
         """Return the clusters/source_uuid ArrayAgg annotations for this report type."""
@@ -493,6 +511,20 @@ class OCPReportQueryHandler(ReportQueryHandler):
             return self.add_current_month_deltas(query_data, query_sum)
         else:
             return super().add_deltas(query_data, query_sum)
+
+    def _get_previous_rows_query(self, previous_query, query_data):
+        """Limit per-row deltas to ranked projects when the flagged shape is safe."""
+        if not self._limited_delta_for_ranked_projects_enabled or not query_data:
+            return previous_query
+
+        projects = {row.get("project") for row in query_data}
+        non_null_projects = projects - {None}
+        project_filter = Q()
+        if non_null_projects:
+            project_filter |= Q(namespace__in=non_null_projects)
+        if None in projects:
+            project_filter |= Q(namespace__isnull=True)
+        return previous_query.filter(project_filter)
 
     def add_current_month_deltas(self, query_data, query_sum):
         """Add delta to the resultset using current month comparisons."""
