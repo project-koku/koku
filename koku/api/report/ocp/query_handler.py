@@ -40,6 +40,7 @@ from cost_models.models import CostModelMap
 from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
+from masu.processor import OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG
 from masu.processor import OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG
 from masu.processor import OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG
 from masu.processor import OCP_REPORT_LIMITED_DELTA_FLAG
@@ -250,8 +251,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return is_feature_flag_enabled_by_schema(self.tenant.schema_name, OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG)
 
     @cached_property
-    def _limited_delta_for_ranked_projects_enabled(self):
-        """Whether prior-period deltas can be limited to the returned projects."""
+    def _is_limited_delta_for_ranked_projects_shape(self):
+        """Whether the Banco-style ranked delta shape is safe for an experiment."""
         filter_params = self.parameters.get("filter") or {}
         return (
             self._report_type == "costs_by_project"
@@ -260,8 +261,23 @@ class OCPReportQueryHandler(ReportQueryHandler):
             and self._get_group_by() == ["project"]
             and not self._category
             and not self.is_csv_output
+        )
+
+    @cached_property
+    def _limited_delta_for_ranked_projects_enabled(self):
+        """Whether prior-period deltas can be limited to the returned projects."""
+        return self._is_limited_delta_for_ranked_projects_shape and is_feature_flag_enabled_by_schema(
+            self.tenant.schema_name, OCP_REPORT_LIMITED_DELTA_FLAG, dev_fallback=True
+        )
+
+    @cached_property
+    def _combined_distributed_cost_for_limited_delta_enabled(self):
+        """Whether the prior-period distributed cost can use one aggregate expression."""
+        return (
+            self._is_limited_delta_for_ranked_projects_shape
+            and self._delta == "cost_total_distributed"
             and is_feature_flag_enabled_by_schema(
-                self.tenant.schema_name, OCP_REPORT_LIMITED_DELTA_FLAG, dev_fallback=True
+                self.tenant.schema_name, OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG, dev_fallback=True
             )
         )
 
@@ -541,6 +557,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
         if None in projects:
             project_filter |= Q(namespace__isnull=True)
         return previous_query.filter(project_filter)
+
+    def _get_delta_field(self):
+        """Use the single distributed-cost aggregate only for the flagged safe shape."""
+        if self._combined_distributed_cost_for_limited_delta_enabled:
+            return self._mapper.combined_distributed_cost
+        return super()._get_delta_field()
 
     def add_current_month_deltas(self, query_data, query_sum):
         """Add delta to the resultset using current month comparisons."""
