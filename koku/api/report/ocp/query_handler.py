@@ -9,6 +9,7 @@ from collections import defaultdict
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
+from decimal import ROUND_HALF_UP
 from functools import cached_property
 
 from django.db.models import Case
@@ -40,6 +41,7 @@ from cost_models.models import CostModelMap
 from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
+from masu.processor import OCP_REPORT_DERIVED_TOTALS_FLAG
 from masu.processor import OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG
 from masu.processor import OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG
 from masu.processor import OCP_REPORT_LIMITED_DELTA_FLAG
@@ -51,6 +53,21 @@ LOG = logging.getLogger(__name__)
 # forces a serial GroupAggregate; computing these separately lets the main
 # aggregation parallelize.
 DISTINCT_METADATA_FIELDS = ("clusters", "source_uuid")
+
+DERIVED_TOTAL_COMPONENTS = {
+    "sup_total": ("sup_raw", "sup_usage", "sup_markup"),
+    "infra_total": ("infra_raw", "infra_usage", "infra_markup"),
+    "cost_total": ("cost_raw", "cost_usage", "cost_markup"),
+    "cost_total_distributed": (
+        "cost_total",
+        "cost_platform_distributed",
+        "cost_worker_unallocated_distributed",
+        "cost_network_unattributed_distributed",
+        "cost_storage_unattributed_distributed",
+        "cost_gpu_unallocated_distributed",
+    ),
+}
+DERIVED_TOTAL_SCORE_FIELDS = ("usage_efficiency", "wasted_cost")
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -378,6 +395,47 @@ class OCPReportQueryHandler(ReportQueryHandler):
             row.pop("wasted_cost", None)
             row["score"] = {}
 
+    @cached_property
+    def _derived_totals_enabled(self):
+        """Whether CPU/memory response totals can derive composite values in Python."""
+        return self._report_type in ("cpu", "memory") and is_feature_flag_enabled_by_schema(
+            self.tenant.schema_name,
+            OCP_REPORT_DERIVED_TOTALS_FLAG,
+            dev_fallback=True,
+        )
+
+    @staticmethod
+    def _sum_total_components(metric_sum, components):
+        """Sum nullable aggregate components with the same zero semantics as SQL COALESCE."""
+        return sum((metric_sum.get(component) or Decimal(0) for component in components), Decimal(0))
+
+    def _derive_response_totals(self, metric_sum):
+        """Populate CPU/memory total fields removed from the flagged SQL aggregate."""
+        for total, components in DERIVED_TOTAL_COMPONENTS.items():
+            metric_sum[total] = self._sum_total_components(metric_sum, components)
+
+        usage = metric_sum.get("usage") or Decimal(0)
+        request = metric_sum.get("request") or Decimal(0)
+        if request:
+            usage_ratio = usage / request
+            metric_sum["usage_efficiency"] = int(
+                (usage_ratio * Decimal(100)).quantize(Decimal(1), rounding=ROUND_HALF_UP)
+            )
+            metric_sum["wasted_cost"] = max(metric_sum["cost_total"] * (Decimal(1) - usage_ratio), Decimal(0))
+        else:
+            metric_sum["usage_efficiency"] = 0
+            metric_sum["wasted_cost"] = Decimal(0)
+
+        return metric_sum
+
+    def _response_total_aggregates(self, aggregates):
+        """Return the aggregate set required to construct response totals."""
+        if not self._derived_totals_enabled:
+            return aggregates
+
+        derived_fields = set(DERIVED_TOTAL_COMPONENTS) | set(DERIVED_TOTAL_SCORE_FIELDS)
+        return {key: value for key, value in aggregates.items() if key not in derived_fields}
+
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
@@ -421,7 +479,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # Populate the 'total' section of the API response
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                metric_sum = query.aggregate(**aggregates)
+                metric_sum = query.aggregate(**self._response_total_aggregates(aggregates))
+                if self._derived_totals_enabled:
+                    metric_sum = self._derive_response_totals(metric_sum)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             query_data, total_capacity = self.get_capacity(query_data)

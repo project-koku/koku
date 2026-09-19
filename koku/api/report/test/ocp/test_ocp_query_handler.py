@@ -13,6 +13,7 @@ from unittest.mock import patch
 from unittest.mock import PropertyMock
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.db import connection
@@ -44,6 +45,7 @@ from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
 from reporting.models import OCPCostSummaryByProjectP
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPGpuSummaryP
+from reporting.provider.ocp.models import OCPPodSummaryP
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
@@ -112,6 +114,137 @@ class OCPReportQueryHandlerTest(IamTestCase):
             if query["sql"].lstrip().startswith("SELECT")
             and "reporting_ocpusagelineitem_daily_summary" in query["sql"]
         ]
+
+    @staticmethod
+    def _total_summary_select(captured_queries):
+        """Return the ungrouped usage-summary aggregate used for response totals."""
+        return next(
+            query["sql"]
+            for query in captured_queries
+            if query["sql"].lstrip().startswith("SELECT")
+            and "reporting_ocp_pod_summary_p" in query["sql"]
+            and 'AS "sup_raw"' in query["sql"]
+            and "GROUP BY" not in query["sql"]
+        )
+
+    def _create_derived_totals_rows(self):
+        """Create CPU/memory data with non-zero primitive cost and score inputs."""
+        usage_start = self.dh.today.date()
+        rows = (
+            (Decimal("6"), Decimal("12"), Decimal("10"), Decimal("2"), Decimal("3")),
+            (Decimal("3"), Decimal("6"), Decimal("5"), Decimal("1"), Decimal("2")),
+        )
+        with tenant_context(self.tenant):
+            for usage, request, raw_cost, markup_cost, model_cost in rows:
+                OCPPodSummaryP.objects.create(
+                    id=uuid4(),
+                    usage_start=usage_start,
+                    usage_end=usage_start,
+                    data_source="Pod",
+                    cluster_id="derived-totals-cluster",
+                    cluster_alias="derived-totals-cluster",
+                    raw_currency="USD",
+                    pod_usage_cpu_core_hours=usage,
+                    pod_request_cpu_core_hours=request,
+                    pod_limit_cpu_core_hours=request,
+                    pod_usage_memory_gigabyte_hours=usage,
+                    pod_request_memory_gigabyte_hours=request,
+                    pod_limit_memory_gigabyte_hours=request,
+                    infrastructure_raw_cost=raw_cost,
+                    infrastructure_markup_cost=markup_cost,
+                    cost_model_cpu_cost=model_cost,
+                    cost_model_memory_cost=model_cost,
+                )
+
+    @patch(
+        "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema",
+        side_effect=lambda schema, flag, **kwargs: flag == "cost-management.backend.ocp_report_derived_totals",
+    )
+    def test_derived_totals_flag_aggregates_only_primitives(self, mock_feature_flag):
+        """Flagged CPU response totals derive composite costs outside the SQL aggregate."""
+        self._create_derived_totals_rows()
+        handler = OCPReportQueryHandler(self.mocked_query_params("?", OCPCpuView))
+
+        with CaptureQueriesContext(connection) as captured:
+            handler.execute_query()
+
+        total_sql = self._total_summary_select(captured)
+        for composite_field in (
+            "sup_total",
+            "infra_total",
+            "cost_total",
+            "cost_total_distributed",
+            "usage_efficiency",
+            "wasted_cost",
+        ):
+            with self.subTest(composite_field=composite_field):
+                self.assertNotIn(f'AS "{composite_field}"', total_sql)
+
+        mock_feature_flag.assert_any_call(
+            handler.tenant.schema_name,
+            "cost-management.backend.ocp_report_derived_totals",
+            dev_fallback=True,
+        )
+
+    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema")
+    def test_derived_totals_flag_matches_legacy_cpu_and_memory_totals(self, mock_feature_flag):
+        """The flag preserves packed totals for CPU and memory reports."""
+        self._create_derived_totals_rows()
+        for report_view in (OCPCpuView, OCPMemoryView):
+            with self.subTest(report_view=report_view.__name__):
+                mock_feature_flag.side_effect = lambda schema, flag, **kwargs: False
+                legacy = OCPReportQueryHandler(
+                    self.mocked_query_params("?group_by[cluster]=*", report_view)
+                ).execute_query()
+
+                mock_feature_flag.side_effect = (
+                    lambda schema, flag, **kwargs: flag == "cost-management.backend.ocp_report_derived_totals"
+                )
+                flagged = OCPReportQueryHandler(
+                    self.mocked_query_params("?group_by[cluster]=*", report_view)
+                ).execute_query()
+
+                self.assertEqual(flagged["total"], legacy["total"])
+
+    def test_derived_totals_calculation_handles_score_boundaries(self):
+        """Derived response totals preserve SQL's zero-request and half-rounding behavior."""
+        handler = OCPReportQueryHandler(self.mocked_query_params("?", OCPCpuView))
+        primitives = {
+            "sup_raw": Decimal("1"),
+            "sup_usage": Decimal("2"),
+            "sup_markup": Decimal("3"),
+            "infra_raw": Decimal("4"),
+            "infra_usage": Decimal("5"),
+            "infra_markup": Decimal("6"),
+            "cost_raw": Decimal("7"),
+            "cost_usage": Decimal("8"),
+            "cost_markup": Decimal("9"),
+            "usage": Decimal("1"),
+            "request": Decimal("200"),
+        }
+
+        result = handler._derive_response_totals(primitives)
+
+        self.assertEqual(result["sup_total"], Decimal("6"))
+        self.assertEqual(result["infra_total"], Decimal("15"))
+        self.assertEqual(result["cost_total"], Decimal("24"))
+        self.assertEqual(result["cost_total_distributed"], Decimal("24"))
+        self.assertEqual(result["usage_efficiency"], 1)
+        self.assertEqual(result["wasted_cost"], Decimal("23.880"))
+
+        result = handler._derive_response_totals({**primitives, "request": Decimal(0)})
+        self.assertEqual(result["usage_efficiency"], 0)
+        self.assertEqual(result["wasted_cost"], Decimal(0))
+
+    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_derived_totals_flag_ignores_costs_and_volume_reports(self, mock_feature_flag):
+        """Only CPU and memory response totals may use the derived-total path."""
+        for report_view in (OCPCostView, OCPVolumeView):
+            with self.subTest(report_view=report_view.__name__):
+                handler = OCPReportQueryHandler(self.mocked_query_params("?", report_view))
+                self.assertFalse(handler._derived_totals_enabled)
+
+        mock_feature_flag.assert_not_called()
 
     @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=True)
     def test_cluster_capacity_flag_uses_one_cpu_summary_scan(self, mock_feature_flag):

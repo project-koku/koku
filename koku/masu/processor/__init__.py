@@ -34,6 +34,7 @@ OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG = "cost-management.backend.ocp_report_d
 OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG = "cost-management.backend.ocp_report_identity_exchange_rate"
 OCP_REPORT_LIMITED_DELTA_FLAG = "cost-management.backend.ocp_report_limited_delta"
 OCP_CAPACITY_SINGLE_SCAN_FLAG = "cost-management.backend.ocp_capacity_single_scan"
+OCP_REPORT_DERIVED_TOTALS_FLAG = "cost-management.backend.ocp_report_derived_totals"
 
 
 def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):  # pragma: no cover
