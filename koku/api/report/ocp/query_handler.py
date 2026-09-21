@@ -233,7 +233,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
 
     def _get_base_currencies_for_conversion(self):
-        """Return base currencies from both raw_currency and cost model currencies."""
+        """Return base currencies from both raw_currency and cost model currencies.
+        New fake comment
+        """
         base_currencies = super()._get_base_currencies_for_conversion()
         cm_currencies = set(
             CostModel.objects.filter(
@@ -248,7 +250,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
     @cached_property
     def _distinct_arrays_split_enabled(self):
         """Whether to compute clusters/source_uuid via separate (parallel-safe) queries."""
-        return is_feature_flag_enabled_by_schema(self.tenant.schema_name, OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG)
+        return is_feature_flag_enabled_by_schema(
+            self.tenant.schema_name, OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG, dev_fallback=True
+        )
 
     @cached_property
     def _is_limited_delta_for_ranked_projects_shape(self):
