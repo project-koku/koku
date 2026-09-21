@@ -32,6 +32,7 @@ from api.query_filter import QueryFilterCollection
 from api.report.test.test_queries import assertSameQ
 from api.utils import DateHelper
 from cost_models.models import EnabledCurrency
+from cost_models.models import MonthlyExchangeRate
 from forecast import AWSForecast
 from forecast import AzureForecast
 from forecast import GCPForecast
@@ -1013,3 +1014,162 @@ class ForecastExchangeRateTest(IamTestCase):
             instance.predict()
 
         mock_validate.assert_not_called()
+
+
+class ForecastStaticRateTest(IamTestCase):
+    """Tests that static exchange rates apply fully regardless of day-of-month."""
+
+    STATIC_RATE = Decimal("1.50")
+    PREV_RATE = Decimal("1.10")
+
+    def setUp(self):
+        super().setUp()
+        with schema_context(self.schema_name):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+            delete_value_from_cache(build_enabled_currency_codes_key(self.schema_name))
+
+    def _build_mock_dh(self, day_of_month, year=2026, month=8):
+        """Build a DateHelper mock fixed to a day in the given month."""
+        dh = DateHelper()
+        today = datetime(year, month, day_of_month, 0, 0, 0, 0)
+        yesterday = today - timedelta(days=1)
+        this_month_start = datetime(year, month, 1, 0, 0, 0, 0)
+        if month == 12:
+            next_month = datetime(year + 1, 1, 1, 0, 0, 0, 0)
+        else:
+            next_month = datetime(year, month + 1, 1, 0, 0, 0, 0)
+        this_month_end = next_month - timedelta(seconds=1)
+
+        mock_dh = Mock(spec=DateHelper)
+        mock_dh.return_value.today = today
+        mock_dh.return_value.yesterday = yesterday
+        mock_dh.return_value.this_month_start = this_month_start
+        mock_dh.return_value.this_month_end = this_month_end
+        mock_dh.return_value.n_days_ago = dh.n_days_ago
+        mock_dh.return_value.midnight = dh.midnight
+        mock_dh.return_value.list_days = dh.list_days
+        return mock_dh
+
+    def _flat_training_data(self, yesterday, days=30):
+        """Return flat daily cost data spanning the training window."""
+        expected = []
+        for n in range(days):
+            expected.append(
+                {
+                    "usage_start": (yesterday - timedelta(days=days - 1 - n)).date(),
+                    "total_cost": Decimal("100"),
+                    "infrastructure_cost": Decimal("100"),
+                    "supplementary_cost": Decimal("0"),
+                }
+            )
+        return MockQuerySet(expected)
+
+    def _seed_mer_rates(self, month_start):
+        """Seed previous-month dynamic and current-month static MER rows."""
+        prev_month = (month_start.replace(day=1) - timedelta(days=1)).replace(day=1)
+        with schema_context(self.schema_name):
+            MonthlyExchangeRate.objects.all().delete()
+            MonthlyExchangeRate.objects.create(
+                effective_date=prev_month,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=self.PREV_RATE,
+                rate_type="dynamic",
+            )
+            MonthlyExchangeRate.objects.create(
+                effective_date=month_start,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=self.STATIC_RATE,
+                rate_type="static",
+            )
+
+    def _predict_total(self, currency, mock_dh):
+        """Run AWSForecast.predict() and return the first total cost prediction."""
+        with schema_context(self.schema_name):
+            params = self.mocked_query_params(f"?currency={currency}", AWSCostForecastView)
+        yesterday = mock_dh.return_value.yesterday
+        mock_qset = self._flat_training_data(yesterday)
+
+        with (
+            patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh),
+            patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True),
+            patch("forecast.forecast.AWSForecast.get_data", return_value=mock_qset),
+            patch("forecast.forecast.AWSForecast._get_base_currencies_for_conversion", return_value={"USD"}),
+        ):
+            instance = AWSForecast(params)
+            results = instance.predict()
+
+        return float(results[0]["values"][0]["cost"]["total"]["value"])
+
+    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_get_data_skips_exchange_annotation_when_flag_on(self, _):
+        """Flag ON with currency → get_data() does not apply exchange rate annotations."""
+        with schema_context(self.schema_name):
+            params = self.mocked_query_params("?currency=EUR", AWSCostForecastView)
+            instance = AWSForecast(params)
+        with patch.object(instance.cost_summary_table.objects, "filter") as mock_filter:
+            values_qs = Mock()
+            mock_qs = mock_filter.return_value
+            mock_qs.order_by.return_value = mock_qs
+            mock_qs.values.return_value = values_qs
+            values_qs.annotate.return_value = values_qs
+            instance.get_data()
+            mock_qs.annotate.assert_not_called()
+            values_qs.annotate.assert_called_once()
+
+    def test_static_rate_ratio_invariant_to_day_of_month(self):
+        """EUR/USD prediction ratio equals the current-month static rate on any day."""
+        ratios = []
+        for day in (1, 15, 28):
+            mock_dh = self._build_mock_dh(day)
+            month_start = mock_dh.return_value.this_month_start.date()
+            self._seed_mer_rates(month_start)
+
+            eur_total = self._predict_total("EUR", mock_dh)
+            usd_total = self._predict_total("USD", mock_dh)
+            ratios.append(eur_total / usd_total)
+
+        for ratio in ratios:
+            self.assertAlmostEqual(ratio, float(self.STATIC_RATE), places=2)
+        self.assertAlmostEqual(ratios[0], ratios[1], places=4)
+        self.assertAlmostEqual(ratios[1], ratios[2], places=4)
+
+
+class OCPForecastStaticRateTest(IamTestCase):
+    """Tests OCP per-field static exchange rate multipliers."""
+
+    def setUp(self):
+        super().setUp()
+        with schema_context(self.schema_name):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+            delete_value_from_cache(build_enabled_currency_codes_key(self.schema_name))
+
+    @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch.object(OCPForecast, "_get_weighted_exchange_rate", return_value=Decimal("1.50"))
+    @patch.object(OCPForecast, "_get_cost_model_weighted_rate", return_value=Decimal("1.00"))
+    @patch.object(
+        OCPForecast,
+        "_get_ocp_training_cost_split",
+        return_value={
+            "infra_cloud_base": Decimal("80"),
+            "cm_infra_base": Decimal("0"),
+            "cm_cost_base": Decimal("20"),
+            "cm_supplementary_base": Decimal("10"),
+        },
+    )
+    def test_ocp_prediction_rate_multipliers(self, _split, _cm_rate, _infra_rate, _flag):
+        """OCP applies per-field blended rates from infra and cost-model components."""
+        with schema_context(self.schema_name):
+            params = self.mocked_query_params("?currency=EUR", OCPCostForecastView)
+            instance = OCPForecast(params)
+            multipliers = instance._get_prediction_rate_multipliers()
+
+        self.assertAlmostEqual(float(multipliers["infrastructure_cost"]), 1.50, places=4)
+        self.assertAlmostEqual(float(multipliers["supplementary_cost"]), 1.00, places=4)
+        expected_total = float((Decimal("80") * Decimal("1.50") + Decimal("20") * Decimal("1.00")) / Decimal("100"))
+        self.assertAlmostEqual(float(multipliers["total_cost"]), expected_total, places=4)
