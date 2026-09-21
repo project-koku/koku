@@ -182,17 +182,18 @@ class OCPProviderMap(ProviderMap):
                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
 
+    def __cost_model_distributed_cost_expression(self, cost_model_rate_type, exchange_rate_column):
+        """Return the per-row distributed-cost term for one rate type."""
+        return Case(
+            When(
+                cost_model_rate_type=cost_model_rate_type,
+                then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
+            ),
+            default=Value(0, output_field=DecimalField()),
+        ) * Coalesce(exchange_rate_column, Value(1, output_field=DecimalField()))
+
     def __cost_model_distributed_cost(self, cost_model_rate_type, exchange_rate_column):
-        return Sum(
-            Case(
-                When(
-                    cost_model_rate_type=cost_model_rate_type,
-                    then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
-                ),
-                default=Value(0, output_field=DecimalField()),
-            )
-            * Coalesce(exchange_rate_column, Value(1, output_field=DecimalField())),
-        )
+        return Sum(self.__cost_model_distributed_cost_expression(cost_model_rate_type, exchange_rate_column))
 
     def _cpu_usage_sum(self):
         """Return a new Sum expression for CPU usage hours."""
@@ -1450,6 +1451,29 @@ class OCPProviderMap(ProviderMap):
         return Sum(
             Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
             * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
+        )
+
+    @cached_property
+    def combined_distributed_cost(self):
+        """Return one aggregate for the total distributed OCP cost delta."""
+        cost_model_cost = (
+            Coalesce(F("cost_model_cpu_cost"), Value(0, output_field=DecimalField()))
+            + Coalesce(F("cost_model_memory_cost"), Value(0, output_field=DecimalField()))
+            + Coalesce(F("cost_model_volume_cost"), Value(0, output_field=DecimalField()))
+            + Coalesce(F("cost_model_gpu_cost"), Value(0, output_field=DecimalField()))
+        ) * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+        infrastructure_cost = (
+            Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+            + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+        ) * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
+        return Sum(
+            infrastructure_cost
+            + cost_model_cost
+            + self.__cost_model_distributed_cost_expression("platform_distributed", "exchange_rate")
+            + self.__cost_model_distributed_cost_expression("worker_distributed", "exchange_rate")
+            + self.__cost_model_distributed_cost_expression("unattributed_network", "infra_exchange_rate")
+            + self.__cost_model_distributed_cost_expression("unattributed_storage", "infra_exchange_rate")
+            + self.__cost_model_distributed_cost_expression("gpu_distributed", "exchange_rate")
         )
 
     @cached_property
