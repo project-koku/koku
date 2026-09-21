@@ -1651,7 +1651,7 @@ class ReportQueryHandler(QueryHandler):
         date_delta = self._get_date_delta()
         # Added deltas for each grouping
         # e.g. date, account, region, availability zone, et cetera
-        delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
+        delta_field = self._get_delta_field()
         delta_annotation = {self._delta: delta_field}
 
         previous_sums = previous_query.values(*query_group_by).annotate(**delta_annotation)
@@ -1664,6 +1664,10 @@ class ReportQueryHandler(QueryHandler):
             previous_dict[json_dumps(key)] = row[self._delta]
 
         return previous_dict
+
+    def _get_delta_field(self):
+        """Return the aggregate expression used for previous-period deltas."""
+        return self._mapper._report_type_map.get("delta_key").get(self._delta)
 
     def _get_previous_totals_filter(self, filter_dates):
         """Filter previous time range to exlude days from the current range.
@@ -1735,7 +1739,7 @@ class ReportQueryHandler(QueryHandler):
                 current_total_sum = Decimal(query_sum.get("cost", {}).get("total").get("value") or 0)
             else:
                 current_total_sum = Decimal(query_sum.get("cost") or 0)
-        delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
+        delta_field = self._get_delta_field()
         prev_total_sum = previous_query.aggregate(value=delta_field)
         if self.resolution == "daily":
             dates = [entry.get("date") for entry in query_data]
