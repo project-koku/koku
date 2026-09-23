@@ -63,7 +63,7 @@ JOIN (
         usage_start AS interval_day,
         sum(vm_uptime_total_seconds) / 3600 AS vm_interval_hours
     FROM {{schema | sqlsafe}}.openshift_vm_usage_line_items
-    WHERE source = {{source_uuid}}
+    WHERE source = {{source_uuid | string}}
       AND year = {{year}}
       AND month = {{month}}
     GROUP BY 1, 2
@@ -74,7 +74,7 @@ JOIN (
         count(interval_start) AS vm_interval_hours
     FROM {{schema | sqlsafe}}.openshift_pod_usage_line_items
     WHERE strpos(pod_labels, 'vm_kubevirt_io_name') != 0
-      AND source = {{source_uuid}}
+      AND source = {{source_uuid | string}}
       AND year = {{year}}
       AND month = {{month}}
     GROUP BY 1, 2
