@@ -135,14 +135,34 @@ class OCPReportDBCleaner:
                         partitions=partition_from,
                     )
                 )
-                del_count = execute_delete_sql(
-                    PartitionedTable.objects.filter(
-                        schema_name=self._schema,
-                        partition_of_table_name__in=table_names,
-                        partition_parameters__default=False,
-                        partition_parameters__from__lte=partition_from,
+                # COST-7249 deadlock preflight, Finding H: dropping a PartitionedTable tracking
+                # row fires trfn_partition_manager()'s DELETE branch -- ALTER TABLE ... DETACH
+                # PARTITION (ACCESS EXCLUSIVE on the *parent* table, not just the partition being
+                # dropped) + TRUNCATE + DROP TABLE. table_names spans rates_to_usage and every
+                # UI_SUMMARY_TABLES entry, so a single combined
+                # execute_delete_sql(PartitionedTable.objects.filter(partition_of_table_name__in=
+                # table_names, ...)) call -- one compiled SQL statement, one transaction -- can
+                # hold ACCESS EXCLUSIVE on *multiple* parent tables at once for as long as any
+                # rows match on more than one table. That is precisely the precondition for
+                # Postgres's documented ATTACH/DETACH-partition "queue-jump" deadlock: any
+                # concurrent writer touching the same two tables in the opposite order can form a
+                # genuine wait-for cycle, not just ordinary lock contention. Deleting one table's
+                # matching partitions per statement/transaction bounds this drop to ever holding
+                # an ACCESS EXCLUSIVE lock on a single parent table at a time, which eliminates
+                # the cross-table cycle (a concurrent writer can still be blocked waiting for that
+                # one table, but a wait on a single resource can't deadlock by itself). Spiked
+                # empirically: see
+                # masu/test/database/test_partition_drop_write_deadlock.py.
+                del_count = 0
+                for table_name in table_names:
+                    del_count += execute_delete_sql(
+                        PartitionedTable.objects.filter(
+                            schema_name=self._schema,
+                            partition_of_table_name__in=[table_name],
+                            partition_parameters__default=False,
+                            partition_parameters__from__lte=partition_from,
+                        )
                     )
-                )
                 LOG.info(log_json(msg="deleted table partitions", count=del_count, schema=self._schema))
 
                 # Remove all data related to the report period
