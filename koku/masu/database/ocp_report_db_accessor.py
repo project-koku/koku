@@ -1397,6 +1397,18 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         cost_model_rate via SQL JOIN.  Distribution is read directly from the
         cost_model table; cte_node_cost computes allocation fractions only;
         rate multiplication happens in Component 6.
+
+        COST-7249 deadlock preflight, COST-8112: this is the very first write
+        into rates_to_usage in the whole RTU pipeline, and does the same
+        DELETE-then-INSERT for the same provider/date-range as every other RTU
+        write step (populate_distributed_cost_sql, aggregate_rates_to_daily_
+        summary, populate_markup_rates_to_usage, _populate_cost_breakdown_ui_
+        summary_table) -- all of which already run under
+        _distribution_provider_lock. This one didn't, leaving it exposed to
+        the same concurrent-Provider.delete() FK-violation crash as Finding B
+        (see test_ocp_provider_delete_rtu_race.py) for an uncoordinated
+        writer. Runs under _distribution_provider_lock (see its docstring) to
+        close that gap.
         """
         sql = pkgutil.get_data(
             "masu.database",
@@ -1413,7 +1425,8 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         }
 
         LOG.info(log_json(msg="populating rates_to_usage (single-pass)", context=sql_params))
-        self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
+        with self._distribution_provider_lock(provider_uuid):
+            self._prepare_and_execute_raw_sql_query("rates_to_usage", sql, sql_params, operation="INSERT")
 
     def populate_markup_rates_to_usage(self, start_date, end_date, source_uuid, cluster_id, cost_model_id):
         """Write markup costs as RatesToUsage rows with metric_type='markup'.
