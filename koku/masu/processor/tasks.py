@@ -39,6 +39,7 @@ from koku.trino_database import TrinoQueryNotFoundError
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
+from masu.exceptions import SummaryPeriodLockUnavailable
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_celery_task_delay_disabled
@@ -75,6 +76,7 @@ LOG = logging.getLogger(__name__)
 
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
 UPDATE_COST_MODEL_COSTS_TASK = "masu.processor.tasks.update_cost_model_costs"
+OCP_SUMMARY_PERIOD_LOCK_REQUEUE_SECONDS = 60
 
 
 def deduplicate_summary_reports(reports_to_summarize, manifest_list):
@@ -703,6 +705,36 @@ def update_summary_tables(  # noqa: C901
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
         return
+    except SummaryPeriodLockUnavailable:
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
+            LOG.info(
+                log_json(
+                    tracing_id,
+                    msg="OCP summary period is locked; requeuing without occupying a worker",
+                    context=context,
+                    retry_delay_seconds=OCP_SUMMARY_PERIOD_LOCK_REQUEUE_SECONDS,
+                )
+            )
+            update_summary_tables.s(
+                schema,
+                provider_type,
+                provider_uuid,
+                start_date,
+                end_date=end_date,
+                manifest_id=manifest_id,
+                ingress_report_uuid=ingress_report_uuid,
+                invoice_month=invoice_month,
+                queue_name=queue_name,
+                tracing_id=tracing_id,
+                ocp_on_cloud=ocp_on_cloud,
+                manifest_list=manifest_list,
+            ).apply_async(
+                queue=queue_name or fallback_update_summary_tables_queue,
+                countdown=OCP_SUMMARY_PERIOD_LOCK_REQUEUE_SECONDS,
+            )
+            return
+        raise
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
@@ -1049,6 +1081,31 @@ def update_cost_model_costs(  # noqa: C901
             updater.update_cost_model_costs(start_date, end_date)
         if provider := Provider.objects.filter(uuid=provider_uuid).first():
             provider.set_data_updated_timestamp()
+    except SummaryPeriodLockUnavailable:
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
+            LOG.info(
+                log_json(
+                    tracing_id,
+                    msg="OCP summary period is locked; requeuing cost model without occupying a worker",
+                    context=context,
+                    retry_delay_seconds=OCP_SUMMARY_PERIOD_LOCK_REQUEUE_SECONDS,
+                )
+            )
+            update_cost_model_costs.s(
+                schema_name,
+                provider_uuid,
+                start_date=start_date,
+                end_date=end_date,
+                queue_name=queue_name,
+                synchronous=synchronous,
+                tracing_id=tracing_id,
+            ).apply_async(
+                queue=queue_name or fallback_queue,
+                countdown=OCP_SUMMARY_PERIOD_LOCK_REQUEUE_SECONDS,
+            )
+            return
+        raise
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)

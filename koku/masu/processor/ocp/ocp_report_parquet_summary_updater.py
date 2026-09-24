@@ -15,7 +15,10 @@ from api.common import log_json
 from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_SUMMARY_PERIOD_LOCK_FLAG
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.util.common import date_range
 from masu.util.common import date_range_pair
 from masu.util.common import SummaryRangeConfig
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
@@ -112,11 +115,30 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     return start_date, end_date
                 report_period_id = report_period.id
 
+            use_period_lock = is_feature_flag_enabled_by_schema(
+                self._schema, OCP_SUMMARY_PERIOD_LOCK_FLAG, dev_fallback=True
+            )
             accessor.populate_openshift_cluster_information_tables(
                 self._provider, self._cluster_id, self._cluster_alias, start_date, end_date
             )
 
-            for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+            # Keep the legacy chunk size until the feature is enabled.  The
+            # flagged path serializes the delete -> Trino repopulate -> UI
+            # refresh sequence for one calendar day, so a competing summary
+            # task can make progress on another day of the same period.
+            if use_period_lock:
+                summary_ranges = (
+                    (summary_date, summary_date)
+                    for summary_date in date_range(
+                        datetime.combine(start_date, datetime.min.time()),
+                        datetime.combine(end_date, datetime.min.time()),
+                        step=1,
+                    )
+                )
+            else:
+                summary_ranges = date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP)
+
+            for start, end in summary_ranges:
                 LOG.info(
                     log_json(
                         msg="updating OCP report summary tables",
@@ -126,20 +148,14 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                         report_period_id=report_period_id,
                     )
                 )
-                # This will process POD and STORAGE together
-                # "delete_all_except_infrastructure_raw_cost_from_daily_summary" specificallly excludes
-                # the cost rows generated through the OCPCloudParquetReportSummaryUpdater
-                accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
-                    self._provider.uuid, report_period_id, start, end
-                )
-                accessor.populate_line_item_daily_summary_table_trino(
-                    start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid
-                )
-                accessor.populate_ui_summary_tables(
-                    SummaryRangeConfig(start_date=start, end_date=end), self._provider.uuid
-                )
+                if use_period_lock:
+                    with accessor.summary_period_lock(report_period_id, wait=False, shared=True):
+                        with accessor.summary_day_lock(report_period_id, start, wait=False):
+                            self._update_daily_summary_chunk(accessor, report_period_id, start, end)
+                else:
+                    self._update_daily_summary_chunk(accessor, report_period_id, start, end)
 
-            # This will process POD and STORAGE together
+            # This will process POD and STORAGE together.
             LOG.info(
                 log_json(
                     msg="updating OCP label summary tables",
@@ -151,7 +167,19 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             )
             accessor.populate_pod_label_summary_table([report_period_id], start_date, end_date)
             accessor.populate_volume_label_summary_table([report_period_id], start_date, end_date)
-            accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, [report_period_id])
+            if use_period_lock:
+                for summary_date in date_range(
+                    datetime.combine(start_date, datetime.min.time()),
+                    datetime.combine(end_date, datetime.min.time()),
+                    step=1,
+                ):
+                    with accessor.summary_period_lock(report_period_id, wait=False, shared=True):
+                        with accessor.summary_day_lock(report_period_id, summary_date, wait=False):
+                            accessor.update_line_item_daily_summary_with_tag_mapping(
+                                summary_date, summary_date, [report_period_id]
+                            )
+            else:
+                accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, [report_period_id])
 
             LOG.info(
                 log_json(msg="updating OCP report periods", context=self._context, report_period_id=report_period_id)
@@ -173,6 +201,23 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             self.check_cluster_infrastructure(start_date, end_date)
 
         return start_date, end_date
+
+    def _update_daily_summary_chunk(self, accessor, report_period_id, start_date, end_date):
+        """Replace one daily-summary chunk while its day lock is held."""
+        # "delete_all_except_infrastructure_raw_cost_from_daily_summary"
+        # specifically excludes costs produced by OCPCloudParquetReportSummaryUpdater.
+        # The DELETE and subsequent Trino population must remain a single
+        # locked unit so a cost-model task cannot observe a partially rebuilt
+        # day.
+        accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
+            self._provider.uuid, report_period_id, start_date, end_date
+        )
+        accessor.populate_line_item_daily_summary_table_trino(
+            start_date, end_date, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid
+        )
+        accessor.populate_ui_summary_tables(
+            SummaryRangeConfig(start_date=start_date, end_date=end_date), self._provider.uuid
+        )
 
     def check_cluster_infrastructure(self, start_date, end_date):
         # Override start date so we map with a more complete dataset

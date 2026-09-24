@@ -4,9 +4,11 @@
 #
 """Test the OCPReportDBAccessor utility object."""
 import random
+from contextlib import nullcontext
 from decimal import Decimal
 from unittest import skip
 from unittest.mock import ANY
+from unittest.mock import call
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
@@ -45,6 +47,74 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         self.provider_uuid = self.ocp_provider_uuid
         self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         self.distribution_info = {"distribution_type": "cpu", "platform_cost": False, "worker_cost": False}
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.summary_period_lock")
+    def test_daily_summary_period_lock_uses_nonblocking_shared_period_key(self, mock_period_lock):
+        """Cost-model daily-summary writes use the same nonblocking period lock as summary work."""
+        mock_period_lock.return_value = nullcontext()
+
+        with self.updater._daily_summary_period_lock(self.dh.this_month_start, use_period_lock=True):
+            pass
+
+        with OCPReportDBAccessor(self.schema) as accessor:
+            report_period = accessor.report_periods_for_provider_uuid(self.provider_uuid, self.dh.this_month_start)
+        self.assertIsNotNone(report_period)
+        mock_period_lock.assert_called_once_with(report_period.id, wait=False)
+
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch(
+        "masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater.distribute_costs_and_update_ui_summary"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cost_model_cost_updater."
+        "OCPCostModelCostUpdater._update_summary_cost_model_costs_for_month"
+    )
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._daily_summary_period_lock")
+    def test_cost_model_rate_updates_hold_a_period_lock_per_month(
+        self, mock_period_lock, mock_update_month, _mock_distribute, _mock_flag
+    ):
+        """Rate/markup writes are guarded one month at a time, never across a range."""
+        mock_period_lock.return_value = nullcontext()
+        start_date = self.dh.this_month_start - relativedelta(months=1)
+        end_date = self.dh.this_month_end
+        summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
+
+        self.updater.update_summary_cost_model_costs(summary_range)
+
+        months = list(summary_range.iter_summary_range_by_month())
+        self.assertEqual(mock_update_month.call_count, len(months))
+        self.assertEqual(
+            mock_period_lock.call_args_list,
+            [call(month_range.start_date, True) for month_range in months],
+        )
+
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch(
+        "masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._get_markup_percentage",
+        return_value=None,
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._get_infra_to_cm_rate",
+        return_value=(Decimal(1), False),
+    )
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPCostModelCostUpdater._daily_summary_period_lock")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPReportDBAccessor")
+    def test_cost_distribution_holds_the_same_period_lock(
+        self, mock_accessor, mock_period_lock, _mock_rate, _mock_markup, _mock_flag
+    ):
+        """Distribution and UI-summary writes use the same period coordination boundary."""
+        mock_period_lock.return_value = nullcontext()
+        accessor = mock_accessor.return_value.__enter__.return_value
+        summary_range = SummaryRangeConfig(start_date=self.dh.this_month_start, end_date=self.dh.this_month_end)
+        accessor.populate_distributed_cost_sql.return_value = next(summary_range.iter_summary_range_by_month())
+        accessor.report_periods_for_provider_uuid.return_value = None
+
+        self.updater.distribute_costs_and_update_ui_summary(summary_range)
+
+        mock_period_lock.assert_called_once_with(
+            next(summary_range.iter_summary_range_by_month()).start_date,
+            True,
+        )
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_markup_rates_to_usage")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")

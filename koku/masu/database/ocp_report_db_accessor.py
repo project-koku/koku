@@ -36,6 +36,7 @@ from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.exceptions import SummaryPeriodLockUnavailable
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.util.common import filter_dictionary
@@ -724,6 +725,117 @@ AND (month = {{month_no_zero}} OR month = {{month}})
                     )
                     * markup
                 ),
+            )
+
+    @contextmanager
+    def summary_period_lock(self, report_period_id, wait=True, shared=False):
+        """Acquire a shared or exclusive advisory lock for one report period.
+
+        Summary table work uses independently autocommitted raw SQL statements.
+        This must therefore be session-scoped rather than an xact advisory lock:
+        wrapping the work in ``transaction.atomic`` would change the existing
+        per-statement retry behaviour on database deadlocks.  Summary chunks
+        take a shared period lock while cost-model work takes an exclusive one.
+        This lets different daily chunks proceed together, while excluding
+        month-scoped cost-model writes for the same report period.
+        """
+        lock_function = "pg_advisory_lock_shared" if shared else "pg_advisory_lock"
+        if not wait:
+            lock_function = f"pg_try_{lock_function.removeprefix('pg_')}"
+        unlock_function = "pg_advisory_unlock_shared" if shared else "pg_advisory_unlock"
+        lock_mode = "shared " if shared else ""
+        LOG.info(
+            log_json(
+                msg=f"waiting for {lock_mode}OCP summary-period advisory lock"
+                if wait
+                else f"trying {lock_mode}OCP summary-period advisory lock",
+                schema=self.schema,
+                report_period_id=report_period_id,
+            )
+        )
+        with connection.cursor() as cursor:
+            cursor.execute(f"SELECT {lock_function}(hashtext(%s), %s)", [self.schema, report_period_id])
+            acquired = wait or cursor.fetchone()[0]
+        if not acquired:
+            LOG.info(
+                log_json(
+                    msg=f"{lock_mode}OCP summary-period advisory lock unavailable",
+                    schema=self.schema,
+                    report_period_id=report_period_id,
+                )
+            )
+            raise SummaryPeriodLockUnavailable(
+                f"OCP summary lock unavailable for schema={self.schema}, report_period_id={report_period_id}"
+            )
+        LOG.info(
+            log_json(
+                msg=f"acquired {lock_mode}OCP summary-period advisory lock",
+                schema=self.schema,
+                report_period_id=report_period_id,
+            )
+        )
+        try:
+            yield
+        finally:
+            with connection.cursor() as cursor:
+                cursor.execute(f"SELECT {unlock_function}(hashtext(%s), %s)", [self.schema, report_period_id])
+            LOG.info(
+                log_json(
+                    msg=f"released {lock_mode}OCP summary-period advisory lock",
+                    schema=self.schema,
+                    report_period_id=report_period_id,
+                )
+            )
+
+    @contextmanager
+    def summary_day_lock(self, report_period_id, summary_date, wait=True):
+        """Serialize a single report-period day within shared summary work."""
+        day_key = f"{report_period_id}:{summary_date.isoformat()}"
+        lock_function = "pg_advisory_lock" if wait else "pg_try_advisory_lock"
+        LOG.info(
+            log_json(
+                msg="waiting for OCP summary-day advisory lock" if wait else "trying OCP summary-day advisory lock",
+                schema=self.schema,
+                report_period_id=report_period_id,
+                summary_date=summary_date,
+            )
+        )
+        with connection.cursor() as cursor:
+            cursor.execute(f"SELECT {lock_function}(hashtext(%s), hashtext(%s))", [self.schema, day_key])
+            acquired = wait or cursor.fetchone()[0]
+        if not acquired:
+            LOG.info(
+                log_json(
+                    msg="OCP summary-day advisory lock unavailable",
+                    schema=self.schema,
+                    report_period_id=report_period_id,
+                    summary_date=summary_date,
+                )
+            )
+            raise SummaryPeriodLockUnavailable(
+                f"OCP summary day lock unavailable for schema={self.schema}, report_period_id={report_period_id}, "
+                f"summary_date={summary_date}"
+            )
+        LOG.info(
+            log_json(
+                msg="acquired OCP summary-day advisory lock",
+                schema=self.schema,
+                report_period_id=report_period_id,
+                summary_date=summary_date,
+            )
+        )
+        try:
+            yield
+        finally:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_unlock(hashtext(%s), hashtext(%s))", [self.schema, day_key])
+            LOG.info(
+                log_json(
+                    msg="released OCP summary-day advisory lock",
+                    schema=self.schema,
+                    report_period_id=report_period_id,
+                    summary_date=summary_date,
+                )
             )
 
     @contextmanager

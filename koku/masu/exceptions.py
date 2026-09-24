@@ -17,5 +17,9 @@ class MasuConfigurationError(Exception):
     """Masu Configuration Error."""
 
 
+class SummaryPeriodLockUnavailable(MasuProcessingError):
+    """Another OCP summary task owns the requested tenant report period."""
+
+
 class HasherError(Exception):
     """Hasher Utility class error."""

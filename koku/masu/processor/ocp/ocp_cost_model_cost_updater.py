@@ -5,6 +5,7 @@
 """Updates report summary tables in the database with charge information."""
 import logging
 import time
+from contextlib import contextmanager
 from decimal import Decimal
 
 from django.utils import timezone
@@ -17,6 +18,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor import COST_BREAKDOWN_RTU_UNLEASH_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_SUMMARY_PERIOD_LOCK_FLAG
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.prometheus_stats import RTU_AGGREGATE_DURATION
 from masu.prometheus_stats import RTU_MARKUP_DURATION
@@ -87,6 +89,34 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         """Create monthly partitions for rates_to_usage on demand."""
         with schema_context(self._schema):
             self._handle_partitions(self._schema, ["rates_to_usage"], start_date, end_date)
+
+    @contextmanager
+    def _daily_summary_period_lock(self, start_date, use_period_lock):
+        """Coordinate daily-summary writes with the OCP summary pipeline.
+
+        The lock is deliberately acquired one report period at a time. Cost
+        model ranges can span months, and holding multiple advisory locks would
+        create an avoidable lock-ordering contract between workers.
+        """
+        if not use_period_lock:
+            yield
+            return
+
+        with OCPReportDBAccessor(self._schema) as accessor:
+            report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
+            if not report_period:
+                LOG.info(
+                    log_json(
+                        msg="no report period for OCP provider, skipping daily-summary period lock",
+                        schema=self._schema,
+                        provider_uuid=self._provider_uuid,
+                        start_date=start_date,
+                    )
+                )
+                yield
+                return
+            with accessor.summary_period_lock(report_period.id, wait=False):
+                yield
 
     def _build_node_tag_cost_case_statements(  # noqa: C901
         self,
@@ -883,6 +913,9 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         """
         markup_pct = self._get_markup_percentage()
         cost_model_currency = self._cost_model.currency if self._cost_model else "USD"
+        use_period_lock = is_feature_flag_enabled_by_schema(
+            self._schema, OCP_SUMMARY_PERIOD_LOCK_FLAG, dev_fallback=True
+        )
         if use_rtu:
             self._ensure_rates_to_usage_partitions(summary_range.start_date, summary_range.end_date)
         for month_range in summary_range.iter_summary_range_by_month():
@@ -890,72 +923,75 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 cost_model_currency, month_range.start_date, month_range.end_date
             )
             distribution_raw_currency = cost_model_currency if has_infra_currency else None
-            with OCPReportDBAccessor(self._schema) as accessor:
-                if markup_pct:
-                    accessor.populate_markup_cost(
-                        markup_pct,
-                        month_range.start_date,
-                        month_range.end_date,
-                        self._cluster_id,
-                    )
-                month_range = accessor.populate_distributed_cost_sql(
-                    month_range,
-                    self._provider_uuid,
-                    self._distribution_info,
-                    infra_to_cm_rate=infra_to_cm_rate,
-                    cost_model_currency=cost_model_currency,
-                    cost_model_id=self._cost_model_id,
-                    use_rtu=use_rtu,
-                )
-                report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, month_range.start_date)
-                if use_rtu and self._cost_model_id and report_period:
-                    t0 = time.monotonic()
-                    accessor.aggregate_rates_to_daily_summary(
-                        month_range.start_date,
-                        month_range.end_date,
-                        self._provider_uuid,
-                        report_period.id,
-                        distribution_raw_currency,
-                    )
-                    RTU_AGGREGATE_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
-                if markup_pct:
-                    accessor.populate_markup_cost(
-                        markup_pct,
-                        month_range.start_date,
-                        month_range.end_date,
-                        self._cluster_id,
-                    )
-                if use_rtu and self._cost_model_id:
-                    t0 = time.monotonic()
-                    accessor.populate_markup_rates_to_usage(
-                        month_range.start_date,
-                        month_range.end_date,
-                        self._provider.uuid,
-                        self._cluster_id,
-                        self._cost_model_id,
-                    )
-                    RTU_MARKUP_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
-                if use_rtu:
-                    accessor.populate_ui_summary_tables(month_range, self._provider_uuid)
-                else:
-                    # Cost breakdown is built exclusively from rates_to_usage, which this
-                    # (legacy) run does not write to. Skip rebuilding it from whatever is
-                    # currently there -- if the flag was previously ON for this period, that
-                    # would silently rebuild from stale RTU rows -- and clear it instead. See
-                    # OCPReportDBAccessor.clear_cost_breakdown_ui_summary_table docstring.
-                    accessor.populate_ui_summary_tables(
+            with self._daily_summary_period_lock(month_range.start_date, use_period_lock):
+                with OCPReportDBAccessor(self._schema) as accessor:
+                    if markup_pct:
+                        accessor.populate_markup_cost(
+                            markup_pct,
+                            month_range.start_date,
+                            month_range.end_date,
+                            self._cluster_id,
+                        )
+                    month_range = accessor.populate_distributed_cost_sql(
                         month_range,
                         self._provider_uuid,
-                        tables=tuple(t for t in UI_SUMMARY_TABLES if t != COST_BREAKDOWN_UI_SUMMARY_TABLE),
+                        self._distribution_info,
+                        infra_to_cm_rate=infra_to_cm_rate,
+                        cost_model_currency=cost_model_currency,
+                        cost_model_id=self._cost_model_id,
+                        use_rtu=use_rtu,
                     )
-                    accessor.clear_cost_breakdown_ui_summary_table(
-                        self._provider_uuid, month_range.start_date, month_range.end_date
+                    report_period = accessor.report_periods_for_provider_uuid(
+                        self._provider_uuid, month_range.start_date
                     )
-                if report_period := accessor.report_periods_for_provider_uuid(
-                    self._provider_uuid, month_range.summary_start
-                ):
-                    report_period.derived_cost_datetime = timezone.now()
-                    report_period.save()
+                    if use_rtu and self._cost_model_id and report_period:
+                        t0 = time.monotonic()
+                        accessor.aggregate_rates_to_daily_summary(
+                            month_range.start_date,
+                            month_range.end_date,
+                            self._provider_uuid,
+                            report_period.id,
+                            distribution_raw_currency,
+                        )
+                        RTU_AGGREGATE_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
+                    if markup_pct:
+                        accessor.populate_markup_cost(
+                            markup_pct,
+                            month_range.start_date,
+                            month_range.end_date,
+                            self._cluster_id,
+                        )
+                    if use_rtu and self._cost_model_id:
+                        t0 = time.monotonic()
+                        accessor.populate_markup_rates_to_usage(
+                            month_range.start_date,
+                            month_range.end_date,
+                            self._provider.uuid,
+                            self._cluster_id,
+                            self._cost_model_id,
+                        )
+                        RTU_MARKUP_DURATION.labels(provider_type=self._provider.type).observe(time.monotonic() - t0)
+                    if use_rtu:
+                        accessor.populate_ui_summary_tables(month_range, self._provider_uuid)
+                    else:
+                        # Cost breakdown is built exclusively from rates_to_usage, which this
+                        # (legacy) run does not write to. Skip rebuilding it from whatever is
+                        # currently there -- if the flag was previously ON for this period, that
+                        # would silently rebuild from stale RTU rows -- and clear it instead. See
+                        # OCPReportDBAccessor.clear_cost_breakdown_ui_summary_table docstring.
+                        accessor.populate_ui_summary_tables(
+                            month_range,
+                            self._provider_uuid,
+                            tables=tuple(t for t in UI_SUMMARY_TABLES if t != COST_BREAKDOWN_UI_SUMMARY_TABLE),
+                        )
+                        accessor.clear_cost_breakdown_ui_summary_table(
+                            self._provider_uuid, month_range.start_date, month_range.end_date
+                        )
+                    if report_period := accessor.report_periods_for_provider_uuid(
+                        self._provider_uuid, month_range.summary_start
+                    ):
+                        report_period.derived_cost_datetime = timezone.now()
+                        report_period.save()
 
     def _get_markup_percentage(self):
         """Return the markup percentage as a Decimal, or None if no markup configured."""
@@ -1005,87 +1041,91 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         rtu_enabled = is_feature_flag_enabled_by_schema(
             self._schema, COST_BREAKDOWN_RTU_UNLEASH_FLAG, dev_fallback=False
         )
+        use_period_lock = is_feature_flag_enabled_by_schema(
+            self._schema, OCP_SUMMARY_PERIOD_LOCK_FLAG, dev_fallback=True
+        )
 
         for month_range in summary_range.iter_summary_range_by_month():
             start_date = month_range.start_date
             end_date = month_range.end_date
-
-            self._load_rates(start_date)
-
-            no_effective_pl = self._price_list_effective_on is not None and not (
-                self._infra_rates
-                or self._supplementary_rates
-                or self._tag_infra_rates
-                or self._tag_supplementary_rates
-            )
-
-            if rtu_enabled:
-                LOG.info(
-                    log_json(
-                        msg="RTU pipeline path selected",
-                        cost_model_id=str(self._cost_model_id) if self._cost_model_id else None,
-                        provider_uuid=self._provider_uuid,
-                    )
-                )
-                # RTU path (Phase 3): usage costs write through rates_to_usage,
-                # then aggregate_rates_to_daily_summary rebuilds daily summary from RTU.
-                if self._cost_model_id and not no_effective_pl:
-                    self._update_usage_rates_to_usage(start_date, end_date)
-                elif self._cost_model_id:
-                    LOG.info(
-                        log_json(
-                            msg="no effective price list for billing month, cleaning stale RTU rows",
-                            provider_uuid=self._provider_uuid,
-                            start_date=start_date,
-                        )
-                    )
-                    self._cleanup_stale_rtu_costs(start_date, end_date)
-                else:
-                    self._cleanup_stale_rtu_costs(start_date, end_date)
-            else:
-                LOG.info(
-                    log_json(
-                        msg="Legacy pipeline path selected",
-                        cost_model_id=str(self._cost_model_id) if self._cost_model_id else None,
-                        provider_uuid=self._provider_uuid,
-                    )
-                )
-                # Legacy path (pre-Phase 3): usage costs write directly to daily summary.
-                self._update_usage_costs(start_date, end_date)
-
-            self._update_monthly_cost(start_date, end_date, use_rtu=rtu_enabled)
-
-            if self._tag_infra_rates != {} or self._tag_supplementary_rates != {}:
-                self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
-                self._update_tag_usage_costs(start_date, end_date, use_rtu=rtu_enabled)
-                self._update_tag_usage_default_costs(start_date, end_date, use_rtu=rtu_enabled)
-                self._update_monthly_tag_based_cost(start_date, end_date, use_rtu=rtu_enabled)
-                self._update_node_hour_tag_based_cost(start_date, end_date, use_rtu=rtu_enabled)
-                with OCPReportDBAccessor(self._schema) as report_accessor:
-                    cluster_params = {
-                        "cluster_id": self._cluster_id,
-                        "cluster_alias": self._cluster_alias,
-                    }
-                    report_accessor.populate_tag_based_costs(
-                        start_date,
-                        end_date,
-                        self._provider_uuid,
-                        self.metric_to_tag_params_map,
-                        cluster_params,
-                        cost_model_id=self._cost_model_id,
-                        rate_info_map=self._rate_info_map,
-                        use_rtu=rtu_enabled,
-                    )
-            if not (self._tag_infra_rates or self._tag_supplementary_rates):
-                self._delete_tag_usage_costs(start_date, end_date, self._provider_uuid)
-
-            self._update_vm_usage_costs(start_date, end_date, use_rtu=rtu_enabled)
-
-            if rtu_enabled:
-                # Monthly/tag/VM costs above wrote to rates_to_usage; rebuild the
-                # daily summary cost-model rows from those RTU rows.
-                self._aggregate_rates_to_daily_summary(start_date, end_date)
-
-            self._update_markup_cost(start_date, end_date, use_rtu=rtu_enabled)
+            with self._daily_summary_period_lock(start_date, use_period_lock):
+                self._update_summary_cost_model_costs_for_month(start_date, end_date, rtu_enabled)
 
         self.distribute_costs_and_update_ui_summary(summary_range, use_rtu=rtu_enabled)
+
+    def _update_summary_cost_model_costs_for_month(self, start_date, end_date, rtu_enabled):
+        """Apply the cost-model daily-summary mutation phase for one month."""
+        self._load_rates(start_date)
+
+        no_effective_pl = self._price_list_effective_on is not None and not (
+            self._infra_rates or self._supplementary_rates or self._tag_infra_rates or self._tag_supplementary_rates
+        )
+
+        if rtu_enabled:
+            LOG.info(
+                log_json(
+                    msg="RTU pipeline path selected",
+                    cost_model_id=str(self._cost_model_id) if self._cost_model_id else None,
+                    provider_uuid=self._provider_uuid,
+                )
+            )
+            # RTU path (Phase 3): usage costs write through rates_to_usage,
+            # then aggregate_rates_to_daily_summary rebuilds daily summary from RTU.
+            if self._cost_model_id and not no_effective_pl:
+                self._update_usage_rates_to_usage(start_date, end_date)
+            elif self._cost_model_id:
+                LOG.info(
+                    log_json(
+                        msg="no effective price list for billing month, cleaning stale RTU rows",
+                        provider_uuid=self._provider_uuid,
+                        start_date=start_date,
+                    )
+                )
+                self._cleanup_stale_rtu_costs(start_date, end_date)
+            else:
+                self._cleanup_stale_rtu_costs(start_date, end_date)
+        else:
+            LOG.info(
+                log_json(
+                    msg="Legacy pipeline path selected",
+                    cost_model_id=str(self._cost_model_id) if self._cost_model_id else None,
+                    provider_uuid=self._provider_uuid,
+                )
+            )
+            # Legacy path (pre-Phase 3): usage costs write directly to daily summary.
+            self._update_usage_costs(start_date, end_date)
+
+        self._update_monthly_cost(start_date, end_date, use_rtu=rtu_enabled)
+
+        if self._tag_infra_rates != {} or self._tag_supplementary_rates != {}:
+            self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
+            self._update_tag_usage_costs(start_date, end_date, use_rtu=rtu_enabled)
+            self._update_tag_usage_default_costs(start_date, end_date, use_rtu=rtu_enabled)
+            self._update_monthly_tag_based_cost(start_date, end_date, use_rtu=rtu_enabled)
+            self._update_node_hour_tag_based_cost(start_date, end_date, use_rtu=rtu_enabled)
+            with OCPReportDBAccessor(self._schema) as report_accessor:
+                cluster_params = {
+                    "cluster_id": self._cluster_id,
+                    "cluster_alias": self._cluster_alias,
+                }
+                report_accessor.populate_tag_based_costs(
+                    start_date,
+                    end_date,
+                    self._provider_uuid,
+                    self.metric_to_tag_params_map,
+                    cluster_params,
+                    cost_model_id=self._cost_model_id,
+                    rate_info_map=self._rate_info_map,
+                    use_rtu=rtu_enabled,
+                )
+        if not (self._tag_infra_rates or self._tag_supplementary_rates):
+            self._delete_tag_usage_costs(start_date, end_date, self._provider_uuid)
+
+        self._update_vm_usage_costs(start_date, end_date, use_rtu=rtu_enabled)
+
+        if rtu_enabled:
+            # Monthly/tag/VM costs above wrote to rates_to_usage; rebuild the
+            # daily summary cost-model rows from those RTU rows.
+            self._aggregate_rates_to_daily_summary(start_date, end_date)
+
+        self._update_markup_cost(start_date, end_date, use_rtu=rtu_enabled)

@@ -411,6 +411,51 @@ org1234567/openshift/parquet/
 8. **Update report period timestamps**
 9. **Check for cloud infrastructure** (triggers OCP-on-Cloud matching)
 
+#### **Daily-Summary Period Coordination**
+
+The summary and OCP cost-model pipelines both mutate
+`reporting_ocpusagelineitem_daily_summary`. Their work is coordinated per
+tenant report period when the enablement flag
+`cost-management.backend.ocp_summary_period_lock` is enabled for a schema.
+The legacy path remains in use while the flag is off (the non-development
+default).
+
+**Lock scope and lifecycle:**
+
+1. The key is `(tenant schema, OCPUsageReportPeriod.id)`. Different report
+   periods, including different months, remain able to run concurrently.
+2. The lock is a PostgreSQL **session advisory lock**, rather than a
+   transaction advisory lock. The affected SQL is independently autocommitted,
+   so a transaction-scoped lock would be released after each statement rather
+   than protect the full summary phase.
+3. `OCPReportParquetSummaryUpdater` takes a **shared** period lock and an
+   **exclusive day lock** for each flagged daily chunk.  The lock pair covers
+   the dependent DELETE, Trino repopulate, and UI refresh sequence, and again
+   covers the tag-mapping UPDATE for that day. Cluster metadata, label
+   summaries, and period-status updates run outside this boundary. This keeps
+   a lock from covering the full multi-hour summary request while ensuring
+   that a cost-model task cannot read a partially rebuilt day.
+4. `OCPCostModelCostUpdater` takes the period lock **exclusively** around each
+   report month's rate/markup writes and again around that month's
+   distribution, aggregation, and UI-summary writes. It therefore excludes
+   all daily summary chunks for that tenant/provider/month, while different
+   tenants and report months remain independent. A multi-month cost-model
+   request never holds more than one advisory lock, avoiding an inter-month
+   lock-order contract.
+
+**Contention is deferred, not waited on:** the flagged callers use
+`pg_try_advisory_lock` (or its shared equivalent). If another worker owns an
+incompatible key,
+`SummaryPeriodLockUnavailable` reaches the Celery task boundary. The task
+releases its `WorkerCache` entry and reschedules the original work on its
+existing queue after 60 seconds. It does not mark the work failed, trigger
+downstream steps, or leave a Celery worker blocked on the advisory lock.
+
+This is a bounded serialization mechanism, not a general database timeout or
+a root-cause substitute. Writers that do not participate in this protocol
+remain outside the boundary, and an unusually long lock holder still requires
+PostgreSQL lock inspection and the worker diagnostic/stack-capture path.
+
 #### **Trino SQL: Multi-Report Aggregation**
 
 The Trino SQL joins **all 6 report types** to create a unified daily summary.
@@ -951,6 +996,11 @@ For testing OCP processing, generate synthetic CSV reports with realistic data:
 
 - **Kafka lag:** `hccm-group` consumer lag on `platform.upload.announce`
 - **Kafka listener watchdog:** `kafka_listener_inflight_message_age_seconds` is zero while idle and rises for an in-flight message. A message exceeding the configured watchdog threshold increments `kafka_listener_watchdog_diagnostics_total` and emits its topic, partition, offset, request ID, tenant identifiers, and Python thread stacks.
+- **Daily-summary period coordination:** Look for structured acquire/release or
+  lock-unavailable logs from `OCPReportDBAccessor`. Repeated
+  `SummaryPeriodLockUnavailable` deferrals mean another task is holding the
+  same tenant report-period key; inspect the PostgreSQL lock chain before
+  increasing worker capacity.
 - **Processing time:** Time from Kafka message to summarization complete
 - **Parquet file sizes:** Unusually large files may indicate data issues
 - **Row counts:** Compare CSV rows → Parquet rows → summary rows
@@ -1019,6 +1069,6 @@ For testing OCP processing, generate synthetic CSV reports with realistic data:
 
 ## Document Metadata
 
-- **Last Updated:** 2026-03-04
+- **Last Updated:** 2026-09-24
 - **Koku Version:** Current
 - **Author:** Architecture Documentation Team

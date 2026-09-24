@@ -30,6 +30,7 @@ from django_tenants.utils import schema_context
 
 from api.iam.models import Tenant
 from api.models import Provider
+from common.queues import CostModelQueue
 from common.queues import SummaryQueue
 from koku.cache import CacheEnum
 from koku.middleware import KokuTenantMiddleware
@@ -40,6 +41,7 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
+from masu.exceptions import SummaryPeriodLockUnavailable
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
@@ -1457,6 +1459,44 @@ class TestWorkerCacheThrottling(MasuTestCase):
         cache = caches[CacheEnum.worker]
         cache_str = create_single_task_cache_key(task_name, task_args)
         cache.add(cache_str, "kokuworker", 3)
+
+    @patch("masu.processor.tasks.update_summary_tables.s")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_summary_tables_requeues_unavailable_period_lock(
+        self, mock_inspect, mock_lock, mock_release, mock_summary, mock_reschedule
+    ):
+        """A contended OCP advisory lock is deferred, not failed or held by a worker."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        mock_summary.side_effect = SummaryPeriodLockUnavailable("lock held")
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
+
+        update_summary_tables(self.schema, Provider.PROVIDER_OCP, self.ocp_provider_uuid, start_date, end_date)
+
+        mock_release.assert_called_once()
+        mock_reschedule.return_value.apply_async.assert_called_once_with(queue=SummaryQueue.DEFAULT, countdown=60)
+
+    @patch("masu.processor.tasks.update_cost_model_costs.s")
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_cost_model_costs_requeues_unavailable_period_lock(
+        self, mock_inspect, mock_lock, mock_release, mock_updater, mock_reschedule
+    ):
+        """A contended OCP period lock defers cost-model work without failing it."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        mock_updater.return_value.update_cost_model_costs.side_effect = SummaryPeriodLockUnavailable("lock held")
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
+
+        update_cost_model_costs(self.schema, self.ocp_provider_uuid, start_date, end_date)
+
+        mock_release.assert_called_once()
+        mock_reschedule.return_value.apply_async.assert_called_once_with(queue=CostModelQueue.DEFAULT, countdown=60)
 
     @patch("masu.processor.tasks.group")
     @patch("masu.processor.tasks.update_summary_tables.s")

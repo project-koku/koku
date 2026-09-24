@@ -3,7 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportParquetSummaryUpdater."""
+from contextlib import nullcontext
+from datetime import date
 from datetime import datetime
+from unittest.mock import call
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -102,3 +106,103 @@ class OCPReportParquetSummaryUpdaterTest(MasuTestCase):
             self.updater.check_cluster_infrastructure(start_date, end_date)
 
         self.assertIn("OCP cluster is running on cloud infrastructure", mock_logger.output[0])
+
+    @patch(
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.schema_context",
+        side_effect=lambda _schema: nullcontext(),
+    )
+    @patch.object(OCPReportParquetSummaryUpdater, "check_cluster_infrastructure")
+    @patch.object(OCPReportParquetSummaryUpdater, "_handle_partitions")
+    @patch.object(OCPReportParquetSummaryUpdater, "_check_parquet_date_range")
+    @patch.object(OCPReportParquetSummaryUpdater, "_get_sql_inputs")
+    @patch("masu.processor.ocp.ocp_report_parquet_summary_updater.is_feature_flag_enabled_by_schema", create=True)
+    @patch("masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor")
+    def test_flagged_summary_serializes_daily_chunks_and_tagmaps_each_day(
+        self,
+        accessor_class,
+        flag_enabled,
+        get_sql_inputs,
+        check_parquet_date_range,
+        handle_partitions,
+        check_cluster_infrastructure,
+        schema_context_mock,
+    ):
+        """The flagged path holds period/day locks only for one calendar day."""
+        start_date = date(2026, 9, 1)
+        end_date = date(2026, 9, 3)
+        get_sql_inputs.return_value = (start_date, end_date)
+        check_parquet_date_range.return_value = (start_date, end_date)
+        flag_enabled.return_value = True
+
+        accessor = accessor_class.return_value.__enter__.return_value
+        report_period = Mock(id=42, summary_data_creation_datetime=None)
+        accessor.report_periods_for_provider_uuid.return_value = report_period
+        accessor.summary_period_lock.return_value = nullcontext()
+        accessor.summary_day_lock.return_value = nullcontext()
+
+        self.updater.update_summary_tables(start_date, end_date)
+
+        self.assertEqual(
+            accessor.summary_period_lock.call_args_list,
+            [call(42, wait=False, shared=True)] * 6,
+        )
+        self.assertEqual(
+            accessor.summary_day_lock.call_args_list,
+            [
+                call(42, date(2026, 9, 1), wait=False),
+                call(42, date(2026, 9, 2), wait=False),
+                call(42, date(2026, 9, 3), wait=False),
+                call(42, date(2026, 9, 1), wait=False),
+                call(42, date(2026, 9, 2), wait=False),
+                call(42, date(2026, 9, 3), wait=False),
+            ],
+        )
+        self.assertEqual(
+            accessor.update_line_item_daily_summary_with_tag_mapping.call_args_list,
+            [
+                call(date(2026, 9, 1), date(2026, 9, 1), [42]),
+                call(date(2026, 9, 2), date(2026, 9, 2), [42]),
+                call(date(2026, 9, 3), date(2026, 9, 3), [42]),
+            ],
+        )
+        method_names = [method_name for method_name, _args, _kwargs in accessor.method_calls]
+        self.assertLess(
+            method_names.index("populate_volume_label_summary_table"),
+            method_names.index("update_line_item_daily_summary_with_tag_mapping"),
+        )
+
+    @patch(
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.schema_context",
+        side_effect=lambda _schema: nullcontext(),
+    )
+    @patch.object(OCPReportParquetSummaryUpdater, "check_cluster_infrastructure")
+    @patch.object(OCPReportParquetSummaryUpdater, "_handle_partitions")
+    @patch.object(OCPReportParquetSummaryUpdater, "_check_parquet_date_range")
+    @patch.object(OCPReportParquetSummaryUpdater, "_get_sql_inputs")
+    @patch("masu.processor.ocp.ocp_report_parquet_summary_updater.is_feature_flag_enabled_by_schema", create=True)
+    @patch("masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor")
+    def test_legacy_summary_keeps_single_full_range_tag_mapping(
+        self,
+        accessor_class,
+        flag_enabled,
+        get_sql_inputs,
+        check_parquet_date_range,
+        handle_partitions,
+        check_cluster_infrastructure,
+        schema_context_mock,
+    ):
+        """Flag OFF preserves the legacy full-range tag-mapping statement."""
+        start_date = date(2026, 9, 1)
+        end_date = date(2026, 9, 3)
+        get_sql_inputs.return_value = (start_date, end_date)
+        check_parquet_date_range.return_value = (start_date, end_date)
+        flag_enabled.return_value = False
+
+        accessor = accessor_class.return_value.__enter__.return_value
+        report_period = Mock(id=42, summary_data_creation_datetime=None)
+        accessor.report_periods_for_provider_uuid.return_value = report_period
+
+        self.updater.update_summary_tables(start_date, end_date)
+
+        accessor.summary_period_lock.assert_not_called()
+        accessor.update_line_item_daily_summary_with_tag_mapping.assert_called_once_with(start_date, end_date, [42])
