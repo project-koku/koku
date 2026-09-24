@@ -6097,7 +6097,7 @@
                     "Settings",
                     "Currency"
                 ],
-                "summary": "List all ISO 4217 currencies with tenant enablement status",
+                "summary": "List all ISO 4217 currencies with tenant enablement status (JSON), or export static exchange rates (CSV)",
                 "operationId": "getSettingsCurrency",
                 "parameters": [
                     {
@@ -6143,12 +6143,19 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "A paginated list of currency settings objects",
+                        "description": "A paginated list of currency settings objects (JSON), or an unpaginated flat CSV of static exchange rates when Accept is text/csv",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/CurrencySettingsPagination"
                                 }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "type": "string",
+                                    "description": "CSV of static exchange rates. Columns include base_currency, target_currency, exchange_rate, start_date, end_date (plus uuid, name). Pagination is ignored; nested static_rates / full ISO catalog are not exported."
+                                },
+                                "example": "base_currency,target_currency,exchange_rate,start_date,end_date,uuid,name\nUSD,EUR,0.87,2026-04-01,2026-06-30,a1b2c3d4-e5f6-7890-abcd-ef1234567890,USD-EUR\n"
                             }
                         }
                     },
@@ -6156,6 +6163,11 @@
                         "description": "Bad Request",
                         "content": {
                             "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Error"
                                 }
@@ -6169,6 +6181,11 @@
                         "description": "Unexpected Error",
                         "content": {
                             "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Error"
                                 }
