@@ -193,6 +193,45 @@ class CurrencySettingsViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_list_all_currencies_sorted_by_code_ascending(self):
+        """Unfiltered list is A-Z by code (not enabled-first then disabled)."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="EUR")
+
+        url = reverse("currency-list") + "?limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [c["code"] for c in response.data["data"]]
+        self.assertEqual(codes, sorted(codes))
+        # USD variants stay near each other instead of spreading across pages
+        for code in ("USD", "USN", "USS"):
+            self.assertIn(code, codes)
+        usd_idx = codes.index("USD")
+        usn_idx = codes.index("USN")
+        uss_idx = codes.index("USS")
+        self.assertLess(abs(usd_idx - usn_idx), 5)
+        self.assertLess(abs(usd_idx - uss_idx), 5)
+
+    def test_list_order_by_code_desc(self):
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+
+        url = reverse("currency-list") + "?order_by[code]=desc&limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [c["code"] for c in response.data["data"]]
+        self.assertEqual(codes, sorted(codes, reverse=True))
+
+    def test_list_invalid_order_by_rejected(self):
+        url = reverse("currency-list") + "?order_by[name]=asc"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        url = reverse("currency-list") + "?order_by[code]=sideways"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_is_disableable_true_for_free_enabled_currency(self):
         """A freely enabled currency with no dependencies returns is_disableable=True."""
         with tenant_context(self.tenant):
