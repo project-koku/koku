@@ -1859,6 +1859,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 row.uuid: (row.pod_labels, row.volume_labels, row.all_labels)
                 for row in OCPUsageLineItemDailySummary.objects.filter(uuid__in=original_labels)
             }
+            self.assertNotEqual(full_range_result, original_labels, "tag-mapping fixture must change labels")
 
             for row_uuid, (pod_labels, volume_labels, all_labels) in original_labels.items():
                 OCPUsageLineItemDailySummary.objects.filter(uuid=row_uuid).update(

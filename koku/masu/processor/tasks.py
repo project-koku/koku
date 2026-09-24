@@ -998,8 +998,11 @@ def update_all_summary_tables(start_date, end_date=None):
         ).apply_async(queue=queue_name or fallback_queue)
 
 
-@celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=CostModelQueue.DEFAULT)
+@celery_app.task(
+    name="masu.processor.tasks.update_cost_model_costs", queue=CostModelQueue.DEFAULT, bind=True, max_retries=None
+)
 def update_cost_model_costs(  # noqa: C901
+    self,
     schema_name,
     provider_uuid,
     start_date=None,
@@ -1044,7 +1047,6 @@ def update_cost_model_costs(  # noqa: C901
     if not synchronous:
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
-        fallback_queue = get_customer_queue(schema_name, CostModelQueue)
         rate_limited = False
         if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
@@ -1053,17 +1055,10 @@ def update_cost_model_costs(  # noqa: C901
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:
                 msg = f"Schema {schema_name} is currently rate limited. Requeuing."
-            LOG.debug(log_json(tracing_id, msg=msg))
-            update_cost_model_costs.s(
-                schema_name,
-                provider_uuid,
-                start_date=start_date,
-                end_date=end_date,
-                queue_name=queue_name,
-                synchronous=synchronous,
-                tracing_id=tracing_id,
-            ).apply_async(queue=queue_name or fallback_queue)
-            return
+            LOG.debug(log_json(tracing_id, msg=msg, retry_count=self.request.retries + 1))
+            # Returning after a detached reschedule would advance the Celery
+            # chain to manifest completion before costs have been updated.
+            raise self.retry(countdown=0)
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
@@ -1081,30 +1076,19 @@ def update_cost_model_costs(  # noqa: C901
             updater.update_cost_model_costs(start_date, end_date)
         if provider := Provider.objects.filter(uuid=provider_uuid).first():
             provider.set_data_updated_timestamp()
-    except SummaryPeriodLockUnavailable:
+    except SummaryPeriodLockUnavailable as exc:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
             LOG.info(
                 log_json(
                     tracing_id,
-                    msg="OCP summary period is locked; requeuing cost model without occupying a worker",
+                    msg="OCP summary period is locked; retrying cost model without occupying a worker",
                     context=context,
                     retry_delay_seconds=OCP_SUMMARY_PERIOD_LOCK_REQUEUE_SECONDS,
+                    retry_count=self.request.retries + 1,
                 )
             )
-            update_cost_model_costs.s(
-                schema_name,
-                provider_uuid,
-                start_date=start_date,
-                end_date=end_date,
-                queue_name=queue_name,
-                synchronous=synchronous,
-                tracing_id=tracing_id,
-            ).apply_async(
-                queue=queue_name or fallback_queue,
-                countdown=OCP_SUMMARY_PERIOD_LOCK_REQUEUE_SECONDS,
-            )
-            return
+            raise self.retry(exc=exc, countdown=OCP_SUMMARY_PERIOD_LOCK_REQUEUE_SECONDS)
         raise
     except Exception as ex:
         if not synchronous:

@@ -482,6 +482,18 @@ This document provides a comprehensive map of all Celery tasks used in the Koku 
 2. Calls `CostModelCostUpdater` to apply cost model rates
 3. Updates provider's `data_updated_timestamp`
 
+When `cost-management.backend.ocp_summary_period_lock` is enabled for an OCP
+schema, the updater takes an exclusive advisory lock for that tenant/report
+period during each cost-model write phase. A contended lock defers the task for
+60 seconds. The task is bound and uses `self.retry()` so a chained
+`mark_manifest_complete` cannot run until cost-model processing succeeds.
+Rate-limit and duplicate-work deferrals also use task retry rather than a
+detached reschedule; they retain their immediate retry cadence. Retries are
+unbounded (`max_retries=None`) to preserve the previous deferral behavior, so
+operators should inspect repeated retry counts and the lock holder rather than
+assuming a permanent conflict will resolve itself. The synchronous call path
+still raises lock conflicts to its caller.
+
 ---
 
 ## HCS (Hybrid Committed Spend) Tasks

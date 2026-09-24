@@ -428,33 +428,49 @@ default).
    transaction advisory lock. The affected SQL is independently autocommitted,
    so a transaction-scoped lock would be released after each statement rather
    than protect the full summary phase.
-3. `OCPReportParquetSummaryUpdater` takes a **shared** period lock and an
-   **exclusive day lock** for each flagged daily chunk.  The lock pair covers
-   the dependent DELETE, Trino repopulate, and UI refresh sequence, and again
-   covers the tag-mapping UPDATE for that day. Cluster metadata, label
-   summaries, and period-status updates run outside this boundary. This keeps
-   a lock from covering the full multi-hour summary request while ensuring
-   that a cost-model task cannot read a partially rebuilt day.
+3. `OCPReportParquetSummaryUpdater` takes one **shared** period lock for the
+   summary-writing phase: all DELETE/Trino/UI chunks, label summaries, daily
+   tag-mapping UPDATEs, and the report-period timestamp update. The main
+   chunks retain the configured `TRINO_DATE_STEP` range. Before changing a
+   chunk, the updater takes **exclusive day locks for every date in that
+   inclusive range**, in date order, and releases them together after the UI
+   refresh. Tag mapping remains one UPDATE per calendar day, each under its
+   day lock. Shared period locking permits other summaries for the same period
+   to work on disjoint days, while excluding an exclusive cost-model writer
+   from starting between chunks and forcing a partial summary to restart.
+   Cluster metadata and cloud-infrastructure discovery are outside the
+   summary-writing lock.
 4. `OCPCostModelCostUpdater` takes the period lock **exclusively** around each
    report month's rate/markup writes and again around that month's
    distribution, aggregation, and UI-summary writes. It therefore excludes
    all daily summary chunks for that tenant/provider/month, while different
    tenants and report months remain independent. A multi-month cost-model
    request never holds more than one advisory lock, avoiding an inter-month
-   lock-order contract.
+   lock-order contract. The lock is released between the rate/markup and
+   distribution phases. A summary starting in that gap can defer the latter,
+   causing Celery to retry the full cost-model task; the lock is not a
+   transaction across the whole task.
 
 **Contention is deferred, not waited on:** the flagged callers use
 `pg_try_advisory_lock` (or its shared equivalent). If another worker owns an
 incompatible key,
 `SummaryPeriodLockUnavailable` reaches the Celery task boundary. The task
-releases its `WorkerCache` entry and reschedules the original work on its
-existing queue after 60 seconds. It does not mark the work failed, trigger
-downstream steps, or leave a Celery worker blocked on the advisory lock.
+releases its `WorkerCache` entry and defers for 60 seconds instead of occupying
+a worker slot. `update_cost_model_costs` uses Celery's retry of the **same**
+task, preserving its chain to manifest completion; a detached reschedule
+would incorrectly advance that chain. The summary task still schedules a
+detached retry because it is not itself a link in that chain. Neither path
+turns the lock conflict into a database error.
 
-This is a bounded serialization mechanism, not a general database timeout or
-a root-cause substitute. Writers that do not participate in this protocol
-remain outside the boundary, and an unusually long lock holder still requires
-PostgreSQL lock inspection and the worker diagnostic/stack-capture path.
+The configured chunk size determines how long a chunk's day locks may be
+held; a wider chunk reduces Trino/UI invocations but can delay a same-day
+summary longer. The updater logs elapsed seconds for each main chunk, the
+label phase, each tag-mapping day, and the full summary-writing phase. Compare
+those logs and retry counts on representative data before enabling the flag
+broadly; statement count alone is not a runtime measurement. This protocol
+does not impose a total task timeout or coordinate writers that do not take
+these locks. A long lock holder still requires PostgreSQL inspection and the
+worker diagnostic/stack-capture path.
 
 #### **Trino SQL: Multi-Report Aggregation**
 

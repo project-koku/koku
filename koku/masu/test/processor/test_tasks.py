@@ -21,6 +21,7 @@ from uuid import uuid4
 
 import faker
 from cachetools import TTLCache
+from celery.exceptions import Retry
 from dateutil import relativedelta
 from django.conf import settings
 from django.core.cache import caches
@@ -1479,24 +1480,104 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_release.assert_called_once()
         mock_reschedule.return_value.apply_async.assert_called_once_with(queue=SummaryQueue.DEFAULT, countdown=60)
 
-    @patch("masu.processor.tasks.update_cost_model_costs.s")
     @patch("masu.processor.tasks.CostModelCostUpdater")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    def test_update_cost_model_costs_requeues_unavailable_period_lock(
-        self, mock_inspect, mock_lock, mock_release, mock_updater, mock_reschedule
+    def test_update_cost_model_costs_retries_unavailable_period_lock(
+        self, mock_inspect, mock_lock, mock_release, mock_updater
     ):
-        """A contended OCP period lock defers cost-model work without failing it."""
+        """A contended OCP period lock retries without completing the task early."""
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
-        mock_updater.return_value.update_cost_model_costs.side_effect = SummaryPeriodLockUnavailable("lock held")
+        mock_updater.return_value.update_cost_model_costs.side_effect = [
+            SummaryPeriodLockUnavailable("lock held") for _ in range(4)
+        ] + [None]
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
 
-        update_cost_model_costs(self.schema, self.ocp_provider_uuid, start_date, end_date)
+        celery_config = update_cost_model_costs.app.conf
+        original_eager = celery_config.task_always_eager
+        celery_config.task_always_eager = True
+        try:
+            with patch.object(
+                update_cost_model_costs,
+                "signature_from_request",
+                wraps=update_cost_model_costs.signature_from_request,
+            ) as retry_signature:
+                result = update_cost_model_costs.apply(
+                    args=(self.schema, self.ocp_provider_uuid, start_date, end_date)
+                )
+        finally:
+            celery_config.task_always_eager = original_eager
 
-        mock_release.assert_called_once()
-        mock_reschedule.return_value.apply_async.assert_called_once_with(queue=CostModelQueue.DEFAULT, countdown=60)
+        self.assertTrue(result.successful())
+        self.assertEqual(mock_updater.return_value.update_cost_model_costs.call_count, 5)
+        self.assertEqual(mock_release.call_count, 5)
+        self.assertEqual(retry_signature.call_count, 4)
+        self.assertIsNotNone(retry_signature.call_args, "Celery task.retry must preserve the chain")
+        self.assertEqual(retry_signature.call_args.kwargs["countdown"], 60)
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    @patch("masu.processor.tasks.WorkerCache")
+    def test_cost_model_lock_retry_preserves_chain_and_queue(self, worker_cache_class, updater_class):
+        """A worker retry republishes the same canvas rather than completing its chain link."""
+        worker_cache_class.return_value.single_task_is_running.return_value = False
+        updater_class.return_value.update_cost_model_costs.side_effect = SummaryPeriodLockUnavailable("lock held")
+        successor = dict(mark_manifest_complete.si(self.schema, Provider.PROVIDER_OCP, self.ocp_provider_uuid))
+        task_id = "cost-model-retry-test"
+        update_cost_model_costs.push_request(
+            id=task_id,
+            retries=0,
+            called_directly=False,
+            is_eager=False,
+            chain=[successor],
+            delivery_info={"exchange": "", "routing_key": CostModelQueue.DEFAULT},
+        )
+        try:
+            with patch.object(update_cost_model_costs, "apply_async", return_value=Mock()) as publish:
+                with self.assertRaises(Retry):
+                    update_cost_model_costs.run(self.schema, self.ocp_provider_uuid, "2026-09-01", "2026-09-30")
+        finally:
+            update_cost_model_costs.pop_request()
+
+        worker_cache_class.return_value.release_single_task.assert_called_once()
+        self.assertEqual(publish.call_args.kwargs["chain"], [successor])
+        self.assertEqual(publish.call_args.kwargs["queue"], CostModelQueue.DEFAULT)
+        self.assertEqual(publish.call_args.kwargs["task_id"], task_id)
+        self.assertEqual(publish.call_args.kwargs["retries"], 1)
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    @patch("masu.processor.tasks.rate_limit_tasks")
+    @patch("masu.processor.tasks.is_rate_limit_customer_large")
+    @patch("masu.processor.tasks.WorkerCache")
+    def test_cost_model_throttle_retries_keep_chain(
+        self, worker_cache_class, large_customer, rate_limit_tasks_mock, updater_class
+    ):
+        """Rate limiting and duplicate-work deferrals must not advance manifest completion."""
+        successor = dict(mark_manifest_complete.si(self.schema, Provider.PROVIDER_OCP, self.ocp_provider_uuid))
+        for reason in ("rate-limited", "duplicate"):
+            with self.subTest(reason=reason):
+                large_customer.return_value = reason == "rate-limited"
+                rate_limit_tasks_mock.return_value = True
+                worker_cache_class.return_value.single_task_is_running.return_value = reason == "duplicate"
+                update_cost_model_costs.push_request(
+                    id=f"cost-model-{reason}-test",
+                    retries=0,
+                    called_directly=False,
+                    is_eager=False,
+                    chain=[successor],
+                    delivery_info={"exchange": "", "routing_key": CostModelQueue.DEFAULT},
+                )
+                try:
+                    with patch.object(update_cost_model_costs, "apply_async", return_value=Mock()) as publish:
+                        with self.assertRaises(Retry):
+                            update_cost_model_costs.run(self.schema, self.ocp_provider_uuid)
+                finally:
+                    update_cost_model_costs.pop_request()
+                self.assertEqual(publish.call_args.kwargs["chain"], [successor])
+                self.assertEqual(publish.call_args.kwargs["countdown"], 0)
+        updater_class.assert_not_called()
+        worker_cache_class.return_value.lock_single_task.assert_not_called()
 
     @patch("masu.processor.tasks.group")
     @patch("masu.processor.tasks.update_summary_tables.s")

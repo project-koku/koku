@@ -4,6 +4,9 @@
 #
 """Updates report summary tables in the database."""
 import logging
+import time
+from contextlib import ExitStack
+from contextlib import nullcontext
 from datetime import datetime
 
 import ciso8601
@@ -122,79 +125,132 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 self._provider, self._cluster_id, self._cluster_alias, start_date, end_date
             )
 
-            # Keep the legacy chunk size until the feature is enabled.  The
-            # flagged path serializes the delete -> Trino repopulate -> UI
-            # refresh sequence for one calendar day, so a competing summary
-            # task can make progress on another day of the same period.
-            if use_period_lock:
-                summary_ranges = (
-                    (summary_date, summary_date)
+            # Keep the production chunk size. Acquire every day lock in a chunk
+            # before its DELETE -> Trino repopulate -> UI refresh sequence.
+            # The shared period lock excludes cost-model writes throughout the
+            # entire summary phase, so a late cost-model task cannot force a
+            # retry after earlier chunks have already completed.
+            period_lock = (
+                accessor.summary_period_lock(report_period_id, wait=False, shared=True)
+                if use_period_lock
+                else nullcontext()
+            )
+            summary_phase_start = time.monotonic()
+            with period_lock:
+                for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                    chunk_start = time.monotonic()
+                    LOG.info(
+                        log_json(
+                            msg="updating OCP report summary tables",
+                            context=self._context,
+                            start_date=start,
+                            end_date=end,
+                            report_period_id=report_period_id,
+                        )
+                    )
+                    if use_period_lock:
+                        with ExitStack() as day_locks:
+                            for summary_date in date_range(
+                                datetime.combine(start, datetime.min.time()),
+                                datetime.combine(end, datetime.min.time()),
+                                step=1,
+                            ):
+                                day_locks.enter_context(
+                                    accessor.summary_day_lock(report_period_id, summary_date, wait=False)
+                                )
+                            self._update_daily_summary_chunk(accessor, report_period_id, start, end)
+                    else:
+                        self._update_daily_summary_chunk(accessor, report_period_id, start, end)
+                    LOG.info(
+                        log_json(
+                            msg="updated OCP report summary chunk",
+                            context=self._context,
+                            start_date=start,
+                            end_date=end,
+                            report_period_id=report_period_id,
+                            running_time=time.monotonic() - chunk_start,
+                        )
+                    )
+
+                # This will process POD and STORAGE together.
+                label_start = time.monotonic()
+                LOG.info(
+                    log_json(
+                        msg="updating OCP label summary tables",
+                        context=self._context,
+                        start_date=start_date,
+                        end_date=end_date,
+                        report_period_id=report_period_id,
+                    )
+                )
+                accessor.populate_pod_label_summary_table([report_period_id], start_date, end_date)
+                accessor.populate_volume_label_summary_table([report_period_id], start_date, end_date)
+                LOG.info(
+                    log_json(
+                        msg="updated OCP label summary tables",
+                        context=self._context,
+                        report_period_id=report_period_id,
+                        running_time=time.monotonic() - label_start,
+                    )
+                )
+                if use_period_lock:
                     for summary_date in date_range(
                         datetime.combine(start_date, datetime.min.time()),
                         datetime.combine(end_date, datetime.min.time()),
                         step=1,
-                    )
-                )
-            else:
-                summary_ranges = date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP)
-
-            for start, end in summary_ranges:
-                LOG.info(
-                    log_json(
-                        msg="updating OCP report summary tables",
-                        context=self._context,
-                        start_date=start,
-                        end_date=end,
-                        report_period_id=report_period_id,
-                    )
-                )
-                if use_period_lock:
-                    with accessor.summary_period_lock(report_period_id, wait=False, shared=True):
-                        with accessor.summary_day_lock(report_period_id, start, wait=False):
-                            self._update_daily_summary_chunk(accessor, report_period_id, start, end)
-                else:
-                    self._update_daily_summary_chunk(accessor, report_period_id, start, end)
-
-            # This will process POD and STORAGE together.
-            LOG.info(
-                log_json(
-                    msg="updating OCP label summary tables",
-                    context=self._context,
-                    start_date=start_date,
-                    end_date=end_date,
-                    report_period_id=report_period_id,
-                )
-            )
-            accessor.populate_pod_label_summary_table([report_period_id], start_date, end_date)
-            accessor.populate_volume_label_summary_table([report_period_id], start_date, end_date)
-            if use_period_lock:
-                for summary_date in date_range(
-                    datetime.combine(start_date, datetime.min.time()),
-                    datetime.combine(end_date, datetime.min.time()),
-                    step=1,
-                ):
-                    with accessor.summary_period_lock(report_period_id, wait=False, shared=True):
+                    ):
+                        tag_start = time.monotonic()
                         with accessor.summary_day_lock(report_period_id, summary_date, wait=False):
                             accessor.update_line_item_daily_summary_with_tag_mapping(
                                 summary_date, summary_date, [report_period_id]
                             )
-            else:
-                accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, [report_period_id])
+                        LOG.info(
+                            log_json(
+                                msg="updated OCP tag mapping day",
+                                context=self._context,
+                                summary_date=summary_date,
+                                report_period_id=report_period_id,
+                                running_time=time.monotonic() - tag_start,
+                            )
+                        )
+                else:
+                    tag_start = time.monotonic()
+                    accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, [report_period_id])
+                    LOG.info(
+                        log_json(
+                            msg="updated OCP tag mapping range",
+                            context=self._context,
+                            start_date=start_date,
+                            end_date=end_date,
+                            report_period_id=report_period_id,
+                            running_time=time.monotonic() - tag_start,
+                        )
+                    )
 
-            LOG.info(
-                log_json(msg="updating OCP report periods", context=self._context, report_period_id=report_period_id)
-            )
-            if report_period.summary_data_creation_datetime is None:
-                report_period.summary_data_creation_datetime = timezone.now()
-            report_period.summary_data_updated_datetime = timezone.now()
-            report_period.save()
+                LOG.info(
+                    log_json(
+                        msg="updating OCP report periods", context=self._context, report_period_id=report_period_id
+                    )
+                )
+                if report_period.summary_data_creation_datetime is None:
+                    report_period.summary_data_creation_datetime = timezone.now()
+                report_period.summary_data_updated_datetime = timezone.now()
+                report_period.save()
+                LOG.info(
+                    log_json(
+                        msg="updated OCP report periods",
+                        created=report_period.summary_data_creation_datetime,
+                        updated=report_period.summary_data_updated_datetime,
+                        context=self._context,
+                        report_period_id=report_period_id,
+                    )
+                )
             LOG.info(
                 log_json(
-                    msg="updated OCP report periods",
-                    created=report_period.summary_data_creation_datetime,
-                    updated=report_period.summary_data_updated_datetime,
+                    msg="completed OCP summary write phase",
                     context=self._context,
                     report_period_id=report_period_id,
+                    running_time=time.monotonic() - summary_phase_start,
                 )
             )
 
