@@ -24,6 +24,7 @@ from django.db.models import F
 from django.db.models import OuterRef
 from django.db.models import Q
 from django.db.models import Subquery
+from django.db.models import Sum
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import Coalesce
@@ -34,6 +35,7 @@ from statsmodels.tools.sm_exceptions import ValueWarning
 from api.currency.models import ExchangeRateDictionary
 from api.currency.utils import build_exchange_rate_case
 from api.currency.utils import build_monthly_rate_annotation
+from api.currency.utils import get_monthly_exchange_rate
 from api.currency.utils import validate_exchange_rate_coverage
 from api.models import Provider
 from api.query_filter import QueryFilter
@@ -156,6 +158,13 @@ class Forecast:
         """Return the provider map value for total inftrastructure cost."""
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
+    @property
+    def use_base_currency_regression(self):
+        """Train on base-currency costs and apply the current month's rate to predictions."""
+        return (
+            is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG) and self.currency
+        )
+
     @cached_property
     def exchange_rates(self):
         try:
@@ -184,10 +193,11 @@ class Forecast:
 
     def get_data(self):
         """Query the database."""
+        queryset = self.cost_summary_table.objects.filter(self.filters.compose())
+        if not self.use_base_currency_regression:
+            queryset = queryset.annotate(**self.exchange_rate_annotation_dict)
         return (
-            self.cost_summary_table.objects.filter(self.filters.compose())
-            .annotate(**self.exchange_rate_annotation_dict)
-            .order_by("usage_start")
+            queryset.order_by("usage_start")
             .values("usage_start")
             .annotate(
                 total_cost=self.total_cost_term,
@@ -196,38 +206,91 @@ class Forecast:
             )
         )
 
+    def _get_base_currencies_for_conversion(self):
+        """Return base currencies present in the training window."""
+        return set(
+            self.cost_summary_table.objects.filter(
+                usage_start__gte=self.query_range[0],
+                usage_start__lte=self.query_range[1],
+            )
+            .values_list(self.provider_map.cost_units_key, flat=True)
+            .distinct()
+        ) - {None}
+
+    def _get_prediction_rate_multipliers(self):
+        """Return per-field rate multipliers to apply to forecast predictions."""
+        if not self.use_base_currency_regression:
+            return {field: Decimal("1") for field in COST_FIELD_NAMES}
+
+        month_start = self.dh.this_month_start.date()
+        base_currencies = self._get_base_currencies_for_conversion()
+        rate = self._get_weighted_exchange_rate(base_currencies, month_start)
+        return {field: rate for field in COST_FIELD_NAMES}
+
+    def _get_weighted_exchange_rate(self, base_currencies, month_start):
+        """Return a cost-weighted exchange rate for the given base currencies."""
+        bases_needing_conversion = base_currencies - {self.currency}
+        if not bases_needing_conversion:
+            return Decimal("1")
+
+        if len(bases_needing_conversion) == 1:
+            base = next(iter(bases_needing_conversion))
+            return get_monthly_exchange_rate(base, self.currency, month_start)
+
+        costs_by_base = (
+            self.cost_summary_table.objects.filter(self.filters.compose())
+            .values(self.provider_map.cost_units_key)
+            .annotate(cost=self.total_cost_term)
+        )
+        total_cost = Decimal(0)
+        weighted_rate = Decimal(0)
+        for row in costs_by_base:
+            base = row[self.provider_map.cost_units_key]
+            if base not in bases_needing_conversion:
+                continue
+            cost = Decimal(row["cost"] or 0)
+            rate = get_monthly_exchange_rate(base, self.currency, month_start)
+            weighted_rate += cost * rate
+            total_cost += cost
+
+        if total_cost == 0:
+            rates = [get_monthly_exchange_rate(base, self.currency, month_start) for base in bases_needing_conversion]
+            return sum(rates) / len(rates)
+
+        return weighted_rate / total_cost
+
+    @staticmethod
+    def _apply_rate_multiplier(result_dict, rate_multiplier):
+        """Multiply prediction values by an exchange rate."""
+        rate = float(rate_multiplier)
+        for values in result_dict.values():
+            values["total_cost"] = max((values["total_cost"] * rate, 0))
+            values["confidence_min"] = max((values["confidence_min"] * rate, 0))
+            values["confidence_max"] = max((values["confidence_max"] * rate, 0))
+        return result_dict
+
     def predict(self):
         """Define ORM query to run forecast and return prediction."""
         cost_predictions = {}
         with tenant_context(self.params.tenant):
-            if (
-                is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG)
-                and self.currency
-            ):
-                base_currencies = set(
-                    self.cost_summary_table.objects.filter(
-                        usage_start__gte=self.query_range[0],
-                        usage_start__lte=self.query_range[1],
-                    )
-                    .values_list(self.provider_map.cost_units_key, flat=True)
-                    .distinct()
-                ) - {None}
+            if self.use_base_currency_regression:
                 validate_exchange_rate_coverage(
-                    base_currencies,
+                    self._get_base_currencies_for_conversion(),
                     self.currency,
-                    self.query_range[0].date(),
-                    self.query_range[1].date(),
+                    self.dh.this_month_start.date(),
+                    self.dh.this_month_start.date(),
                 )
             data = self.get_data()
+            rate_multipliers = self._get_prediction_rate_multipliers()
 
             for fieldname in COST_FIELD_NAMES:
                 uniq_data = self._uniquify_qset(data.values("usage_start", fieldname), field=fieldname)
-                cost_predictions[fieldname] = self._predict(uniq_data)
+                cost_predictions[fieldname] = self._predict(uniq_data, rate_multiplier=rate_multipliers[fieldname])
 
             cost_predictions = self._key_results_by_date(cost_predictions)
             return self.format_result(cost_predictions)
 
-    def _predict(self, data):
+    def _predict(self, data, rate_multiplier=Decimal("1")):
         """Handle pre and post prediction work.
 
         This function handles arranging incoming data to conform with statsmodels requirements.
@@ -286,6 +349,7 @@ class Forecast:
                 "confidence_max": max((upper, 0)),
             }
 
+        self._apply_rate_multiplier(result_dict, rate_multiplier)
         return (result_dict, results.rsquared, results.pvalues)
 
     def _enumerate_dates(self, date_list):
@@ -676,6 +740,97 @@ class OCPForecast(Forecast):
         return {
             "exchange_rate": exchange_rate_annotation,
             "infra_exchange_rate": infra_exchange_rate_annotation,
+        }
+
+    def _get_base_currencies_for_conversion(self):
+        """Include both cloud infra and cost-model currencies."""
+        base_currencies = super()._get_base_currencies_for_conversion()
+        return (base_currencies | set(self.source_to_currency_map.values())) - {None}
+
+    def _unconverted_cost_model_cost_sum(self, cost_model_rate_type=None):
+        """Return unconverted cost-model cost aggregate."""
+        cost_fields = (
+            Coalesce(F("cost_model_cpu_cost"), Value(0, output_field=DecimalField()))
+            + Coalesce(F("cost_model_memory_cost"), Value(0, output_field=DecimalField()))
+            + Coalesce(F("cost_model_volume_cost"), Value(0, output_field=DecimalField()))
+            + Coalesce(F("cost_model_gpu_cost"), Value(0, output_field=DecimalField()))
+        )
+        if cost_model_rate_type:
+            return Sum(
+                Case(
+                    When(cost_model_rate_type=cost_model_rate_type, then=cost_fields),
+                    default=Value(0, output_field=DecimalField()),
+                )
+            )
+        return Sum(cost_fields)
+
+    def _get_ocp_training_cost_split(self):
+        """Return base-currency component totals for OCP rate blending."""
+        totals = self.cost_summary_table.objects.filter(self.filters.compose()).aggregate(
+            infra_cloud_base=Sum(
+                Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+            ),
+            cm_infra_base=self._unconverted_cost_model_cost_sum(cost_model_rate_type="Infrastructure"),
+            cm_cost_base=self._unconverted_cost_model_cost_sum(),
+            cm_supplementary_base=self._unconverted_cost_model_cost_sum(cost_model_rate_type="Supplementary"),
+        )
+        return {key: Decimal(value or 0) for key, value in totals.items()}
+
+    def _get_cost_model_weighted_rate(self, month_start, cost_field):
+        """Return a source-weighted cost-model exchange rate for the given cost expression."""
+        rows = (
+            self.cost_summary_table.objects.filter(self.filters.compose())
+            .values("source_uuid")
+            .annotate(cost=Sum(cost_field))
+        )
+        total_cost = Decimal(0)
+        weighted_rate = Decimal(0)
+        for row in rows:
+            source_uuid = row["source_uuid"]
+            cost = Decimal(row["cost"] or 0)
+            if cost == 0:
+                continue
+            base_currency = self.source_to_currency_map.get(source_uuid, settings.KOKU_DEFAULT_CURRENCY)
+            rate = get_monthly_exchange_rate(base_currency, self.currency, month_start)
+            weighted_rate += cost * rate
+            total_cost += cost
+
+        if total_cost == 0:
+            return Decimal("1")
+        return weighted_rate / total_cost
+
+    def _blended_exchange_rate(self, infra_cloud_base, cm_base, infra_rate, cm_rate):
+        """Blend infra-cloud and cost-model rates using training-window cost shares."""
+        total_base = infra_cloud_base + cm_base
+        if total_base == 0:
+            return Decimal("1")
+        return (infra_cloud_base * infra_rate + cm_base * cm_rate) / total_base
+
+    def _get_prediction_rate_multipliers(self):
+        """Return per-field OCP rate multipliers using infra and cost-model rates."""
+        if not self.use_base_currency_regression:
+            return {field: Decimal("1") for field in COST_FIELD_NAMES}
+
+        month_start = self.dh.this_month_start.date()
+        split = self._get_ocp_training_cost_split()
+        infra_cloud_base = split["infra_cloud_base"]
+        cm_infra_base = split["cm_infra_base"]
+        cm_cost_base = split["cm_cost_base"]
+
+        infra_bases = super()._get_base_currencies_for_conversion()
+        infra_rate = self._get_weighted_exchange_rate(infra_bases, month_start)
+        cm_supplementary_rate = self._get_cost_model_weighted_rate(
+            month_start, self._unconverted_cost_model_cost_sum(cost_model_rate_type="Supplementary")
+        )
+        cm_cost_rate = self._get_cost_model_weighted_rate(month_start, self._unconverted_cost_model_cost_sum())
+
+        return {
+            "infrastructure_cost": self._blended_exchange_rate(
+                infra_cloud_base, cm_infra_base, infra_rate, cm_cost_rate
+            ),
+            "supplementary_cost": cm_supplementary_rate,
+            "total_cost": self._blended_exchange_rate(infra_cloud_base, cm_cost_base, infra_rate, cm_cost_rate),
         }
 
 

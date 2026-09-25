@@ -91,6 +91,38 @@ def build_monthly_rate_annotation(base_currency, target_currency):
     )
 
 
+def get_monthly_exchange_rate(base_currency, target_currency, month_start):
+    """Return the MonthlyExchangeRate for a single base/target pair and month.
+
+    Args:
+        base_currency: currency code to convert from
+        target_currency: currency code to convert to
+        month_start: first day of the month (date)
+
+    Returns:
+        Decimal exchange rate
+
+    Raises:
+        ExchangeRateNotFound: if no MER row exists for the pair and month
+    """
+    if base_currency == target_currency:
+        return Decimal("1")
+
+    month_start = month_start.replace(day=1) if hasattr(month_start, "replace") else month_start
+    rate = (
+        MonthlyExchangeRate.objects.filter(
+            effective_date=month_start,
+            base_currency=base_currency,
+            target_currency=target_currency,
+        )
+        .values_list("exchange_rate", flat=True)
+        .first()
+    )
+    if rate is None:
+        raise ExchangeRateNotFound([base_currency], target_currency, month_start, month_start)
+    return rate
+
+
 def validate_exchange_rate_coverage(base_currencies, target_currency, start_date, end_date):
     """Check that MonthlyExchangeRate rows exist for every base currency and every month in the range.
 
