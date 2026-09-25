@@ -233,7 +233,8 @@ class CurrencySettingsViewTest(IamTestCase):
         row = rows[0]
         self.assertEqual(row["base_currency"], "USD")
         self.assertEqual(row["target_currency"], "EUR")
-        self.assertEqual(row["exchange_rate"], "0.92")
+        # CSV stringifies the Decimal representation from the serializer.
+        self.assertEqual(Decimal(row["exchange_rate"]), Decimal("0.92"))
         self.assertEqual(row["start_date"], month_start.isoformat())
         self.assertEqual(row["end_date"], month_end.isoformat())
         self.assertEqual(row["uuid"], str(rate.uuid))
