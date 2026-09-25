@@ -74,8 +74,9 @@ Administrator currency catalog for Settings UI.
 
 | Param | Description |
 |-------|-------------|
-| `filter[enabled]` | `true` / `1` → only enabled; `false` / `0` → only disabled; omit → enabled first, then disabled |
+| `filter[enabled]` | `true` / `1` → only enabled; `false` / `0` → only disabled; omit → all currencies |
 | `filter[currency]` | Case-insensitive substring match on currency `code` (e.g. `US` matches `USD`). Accepts comma-separated values or repeated params for multiple search terms (OR). Non-matching values return an empty list |
+| `order_by[code]` | `asc` (default) or `desc` — sort by ISO currency code |
 | `limit` / `offset` | Standard list pagination |
 
 ### Response item
