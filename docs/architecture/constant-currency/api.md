@@ -14,7 +14,7 @@ constant currency. Base path unless noted:
 | Method | Path | Audience | Purpose |
 |--------|------|----------|---------|
 | `GET` | `/currency/` | End user | Enabled currencies for the target-currency dropdown |
-| `GET` | `/settings/currency/` | Admin | All ISO currencies with enablement, dynamic availability, nested static rates |
+| `GET` | `/settings/currency/` | Admin | All ISO currencies with enablement, dynamic availability, nested static rates; CSV export of flat static rates via `Accept: text/csv` |
 | `POST` | `/settings/currency/enabled/{code}/` | Admin | Enable a currency |
 | `DELETE` | `/settings/currency/enabled/{code}/` | Admin | Disable a currency |
 | `POST` | `/settings/currency/static-rates/` | Price list admin | Create a static exchange rate |
@@ -27,7 +27,8 @@ flag on, they convert using per-month rates and may return `400` when coverage
 is incomplete (see [Report and forecast behavior](#report-and-forecast-behavior)).
 
 There is **no** dedicated `GET` collection for static rates; list them via
-`GET /settings/currency/` (`static_rates` nested under each base currency).
+`GET /settings/currency/` (`static_rates` nested under each base currency), or
+export them as a flat CSV with `Accept: text/csv` on the same endpoint.
 
 ---
 
@@ -113,6 +114,15 @@ doubles (~15–17 significant digits).
 | `enabled` | Currency is enabled for the tenant |
 | `has_dynamic_rate` | A dynamic (market) rate exists for this currency code |
 | `static_rates` | Static rates where this currency is the **base** |
+
+### CSV export (`Accept: text/csv`)
+
+Same path and filters; response is a **flat, unpaginated** CSV of static exchange
+rates (not the ISO currency catalog). Nested `static_rates` arrays are expanded
+into one row per rate. Columns (stable order): `base_currency`, `target_currency`,
+`exchange_rate`, `start_date`, `end_date`, `uuid`, `name`. Empty exports still
+include the header row. JSON behavior for `Accept: application/json` is unchanged.
+Implementation: [`CurrencySettingsView`](../../../koku/api/settings/currency_views.py).
 
 ---
 

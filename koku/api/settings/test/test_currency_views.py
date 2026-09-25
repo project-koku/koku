@@ -3,6 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for currency settings views."""
+import calendar
+import csv
+import io
+from datetime import date
+from decimal import Decimal
 from uuid import uuid4
 
 from django.core.cache import caches
@@ -11,13 +16,16 @@ from django.urls import reverse
 from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.test import APIClient
+from rest_framework_csv.renderers import CSVRenderer
 
 from api.currency.currencies import get_enabled_currency_codes
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
+from api.settings.currency_views import CSV_STATIC_RATE_FIELDS
 from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
+from cost_models.models import StaticExchangeRate
 from koku.cache import build_enabled_currency_codes_key
 from koku.cache import CacheEnum
 from koku.cache import get_value_from_cache
@@ -26,6 +34,10 @@ from reporting.provider.azure.models import AzureCostSummaryP
 from reporting.provider.gcp.models import GCPCostSummaryP
 from reporting.provider.models import TenantAPIProvider
 from reporting.user_settings.models import UserSettings
+
+
+def _month_end(d):
+    return d.replace(day=calendar.monthrange(d.year, d.month)[1])
 
 
 CACHE_OVERRIDE = {
@@ -192,6 +204,223 @@ class CurrencySettingsViewTest(IamTestCase):
         url = reverse("currency-list") + "?filter[enabled]=maybe"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_list_csv_export_returns_flat_static_rates(self):
+        """Accept: text/csv returns flat static rates, not nested currency catalog."""
+        month_start = date.today().replace(day=1)
+        month_end = _month_end(month_start)
+        with tenant_context(self.tenant):
+            rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+
+        client = APIClient(HTTP_ACCEPT="text/csv")
+        url = reverse("currency-list")
+        response = client.get(url, content_type="text/csv", **self.headers)
+        response.render()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.accepted_media_type, "text/csv")
+        self.assertIsInstance(response.accepted_renderer, CSVRenderer)
+
+        rows = list(csv.DictReader(io.StringIO(response.content.decode())))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(list(rows[0].keys()), list(CSV_STATIC_RATE_FIELDS))
+        row = rows[0]
+        self.assertEqual(row["base_currency"], "USD")
+        self.assertEqual(row["target_currency"], "EUR")
+        # CSV stringifies the Decimal representation from the serializer.
+        self.assertEqual(Decimal(row["exchange_rate"]), Decimal("0.92"))
+        self.assertEqual(row["start_date"], month_start.isoformat())
+        self.assertEqual(row["end_date"], month_end.isoformat())
+        self.assertEqual(row["uuid"], str(rate.uuid))
+        self.assertEqual(row["name"], "USD-EUR")
+
+    def test_list_csv_export_ignores_pagination(self):
+        """CSV export returns all matching rates even when limit would truncate JSON."""
+        month_start = date.today().replace(day=1)
+        month_end = _month_end(month_start)
+        targets = ("EUR", "GBP", "JPY")
+        with tenant_context(self.tenant):
+            for target in targets:
+                StaticExchangeRate.objects.create(
+                    base_currency="USD",
+                    target_currency=target,
+                    exchange_rate=Decimal("1.000000000000000"),
+                    start_date=month_start,
+                    end_date=month_end,
+                )
+
+        client = APIClient(HTTP_ACCEPT="text/csv")
+        url = reverse("currency-list") + "?limit=1"
+        response = client.get(url, content_type="text/csv", **self.headers)
+        response.render()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        rows = list(csv.DictReader(io.StringIO(response.content.decode())))
+        self.assertEqual(len(rows), 3)
+        self.assertEqual({row["target_currency"] for row in rows}, set(targets))
+
+    def test_list_csv_export_empty_when_no_static_rates(self):
+        """CSV with no static rates still returns 200, text/csv, and column headers."""
+        client = APIClient(HTTP_ACCEPT="text/csv")
+        url = reverse("currency-list")
+        response = client.get(url, content_type="text/csv", **self.headers)
+        response.render()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.accepted_media_type, "text/csv")
+        reader = csv.reader(io.StringIO(response.content.decode()))
+        header = next(reader)
+        self.assertEqual(header, list(CSV_STATIC_RATE_FIELDS))
+        self.assertEqual(list(reader), [])
+
+    def test_list_json_preferred_when_accept_lists_json_before_csv(self):
+        """Mixed Accept with JSON first keeps the nested currency catalog shape."""
+        month_start = date.today().replace(day=1)
+        month_end = _month_end(month_start)
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+
+        client = APIClient(HTTP_ACCEPT="application/json, text/csv")
+        url = reverse("currency-list") + "?filter[currency]=USD&limit=500"
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("application/json", response.accepted_media_type)
+        data = response.data["data"]
+        self.assertEqual(data[0]["code"], "USD")
+        self.assertIn("static_rates", data[0])
+        self.assertEqual(data[0]["static_rates"][0]["target_currency"], "EUR")
+
+    def test_list_csv_export_filter_enabled_true(self):
+        """CSV filter[enabled]=true keeps rates whose base currency is enabled."""
+        month_start = date.today().replace(day=1)
+        month_end = _month_end(month_start)
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+            StaticExchangeRate.objects.create(
+                base_currency="GBP",
+                target_currency="EUR",
+                exchange_rate=Decimal("1.100000000000000"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+
+        client = APIClient(HTTP_ACCEPT="text/csv")
+        url = reverse("currency-list") + "?filter[enabled]=true"
+        response = client.get(url, content_type="text/csv", **self.headers)
+        response.render()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        content = response.content.decode()
+        self.assertIn("USD", content)
+        self.assertIn("EUR", content)
+        self.assertNotIn("GBP", content)
+
+    def test_list_csv_export_filter_enabled_false(self):
+        """CSV filter[enabled]=false keeps rates whose base currency is disabled."""
+        month_start = date.today().replace(day=1)
+        month_end = _month_end(month_start)
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+            StaticExchangeRate.objects.create(
+                base_currency="GBP",
+                target_currency="EUR",
+                exchange_rate=Decimal("1.100000000000000"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+
+        client = APIClient(HTTP_ACCEPT="text/csv")
+        url = reverse("currency-list") + "?filter[enabled]=false"
+        response = client.get(url, content_type="text/csv", **self.headers)
+        response.render()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        content = response.content.decode()
+        self.assertIn("GBP", content)
+        self.assertNotIn("USD", content)
+
+    def test_list_csv_export_filter_by_currency(self):
+        """CSV filter[currency] matches base or target currency codes."""
+        month_start = date.today().replace(day=1)
+        month_end = _month_end(month_start)
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+            StaticExchangeRate.objects.create(
+                base_currency="GBP",
+                target_currency="JPY",
+                exchange_rate=Decimal("180.000000000000"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+
+        client = APIClient(HTTP_ACCEPT="text/csv")
+        url = reverse("currency-list") + "?filter[currency]=GBP"
+        response = client.get(url, content_type="text/csv", **self.headers)
+        response.render()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        content = response.content.decode()
+        self.assertIn("GBP", content)
+        self.assertIn("JPY", content)
+        self.assertNotIn("USD", content)
+        self.assertNotIn("EUR", content)
+
+    def test_list_json_accept_unchanged_with_static_rates(self):
+        """application/json still returns the nested currency catalog shape."""
+        month_start = date.today().replace(day=1)
+        month_end = _month_end(month_start)
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+
+        url = reverse("currency-list") + "?filter[currency]=USD&limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data["data"]
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["code"], "USD")
+        self.assertIn("static_rates", data[0])
+        self.assertEqual(len(data[0]["static_rates"]), 1)
+        self.assertEqual(data[0]["static_rates"][0]["target_currency"], "EUR")
 
     def test_is_disableable_true_for_free_enabled_currency(self):
         """A freely enabled currency with no dependencies returns is_disableable=True."""
