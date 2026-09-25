@@ -41,6 +41,11 @@ cte_ocp_filtered_resources as (
         AND aws.year = {{year}}
         AND aws.month = {{month}}
 ),
+-- Capacity must use only EBS storage (VolumeUsage) line items.
+-- Provisioned throughput/IOPS CUR rows use different units/rates; MAX(cost)/MAX(rate)
+-- across usagetypes pairs storage cost with throughput rate and can inflate capacity
+-- by ~512x or round to 0 (COST-8328). Baseline volumes can also get $0 / nonzero-rate
+-- VolumeP-* rows when another provisioned volume exists in the account/region.
 calculated_capacity AS (
     SELECT
         aws.lineitem_resourceid as resource_id,
@@ -57,6 +62,7 @@ calculated_capacity AS (
     WHERE aws.year = {{year}}
     AND aws.month = {{month}}
     AND aws.source = {{cloud_provider_uuid}}
+    AND aws.lineitem_usagetype LIKE '%EBS:VolumeUsage%'
     GROUP BY aws.lineitem_resourceid, ocpaws.usage_start
 )
 SELECT *
