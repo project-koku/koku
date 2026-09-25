@@ -113,6 +113,9 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
         LOG.warning(log_json(msg="No enabled currencies; skipping monthly exchange rate populate"))
         return 0
 
+    if code in enabled_codes:
+        LOG.warning(log_json(msg="**DEBUG**: fresh currency is in the enabled list"))
+
     current_month = DateHelper().this_month_start.date()
     updated_count = 0
     erd = ExchangeRateDictionary.objects.first()
@@ -126,15 +129,31 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
             ).values_list("base_currency", "target_currency")
         )
 
+        LOG.debug(
+            log_json(
+                msg="Building dynamic rates from ExchangeRateDictionary",
+                current_month=str(current_month),
+                enabled_currency_count=len(enabled_codes),
+                static_pairs_count=len(static_pairs),
+                filter_code=code,
+            )
+        )
+
         # Collect rates and synthesize inverses when not already in the dictionary
         dynamic_rates = {}
+        skipped_same_currency = 0
+        skipped_not_enabled = 0
+        skipped_unrelated_code = 0
         for base_cur, rates_by_target in exchange_dict.items():
             for target_cur, rate in rates_by_target.items():
                 if base_cur == target_cur:
+                    skipped_same_currency += 1
                     continue
                 if base_cur not in enabled_codes or target_cur not in enabled_codes:
+                    skipped_not_enabled += 1
                     continue
                 if code and code != base_cur and code != target_cur:
+                    skipped_unrelated_code += 1
                     continue
 
                 forward_pair = (base_cur, target_cur)
@@ -154,9 +173,38 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
                 inverse_rate = Decimal(1) / rate_dec
                 dynamic_rates[forward_pair] = rate_dec
                 dynamic_rates.setdefault(inverse_pair, inverse_rate)
+                LOG.debug(
+                    log_json(
+                        msg="Dynamic rate collected",
+                        base_currency=base_cur,
+                        target_currency=target_cur,
+                        forward_rate=str(rate_dec),
+                        inverse_rate=str(inverse_rate),
+                        inverse_synthesized=inverse_pair not in dynamic_rates,
+                    )
+                )
+
+        LOG.debug(
+            log_json(
+                msg="Dynamic rate collection complete",
+                total_pairs_collected=len(dynamic_rates),
+                skipped_same_currency=skipped_same_currency,
+                skipped_not_enabled=skipped_not_enabled,
+                skipped_unrelated_code=skipped_unrelated_code,
+            )
+        )
 
         # Exclude pairs that already have a static override for this month
         pairs_to_upsert = {pair: rate for pair, rate in dynamic_rates.items() if pair not in static_pairs}
+        skipped_static_pairs = len(dynamic_rates) - len(pairs_to_upsert)
+
+        LOG.debug(
+            log_json(
+                msg="Pairs ready to upsert after excluding static overrides",
+                pairs_to_upsert=len(pairs_to_upsert),
+                skipped_static_overrides=skipped_static_pairs,
+            )
+        )
 
         for (base_cur, target_cur), rate in pairs_to_upsert.items():
             MonthlyExchangeRate.objects.update_or_create(
@@ -166,6 +214,15 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
                 defaults={"exchange_rate": rate, "rate_type": RateType.DYNAMIC},
             )
             updated_count += 1
+            LOG.debug(
+                log_json(
+                    msg="MonthlyExchangeRate upserted",
+                    base_currency=base_cur,
+                    target_currency=target_cur,
+                    rate=str(rate),
+                    effective_date=str(current_month),
+                )
+            )
 
     backfilled_count = 0
     if backfill_past_months:
