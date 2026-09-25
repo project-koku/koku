@@ -5,6 +5,7 @@
 """Models for provider management."""
 import logging
 import math
+from contextlib import contextmanager
 from datetime import datetime
 from datetime import timedelta
 from uuid import uuid4
@@ -286,10 +287,51 @@ class Provider(models.Model):
         self.setup_complete = True
         self.save(update_fields=["setup_complete"])
 
+    @contextmanager
+    def _rtu_distribution_lock(self):
+        """Serialize this delete against concurrent RTU pipeline writes for the same provider.
+
+        rates_to_usage's FKs to reporting_ocpusagereportperiod and
+        reporting_tenant_api_provider are ON DELETE CASCADE DEFERRABLE
+        INITIALLY DEFERRED (migration 0353) and never match
+        _get_linked_table_names' table-name regex, so this cascade never
+        explicitly/eagerly deletes rates_to_usage rows -- cleanup relies
+        entirely on that deferred FK firing at COMMIT of this method's
+        transaction.
+
+        Spiked empirically (COST-7249 deadlock preflight, Finding B, see
+        masu/test/database/test_ocp_provider_delete_rtu_race.py): a
+        concurrent rates_to_usage INSERT for the same report_period that
+        lands while this delete is in flight blocks on this transaction's
+        locks, then fails with a foreign-key IntegrityError once this delete
+        commits and the parent row is gone -- an unhandled crash for
+        whichever Celery task lost the race.
+
+        Uses the exact same session-scoped pg_advisory_lock/pg_advisory_
+        unlock key (hashtext of the provider uuid) as OCPReportDBAccessor.
+        _distribution_provider_lock, which every RTU write path
+        (populate_distributed_cost_sql, aggregate_rates_to_daily_summary,
+        populate_markup_rates_to_usage, _populate_cost_breakdown_ui_summary_
+        table) already acquires for the same provider. This delete either
+        runs to completion first (an RTU step then finds a clean,
+        post-delete state instead of racing it) or waits for an in-flight
+        RTU step to finish first (this delete then fails once, predictably,
+        via get_is_provider_processing()/normal retry paths instead of an
+        RTU write crashing deep inside an INSERT).
+        """
+        lock_key = str(self.uuid)
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_lock(hashtext(%s))", [lock_key])
+        try:
+            yield
+        finally:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_unlock(hashtext(%s))", [lock_key])
+
     def delete(self, *args, **kwargs):
         if self.customer:
             using = router.db_for_write(self.__class__, instance=self)
-            with schema_context(self.customer.schema_name):
+            with schema_context(self.customer.schema_name), self._rtu_distribution_lock():
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
                 _type = self.type.lower()
                 self._normalized_type = _type.removesuffix("-local")

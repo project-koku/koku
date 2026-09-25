@@ -1002,8 +1002,18 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             )
         )
 
+        # dev_fallback=True: when Unleash is unreachable (the normal state for local
+        # dev, unit tests, and most CI), default to the RTU path rather than legacy.
+        # This matches the project convention (CLAUDE.md: "gated behind an Unleash
+        # feature flag with a default of OFF, dev_fallback=True for dev/test") and
+        # was the original setting until PR #6172's "smart revert" deliberately
+        # flipped it to dev_fallback=False out of caution while Phase 3 was being
+        # hardened. RTU is now foundational to the Phase 4 cost-breakdown feature
+        # (this PR), so we need our own dev/test/smoke runs to actually exercise the
+        # RTU path by default instead of silently falling back to legacy. Production
+        # behavior when Unleash IS reachable is unaffected either way.
         rtu_enabled = is_feature_flag_enabled_by_schema(
-            self._schema, COST_BREAKDOWN_RTU_UNLEASH_FLAG, dev_fallback=False
+            self._schema, COST_BREAKDOWN_RTU_UNLEASH_FLAG, dev_fallback=True
         )
 
         for month_range in summary_range.iter_summary_range_by_month():

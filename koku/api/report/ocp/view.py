@@ -3,13 +3,17 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for OpenShift Usage Reports."""
+import logging
+
 from rest_framework import status
 from rest_framework.response import Response
 
+from api.common import log_json
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.throttling import OcpTagQueryThrottle
 from api.models import Provider
 from api.report.ocp.query_handler import OCPReportQueryHandler
+from api.report.ocp.serializers import OCPCostBreakdownQueryParamSerializer
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
 from api.report.ocp.serializers import OCPGpuQueryParamSerializer
 from api.report.ocp.serializers import OCPInventoryQueryParamSerializer
@@ -18,6 +22,8 @@ from api.report.ocp.serializers import OCPVirtualMachinesQueryParamSerializer
 from api.report.view import ReportView
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPView(ReportView):
@@ -105,3 +111,77 @@ class OCPMigProfilesView(OCPView):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         return super().get(request, **kwargs)
+
+
+class OCPCostBreakdownView(OCPView):
+    """Get OpenShift per-rate cost breakdown data."""
+
+    report = "cost_breakdown"
+    serializer = OCPCostBreakdownQueryParamSerializer
+
+    @staticmethod
+    def _build_tree(values):
+        """Reconstruct a nested tree from flat breakdown rows using path/parent_path."""
+        nodes = {}
+        for item in values:
+            path = item.get("path", "")
+            if path in nodes:
+                LOG.warning("Duplicate path in breakdown data, overwriting: %s", path)
+            nodes[path] = {**item, "children": []}
+
+        # A flat `values` list normally contains exactly one depth-1 root (the caller
+        # is expected to scope the query, e.g. by cluster, before requesting the tree
+        # view). If more than one depth-1 node is present -- e.g. an unscoped query
+        # spanning multiple clusters -- only the first root's subtree is returned;
+        # the rest are logged (not silently dropped) so callers can add scoping.
+        roots = []
+        for path, node in nodes.items():
+            parent_path = node.get("parent_path", "")
+            if parent_path and parent_path in nodes:
+                nodes[parent_path]["children"].append(node)
+            elif parent_path:
+                LOG.warning("Orphan node in breakdown tree (parent_path=%s not found): %s", parent_path, path)
+            if node.get("depth") == 1:
+                roots.append(node)
+
+        if len(roots) > 1:
+            LOG.warning(
+                "Multiple depth-1 roots in breakdown tree data; only the first is returned. "
+                "Scope the query (e.g. filter[cluster] or group_by[cluster]) to avoid dropping data. "
+                "Returned root path=%s; dropped root paths=%s",
+                roots[0].get("path"),
+                [node.get("path") for node in roots[1:]],
+            )
+
+        return roots[0] if roots else {}
+
+    @classmethod
+    def _transform_to_tree(cls, data_item):
+        """Recursively find 'values' lists and replace with nested 'tree'."""
+        if isinstance(data_item, dict):
+            if "values" in data_item:
+                data_item["tree"] = cls._build_tree(data_item.pop("values"))
+            else:
+                for value in data_item.values():
+                    cls._transform_to_tree(value)
+        elif isinstance(data_item, list):
+            for item in data_item:
+                cls._transform_to_tree(item)
+
+    def get(self, request, **kwargs):
+        """Get cost breakdown with audit logging and optional tree view."""
+        schema = getattr(getattr(request.user, "customer", None), "schema_name", None)
+        LOG.info(
+            log_json(
+                msg="cost_breakdown API request",
+                schema=schema,
+                query_params=dict(request.query_params),
+            )
+        )
+        response = super().get(request, **kwargs)
+
+        if request.query_params.get("view") == "tree" and hasattr(response, "data"):
+            for date_group in response.data.get("data", []):
+                self._transform_to_tree(date_group)
+
+        return response
