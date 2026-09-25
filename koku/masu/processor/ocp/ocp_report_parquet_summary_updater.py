@@ -276,6 +276,11 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         )
 
     def check_cluster_infrastructure(self, start_date, end_date):
+        # On-prem supports OCP only. The cloud-provider infrastructure-map SQL
+        # exists only in the SaaS Trino tree, not in self_hosted_sql.
+        if settings.ONPREM:
+            return
+
         # Override start date so we map with a more complete dataset
         start_date = DateHelper().month_start(start_date)
         LOG.info(

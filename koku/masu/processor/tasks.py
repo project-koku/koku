@@ -77,6 +77,7 @@ LOG = logging.getLogger(__name__)
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
 UPDATE_COST_MODEL_COSTS_TASK = "masu.processor.tasks.update_cost_model_costs"
 OCP_SUMMARY_PERIOD_LOCK_REQUEUE_SECONDS = 60
+COST_MODEL_RATE_LIMIT_REQUEUE_SECONDS = 10
 
 
 def deduplicate_summary_reports(reports_to_summarize, manifest_list):
@@ -1055,10 +1056,18 @@ def update_cost_model_costs(  # noqa: C901
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:
                 msg = f"Schema {schema_name} is currently rate limited. Requeuing."
-            LOG.debug(log_json(tracing_id, msg=msg, retry_count=self.request.retries + 1))
+            retry_delay = COST_MODEL_RATE_LIMIT_REQUEUE_SECONDS if rate_limited else 0
+            LOG.debug(
+                log_json(
+                    tracing_id,
+                    msg=msg,
+                    retry_count=self.request.retries + 1,
+                    retry_delay_seconds=retry_delay,
+                )
+            )
             # Returning after a detached reschedule would advance the Celery
             # chain to manifest completion before costs have been updated.
-            raise self.retry(countdown=0)
+            raise self.retry(countdown=retry_delay)
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()

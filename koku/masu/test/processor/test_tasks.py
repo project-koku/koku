@@ -1524,27 +1524,31 @@ class TestWorkerCacheThrottling(MasuTestCase):
         worker_cache_class.return_value.single_task_is_running.return_value = False
         updater_class.return_value.update_cost_model_costs.side_effect = SummaryPeriodLockUnavailable("lock held")
         successor = dict(mark_manifest_complete.si(self.schema, Provider.PROVIDER_OCP, self.ocp_provider_uuid))
-        task_id = "cost-model-retry-test"
-        update_cost_model_costs.push_request(
-            id=task_id,
-            retries=0,
-            called_directly=False,
-            is_eager=False,
-            chain=[successor],
-            delivery_info={"exchange": "", "routing_key": CostModelQueue.DEFAULT},
-        )
-        try:
-            with patch.object(update_cost_model_costs, "apply_async", return_value=Mock()) as publish:
-                with self.assertRaises(Retry):
-                    update_cost_model_costs.run(self.schema, self.ocp_provider_uuid, "2026-09-01", "2026-09-30")
-        finally:
-            update_cost_model_costs.pop_request()
+        for queue in (CostModelQueue.DEFAULT, CostModelQueue.XL, CostModelQueue.PENALTY_BOX):
+            with self.subTest(queue=queue):
+                task_id = f"cost-model-retry-{queue}"
+                update_cost_model_costs.push_request(
+                    id=task_id,
+                    retries=0,
+                    called_directly=False,
+                    is_eager=False,
+                    chain=[successor],
+                    delivery_info={"exchange": "", "routing_key": queue},
+                )
+                try:
+                    with patch.object(update_cost_model_costs, "apply_async", return_value=Mock()) as publish:
+                        with self.assertRaises(Retry):
+                            update_cost_model_costs.run(
+                                self.schema, self.ocp_provider_uuid, "2026-09-01", "2026-09-30"
+                            )
+                finally:
+                    update_cost_model_costs.pop_request()
 
-        worker_cache_class.return_value.release_single_task.assert_called_once()
-        self.assertEqual(publish.call_args.kwargs["chain"], [successor])
-        self.assertEqual(publish.call_args.kwargs["queue"], CostModelQueue.DEFAULT)
-        self.assertEqual(publish.call_args.kwargs["task_id"], task_id)
-        self.assertEqual(publish.call_args.kwargs["retries"], 1)
+                self.assertEqual(publish.call_args.kwargs["chain"], [successor])
+                self.assertEqual(publish.call_args.kwargs["queue"], queue)
+                self.assertEqual(publish.call_args.kwargs["task_id"], task_id)
+                self.assertEqual(publish.call_args.kwargs["retries"], 1)
+        self.assertEqual(worker_cache_class.return_value.release_single_task.call_count, 3)
 
     @patch("masu.processor.tasks.CostModelCostUpdater")
     @patch("masu.processor.tasks.rate_limit_tasks")
@@ -1575,7 +1579,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
                 finally:
                     update_cost_model_costs.pop_request()
                 self.assertEqual(publish.call_args.kwargs["chain"], [successor])
-                self.assertEqual(publish.call_args.kwargs["countdown"], 0)
+                self.assertEqual(publish.call_args.kwargs["countdown"], 10 if reason == "rate-limited" else 0)
         updater_class.assert_not_called()
         worker_cache_class.return_value.lock_single_task.assert_not_called()
 

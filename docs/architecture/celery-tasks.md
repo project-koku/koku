@@ -488,9 +488,12 @@ period during each cost-model write phase. A contended lock defers the task for
 60 seconds. The task is bound and uses `self.retry()` so a chained
 `mark_manifest_complete` cannot run until cost-model processing succeeds.
 Rate-limit and duplicate-work deferrals also use task retry rather than a
-detached reschedule; they retain their immediate retry cadence. Retries are
-unbounded (`max_retries=None`) to preserve the previous deferral behavior, so
-operators should inspect repeated retry counts and the lock holder rather than
+detached reschedule. Rate-limited work waits 10 seconds before retrying;
+duplicate-work retries retain their immediate cadence. Celery retries retain
+the incoming task's queue, including XL and penalty assignments selected at
+enqueue time. Retries are unbounded (`max_retries=None`) to preserve the
+previous deferral behavior. Operators should inspect repeated retry counts and
+the lock holder rather than
 assuming a permanent conflict will resolve itself. The synchronous call path
 still raises lock conflicts to its caller.
 

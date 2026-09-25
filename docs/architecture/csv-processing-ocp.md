@@ -439,7 +439,8 @@ default).
    to work on disjoint days, while excluding an exclusive cost-model writer
    from starting between chunks and forcing a partial summary to restart.
    Cluster metadata and cloud-infrastructure discovery are outside the
-   summary-writing lock.
+   summary-writing lock. The cloud-infrastructure probe is skipped on-prem,
+   where only OCP is supported and the SaaS cloud-provider SQL is absent.
 4. `OCPCostModelCostUpdater` takes the period lock **exclusively** around each
    report month's rate/markup writes and again around that month's
    distribution, aggregation, and UI-summary writes. It therefore excludes
