@@ -14,6 +14,7 @@ from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_csv.renderers import CSVRenderer
 
 from api.common import log_json
 from api.common.pagination import ListPaginator
@@ -49,6 +50,7 @@ VALID_FILTER_PARAMS = {"enabled", "currency"}
 
 # Flat CSV columns for Accept: text/csv on GET /settings/currency/ (COST-7994).
 # Nested static_rates / full ISO catalog are intentionally not exported.
+# Order is explicit — do not rely on the CSV renderer to infer/sort headers.
 CSV_STATIC_RATE_FIELDS = (
     "base_currency",
     "target_currency",
@@ -61,9 +63,13 @@ CSV_STATIC_RATE_FIELDS = (
 
 
 def _wants_csv(request):
-    """Return True when the client requested CSV via the Accept header."""
-    accept = request.META.get("HTTP_ACCEPT", "") or ""
-    return "text/csv" in accept
+    """Return True when DRF negotiated the CSV renderer for this request.
+
+    Branch on ``accepted_renderer`` (not a raw Accept substring) so a mixed
+    Accept such as ``application/json, text/csv`` keeps the JSON catalog shape
+    when JSON wins content negotiation.
+    """
+    return isinstance(getattr(request, "accepted_renderer", None), CSVRenderer)
 
 
 def _build_static_rate_csv_rows(*, enabled_filter=None, currency_filter=None):
@@ -204,6 +210,8 @@ class CurrencySettingsView(APIView):
                 enabled_filter=enabled_filter,
                 currency_filter=currency_filter,
             )
+            # Pin column order and keep headers on empty exports.
+            request.accepted_renderer.header = list(CSV_STATIC_RATE_FIELDS)
             # PaginatedCSVRenderer reads the ``data`` key; skip ListPaginator so
             # limit/offset do not truncate the export.
             return Response({"data": rows})

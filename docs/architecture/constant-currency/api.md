@@ -119,10 +119,10 @@ doubles (~15–17 significant digits).
 
 Same path and filters; response is a **flat, unpaginated** CSV of static exchange
 rates (not the ISO currency catalog). Nested `static_rates` arrays are expanded
-into one row per rate. Columns: `base_currency`, `target_currency`,
-`exchange_rate`, `start_date`, `end_date`, `uuid`, `name`. JSON behavior for
-`Accept: application/json` is unchanged. Implementation:
-[`CurrencySettingsView`](../../../koku/api/settings/currency_views.py).
+into one row per rate. Columns (stable order): `base_currency`, `target_currency`,
+`exchange_rate`, `start_date`, `end_date`, `uuid`, `name`. Empty exports still
+include the header row. JSON behavior for `Accept: application/json` is unchanged.
+Implementation: [`CurrencySettingsView`](../../../koku/api/settings/currency_views.py).
 
 ---
 
