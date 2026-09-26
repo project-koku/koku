@@ -6,10 +6,13 @@
 import logging
 import pkgutil
 import random
+import threading
 import uuid
 from collections import defaultdict
+from datetime import date
 from datetime import datetime
 from unittest.mock import call
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -29,6 +32,7 @@ from koku.trino_database import TrinoHiveMetastoreError
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.exceptions import SummaryPeriodLockUnavailable
 from masu.test import MasuTestCase
 from masu.util.common import SummaryRangeConfig
 from reporting.models import OCPUsageLineItemDailySummary
@@ -73,6 +77,163 @@ class OCPReportDBAccessorTest(MasuTestCase):
             start_date = str(reporting_period.report_period_start)
             period = acc.report_periods_for_provider_uuid(provider_uuid, start_date)
             self.assertEqual(period.provider_id, provider_uuid)
+
+    def test_summary_period_lock_serializes_the_same_period_only(self):
+        """The session lock blocks another worker only for the same tenant period."""
+        lock_held = threading.Event()
+        release_lock = threading.Event()
+        same_period_acquired = threading.Event()
+        other_period_acquired = threading.Event()
+        failures = []
+
+        def hold_lock():
+            try:
+                with OCPReportDBAccessor(self.schema) as accessor:
+                    with accessor.summary_period_lock(42):
+                        lock_held.set()
+                        self.assertTrue(release_lock.wait(timeout=5), "test did not release the held advisory lock")
+            except Exception as error:  # noqa: BLE001
+                failures.append(error)
+
+        def acquire_lock(period_id, acquired):
+            try:
+                self.assertTrue(lock_held.wait(timeout=5), "holder never acquired the advisory lock")
+                with OCPReportDBAccessor(self.schema) as accessor:
+                    with accessor.summary_period_lock(period_id):
+                        acquired.set()
+            except Exception as error:  # noqa: BLE001
+                failures.append(error)
+
+        holder = threading.Thread(target=hold_lock)
+        same_period = threading.Thread(target=acquire_lock, args=(42, same_period_acquired))
+        other_period = threading.Thread(target=acquire_lock, args=(43, other_period_acquired))
+        holder.start()
+        self.assertTrue(lock_held.wait(timeout=5), "holder did not acquire the advisory lock")
+        same_period.start()
+        other_period.start()
+
+        self.assertTrue(other_period_acquired.wait(timeout=5), "a different report period should not be blocked")
+        self.assertFalse(same_period_acquired.wait(timeout=0.2), "the same report period must remain serialized")
+
+        release_lock.set()
+        self.assertTrue(same_period_acquired.wait(timeout=5), "the waiting worker did not acquire after release")
+        holder.join(timeout=5)
+        same_period.join(timeout=5)
+        other_period.join(timeout=5)
+        self.assertFalse(holder.is_alive(), "holder thread did not finish")
+        self.assertFalse(same_period.is_alive(), "same-period thread did not finish")
+        self.assertFalse(other_period.is_alive(), "other-period thread did not finish")
+        self.assertFalse(failures, f"advisory-lock worker failed: {failures}")
+
+    @patch("masu.database.ocp_report_db_accessor.connection")
+    def test_summary_period_lock_releases_after_an_exception(self, connection):
+        """An exception in summary work must not leak the session advisory lock."""
+        lock_cursor = MagicMock()
+        unlock_cursor = MagicMock()
+        connection.cursor.side_effect = [lock_cursor, unlock_cursor]
+
+        with self.assertRaisesRegex(RuntimeError, "summary failure"):
+            with self.accessor.summary_period_lock(42):
+                raise RuntimeError("summary failure")
+
+        lock_cursor.__enter__.return_value.execute.assert_called_once_with(
+            "SELECT pg_advisory_lock(hashtext(%s), %s)", [self.schema, 42]
+        )
+        unlock_cursor.__enter__.return_value.execute.assert_called_once_with(
+            "SELECT pg_advisory_unlock(hashtext(%s), %s)", [self.schema, 42]
+        )
+
+    def test_summary_period_lock_nonblocking_defers_when_already_held(self):
+        """The flagged path must defer rather than consume a worker waiting on a lock."""
+        lock_held = threading.Event()
+        release_lock = threading.Event()
+        failures = []
+
+        def hold_lock():
+            try:
+                with OCPReportDBAccessor(self.schema) as accessor:
+                    with accessor.summary_period_lock(42):
+                        lock_held.set()
+                        self.assertTrue(release_lock.wait(timeout=5), "test did not release the held advisory lock")
+            except Exception as error:  # noqa: BLE001
+                failures.append(error)
+
+        holder = threading.Thread(target=hold_lock)
+        holder.start()
+        self.assertTrue(lock_held.wait(timeout=5), "holder did not acquire the advisory lock")
+        try:
+            with self.assertRaises(SummaryPeriodLockUnavailable):
+                with self.accessor.summary_period_lock(42, wait=False):
+                    self.fail("unavailable nonblocking lock should not yield")
+        finally:
+            release_lock.set()
+            holder.join(timeout=5)
+
+        self.assertFalse(holder.is_alive(), "holder thread did not finish")
+        self.assertFalse(failures, f"advisory-lock holder failed: {failures}")
+
+    def test_shared_period_lock_allows_summary_work_but_defers_cost_model_work(self):
+        """Shared daily-summary work can overlap while exclusive cost model work cannot."""
+        lock_held = threading.Event()
+        release_lock = threading.Event()
+        failures = []
+
+        def hold_shared_lock():
+            try:
+                with OCPReportDBAccessor(self.schema) as accessor:
+                    with accessor.summary_period_lock(42, shared=True):
+                        lock_held.set()
+                        self.assertTrue(release_lock.wait(timeout=5), "test did not release the held advisory lock")
+            except Exception as error:  # noqa: BLE001
+                failures.append(error)
+
+        holder = threading.Thread(target=hold_shared_lock)
+        holder.start()
+        self.assertTrue(lock_held.wait(timeout=5), "holder did not acquire the shared advisory lock")
+        try:
+            with self.accessor.summary_period_lock(42, wait=False, shared=True):
+                with self.assertRaises(SummaryPeriodLockUnavailable):
+                    with self.accessor.summary_period_lock(42, wait=False):
+                        self.fail("exclusive lock must not yield while shared summary work is active")
+        finally:
+            release_lock.set()
+            holder.join(timeout=5)
+
+        self.assertFalse(holder.is_alive(), "holder thread did not finish")
+        self.assertFalse(failures, f"advisory-lock holder failed: {failures}")
+
+    def test_summary_day_lock_serializes_only_the_same_day(self):
+        """Different days can progress while the same tenant period/day defers."""
+        lock_held = threading.Event()
+        release_lock = threading.Event()
+        failures = []
+        first_day = date(2026, 9, 1)
+        other_day = date(2026, 9, 2)
+
+        def hold_day_lock():
+            try:
+                with OCPReportDBAccessor(self.schema) as accessor:
+                    with accessor.summary_day_lock(42, first_day):
+                        lock_held.set()
+                        self.assertTrue(release_lock.wait(timeout=5), "test did not release the held advisory lock")
+            except Exception as error:  # noqa: BLE001
+                failures.append(error)
+
+        holder = threading.Thread(target=hold_day_lock)
+        holder.start()
+        self.assertTrue(lock_held.wait(timeout=5), "holder did not acquire the day advisory lock")
+        try:
+            with self.accessor.summary_day_lock(42, other_day, wait=False):
+                pass
+            with self.assertRaises(SummaryPeriodLockUnavailable):
+                with self.accessor.summary_day_lock(42, first_day, wait=False):
+                    self.fail("same-day lock must not yield while summary work is active")
+        finally:
+            release_lock.set()
+            holder.join(timeout=5)
+
+        self.assertFalse(holder.is_alive(), "holder thread did not finish")
+        self.assertFalse(failures, f"advisory-lock holder failed: {failures}")
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.delete_ocp_hive_partition_by_day")
@@ -1672,6 +1833,49 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 self.assertNotIn(distinct_value, child_values)
                 tested = True
             self.assertTrue(tested)
+
+    def test_daily_tag_mapping_matches_full_range_results(self):
+        """Mapping each date independently produces the legacy full-range result."""
+        with schema_context(self.schema):
+            enabled_tags = list(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True))
+            parent_tag = enabled_tags[0]
+            child_tag = enabled_tags[1]
+            start_date = self.dh.this_month_start
+            end_date = self.dh.today
+            rows = list(
+                OCPUsageLineItemDailySummary.objects.filter(
+                    Q(pod_labels__has_key=child_tag.key) | Q(volume_labels__has_key=child_tag.key),
+                    usage_start__gte=start_date,
+                    usage_start__lte=end_date,
+                )
+            )
+            self.assertTrue(rows, "fixture must contain OCP rows that require tag mapping")
+            original_labels = {row.uuid: (row.pod_labels, row.volume_labels, row.all_labels) for row in rows}
+            mapped_days = sorted({row.usage_start for row in rows})
+
+            TagMapping.objects.create(parent=parent_tag, child=child_tag)
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date)
+            full_range_result = {
+                row.uuid: (row.pod_labels, row.volume_labels, row.all_labels)
+                for row in OCPUsageLineItemDailySummary.objects.filter(uuid__in=original_labels)
+            }
+            self.assertNotEqual(full_range_result, original_labels, "tag-mapping fixture must change labels")
+
+            for row_uuid, (pod_labels, volume_labels, all_labels) in original_labels.items():
+                OCPUsageLineItemDailySummary.objects.filter(uuid=row_uuid).update(
+                    pod_labels=pod_labels,
+                    volume_labels=volume_labels,
+                    all_labels=all_labels,
+                )
+
+            for usage_day in mapped_days:
+                self.accessor.update_line_item_daily_summary_with_tag_mapping(usage_day, usage_day)
+            daily_result = {
+                row.uuid: (row.pod_labels, row.volume_labels, row.all_labels)
+                for row in OCPUsageLineItemDailySummary.objects.filter(uuid__in=original_labels)
+            }
+
+        self.assertEqual(full_range_result, daily_result)
 
     def test_no_report_period_populate_vm_tag_based_costs(self):
         """

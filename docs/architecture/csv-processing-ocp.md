@@ -411,6 +411,68 @@ org1234567/openshift/parquet/
 8. **Update report period timestamps**
 9. **Check for cloud infrastructure** (triggers OCP-on-Cloud matching)
 
+#### **Daily-Summary Period Coordination**
+
+The summary and OCP cost-model pipelines both mutate
+`reporting_ocpusagelineitem_daily_summary`. Their work is coordinated per
+tenant report period when the enablement flag
+`cost-management.backend.ocp_summary_period_lock` is enabled for a schema.
+The legacy path remains in use while the flag is off (the non-development
+default).
+
+**Lock scope and lifecycle:**
+
+1. The key is `(tenant schema, OCPUsageReportPeriod.id)`. Different report
+   periods, including different months, remain able to run concurrently.
+2. The lock is a PostgreSQL **session advisory lock**, rather than a
+   transaction advisory lock. The affected SQL is independently autocommitted,
+   so a transaction-scoped lock would be released after each statement rather
+   than protect the full summary phase.
+3. `OCPReportParquetSummaryUpdater` takes one **shared** period lock for the
+   summary-writing phase: all DELETE/Trino/UI chunks, label summaries, daily
+   tag-mapping UPDATEs, and the report-period timestamp update. The main
+   chunks retain the configured `TRINO_DATE_STEP` range. Before changing a
+   chunk, the updater takes **exclusive day locks for every date in that
+   inclusive range**, in date order, and releases them together after the UI
+   refresh. Tag mapping remains one UPDATE per calendar day, each under its
+   day lock. Shared period locking permits other summaries for the same period
+   to work on disjoint days, while excluding an exclusive cost-model writer
+   from starting between chunks and forcing a partial summary to restart.
+   Cluster metadata and cloud-infrastructure discovery are outside the
+   summary-writing lock. The cloud-infrastructure probe is skipped on-prem,
+   where only OCP is supported and the SaaS cloud-provider SQL is absent.
+4. `OCPCostModelCostUpdater` takes the period lock **exclusively** around each
+   report month's rate/markup writes and again around that month's
+   distribution, aggregation, and UI-summary writes. It therefore excludes
+   all daily summary chunks for that tenant/provider/month, while different
+   tenants and report months remain independent. A multi-month cost-model
+   request never holds more than one advisory lock, avoiding an inter-month
+   lock-order contract. The lock is released between the rate/markup and
+   distribution phases. A summary starting in that gap can defer the latter,
+   causing Celery to retry the full cost-model task; the lock is not a
+   transaction across the whole task.
+
+**Contention is deferred, not waited on:** the flagged callers use
+`pg_try_advisory_lock` (or its shared equivalent). If another worker owns an
+incompatible key,
+`SummaryPeriodLockUnavailable` reaches the Celery task boundary. The task
+releases its `WorkerCache` entry and defers for 60 seconds instead of occupying
+a worker slot. `update_cost_model_costs` uses Celery's retry of the **same**
+task, preserving its chain to manifest completion; a detached reschedule
+would incorrectly advance that chain. The summary task still schedules a
+detached retry because it is not itself a link in that chain. Neither path
+turns the lock conflict into a database error.
+
+The configured chunk size determines how long a chunk's day locks may be
+held; a wider chunk reduces Trino/UI invocations but can delay a same-day
+summary longer. The updater logs elapsed seconds for each main chunk, the
+label phase, each tag-mapping day, and the full summary-writing phase. Compare
+those logs and retry counts on representative data before enabling the flag
+broadly; statement count alone is not a runtime measurement. This protocol
+does not impose a total task timeout or coordinate writers that do not take
+these locks. A long lock holder still requires PostgreSQL inspection and the
+worker diagnostic/stack-capture path.
+
 #### **Trino SQL: Multi-Report Aggregation**
 
 The Trino SQL joins **all 6 report types** to create a unified daily summary.
@@ -951,6 +1013,11 @@ For testing OCP processing, generate synthetic CSV reports with realistic data:
 
 - **Kafka lag:** `hccm-group` consumer lag on `platform.upload.announce`
 - **Kafka listener watchdog:** `kafka_listener_inflight_message_age_seconds` is zero while idle and rises for an in-flight message. A message exceeding the configured watchdog threshold increments `kafka_listener_watchdog_diagnostics_total` and emits its topic, partition, offset, request ID, tenant identifiers, and Python thread stacks.
+- **Daily-summary period coordination:** Look for structured acquire/release or
+  lock-unavailable logs from `OCPReportDBAccessor`. Repeated
+  `SummaryPeriodLockUnavailable` deferrals mean another task is holding the
+  same tenant report-period key; inspect the PostgreSQL lock chain before
+  increasing worker capacity.
 - **Processing time:** Time from Kafka message to summarization complete
 - **Parquet file sizes:** Unusually large files may indicate data issues
 - **Row counts:** Compare CSV rows → Parquet rows → summary rows
@@ -1019,6 +1086,6 @@ For testing OCP processing, generate synthetic CSV reports with realistic data:
 
 ## Document Metadata
 
-- **Last Updated:** 2026-03-04
+- **Last Updated:** 2026-09-24
 - **Koku Version:** Current
 - **Author:** Architecture Documentation Team
