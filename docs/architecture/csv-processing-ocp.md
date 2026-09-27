@@ -450,7 +450,11 @@ default).
    lock-order contract. The lock is released between the rate/markup and
    distribution phases. A summary starting in that gap can defer the latter,
    causing Celery to retry the full cost-model task; the lock is not a
-   transaction across the whole task.
+   transaction across the whole task. If the flag is on but a report period
+   does not yet exist for a month, **both** cost-model phases log and skip that
+   month rather than executing writes without an advisory lock. This can
+   happen when a cost-model edit precedes the first upload; report ingestion
+   creates the period before its later cost-model recalculation.
 
 **Contention is deferred, not waited on:** the flagged callers use
 `pg_try_advisory_lock` (or its shared equivalent). If another worker owns an

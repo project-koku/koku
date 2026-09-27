@@ -6,9 +6,11 @@
 import random
 from contextlib import nullcontext
 from decimal import Decimal
+from itertools import product
 from unittest import skip
 from unittest.mock import ANY
 from unittest.mock import call
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
@@ -53,13 +55,162 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         """Cost-model daily-summary writes use the same nonblocking period lock as summary work."""
         mock_period_lock.return_value = nullcontext()
 
-        with self.updater._daily_summary_period_lock(self.dh.this_month_start, use_period_lock=True):
-            pass
+        with self.updater._daily_summary_period_lock(self.dh.this_month_start, use_period_lock=True) as available:
+            self.assertIs(available, True)
 
         with OCPReportDBAccessor(self.schema) as accessor:
             report_period = accessor.report_periods_for_provider_uuid(self.provider_uuid, self.dh.this_month_start)
         self.assertIsNotNone(report_period)
         mock_period_lock.assert_called_once_with(report_period.id, wait=False)
+
+    def test_missing_report_period_does_not_yield_an_unlocked_write_scope(self):
+        """A missing period is an explicit skip, even if ingestion creates it just afterward."""
+        with (
+            patch.object(OCPReportDBAccessor, "report_periods_for_provider_uuid", return_value=None) as lookup,
+            patch.object(OCPReportDBAccessor, "summary_period_lock") as period_lock,
+            self.assertLogs("masu.processor.ocp.ocp_cost_model_cost_updater", level="INFO") as captured,
+        ):
+            with self.updater._daily_summary_period_lock(self.dh.this_month_start, use_period_lock=True) as available:
+                self.assertIs(available, False)
+
+        lookup.assert_called_once_with(self.provider_uuid, self.dh.this_month_start)
+        period_lock.assert_not_called()
+        self.assertIn("skipping cost-model month", " ".join(captured.output))
+        self.assertIn(self.schema, " ".join(captured.output))
+
+    def test_flag_off_does_not_require_a_report_period(self):
+        """Keep the existing unlocked path when the coordination flag is disabled."""
+        with patch.object(OCPReportDBAccessor, "report_periods_for_provider_uuid") as lookup:
+            with self.updater._daily_summary_period_lock(self.dh.this_month_start, use_period_lock=False) as available:
+                self.assertIs(available, True)
+        lookup.assert_not_called()
+
+    def test_flag_off_still_runs_monthly_cost_mutations_without_a_period(self):
+        """The new missing-period guard must not alter the legacy path."""
+        summary_range = SummaryRangeConfig(start_date=self.dh.this_month_start, end_date=self.dh.this_month_end)
+        with (
+            patch(
+                "masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema", return_value=False
+            ),
+            patch.object(OCPReportDBAccessor, "report_periods_for_provider_uuid") as lookup,
+            patch.object(self.updater, "_update_summary_cost_model_costs_for_month") as update_month,
+            patch.object(self.updater, "distribute_costs_and_update_ui_summary"),
+        ):
+            self.updater.update_summary_cost_model_costs(summary_range)
+        month = next(summary_range.iter_summary_range_by_month())
+        update_month.assert_called_once_with(month.start_date, month.end_date, False)
+        lookup.assert_not_called()
+
+    def test_missing_period_skips_monthly_cost_mutations(self):
+        """Do not enter cost-model SQL if the period lookup was absent."""
+        summary_range = SummaryRangeConfig(start_date=self.dh.this_month_start, end_date=self.dh.this_month_end)
+        with (
+            patch(
+                "masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema", return_value=True
+            ),
+            patch.object(OCPReportDBAccessor, "report_periods_for_provider_uuid", return_value=None),
+            patch.object(self.updater, "_update_summary_cost_model_costs_for_month") as update_month,
+            patch.object(self.updater, "distribute_costs_and_update_ui_summary") as distribute,
+        ):
+            self.updater.update_summary_cost_model_costs(summary_range)
+        update_month.assert_not_called()
+        distribute.assert_called_once()
+
+    def test_missing_period_skips_distribution_and_ui_writes(self):
+        """The second cost-model phase must not write after its period lookup misses."""
+        summary_range = SummaryRangeConfig(start_date=self.dh.this_month_start, end_date=self.dh.this_month_end)
+        with (
+            patch(
+                "masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema", return_value=True
+            ),
+            patch.object(self.updater, "_get_markup_percentage", return_value=None),
+            patch.object(self.updater, "_get_infra_to_cm_rate", return_value=(Decimal(1), False)),
+            patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPReportDBAccessor") as accessor_class,
+        ):
+            accessor = accessor_class.return_value.__enter__.return_value
+            period_created_after_lookup = MagicMock()
+            accessor.report_periods_for_provider_uuid.side_effect = [
+                None,
+                period_created_after_lookup,
+                period_created_after_lookup,
+            ]
+            accessor.populate_distributed_cost_sql.return_value = next(summary_range.iter_summary_range_by_month())
+            self.updater.distribute_costs_and_update_ui_summary(summary_range)
+        accessor_class.assert_called_once_with(self.schema)
+        accessor.populate_distributed_cost_sql.assert_not_called()
+        accessor.populate_ui_summary_tables.assert_not_called()
+        period_created_after_lookup.save.assert_not_called()
+
+    def test_flag_off_still_runs_distribution_without_a_period(self):
+        """The legacy distribution path is not gated on a report-period lookup."""
+        summary_range = SummaryRangeConfig(start_date=self.dh.this_month_start, end_date=self.dh.this_month_end)
+        with (
+            patch(
+                "masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema", return_value=False
+            ),
+            patch.object(self.updater, "_get_markup_percentage", return_value=None),
+            patch.object(self.updater, "_get_infra_to_cm_rate", return_value=(Decimal(1), False)),
+            patch("masu.processor.ocp.ocp_cost_model_cost_updater.OCPReportDBAccessor") as accessor_class,
+        ):
+            accessor = accessor_class.return_value.__enter__.return_value
+            accessor.report_periods_for_provider_uuid.return_value = None
+            accessor.populate_distributed_cost_sql.return_value = next(summary_range.iter_summary_range_by_month())
+            self.updater.distribute_costs_and_update_ui_summary(summary_range)
+        accessor_class.assert_called_once_with(self.schema)
+        accessor.populate_distributed_cost_sql.assert_called_once()
+        accessor.populate_ui_summary_tables.assert_called_once()
+
+    def test_missing_month_does_not_skip_next_existing_month(self):
+        """Only the absent month is skipped when a range crosses two months."""
+        summary_range = SummaryRangeConfig(
+            start_date=self.dh.this_month_start - relativedelta(months=1), end_date=self.dh.this_month_end
+        )
+        months = list(summary_range.iter_summary_range_by_month())
+        with (
+            patch(
+                "masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema", return_value=True
+            ),
+            patch.object(
+                self.updater, "_daily_summary_period_lock", side_effect=[nullcontext(False), nullcontext(True)]
+            ),
+            patch.object(self.updater, "_update_summary_cost_model_costs_for_month") as update_month,
+            patch.object(self.updater, "distribute_costs_and_update_ui_summary"),
+        ):
+            self.updater.update_summary_cost_model_costs(summary_range)
+        update_month.assert_called_once_with(months[1].start_date, months[1].end_date, True)
+
+    def test_every_three_month_availability_pattern_updates_only_existing_months(self):
+        """Every combination of missing/existing periods preserves per-month isolation."""
+        summary_range = SummaryRangeConfig(
+            start_date=self.dh.this_month_start - relativedelta(months=2), end_date=self.dh.this_month_end
+        )
+        months = list(summary_range.iter_summary_range_by_month())
+        self.assertEqual(len(months), 3)
+
+        for availability in product((False, True), repeat=len(months)):
+            with self.subTest(availability=availability):
+                with patch(
+                    "masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema",
+                    return_value=True,
+                ), patch.object(
+                    self.updater,
+                    "_daily_summary_period_lock",
+                    side_effect=[nullcontext(available) for available in availability],
+                ) as period_lock, patch.object(
+                    self.updater, "_update_summary_cost_model_costs_for_month"
+                ) as update_month, patch.object(
+                    self.updater, "distribute_costs_and_update_ui_summary"
+                ):
+                    self.updater.update_summary_cost_model_costs(summary_range)
+                    self.assertEqual(period_lock.call_count, len(months))
+                    self.assertEqual(
+                        update_month.call_args_list,
+                        [
+                            call(month.start_date, month.end_date, True)
+                            for month, available in zip(months, availability)
+                            if available
+                        ],
+                    )
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema", return_value=True)
     @patch(
@@ -74,7 +225,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         self, mock_period_lock, mock_update_month, _mock_distribute, _mock_flag
     ):
         """Rate/markup writes are guarded one month at a time, never across a range."""
-        mock_period_lock.return_value = nullcontext()
+        mock_period_lock.return_value = nullcontext(True)
         start_date = self.dh.this_month_start - relativedelta(months=1)
         end_date = self.dh.this_month_end
         summary_range = SummaryRangeConfig(start_date=start_date, end_date=end_date)
@@ -103,7 +254,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         self, mock_accessor, mock_period_lock, _mock_rate, _mock_markup, _mock_flag
     ):
         """Distribution and UI-summary writes use the same period coordination boundary."""
-        mock_period_lock.return_value = nullcontext()
+        mock_period_lock.return_value = nullcontext(True)
         accessor = mock_accessor.return_value.__enter__.return_value
         summary_range = SummaryRangeConfig(start_date=self.dh.this_month_start, end_date=self.dh.this_month_end)
         accessor.populate_distributed_cost_sql.return_value = next(summary_range.iter_summary_range_by_month())

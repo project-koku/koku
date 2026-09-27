@@ -96,10 +96,11 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
 
         The lock is deliberately acquired one report period at a time. Cost
         model ranges can span months, and holding multiple advisory locks would
-        create an avoidable lock-ordering contract between workers.
+        create an avoidable lock-ordering contract between workers. Yield False
+        if a flagged month has no report period, so callers skip its writes.
         """
         if not use_period_lock:
-            yield
+            yield True
             return
 
         with OCPReportDBAccessor(self._schema) as accessor:
@@ -107,16 +108,16 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
             if not report_period:
                 LOG.info(
                     log_json(
-                        msg="no report period for OCP provider, skipping daily-summary period lock",
+                        msg="no report period for OCP provider, skipping cost-model month",
                         schema=self._schema,
                         provider_uuid=self._provider_uuid,
                         start_date=start_date,
                     )
                 )
-                yield
+                yield False
                 return
             with accessor.summary_period_lock(report_period.id, wait=False):
-                yield
+                yield True
 
     def _build_node_tag_cost_case_statements(  # noqa: C901
         self,
@@ -923,7 +924,9 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
                 cost_model_currency, month_range.start_date, month_range.end_date
             )
             distribution_raw_currency = cost_model_currency if has_infra_currency else None
-            with self._daily_summary_period_lock(month_range.start_date, use_period_lock):
+            with self._daily_summary_period_lock(month_range.start_date, use_period_lock) as period_available:
+                if not period_available:
+                    continue
                 with OCPReportDBAccessor(self._schema) as accessor:
                     if markup_pct:
                         accessor.populate_markup_cost(
@@ -1048,7 +1051,9 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase, PartitionHandlerMixin):
         for month_range in summary_range.iter_summary_range_by_month():
             start_date = month_range.start_date
             end_date = month_range.end_date
-            with self._daily_summary_period_lock(start_date, use_period_lock):
+            with self._daily_summary_period_lock(start_date, use_period_lock) as period_available:
+                if not period_available:
+                    continue
                 self._update_summary_cost_model_costs_for_month(start_date, end_date, rtu_enabled)
 
         self.distribute_costs_and_update_ui_summary(summary_range, use_rtu=rtu_enabled)

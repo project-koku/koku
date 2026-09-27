@@ -17,6 +17,7 @@ drift5-sql: TestRTURateResolution
 R20: TestOrchestrationOrder
 """
 import pkgutil
+from contextlib import nullcontext
 from decimal import Decimal
 from functools import wraps
 from unittest.mock import ANY
@@ -1765,6 +1766,8 @@ class TestTwoMonthOrchestration(_ReportPeriodMixin, MasuTestCase):
             updater.metric_to_tag_params_map = {}
             updater._price_list_effective_on = d
 
+        # These fixed historical months have no report periods in the test fixture;
+        # isolate price-list routing from the separate period-availability guard.
         with patch.object(updater, "_load_rates", side_effect=fake_load), patch.object(
             updater, "_update_usage_rates_to_usage"
         ) as mock_rtu, patch.object(updater, "_aggregate_rates_to_daily_summary"), patch.object(
@@ -1780,6 +1783,8 @@ class TestTwoMonthOrchestration(_ReportPeriodMixin, MasuTestCase):
         ), patch(
             "masu.processor.ocp.ocp_cost_model_cost_updater.is_feature_flag_enabled_by_schema",
             return_value=True,
+        ), patch.object(
+            updater, "_daily_summary_period_lock", side_effect=lambda *_: nullcontext(True)
         ):
             mock_rtu.side_effect = lambda s, e: call_log.append(("rtu", s))
             mock_cleanup.side_effect = lambda s, e: call_log.append(("cleanup", s))
