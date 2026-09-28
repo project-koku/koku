@@ -15,6 +15,7 @@ from django.db.models import OuterRef
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
 
+from api.common import log_json
 from api.currency.models import ExchangeRateDictionary
 from api.currency.utils import build_exchange_rate_case
 from api.currency.utils import build_monthly_rate_annotation
@@ -137,10 +138,24 @@ class QueryHandler:
         MonthlyExchangeRate. Otherwise uses ExchangeRateDictionary.
         """
         if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
+            LOG.info(
+                log_json(
+                    msg="[COST-8062] exchange rate path: monthly MonthlyExchangeRate",
+                    schema=self.tenant.schema_name,
+                    currency=self.currency,
+                )
+            )
             exchange_rate_annotation = build_monthly_rate_annotation(
                 OuterRef(self._mapper.cost_units_key), self.currency
             )
         else:
+            LOG.info(
+                log_json(
+                    msg="[COST-8062] exchange rate path: dynamic ExchangeRateDictionary",
+                    schema=self.tenant.schema_name,
+                    currency=self.currency,
+                )
+            )
             exchange_rate_annotation = build_exchange_rate_case(
                 self._mapper.cost_units_key, self.currency, self.exchange_rates
             )

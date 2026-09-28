@@ -261,7 +261,14 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 if request_method and request_method not in ["GET", "HEAD"]:
                     customer.save()
                     UNIQUE_ACCOUNT_COUNTER.inc()
-                    LOG.info("Created new customer from account_id %s and org_id %s.", account, org_id)
+                    LOG.info(
+                        log_json(
+                            msg="[COST-8062] new customer created",
+                            account=account,
+                            org_id=org_id,
+                            schema=schema_name,
+                        )
+                    )
 
         except IntegrityError as err:
             LOG.warning(

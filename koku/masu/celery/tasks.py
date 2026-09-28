@@ -274,6 +274,7 @@ def autovacuum_tune_schemas():
 
 def _fetch_and_store_exchange_rates(url):
     """Fetch exchange rates from the configured URL. Returns rate_metrics dict (empty on failure)."""
+    LOG.info(log_json(msg="[COST-8062] _fetch_and_store_exchange_rates started", url=url))
     retries = Retry(
         total=5,
         allowed_methods={"GET"},
@@ -317,6 +318,7 @@ def _fetch_and_store_exchange_rates(url):
         exchange.exchange_rate = value
         exchange.save()
     exchange_dictionary(rate_metrics)
+    LOG.info(log_json(msg="[COST-8062] _fetch_and_store_exchange_rates complete", currencies_stored=len(rate_metrics)))
     return rate_metrics
 
 
@@ -324,6 +326,7 @@ def _fetch_and_store_exchange_rates(url):
 def get_daily_currency_rates():
     """Fetch exchange rates when configured, then upsert/backfill MER per tenant."""
     url = settings.CURRENCY_URL
+    LOG.info(log_json(msg="[COST-8062] get_daily_currency_rates started", currency_url_set=bool(url)))
     if url:
         rate_metrics = _fetch_and_store_exchange_rates(url)
     else:
@@ -333,6 +336,7 @@ def get_daily_currency_rates():
     for tenant in Tenant.objects.exclude(schema_name="public"):
         try:
             with schema_context(tenant.schema_name):
+                LOG.info(log_json(msg="[COST-8062] populating monthly rates for tenant", schema=tenant.schema_name))
                 rates_changed = populate_dynamic_monthly_rates(backfill_past_months=True)
                 if rates_changed:
                     invalidate_view_cache_for_tenant_and_all_source_types(tenant.schema_name)
