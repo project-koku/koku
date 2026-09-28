@@ -6109,7 +6109,7 @@
                     {
                         "in": "query",
                         "name": "filter[enabled]",
-                        "description": "Filter by tenant enablement status. Use true or 1 for enabled currencies only; false or 0 for disabled currencies only. Omit to return all currencies with enabled currencies listed first.",
+                        "description": "Filter by tenant enablement status. Use true or 1 for enabled currencies only; false or 0 for disabled currencies only. Omit to return all currencies sorted by code.",
                         "schema": {
                             "type": "string",
                             "enum": [
@@ -6134,6 +6134,19 @@
                             "USD",
                             "EUR"
                         ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[code]",
+                        "description": "Sort currencies by ISO 4217 code. Defaults to asc when omitted.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "asc"
+                        }
                     }
                 ],
                 "security": [
