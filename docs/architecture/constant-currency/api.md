@@ -75,10 +75,10 @@ Administrator currency catalog for Settings UI.
 
 | Param | Description |
 |-------|-------------|
-| `filter[enabled]` | **JSON:** `true` / `1` → only enabled currencies; `false` / `0` → only disabled; omit → enabled first, then disabled. **CSV:** keep rates whose **base** currency is enabled (`true`/`1`) or disabled (`false`/`0`); omit → all static rates |
+| `filter[enabled]` | **JSON:** `true` / `1` → only enabled currencies; `false` / `0` → only disabled; omit → all currencies sorted by code. **CSV:** keep rates whose **base** currency is enabled (`true`/`1`) or disabled (`false`/`0`); omit → all static rates |
 | `filter[currency]` | Case-insensitive substring match (comma-separated / repeated params = OR). **JSON:** matches the currency catalog `code` (base). **CSV:** matches a rate if the term appears in **base or target** currency (e.g. `EUR` includes USD→EUR). Non-matching values return an empty list |
+| `order_by[code]` | **JSON:** `asc` (default) or `desc` — sort catalog by ISO currency code. **CSV:** unused (rates are ordered by base, target, start_date) |
 | `limit` / `offset` | Standard list pagination (**JSON only**; CSV ignores pagination) |
-
 ### Response item
 
 ```json
@@ -129,6 +129,7 @@ Filter params are reused but **do not mean the same thing as in JSON**:
 |-------|------|-----|
 | `filter[currency]` | Match catalog `code` (base currency only) | Match rate **base or target** |
 | `filter[enabled]` | Include/exclude currency catalog rows by enablement | Keep rates whose **base** is enabled/disabled |
+| `order_by[code]` | Sort catalog `asc`/`desc` (default `asc`) | Unused |
 | `limit` / `offset` | Paginate catalog | Ignored (full matching set) |
 
 Example: `filter[currency]=EUR` returns the EUR catalog entry in JSON, but in CSV

@@ -6109,7 +6109,7 @@
                     {
                         "in": "query",
                         "name": "filter[enabled]",
-                        "description": "Filter by tenant enablement status. JSON: true/1 returns enabled currencies only; false/0 returns disabled only; omit returns all (enabled first). CSV: true/1 keeps static rates whose base currency is enabled; false/0 keeps rates whose base is disabled; omit returns all matching rates.",
+                        "description": "Filter by tenant enablement status. JSON: true/1 returns enabled currencies only; false/0 returns disabled only; omit returns all currencies sorted by code. CSV: true/1 keeps static rates whose base currency is enabled; false/0 keeps rates whose base is disabled; omit returns all matching rates.",
                         "schema": {
                             "type": "string",
                             "enum": [
@@ -6134,6 +6134,19 @@
                             "USD",
                             "EUR"
                         ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[code]",
+                        "description": "Sort currencies by ISO 4217 code. Defaults to asc when omitted.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "asc"
+                        }
                     }
                 ],
                 "security": [
