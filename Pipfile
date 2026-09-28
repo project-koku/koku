@@ -55,6 +55,7 @@ boto3 = "*"
 sqlalchemy = ">=2.0.0"
 platformdirs = ">=4.3.6"  # floor set to satisfy tox's transitive dep (via fcache/unleashclient)
 babel = "*"
+kessel-sdk = {editable = true, path = "../kessel-sdk-py"}
 
 [dev-packages]
 argh = ">=0.26.2"
