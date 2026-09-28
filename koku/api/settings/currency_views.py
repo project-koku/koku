@@ -44,8 +44,10 @@ from reporting.user_settings.models import UserSettings
 
 LOG = logging.getLogger(__name__)
 
-VALID_PARAMS = {"filter", "limit", "offset"}
+VALID_PARAMS = {"filter", "limit", "offset", "order_by"}
 VALID_FILTER_PARAMS = {"enabled", "currency"}
+VALID_ORDER_BY_FIELDS = {"code"}
+VALID_ORDER_BY_DIRECTIONS = {"asc", "desc"}
 
 
 def _parse_filter_list(value):
@@ -55,8 +57,29 @@ def _parse_filter_list(value):
     return ListField().to_python(value)
 
 
+def _parse_order_by_code(order_by_params):
+    """Parse ``order_by[code]=asc|desc``; default ascending by code."""
+    if order_by_params is None:
+        return "asc"
+
+    if not isinstance(order_by_params, dict) or not order_by_params:
+        raise ValidationError({"order_by": "Unsupported parameter or invalid value"})
+
+    invalid_fields = set(order_by_params.keys()) - VALID_ORDER_BY_FIELDS
+    if invalid_fields:
+        raise ValidationError({invalid_fields.pop(): "Unsupported parameter or invalid value"})
+
+    direction = order_by_params.get("code")
+    if isinstance(direction, list):
+        direction = direction[0]
+    direction = str(direction).lower() if direction is not None else None
+    if direction not in VALID_ORDER_BY_DIRECTIONS:
+        raise ValidationError({"order_by": "Unsupported parameter or invalid value"})
+    return direction
+
+
 def _parse_currency_list_filters(request):
-    """Parse and validate filter params for the currency list endpoint."""
+    """Parse and validate filter and order_by params for the currency list endpoint."""
     query_params = parser.parse(request.query_params.urlencode(safe=URL_ENCODED_SAFE))
 
     invalid_params = set(query_params.keys()) - VALID_PARAMS
@@ -83,13 +106,19 @@ def _parse_currency_list_filters(request):
     if currency_filter:
         currency_filter = [code.upper() for code in currency_filter]
 
-    return enabled_filter, currency_filter
+    code_order = _parse_order_by_code(query_params.get("order_by"))
+    return enabled_filter, currency_filter, code_order
 
 
 def _currency_matches_filter(code, currency_filter):
     """Return True if ``code`` contains any filter term (case-insensitive substring)."""
     code_upper = code.upper()
     return any(term in code_upper for term in currency_filter)
+
+
+def _sort_currency_codes(codes, code_order):
+    """Sort currency codes ascending or descending by ISO code."""
+    return sorted(codes, reverse=(code_order == "desc"))
 
 
 def _get_cloud_providers_using_currency(code, customer):
@@ -144,14 +173,15 @@ def _get_non_disableable_codes(enabled_codes):
 class CurrencySettingsView(APIView):
     """List all ISO 4217 currencies with enabled status and dynamic-rate availability.
 
-    Supports ``filter[enabled]`` and ``filter[currency]`` query params for filtering.
+    Supports ``filter[enabled]``, ``filter[currency]``, and ``order_by[code]`` query params.
+    Default order is ascending by currency code.
     """
 
     permission_classes = [SettingsAccessPermission]
 
     @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
-        enabled_filter, currency_filter = _parse_currency_list_filters(request)
+        enabled_filter, currency_filter, code_order = _parse_currency_list_filters(request)
 
         enabled_codes = get_enabled_currency_codes()
         dynamic_codes = get_dynamic_rate_currencies()
@@ -164,13 +194,13 @@ class CurrencySettingsView(APIView):
             rates_by_base[code].append(rate)
 
         if enabled_filter is not None and enabled_filter in ("true", "1"):
-            sorted_codes = sorted(enabled_codes)
+            codes = enabled_codes
         elif enabled_filter is not None:
-            all_codes = get_all_iso_currency_codes()
-            sorted_codes = sorted(all_codes - enabled_codes)
+            codes = get_all_iso_currency_codes() - enabled_codes
         else:
-            all_codes = get_all_iso_currency_codes()
-            sorted_codes = sorted(enabled_codes) + sorted(all_codes - enabled_codes)
+            codes = get_all_iso_currency_codes()
+
+        sorted_codes = _sort_currency_codes(codes, code_order)
 
         only_one_enabled = len(enabled_codes) == 1
         non_disableable = _get_non_disableable_codes(enabled_codes)
