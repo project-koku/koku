@@ -212,9 +212,9 @@ class CurrencySettingsView(APIView):
             info["enabled"] = is_enabled
             info["has_dynamic_rate"] = code.lower() in dynamic_codes
             info["static_rates"] = rates_by_base.get(code, [])
-            # Keep True for disabled currencies so the UI can re-enable them.
-            # Still False when this is the sole enabled currency or a dependency blocks disable.
-            info["is_disableable"] = not (is_enabled and only_one_enabled) and code not in non_disableable
+            # Disabled currencies are always toggleable so the UI can re-enable them.
+            # Enabled currencies stay False when sole-enabled or blocked by a dependency.
+            info["is_disableable"] = (not is_enabled) or (not only_one_enabled and code not in non_disableable)
             result.append(info)
 
         if currency_filter:
