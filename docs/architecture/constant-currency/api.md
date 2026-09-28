@@ -75,9 +75,9 @@ Administrator currency catalog for Settings UI.
 
 | Param | Description |
 |-------|-------------|
-| `filter[enabled]` | `true` / `1` → only enabled; `false` / `0` → only disabled; omit → enabled first, then disabled |
-| `filter[currency]` | Case-insensitive substring match on currency `code` (e.g. `US` matches `USD`). Accepts comma-separated values or repeated params for multiple search terms (OR). Non-matching values return an empty list |
-| `limit` / `offset` | Standard list pagination |
+| `filter[enabled]` | **JSON:** `true` / `1` → only enabled currencies; `false` / `0` → only disabled; omit → enabled first, then disabled. **CSV:** keep rates whose **base** currency is enabled (`true`/`1`) or disabled (`false`/`0`); omit → all static rates |
+| `filter[currency]` | Case-insensitive substring match (comma-separated / repeated params = OR). **JSON:** matches the currency catalog `code` (base). **CSV:** matches a rate if the term appears in **base or target** currency (e.g. `EUR` includes USD→EUR). Non-matching values return an empty list |
+| `limit` / `offset` | Standard list pagination (**JSON only**; CSV ignores pagination) |
 
 ### Response item
 
@@ -117,12 +117,25 @@ doubles (~15–17 significant digits).
 
 ### CSV export (`Accept: text/csv`)
 
-Same path and filters; response is a **flat, unpaginated** CSV of static exchange
-rates (not the ISO currency catalog). Nested `static_rates` arrays are expanded
-into one row per rate. Columns (stable order): `base_currency`, `target_currency`,
+Same path; response is a **flat, unpaginated** CSV of static exchange rates
+(not the ISO currency catalog). Nested `static_rates` arrays are expanded into
+one row per rate. Columns (stable order): `base_currency`, `target_currency`,
 `exchange_rate`, `start_date`, `end_date`, `uuid`, `name`. Empty exports still
-include the header row. JSON behavior for `Accept: application/json` is unchanged.
-Implementation: [`CurrencySettingsView`](../../../koku/api/settings/currency_views.py).
+include the header row.
+
+Filter params are reused but **do not mean the same thing as in JSON**:
+
+| Param | JSON | CSV |
+|-------|------|-----|
+| `filter[currency]` | Match catalog `code` (base currency only) | Match rate **base or target** |
+| `filter[enabled]` | Include/exclude currency catalog rows by enablement | Keep rates whose **base** is enabled/disabled |
+| `limit` / `offset` | Paginate catalog | Ignored (full matching set) |
+
+Example: `filter[currency]=EUR` returns the EUR catalog entry in JSON, but in CSV
+includes rates such as USD→EUR. Tenant enablement flags are not CSV columns.
+
+JSON behavior for `Accept: application/json` is unchanged. Implementation:
+[`CurrencySettingsView`](../../../koku/api/settings/currency_views.py).
 
 ---
 
