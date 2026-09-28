@@ -47,7 +47,11 @@ def get_exchange_rates(request):
     if not exchange_rates:
         LOG.info(
             log_json(
-                msg="[COST-8062] ExchangeRateDictionary empty — triggering get_daily_currency_rates inline triggered_by get_exchange_rates view"
+                msg=(
+                    "[COST-8062] ExchangeRateDictionary empty — "
+                    "triggering get_daily_currency_rates inline "
+                    "triggered_by get_exchange_rates view"
+                )
             )
         )
         from masu.celery.tasks import get_daily_currency_rates
