@@ -18,10 +18,11 @@ from rest_framework.views import APIView
 from api.common import log_json
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
-from api.currency.currencies import get_all_iso_currency_codes
+from api.currency.currencies import get_active_iso_currency_codes
 from api.currency.currencies import get_currency_info
 from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import get_enabled_currency_codes
+from api.currency.currencies import is_active_iso_currency
 from api.currency.currencies import is_valid_iso_currency
 from api.provider.models import Provider
 from api.report.constants import URL_ENCODED_SAFE
@@ -171,10 +172,11 @@ def _get_non_disableable_codes(enabled_codes):
 
 
 class CurrencySettingsView(APIView):
-    """List all ISO 4217 currencies with enabled status and dynamic-rate availability.
+    """List current tender ISO 4217 currencies with enabled status and dynamic-rate availability.
 
     Supports ``filter[enabled]``, ``filter[currency]``, and ``order_by[code]`` query params.
-    Default order is ascending by currency code.
+    Default order is ascending by currency code. Already-enabled inactive codes are
+    included so legacy enablements remain visible and disableable.
     """
 
     permission_classes = [SettingsAccessPermission]
@@ -184,6 +186,7 @@ class CurrencySettingsView(APIView):
         enabled_filter, currency_filter, code_order = _parse_currency_list_filters(request)
 
         enabled_codes = get_enabled_currency_codes()
+        active_codes = get_active_iso_currency_codes()
         dynamic_codes = get_dynamic_rate_currencies()
 
         static_rates = StaticExchangeRate.objects.all()
@@ -196,9 +199,9 @@ class CurrencySettingsView(APIView):
         if enabled_filter is not None and enabled_filter in ("true", "1"):
             codes = enabled_codes
         elif enabled_filter is not None:
-            codes = get_all_iso_currency_codes() - enabled_codes
+            codes = active_codes - enabled_codes
         else:
-            codes = get_all_iso_currency_codes()
+            codes = enabled_codes | active_codes
 
         sorted_codes = _sort_currency_codes(codes, code_order)
 
@@ -229,15 +232,21 @@ class EnabledCurrencyView(APIView):
 
     permission_classes = [SettingsAccessPermission]
 
-    def _validate_code(self, code):
+    def _validate_code_for_enable(self, code):
         code = code.upper()
-        if not is_valid_iso_currency(code):
-            raise ValidationError({"code": f"Invalid ISO 4217 currency code: {code}"})
+        if not is_active_iso_currency(code):
+            raise ValidationError({"code": f"Invalid or inactive ISO 4217 currency code: {code}"})
         return code
+
+    def _validate_code_for_disable(self, code):
+        code = code.upper()
+        if is_valid_iso_currency(code) or EnabledCurrency.objects.filter(currency_code=code).exists():
+            return code
+        raise ValidationError({"code": f"Invalid ISO 4217 currency code: {code}"})
 
     @method_decorator(never_cache)
     def post(self, request, *args, **kwargs):
-        code = self._validate_code(kwargs["code"])
+        code = self._validate_code_for_enable(kwargs["code"])
         _, created = EnabledCurrency.objects.get_or_create(currency_code=code)
         if created:
             populate_dynamic_monthly_rates(code=code)
@@ -249,7 +258,7 @@ class EnabledCurrencyView(APIView):
 
     @method_decorator(never_cache)
     def delete(self, request, *args, **kwargs):
-        code = self._validate_code(kwargs["code"])
+        code = self._validate_code_for_disable(kwargs["code"])
 
         if not EnabledCurrency.objects.filter(currency_code=code).exists():
             return Response(status=status.HTTP_204_NO_CONTENT)

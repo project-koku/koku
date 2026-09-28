@@ -14,7 +14,7 @@ constant currency. Base path unless noted:
 | Method | Path | Audience | Purpose |
 |--------|------|----------|---------|
 | `GET` | `/currency/` | End user | Enabled currencies for the target-currency dropdown |
-| `GET` | `/settings/currency/` | Admin | All ISO currencies with enablement, dynamic availability, nested static rates |
+| `GET` | `/settings/currency/` | Admin | Current tender ISO currencies with enablement, dynamic availability, nested static rates |
 | `POST` | `/settings/currency/enabled/{code}/` | Admin | Enable a currency |
 | `DELETE` | `/settings/currency/enabled/{code}/` | Admin | Disable a currency |
 | `POST` | `/settings/currency/static-rates/` | Price list admin | Create a static exchange rate |
@@ -66,7 +66,9 @@ ISO 4217 registry at response time.
 
 ## `GET /settings/currency/`
 
-Administrator currency catalog for Settings UI.
+Administrator currency catalog for Settings UI. Lists **current tender** ISO
+4217 currencies (babel territory data). Already-enabled inactive/withdrawn
+codes remain in the list so they can be disabled.
 
 **Permission:** settings access.
 
@@ -74,7 +76,7 @@ Administrator currency catalog for Settings UI.
 
 | Param | Description |
 |-------|-------------|
-| `filter[enabled]` | `true` / `1` → only enabled; `false` / `0` → only disabled; omit → all currencies |
+| `filter[enabled]` | `true` / `1` → only enabled; `false` / `0` → only disabled current-tender; omit → active tender ∪ enabled |
 | `filter[currency]` | Case-insensitive substring match on currency `code` (e.g. `US` matches `USD`). Accepts comma-separated values or repeated params for multiple search terms (OR). Non-matching values return an empty list |
 | `order_by[code]` | `asc` (default) or `desc` — sort by ISO currency code |
 | `limit` / `offset` | Standard list pagination |
@@ -119,12 +121,12 @@ doubles (~15–17 significant digits).
 
 ## `POST /settings/currency/enabled/{code}/`
 
-Enable an ISO 4217 currency for the tenant.
+Enable a **current tender** ISO 4217 currency for the tenant.
 
 **Permission:** settings access.
 
 - `{code}` is normalized to uppercase.
-- Invalid ISO codes → `400`.
+- Inactive / non-tender / invalid ISO codes (e.g. `XXX`, withdrawn `FRF`) → `400`.
 - Idempotent: enabling an already-enabled currency returns `200`.
 
 **Success:** `200` with empty body.
