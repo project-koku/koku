@@ -22,6 +22,7 @@ ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
 OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
 TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
+OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-queries"
 DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
 COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"  # TODO: Clean up
 COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
