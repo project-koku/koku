@@ -39,11 +39,13 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_CAPACITY_BY_NODE_SUMMARY_FLAG
 from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
 from masu.processor import OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG
 from masu.processor import OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG
 from masu.processor import OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG
 from masu.processor import OCP_REPORT_LIMITED_DELTA_FLAG
+from reporting.provider.ocp.models import OCPPodSummaryByNodeP
 
 LOG = logging.getLogger(__name__)
 
@@ -52,6 +54,33 @@ LOG = logging.getLogger(__name__)
 # forces a serial GroupAggregate; computing these separately lets the main
 # aggregation parallelize.
 DISTINCT_METADATA_FIELDS = ("clusters", "source_uuid")
+
+# Report types whose capacity annotations only read columns that
+# reporting_ocp_pod_summary_by_node_p keeps per day/cluster/node.
+CAPACITY_BY_NODE_SUMMARY_REPORT_TYPES = ("cpu", "memory")
+
+# Filter fields that mean the same thing on reporting_ocp_pod_summary_by_node_p
+# as on the daily summary.  Other columns on the summary are aggregated across
+# namespaces (for example cost_category), so filters on them must keep using
+# the daily summary.
+CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS = frozenset(
+    ("usage_start", "usage_end", "cluster_id", "cluster_alias", "node", "data_source", "source_uuid")
+)
+
+
+def _q_uses_only_fields(q_object, allowed_fields):
+    """Return True if every lookup in q_object is a plain value lookup on allowed_fields."""
+    for child in q_object.children:
+        if isinstance(child, Q):
+            if not _q_uses_only_fields(child, allowed_fields):
+                return False
+            continue
+        if not isinstance(child, tuple) or len(child) != 2:
+            return False
+        lookup, value = child
+        if lookup.split("__", 1)[0] not in allowed_fields or hasattr(value, "resolve_expression"):
+            return False
+    return True
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -497,9 +526,31 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     # Capacity Calculations
 
+    def _capacity_query_table(self):
+        """Return the table to read capacity from.
+
+        CPU and memory capacity only need per-day/cluster/node maximums, which
+        reporting_ocp_pod_summary_by_node_p already stores, so it can replace
+        the much larger daily summary when every filter can be applied to it.
+        """
+        q_table = self._mapper.query_table
+        if (
+            self._report_type in CAPACITY_BY_NODE_SUMMARY_REPORT_TYPES
+            and _q_uses_only_fields(self.query_filter, CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS)
+            and (
+                not self.query_exclusions
+                or _q_uses_only_fields(self.query_exclusions, CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS)
+            )
+            and is_feature_flag_enabled_by_schema(
+                self.tenant.schema_name, OCP_CAPACITY_BY_NODE_SUMMARY_FLAG, dev_fallback=True
+            )
+        ):
+            return OCPPodSummaryByNodeP
+        return q_table
+
     def get_capacity(self, query_data):
         """Calculate capacity & instance count for all nodes over the date range."""
-        q_table = self._mapper.query_table
+        q_table = self._capacity_query_table()
         LOG.debug(f"Using query table: {q_table}")
         query = q_table.objects.filter(self.query_filter)
         if self.query_exclusions:
