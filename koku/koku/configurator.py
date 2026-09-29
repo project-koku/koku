@@ -196,6 +196,18 @@ class EnvConfigurator(Configurator):
     """Returns information based on the environment data"""
 
     @staticmethod
+    def get_endpoint_host(app, name, default):
+        """Obtain endpoint hostname from environment variable."""
+        svc = "_".join((app, name, "HOST")).replace("-", "_").upper()
+        return ENVIRONMENT.get_value(svc, default=default)
+
+    @staticmethod
+    def get_endpoint_port(app, name, default):
+        """Obtain endpoint port from environment variable."""
+        svc = "_".join((app, name, "PORT")).replace("-", "_").upper()
+        return ENVIRONMENT.get_value(svc, default=default)
+
+    @staticmethod
     def get_endpoint_url(app, name, default):
         """Obtain endpoint URL (scheme://host:port) from environment."""
         parsed = urlsplit(default)
@@ -658,9 +670,13 @@ class ClowderConfigurator(Configurator):
         if v1_endpoint:
             return f"http://{v1_endpoint.hostname}:{v1_endpoint.port}"
 
-        # Fallback to environment variable or default
+        # Fallback to explicit URL environment variable
         svc = "_".join((app, name, "URL")).replace("-", "_").upper()
-        return ENVIRONMENT.get_value(svc, default=default)
+        configured_url = ENVIRONMENT.get_value(svc, default="")
+        if configured_url:
+            return configured_url
+        # Fallback to component variables (PROTOCOL/HOST/PORT)
+        return EnvConfigurator.get_endpoint_url(app, name, default)
 
 
 class ConfigFactory:

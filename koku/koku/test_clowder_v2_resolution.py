@@ -4,7 +4,6 @@
 #
 """Tests for Clowder V2 dependency endpoint resolution."""
 from types import SimpleNamespace
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
@@ -94,6 +93,20 @@ class TestClowderV2EndpointUrl(SimpleTestCase):
         result = ClowderConfigurator.get_endpoint_url("rbac", "service", "http://localhost:8111")
         self.assertEqual(result, "http://custom-rbac:9999")
 
+    @patch.dict(
+        "os.environ",
+        {"RBAC_SERVICE_HOST": "rbac-env-host", "RBAC_SERVICE_PORT": "9090", "RBAC_SERVICE_PROTOCOL": "https"},
+    )
+    @patch("koku.configurator.get_v2_dependency_endpoint")
+    @patch("koku.configurator.DependencyEndpoints", new_callable=dict)
+    def test_no_v2_no_v1_no_url_falls_to_component_vars(self, mock_deps, mock_get_v2):
+        """No V2, no V1, no URL env var falls back to component HOST/PORT/PROTOCOL vars."""
+        from koku.configurator import ClowderConfigurator
+
+        mock_get_v2.return_value = None
+        result = ClowderConfigurator.get_endpoint_url("rbac", "service", "http://localhost:8111")
+        self.assertEqual(result, "https://rbac-env-host:9090")
+
     def test_base_configurator_returns_default(self):
         """Base Configurator.get_endpoint_url returns default directly."""
         from koku.configurator import Configurator
@@ -154,7 +167,7 @@ class TestRbacServiceV2Integration(SimpleTestCase):
 class TestSourcesConfigV2Integration(SimpleTestCase):
     """Test that Sources Config uses get_endpoint_url."""
 
-    @patch("sources.config.CONFIGURATOR")
+    @patch("koku.configurator.CONFIGURATOR")
     def test_sources_api_url(self, mock_configurator):
         """Sources Config.SOURCES_API_URL comes from get_endpoint_url."""
         mock_configurator.get_endpoint_url.return_value = "https://sources.svc:8443"
