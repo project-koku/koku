@@ -13,6 +13,7 @@ WITH cte_tag_key_mapping AS (
 cte_labels_to_update as (
     SELECT
         lids.uuid as uuid,
+        lids.usage_start as usage_start,
         'pod_labels' AS label_type,
         lids.pod_labels AS labels,
         EXISTS(
@@ -33,6 +34,7 @@ cte_labels_to_update as (
     UNION ALL
     SELECT
         lids.uuid as uuid,
+        lids.usage_start as usage_start,
         'volume_labels' AS label_type,
         lids.volume_labels AS labels,
         EXISTS(
@@ -54,6 +56,7 @@ cte_labels_to_update as (
 cte_update_labels as (
     SELECT
         uuid,
+        usage_start,
         label_type,
         CASE
             WHEN parent_and_child_present
@@ -85,5 +88,6 @@ SET
     all_labels = update_data.updated_labels
 FROM cte_update_labels AS update_data
 WHERE lids.uuid = update_data.uuid
+AND lids.usage_start = update_data.usage_start
 AND lids.usage_start >= DATE({{start_date}})
 AND lids.usage_start <= DATE({{end_date}});
