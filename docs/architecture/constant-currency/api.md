@@ -14,7 +14,7 @@ constant currency. Base path unless noted:
 | Method | Path | Audience | Purpose |
 |--------|------|----------|---------|
 | `GET` | `/currency/` | End user | Enabled currencies for the target-currency dropdown |
-| `GET` | `/settings/currency/` | Admin | Current tender ISO currencies with enablement, dynamic availability, nested static rates |
+| `GET` | `/settings/currency/` | Admin | Current tender ISO currencies with enablement, dynamic availability, nested static rates; CSV export of flat static rates via `Accept: text/csv` |
 | `POST` | `/settings/currency/enabled/{code}/` | Admin | Enable a currency |
 | `DELETE` | `/settings/currency/enabled/{code}/` | Admin | Disable a currency |
 | `POST` | `/settings/currency/static-rates/` | Price list admin | Create a static exchange rate |
@@ -27,7 +27,8 @@ flag on, they convert using per-month rates and may return `400` when coverage
 is incomplete (see [Report and forecast behavior](#report-and-forecast-behavior)).
 
 There is **no** dedicated `GET` collection for static rates; list them via
-`GET /settings/currency/` (`static_rates` nested under each base currency).
+`GET /settings/currency/` (`static_rates` nested under each base currency), or
+export them as a flat CSV with `Accept: text/csv` on the same endpoint.
 
 ---
 
@@ -76,10 +77,10 @@ codes remain in the list so they can be disabled.
 
 | Param | Description |
 |-------|-------------|
-| `filter[enabled]` | `true` / `1` → only enabled; `false` / `0` → only disabled current-tender; omit → active tender ∪ enabled |
-| `filter[currency]` | Case-insensitive substring match on currency `code` (e.g. `US` matches `USD`). Accepts comma-separated values or repeated params for multiple search terms (OR). Non-matching values return an empty list |
-| `order_by[code]` | `asc` (default) or `desc` — sort by ISO currency code |
-| `limit` / `offset` | Standard list pagination |
+| `filter[enabled]` | **JSON:** `true` / `1` → only enabled; `false` / `0` → only disabled current-tender; omit → active tender ∪ enabled. **CSV:** keep rates whose **base** currency is enabled (`true`/`1`) or disabled (`false`/`0`); omit → all static rates |
+| `filter[currency]` | Case-insensitive substring match (comma-separated / repeated params = OR). **JSON:** matches the currency catalog `code` (base). **CSV:** matches a rate if the term appears in **base or target** currency (e.g. `EUR` includes USD→EUR). Non-matching values return an empty list |
+| `order_by[code]` | **JSON:** `asc` (default) or `desc` — sort catalog by ISO currency code. **CSV:** unused (rates are ordered by base, target, start_date) |
+| `limit` / `offset` | Standard list pagination (**JSON only**; CSV ignores pagination) |
 
 ### Response item
 
@@ -116,6 +117,29 @@ doubles (~15–17 significant digits).
 | `enabled` | Currency is enabled for the tenant |
 | `has_dynamic_rate` | A dynamic (market) rate exists for this currency code |
 | `static_rates` | Static rates where this currency is the **base** |
+
+### CSV export (`Accept: text/csv`)
+
+Same path; response is a **flat, unpaginated** CSV of static exchange rates
+(not the ISO currency catalog). Nested `static_rates` arrays are expanded into
+one row per rate. Columns (stable order): `base_currency`, `target_currency`,
+`exchange_rate`, `start_date`, `end_date`, `uuid`, `name`. Empty exports still
+include the header row.
+
+Filter params are reused but **do not mean the same thing as in JSON**:
+
+| Param | JSON | CSV |
+|-------|------|-----|
+| `filter[currency]` | Match catalog `code` (base currency only) | Match rate **base or target** |
+| `filter[enabled]` | Include/exclude currency catalog rows by enablement | Keep rates whose **base** is enabled/disabled |
+| `order_by[code]` | Sort catalog `asc`/`desc` (default `asc`) | Unused |
+| `limit` / `offset` | Paginate catalog | Ignored (full matching set) |
+
+Example: `filter[currency]=EUR` returns the EUR catalog entry in JSON, but in CSV
+includes rates such as USD→EUR. Tenant enablement flags are not CSV columns.
+
+JSON behavior for `Accept: application/json` is unchanged. Implementation:
+[`CurrencySettingsView`](../../../koku/api/settings/currency_views.py).
 
 ---
 

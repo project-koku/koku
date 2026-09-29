@@ -6097,9 +6097,9 @@
                     "Settings",
                     "Currency"
                 ],
-                "summary": "List current tender ISO 4217 currencies with tenant enablement status",
+                "summary": "List current tender ISO 4217 currencies with tenant enablement status (JSON), or export static exchange rates (CSV)",
                 "operationId": "getSettingsCurrency",
-                "description": "Returns current (active) ISO 4217 tender currencies with enablement flags for the tenant. Already-enabled inactive or withdrawn codes are still included so they remain visible and disableable. Omits non-tender codes (e.g. XXX) and withdrawn currencies that are not enabled.",
+                "description": "Returns current (active) ISO 4217 tender currencies with enablement flags for the tenant. Already-enabled inactive or withdrawn codes are still included so they remain visible and disableable. Omits non-tender codes (e.g. XXX) and withdrawn currencies that are not enabled. With Accept: text/csv, returns a flat unpaginated CSV of static exchange rates instead of the nested currency catalog.",
                 "parameters": [
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -6110,7 +6110,7 @@
                     {
                         "in": "query",
                         "name": "filter[enabled]",
-                        "description": "Filter by tenant enablement status. Use true or 1 for enabled currencies only; false or 0 for disabled current-tender currencies only. Omit to return current tender currencies (plus any already-enabled inactive codes) sorted by code.",
+                        "description": "Filter by tenant enablement status. JSON: true/1 returns enabled currencies only; false/0 returns disabled current-tender currencies only; omit returns current tender currencies (plus any already-enabled inactive codes) sorted by code. CSV: true/1 keeps static rates whose base currency is enabled; false/0 keeps rates whose base is disabled; omit returns all matching rates.",
                         "schema": {
                             "type": "string",
                             "enum": [
@@ -6124,7 +6124,7 @@
                     {
                         "in": "query",
                         "name": "filter[currency]",
-                        "description": "Filter by currency code using case-insensitive substring match on the ISO 4217 code. Accepts comma-separated values or repeated parameters for multiple search terms (OR filter). Non-matching values return an empty list.",
+                        "description": "Case-insensitive substring match. Accepts comma-separated values or repeated parameters (OR). JSON: matches the currency catalog code (base only). CSV: matches a static rate if the term appears in base_currency or target_currency (e.g. EUR includes USD\u2192EUR rows). Non-matching values return an empty list.",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -6157,12 +6157,19 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "A paginated list of currency settings objects",
+                        "description": "A paginated list of currency settings objects (JSON), or an unpaginated flat CSV of static exchange rates when Accept is text/csv",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/CurrencySettingsPagination"
                                 }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "type": "string",
+                                    "description": "CSV of static exchange rates (not the ISO currency catalog). Columns in order: base_currency, target_currency, exchange_rate, start_date, end_date, uuid, name. Pagination is ignored. filter[currency] matches base or target; filter[enabled] filters by whether the rate base currency is enabled. Empty exports still include the header row."
+                                },
+                                "example": "base_currency,target_currency,exchange_rate,start_date,end_date,uuid,name\nUSD,EUR,0.87,2026-04-01,2026-06-30,a1b2c3d4-e5f6-7890-abcd-ef1234567890,USD-EUR\n"
                             }
                         }
                     },
@@ -6170,6 +6177,11 @@
                         "description": "Bad Request",
                         "content": {
                             "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Error"
                                 }
@@ -6183,6 +6195,11 @@
                         "description": "Unexpected Error",
                         "content": {
                             "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Error"
                                 }
