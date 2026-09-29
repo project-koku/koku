@@ -98,6 +98,33 @@ class CurrencySettingsViewTest(IamTestCase):
         self.assertTrue(usd["enabled"])
         self.assertFalse(gbp["enabled"])
 
+    def test_list_excludes_xxx_and_withdrawn_currencies(self):
+        """Settings catalog omits XXX and withdrawn codes like FRF when not enabled."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+
+        url = reverse("currency-list") + "?limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes = [c["code"] for c in response.data["data"]]
+        self.assertNotIn("XXX", codes)
+        self.assertNotIn("FRF", codes)
+        self.assertIn("USD", codes)
+        self.assertIn("EUR", codes)
+
+    def test_list_includes_already_enabled_inactive_currency(self):
+        """Legacy enabled withdrawn currencies still appear with enabled=true."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="FRF")
+
+        url = reverse("currency-list") + "?filter[enabled]=true&limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        codes_by_key = {c["code"]: c for c in response.data["data"]}
+        self.assertIn("FRF", codes_by_key)
+        self.assertTrue(codes_by_key["FRF"]["enabled"])
+
     def test_list_filter_enabled_true(self):
         with tenant_context(self.tenant):
             EnabledCurrency.objects.create(currency_code="USD")
@@ -433,14 +460,14 @@ class CurrencySettingsViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         codes = [c["code"] for c in response.data["data"]]
         self.assertEqual(codes, sorted(codes))
-        # USD variants stay near each other instead of spreading across pages
-        for code in ("USD", "USN", "USS"):
-            self.assertIn(code, codes)
-        usd_idx = codes.index("USD")
-        usn_idx = codes.index("USN")
-        uss_idx = codes.index("USS")
-        self.assertLess(abs(usd_idx - usn_idx), 5)
-        self.assertLess(abs(usd_idx - uss_idx), 5)
+        # Enabled currencies appear in alphabetical position (not enabled-first)
+        self.assertIn("USD", codes)
+        self.assertIn("EUR", codes)
+        self.assertLess(codes.index("EUR"), codes.index("USD"))
+        codes_by_key = {c["code"]: c for c in response.data["data"]}
+        self.assertTrue(codes_by_key["USD"]["enabled"])
+        self.assertTrue(codes_by_key["EUR"]["enabled"])
+        self.assertFalse(codes_by_key["GBP"]["enabled"])
 
     def test_list_order_by_code_desc(self):
         with tenant_context(self.tenant):
@@ -649,6 +676,24 @@ class EnabledCurrencyViewTest(IamTestCase):
         with tenant_context(self.tenant):
             response = self.client.post(self._url("USD"), **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertTrue(EnabledCurrency.objects.filter(currency_code="USD").exists())
+
+    def test_post_enable_rejects_inactive_currency(self):
+        """POST must reject inactive / non-tender codes such as XXX."""
+        with tenant_context(self.tenant):
+            response = self.client.post(self._url("XXX"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="XXX").exists())
+
+    def test_delete_allows_disabling_already_enabled_inactive_currency(self):
+        """Already-enabled withdrawn currencies remain disableable via DELETE."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            EnabledCurrency.objects.create(currency_code="FRF")
+
+            response = self.client.delete(self._url("FRF"), **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+            self.assertFalse(EnabledCurrency.objects.filter(currency_code="FRF").exists())
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="USD").exists())
 
     def test_disable_currency(self):

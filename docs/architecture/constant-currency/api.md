@@ -14,7 +14,7 @@ constant currency. Base path unless noted:
 | Method | Path | Audience | Purpose |
 |--------|------|----------|---------|
 | `GET` | `/currency/` | End user | Enabled currencies for the target-currency dropdown |
-| `GET` | `/settings/currency/` | Admin | All ISO currencies with enablement, dynamic availability, nested static rates; CSV export of flat static rates via `Accept: text/csv` |
+| `GET` | `/settings/currency/` | Admin | Current tender ISO currencies with enablement, dynamic availability, nested static rates; CSV export of flat static rates via `Accept: text/csv` |
 | `POST` | `/settings/currency/enabled/{code}/` | Admin | Enable a currency |
 | `DELETE` | `/settings/currency/enabled/{code}/` | Admin | Disable a currency |
 | `POST` | `/settings/currency/static-rates/` | Price list admin | Create a static exchange rate |
@@ -67,7 +67,9 @@ ISO 4217 registry at response time.
 
 ## `GET /settings/currency/`
 
-Administrator currency catalog for Settings UI.
+Administrator currency catalog for Settings UI. Lists **current tender** ISO
+4217 currencies (babel territory data). Already-enabled inactive/withdrawn
+codes remain in the list so they can be disabled.
 
 **Permission:** settings access.
 
@@ -75,10 +77,11 @@ Administrator currency catalog for Settings UI.
 
 | Param | Description |
 |-------|-------------|
-| `filter[enabled]` | **JSON:** `true` / `1` → only enabled currencies; `false` / `0` → only disabled; omit → all currencies sorted by code. **CSV:** keep rates whose **base** currency is enabled (`true`/`1`) or disabled (`false`/`0`); omit → all static rates |
+| `filter[enabled]` | **JSON:** `true` / `1` → only enabled; `false` / `0` → only disabled current-tender; omit → active tender ∪ enabled. **CSV:** keep rates whose **base** currency is enabled (`true`/`1`) or disabled (`false`/`0`); omit → all static rates |
 | `filter[currency]` | Case-insensitive substring match (comma-separated / repeated params = OR). **JSON:** matches the currency catalog `code` (base). **CSV:** matches a rate if the term appears in **base or target** currency (e.g. `EUR` includes USD→EUR). Non-matching values return an empty list |
 | `order_by[code]` | **JSON:** `asc` (default) or `desc` — sort catalog by ISO currency code. **CSV:** unused (rates are ordered by base, target, start_date) |
 | `limit` / `offset` | Standard list pagination (**JSON only**; CSV ignores pagination) |
+
 ### Response item
 
 ```json
@@ -142,13 +145,16 @@ JSON behavior for `Accept: application/json` is unchanged. Implementation:
 
 ## `POST /settings/currency/enabled/{code}/`
 
-Enable an ISO 4217 currency for the tenant.
+Enable a **current tender** ISO 4217 currency for the tenant.
 
 **Permission:** settings access.
 
 - `{code}` is normalized to uppercase.
-- Invalid ISO codes → `400`.
-- Idempotent: enabling an already-enabled currency returns `200`.
+- Inactive / non-tender / invalid ISO codes (e.g. `XXX`, withdrawn `FRF`) → `400`
+  (including when that code is already enabled — active-tender validation runs
+  before `get_or_create`).
+- Idempotent for **current tender** codes only: enabling an already-enabled
+  current-tender currency returns `200`.
 
 **Success:** `200` with empty body.
 
