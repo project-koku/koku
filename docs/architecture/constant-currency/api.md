@@ -150,8 +150,11 @@ Enable a **current tender** ISO 4217 currency for the tenant.
 **Permission:** settings access.
 
 - `{code}` is normalized to uppercase.
-- Inactive / non-tender / invalid ISO codes (e.g. `XXX`, withdrawn `FRF`) → `400`.
-- Idempotent: enabling an already-enabled currency returns `200`.
+- Inactive / non-tender / invalid ISO codes (e.g. `XXX`, withdrawn `FRF`) → `400`
+  (including when that code is already enabled — active-tender validation runs
+  before `get_or_create`).
+- Idempotent for **current tender** codes only: enabling an already-enabled
+  current-tender currency returns `200`.
 
 **Success:** `200` with empty body.
 
