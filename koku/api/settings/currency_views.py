@@ -192,8 +192,8 @@ def _get_non_disableable_codes(enabled_codes):
 
     Uses batched queries — one per blocking criterion — to avoid N+1 when
     building the currency list in the GET response. Cloud summary queries are
-    scoped to ``enabled_codes`` since is_disableable is only meaningful for
-    currently enabled currencies.
+    scoped to ``enabled_codes`` (billing data only blocks currently enabled
+    currencies from being disabled).
     """
     blocked = {KOKU_DEFAULT_CURRENCY}
 
@@ -278,7 +278,9 @@ class CurrencySettingsView(APIView):
             info["enabled"] = is_enabled
             info["has_dynamic_rate"] = code.lower() in dynamic_codes
             info["static_rates"] = rates_by_base.get(code, [])
-            info["is_disableable"] = is_enabled and not only_one_enabled and code not in non_disableable
+            # Disabled currencies are always toggleable so the UI can re-enable them.
+            # Enabled currencies stay False when sole-enabled or blocked by a dependency.
+            info["is_disableable"] = (not is_enabled) or (not only_one_enabled and code not in non_disableable)
             result.append(info)
 
         if currency_filter:
