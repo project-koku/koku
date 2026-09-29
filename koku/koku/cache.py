@@ -4,11 +4,13 @@
 #
 """Cache functions."""
 import logging
+from functools import partial
 
 from django.conf import settings
 from django.core.cache import caches
 from django.core.cache.backends.dummy import DummyCache
 from django.core.cache.backends.locmem import LocMemCache
+from django.db import transaction
 from django_redis.cache import RedisCache
 from redis import Redis
 
@@ -35,6 +37,14 @@ OPENSHIFT_GCP_CACHE_PREFIX = "openshift-gcp-view"
 OPENSHIFT_ALL_CACHE_PREFIX = "openshift-all-view"
 SOURCES_CACHE_PREFIX = "sources"
 TAG_MAPPING_PREFIX = "tag-mapping"
+# Manifest fields that are copied into the cached GET /sources/ list payload.
+SOURCES_LIST_MANIFEST_FIELDS = frozenset({"completed_datetime", "state", "creation_datetime"})
+
+
+def invalidate_sources_view_cache(schema_name):
+    """Drop cached GET /sources/ responses once the metadata change is committed."""
+    if schema_name:
+        transaction.on_commit(partial(invalidate_cache_for_tenant_and_cache_key, schema_name, SOURCES_CACHE_PREFIX))
 
 
 def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None, *, cache_name=CacheEnum.api):
@@ -53,13 +63,12 @@ def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None
             ssl=settings.REDIS_SSL,
             **settings.REDIS_CONNECTION_POOL_KWARGS,
         )
-        all_keys = cache.keys("*")
+        pattern = f"*{schema_name}*{cache_key_prefix}*" if cache_key_prefix else f"*{schema_name}*"
+        all_keys = cache.scan_iter(match=pattern)
         all_keys = [key.decode("utf-8") for key in all_keys]
     elif isinstance(cache, LocMemCache):
-        all_keys = cache._cache.keys()
-        all_keys = list(all_keys)
-        all_keys = [key.split(":") for key in all_keys]
-        all_keys = [":".join(splits[-2:]) for splits in all_keys]
+        with cache._lock:
+            all_keys = list(cache._cache)
     elif isinstance(cache, DummyCache):
         LOG.info(
             log_json(msg=f"skipping cache invalidation because `{cache_name}` caching is disabled", schema=schema_name)
@@ -76,7 +85,12 @@ def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None
         keys_to_invalidate = [key for key in all_keys if schema_name in key]
 
     for key in keys_to_invalidate:
-        cache.delete(key)
+        if isinstance(cache, LocMemCache):
+            # These are already transformed keys, including the tenant prefix.
+            with cache._lock:
+                cache._delete(key)
+        else:
+            cache.delete(key)
 
     LOG.info(log_json(msg="invalidated cache", schema=schema_name, cache_key_prefix=cache_key_prefix))
 
