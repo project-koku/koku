@@ -14,14 +14,16 @@ from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_csv.renderers import CSVRenderer
 
 from api.common import log_json
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
-from api.currency.currencies import get_all_iso_currency_codes
+from api.currency.currencies import get_active_iso_currency_codes
 from api.currency.currencies import get_currency_info
 from api.currency.currencies import get_dynamic_rate_currencies
 from api.currency.currencies import get_enabled_currency_codes
+from api.currency.currencies import is_active_iso_currency
 from api.currency.currencies import is_valid_iso_currency
 from api.provider.models import Provider
 from api.report.constants import URL_ENCODED_SAFE
@@ -48,6 +50,54 @@ VALID_PARAMS = {"filter", "limit", "offset", "order_by"}
 VALID_FILTER_PARAMS = {"enabled", "currency"}
 VALID_ORDER_BY_FIELDS = {"code"}
 VALID_ORDER_BY_DIRECTIONS = {"asc", "desc"}
+
+# Flat CSV columns for Accept: text/csv on GET /settings/currency/ (COST-7994).
+# Nested static_rates / full ISO catalog are intentionally not exported.
+# Order is explicit — do not rely on the CSV renderer to infer/sort headers.
+CSV_STATIC_RATE_FIELDS = (
+    "base_currency",
+    "target_currency",
+    "exchange_rate",
+    "start_date",
+    "end_date",
+    "uuid",
+    "name",
+)
+
+
+def _wants_csv(request):
+    """Return True when DRF negotiated the CSV renderer for this request.
+
+    Branch on ``accepted_renderer`` (not a raw Accept substring) so a mixed
+    Accept such as ``application/json, text/csv`` keeps the JSON catalog shape
+    when JSON wins content negotiation.
+    """
+    return isinstance(getattr(request, "accepted_renderer", None), CSVRenderer)
+
+
+def _build_static_rate_csv_rows(*, enabled_filter=None, currency_filter=None):
+    """Build flat static-rate rows for CSV export (no pagination)."""
+    rates = StaticExchangeRate.objects.all().order_by("base_currency", "target_currency", "start_date")
+    serialized = StaticExchangeRateSerializer(rates, many=True).data
+
+    if enabled_filter is not None:
+        enabled_codes = get_enabled_currency_codes()
+        if enabled_filter in ("true", "1"):
+            serialized = [rate for rate in serialized if rate["base_currency"] in enabled_codes]
+        else:
+            serialized = [rate for rate in serialized if rate["base_currency"] not in enabled_codes]
+
+    if currency_filter:
+        serialized = [
+            rate
+            for rate in serialized
+            if (
+                _currency_matches_filter(rate["base_currency"], currency_filter)
+                or _currency_matches_filter(rate["target_currency"], currency_filter)
+            )
+        ]
+
+    return [{field: rate[field] for field in CSV_STATIC_RATE_FIELDS} for rate in serialized]
 
 
 def _parse_filter_list(value):
@@ -142,8 +192,8 @@ def _get_non_disableable_codes(enabled_codes):
 
     Uses batched queries — one per blocking criterion — to avoid N+1 when
     building the currency list in the GET response. Cloud summary queries are
-    scoped to ``enabled_codes`` since is_disableable is only meaningful for
-    currently enabled currencies.
+    scoped to ``enabled_codes`` (billing data only blocks currently enabled
+    currencies from being disabled).
     """
     blocked = {KOKU_DEFAULT_CURRENCY}
 
@@ -171,10 +221,14 @@ def _get_non_disableable_codes(enabled_codes):
 
 
 class CurrencySettingsView(APIView):
-    """List all ISO 4217 currencies with enabled status and dynamic-rate availability.
+    """List current tender ISO 4217 currencies with enabled status and dynamic-rate availability.
 
-    Supports ``filter[enabled]``, ``filter[currency]``, and ``order_by[code]`` query params.
-    Default order is ascending by currency code.
+    Supports ``filter[enabled]``, ``filter[currency]``, and ``order_by[code]`` query
+    params. Default order is ascending by currency code. Already-enabled inactive codes
+    are included so legacy enablements remain visible and disableable.
+
+    With ``Accept: text/csv``, returns a flat, unpaginated CSV of static exchange
+    rates (not the nested currency catalog).
     """
 
     permission_classes = [SettingsAccessPermission]
@@ -183,7 +237,19 @@ class CurrencySettingsView(APIView):
     def get(self, request, *args, **kwargs):
         enabled_filter, currency_filter, code_order = _parse_currency_list_filters(request)
 
+        if _wants_csv(request):
+            rows = _build_static_rate_csv_rows(
+                enabled_filter=enabled_filter,
+                currency_filter=currency_filter,
+            )
+            # Pin column order and keep headers on empty exports.
+            request.accepted_renderer.header = list(CSV_STATIC_RATE_FIELDS)
+            # PaginatedCSVRenderer reads the ``data`` key; skip ListPaginator so
+            # limit/offset do not truncate the export.
+            return Response({"data": rows})
+
         enabled_codes = get_enabled_currency_codes()
+        active_codes = get_active_iso_currency_codes()
         dynamic_codes = get_dynamic_rate_currencies()
 
         static_rates = StaticExchangeRate.objects.all()
@@ -196,9 +262,9 @@ class CurrencySettingsView(APIView):
         if enabled_filter is not None and enabled_filter in ("true", "1"):
             codes = enabled_codes
         elif enabled_filter is not None:
-            codes = get_all_iso_currency_codes() - enabled_codes
+            codes = active_codes - enabled_codes
         else:
-            codes = get_all_iso_currency_codes()
+            codes = enabled_codes | active_codes
 
         sorted_codes = _sort_currency_codes(codes, code_order)
 
@@ -212,7 +278,9 @@ class CurrencySettingsView(APIView):
             info["enabled"] = is_enabled
             info["has_dynamic_rate"] = code.lower() in dynamic_codes
             info["static_rates"] = rates_by_base.get(code, [])
-            info["is_disableable"] = is_enabled and not only_one_enabled and code not in non_disableable
+            # Disabled currencies are always toggleable so the UI can re-enable them.
+            # Enabled currencies stay False when sole-enabled or blocked by a dependency.
+            info["is_disableable"] = (not is_enabled) or (not only_one_enabled and code not in non_disableable)
             result.append(info)
 
         if currency_filter:
@@ -229,15 +297,21 @@ class EnabledCurrencyView(APIView):
 
     permission_classes = [SettingsAccessPermission]
 
-    def _validate_code(self, code):
+    def _validate_code_for_enable(self, code):
         code = code.upper()
-        if not is_valid_iso_currency(code):
-            raise ValidationError({"code": f"Invalid ISO 4217 currency code: {code}"})
+        if not is_active_iso_currency(code):
+            raise ValidationError({"code": f"Invalid or inactive ISO 4217 currency code: {code}"})
         return code
+
+    def _validate_code_for_disable(self, code):
+        code = code.upper()
+        if is_valid_iso_currency(code) or EnabledCurrency.objects.filter(currency_code=code).exists():
+            return code
+        raise ValidationError({"code": f"Invalid ISO 4217 currency code: {code}"})
 
     @method_decorator(never_cache)
     def post(self, request, *args, **kwargs):
-        code = self._validate_code(kwargs["code"])
+        code = self._validate_code_for_enable(kwargs["code"])
         _, created = EnabledCurrency.objects.get_or_create(currency_code=code)
         if created:
             populate_dynamic_monthly_rates(code=code)
@@ -249,7 +323,7 @@ class EnabledCurrencyView(APIView):
 
     @method_decorator(never_cache)
     def delete(self, request, *args, **kwargs):
-        code = self._validate_code(kwargs["code"])
+        code = self._validate_code_for_disable(kwargs["code"])
 
         if not EnabledCurrency.objects.filter(currency_code=code).exists():
             return Response(status=status.HTTP_204_NO_CONTENT)
