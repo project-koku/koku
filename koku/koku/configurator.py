@@ -24,6 +24,7 @@ class KafkaSASLConfig:
 CLOWDER_ENABLED = ENVIRONMENT.bool("CLOWDER_ENABLED", default=False)
 if CLOWDER_ENABLED:
     from app_common_python import ObjectBuckets, LoadedConfig, KafkaTopics, KafkaServers, DependencyEndpoints
+    from app_common_python import get_v2_dependency_endpoint
 
 
 class Configurator:
@@ -183,6 +184,11 @@ class Configurator:
     def get_endpoint_port(app, name, default):
         """Obtain endpoint port."""
         pass
+
+    @staticmethod
+    def get_endpoint_url(app, name, default):
+        """Obtain endpoint URL (scheme://host:port)."""
+        return default
 
 
 class EnvConfigurator(Configurator):
@@ -620,6 +626,27 @@ class ClowderConfigurator(Configurator):
             return endpoint.port
         # if the endpoint is not defined by clowder, fall back to env variable
         svc = "_".join((app, name, "PORT")).replace("-", "_").upper()
+        return ENVIRONMENT.get_value(svc, default=default)
+
+    @staticmethod
+    def get_endpoint_url(app, name, default):
+        """Obtain endpoint URL (scheme://host:port).
+
+        Tries Clowder V2 dependency endpoint first, falls back to V1,
+        then to environment variable or default.
+        """
+        # V2: use the full URI from the V2 dependency endpoint
+        v2 = get_v2_dependency_endpoint(app, name)
+        if v2 and v2.uri:
+            return v2.uri
+
+        # V1: build from host/port in DependencyEndpoints
+        v1_endpoint = DependencyEndpoints.get(app, {}).get(name)
+        if v1_endpoint:
+            return f"http://{v1_endpoint.hostname}:{v1_endpoint.port}"
+
+        # Fallback to environment variable or default
+        svc = "_".join((app, name, "URL")).replace("-", "_").upper()
         return ENVIRONMENT.get_value(svc, default=default)
 
 
