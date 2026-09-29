@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Currency."""
-import logging
-
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -14,13 +12,10 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from api.common import log_json
 from api.common.pagination import ListPaginator
 from api.currency.currencies import get_currency_info
 from api.currency.models import ExchangeRateDictionary
 from cost_models.models import EnabledCurrency
-
-LOG = logging.getLogger(__name__)
 
 
 @api_view(("GET",))
@@ -45,21 +40,10 @@ def get_exchange_rates(request):
     """Get the currency exchange rates between all currencies"""
     exchange_rates = ExchangeRateDictionary.objects.all().first()
     if not exchange_rates:
-        LOG.info(
-            log_json(
-                msg=(
-                    "[COST-8062] ExchangeRateDictionary empty — "
-                    "triggering get_daily_currency_rates inline "
-                    "triggered_by get_exchange_rates view"
-                )
-            )
-        )
         from masu.celery.tasks import get_daily_currency_rates
 
         get_daily_currency_rates()
         exchange_rates = ExchangeRateDictionary.objects.all().first()
-    else:
-        LOG.info(log_json(msg="[COST-8062] ExchangeRateDictionary already populated — skipping fetch"))
     if not exchange_rates:
         return Response(
             {

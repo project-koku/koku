@@ -16,7 +16,6 @@ from django_tenants.models import TenantMixin
 from django_tenants.postgresql_backend.base import is_valid_schema_name
 from django_tenants.utils import schema_exists
 
-from api.common import log_json
 from koku.database import dbfunc_exists
 from koku.migration_sql_helpers import apply_sql_file
 from koku.migration_sql_helpers import find_db_functions_dir
@@ -151,13 +150,8 @@ class Tenant(TenantMixin):
         sql = """
 select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
 """
-        LOG.info(
-            log_json(
-                msg="[COST-8062] cloning template schema to new tenant",
-                template=self._TEMPLATE_SCHEMA,
-                schema=self.schema_name,
-            )
-        )
+        LOG.info(f'Cloning template schema "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
+        LOG.info("Reading catalog for template data")
 
         with conn.cursor() as cur:
             cur.execute(sql, [self._TEMPLATE_SCHEMA, self.schema_name])
@@ -215,12 +209,7 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
                 LOG.info("Setting transaction to exit with ROLLBACK")
                 transaction.set_rollback(True)  # Set this transaction context to issue a rollback on exit
             else:
-                LOG.info(
-                    log_json(
-                        msg="[COST-8062] schema clone complete — exchange rates not yet populated for this tenant",
-                        schema=self.schema_name,
-                    )
-                )
+                LOG.info(f'Successful clone of "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
 
         # Set schema to public (even if there was an exception)
         with transaction.atomic():

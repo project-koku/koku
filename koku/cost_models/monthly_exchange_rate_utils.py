@@ -52,15 +52,6 @@ def upsert_static_monthly_rates(static_rate):
     if current_month < static_rate.start_date or current_month > static_rate.end_date:
         return
 
-    LOG.info(
-        log_json(
-            msg="[COST-8062] upserting static monthly rate",
-            base_currency=static_rate.base_currency,
-            target_currency=static_rate.target_currency,
-            rate=str(static_rate.exchange_rate),
-            month=str(current_month),
-        )
-    )
     MonthlyExchangeRate.objects.update_or_create(
         effective_date=current_month,
         base_currency=static_rate.base_currency,
@@ -117,14 +108,6 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
     When code is provided, only pairs involving that currency are processed.
     When None, all enabled currency pairs are processed.
     """
-    LOG.info(
-        log_json(
-            msg="[COST-8062] populate_dynamic_monthly_rates started",
-            schema=connection.schema_name,
-            code=code,
-            backfill_past_months=backfill_past_months,
-        )
-    )
     enabled_codes = set(EnabledCurrency.objects.values_list("currency_code", flat=True))
     if not enabled_codes:
         LOG.warning(log_json(msg="No enabled currencies; skipping monthly exchange rate populate"))
@@ -188,14 +171,6 @@ def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # no
     if backfill_past_months:
         backfilled_count = _backfill_missing_past_months(current_month, enabled_codes=enabled_codes, code=code)
 
-    LOG.info(
-        log_json(
-            msg="[COST-8062] populate_dynamic_monthly_rates complete",
-            updated=updated_count,
-            backfilled=backfilled_count,
-            code=code,
-        )
-    )
     return updated_count + backfilled_count
 
 
@@ -300,15 +275,6 @@ def _backfill_missing_past_months(current_month, enabled_codes, code=None):
 
     rates_by_pair = _get_existing_rates_by_pair(retention_start, current_month, enabled_codes=enabled_codes, code=code)
 
-    LOG.info(
-        log_json(
-            msg="[COST-8062] _backfill_missing_past_months started",
-            pairs_found=len(rates_by_pair),
-            retention_start=str(retention_start),
-            current_month=str(current_month),
-            code=code,
-        )
-    )
     if not rates_by_pair:
         return 0
 
@@ -334,6 +300,6 @@ def _backfill_missing_past_months(current_month, enabled_codes, code=None):
 
     if rows_to_create:
         MonthlyExchangeRate.objects.bulk_create(rows_to_create, ignore_conflicts=True)
-        LOG.info(log_json(msg="[COST-8062] backfilled missing monthly exchange rates", created=len(rows_to_create)))
+        LOG.info(log_json(msg="Backfilled missing monthly exchange rates", created=len(rows_to_create)))
 
     return len(rows_to_create)
