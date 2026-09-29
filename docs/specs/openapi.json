@@ -6097,8 +6097,9 @@
                     "Settings",
                     "Currency"
                 ],
-                "summary": "List all ISO 4217 currencies with tenant enablement status (JSON), or export static exchange rates (CSV)",
+                "summary": "List current tender ISO 4217 currencies with tenant enablement status (JSON), or export static exchange rates (CSV)",
                 "operationId": "getSettingsCurrency",
+                "description": "Returns current (active) ISO 4217 tender currencies with enablement flags for the tenant. Already-enabled inactive or withdrawn codes are still included so they remain visible and disableable. Omits non-tender codes (e.g. XXX) and withdrawn currencies that are not enabled. With Accept: text/csv, returns a flat unpaginated CSV of static exchange rates instead of the nested currency catalog.",
                 "parameters": [
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -6109,7 +6110,7 @@
                     {
                         "in": "query",
                         "name": "filter[enabled]",
-                        "description": "Filter by tenant enablement status. JSON: true/1 returns enabled currencies only; false/0 returns disabled only; omit returns all currencies sorted by code. CSV: true/1 keeps static rates whose base currency is enabled; false/0 keeps rates whose base is disabled; omit returns all matching rates.",
+                        "description": "Filter by tenant enablement status. JSON: true/1 returns enabled currencies only; false/0 returns disabled current-tender currencies only; omit returns current tender currencies (plus any already-enabled inactive codes) sorted by code. CSV: true/1 keeps static rates whose base currency is enabled; false/0 keeps rates whose base is disabled; omit returns all matching rates.",
                         "schema": {
                             "type": "string",
                             "enum": [
