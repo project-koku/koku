@@ -120,11 +120,32 @@ class OCPReportClusterFilterIndexHintTest(IamTestCase):
     def test_renamed_cluster_still_matches_old_alias(self):
         """Rows summarized under a previous alias are still found after a rename."""
         with schema_context(self.schema_name):
-            OCPCluster.objects.filter(provider_id=self.source_uuid).update(cluster_alias="renamed-cluster")
+            # Test data uses the cluster ID as the alias, so change both to make
+            # sure only the historical cost summary lookup can match.
+            OCPCluster.objects.filter(provider_id=self.source_uuid).update(
+                cluster_id="renamed-cluster-id", cluster_alias="renamed-cluster"
+            )
         url = f"?{self.LAST_MONTH}&group_by[project]=*&filter[cluster]={self.cluster_alias}"
         for view in (OCPCostView, OCPCpuView):
             with self.subTest(view=view.__name__):
                 self._assert_parity(view, url)
+                handler, _ = self._handler(view, url, hint_enabled=True)
+                with schema_context(self.schema_name):
+                    self.assertIn(self.source_uuid, handler._cluster_filter_source_uuids)
+
+    def test_hint_applies_to_previous_period_total(self):
+        """Both the row and total previous-period delta queries use the indexed filter."""
+        url = f"?{self.LAST_MONTH}&group_by[project]=*&filter[cluster]={self.cluster_alias}&delta=cost"
+        with CaptureQueriesContext(connection) as captured:
+            self._handler(OCPCostView, url, hint_enabled=True)
+        cluster_filtered = [
+            query["sql"]
+            for query in captured.captured_queries
+            if 'FROM "reporting_ocp_cost_summary_by_project_p"' in query["sql"]
+            and '"cluster_alias"::text) LIKE' in query["sql"]
+        ]
+        self.assertTrue(cluster_filtered)
+        self.assertTrue(all('"source_uuid" IN' in sql for sql in cluster_filtered))
 
     def test_wildcard_cluster_filter_does_not_enable_hint(self):
         """group_by[cluster]=* does not filter, so no hint is added."""

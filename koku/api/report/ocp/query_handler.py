@@ -629,9 +629,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
         else:
             return super().add_deltas(query_data, query_sum)
 
+    def _get_previous_query(self, delta_filter):
+        """Apply the cluster filter index hint to row and total previous-period deltas."""
+        return self._apply_cluster_filter_index_hint(super()._get_previous_query(delta_filter))
+
     def _get_previous_rows_query(self, previous_query, query_data):
         """Limit per-row deltas to ranked projects when the flagged shape is safe."""
-        previous_query = self._apply_cluster_filter_index_hint(previous_query)
         if not self._limited_delta_for_ranked_projects_enabled or not query_data:
             return previous_query
 
