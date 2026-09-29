@@ -487,7 +487,7 @@ Each implementation phase follows strict Red-Green-Refactor:
 |-------------|------|
 | Rate model unit tests | `cost_models/test/test_rate_model.py` |
 | Helper function unit tests | `cost_models/test/test_rate_helpers.py` |
-| Migration tests | `cost_models/test/test_rate_migration.py` |
+| RatesToUsage CASCADE tests | `reporting/provider/ocp/test/test_rtu_migrations.py` |
 | Serializer tests | `cost_models/test/test_serializers.py` (extended) |
 | Manager tests | `cost_models/test/test_cost_model_manager.py` (extended) |
 | Write-freeze tests | `cost_models/test/test_write_freeze.py` |
@@ -648,7 +648,9 @@ Key implementation decisions (from due diligence):
 
 #### Phase 3 — TDD Red
 
-Write failing tests for the data migration:
+Write failing tests for the data migration. These unit tests were retired after
+`0013_normalize_rates_to_rate_table` shipped; Rate rows are now created by the
+live write path (`_sync_rate_table`), covered in `test_sync_rate_table.py`.
 
 ```
 test_rate_migration.py:

@@ -28,6 +28,13 @@ COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_
 CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lookup_enabled"
 OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
 CONSTANT_CURRENCY_FLAG = "cost-management.backend.constant-currency"
+DISABLE_CELERY_TASK_DELAY_FLAG = "cost-management.backend.disable-celery-task-delay"
+INGRESS_DEAD_LETTER_QUEUE_FLAG = "cost-management.backend.ingress-dead-letter-queue"
+OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG = "cost-management.backend.ocp_report_distinct_arrays_parallel"
+OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG = "cost-management.backend.ocp_report_identity_exchange_rate"
+OCP_REPORT_LIMITED_DELTA_FLAG = "cost-management.backend.ocp_report_limited_delta"
+OCP_CAPACITY_SINGLE_SCAN_FLAG = "cost-management.backend.ocp_capacity_single_scan"
+OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG = "cost-management.backend.ocp_report_combined_distributed_cost"
 
 
 def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):  # pragma: no cover
@@ -106,6 +113,12 @@ def is_customer_penalty(schema):  # pragma: no cover
     """Flag the customer as penalised."""
     context = {"schema": schema}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.penalty-customer", context)
+
+
+def is_celery_task_delay_disabled(schema):  # pragma: no cover
+    """Disable DelayedCeleryTasks wait so the task fires immediately."""
+    context = {"schema": schema}
+    return UNLEASH_CLIENT.is_enabled(DISABLE_CELERY_TASK_DELAY_FLAG, context, fallback_development_true)
 
 
 def is_rate_limit_customer_large(schema):  # pragma: no cover

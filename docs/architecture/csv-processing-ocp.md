@@ -211,6 +211,7 @@ report_period_start,report_period_end,interval_start,interval_end,namespace,node
 - Topic: `platform.upload.announce` (`UPLOAD_TOPIC`)
 - Max poll interval: 18 minutes
 - Auto-commit: Disabled (manual commit after processing)
+- Message watchdog: 15 minutes by default (`KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS`); it emits structured context and Python thread stacks to logs/Sentry, but never commits, seeks, pauses, or terminates a message.
 
 **Kafka Message Format:**
 
@@ -949,6 +950,7 @@ For testing OCP processing, generate synthetic CSV reports with realistic data:
 ### **Key Metrics to Monitor**
 
 - **Kafka lag:** `hccm-group` consumer lag on `platform.upload.announce`
+- **Kafka listener watchdog:** `kafka_listener_inflight_message_age_seconds` is zero while idle and rises for an in-flight message. A message exceeding the configured watchdog threshold increments `kafka_listener_watchdog_diagnostics_total` and emits its topic, partition, offset, request ID, tenant identifiers, and Python thread stacks.
 - **Processing time:** Time from Kafka message to summarization complete
 - **Parquet file sizes:** Unusually large files may indicate data issues
 - **Row counts:** Compare CSV rows → Parquet rows → summary rows

@@ -34,7 +34,6 @@ from common.queues import PriorityQueue
 from common.queues import RefreshQueue
 from common.queues import SummaryQueue
 from koku import celery_app
-from koku.middleware import is_qe_schema
 from koku.middleware import KokuTenantMiddleware
 from koku.trino_database import TrinoQueryNotFoundError
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -42,6 +41,7 @@ from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
+from masu.processor import is_celery_task_delay_disabled
 from masu.processor import is_cost_model_processing_disabled
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
@@ -221,8 +221,7 @@ def delayed_summarize_current_month(schema_name: str, provider_uuids: list, prov
             provider_uuid=provider_uuid,
             queue_name=queue,
         )
-        if is_qe_schema(schema_name):
-            # bypass the wait for QE
+        if is_celery_task_delay_disabled(schema_name):
             id.delete()
 
 
@@ -276,7 +275,7 @@ def delayed_update_cost_model_costs(schema_name, provider_uuid, start_date, end_
             billing_month=billing_month,
             merge_date_range=True,
         )
-        if is_qe_schema(schema_name):
+        if is_celery_task_delay_disabled(schema_name):
             row.delete()
 
 

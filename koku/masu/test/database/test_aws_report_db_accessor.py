@@ -532,3 +532,44 @@ class AWSReportDBAccessorTest(MasuTestCase):
             1, self.aws_provider_uuid, self.ocp_provider_uuid, "2022-04-01", "2022-04-10"
         )
         self.assertEqual([], result)
+
+    def test_ocp_on_aws_disk_capacity_sql_filters_ebs_volume_usage(self):
+        """COST-8328: capacity CTE must only use EBS VolumeUsage CUR line items."""
+        sql_template = pkgutil.get_data(
+            "masu.database",
+            "trino_sql/aws/openshift/populate_daily_summary/2_summarize_data_by_cluster.sql",
+        )
+        sql_template = sql_template.decode("utf-8")
+        capacity_section = sql_template.split("calculated_capacity AS (")[1].split(
+            "SELECT *\nFROM calculated_capacity"
+        )[0]
+        self.assertIn("lineitem_usagetype LIKE '%EBS:VolumeUsage%'", capacity_section)
+
+    def test_ocp_on_aws_disk_capacity_formula_ignores_provisioned_performance_lines(self):
+        """COST-8328: provisioned throughput/IOPS rates must not drive capacity."""
+        hours_in_month = 720
+
+        def capacity_from_lines(lines, storage_only):
+            if storage_only:
+                lines = [line for line in lines if "EBS:VolumeUsage" in line["usagetype"]]
+            max_cost = max(line["cost"] for line in lines)
+            max_rate = max(line["rate"] for line in lines)
+            return round(max_cost / (max_rate / hours_in_month))
+
+        # Scenario A: 1024 GB gp3 with provisioned throughput/IOPS
+        scenario_a = [
+            {"usagetype": "APS2-EBS:VolumeUsage.gp3", "cost": 0.1365333333, "rate": 0.096},
+            {"usagetype": "APS2-EBS:VolumeP-Throughput.gp3", "cost": 0.0116666667, "rate": 49.152},
+            {"usagetype": "APS2-EBS:VolumeP-IOPS.gp3", "cost": 0.025, "rate": 0.006},
+        ]
+        self.assertEqual(capacity_from_lines(scenario_a, storage_only=False), 2)
+        self.assertEqual(capacity_from_lines(scenario_a, storage_only=True), 1024)
+
+        # Scenario C: ordinary 100 GB volume with $0 / nonzero-rate VolumeP-* rows
+        scenario_c = [
+            {"usagetype": "APS2-EBS:VolumeUsage.gp3", "cost": 0.0133333333, "rate": 0.096},
+            {"usagetype": "APS2-EBS:VolumeP-Throughput.gp3", "cost": 0.0, "rate": 49.152},
+            {"usagetype": "APS2-EBS:VolumeP-IOPS.gp3", "cost": 0.0, "rate": 0.006},
+        ]
+        self.assertEqual(capacity_from_lines(scenario_c, storage_only=False), 0)
+        self.assertEqual(capacity_from_lines(scenario_c, storage_only=True), 100)

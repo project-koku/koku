@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Describes the urls and patterns for the API application."""
+import logging
+
 from django.conf import settings
 from django.urls import path
 from django.views.decorators.cache import cache_page
@@ -123,484 +125,457 @@ from sources.api.application_views import ApplicationsView
 from sources.api.source_type_views import SourceTypesView
 from sources.api.views import SourcesViewSet
 
-ROUTER = DefaultRouter()
-if settings.ONPREM:
-    ROUTER.trailing_slash = "/?"
-ROUTER.register(r"sources", SourcesViewSet, basename="sources")
+LOG = logging.getLogger(__name__)
 
-urlpatterns = [
-    path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
-    path("currency/", get_currency, name="currency"),
-    path("exchange-rates/", get_exchange_rates, name="exchange-rates"),
-    path("cost-type/", UserCostTypeSettings.as_view(), name="cost-type"),
-    path("account-settings/", AccountSettings.as_view(), name="account-settings"),
-    path("account-settings/<str:setting>/", AccountSettings.as_view(), name="get-account-setting"),
-    path("status/", StatusView.as_view(), name="server-status"),
-    path("openapi.json", openapi, name="openapi"),
-    path("metrics/", metrics, name="metrics"),
-    path(
-        "tags/aws/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=AWS_CACHE_PREFIX)(
-            AWSTagView.as_view()
-        ),
-        name="aws-tags",
-    ),
-    path(
-        "tags/azure/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=AZURE_CACHE_PREFIX)(
-            AzureTagView.as_view()
-        ),
-        name="azure-tags",
-    ),
-    path(
-        "tags/gcp/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=GCP_CACHE_PREFIX)(
-            GCPTagView.as_view()
-        ),
-        name="gcp-tags",
-    ),
-    path(
-        "tags/openshift/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_CACHE_PREFIX)(
-            OCPTagView.as_view()
-        ),
-        name="openshift-tags",
-    ),
-    path(
-        "tags/openshift/infrastructures/all/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_ALL_CACHE_PREFIX
-        )(OCPAllTagView.as_view()),
-        name="openshift-all-tags",
-    ),
-    path(
-        "tags/openshift/infrastructures/aws/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_AWS_CACHE_PREFIX
-        )(OCPAWSTagView.as_view()),
-        name="openshift-aws-tags",
-    ),
-    path(
-        "tags/openshift/infrastructures/azure/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_AZURE_CACHE_PREFIX
-        )(OCPAzureTagView.as_view()),
-        name="openshift-azure-tags",
-    ),
-    path(
-        "tags/openshift/infrastructures/gcp/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_GCP_CACHE_PREFIX
-        )(OCPGCPTagView.as_view()),
-        name="openshift-gcp-tags",
-    ),
-    path(
-        "tags/aws/<key>/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=AWS_CACHE_PREFIX)(
-            AWSTagView.as_view()
-        ),
-        name="aws-tags-key",
-    ),
-    path(
-        "tags/azure/<key>/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=AZURE_CACHE_PREFIX)(
-            AzureTagView.as_view()
-        ),
-        name="azure-tags-key",
-    ),
-    path(
-        "tags/openshift/<key>/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_CACHE_PREFIX)(
-            OCPTagView.as_view()
-        ),
-        name="openshift-tags-key",
-    ),
-    path(
-        "tags/gcp/<key>/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=GCP_CACHE_PREFIX)(
-            GCPTagView.as_view()
-        ),
-        name="gcp-tags-key",
-    ),
-    path(
-        "tags/openshift/infrastructures/all/<key>/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_ALL_CACHE_PREFIX
-        )(OCPAllTagView.as_view()),
-        name="openshift-all-tags-key",
-    ),
-    path(
-        "tags/openshift/infrastructures/aws/<key>/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_AWS_CACHE_PREFIX
-        )(OCPAWSTagView.as_view()),
-        name="openshift-aws-tags-key",
-    ),
-    path(
-        "tags/openshift/infrastructures/azure/<key>/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_AZURE_CACHE_PREFIX
-        )(OCPAzureTagView.as_view()),
-        name="openshift-azure-tags-key",
-    ),
-    path(
-        "reports/aws/costs/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=AWS_CACHE_PREFIX)(
-            AWSCostView.as_view()
-        ),
-        name="reports-aws-costs",
-    ),
-    path(
-        "reports/aws/instance-types/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=AWS_CACHE_PREFIX)(
-            AWSInstanceTypeView.as_view()
-        ),
-        name="reports-aws-instance-type",
-    ),
-    path(
-        "reports/aws/resources/ec2-compute/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=AWS_CACHE_PREFIX)(
-            AWSEC2ComputeView.as_view()
-        ),
-        name="reports-aws-ec2-compute",
-    ),
-    path(
-        "reports/aws/storage/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=AWS_CACHE_PREFIX)(
-            AWSStorageView.as_view()
-        ),
-        name="reports-aws-storage",
-    ),
-    path(
-        "reports/azure/costs/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=AZURE_CACHE_PREFIX)(
-            AzureCostView.as_view()
-        ),
-        name="reports-azure-costs",
-    ),
-    path(
-        "reports/azure/instance-types/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=AZURE_CACHE_PREFIX)(
-            AzureInstanceTypeView.as_view()
-        ),
-        name="reports-azure-instance-type",
-    ),
-    path(
-        "reports/azure/storage/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=AZURE_CACHE_PREFIX)(
-            AzureStorageView.as_view()
-        ),
-        name="reports-azure-storage",
-    ),
-    path(
-        "reports/openshift/resources/virtual-machines/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_CACHE_PREFIX)(
-            OCPReportVirtualMachinesView.as_view()
-        ),
-        name="reports-openshift-virtual-machines",
-    ),
-    path(
-        "reports/openshift/costs/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_CACHE_PREFIX)(
-            OCPCostView.as_view()
-        ),
-        name="reports-openshift-costs",
-    ),
-    path(
-        "reports/openshift/memory/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_CACHE_PREFIX)(
-            OCPMemoryView.as_view()
-        ),
-        name="reports-openshift-memory",
-    ),
-    path(
-        "reports/openshift/compute/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_CACHE_PREFIX)(
-            OCPCpuView.as_view()
-        ),
-        name="reports-openshift-cpu",
-    ),
-    path(
-        "reports/openshift/volumes/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_CACHE_PREFIX)(
-            OCPVolumeView.as_view()
-        ),
-        name="reports-openshift-volume",
-    ),
-    path(
-        "reports/openshift/network/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_CACHE_PREFIX)(
-            OCPNetworkView.as_view()
-        ),
-        name="reports-openshift-network",
-    ),
-    path(
-        "reports/openshift/gpu/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_CACHE_PREFIX)(
-            OCPGpuView.as_view()
-        ),
-        name="reports-openshift-gpu",
-    ),
-    path(
-        "reports/openshift/gpu/mig_profiles/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_CACHE_PREFIX)(
-            OCPMigProfilesView.as_view()
-        ),
-        name="reports-openshift-gpu-mig-profiles",
-    ),
-    path(
-        "reports/openshift/infrastructures/all/costs/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_ALL_CACHE_PREFIX
-        )(OCPAllCostView.as_view()),
-        name="reports-openshift-all-costs",
-    ),
-    path(
-        "reports/openshift/infrastructures/all/storage/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_ALL_CACHE_PREFIX
-        )(OCPAllStorageView.as_view()),
-        name="reports-openshift-all-storage",
-    ),
-    path(
-        "reports/openshift/infrastructures/all/instance-types/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_ALL_CACHE_PREFIX
-        )(OCPAllInstanceTypeView.as_view()),
-        name="reports-openshift-all-instance-type",
-    ),
-    path(
-        "reports/openshift/infrastructures/aws/costs/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_AWS_CACHE_PREFIX
-        )(OCPAWSCostView.as_view()),
-        name="reports-openshift-aws-costs",
-    ),
-    path(
-        "reports/openshift/infrastructures/aws/storage/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_AWS_CACHE_PREFIX
-        )(OCPAWSStorageView.as_view()),
-        name="reports-openshift-aws-storage",
-    ),
-    path(
-        "reports/openshift/infrastructures/aws/instance-types/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_AWS_CACHE_PREFIX
-        )(OCPAWSInstanceTypeView.as_view()),
-        name="reports-openshift-aws-instance-type",
-    ),
-    path(
-        "reports/openshift/infrastructures/azure/costs/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_AZURE_CACHE_PREFIX
-        )(OCPAzureCostView.as_view()),
-        name="reports-openshift-azure-costs",
-    ),
-    path(
-        "reports/openshift/infrastructures/azure/storage/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_AZURE_CACHE_PREFIX
-        )(OCPAzureStorageView.as_view()),
-        name="reports-openshift-azure-storage",
-    ),
-    path(
-        "reports/openshift/infrastructures/azure/instance-types/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_AZURE_CACHE_PREFIX
-        )(OCPAzureInstanceTypeView.as_view()),
-        name="reports-openshift-azure-instance-type",
-    ),
-    path("ingress/reports/", IngressReportsView.as_view(), name="reports"),
-    path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
-    path("settings/aws_category_keys/", SettingsAWSCategoryKeyView.as_view(), name="settings-aws-category-keys"),
-    path("settings/cost-groups/", CostGroupsView.as_view(), name="settings-cost-groups"),
-    path("settings/cost-groups/add/", CostGroupsAddView.as_view(), name="settings-cost-groups-add"),
-    path("settings/cost-groups/remove/", CostGroupsRemoveView.as_view(), name="settings-cost-groups-remove"),
-    path(
-        "settings/aws_category_keys/enable/",
-        SettingsEnableAWSCategoryKeyView.as_view(),
-        name="settings-aws-category-keys-enable",
-    ),
-    path(
-        "settings/aws_category_keys/disable/",
-        SettingsDisableAWSCategoryKeyView.as_view(),
-        name="settings-aws-category-keys-disable",
-    ),
-    path(
-        "settings/currency/",
-        CurrencySettingsView.as_view(),
-        name="currency-list",
-    ),
-    path(
-        "settings/currency/enabled/<str:code>/",
-        EnabledCurrencyView.as_view(),
-        name="currency-enabled-detail",
-    ),
-    path(
-        "settings/currency/static-rates/",
-        StaticExchangeRateListView.as_view(),
-        name="static-exchange-rate-list",
-    ),
-    path(
-        "settings/currency/static-rates/<uuid:uuid>/",
-        StaticExchangeRateDetailView.as_view(),
-        name="static-exchange-rate-detail",
-    ),
-    path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
-    path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
-    path("settings/tags/disable/", SettingsDisableTagView.as_view(), name="tags-disable"),
-    path("settings/tags/mappings/", SettingsTagMappingView.as_view(), name="tags-mapping"),
-    path("settings/tags/mappings/child/", SettingsTagMappingChildView.as_view(), name="tags-mapping-child"),
-    path("settings/tags/mappings/parent/", SettingsTagMappingParentView.as_view(), name="tags-mapping-parent"),
-    path("settings/tags/mappings/child/add/", SettingsTagMappingChildAddView.as_view(), name="tags-mapping-child-add"),
-    path(
-        "settings/tags/mappings/child/remove/",
-        SettingsTagMappingChildRemoveView.as_view(),
-        name="tags-mapping-child-remove",
-    ),
-    path(
-        "settings/tags/mappings/parent/remove/",
-        SettingsTagMappingParentRemoveView.as_view(),
-        name="tags-mapping-parent-remove",
-    ),
-    path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
-    path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
-    path("user-access/", UserAccessView.as_view(), name="user-access"),
-    path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
-    path(
-        "resource-types/aws-ec2-compute-instances/",
-        AWSEC2ComputeInstanceView.as_view(),
-        name="aws-ec2-compute-instances",
-    ),
-    path(
-        "resource-types/aws-ec2-compute-os/",
-        AWSEC2ComputeOperatingSystemView.as_view(),
-        name="aws-ec2-compute-os",
-    ),
-    path(
-        "resource-types/aws-categories/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=AWS_CACHE_PREFIX)(
-            AWSCategoryView.as_view()
-        ),
-        name="aws-categories",
-    ),
-    path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
-    path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
-    # TODO gcp-gcp-projects should be removed after UI is pushed to prod.
-    path("resource-types/gcp-gcp-projects/", GCPProjectsView.as_view(), name="gcp-gcp-projects"),
-    path("resource-types/gcp-regions/", GCPRegionView.as_view(), name="gcp-regions"),
-    path("resource-types/gcp-services/", GCPServiceView.as_view(), name="gcp-services"),
-    path(
-        "resource-types/aws-organizational-units/",
-        AWSOrganizationalUnitView.as_view(),
-        name="aws-organizational-units",
-    ),
-    path("resource-types/azure-regions/", AzureRegionView.as_view(), name="azure-regions"),
-    path("resource-types/azure-services/", AzureServiceView.as_view(), name="azure-services"),
-    path("resource-types/aws-services/", AWSServiceView.as_view(), name="aws-services"),
-    path("resource-types/aws-regions/", AWSAccountRegionView.as_view(), name="aws-regions"),
-    path(
-        "resource-types/azure-subscription-guids/",
-        AzureSubscriptionGuidView.as_view(),
-        name="azure-subscription-guids",
-    ),
-    path("resource-types/openshift-clusters/", OCPClustersView.as_view(), name="openshift-clusters"),
-    path("resource-types/openshift-projects/", OCPProjectsView.as_view(), name="openshift-projects"),
-    path(
-        "resource-types/openshift-virtual-machines/",
-        OCPVirtualMachinesView.as_view(),
-        name="openshift-virtual-machines",
-    ),
-    path("resource-types/openshift-gpu-vendors/", OCPGpuVendorsView.as_view(), name="openshift-gpu-vendors"),
-    path("resource-types/openshift-gpu-models/", OCPGpuModelsView.as_view(), name="openshift-gpu-models"),
-    path("resource-types/openshift-nodes/", OCPNodesView.as_view(), name="openshift-nodes"),
-    path("resource-types/cost-models/", CostModelResourceTypesView.as_view(), name="cost-models"),
-    path("forecasts/aws/costs/", AWSCostForecastView.as_view(), name="aws-cost-forecasts"),
-    path("forecasts/gcp/costs/", GCPCostForecastView.as_view(), name="gcp-cost-forecasts"),
-    path("forecasts/azure/costs/", AzureCostForecastView.as_view(), name="azure-cost-forecasts"),
-    path("forecasts/openshift/costs/", OCPCostForecastView.as_view(), name="openshift-cost-forecasts"),
-    path(
-        "forecasts/openshift/infrastructures/aws/costs/",
-        OCPAWSCostForecastView.as_view(),
-        name="openshift-aws-cost-forecasts",
-    ),
-    path(
-        "forecasts/openshift/infrastructures/azure/costs/",
-        OCPAzureCostForecastView.as_view(),
-        name="openshift-azure-cost-forecasts",
-    ),
-    path(
-        "forecasts/openshift/infrastructures/gcp/costs/",
-        OCPGCPCostForecastView.as_view(),
-        name="openshift-gcp-cost-forecasts",
-    ),
-    path(
-        "forecasts/openshift/infrastructures/all/costs/",
-        OCPAllCostForecastView.as_view(),
-        name="openshift-all-cost-forecasts",
-    ),
-    path(
-        "reports/gcp/costs/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=GCP_CACHE_PREFIX)(
-            GCPCostView.as_view()
-        ),
-        name="reports-gcp-costs",
-    ),
-    path(
-        "reports/gcp/instance-types/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=GCP_CACHE_PREFIX)(
-            GCPInstanceTypeView.as_view()
-        ),
-        name="reports-gcp-instance-type",
-    ),
-    path(
-        "reports/gcp/storage/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=GCP_CACHE_PREFIX)(
-            GCPStorageView.as_view()
-        ),
-        name="reports-gcp-storage",
-    ),
-    path(
-        "reports/openshift/infrastructures/gcp/costs/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_GCP_CACHE_PREFIX
-        )(OCPGCPCostView.as_view()),
-        name="reports-openshift-gcp-costs",
-    ),
-    path(
-        "reports/openshift/infrastructures/gcp/instance-types/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_GCP_CACHE_PREFIX
-        )(OCPGCPInstanceTypeView.as_view()),
-        name="reports-openshift-gcp-instance-type",
-    ),
-    path(
-        "reports/openshift/infrastructures/gcp/storage/",
-        cache_page(
-            timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=OPENSHIFT_GCP_CACHE_PREFIX
-        )(OCPGCPStorageView.as_view()),
-        name="reports-openshift-gcp-storage",
-    ),
-    # Sunset paths
-    # These endpoints have been removed from the codebase
-    path("settings/", SunsetView, name="settings"),
-]
-if settings.ONPREM:
-    # data-retention must precede the <str:setting> catch-all to avoid shadowing
-    for _i, _p in enumerate(urlpatterns):
-        if getattr(_p, "name", None) == "get-account-setting":
-            urlpatterns.insert(
-                _i, path("account-settings/data-retention/", GlobalSettingsView.as_view(), name="data-retention")
-            )
-            break
-    else:
-        import logging as _logging
 
-        _logging.getLogger(__name__).warning("get-account-setting URL not found; data-retention route not registered")
-    urlpatterns += [
+def _cache_view(view, key_prefix):
+    """Apply the standard API cache_page wrapper."""
+    return cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=key_prefix)(view)
+
+
+def get_shared_urlpatterns():
+    """URL patterns available in both SaaS and on-prem (OCP + shared product surface)."""
+    return [
+        path("currency/", get_currency, name="currency"),
+        path("exchange-rates/", get_exchange_rates, name="exchange-rates"),
+        path("cost-type/", UserCostTypeSettings.as_view(), name="cost-type"),
+        path("account-settings/", AccountSettings.as_view(), name="account-settings"),
+        path("account-settings/<str:setting>/", AccountSettings.as_view(), name="get-account-setting"),
+        path("status/", StatusView.as_view(), name="server-status"),
+        path("openapi.json", openapi, name="openapi"),
+        path("metrics/", metrics, name="metrics"),
+        path(
+            "tags/openshift/",
+            _cache_view(OCPTagView.as_view(), OPENSHIFT_CACHE_PREFIX),
+            name="openshift-tags",
+        ),
+        path(
+            "tags/openshift/infrastructures/all/",
+            _cache_view(OCPAllTagView.as_view(), OPENSHIFT_ALL_CACHE_PREFIX),
+            name="openshift-all-tags",
+        ),
+        path(
+            "tags/openshift/<key>/",
+            _cache_view(OCPTagView.as_view(), OPENSHIFT_CACHE_PREFIX),
+            name="openshift-tags-key",
+        ),
+        path(
+            "tags/openshift/infrastructures/all/<key>/",
+            _cache_view(OCPAllTagView.as_view(), OPENSHIFT_ALL_CACHE_PREFIX),
+            name="openshift-all-tags-key",
+        ),
+        path(
+            "reports/openshift/resources/virtual-machines/",
+            _cache_view(OCPReportVirtualMachinesView.as_view(), OPENSHIFT_CACHE_PREFIX),
+            name="reports-openshift-virtual-machines",
+        ),
+        path(
+            "reports/openshift/costs/",
+            _cache_view(OCPCostView.as_view(), OPENSHIFT_CACHE_PREFIX),
+            name="reports-openshift-costs",
+        ),
+        path(
+            "reports/openshift/memory/",
+            _cache_view(OCPMemoryView.as_view(), OPENSHIFT_CACHE_PREFIX),
+            name="reports-openshift-memory",
+        ),
+        path(
+            "reports/openshift/compute/",
+            _cache_view(OCPCpuView.as_view(), OPENSHIFT_CACHE_PREFIX),
+            name="reports-openshift-cpu",
+        ),
+        path(
+            "reports/openshift/volumes/",
+            _cache_view(OCPVolumeView.as_view(), OPENSHIFT_CACHE_PREFIX),
+            name="reports-openshift-volume",
+        ),
+        path(
+            "reports/openshift/network/",
+            _cache_view(OCPNetworkView.as_view(), OPENSHIFT_CACHE_PREFIX),
+            name="reports-openshift-network",
+        ),
+        path(
+            "reports/openshift/gpu/",
+            _cache_view(OCPGpuView.as_view(), OPENSHIFT_CACHE_PREFIX),
+            name="reports-openshift-gpu",
+        ),
+        path(
+            "reports/openshift/gpu/mig_profiles/",
+            _cache_view(OCPMigProfilesView.as_view(), OPENSHIFT_CACHE_PREFIX),
+            name="reports-openshift-gpu-mig-profiles",
+        ),
+        path(
+            "reports/openshift/infrastructures/all/costs/",
+            _cache_view(OCPAllCostView.as_view(), OPENSHIFT_ALL_CACHE_PREFIX),
+            name="reports-openshift-all-costs",
+        ),
+        path(
+            "reports/openshift/infrastructures/all/storage/",
+            _cache_view(OCPAllStorageView.as_view(), OPENSHIFT_ALL_CACHE_PREFIX),
+            name="reports-openshift-all-storage",
+        ),
+        path(
+            "reports/openshift/infrastructures/all/instance-types/",
+            _cache_view(OCPAllInstanceTypeView.as_view(), OPENSHIFT_ALL_CACHE_PREFIX),
+            name="reports-openshift-all-instance-type",
+        ),
+        path("ingress/reports/", IngressReportsView.as_view(), name="reports"),
+        path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
+        path("settings/cost-groups/", CostGroupsView.as_view(), name="settings-cost-groups"),
+        path("settings/cost-groups/add/", CostGroupsAddView.as_view(), name="settings-cost-groups-add"),
+        path("settings/cost-groups/remove/", CostGroupsRemoveView.as_view(), name="settings-cost-groups-remove"),
+        path(
+            "settings/currency/",
+            CurrencySettingsView.as_view(),
+            name="currency-list",
+        ),
+        path(
+            "settings/currency/enabled/<str:code>/",
+            EnabledCurrencyView.as_view(),
+            name="currency-enabled-detail",
+        ),
+        path(
+            "settings/currency/static-rates/",
+            StaticExchangeRateListView.as_view(),
+            name="static-exchange-rate-list",
+        ),
+        path(
+            "settings/currency/static-rates/<uuid:uuid>/",
+            StaticExchangeRateDetailView.as_view(),
+            name="static-exchange-rate-detail",
+        ),
+        path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
+        path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
+        path("settings/tags/disable/", SettingsDisableTagView.as_view(), name="tags-disable"),
+        path("settings/tags/mappings/", SettingsTagMappingView.as_view(), name="tags-mapping"),
+        path("settings/tags/mappings/child/", SettingsTagMappingChildView.as_view(), name="tags-mapping-child"),
+        path("settings/tags/mappings/parent/", SettingsTagMappingParentView.as_view(), name="tags-mapping-parent"),
+        path(
+            "settings/tags/mappings/child/add/",
+            SettingsTagMappingChildAddView.as_view(),
+            name="tags-mapping-child-add",
+        ),
+        path(
+            "settings/tags/mappings/child/remove/",
+            SettingsTagMappingChildRemoveView.as_view(),
+            name="tags-mapping-child-remove",
+        ),
+        path(
+            "settings/tags/mappings/parent/remove/",
+            SettingsTagMappingParentRemoveView.as_view(),
+            name="tags-mapping-parent-remove",
+        ),
+        path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
+        path("user-access/", UserAccessView.as_view(), name="user-access"),
+        path("resource-types/openshift-clusters/", OCPClustersView.as_view(), name="openshift-clusters"),
+        path("resource-types/openshift-projects/", OCPProjectsView.as_view(), name="openshift-projects"),
+        path(
+            "resource-types/openshift-virtual-machines/",
+            OCPVirtualMachinesView.as_view(),
+            name="openshift-virtual-machines",
+        ),
+        path("resource-types/openshift-gpu-vendors/", OCPGpuVendorsView.as_view(), name="openshift-gpu-vendors"),
+        path("resource-types/openshift-gpu-models/", OCPGpuModelsView.as_view(), name="openshift-gpu-models"),
+        path("resource-types/openshift-nodes/", OCPNodesView.as_view(), name="openshift-nodes"),
+        path("resource-types/cost-models/", CostModelResourceTypesView.as_view(), name="cost-models"),
+        path("forecasts/openshift/costs/", OCPCostForecastView.as_view(), name="openshift-cost-forecasts"),
+        path(
+            "forecasts/openshift/infrastructures/all/costs/",
+            OCPAllCostForecastView.as_view(),
+            name="openshift-all-cost-forecasts",
+        ),
+        # Sunset paths — endpoints removed from the codebase
+        path("settings/", SunsetView, name="settings"),
+    ]
+
+
+def get_saas_only_urlpatterns():
+    """Cloud and OCP-on-cloud customer routes (SaaS only; not registered on-prem)."""
+    return [
+        path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
+        path(
+            "tags/aws/",
+            _cache_view(AWSTagView.as_view(), AWS_CACHE_PREFIX),
+            name="aws-tags",
+        ),
+        path(
+            "tags/azure/",
+            _cache_view(AzureTagView.as_view(), AZURE_CACHE_PREFIX),
+            name="azure-tags",
+        ),
+        path(
+            "tags/gcp/",
+            _cache_view(GCPTagView.as_view(), GCP_CACHE_PREFIX),
+            name="gcp-tags",
+        ),
+        path(
+            "tags/openshift/infrastructures/aws/",
+            _cache_view(OCPAWSTagView.as_view(), OPENSHIFT_AWS_CACHE_PREFIX),
+            name="openshift-aws-tags",
+        ),
+        path(
+            "tags/openshift/infrastructures/azure/",
+            _cache_view(OCPAzureTagView.as_view(), OPENSHIFT_AZURE_CACHE_PREFIX),
+            name="openshift-azure-tags",
+        ),
+        path(
+            "tags/openshift/infrastructures/gcp/",
+            _cache_view(OCPGCPTagView.as_view(), OPENSHIFT_GCP_CACHE_PREFIX),
+            name="openshift-gcp-tags",
+        ),
+        path(
+            "tags/aws/<key>/",
+            _cache_view(AWSTagView.as_view(), AWS_CACHE_PREFIX),
+            name="aws-tags-key",
+        ),
+        path(
+            "tags/azure/<key>/",
+            _cache_view(AzureTagView.as_view(), AZURE_CACHE_PREFIX),
+            name="azure-tags-key",
+        ),
+        path(
+            "tags/gcp/<key>/",
+            _cache_view(GCPTagView.as_view(), GCP_CACHE_PREFIX),
+            name="gcp-tags-key",
+        ),
+        path(
+            "tags/openshift/infrastructures/aws/<key>/",
+            _cache_view(OCPAWSTagView.as_view(), OPENSHIFT_AWS_CACHE_PREFIX),
+            name="openshift-aws-tags-key",
+        ),
+        path(
+            "tags/openshift/infrastructures/azure/<key>/",
+            _cache_view(OCPAzureTagView.as_view(), OPENSHIFT_AZURE_CACHE_PREFIX),
+            name="openshift-azure-tags-key",
+        ),
+        path(
+            "tags/openshift/infrastructures/gcp/<key>/",
+            _cache_view(OCPGCPTagView.as_view(), OPENSHIFT_GCP_CACHE_PREFIX),
+            name="openshift-gcp-tags-key",
+        ),
+        path(
+            "reports/aws/costs/",
+            _cache_view(AWSCostView.as_view(), AWS_CACHE_PREFIX),
+            name="reports-aws-costs",
+        ),
+        path(
+            "reports/aws/instance-types/",
+            _cache_view(AWSInstanceTypeView.as_view(), AWS_CACHE_PREFIX),
+            name="reports-aws-instance-type",
+        ),
+        path(
+            "reports/aws/resources/ec2-compute/",
+            _cache_view(AWSEC2ComputeView.as_view(), AWS_CACHE_PREFIX),
+            name="reports-aws-ec2-compute",
+        ),
+        path(
+            "reports/aws/storage/",
+            _cache_view(AWSStorageView.as_view(), AWS_CACHE_PREFIX),
+            name="reports-aws-storage",
+        ),
+        path(
+            "reports/azure/costs/",
+            _cache_view(AzureCostView.as_view(), AZURE_CACHE_PREFIX),
+            name="reports-azure-costs",
+        ),
+        path(
+            "reports/azure/instance-types/",
+            _cache_view(AzureInstanceTypeView.as_view(), AZURE_CACHE_PREFIX),
+            name="reports-azure-instance-type",
+        ),
+        path(
+            "reports/azure/storage/",
+            _cache_view(AzureStorageView.as_view(), AZURE_CACHE_PREFIX),
+            name="reports-azure-storage",
+        ),
+        path(
+            "reports/openshift/infrastructures/aws/costs/",
+            _cache_view(OCPAWSCostView.as_view(), OPENSHIFT_AWS_CACHE_PREFIX),
+            name="reports-openshift-aws-costs",
+        ),
+        path(
+            "reports/openshift/infrastructures/aws/storage/",
+            _cache_view(OCPAWSStorageView.as_view(), OPENSHIFT_AWS_CACHE_PREFIX),
+            name="reports-openshift-aws-storage",
+        ),
+        path(
+            "reports/openshift/infrastructures/aws/instance-types/",
+            _cache_view(OCPAWSInstanceTypeView.as_view(), OPENSHIFT_AWS_CACHE_PREFIX),
+            name="reports-openshift-aws-instance-type",
+        ),
+        path(
+            "reports/openshift/infrastructures/azure/costs/",
+            _cache_view(OCPAzureCostView.as_view(), OPENSHIFT_AZURE_CACHE_PREFIX),
+            name="reports-openshift-azure-costs",
+        ),
+        path(
+            "reports/openshift/infrastructures/azure/storage/",
+            _cache_view(OCPAzureStorageView.as_view(), OPENSHIFT_AZURE_CACHE_PREFIX),
+            name="reports-openshift-azure-storage",
+        ),
+        path(
+            "reports/openshift/infrastructures/azure/instance-types/",
+            _cache_view(OCPAzureInstanceTypeView.as_view(), OPENSHIFT_AZURE_CACHE_PREFIX),
+            name="reports-openshift-azure-instance-type",
+        ),
+        path("settings/aws_category_keys/", SettingsAWSCategoryKeyView.as_view(), name="settings-aws-category-keys"),
+        path(
+            "settings/aws_category_keys/enable/",
+            SettingsEnableAWSCategoryKeyView.as_view(),
+            name="settings-aws-category-keys-enable",
+        ),
+        path(
+            "settings/aws_category_keys/disable/",
+            SettingsDisableAWSCategoryKeyView.as_view(),
+            name="settings-aws-category-keys-disable",
+        ),
+        path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
+        path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
+        path(
+            "resource-types/aws-ec2-compute-instances/",
+            AWSEC2ComputeInstanceView.as_view(),
+            name="aws-ec2-compute-instances",
+        ),
+        path(
+            "resource-types/aws-ec2-compute-os/",
+            AWSEC2ComputeOperatingSystemView.as_view(),
+            name="aws-ec2-compute-os",
+        ),
+        path(
+            "resource-types/aws-categories/",
+            _cache_view(AWSCategoryView.as_view(), AWS_CACHE_PREFIX),
+            name="aws-categories",
+        ),
+        path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
+        path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
+        # TODO gcp-gcp-projects should be removed after UI is pushed to prod.
+        path("resource-types/gcp-gcp-projects/", GCPProjectsView.as_view(), name="gcp-gcp-projects"),
+        path("resource-types/gcp-regions/", GCPRegionView.as_view(), name="gcp-regions"),
+        path("resource-types/gcp-services/", GCPServiceView.as_view(), name="gcp-services"),
+        path(
+            "resource-types/aws-organizational-units/",
+            AWSOrganizationalUnitView.as_view(),
+            name="aws-organizational-units",
+        ),
+        path("resource-types/azure-regions/", AzureRegionView.as_view(), name="azure-regions"),
+        path("resource-types/azure-services/", AzureServiceView.as_view(), name="azure-services"),
+        path("resource-types/aws-services/", AWSServiceView.as_view(), name="aws-services"),
+        path("resource-types/aws-regions/", AWSAccountRegionView.as_view(), name="aws-regions"),
+        path(
+            "resource-types/azure-subscription-guids/",
+            AzureSubscriptionGuidView.as_view(),
+            name="azure-subscription-guids",
+        ),
+        path("forecasts/aws/costs/", AWSCostForecastView.as_view(), name="aws-cost-forecasts"),
+        path("forecasts/gcp/costs/", GCPCostForecastView.as_view(), name="gcp-cost-forecasts"),
+        path("forecasts/azure/costs/", AzureCostForecastView.as_view(), name="azure-cost-forecasts"),
+        path(
+            "forecasts/openshift/infrastructures/aws/costs/",
+            OCPAWSCostForecastView.as_view(),
+            name="openshift-aws-cost-forecasts",
+        ),
+        path(
+            "forecasts/openshift/infrastructures/azure/costs/",
+            OCPAzureCostForecastView.as_view(),
+            name="openshift-azure-cost-forecasts",
+        ),
+        path(
+            "forecasts/openshift/infrastructures/gcp/costs/",
+            OCPGCPCostForecastView.as_view(),
+            name="openshift-gcp-cost-forecasts",
+        ),
+        path(
+            "reports/gcp/costs/",
+            _cache_view(GCPCostView.as_view(), GCP_CACHE_PREFIX),
+            name="reports-gcp-costs",
+        ),
+        path(
+            "reports/gcp/instance-types/",
+            _cache_view(GCPInstanceTypeView.as_view(), GCP_CACHE_PREFIX),
+            name="reports-gcp-instance-type",
+        ),
+        path(
+            "reports/gcp/storage/",
+            _cache_view(GCPStorageView.as_view(), GCP_CACHE_PREFIX),
+            name="reports-gcp-storage",
+        ),
+        path(
+            "reports/openshift/infrastructures/gcp/costs/",
+            _cache_view(OCPGCPCostView.as_view(), OPENSHIFT_GCP_CACHE_PREFIX),
+            name="reports-openshift-gcp-costs",
+        ),
+        path(
+            "reports/openshift/infrastructures/gcp/instance-types/",
+            _cache_view(OCPGCPInstanceTypeView.as_view(), OPENSHIFT_GCP_CACHE_PREFIX),
+            name="reports-openshift-gcp-instance-type",
+        ),
+        path(
+            "reports/openshift/infrastructures/gcp/storage/",
+            _cache_view(OCPGCPStorageView.as_view(), OPENSHIFT_GCP_CACHE_PREFIX),
+            name="reports-openshift-gcp-storage",
+        ),
+    ]
+
+
+def get_onprem_only_urlpatterns():
+    """CMMO compatibility routes registered only when ONPREM=True."""
+    return [
         path("source_types", SourceTypesView.as_view(), name="source-types"),
         path("application_types", ApplicationTypesView.as_view(), name="application-types"),
         path("applications", ApplicationsView.as_view(), name="applications"),
     ]
-urlpatterns += ROUTER.urls
+
+
+def _insert_data_retention_route(patterns):
+    """Insert data-retention before the account-settings catch-all."""
+    data_retention = path("account-settings/data-retention/", GlobalSettingsView.as_view(), name="data-retention")
+    for index, pattern in enumerate(patterns):
+        if getattr(pattern, "name", None) == "get-account-setting":
+            patterns.insert(index, data_retention)
+            return patterns
+    LOG.warning("get-account-setting URL not found; data-retention route not registered")
+    return patterns
+
+
+def build_sources_router(*, onprem=False):
+    """Build the Sources DRF router (optional trailing slash on-prem)."""
+    router = DefaultRouter()
+    if onprem:
+        router.trailing_slash = "/?"
+    router.register(r"sources", SourcesViewSet, basename="sources")
+    return router
+
+
+# Cloud-specific Sources @action routes omitted on-prem (OCP-only product surface).
+ONPREM_EXCLUDED_SOURCES_ROUTE_NAMES = frozenset({"sources-aws-s3-regions"})
+
+
+def _sources_router_urls(router, *, onprem=False):
+    """Return Sources router URLs, dropping cloud-only actions when on-prem."""
+    urls = list(router.urls)
+    if onprem:
+        urls = [u for u in urls if getattr(u, "name", None) not in ONPREM_EXCLUDED_SOURCES_ROUTE_NAMES]
+    return urls
+
+
+def build_api_urlpatterns(*, onprem=False, router=None):
+    """
+    Build customer API urlpatterns.
+
+    When onprem=True, cloud and OCP-on-cloud routes are omitted and CMMO
+    compatibility routes (plus data-retention) are added.
+    """
+    patterns = list(get_shared_urlpatterns())
+    if not onprem:
+        patterns.extend(get_saas_only_urlpatterns())
+    if onprem:
+        patterns = _insert_data_retention_route(patterns)
+        patterns.extend(get_onprem_only_urlpatterns())
+    if router is None:
+        router = build_sources_router(onprem=onprem)
+    patterns += _sources_router_urls(router, onprem=onprem)
+    return patterns
+
+
+ROUTER = build_sources_router(onprem=settings.ONPREM)
+urlpatterns = build_api_urlpatterns(onprem=settings.ONPREM, router=ROUTER)

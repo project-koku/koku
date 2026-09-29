@@ -1,0 +1,10 @@
+# Local incident artifacts — do not commit (presigned URLs and customer data)
+payloads/
+payloads-midnight/
+kibana-downloading-payload-export.json
+*-downloading-payload*.json
+*-raw.json
+manifest*.csv
+urls*.tsv
+*-log.csv
+cluster-provider-uuid.tsv

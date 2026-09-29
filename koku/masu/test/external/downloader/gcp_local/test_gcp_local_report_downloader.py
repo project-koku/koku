@@ -14,14 +14,12 @@ from faker import Faker
 
 from api.models import Provider
 from api.utils import DateHelper
-from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import create_daily_archives
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 
-DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
 CUSTOMER_NAME = FAKE.word()
 REPORT = FAKE.word()

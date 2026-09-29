@@ -145,8 +145,8 @@ class ExpiredDataRemoverTest(MasuTestCase):
         Test that expired CostUsageReportManifests are removed.
 
         This test inserts CostUsageReportManifest objects,
-        And then deletes CostUsageReportManifest objects older than
-        the calculated expiration_date.
+        And then deletes CostUsageReportManifest objects with billing periods
+        on or before the calculated expiration_date (inclusive).
         """
 
         provider_type_dict = {
@@ -173,7 +173,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
                     "provider_id": provider_type_dict[provider_type],
                 }
                 uuids.append(uuid)
-                if date == day_before_cutoff:
+                if date in (day_before_cutoff, expiration_date):
                     uuids_to_be_deleted.append(uuid)
                 manifest_entry = CostUsageReportManifest(**data)
                 manifest_entry.save()
@@ -225,16 +225,16 @@ class ExpiredDataRemoverTest(MasuTestCase):
         Test that calling remove(provider_uuid) deletes CostUsageReportManifests.
 
         CostUsageReportManifests that are associated with the provider_uuid
-        should be deleted.
+        should be deleted when their billing period is on or before the cutoff.
         """
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS_LOCAL)
         expiration_date = remover._calculate_expiration_date()
         current_month = datetime.today().replace(day=1)
         day_before_cutoff = expiration_date - relativedelta(days=1)
         fixture_records = [
-            (self.aws_provider_uuid, expiration_date),  # not expired, should not delete
-            (self.aws_provider_uuid, day_before_cutoff),  # expired, should delete
-            (self.azure_provider_uuid, day_before_cutoff),  # expired, should not delete
+            (self.aws_provider_uuid, expiration_date),  # at cutoff, should delete
+            (self.aws_provider_uuid, day_before_cutoff),  # before cutoff, should delete
+            (self.azure_provider_uuid, day_before_cutoff),  # other provider, should not delete
         ]
         manifest_uuids = []
         manifest_uuids_to_be_deleted = []
@@ -250,7 +250,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             }
             CostUsageReportManifest(**data).save()
             manifest_uuids.append(manifest_uuid)
-            if fixture_record[1] == day_before_cutoff and fixture_record[0] == self.aws_provider_uuid:
+            if fixture_record[0] == self.aws_provider_uuid:
                 manifest_uuids_to_be_deleted.append(manifest_uuid)
         remover.remove(provider_uuid=self.aws_provider_uuid)
 
