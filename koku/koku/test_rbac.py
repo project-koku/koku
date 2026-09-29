@@ -472,6 +472,25 @@ class RbacServiceTest(TestCase):
         self.assertEqual(access, expected)
         self.assertEqual(mock_get.call_count, 2)
 
+    @override_settings(ONPREM=True)
+    @patch.dict("koku.rbac.RESOURCE_TYPES", {"sources": ["read", "write"]})
+    @patch("koku.rbac.requests.get")
+    def test_get_access_for_user_onprem_sources_failure(self, mock_get):
+        """On-prem, a Sources ACL lookup failure does not discard cost-management access."""
+
+        def side_effect(url, **kwargs):
+            if "application=sources" in url:
+                raise ConnectionError("sources service unavailable")
+            return mocked_requests_get_200_by_application(url, **kwargs)
+
+        mock_get.side_effect = side_effect
+        rbac = RbacService()
+        mock_user = Mock()
+        mock_user.identity_header = {"encoded": "dGVzdCBoZWFkZXIgZGF0YQ=="}
+        access = rbac.get_access_for_user(mock_user)
+        # Cost-management access should still be returned
+        self.assertEqual(access["aws.account"], {"read": ["123456"]})
+
     @patch.dict(os.environ, {"RBAC_CACHE_TTL": "5"})
     def test_get_cache_ttl(self):
         """Test to get the cache ttl value."""

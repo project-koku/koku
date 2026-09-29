@@ -102,17 +102,33 @@ class TestClowderV2EndpointUrl(SimpleTestCase):
         self.assertEqual(result, "http://localhost:8111")
 
     def test_env_configurator_returns_default(self):
-        """EnvConfigurator inherits base and returns default."""
+        """EnvConfigurator reconstructs URL from default when no env overrides."""
         from koku.configurator import EnvConfigurator
 
         result = EnvConfigurator.get_endpoint_url("sources-api", "svc", "http://localhost:3000")
         self.assertEqual(result, "http://localhost:3000")
 
+    @patch.dict("os.environ", {"SOURCES_API_SVC_HOST": "custom-host", "SOURCES_API_SVC_PORT": "9999"})
+    def test_env_configurator_uses_env_vars(self):
+        """EnvConfigurator picks up host/port from environment variables."""
+        from koku.configurator import EnvConfigurator
+
+        result = EnvConfigurator.get_endpoint_url("sources-api", "svc", "http://localhost:3000")
+        self.assertEqual(result, "http://custom-host:9999")
+
+    @patch.dict("os.environ", {"RBAC_SERVICE_PROTOCOL": "https"})
+    def test_env_configurator_uses_protocol_env(self):
+        """EnvConfigurator picks up protocol from environment variable."""
+        from koku.configurator import EnvConfigurator
+
+        result = EnvConfigurator.get_endpoint_url("rbac", "service", "http://localhost:8111")
+        self.assertEqual(result, "https://localhost:8111")
+
 
 class TestRbacServiceV2Integration(SimpleTestCase):
     """Test that RbacService uses base_url correctly."""
 
-    @patch("koku.configurator.CONFIGURATOR")
+    @patch("koku.rbac.CONFIGURATOR")
     def test_rbac_service_uses_base_url(self, mock_configurator):
         """RbacService stores base_url from get_endpoint_url."""
         mock_configurator.get_endpoint_url.return_value = "https://rbac.svc:8443"
@@ -124,7 +140,7 @@ class TestRbacServiceV2Integration(SimpleTestCase):
         self.assertFalse(hasattr(svc, "host"))
         self.assertFalse(hasattr(svc, "port"))
 
-    @patch("koku.configurator.CONFIGURATOR")
+    @patch("koku.rbac.CONFIGURATOR")
     def test_rbac_url_construction(self, mock_configurator):
         """RbacService constructs correct full URL from base_url + path."""
         mock_configurator.get_endpoint_url.return_value = "http://rbac-host:8111"
@@ -138,7 +154,7 @@ class TestRbacServiceV2Integration(SimpleTestCase):
 class TestSourcesConfigV2Integration(SimpleTestCase):
     """Test that Sources Config uses get_endpoint_url."""
 
-    @patch("koku.configurator.CONFIGURATOR")
+    @patch("sources.config.CONFIGURATOR")
     def test_sources_api_url(self, mock_configurator):
         """Sources Config.SOURCES_API_URL comes from get_endpoint_url."""
         mock_configurator.get_endpoint_url.return_value = "https://sources.svc:8443"
@@ -147,5 +163,6 @@ class TestSourcesConfigV2Integration(SimpleTestCase):
 
         import sources.config
 
+        self.addCleanup(importlib.reload, sources.config)
         importlib.reload(sources.config)
         self.assertEqual(sources.config.Config.SOURCES_API_URL, "https://sources.svc:8443")

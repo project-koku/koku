@@ -7,6 +7,7 @@ Handler module for gathering configuration data.
 """
 import pathlib
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from .env import ENVIRONMENT
 
@@ -193,6 +194,18 @@ class Configurator:
 
 class EnvConfigurator(Configurator):
     """Returns information based on the environment data"""
+
+    @staticmethod
+    def get_endpoint_url(app, name, default):
+        """Obtain endpoint URL (scheme://host:port) from environment."""
+        parsed = urlsplit(default)
+        protocol = ENVIRONMENT.get_value(
+            "_".join((app, name, "PROTOCOL")).replace("-", "_").upper(),
+            default=parsed.scheme or "http",
+        )
+        host = EnvConfigurator.get_endpoint_host(app, name, default=parsed.hostname or "localhost")
+        port = EnvConfigurator.get_endpoint_port(app, name, default=parsed.port)
+        return f"{protocol}://{host}:{port}"
 
     @staticmethod
     def get_feature_flag_host():

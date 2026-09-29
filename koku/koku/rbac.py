@@ -248,7 +248,11 @@ class RbacService:
             # RBAC application, which the cost-management filter above excludes.
             # Fetch it separately so the user-access API can report a `sources`
             # capability that gates the on-prem Settings > Integrations tab.
-            sources_acls = self._request_user_access(f"{base_url}?application=sources&limit=100", headers)
+            try:
+                sources_acls = self._request_user_access(f"{base_url}?application=sources&limit=100", headers)
+            except RbacConnectionError:
+                LOG.warning("Sources ACL lookup failed; continuing with cost-management access only.")
+                sources_acls = []
             acls = list(acls) + _normalize_sources_acls(sources_acls)
 
         if isinstance(acls, list) and len(acls) == 0:

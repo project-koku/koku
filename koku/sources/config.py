@@ -10,7 +10,7 @@ from koku.env import ENVIRONMENT
 class Config:
     """Configuration for service."""
 
-    SOURCES_API_URL = CONFIGURATOR.get_endpoint_url("sources-api", "svc", "http://localhost:3000")
+    SOURCES_API_URL = CONFIGURATOR.get_endpoint_url("sources-api", "svc", "http://localhost:3000").rstrip("/")
     SOURCES_API_PREFIX = ENVIRONMENT.get_value("SOURCES_API_PREFIX", default="/api/sources/v1.0")
     SOURCES_INTERNAL_API_PREFIX = ENVIRONMENT.get_value("SOURCES_INTERNAL_API_PREFIX", default="/internal/v1.0")
     SOURCES_PROBE_HEADER = ENVIRONMENT.get_value(
