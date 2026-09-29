@@ -500,8 +500,12 @@ class CurrencySettingsViewTest(IamTestCase):
         chf = response.data["data"][0]
         self.assertTrue(chf["is_disableable"])
 
-    def test_is_disableable_false_for_disabled_currency(self):
-        """A disabled currency always returns is_disableable=False."""
+    def test_is_disableable_true_for_disabled_currency(self):
+        """A disabled currency with no dependencies returns is_disableable=True.
+
+        The Settings UI uses this flag for the enable/disable toggle; it must
+        stay True after disable so the user can re-enable the currency.
+        """
         with tenant_context(self.tenant):
             EnabledCurrency.objects.create(currency_code="USD")
 
@@ -509,7 +513,8 @@ class CurrencySettingsViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         chf = response.data["data"][0]
-        self.assertFalse(chf["is_disableable"])
+        self.assertFalse(chf["enabled"])
+        self.assertTrue(chf["is_disableable"])
 
     @override_settings(KOKU_DEFAULT_CURRENCY="USD")
     def test_is_disableable_false_for_system_default_currency(self):
@@ -523,6 +528,19 @@ class CurrencySettingsViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         usd = response.data["data"][0]
         self.assertFalse(usd["is_disableable"])
+
+    @override_settings(KOKU_DEFAULT_CURRENCY="USD")
+    def test_is_disableable_true_for_disabled_system_default_currency(self):
+        """Disabled system default returns is_disableable=True so the UI can re-enable it."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="CHF")
+
+        url = reverse("currency-list") + "?filter[currency]=USD"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        usd = response.data["data"][0]
+        self.assertFalse(usd["enabled"])
+        self.assertTrue(usd["is_disableable"])
 
     def test_is_disableable_false_when_only_one_enabled(self):
         """The sole enabled currency returns is_disableable=False."""
@@ -588,6 +606,20 @@ class CurrencySettingsViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         nok = response.data["data"][0]
         self.assertFalse(nok["is_disableable"])
+
+    def test_is_disableable_true_for_disabled_account_default_currency(self):
+        """Disabled account default returns is_disableable=True so the UI can re-enable it."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.create(currency_code="USD")
+            UserSettings.objects.all().delete()
+            UserSettings.objects.create(settings={"currency": "NOK"})
+
+        url = reverse("currency-list") + "?filter[currency]=NOK"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        nok = response.data["data"][0]
+        self.assertFalse(nok["enabled"])
+        self.assertTrue(nok["is_disableable"])
 
     def test_is_disableable_false_for_cloud_provider_base_currencies(self):
         """Currencies used by cloud billing summary data return is_disableable=False."""

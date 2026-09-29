@@ -7640,7 +7640,7 @@
                     },
                     "is_disableable": {
                         "type": "boolean",
-                        "description": "Whether this currency can currently be disabled. False if the currency is already disabled, is the sole enabled currency, or is referenced by a cost model, price list, cloud provider billing data, or the system/account default."
+                        "description": "Whether the enable/disable toggle is available for this currency. Always true when the currency is disabled (so it can be re-enabled). When enabled, false if it is the sole enabled currency, or is referenced by a cost model, price list, cloud provider billing data, or the system/account default."
                     },
                     "static_rates": {
                         "type": "array",
