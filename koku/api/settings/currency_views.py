@@ -14,6 +14,7 @@ from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_csv.renderers import CSVRenderer
 
 from api.common import log_json
 from api.common.pagination import ListPaginator
@@ -48,6 +49,54 @@ VALID_PARAMS = {"filter", "limit", "offset", "order_by"}
 VALID_FILTER_PARAMS = {"enabled", "currency"}
 VALID_ORDER_BY_FIELDS = {"code"}
 VALID_ORDER_BY_DIRECTIONS = {"asc", "desc"}
+
+# Flat CSV columns for Accept: text/csv on GET /settings/currency/ (COST-7994).
+# Nested static_rates / full ISO catalog are intentionally not exported.
+# Order is explicit — do not rely on the CSV renderer to infer/sort headers.
+CSV_STATIC_RATE_FIELDS = (
+    "base_currency",
+    "target_currency",
+    "exchange_rate",
+    "start_date",
+    "end_date",
+    "uuid",
+    "name",
+)
+
+
+def _wants_csv(request):
+    """Return True when DRF negotiated the CSV renderer for this request.
+
+    Branch on ``accepted_renderer`` (not a raw Accept substring) so a mixed
+    Accept such as ``application/json, text/csv`` keeps the JSON catalog shape
+    when JSON wins content negotiation.
+    """
+    return isinstance(getattr(request, "accepted_renderer", None), CSVRenderer)
+
+
+def _build_static_rate_csv_rows(*, enabled_filter=None, currency_filter=None):
+    """Build flat static-rate rows for CSV export (no pagination)."""
+    rates = StaticExchangeRate.objects.all().order_by("base_currency", "target_currency", "start_date")
+    serialized = StaticExchangeRateSerializer(rates, many=True).data
+
+    if enabled_filter is not None:
+        enabled_codes = get_enabled_currency_codes()
+        if enabled_filter in ("true", "1"):
+            serialized = [rate for rate in serialized if rate["base_currency"] in enabled_codes]
+        else:
+            serialized = [rate for rate in serialized if rate["base_currency"] not in enabled_codes]
+
+    if currency_filter:
+        serialized = [
+            rate
+            for rate in serialized
+            if (
+                _currency_matches_filter(rate["base_currency"], currency_filter)
+                or _currency_matches_filter(rate["target_currency"], currency_filter)
+            )
+        ]
+
+    return [{field: rate[field] for field in CSV_STATIC_RATE_FIELDS} for rate in serialized]
 
 
 def _parse_filter_list(value):
@@ -173,8 +222,11 @@ def _get_non_disableable_codes(enabled_codes):
 class CurrencySettingsView(APIView):
     """List all ISO 4217 currencies with enabled status and dynamic-rate availability.
 
-    Supports ``filter[enabled]``, ``filter[currency]``, and ``order_by[code]`` query params.
-    Default order is ascending by currency code.
+    Supports ``filter[enabled]``, ``filter[currency]``, and ``order_by[code]`` query
+    params. Default order is ascending by currency code.
+
+    With ``Accept: text/csv``, returns a flat, unpaginated CSV of static exchange
+    rates (not the nested currency catalog).
     """
 
     permission_classes = [SettingsAccessPermission]
@@ -182,6 +234,17 @@ class CurrencySettingsView(APIView):
     @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
         enabled_filter, currency_filter, code_order = _parse_currency_list_filters(request)
+
+        if _wants_csv(request):
+            rows = _build_static_rate_csv_rows(
+                enabled_filter=enabled_filter,
+                currency_filter=currency_filter,
+            )
+            # Pin column order and keep headers on empty exports.
+            request.accepted_renderer.header = list(CSV_STATIC_RATE_FIELDS)
+            # PaginatedCSVRenderer reads the ``data`` key; skip ListPaginator so
+            # limit/offset do not truncate the export.
+            return Response({"data": rows})
 
         enabled_codes = get_enabled_currency_codes()
         dynamic_codes = get_dynamic_rate_currencies()
