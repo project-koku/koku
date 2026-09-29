@@ -7,8 +7,8 @@ description: Orchestrates the Koku (HCCM) production release with human approval
 
 Reduces manual effort on the HCCM production release. Human decisions are required only at explicit gates.
 
-**Guide:** [`docs/agent/production-release.md`](../../docs/agent/production-release.md)
-**Scripts:** [`dev/scripts/release/`](../../dev/scripts/release/)
+**Guide:** [`docs/agent/production-release.md`](../../../docs/agent/production-release.md)
+**Scripts:** [`dev/scripts/release/`](../../../dev/scripts/release/)
 
 **Env (per engineer):** `APP_INTERFACE_DIR`, optional `APP_INTERFACE_FORK_REMOTE`, optional `GITLAB_PAT`. See the guide Prerequisites.
 
@@ -45,15 +45,19 @@ bash dev/scripts/release/analyze.sh migrations <TARGET_SHA>
 
 Decision tree — do not skip or reorder:
 
-```
+```text
 No migrations → Step 3
 
-PG migrations → default to manual CJI (DBM_*) — team practice (~always)
+PG only → default to manual CJI (DBM_*) — team practice (~always)
   Confirm with migration author, then Step 2A → 2B → Step 3
   Rare: author says init container alone is enough → Step 3
 
-Trino (ALWAYS manual) → ask for full migrate_trino_tables command
-  → Step 2A → 2B → Step 3
+Trino only (ALWAYS manual) → ask for full migrate_trino_tables command
+  → Step 2A (trino) → 2B (mgmt-cmd) → Step 3
+
+PG + Trino → do BOTH before deploy
+  → Step 2A/2B for PG (db-migration), then Step 2A/2B for Trino (mgmt-cmd)
+  → only then Step 3
 ```
 ### Step 2A — Create migration MR
 

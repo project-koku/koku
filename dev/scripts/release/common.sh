@@ -39,6 +39,19 @@ resolve_fork_remote() {
       git -C "${APP_INTERFACE_DIR}" remote -v >&2
       exit 1
     fi
+    local url owner
+    url=$(git -C "${APP_INTERFACE_DIR}" remote get-url "${APP_INTERFACE_FORK_REMOTE}")
+    if [[ "${url}" =~ gitlab\.cee\.redhat\.com[:/]([^/]+)/app-interface ]]; then
+      owner="${BASH_REMATCH[1]}"
+      if [[ "${owner}" == "service" ]]; then
+        echo "ERROR: APP_INTERFACE_FORK_REMOTE='${APP_INTERFACE_FORK_REMOTE}' points to service/app-interface (central repo), not a fork." >&2
+        echo "Set it to your personal fork remote." >&2
+        exit 1
+      fi
+    else
+      echo "ERROR: remote '${APP_INTERFACE_FORK_REMOTE}' URL does not look like an app-interface fork: ${url}" >&2
+      exit 1
+    fi
     echo "${APP_INTERFACE_FORK_REMOTE}"
     return
   fi

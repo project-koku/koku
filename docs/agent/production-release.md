@@ -64,22 +64,30 @@ team service-docs: `operations/release-process.md`.
 PG: default to DBM CJI before deploy (team practice). Trino: always MGMT CJI.
 ### Migration decision tree
 
-```
+```text
 No migrations
   → deploy MR only
 
-PG Django migrations (team practice: almost always manual CJI)
+PG Django migrations only (team practice: almost always manual CJI)
   → Default: migration MR (DBM_IMAGE_TAG + DBM_INVOCATION) → monitor → deploy MR
   → Confirm with the migration author that the CJI is appropriate / already planned.
   → Rare exception: author says init container alone is enough → deploy MR only
 
-Trino migrations (ALWAYS manual CJI)
+Trino migrations only (ALWAYS manual CJI)
   → Ask for full migrate_trino_tables command
-  → migration MR → monitor → deploy MR
+  → migration MR (MGMT_*) → monitor → deploy MR
+
+PG + Trino (both present)
+  → Run PG DBM CJI and Trino MGMT CJI (each with its own MR + monitor)
+  → Deploy MR only after BOTH migration jobs succeed
 ```
 
 Note: pods still have an init-container migrate path, but **production releases in this
 team almost always run PG via the DBM ClowdJobInvocation first**, then promote `ref`.
+
+Monitors exit on success/failure or when `MONITOR_TIMEOUT` (default 900s) /
+`MONITOR_MR_MAX_ATTEMPTS` is reached. They target namespace `hccm-prod`
+(`KOKU_PROD_NAMESPACE` to override).
 ---
 
 ## Scripts
@@ -120,6 +128,13 @@ and MR URL — **do not push until the human approves**.
 Prod fields (as needed): `ref`, `DBM_IMAGE_TAG`, `DBM_INVOCATION`,
 `MGMT_IMAGE_TAG`, `MGMT_INVOCATION`, `MGMT_COMMAND`.
 
+`analyze.sh` reads the prod `ref` from `origin/master` in app-interface (after
+`git fetch`), not from a possibly stale working tree. Commit lists, Slack
+counts, and COST ticket extraction use `PROD_SHA..HEAD_SHA` only.
+
+`prepare-mr.py` writes `MGMT_COMMAND` as a YAML folded block (`>-`) and removes
+any previous continuation lines (required for JSON args with `: `).
+
 Best practice before merging the deploy MR: Celery queues empty.
 
 ---
@@ -130,6 +145,7 @@ Best practice before merging the deploy MR: Celery queues empty.
    `@crc-cost-mgmt-dev The latest release of cost-management to production has finished. Any new alerts should be investigated. Release notes will follow in the team chat when completed.`
 2. Create GitHub release (`gen-notes.sh` + [`generating-release-notes.md`](../generating-release-notes.md)).
 3. `#forum-cost-mgmt`: announce with release URL.
-4. Close Jira COST tickets that shipped in the release (confirm with human).
+4. Close Jira COST tickets that shipped in the release — only those listed from
+   `PROD_SHA..TARGET_SHA` in the analyze report (confirm with human).
 
 Review channel for MRs: `#crc-cost-mgmt-sre` → `@crc-cost-mgmt-dev`.

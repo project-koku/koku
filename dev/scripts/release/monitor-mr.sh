@@ -13,7 +13,8 @@ BRANCH="${1:?Usage: monitor-mr.sh <source-branch>}"
 
 GITLAB_BASE="https://gitlab.cee.redhat.com/api/v4"
 PROJECT_ID="13582"   # service/app-interface
-POLL_INTERVAL=30
+POLL_INTERVAL="${MONITOR_MR_POLL_SECONDS:-30}"
+MAX_ATTEMPTS="${MONITOR_MR_MAX_ATTEMPTS:-120}"  # default ~1h at 30s interval
 
 MR_WEB_URL="https://gitlab.cee.redhat.com/service/app-interface/-/merge_requests"
 
@@ -105,11 +106,12 @@ if data: print(data[0]['web_url'])
 
 echo "   Found MR !${MR_IID}: ${MR_URL}"
 echo ""
-echo "⏳ Polling every ${POLL_INTERVAL}s until merged (Ctrl+C to stop)..."
+echo "⏳ Polling every ${POLL_INTERVAL}s until merged (max ${MAX_ATTEMPTS} attempts ≈ $((POLL_INTERVAL * MAX_ATTEMPTS))s)..."
+echo "   Set MONITOR_MR_MAX_ATTEMPTS / MONITOR_MR_POLL_SECONDS to adjust."
 echo ""
 
 ATTEMPT=0
-while true; do
+while (( ATTEMPT < MAX_ATTEMPTS )); do
   ATTEMPT=$((ATTEMPT + 1))
   TIMESTAMP=$(date '+%H:%M:%S')
 
@@ -142,15 +144,20 @@ labels = d.get('labels', [])
 approvals = d.get('upvotes', 0)
 print(f'labels={labels} upvotes={approvals}')
 " 2>/dev/null || echo "")
-      echo "   [${TIMESTAMP}] Still open... ${LABELS}"
+      echo "   [${TIMESTAMP}] Still open... ${LABELS} (attempt ${ATTEMPT}/${MAX_ATTEMPTS})"
       ;;
     error)
-      echo "   [${TIMESTAMP}] API error — retrying..."
+      echo "   [${TIMESTAMP}] API error — retrying... (attempt ${ATTEMPT}/${MAX_ATTEMPTS})"
       ;;
     *)
-      echo "   [${TIMESTAMP}] State: ${STATE}"
+      echo "   [${TIMESTAMP}] State: ${STATE} (attempt ${ATTEMPT}/${MAX_ATTEMPTS})"
       ;;
   esac
 
   sleep "$POLL_INTERVAL"
 done
+
+echo ""
+echo "ERROR: timed out after ${MAX_ATTEMPTS} attempts waiting for MR !${MR_IID} to merge." >&2
+echo "Check: ${MR_URL}" >&2
+exit 1

@@ -25,7 +25,7 @@ EXISTING=$(gh release list --repo project-koku/koku --limit 10 --json tagName \
 if [[ -z "$EXISTING" ]]; then
   NEXT_TAG="r.${TODAY}.0"
 else
-  LAST_PATCH=$(echo "$EXISTING" | sort | tail -1 | sed "s/r\.${TODAY}\.//")
+  LAST_PATCH=$(printf '%s\n' "$EXISTING" | sed "s/r\.${TODAY}\.//" | sort -n | tail -1)
   NEXT_TAG="r.${TODAY}.$((LAST_PATCH + 1))"
 fi
 

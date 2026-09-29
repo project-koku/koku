@@ -149,10 +149,25 @@ def require_app_interface():
         sys.exit(1)
 
 
+def _assert_remote_is_fork(remote: str, url: str) -> None:
+    match = re.search(r"gitlab\.cee\.redhat\.com[:/]([^/]+)/app-interface", url)
+    if not match:
+        print(f"ERROR: remote {remote!r} URL is not an app-interface clone: {url}", file=sys.stderr)
+        sys.exit(1)
+    if match.group(1) == "service":
+        print(
+            f"ERROR: remote {remote!r} points to service/app-interface (central repo), not a fork.",
+            file=sys.stderr,
+        )
+        print("Set APP_INTERFACE_FORK_REMOTE to your personal fork remote.", file=sys.stderr)
+        sys.exit(1)
+
+
 def resolve_fork_remote() -> str:
     if FORK_REMOTE_ENV:
         _validate_git_remote_name(FORK_REMOTE_ENV)
-        git_remote_url(FORK_REMOTE_ENV)
+        url = git_remote_url(FORK_REMOTE_ENV)
+        _assert_remote_is_fork(FORK_REMOTE_ENV, url)
         return FORK_REMOTE_ENV
 
     remotes = git_list_remotes()
@@ -205,31 +220,84 @@ def get_prod_ref(content):
     raise ValueError("Could not find prod ref in deploy-clowder.yml")
 
 
+def _field_key_match(line: str, field: str) -> bool:
+    stripped = line.strip()
+    return not stripped.startswith("#") and stripped.startswith(f"{field}:")
+
+
+def _continuation_end(lines: list[str], start: int, key_indent: int) -> int:
+    """Index after the last folded-block continuation line under lines[start]."""
+    end = start + 1
+    while end < len(lines):
+        next_line = lines[end]
+        if not next_line.strip():
+            break
+        next_indent = len(next_line) - len(next_line.lstrip())
+        if next_indent <= key_indent:
+            break
+        end += 1
+    return end
+
+
 def get_field(content, field, section_marker="hccm-prod.yml"):
+    """Read a scalar or folded (>- / |) field from the first matching prod section."""
+    lines = content.splitlines()
     in_section = False
-    for line in content.splitlines():
+    for i, line in enumerate(lines):
         if section_marker in line:
             in_section = True
-        if in_section and f"{field}:" in line and not line.strip().startswith("#"):
-            return line.split(f"{field}:")[1].strip().strip('"')
+        if not in_section or not _field_key_match(line, field):
+            continue
+        raw = line.split(f"{field}:", 1)[1].strip()
+        if raw in (">-", ">", "|-", "|"):
+            key_indent = len(line) - len(line.lstrip())
+            end = _continuation_end(lines, i, key_indent)
+            parts = [lines[j].strip() for j in range(i + 1, end)]
+            # YAML folded style joins lines with spaces
+            return " ".join(parts)
+        return raw.strip('"')
     return None
 
 
 def set_field(content, field, new_value, section_marker="hccm-prod.yml"):
+    """Replace a single-line scalar field (not a folded block)."""
     lines = content.splitlines()
     in_section = False
-    updated = False
     for i, line in enumerate(lines):
         if section_marker in line:
             in_section = True
-        if in_section and f"{field}:" in line and not line.strip().startswith("#"):
-            indent = len(line) - len(line.lstrip())
-            lines[i] = " " * indent + f"{field}: {new_value}"
-            updated = True
-            break
-    if not updated:
-        raise ValueError(f"Could not find field {field} in prod section")
-    return "\n".join(lines)
+        if not in_section or not _field_key_match(line, field):
+            continue
+        indent = len(line) - len(line.lstrip())
+        end = _continuation_end(lines, i, indent)
+        lines[i:end] = [" " * indent + f"{field}: {new_value}"]
+        return "\n".join(lines)
+    raise ValueError(f"Could not find field {field} in prod section")
+
+
+def set_folded_field(content, field, new_value, section_marker="hccm-prod.yml"):
+    """
+    Replace a field as a YAML folded block (>-), dropping any previous
+    continuation lines. Required for MGMT_COMMAND (JSON args contain ': ').
+    """
+    lines = content.splitlines()
+    in_section = False
+    for i, line in enumerate(lines):
+        if section_marker in line:
+            in_section = True
+        if not in_section or not _field_key_match(line, field):
+            continue
+        indent = len(line) - len(line.lstrip())
+        end = _continuation_end(lines, i, indent)
+        cont_indent = indent + 2
+        cmd_lines = [ln for ln in new_value.replace("\r\n", "\n").split("\n") if ln.strip()]
+        if not cmd_lines:
+            raise ValueError(f"Refusing to set empty value for {field}")
+        replacement = [" " * indent + f"{field}: >-"]
+        replacement.extend(" " * cont_indent + ln.strip() for ln in cmd_lines)
+        lines[i:end] = replacement
+        return "\n".join(lines)
+    raise ValueError(f"Could not find field {field} in prod section")
 
 
 def set_prod_ref(content, new_sha):
@@ -387,7 +455,7 @@ def cmd_migration(args):
     else:
         new_content = set_field(content, "MGMT_IMAGE_TAG", short)
         new_content = set_field(new_content, "MGMT_INVOCATION", new_inv)
-        new_content = set_field(new_content, "MGMT_COMMAND", args.command)
+        new_content = set_folded_field(new_content, "MGMT_COMMAND", args.command)
     write_deploy(new_content, content)
     git_add_deploy_file()
     git_commit(commit_msg)

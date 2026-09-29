@@ -19,36 +19,92 @@ shift || true
 
 require_app_interface
 
-get_prod_ref() {
-  python3 - <<PYEOF
-with open("${DEPLOY_FILE}") as f:
-    content = f.read()
-in_prod = False
-for line in content.splitlines():
-    if 'hccm-prod.yml' in line:
-        in_prod = True
-        continue
-    if in_prod and line.strip().startswith('ref:') and '$ref' not in line:
-        print(line.split('ref:')[1].strip())
-        break
-PYEOF
+fetch_app_interface_origin() {
+  echo "Fetching app-interface origin/master (requires VPN)..."
+  if ! git -C "${APP_INTERFACE_DIR}" fetch origin -q; then
+    echo "ERROR: git fetch origin failed in ${APP_INTERFACE_DIR}" >&2
+    echo "Connect to the Red Hat VPN and retry." >&2
+    exit 1
+  fi
 }
 
+# Read prod ref from origin/master (not the possibly-stale working tree).
+get_prod_ref() {
+  local ref
+  # Use python -c (not a heredoc) so stdin can receive `git show` output.
+  # Single-quoted -c keeps '$ref' literal for Python (avoids Bash set -u).
+  if ! ref=$(
+    git -C "${APP_INTERFACE_DIR}" show "origin/master:${DEPLOY_RELPATH}" \
+      | python3 -c '
+import sys
+content = sys.stdin.read()
+in_prod = False
+for line in content.splitlines():
+    if "hccm-prod.yml" in line:
+        in_prod = True
+        continue
+    if in_prod and line.strip().startswith("ref:") and "$ref" not in line:
+        print(line.split("ref:", 1)[1].strip())
+        sys.exit(0)
+sys.exit(1)
+'
+  ); then
+    echo "ERROR: could not find prod ref in origin/master:${DEPLOY_RELPATH}" >&2
+    exit 1
+  fi
+  if [[ -z "${ref}" ]]; then
+    echo "ERROR: empty prod ref from origin/master:${DEPLOY_RELPATH}" >&2
+    exit 1
+  fi
+  echo "${ref}"
+}
+
+require_commit() {
+  local sha="$1"
+  local label="$2"
+  if [[ -z "${sha}" ]]; then
+    echo "ERROR: ${label} is empty" >&2
+    exit 1
+  fi
+  if ! git -C "${KOKU_DIR}" cat-file -e "${sha}^{commit}" 2>/dev/null; then
+    echo "ERROR: ${label} '${sha}' is not a valid commit in ${KOKU_DIR}" >&2
+    echo "Try: git -C ${KOKU_DIR} fetch origin" >&2
+    exit 1
+  fi
+}
+
+# Fail hard when git diff fails; empty grep (no matches) is OK.
 check_pg_migrations() {
   local from_sha="$1" to_sha="$2"
-  git -C "$KOKU_DIR" diff --name-only "${from_sha}..${to_sha}" 2>/dev/null \
-    | grep -E "koku/.+/migrations/[0-9]+.*\.py" || true
+  local out
+  require_commit "${from_sha}" "from_sha"
+  require_commit "${to_sha}" "to_sha"
+  if ! out=$(git -C "${KOKU_DIR}" diff --name-only "${from_sha}..${to_sha}"); then
+    echo "ERROR: git diff failed for ${from_sha}..${to_sha}" >&2
+    exit 1
+  fi
+  echo "${out}" | grep -E "koku/.+/migrations/[0-9]+.*\.py" || true
 }
 
 check_trino_migrations() {
   local from_sha="$1" to_sha="$2"
-  git -C "$KOKU_DIR" diff --name-only "${from_sha}..${to_sha}" 2>/dev/null \
-    | grep -iE "trino.*migrat|migrat.*trino|koku/trino/" || true
+  local out
+  require_commit "${from_sha}" "from_sha"
+  require_commit "${to_sha}" "to_sha"
+  if ! out=$(git -C "${KOKU_DIR}" diff --name-only "${from_sha}..${to_sha}"); then
+    echo "ERROR: git diff failed for ${from_sha}..${to_sha}" >&2
+    exit 1
+  fi
+  echo "${out}" | grep -iE "trino.*migrat|migrat.*trino|koku/trino/" || true
 }
 
 if [[ "$cmd" == "report" ]]; then
   cd "$KOKU_DIR"
-  git fetch origin --tags -q 2>/dev/null || true
+  if ! git fetch origin --tags -q; then
+    echo "ERROR: git fetch origin failed in ${KOKU_DIR}" >&2
+    exit 1
+  fi
+  fetch_app_interface_origin
 
   LAST_TAG=$(gh release view --repo project-koku/koku --json tagName,publishedAt \
     -q '"tagName=\(.tagName) publishedAt=\(.publishedAt)"' 2>/dev/null || echo "tagName=unknown publishedAt=")
@@ -56,16 +112,18 @@ if [[ "$cmd" == "report" ]]; then
   PUBLISHED_AT=$(echo "$LAST_TAG" | sed 's/.*publishedAt=\(.*\)/\1/')
 
   PROD_SHA=$(get_prod_ref)
+  require_commit "${PROD_SHA}" "prod ref"
 
   SAFE_SHA=$(python3 "${KOKU_DIR}/dev/scripts/get-release-commit.py" 2>/dev/null \
     | grep -oE '[0-9a-f]{40}' | head -1 || true)
   HEAD_SHA="${SAFE_SHA:-$(git rev-parse origin/main)}"
+  require_commit "${HEAD_SHA}" "HEAD_SHA"
   HEAD_SHORT="${HEAD_SHA:0:7}"
 
   LATEST_SHA=$(git rev-parse origin/main)
   COMMITS_AHEAD=0
   if [[ "$HEAD_SHA" != "$LATEST_SHA" ]]; then
-    COMMITS_AHEAD=$(git log "${HEAD_SHA}..${LATEST_SHA}" --no-merges --oneline 2>/dev/null | wc -l | tr -d ' ')
+    COMMITS_AHEAD=$(git log "${HEAD_SHA}..${LATEST_SHA}" --no-merges --oneline | wc -l | tr -d ' ')
   fi
 
   DAYS_AGO="unknown"
@@ -78,11 +136,12 @@ print((now - published).days)
 " 2>/dev/null || echo "?")
   fi
 
-  COMMITS_SINCE_TAG=$(git log "${TAG_NAME}..origin/main" --no-merges --oneline 2>/dev/null | wc -l | tr -d ' ')
-  COMMITS_SINCE_PROD=$(git log "${PROD_SHA}..origin/main" --no-merges --oneline 2>/dev/null | wc -l | tr -d ' ')
+  # All release-scoped ranges use PROD_SHA..HEAD_SHA (what we are promoting).
+  COMMITS_SINCE_TAG=$(git log "${TAG_NAME}..${HEAD_SHA}" --no-merges --oneline 2>/dev/null | wc -l | tr -d ' ' || echo 0)
+  COMMITS_SINCE_PROD=$(git log "${PROD_SHA}..${HEAD_SHA}" --no-merges --oneline | wc -l | tr -d ' ')
 
-  COMMIT_LIST=$(git log "${PROD_SHA}..origin/main" --no-merges \
-    --pretty=format:"  %h  %s" 2>/dev/null)
+  COMMIT_LIST=$(git log "${PROD_SHA}..${HEAD_SHA}" --no-merges \
+    --pretty=format:"  %h  %s")
 
   PG_MIGRATIONS=$(check_pg_migrations "$PROD_SHA" "$HEAD_SHA")
   TRINO_MIGRATIONS=$(check_trino_migrations "$PROD_SHA" "$HEAD_SHA")
@@ -94,7 +153,7 @@ print((now - published).days)
   (( TRINO_COUNT > 0 )) && MIGRATION_STATUS="trino" || true
   (( PG_COUNT > 0 && TRINO_COUNT > 0 )) && MIGRATION_STATUS="pg+trino" || true
 
-  COST_TICKETS=$(git log "${PROD_SHA}..origin/main" --no-merges --pretty=format:"%s" 2>/dev/null \
+  COST_TICKETS=$(git log "${PROD_SHA}..${HEAD_SHA}" --no-merges --pretty=format:"%s" \
     | grep -oE 'COST-[0-9]+' | sort -u | paste -sd ', ' - || true)
 
   echo ""
@@ -104,6 +163,7 @@ print((now - published).days)
   echo ""
   echo "   Koku dir         : ${KOKU_DIR}"
   echo "   App-interface dir: ${APP_INTERFACE_DIR}"
+  echo "   Prod ref source  : origin/master:${DEPLOY_RELPATH}"
   echo ""
 
   echo "📦 LAST RELEASE"
@@ -114,8 +174,8 @@ print((now - published).days)
 
   echo "🔀 PENDING COMMITS"
   echo "   Prod ref   : ${PROD_SHA:0:12}..."
-  echo "   HEAD (main): ${HEAD_SHORT}"
-  echo "   Unreleased : ${COMMITS_SINCE_PROD} commit(s) since prod ref"
+  echo "   HEAD (release target): ${HEAD_SHORT}"
+  echo "   Unreleased : ${COMMITS_SINCE_PROD} commit(s) in ${PROD_SHA:0:7}..${HEAD_SHORT}"
   echo "   Since tag  : ${COMMITS_SINCE_TAG} commit(s) since last GitHub release"
   echo ""
 
@@ -137,6 +197,9 @@ print((now - published).days)
   if (( TRINO_COUNT > 0 )); then
     echo "   🔴 Trino migrations: ${TRINO_COUNT} file(s) — MANUAL MR REQUIRED before deploy"
     echo "$TRINO_MIGRATIONS" | sed 's/^/      /'
+  fi
+  if [[ "$MIGRATION_STATUS" == "pg+trino" ]]; then
+    echo "      Run BOTH PG (DBM) and Trino (MGMT) CJI MRs before the deploy MR."
   fi
   echo ""
 
@@ -175,7 +238,7 @@ print((now - published).days)
   fi
   echo ""
 
-  echo "🎫 COST TICKETS"
+  echo "🎫 COST TICKETS (in ${PROD_SHA:0:7}..${HEAD_SHORT} only)"
   if [[ -n "$COST_TICKETS" ]]; then
     echo "   ${COST_TICKETS}"
   else
@@ -198,7 +261,11 @@ print((now - published).days)
   echo ""
   if [[ "$MIGRATION_STATUS" != "none" ]]; then
     echo "   ⚠️  Migration MR needed BEFORE deploy MR."
-    echo "   Order: [migration MR + monitor] → [deploy MR]"
+    if [[ "$MIGRATION_STATUS" == "pg+trino" ]]; then
+      echo "   Order: [PG CJI + Trino CJI + monitor both] → [deploy MR]"
+    else
+      echo "   Order: [migration MR + monitor] → [deploy MR]"
+    fi
   else
     echo "   ✅ No migration MR needed. Proceed directly to deploy MR."
   fi
@@ -211,11 +278,11 @@ print((now - published).days)
   elif [[ "$MIGRATION_STATUS" == "trino" ]]; then
     MIGRATION_LINE="🔴 Trino migrations detected — manual migration MR required before deploy."
   elif [[ "$MIGRATION_STATUS" == "pg+trino" ]]; then
-    MIGRATION_LINE="🔴 PG + Trino migrations detected — migration MRs required before deploy."
+    MIGRATION_LINE="🔴 PG + Trino migrations detected — both migration MRs required before deploy."
   fi
 
   COMMIT_SUMMARY=$(git log "${PROD_SHA}..${HEAD_SHA}" --no-merges \
-    --pretty=format:"  • %s" 2>/dev/null | head -10)
+    --pretty=format:"  • %s" | head -10)
 
   echo "📣 SLACK MESSAGE — post in #crc-cost-mgmt-sre when starting:"
   echo "┌─────────────────────────────────────────────────"
@@ -238,19 +305,29 @@ if [[ "$cmd" == "migrations" ]]; then
   fi
 
   cd "$KOKU_DIR"
-  git fetch origin -q 2>/dev/null || true
+  if ! git fetch origin -q; then
+    echo "ERROR: git fetch origin failed in ${KOKU_DIR}" >&2
+    exit 1
+  fi
+  fetch_app_interface_origin
 
   PROD_SHA=$(get_prod_ref)
+  require_commit "${PROD_SHA}" "prod ref"
+  require_commit "${TARGET_SHA}" "target sha"
+
   PG_MIGRATIONS=$(check_pg_migrations "$PROD_SHA" "$TARGET_SHA")
   TRINO_MIGRATIONS=$(check_trino_migrations "$PROD_SHA" "$TARGET_SHA")
-  PG_COUNT=$(echo "$PG_MIGRATIONS" | grep -c . 2>/dev/null || echo 0)
-  TRINO_COUNT=$(echo "$TRINO_MIGRATIONS" | grep -c . 2>/dev/null || echo 0)
+  PG_COUNT=0
+  TRINO_COUNT=0
+  [[ -n "$PG_MIGRATIONS" ]] && PG_COUNT=$(echo "$PG_MIGRATIONS" | grep -c . || true)
+  [[ -n "$TRINO_MIGRATIONS" ]] && TRINO_COUNT=$(echo "$TRINO_MIGRATIONS" | grep -c . || true)
 
   echo ""
   echo "╔══════════════════════════════════════════════════╗"
   echo "║           MIGRATION CHECK                       ║"
   echo "╚══════════════════════════════════════════════════╝"
   echo "   From: ${PROD_SHA:0:12}  →  To: ${TARGET_SHA:0:12}"
+  echo "   Prod ref source: origin/master:${DEPLOY_RELPATH}"
   echo ""
 
   echo "── PG Django migrations ──"
@@ -281,4 +358,7 @@ if [[ "$cmd" == "migrations" ]]; then
   echo "── Summary ──"
   echo "   PG migrations   : ${PG_COUNT} file(s)"
   echo "   Trino migrations: ${TRINO_COUNT} file(s)"
+  if (( PG_COUNT > 0 && TRINO_COUNT > 0 )); then
+    echo "   Both present — run PG CJI and Trino CJI before the deploy MR."
+  fi
 fi
