@@ -18,6 +18,7 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
+from koku.cache import SOURCES_CACHE_PREFIX
 from koku.settings import CacheEnum
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.tasks import mark_manifest_complete
@@ -164,6 +165,26 @@ class SourcesCacheTests(IamTestCase):
                 # would let their reads refill the cache with pre-commit values.
                 self.assert_cache_hit(before)
         self.assertTrue(self.get_source()["current_month_data"])
+
+    def test_cache_failure_does_not_fail_committed_manifest_update(self):
+        later_callback_ran = []
+        with (
+            patch(
+                "koku.cache.invalidate_cache_for_tenant_and_cache_key",
+                side_effect=ConnectionError("Redis unavailable"),
+            ) as invalidate,
+            self.assertLogs("koku.cache", level="ERROR") as logged,
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            self.accessor.mark_manifests_as_completed([self.manifest.id])
+            transaction.on_commit(lambda: later_callback_ran.append(True))
+
+        self.manifest.refresh_from_db()
+        self.assertIsNotNone(self.manifest.completed_datetime)
+        invalidate.assert_called_once_with(self.schema_name, SOURCES_CACHE_PREFIX)
+        self.assertEqual(later_callback_ran, [True])
+        self.assertIn(self.schema_name, logged.output[0])
+        self.assertIn("Redis unavailable", logged.output[0])
 
     def test_rollback_keeps_cached_committed_state(self):
         before = self.get_source()

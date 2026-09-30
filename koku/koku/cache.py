@@ -41,10 +41,18 @@ TAG_MAPPING_PREFIX = "tag-mapping"
 SOURCES_LIST_MANIFEST_FIELDS = frozenset({"completed_datetime", "state", "creation_datetime"})
 
 
+def _invalidate_sources_view_cache_after_commit(schema_name):
+    """Report cache failures without failing an already committed metadata write."""
+    try:
+        invalidate_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
+    except Exception:
+        LOG.exception("Failed to invalidate sources cache for schema %s", schema_name)
+
+
 def invalidate_sources_view_cache(schema_name):
     """Drop cached GET /sources/ responses once the metadata change is committed."""
     if schema_name:
-        transaction.on_commit(partial(invalidate_cache_for_tenant_and_cache_key, schema_name, SOURCES_CACHE_PREFIX))
+        transaction.on_commit(partial(_invalidate_sources_view_cache_after_commit, schema_name))
 
 
 def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None, *, cache_name=CacheEnum.api):
