@@ -7,6 +7,7 @@ import logging
 import re
 from datetime import datetime
 
+from django.conf import settings
 from rest_framework.throttling import SimpleRateThrottle
 
 from api.report.constants import TIME_SCOPE_UNITS_MONTHLY
@@ -147,16 +148,54 @@ class OcpTagQueryThrottle(BaseTagQueryThrottle):
 
 class OcpReportQueryThrottle(SimpleRateThrottle):
     """
-    Rate-limit all OCP report API requests for schemas flagged via Unleash.
+    Global rate limit for all OCP report API requests (per schema).
 
-    Used as an ops control for customers whose automated scrapers saturate
-    api-reads workers (WORKER TIMEOUT / SIGKILL). Unlike OcpTagQueryThrottle,
-    this applies to every report request for the schema when the flag is on —
-    not only heavy tag queries.
+    Baseline applies to every customer. Rate comes from settings
+    (OCP_REPORT_THROTTLE_RATE, default 60/m) so ops can tune via app-interface.
+    Pair with OcpReportQueryTightenThrottle for Unleash-gated stricter limits.
     """
 
     scope = "ocp_report_query"
-    rate = "10/m"  # 10 requests per minute per schema
+
+    def __init__(self):
+        """Load rate from settings so app-interface can tune without a code change."""
+        self.rate = self.get_rate()
+        self.num_requests, self.duration = self.parse_rate(self.rate)
+
+    def get_rate(self):
+        """Return the configured global OCP report throttle rate."""
+        return getattr(settings, "OCP_REPORT_THROTTLE_RATE", "60/m")
+
+    def get_cache_key(self, request, view):
+        """Return a cache key for the schema; skip when customer is unavailable."""
+        try:
+            schema_name = request.user.customer.schema_name
+        except AttributeError:
+            return None
+
+        cache_key = f"ocp_report_query_throttle:{schema_name}"
+        LOG.debug("OCP report query throttle check: %s", cache_key)
+        return cache_key
+
+
+class OcpReportQueryTightenThrottle(SimpleRateThrottle):
+    """
+    Stricter OCP report rate limit for schemas flagged via Unleash.
+
+    When enabled, DRF applies this in addition to OcpReportQueryThrottle, so the
+    effective limit is the tighter rate (OCP_REPORT_THROTTLE_TIGHT_RATE, default 10/m).
+    """
+
+    scope = "ocp_report_query_tight"
+
+    def __init__(self):
+        """Load tighten rate from settings."""
+        self.rate = self.get_rate()
+        self.num_requests, self.duration = self.parse_rate(self.rate)
+
+    def get_rate(self):
+        """Return the configured tight OCP report throttle rate."""
+        return getattr(settings, "OCP_REPORT_THROTTLE_TIGHT_RATE", "10/m")
 
     def get_cache_key(self, request, view):
         """Return a cache key when the schema is flagged; otherwise skip throttling."""
@@ -168,8 +207,8 @@ class OcpReportQueryThrottle(SimpleRateThrottle):
         if not is_feature_flag_enabled_by_schema(schema_name, OCP_REPORT_RATE_LIMIT_FLAG):
             return None
 
-        cache_key = f"ocp_report_query_throttle:{schema_name}"
-        LOG.debug("OCP report query throttle check: %s", cache_key)
+        cache_key = f"ocp_report_query_tighten_throttle:{schema_name}"
+        LOG.debug("OCP report query tighten throttle check: %s", cache_key)
         return cache_key
 
 

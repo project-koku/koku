@@ -117,6 +117,10 @@ objects:
           value: ${REQUEST_SOFT_TIMEOUT}
         - name: REQUEST_FAULTHANDLER_TIMEOUT
           value: ${REQUEST_FAULTHANDLER_TIMEOUT}
+        - name: OCP_REPORT_THROTTLE_RATE
+          value: ${OCP_REPORT_THROTTLE_RATE}
+        - name: OCP_REPORT_THROTTLE_TIGHT_RATE
+          value: ${OCP_REPORT_THROTTLE_TIGHT_RATE}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -308,6 +312,10 @@ objects:
           value: ${REQUEST_SOFT_TIMEOUT}
         - name: REQUEST_FAULTHANDLER_TIMEOUT
           value: ${REQUEST_FAULTHANDLER_TIMEOUT}
+        - name: OCP_REPORT_THROTTLE_RATE
+          value: ${OCP_REPORT_THROTTLE_RATE}
+        - name: OCP_REPORT_THROTTLE_TIGHT_RATE
+          value: ${OCP_REPORT_THROTTLE_TIGHT_RATE}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
@@ -5848,6 +5856,17 @@ parameters:
   displayName: Faulthandler request timeout
   name: REQUEST_FAULTHANDLER_TIMEOUT
   value: "95"
+- description: Global per-schema rate limit for OCP report API GETs (DRF
+    SimpleRateThrottle format, e.g. 60/m)
+  displayName: OCP report throttle rate
+  name: OCP_REPORT_THROTTLE_RATE
+  value: "60/m"
+- description: Stricter per-schema OCP report rate when
+    cost-management.backend.rate-limit-ocp-report-queries is enabled for the
+    schema
+  displayName: OCP report tighten throttle rate
+  name: OCP_REPORT_THROTTLE_TIGHT_RATE
+  value: "10/m"
 - displayName: Celery log level
   name: CELERY_LOG_LEVEL
   value: INFO
