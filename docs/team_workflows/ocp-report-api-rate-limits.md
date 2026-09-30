@@ -12,7 +12,7 @@ Same path as other HCCM knobs — each layer has a job:
 
 ```
 app-interface (deploy-clowder.yml)
-    → ClowdApp template (deploy/clowdapp.yaml)
+    → ClowdApp template (kustomize → deploy/clowdapp.yaml)
         → pod env
             → settings.py
                 → throttle classes
@@ -22,7 +22,7 @@ app-interface (deploy-clowder.yml)
 |-------|----------------|
 | `OcpReportQueryThrottle` / `OcpReportQueryTightenThrottle` | Enforce limits in the API. |
 | `settings.py` | Map env → DRF rate strings. |
-| `clowdapp.yaml` | Declare params and inject into api-reads / api-writes. |
+| kustomize → `clowdapp.yaml` | Declare params in `deploy/kustomize/` (`make clowdapp`); inject into api-reads / api-writes. |
 | **app-interface** | Change rates per env **without** rebuilding the image. |
 | **Unleash** (`rate-limit-ocp-report-queries`) | Pick **which schemas** get the tight rate — not the numeric rate. |
 
@@ -42,5 +42,5 @@ Both throttles must pass → effective limit is the lower rate when tighten is o
 - `koku/api/common/throttling.py`
 - `koku/api/report/ocp/view.py`, `koku/api/report/all/openshift/view.py`
 - `koku/koku/settings.py`
-- `deploy/clowdapp.yaml`
+- `deploy/kustomize/` (patches + `base/base.yaml`; regenerate with `make clowdapp`)
 - `.env.example`
