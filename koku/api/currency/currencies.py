@@ -4,8 +4,12 @@
 #
 """Currency helpers backed by the EnabledCurrency table.
 
-All known currencies come from babel's ISO 4217 registry.  Only the
-currencies that an administrator has explicitly enabled are stored in
+Full ISO 4217 validation uses babel's complete registry
+(``is_valid_iso_currency`` / ``get_all_iso_currency_codes``). The Settings
+catalog uses current tender codes from babel territory data
+(``is_active_iso_currency`` / ``get_active_iso_currency_codes``).
+
+Only currencies that an administrator has explicitly enabled are stored in
 the ``EnabledCurrency`` table (tenant schema).
 
 Name, symbol, and description are computed at response time via babel.
@@ -13,6 +17,7 @@ Name, symbol, and description are computed at response time via babel.
 from babel.core import get_global
 from babel.numbers import get_currency_name
 from babel.numbers import get_currency_symbol
+from babel.numbers import get_territory_currencies
 from django.db import connection
 from rest_framework import serializers
 
@@ -23,6 +28,17 @@ from koku.cache import get_value_from_cache
 from koku.cache import set_value_in_cache
 
 _ISO_4217_CURRENCIES = get_global("all_currencies")
+
+
+def _build_active_iso_currency_codes():
+    """Build the set of current tender ISO 4217 codes from babel territory data."""
+    codes = set()
+    for territory in get_global("territory_currencies"):
+        codes.update(get_territory_currencies(territory, tender=True, non_tender=False))
+    return codes
+
+
+_ACTIVE_ISO_4217_CURRENCIES = _build_active_iso_currency_codes()
 
 
 def get_enabled_currency_codes():
@@ -71,6 +87,16 @@ def get_all_iso_currency_codes():
 def is_valid_iso_currency(code):
     """Check whether *code* is a valid ISO 4217 currency using babel's registry."""
     return code.upper() in get_all_iso_currency_codes()
+
+
+def get_active_iso_currency_codes():
+    """Return current tender ISO 4217 codes from babel territory data."""
+    return set(_ACTIVE_ISO_4217_CURRENCIES)
+
+
+def is_active_iso_currency(code):
+    """Check whether *code* is a current tender ISO 4217 currency."""
+    return code.upper() in get_active_iso_currency_codes()
 
 
 def get_dynamic_rate_currencies():
