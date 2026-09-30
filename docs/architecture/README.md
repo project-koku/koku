@@ -179,6 +179,7 @@ Output: proposed new/changed markdown files only (no application code unless ask
 | [`csv-processing-azure.md`](csv-processing-azure.md) | Azure cost export processing |
 | [`csv-processing-gcp.md`](csv-processing-gcp.md) | GCP billing export processing |
 | [`csv-processing-ocp.md`](csv-processing-ocp.md) | OpenShift report processing |
+| [`ingress-staging.md`](ingress-staging.md) | HCCM Kafka ingress staging: listener confirms after S3, workers extract and process |
 
 ### Feature hubs (subdirectories)
 

@@ -1,6 +1,6 @@
 # Ingress staging follow-up changes
 
-Changes required before `cost-management.backend.ingress-staging-listener` is enabled in stage or production.
+Implemented on `COST-8282-decouple-kafka`. As-built behavior is in [`docs/architecture/ingress-staging.md`](docs/architecture/ingress-staging.md). The sections below are the punch list that branch closed before `cost-management.backend.ingress-staging-listener` is enabled in stage or production.
 
 Related design: [decouple-kafka-ingress.md](decouple-kafka-ingress.md).
 

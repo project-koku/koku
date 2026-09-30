@@ -1,5 +1,7 @@
 # Decouple PostgreSQL and Trino from the Kafka ingress listener
 
+As-built behavior for branch `COST-8282-decouple-kafka` is in [`docs/architecture/ingress-staging.md`](docs/architecture/ingress-staging.md). This file is the design that branch implemented.
+
 ## Overview
 
 Production Kafka lag on the HCCM upload topic grows when the single listener thread blocks before it can poll the next message or commit offsets. Two engines sit on that thread today:
