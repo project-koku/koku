@@ -30,6 +30,7 @@ OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parq
 CONSTANT_CURRENCY_FLAG = "cost-management.backend.constant-currency"
 DISABLE_CELERY_TASK_DELAY_FLAG = "cost-management.backend.disable-celery-task-delay"
 INGRESS_DEAD_LETTER_QUEUE_FLAG = "cost-management.backend.ingress-dead-letter-queue"
+INGRESS_STAGING_LISTENER_FLAG = "cost-management.backend.ingress-staging-listener"
 OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG = "cost-management.backend.ocp_report_distinct_arrays_parallel"
 OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG = "cost-management.backend.ocp_report_identity_exchange_rate"
 OCP_REPORT_LIMITED_DELTA_FLAG = "cost-management.backend.ocp_report_limited_delta"

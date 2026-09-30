@@ -313,3 +313,48 @@ class IngressDeadLetterQueue(models.Model):
     payload = models.JSONField()
     s3_key = models.TextField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class IngressStagingState(models.TextChoices):
+    """Lifecycle of a staged ingress tarball."""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    PROCESSED = "processed"
+    FAILED = "failed"
+
+
+class IngressStagingPayload(models.Model):
+    """Raw ingress tarball waiting for worker-side extract and line-item processing.
+
+    ``payload`` is the Kafka message value, including ``b64_identity`` for ROS.
+    It is cleared when the row is marked processed. Do not log ``payload``.
+    """
+
+    class Meta:
+        db_table = "reporting_common_ingress_staging_payload"
+        indexes = [
+            models.Index(fields=["state", "not_before"], name="ingress_staging_claim_idx"),
+            models.Index(fields=["state", "claimed_at"], name="ingress_staging_lease_idx"),
+        ]
+
+    request_id = models.CharField(max_length=255, unique=True)
+    payload = models.JSONField(null=True)
+    claim_token = models.UUIDField(null=True)
+    enqueued_at = models.DateTimeField(null=True)
+    s3_key = models.TextField(null=True)
+    org_id = models.CharField(max_length=36, null=True)
+    cluster_id = models.TextField(null=True)
+    assembly_id = models.TextField(null=True)
+    account = models.CharField(max_length=150, null=True)
+    state = models.CharField(
+        max_length=16,
+        null=True,
+        choices=IngressStagingState.choices,
+        default=IngressStagingState.PENDING,
+    )
+    attempts = models.IntegerField(null=True, default=0)
+    last_error = models.TextField(null=True)
+    stored_at = models.DateTimeField(null=True)
+    claimed_at = models.DateTimeField(null=True)
+    not_before = models.DateTimeField(null=True)

@@ -770,6 +770,30 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 ---
 
+### Ingress Staging Reconciler
+
+**Task**: `masu.external.downloader.ocp.ingress_staging.reconcile_ingress_staging`
+
+**Schedule**: Every minute
+
+**Queue**: `ingress` (consumed by the OCP worker)
+
+**Description**: Enqueues staged HCCM ingress rows that the listener's eager handoff did not finish. It does not claim rows. A successful publish sets `enqueued_at`, and that `request_id` is not published again until the two-hour lease passes. Pending rows younger than one minute are left for the in-flight task. The worker task `masu.processor.ocp.staged_payloads.process_staged.process_staged_ingress_payload` claims the row and extracts the tarball on the `ingress` queue. Line items run as `process_staged_ingress_reports` on the customer OCP queue. See [`ingress_staging.py`](../../koku/masu/external/downloader/ocp/ingress_staging.py) and [`process_staged.py`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py).
+
+---
+
+### Ingress Staging Retention
+
+**Task**: `masu.external.downloader.ocp.ingress_staging.expire_ingress_staging`
+
+**Schedule**: Hourly at minute 0
+
+**Queue**: `ingress` (consumed by the OCP worker)
+
+**Description**: Deletes `processed` staging rows whose `stored_at` is older than seven days, and deletes the matching `ingress_staging/` object. `failed` rows and their objects are kept.
+
+---
+
 ## Additional Utility Tasks
 
 ### `masu.celery.tasks.collect_queue_metrics`
@@ -975,6 +999,7 @@ Koku uses multiple queue types to organize task processing:
 8. **HCS_QUEUE** (`hcs`) - Hybrid Committed Spend processing
 9. **SUBS_EXTRACTION_QUEUE** (`subs_extraction`) - Subscription data extraction
 10. **SUBS_TRANSMISSION_QUEUE** (`subs_transmission`) - Subscription data messaging
+11. **IngressQueue** (`ingress`) - Staged HCCM ingress extract and line-item processing
 
 ### Queue Selection Logic
 

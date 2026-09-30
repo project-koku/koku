@@ -305,6 +305,16 @@ app.conf.beat_schedule["delayed_tasks_trigger"] = {
     "schedule": trigger_delayed_tasks_schedule,
 }
 
+# Enqueue staging rows the listener handed off but a worker has not finished.
+app.conf.beat_schedule["reconcile_ingress_staging"] = {
+    "task": "masu.external.downloader.ocp.ingress_staging.reconcile_ingress_staging",
+    "schedule": crontab(minute="*"),
+}
+app.conf.beat_schedule["expire_ingress_staging"] = {
+    "task": "masu.external.downloader.ocp.ingress_staging.expire_ingress_staging",
+    "schedule": crontab(minute=0),
+}
+
 
 # Celery timeout if broker is unavailable to avoid blocking indefinitely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
