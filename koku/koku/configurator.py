@@ -196,18 +196,6 @@ class EnvConfigurator(Configurator):
     """Returns information based on the environment data"""
 
     @staticmethod
-    def get_endpoint_host(app, name, default):
-        """Obtain endpoint hostname from environment variable."""
-        svc = "_".join((app, name, "HOST")).replace("-", "_").upper()
-        return ENVIRONMENT.get_value(svc, default=default)
-
-    @staticmethod
-    def get_endpoint_port(app, name, default):
-        """Obtain endpoint port from environment variable."""
-        svc = "_".join((app, name, "PORT")).replace("-", "_").upper()
-        return ENVIRONMENT.get_value(svc, default=default)
-
-    @staticmethod
     def get_endpoint_url(app, name, default):
         """Obtain endpoint URL (scheme://host:port) from environment."""
         parsed = urlsplit(default)
