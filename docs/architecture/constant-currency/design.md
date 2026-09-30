@@ -34,7 +34,7 @@ Customer-defined directional rate:
 | Attribute                           | Rule                                                 |
 | ----------------------------------- | ---------------------------------------------------- |
 | `base_currency` → `target_currency` | Directional; reverse is a separate definition        |
-| `exchange_rate`                     | Strictly positive                                    |
+| `exchange_rate`                     | Strictly positive; units of target per 1 unit of base |
 | `start_date` / `end_date`           | Month-aligned (1st → last day of a month)            |
 | Validity                            | No overlapping windows for the same directional pair |
 
@@ -51,7 +51,7 @@ Effective conversion rate used by reports/forecasts for one month and one pair.
 | ----------------------------------- | ------------------------------------------ |
 | `effective_date`                    | First day of the month the rate applies to |
 | `base_currency` / `target_currency` | Directional pair                           |
-| `exchange_rate`                     | Multiplier applied for that month          |
+| `exchange_rate`                     | Multiplier for that month (target per 1 base) |
 | `rate_type`                         | `static` or `dynamic`                      |
 
 
