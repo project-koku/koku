@@ -57,6 +57,51 @@ LOG = logging.getLogger(__name__)
 # aggregation parallelize.
 DISTINCT_METADATA_FIELDS = ("clusters", "source_uuid")
 
+CLUSTER_FILTER_FIELDS = ("cluster_alias", "cluster_id")
+# Lookups for which "column matches value" implies "column contains value".
+CLUSTER_FILTER_LOOKUPS = frozenset(
+    ("exact", "iexact", "contains", "icontains", "startswith", "istartswith", "endswith", "iendswith", "in")
+)
+
+
+def _implied_cluster_values(q_object):
+    """Return values that any row matching q_object contains in cluster_alias or cluster_id.
+
+    Returns None when q_object does not guarantee such a match.  An AND node
+    implies what any of its children implies; an OR node only when every
+    branch does.  Negated nodes and other lookups imply nothing.
+    """
+    if q_object.negated:
+        return None
+    implied = []
+    for child in q_object.children:
+        if isinstance(child, Q):
+            values = _implied_cluster_values(child)
+        else:
+            values = _implied_cluster_leaf_values(child)
+        if values is None:
+            if q_object.connector == Q.OR:
+                return None
+            continue
+        implied.append(values)
+    if not implied:
+        return None
+    return set().union(*implied)
+
+
+def _implied_cluster_leaf_values(child):
+    """Return the values a single (lookup, value) condition requires, or None."""
+    if not isinstance(child, tuple) or len(child) != 2:
+        return None
+    lookup, value = child
+    field, _, operation = lookup.partition("__")
+    if field not in CLUSTER_FILTER_FIELDS or (operation or "exact") not in CLUSTER_FILTER_LOOKUPS:
+        return None
+    values = value if operation == "in" else [value]
+    if isinstance(values, str) or not all(isinstance(item, str) and item for item in values):
+        return None
+    return set(values)
+
 
 class OCPReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for OCP."""
@@ -291,22 +336,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     @cached_property
     def _cluster_filter_values(self):
-        """Return every value that a cluster filter or group-by may match rows on.
+        """Return values that every row kept by the report filter matches on cluster_alias/cluster_id.
 
-        The cluster filter is a substring match on cluster_alias/cluster_id, so
-        any row it keeps contains at least one of these values.  Wildcard lists
-        are skipped because the report query does not filter on them either;
-        exact values are always kept because the exact filter ignores wildcards.
+        Read from the composed filter rather than from the request parameters,
+        so the hint follows exactly what the filter applies (wildcards,
+        operators, and group-by handling included).  Empty when the filter does
+        not restrict the cluster.
         """
-        values = set()
-        for key in ("cluster", "and:cluster", "or:cluster"):
-            for items in (self.parameters.get_filter(key, list()), self.parameters.get_group_by(key, list())):
-                items = items if isinstance(items, list) else [items]
-                if items and not ReportQueryHandler.has_wildcard(items):
-                    values.update(items)
-        exact_items = self.parameters.get_filter("exact:cluster", list())
-        values.update(exact_items if isinstance(exact_items, list) else [exact_items])
-        return {value for value in values if value}
+        return _implied_cluster_values(self.query_filter) or set()
 
     @cached_property
     def _cluster_filter_index_hint_enabled(self):

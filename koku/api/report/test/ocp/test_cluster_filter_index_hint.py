@@ -12,10 +12,12 @@ identical with the flag on and off.
 from unittest.mock import patch
 
 from django.db import connection
+from django.db.models import Q
 from django.test.utils import CaptureQueriesContext
 from django_tenants.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.ocp.query_handler import _implied_cluster_values
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
@@ -81,6 +83,10 @@ class OCPReportClusterFilterIndexHintTest(IamTestCase):
             f"filter[and:cluster]={self.cluster_alias[:4]}&filter[and:cluster]={self.cluster_alias[-4:]}",
             f"filter[or:cluster]={self.cluster_alias}&filter[or:cluster]=no-such-cluster",
             f"group_by[cluster]={self.cluster_alias}",
+            # The report filter ignores these group-by values, so the hint must too.
+            f"filter[cluster]=*&group_by[cluster]={self.cluster_alias}",
+            f"filter[or:cluster]=*&group_by[or:cluster]={self.cluster_alias}",
+            f"filter[and:cluster]=*&group_by[and:cluster]={self.cluster_alias}",
         ]
         views = [
             (OCPCostView, "group_by[project]=*"),
@@ -174,3 +180,27 @@ class OCPReportClusterFilterIndexHintTest(IamTestCase):
         sql = [query["sql"] for query in captured.captured_queries]
         self.assertFalse(any('"report_period_id" IN' in q for q in sql))
         self.assertFalse(any('FROM "reporting_ocp_cluster' in q for q in sql))
+
+
+class ImpliedClusterValuesTest(IamTestCase):
+    """The hint only uses cluster values that every filtered row must match."""
+
+    def test_and_node_uses_cluster_conditions_and_ignores_others(self):
+        q = Q(usage_start__gte="2026-09-01") & (Q(cluster_alias__icontains="a") | Q(cluster_id__icontains="a"))
+        self.assertEqual(_implied_cluster_values(q), {"a"})
+
+    def test_or_node_needs_every_branch(self):
+        self.assertEqual(
+            _implied_cluster_values(Q(cluster_alias__icontains="a") | Q(cluster_id__exact="b")), {"a", "b"}
+        )
+        self.assertIsNone(_implied_cluster_values(Q(cluster_alias__icontains="a") | Q(namespace__icontains="p")))
+
+    def test_in_lookup_and_plain_field(self):
+        self.assertEqual(_implied_cluster_values(Q(cluster_id__in=["a", "b"])), {"a", "b"})
+        self.assertEqual(_implied_cluster_values(Q(cluster_alias="a")), {"a"})
+
+    def test_negation_and_non_matching_lookups_imply_nothing(self):
+        self.assertIsNone(_implied_cluster_values(~Q(cluster_alias__icontains="a")))
+        self.assertIsNone(_implied_cluster_values(Q(cluster_alias__isnull=False)))
+        self.assertIsNone(_implied_cluster_values(Q(cluster_alias__icontains="")))
+        self.assertIsNone(_implied_cluster_values(Q(namespace__icontains="p")))
