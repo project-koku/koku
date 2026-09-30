@@ -191,10 +191,21 @@ class Forecast:
 
         return {"exchange_rate": exchange_rate_annotation}
 
+    def _identity_exchange_rate_annotations(self):
+        """Annotate exchange rates of 1 so base-currency aggregates stay valid.
+
+        Summary tables do not store exchange_rate. Provider-map cost terms still
+        reference it, so the field must be annotated even when conversion is
+        applied after the regression.
+        """
+        return {"exchange_rate": Value(1, output_field=DecimalField())}
+
     def get_data(self):
         """Query the database."""
         queryset = self.cost_summary_table.objects.filter(self.filters.compose())
-        if not self.use_base_currency_regression:
+        if self.use_base_currency_regression:
+            queryset = queryset.annotate(**self._identity_exchange_rate_annotations())
+        else:
             queryset = queryset.annotate(**self.exchange_rate_annotation_dict)
         return (
             queryset.order_by("usage_start")
@@ -207,12 +218,13 @@ class Forecast:
         )
 
     def _get_base_currencies_for_conversion(self):
-        """Return base currencies present in the training window."""
+        """Return base currencies in the filtered training window.
+
+        Coverage checks and the rate applied to predictions both use this set,
+        so it has to match the rows the caller can see.
+        """
         return set(
-            self.cost_summary_table.objects.filter(
-                usage_start__gte=self.query_range[0],
-                usage_start__lte=self.query_range[1],
-            )
+            self.cost_summary_table.objects.filter(self.filters.compose())
             .values_list(self.provider_map.cost_units_key, flat=True)
             .distinct()
         ) - {None}
@@ -239,6 +251,7 @@ class Forecast:
 
         costs_by_base = (
             self.cost_summary_table.objects.filter(self.filters.compose())
+            .annotate(**self._identity_exchange_rate_annotations())
             .values(self.provider_map.cost_units_key)
             .annotate(cost=self.total_cost_term)
         )
@@ -742,10 +755,24 @@ class OCPForecast(Forecast):
             "infra_exchange_rate": infra_exchange_rate_annotation,
         }
 
+    def _identity_exchange_rate_annotations(self):
+        """Annotate identity rates for cost-model and infrastructure currencies."""
+        return {
+            "exchange_rate": Value(1, output_field=DecimalField()),
+            "infra_exchange_rate": Value(1, output_field=DecimalField()),
+        }
+
     def _get_base_currencies_for_conversion(self):
-        """Include both cloud infra and cost-model currencies."""
+        """Return infra and cost-model currencies for sources in the filtered forecast window."""
         base_currencies = super()._get_base_currencies_for_conversion()
-        return (base_currencies | set(self.source_to_currency_map.values())) - {None}
+        cm_currencies = set(
+            CostModel.objects.filter(
+                costmodelmap__provider_uuid__in=self.cost_summary_table.objects.filter(self.filters.compose()).values(
+                    "source_uuid"
+                ),
+            ).values_list("currency", flat=True)
+        )
+        return (base_currencies | cm_currencies) - {None}
 
     def _unconverted_cost_model_cost_sum(self, cost_model_rate_type=None):
         """Return unconverted cost-model cost aggregate."""
@@ -782,7 +809,7 @@ class OCPForecast(Forecast):
         rows = (
             self.cost_summary_table.objects.filter(self.filters.compose())
             .values("source_uuid")
-            .annotate(cost=Sum(cost_field))
+            .annotate(cost=cost_field)
         )
         total_cost = Decimal(0)
         weighted_rate = Decimal(0)
@@ -791,7 +818,8 @@ class OCPForecast(Forecast):
             cost = Decimal(row["cost"] or 0)
             if cost == 0:
                 continue
-            base_currency = self.source_to_currency_map.get(source_uuid, settings.KOKU_DEFAULT_CURRENCY)
+            # Bracket access uses the map default. dict.get() would skip it.
+            base_currency = self.source_to_currency_map[source_uuid]
             rate = get_monthly_exchange_rate(base_currency, self.currency, month_start)
             weighted_rate += cost * rate
             total_cost += cost
