@@ -54,6 +54,7 @@ scipy = ">=1.16"
 boto3 = "*"
 sqlalchemy = ">=2.0.0"
 platformdirs = ">=4.3.6"  # floor set to satisfy tox's transitive dep (via fcache/unleashclient)
+pyjwt = ">=2.14.0"  # floor: reject public JWK containers as HMAC secrets (fixed in 2.14.0)
 babel = "*"
 
 [dev-packages]

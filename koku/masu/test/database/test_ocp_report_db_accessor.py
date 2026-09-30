@@ -14,10 +14,12 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.conf import settings
+from django.db import connection
 from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models import Sum
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoUserError
@@ -1608,6 +1610,22 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             self.assertNotIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_not_called()
+
+    def test_update_line_item_daily_summary_with_tag_mapping_joins_on_primary_key(self):
+        """The tag-mapping UPDATE finds rows by (usage_start, uuid), the table's primary key."""
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+        with CaptureQueriesContext(connection) as captured:
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+        updates = [
+            query["sql"]
+            for query in captured.captured_queries
+            if "UPDATE" in query["sql"] and "cte_update_labels" in query["sql"]
+        ]
+        self.assertEqual(len(updates), 1)
+        self.assertIn("lids.uuid = update_data.uuid", updates[0])
+        self.assertIn("lids.usage_start = update_data.usage_start", updates[0])
 
     def test_update_line_item_daily_summary_with_tag_mapping(self):
         """
