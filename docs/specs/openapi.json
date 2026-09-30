@@ -12286,14 +12286,17 @@
                     },
                     "base_currency": {
                         "type": "string",
+                        "description": "ISO 4217 code for the source currency in the directional pair.",
                         "example": "USD"
                     },
                     "target_currency": {
                         "type": "string",
+                        "description": "ISO 4217 code for the destination currency. Use this as the display units for exchange_rate (e.g. format 0.87 as \"0.87 EUR\").",
                         "example": "EUR"
                     },
                     "exchange_rate": {
                         "type": "number",
+                        "description": "Directional multiplier: units of target_currency per 1 unit of base_currency. Example: base=AED, target=EUR, exchange_rate=0.92 means 1 AED = 0.92 EUR. Conversion is amount_in_base \u00d7 exchange_rate \u2192 amount_in_target. There is no separate exchange_rate_units field; format using target_currency.",
                         "example": 0.87
                     },
                     "start_date": {
