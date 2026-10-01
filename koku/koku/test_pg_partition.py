@@ -6,6 +6,7 @@ import datetime
 import json
 import threading
 import uuid
+from unittest.mock import patch
 
 from django.db import connection as conn
 from django.db import transaction
@@ -1210,7 +1211,17 @@ partition by range (usage_start);
     def test_creates_missing_partition_once(self):
         """The month's partition is created and attached; a second run finds it."""
         counts = self.precreate(datetime.date(2031, 3, 17))
-        self.assertEqual(counts, {"created": 1, "existing": 0, "skipped_locked": 0, "skipped_default_data": 0})
+        self.assertEqual(
+            counts,
+            {
+                "created": 1,
+                "existing": 0,
+                "skipped_locked": 0,
+                "skipped_default_data": 0,
+                "failed": 0,
+                "missing": [],
+            },
+        )
         record = self.partition_record(f"{self.PARTITIONED_TABLE_NAME}_2031_03")
         self.assertIsNotNone(record)
         self.assertEqual(record.partition_parameters, {"default": False, "from": "2031-03-01", "to": "2031-04-01"})
@@ -1227,9 +1238,21 @@ partition by range (usage_start);
             f"insert into {self.SCHEMA_NAME}.{self.PARTITIONED_TABLE_NAME} (usage_start) values (%s)",
             [datetime.date(2031, 5, 2)],
         )
-        counts = self.precreate("2031-05-01")
+        with self.assertLogs("koku.pg_partition", "INFO") as logs:
+            counts = self.precreate("2031-05-01")
         self.assertEqual(counts["skipped_default_data"], 1)
+        self.assertEqual(counts["missing"], [f"{self.PARTITIONED_TABLE_NAME}_2031_05"])
+        self.assertTrue(any("'outcome': 'skipped_default_data'" in line for line in logs.output))
         self.assertIsNone(self.partition_record(f"{self.PARTITIONED_TABLE_NAME}_2031_05"))
+
+    def test_unexpected_error_is_logged_and_does_not_stop_the_run(self):
+        """A failure on one table is logged as failed and the table is reported missing."""
+        with patch.object(ppart, "get_or_create_partition", side_effect=RuntimeError("boom")):
+            with self.assertLogs("koku.pg_partition", "ERROR") as logs:
+                counts = self.precreate("2031-06-01")
+        self.assertEqual(counts["failed"], 1)
+        self.assertEqual(counts["missing"], [f"{self.PARTITIONED_TABLE_NAME}_2031_06"])
+        self.assertTrue(any("'outcome': 'failed'" in line and "boom" in line for line in logs.output))
 
     def test_lock_timeout_is_reset(self):
         """The session lock_timeout is restored after pre-creating."""
@@ -1300,8 +1323,11 @@ partition by range (usage_start);
         reader.start()
         try:
             self.assertTrue(locked.wait(30))
-            counts = self.precreate()
+            with self.assertLogs("koku.pg_partition", "WARNING") as logs:
+                counts = self.precreate()
             self.assertEqual(counts["skipped_locked"], 1)
+            self.assertEqual(counts["missing"], [f"{self.PARTITIONED_TABLE_NAME}_2031_09"])
+            self.assertTrue(any("'outcome': 'skipped_locked'" in line for line in logs.output))
             self.assertEqual(counts["created"], 0)
             with schema_context(self.SCHEMA_NAME):
                 self.assertFalse(
@@ -1312,5 +1338,8 @@ partition by range (usage_start);
             release.set()
             reader.join(30)
 
-        counts = self.precreate()
+        with self.assertLogs("koku.pg_partition", "INFO") as logs:
+            counts = self.precreate()
         self.assertEqual(counts["created"], 1)
+        self.assertEqual(counts["missing"], [])
+        self.assertTrue(any("'outcome': 'created'" in line for line in logs.output))
