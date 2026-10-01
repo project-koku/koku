@@ -71,12 +71,12 @@ services:
       - 8000:8000
       - 8001:9000
     volumes:
-      - "./koku:/koku/koku"
-      - "./dev/containers/unleash:/koku/.unleash"
-      - "./db_functions:/koku/db_functions"
-      - "./scripts:/koku/scripts"
-      - "./run_server.sh:/koku/run_server.sh"
-      - "./dev/credentials:/etc/credentials"
+      - "./koku:/koku/koku:z"
+      - "./dev/containers/unleash:/koku/.unleash:z"
+      - "./db_functions:/koku/db_functions:z"
+      - "./scripts:/koku/scripts:z"
+      - "./run_server.sh:/koku/run_server.sh:z"
+      - "./dev/credentials:/etc/credentials:z"
     depends_on:
       - koku-base
 
@@ -143,12 +143,12 @@ services:
       - 5042:8000
       - 5001:9000
     volumes:
-      - "./koku:/koku/koku"
-      - "./dev/containers/unleash:/koku/.unleash"
-      - "./db_functions:/koku/db_functions"
-      - "./scripts:/koku/scripts"
-      - "./run_server.sh:/koku/run_server.sh"
-      - "./dev/credentials:/etc/credentials"
+      - "./koku:/koku/koku:z"
+      - "./dev/containers/unleash:/koku/.unleash:z"
+      - "./db_functions:/koku/db_functions:z"
+      - "./scripts:/koku/scripts:z"
+      - "./run_server.sh:/koku/run_server.sh:z"
+      - "./dev/credentials:/etc/credentials:z"
     depends_on:
       koku-base:
         condition: service_started
