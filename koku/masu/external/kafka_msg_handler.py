@@ -51,11 +51,9 @@ from masu.external.downloader.ocp.download import is_permanent_download_error as
 from masu.external.downloader.ocp.exceptions import FAILURE_CONFIRM_STATUS
 from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
 from masu.external.downloader.ocp.exceptions import SUCCESS_CONFIRM_STATUS
-from masu.external.downloader.ocp.ingress_staging import stage_ingress_payload
 from masu.external.downloader.ocp.ingress_staging import stage_ingress_s3_inbox
 from masu.processor import INGRESS_DEAD_LETTER_QUEUE_FLAG
 from masu.processor import INGRESS_STAGING_LISTENER_FLAG
-from masu.processor import INGRESS_STAGING_S3_INBOX_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor.ocp.staged_payloads.processing import extract_payload
 from masu.processor.ocp.staged_payloads.processing import process_extracted_reports
@@ -377,20 +375,14 @@ def handle_message(kmsg):
         LOG.info(log_json(request_id, msg=msg, context=context))
         return FAILURE_CONFIRM_STATUS, None, None
 
+    # For this unleash flag we will always have to use org{org_id}
+    # while testing this path. The listener does not query Customer.
     derived_schema = schema_name_for_org(org_id)
-    staging_on = is_feature_flag_enabled_by_schema(derived_schema, INGRESS_STAGING_LISTENER_FLAG, dev_fallback=True)
-    if staging_on and is_feature_flag_enabled_by_schema(
-        derived_schema, INGRESS_STAGING_S3_INBOX_FLAG, dev_fallback=True
-    ):
+    if is_feature_flag_enabled_by_schema(derived_schema, INGRESS_STAGING_LISTENER_FLAG, dev_fallback=True):
         context["schema"] = derived_schema
         return stage_ingress_s3_inbox(request_id, value, context), None, None
 
     schema_name = Customer.objects.filter(org_id=org_id).values_list("schema_name", flat=True).first()
-    if schema_name and schema_name != derived_schema:
-        staging_on = is_feature_flag_enabled_by_schema(schema_name, INGRESS_STAGING_LISTENER_FLAG, dev_fallback=True)
-    if schema_name and staging_on:
-        context["schema"] = schema_name
-        return stage_ingress_payload(request_id, value, context), None, None
     # Park-and-skip: keep default dev_fallback=False so local/dev still extracts payloads.
     if schema_name and is_feature_flag_enabled_by_schema(schema_name, INGRESS_DEAD_LETTER_QUEUE_FLAG):
         context["schema"] = schema_name

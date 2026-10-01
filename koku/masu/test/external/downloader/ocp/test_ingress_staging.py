@@ -17,7 +17,6 @@ from masu.config import Config
 from masu.external.downloader.ocp.exceptions import FAILURE_CONFIRM_STATUS
 from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
 from masu.external.downloader.ocp.exceptions import SUCCESS_CONFIRM_STATUS
-from masu.external.downloader.ocp.ingress_staging import _receipt_key
 from masu.external.downloader.ocp.ingress_staging import claim_ingress_staging_row
 from masu.external.downloader.ocp.ingress_staging import expire_ingress_staging
 from masu.external.downloader.ocp.ingress_staging import mark_processed
@@ -26,8 +25,8 @@ from masu.external.downloader.ocp.ingress_staging import reconcile_ingress_stagi
 from masu.external.downloader.ocp.ingress_staging import register_ingress_staging_marker
 from masu.external.downloader.ocp.ingress_staging import REGISTER_INGRESS_STAGING_TASK
 from masu.external.downloader.ocp.ingress_staging import release_for_retry
-from masu.external.downloader.ocp.ingress_staging import stage_ingress_payload
 from masu.external.downloader.ocp.ingress_staging import stage_ingress_s3_inbox
+from masu.external.downloader.ocp.ingress_staging.keys import _receipt_key
 from masu.test import MasuTestCase
 from reporting_common.models import IngressStagingPayload
 from reporting_common.models import IngressStagingState
@@ -39,7 +38,7 @@ class IngressStagingTests(MasuTestCase):
     def setUp(self):
         super().setUp()
         list_markers = patch(
-            "masu.external.downloader.ocp.ingress_staging._list_pending_markers",
+            "masu.external.downloader.ocp.ingress_staging.register._list_pending_markers",
             return_value=([], None),
         )
         self.list_markers = list_markers.start()
@@ -125,7 +124,7 @@ class IngressStagingTests(MasuTestCase):
             claimed_at=timezone.now() - timedelta(hours=3),
             attempts=1,
         )
-        with patch("masu.external.downloader.ocp.ingress_staging.celery_app.send_task") as mock_enqueue:
+        with patch("masu.external.downloader.ocp.ingress_staging.reconcile.celery_app.send_task") as mock_enqueue:
             reconcile_ingress_staging()
 
         enqueued = [enqueued_call.kwargs["args"][0] for enqueued_call in mock_enqueue.call_args_list]
@@ -140,7 +139,7 @@ class IngressStagingTests(MasuTestCase):
             claimed_at=timezone.now() - timedelta(hours=3),
             attempts=1,
         )
-        with patch("masu.external.downloader.ocp.ingress_staging.celery_app.send_task") as mock_enqueue:
+        with patch("masu.external.downloader.ocp.ingress_staging.reconcile.celery_app.send_task") as mock_enqueue:
             reconcile_ingress_staging()
             reconcile_ingress_staging()
 
@@ -151,7 +150,7 @@ class IngressStagingTests(MasuTestCase):
         """Test that a broker error on one row does not fail the reconciler."""
         self._pending_row("broker-down")
         with patch(
-            "masu.external.downloader.ocp.ingress_staging.celery_app.send_task",
+            "masu.external.downloader.ocp.ingress_staging.reconcile.celery_app.send_task",
             side_effect=KombuOperationalError("broker down"),
         ):
             reconcile_ingress_staging()
@@ -161,23 +160,29 @@ class IngressStagingTests(MasuTestCase):
     def test_stage_http_429_rewinds(self):
         """Test that a rate-limited quarantine download is retried by the consumer."""
         url = "http://insights-upload.example/quarantine/file"
-        with requests_mock.Mocker() as mock_download:
+        with (
+            requests_mock.Mocker() as mock_download,
+            patch("masu.external.downloader.ocp.ingress_staging.listener._s3_key_exists", return_value=False),
+        ):
             mock_download.get(url, status_code=429)
             with tempfile.TemporaryDirectory() as fake_data_dir:
                 with patch.object(Config, "DATA_DIR", fake_data_dir):
                     with self.assertRaises(KafkaMsgHandlerError):
-                        stage_ingress_payload(
+                        stage_ingress_s3_inbox(
                             "retry-429", {"url": url, "org_id": self.org_id}, {"org_id": self.org_id}
                         )
 
     def test_stage_http_404_confirms_failure(self):
         """Test that a missing quarantine object is confirmed as a failure."""
         url = "http://insights-upload.example/quarantine/missing"
-        with requests_mock.Mocker() as mock_download:
+        with (
+            requests_mock.Mocker() as mock_download,
+            patch("masu.external.downloader.ocp.ingress_staging.listener._s3_key_exists", return_value=False),
+        ):
             mock_download.get(url, status_code=404)
             with tempfile.TemporaryDirectory() as fake_data_dir:
                 with patch.object(Config, "DATA_DIR", fake_data_dir):
-                    status = stage_ingress_payload(
+                    status = stage_ingress_s3_inbox(
                         "gone-404", {"url": url, "org_id": self.org_id}, {"org_id": self.org_id}
                     )
         self.assertEqual(status, FAILURE_CONFIRM_STATUS)
@@ -200,7 +205,7 @@ class IngressStagingTests(MasuTestCase):
             stored_at=timezone.now() - timedelta(days=8),
         )
         with patch(
-            "masu.external.downloader.ocp.ingress_staging.delete_s3_objects",
+            "masu.external.downloader.ocp.ingress_staging.expire.delete_s3_objects",
             return_value=[{"Key": old.s3_key}],
         ) as mock_delete:
             expire_ingress_staging()
@@ -233,11 +238,13 @@ class IngressStagingTests(MasuTestCase):
         """Test that a stored receipt confirms without another quarantine download or tar upload."""
         request_id = "inbox-redelivery"
         with (
-            patch("masu.external.downloader.ocp.ingress_staging._s3_key_exists", return_value=True) as mock_head,
-            patch("masu.external.downloader.ocp.ingress_staging._copy_s3_key") as mock_copy_key,
-            patch("masu.external.downloader.ocp.ingress_staging.copy_data_to_s3_bucket") as mock_upload,
+            patch(
+                "masu.external.downloader.ocp.ingress_staging.listener._s3_key_exists", return_value=True
+            ) as mock_head,
+            patch("masu.external.downloader.ocp.ingress_staging.listener._copy_s3_key") as mock_copy_key,
+            patch("masu.external.downloader.ocp.ingress_staging.objects.copy_data_to_s3_bucket") as mock_upload,
             patch("masu.external.downloader.ocp.download.download_payload") as mock_download,
-            patch("masu.external.downloader.ocp.ingress_staging.celery_app.send_task") as mock_enqueue,
+            patch("masu.external.downloader.ocp.ingress_staging.listener.celery_app.send_task") as mock_enqueue,
             patch.object(IngressStagingPayload.objects, "get_or_create", side_effect=OperationalError("db down")),
         ):
             status = stage_ingress_s3_inbox(
@@ -260,9 +267,9 @@ class IngressStagingTests(MasuTestCase):
         request_id = "marker-db-down"
         document = self._marker_document(request_id, f"data/ingress_staging/{request_id}.tar.gz")
         with (
-            patch("masu.external.downloader.ocp.ingress_staging._read_marker_json", return_value=document),
-            patch("masu.external.downloader.ocp.ingress_staging.delete_s3_objects") as mock_delete,
-            patch("masu.external.downloader.ocp.ingress_staging.celery_app.send_task") as mock_enqueue,
+            patch("masu.external.downloader.ocp.ingress_staging.register._read_marker_json", return_value=document),
+            patch("masu.external.downloader.ocp.ingress_staging.register.delete_s3_objects") as mock_delete,
+            patch("masu.external.downloader.ocp.ingress_staging.register.celery_app.send_task") as mock_enqueue,
             patch("masu.external.kafka_msg_handler.close_and_set_db_connection"),
             patch.object(IngressStagingPayload.objects, "get_or_create", side_effect=OperationalError("db down")),
         ):
@@ -282,12 +289,12 @@ class IngressStagingTests(MasuTestCase):
         )
         document = self._marker_document(request_id, row.s3_key, identity="replacement-secret")
         with (
-            patch("masu.external.downloader.ocp.ingress_staging._read_marker_json", return_value=document),
+            patch("masu.external.downloader.ocp.ingress_staging.register._read_marker_json", return_value=document),
             patch(
-                "masu.external.downloader.ocp.ingress_staging.delete_s3_objects",
+                "masu.external.downloader.ocp.ingress_staging.register.delete_s3_objects",
                 return_value=[{"Key": "pending"}],
             ),
-            patch("masu.external.downloader.ocp.ingress_staging.celery_app.send_task"),
+            patch("masu.external.downloader.ocp.ingress_staging.register.celery_app.send_task"),
         ):
             register_ingress_staging_marker(request_id)
             register_ingress_staging_marker(request_id)
@@ -305,15 +312,17 @@ class IngressStagingTests(MasuTestCase):
         pending_key = f"data/ingress_staging/pending/{request_id}.json"
         self.list_markers.return_value = ([pending_key], timezone.now() - timedelta(minutes=10))
         with (
-            patch("masu.external.downloader.ocp.ingress_staging._read_marker_json", return_value=document),
+            patch("masu.external.downloader.ocp.ingress_staging.register._read_marker_json", return_value=document),
             patch(
-                "masu.external.downloader.ocp.ingress_staging.delete_s3_objects",
+                "masu.external.downloader.ocp.ingress_staging.register.delete_s3_objects",
                 return_value=[{"Key": pending_key}],
             ) as mock_delete,
-            patch("masu.external.downloader.ocp.ingress_staging.celery_app.send_task") as mock_enqueue,
-            patch("masu.external.downloader.ocp.ingress_staging.INGRESS_STAGING_PENDING_MARKERS") as mock_count,
+            patch("masu.external.downloader.ocp.ingress_staging.register.celery_app.send_task") as mock_enqueue,
             patch(
-                "masu.external.downloader.ocp.ingress_staging.INGRESS_STAGING_PENDING_MARKER_OLDEST_AGE"
+                "masu.external.downloader.ocp.ingress_staging.register.INGRESS_STAGING_PENDING_MARKERS"
+            ) as mock_count,
+            patch(
+                "masu.external.downloader.ocp.ingress_staging.register.INGRESS_STAGING_PENDING_MARKER_OLDEST_AGE"
             ) as mock_age,
         ):
             reconcile_ingress_staging()
