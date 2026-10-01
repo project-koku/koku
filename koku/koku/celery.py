@@ -277,6 +277,14 @@ app.conf.beat_schedule["autovacuum-tune-schemas"] = {
     "args": [],
 }
 
+# Create next month's partitions ahead of time (from the 15th, retried daily) so the
+# first of the month does not need partition DDL on the processing path.
+app.conf.beat_schedule["precreate-upcoming-partitions"] = {
+    "task": "masu.celery.tasks.precreate_upcoming_partitions",
+    "schedule": crontab(hour=5, minute=30, day_of_month="15-31"),
+    "args": [],
+}
+
 # SaaS-only beats (HCS, Azure scrape, AWS org crawl, Sources status/delete)
 status_fallback = validate_cron_expression("0 3 * * *")
 status_expression = ENVIRONMENT.get_value("SOURCE_STATUS_SCHEDULE", default=status_fallback)
