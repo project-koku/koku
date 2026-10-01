@@ -26,6 +26,7 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.models import PriceList
 from cost_models.models import PriceListCostModelMap
+from koku.cache import SOURCES_CACHE_PREFIX
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -427,6 +428,37 @@ class CostModelManagerTest(IamTestCase):
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
+
+    @patch("koku.cache.invalidate_cache_for_tenant_and_cache_key")
+    def test_assign_and_unassign_provider_invalidates_sources_cache(self, mock_invalidate):
+        """Assigning or unassigning a source from a cost model must bust the /sources/ list cache."""
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name="sample_provider", created_by=self.user, customer=self.customer)
+
+        data = {
+            "name": "Test Cost Model",
+            "description": "Test",
+            "rates": [],
+            "source_type": Provider.PROVIDER_OCP,
+        }
+        with tenant_context(self.tenant):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                cost_model_obj = CostModelManager().create(**data)
+            mock_invalidate.reset_mock()
+            with (
+                patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"),
+                self.captureOnCommitCallbacks(execute=True),
+            ):
+                CostModelManager(cost_model_uuid=cost_model_obj.uuid).update_provider_uuids([provider.uuid])
+            mock_invalidate.assert_called_with(self.schema_name, SOURCES_CACHE_PREFIX)
+
+            mock_invalidate.reset_mock()
+            with (
+                patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"),
+                self.captureOnCommitCallbacks(execute=True),
+            ):
+                CostModelManager(cost_model_uuid=cost_model_obj.uuid).update_provider_uuids([])
+            mock_invalidate.assert_called_with(self.schema_name, SOURCES_CACHE_PREFIX)
 
     @patch("cost_models.cost_model_manager.delayed_update_cost_model_costs")
     def test_deleting_cost_model_triggers_tasks(self, mock_update):
