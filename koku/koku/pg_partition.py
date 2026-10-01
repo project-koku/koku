@@ -21,6 +21,7 @@ from django.db import OperationalError
 from django.db import transaction
 from django_tenants.utils import schema_context
 
+from api.common import log_json
 from koku.database import get_model
 
 
@@ -1900,6 +1901,31 @@ def _is_lock_not_available(exc):
     return getattr(exc.__cause__, "pgcode", None) == LOCK_NOT_AVAILABLE
 
 
+OUTCOME_LOG_LEVELS = {
+    "created": logging.INFO,
+    "skipped_default_data": logging.INFO,
+    "skipped_locked": logging.WARNING,
+    "failed": logging.ERROR,
+}
+
+
+def _precreate_partition(default_partition, part_rec, lock_timeout):
+    """Try to create one partition; return (outcome, error message or None)."""
+    restore_parameters, _ = _check_default_partition_data(default_partition, copy.deepcopy(part_rec))
+    if restore_parameters:
+        return "skipped_default_data", None
+    try:
+        with _session_lock_timeout(lock_timeout):
+            _, created = get_or_create_partition(part_rec, _default_partition=default_partition)
+    except OperationalError as exc:
+        if _is_lock_not_available(exc):
+            return "skipped_locked", None
+        return "failed", str(exc)
+    except Exception as exc:
+        return "failed", str(exc)
+    return ("created" if created else "existing"), None
+
+
 def precreate_monthly_partitions(schema_name, month_start, lock_timeout=PRECREATE_LOCK_TIMEOUT, table_names=None):
     """Create the monthly partition starting at month_start for each range-partitioned table in a schema.
 
@@ -1915,7 +1941,11 @@ def precreate_monthly_partitions(schema_name, month_start, lock_timeout=PRECREAT
         lock_timeout (str) : PostgreSQL lock_timeout for each partition creation.
         table_names (list|None) : Limit to these partitioned tables (all tables when None).
 
-    Returns: dict of counts: created, existing, skipped_locked, skipped_default_data
+    Each outcome is logged as a structured "partition pre-creation" event (outcome: created, skipped_locked,
+    skipped_default_data, failed; existing at debug level) so runs can be evaluated in the logs.
+
+    Returns: dict of counts (created, existing, skipped_locked, skipped_default_data, failed) and
+        "missing": the partitions that still do not exist after this run.
     """
     if isinstance(month_start, str):
         month_start = ciso8601.parse_datetime(month_start).date()
@@ -1923,7 +1953,22 @@ def precreate_monthly_partitions(schema_name, month_start, lock_timeout=PRECREAT
         month_start = month_start.date()
     month_start = month_start.replace(day=1)
     month_end = month_start + relativedelta(months=1)
-    counts = dict.fromkeys(("created", "existing", "skipped_locked", "skipped_default_data"), 0)
+    counts = dict.fromkeys(("created", "existing", "skipped_locked", "skipped_default_data", "failed"), 0)
+    missing = []
+
+    def log_outcome(level, outcome, partition_rec, **extra):
+        LOG.log(
+            level,
+            log_json(
+                msg="partition pre-creation",
+                schema=schema_name,
+                table=partition_rec["partition_of_table_name"],
+                partition=partition_rec["table_name"],
+                month_start=str(month_start),
+                outcome=outcome,
+                **extra,
+            ),
+        )
 
     with schema_context(schema_name):
         default_partitions = PartitionedTable.objects.filter(
@@ -1947,25 +1992,22 @@ def precreate_monthly_partitions(schema_name, month_start, lock_timeout=PRECREAT
             )
             if PartitionedTable.objects.filter(schema_name=schema_name, table_name=part_rec["table_name"]).exists():
                 counts["existing"] += 1
+                log_outcome(logging.DEBUG, "existing", part_rec)
                 continue
 
-            restore_parameters, _ = _check_default_partition_data(default_partition, copy.deepcopy(part_rec))
-            if restore_parameters:
-                LOG.info(f"Default partition holds data for {schema_name}.{part_rec['table_name']}; not pre-creating")
-                counts["skipped_default_data"] += 1
+            outcome, error = _precreate_partition(default_partition, part_rec, lock_timeout)
+            counts[outcome] += 1
+            if outcome == "existing":
+                log_outcome(logging.DEBUG, outcome, part_rec)
                 continue
+            if outcome != "created":
+                missing.append(part_rec["table_name"])
+            extra = {"lock_timeout": lock_timeout} if outcome == "skipped_locked" else {}
+            if error:
+                extra["error"] = error
+            log_outcome(OUTCOME_LOG_LEVELS[outcome], outcome, part_rec, **extra)
 
-            try:
-                with _session_lock_timeout(lock_timeout):
-                    _, created = get_or_create_partition(part_rec, _default_partition=default_partition)
-            except OperationalError as exc:
-                if not _is_lock_not_available(exc):
-                    raise
-                LOG.warning(f"Lock timeout pre-creating {schema_name}.{part_rec['table_name']}; will retry later")
-                counts["skipped_locked"] += 1
-                continue
-            counts["created" if created else "existing"] += 1
-
+    counts["missing"] = missing
     return counts
 
 
