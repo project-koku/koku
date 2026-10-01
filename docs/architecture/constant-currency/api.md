@@ -112,6 +112,14 @@ codes remain in the list so they can be disabled.
 `DecimalField` precision; typical clients parse JSON numbers as IEEE 754
 doubles (~15–17 significant digits).
 
+**Units / direction:** `exchange_rate` is a **base → target** multiplier —
+units of `target_currency` per 1 unit of `base_currency`. Example:
+`base_currency=AED`, `target_currency=EUR`, `exchange_rate=0.92` means
+**1 AED = 0.92 EUR** (conversion: `amount_in_base × exchange_rate →
+amount_in_target`). For UI formatting, use `target_currency` as the units
+(display `0.92 EUR`). There is no separate `exchange_rate_units` field;
+that would always equal `target_currency`.
+
 | Field | Meaning |
 |-------|---------|
 | `enabled` | Currency is enabled for the tenant |
@@ -227,6 +235,9 @@ removed (past months stay finalized).
   "end_date": "2026-06-30"
 }
 ```
+
+`exchange_rate` must be the **base → target** multiplier (target per 1 base).
+Same semantics as on `GET /settings/currency/` (see units note above).
 
 #### Validation rules
 
@@ -359,8 +370,8 @@ Internal inspection of stored monthly rates.
 ```
 
 `rate_type` is `static` or `dynamic`. `exchange_rate` is a JSON number
-(same representation as Settings static-rate responses). Unknown schema or
-bad dates → `400`.
+(same representation and base → target units semantics as Settings
+static-rate responses). Unknown schema or bad dates → `400`.
 
 ---
 
