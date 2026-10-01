@@ -12,10 +12,15 @@ flag on and off.
 from unittest.mock import patch
 
 from django.db import connection
+from django.db.models import Exists
+from django.db.models import F
+from django.db.models import Q
 from django.test.utils import CaptureQueriesContext
 from django_tenants.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.ocp.query_handler import _q_uses_only_fields
+from api.report.ocp.query_handler import CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
@@ -126,3 +131,22 @@ class OCPCapacityByNodeSummaryTest(IamTestCase):
         _, sql = self._run(OCPCpuView, f"?{self.LAST_MONTH}&group_by[project]=*", by_node_enabled=False)
         self.assertFalse(any(BY_NODE_TABLE in q for q in sql))
         self.assertTrue(any(DAILY_SUMMARY_TABLE in q and "capacity" in q for q in sql))
+
+
+class QUsesOnlyFieldsTest(IamTestCase):
+    """The by-node summary is used only when every filter lookup is a plain value on an allowed field."""
+
+    def test_allowed_fields_including_nested_q(self):
+        q = Q(usage_start__gte="2026-09-01") & (Q(cluster_alias__icontains="a") | Q(node="n"))
+        self.assertTrue(_q_uses_only_fields(q, CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS))
+
+    def test_disallowed_field_in_nested_q(self):
+        q = Q(usage_start__gte="2026-09-01") & (Q(cluster_alias__icontains="a") | Q(namespace__icontains="p"))
+        self.assertFalse(_q_uses_only_fields(q, CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS))
+
+    def test_expression_value_is_not_allowed(self):
+        self.assertFalse(_q_uses_only_fields(Q(node=F("cluster_id")), CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS))
+
+    def test_non_lookup_child_is_not_allowed(self):
+        q = Q(Exists(OCPPodSummaryByNodeP.objects.all()))
+        self.assertFalse(_q_uses_only_fields(q, CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS))
