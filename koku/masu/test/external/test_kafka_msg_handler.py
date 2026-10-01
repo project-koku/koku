@@ -38,9 +38,11 @@ from kafka_utils.utils import UPLOAD_TOPIC
 from masu.config import Config
 from masu.external.downloader.ocp import download
 from masu.external.downloader.ocp.ingress_staging import PROCESS_STAGED_INGRESS_TASK
+from masu.external.downloader.ocp.ingress_staging import REGISTER_INGRESS_STAGING_TASK
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor import INGRESS_DEAD_LETTER_QUEUE_FLAG
 from masu.processor import INGRESS_STAGING_LISTENER_FLAG
+from masu.processor import INGRESS_STAGING_S3_INBOX_FLAG
 from masu.processor.ocp.staged_payloads import processing
 from masu.processor.ocp.staged_payloads.processing import EmptyPayloadFileError
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
@@ -76,6 +78,11 @@ def _only_dlq_flag(schema, flag, dev_fallback=False):
 def _only_staging_flag(schema, flag, dev_fallback=False):
     """Enable the staging flag and leave the DLQ flag off."""
     return flag == INGRESS_STAGING_LISTENER_FLAG
+
+
+def _staging_and_inbox_flags(schema, flag, dev_fallback=False):
+    """Enable staging and the S3 inbox flag."""
+    return flag in {INGRESS_STAGING_LISTENER_FLAG, INGRESS_STAGING_S3_INBOX_FLAG}
 
 
 def _kafka_error_from_http_status(status_code):
@@ -1264,6 +1271,48 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         mock_confirm.assert_called_once_with(request_id, msg_handler.SUCCESS_CONFIRM_STATUS)
         self.assertTrue(IngressStagingPayload.objects.filter(request_id=request_id, state="pending").exists())
+
+    def test_s3_inbox_confirms_without_postgres(self):
+        """Test that the S3 inbox flag confirms when Postgres raises on the listener path."""
+        request_id = "test-s3-inbox"
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC,
+            "http://insights-upload.com/quarantine/file_to_validate",
+            {"org_id": self.org_id, "account": self.acct, "request_id": request_id},
+        )
+        payload_dir = Path(tempfile.mkdtemp())
+        payload_file = payload_dir / "payload.tar.gz"
+        payload_file.write_bytes(b"fake-tarball")
+        manifest = Mock(cluster_id="cluster-1", uuid="assembly-1")
+        with (
+            patch(
+                "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema",
+                side_effect=_staging_and_inbox_flags,
+            ),
+            patch("masu.external.downloader.ocp.download.download_payload", return_value=payload_file),
+            patch("masu.external.downloader.ocp.download.read_manifest_from_tarball", return_value=manifest),
+            patch("masu.external.downloader.ocp.ingress_staging.copy_data_to_s3_bucket") as mock_copy,
+            patch("masu.external.downloader.ocp.ingress_staging._s3_key_exists", return_value=False),
+            patch("masu.external.downloader.ocp.ingress_staging.celery_app.send_task") as mock_enqueue,
+            patch("masu.external.kafka_msg_handler.send_confirmation") as mock_confirm,
+            patch("masu.external.kafka_msg_handler.settings.DEBUG", False),
+            patch("masu.external.kafka_msg_handler.Customer.objects.filter", side_effect=OperationalError("db down")),
+            patch.object(IngressStagingPayload.objects, "get_or_create", side_effect=OperationalError("db down")),
+        ):
+            msg_handler.process_messages(hccm_msg)
+
+        mock_confirm.assert_called_once_with(request_id, msg_handler.SUCCESS_CONFIRM_STATUS)
+        mock_enqueue.assert_called_once_with(REGISTER_INGRESS_STAGING_TASK, args=[request_id], queue="ingress")
+        uploaded = [f"{call_args.args[1]}/{call_args.args[2]}" for call_args in mock_copy.call_args_list]
+        self.assertEqual(
+            uploaded,
+            [
+                f"{Config.WAREHOUSE_PATH}/ingress_staging/{self.org_id}/cluster-1/tests3inbox.tar.gz",
+                f"{Config.WAREHOUSE_PATH}/ingress_staging/by_request/tests3inbox.json",
+                f"{Config.WAREHOUSE_PATH}/ingress_staging/pending/tests3inbox.json",
+            ],
+        )
+        self.assertFalse(IngressStagingPayload.objects.filter(request_id=request_id).exists())
 
     def test_process_report(self):
         """Test report processing."""

@@ -165,6 +165,16 @@ INGRESS_STAGING_OLDEST_AGE = Gauge(
     "Age in seconds of the oldest ingress staging row that is not processed",
     multiprocess_mode="livemostrecent",
 )
+INGRESS_STAGING_PENDING_MARKERS = Gauge(
+    "ingress_staging_pending_markers",
+    "Number of ingress staging markers in S3 that do not have a staging row yet",
+    multiprocess_mode="livemostrecent",
+)
+INGRESS_STAGING_PENDING_MARKER_OLDEST_AGE = Gauge(
+    "ingress_staging_pending_marker_oldest_seconds",
+    "Age in seconds of the oldest ingress staging marker in S3",
+    multiprocess_mode="livemostrecent",
+)
 
 HCS_BACKLOG = Gauge("hcs_backlog", "Number of celery tasks in the HCS queue", multiprocess_mode="livesum")
 

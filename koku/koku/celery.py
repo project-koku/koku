@@ -305,7 +305,7 @@ app.conf.beat_schedule["delayed_tasks_trigger"] = {
     "schedule": trigger_delayed_tasks_schedule,
 }
 
-# Enqueue staging rows the listener handed off but a worker has not finished.
+# Register S3 inbox markers, then enqueue staging rows a worker has not finished.
 app.conf.beat_schedule["reconcile_ingress_staging"] = {
     "task": "masu.external.downloader.ocp.ingress_staging.reconcile_ingress_staging",
     "schedule": crontab(minute="*"),
