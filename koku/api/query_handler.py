@@ -136,7 +136,7 @@ class QueryHandler:
         When constant currency is enabled, uses per-month Subquery from
         MonthlyExchangeRate. Otherwise uses ExchangeRateDictionary.
         """
-        if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+        if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
             exchange_rate_annotation = build_monthly_rate_annotation(
                 OuterRef(self._mapper.cost_units_key), self.currency
             )
