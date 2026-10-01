@@ -318,7 +318,7 @@ class RemoveMonthlyRatesTest(MasuTestCase):
 
 
 class PopulateDynamicMonthlyRatesBackfillTest(MasuTestCase):
-    """Tests for retention-window backfill (Celery-only via backfill_past_months=True)."""
+    """Tests for retention-window backfill (backfill_past_months=True)."""
 
     def setUp(self):
         super().setUp()

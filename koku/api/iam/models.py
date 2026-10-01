@@ -16,6 +16,7 @@ from django_tenants.models import TenantMixin
 from django_tenants.postgresql_backend.base import is_valid_schema_name
 from django_tenants.utils import schema_exists
 
+from api.common import log_json
 from koku.database import dbfunc_exists
 from koku.migration_sql_helpers import apply_sql_file
 from koku.migration_sql_helpers import find_db_functions_dir
@@ -33,6 +34,26 @@ class CloneSchemaFuncMissing(CloneSchemaError):
 
 class CloneSchemaTemplateMissing(CloneSchemaError):
     pass
+
+
+def _populate_exchange_rates_for_new_schema(schema_name):
+    """Best-effort monthly rate fill after a tenant schema is cloned.
+
+    Schema creation must succeed even when the shared rate dictionary is empty
+    or the write fails. The daily currency task retries every tenant.
+    """
+    try:
+        from cost_models.monthly_exchange_rate_utils import populate_monthly_rates_for_schema
+
+        populate_monthly_rates_for_schema(schema_name)
+    except Exception as exc:
+        LOG.exception(
+            log_json(
+                msg="Failed to populate monthly exchange rates for new schema",
+                schema=schema_name,
+                error=str(exc),
+            )
+        )
 
 
 class Customer(models.Model):
@@ -170,6 +191,7 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
             return super().create_schema(check_if_exists=True, sync_schema=sync_schema, verbosity=verbosity)
 
         db_exc = None
+        cloned = False
         # Verify name structure
         if not is_valid_schema_name(self.schema_name):
             exc = ValidationError(f'Invalid schema name: "{self.schema_name}"')
@@ -210,6 +232,7 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
                 transaction.set_rollback(True)  # Set this transaction context to issue a rollback on exit
             else:
                 LOG.info(f'Successful clone of "{self._TEMPLATE_SCHEMA}" to "{self.schema_name}"')
+                cloned = True
 
         # Set schema to public (even if there was an exception)
         with transaction.atomic():
@@ -218,6 +241,13 @@ select public.clone_schema(%s, %s, copy_data => true) as "clone_result";
 
         if db_exc:
             raise db_exc
+
+        if cloned:
+            # After the clone commits. template0 often has an empty MonthlyExchangeRate
+            # table (it is migrated before any market snapshot exists). Fill this schema
+            # from ExchangeRateDictionary now; the daily beat remains the refresh path.
+            schema_name = self.schema_name
+            transaction.on_commit(lambda: _populate_exchange_rates_for_new_schema(schema_name))
 
         return True
 
