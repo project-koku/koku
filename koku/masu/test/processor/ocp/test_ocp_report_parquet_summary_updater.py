@@ -6,6 +6,8 @@
 from datetime import datetime
 from unittest.mock import patch
 
+from django.test import override_settings
+
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
@@ -89,6 +91,7 @@ class OCPReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(adjusted_start_date, start_date)
         self.assertEqual(adjusted_end_date, end_date)
 
+    @override_settings(ONPREM=False)
     @patch.object(OCPCloudUpdaterBase, "get_infra_map_from_providers")
     def test_check_cluster_infrastructure(self, mock_get_infra_map_provider):
         """Test that check_cluster_infrastructure logs correct info based on infrastructure map."""
@@ -102,3 +105,11 @@ class OCPReportParquetSummaryUpdaterTest(MasuTestCase):
             self.updater.check_cluster_infrastructure(start_date, end_date)
 
         self.assertIn("OCP cluster is running on cloud infrastructure", mock_logger.output[0])
+
+    @override_settings(ONPREM=True)
+    @patch("masu.processor.ocp.ocp_report_parquet_summary_updater.OCPCloudUpdaterBase")
+    def test_check_cluster_infrastructure_skips_cloud_probe_onprem(self, cloud_updater):
+        """On-prem supports OCP only and must not load SaaS cloud-provider SQL."""
+        self.updater.check_cluster_infrastructure(self.dh.last_month_start, self.dh.last_month_end)
+
+        cloud_updater.assert_not_called()
