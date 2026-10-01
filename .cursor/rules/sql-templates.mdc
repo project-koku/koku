@@ -1,6 +1,7 @@
 ---
 description: Jinja2 SQL template patterns for PostgreSQL and Trino
-globs: "**/*.sql"
+globs:
+  - "**/*.sql"
 alwaysApply: false
 ---
 

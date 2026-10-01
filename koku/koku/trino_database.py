@@ -162,12 +162,23 @@ def retry(
 
                 except retry_on as ex:
                     LOG.debug(f"Exception caught: {ex}")
+                    # Merge in the exception's own diagnostic detail (query, tables,
+                    # deadlocked PIDs, etc. for ExtendedDBException subclasses) so this
+                    # single retry/failure log line is self-sufficient. Without this, a
+                    # deadlock retry only logged a generic message with an unserializable
+                    # exception object and no query/table context (raised in PR #6162
+                    # review: "this is the only information we will get").
+                    # Nested under "exception_detail" (rather than merged at the top level)
+                    # so it can't collide with log_json's own "message" key -- as_dict()
+                    # includes its own "message" entry (str(ex)) that would otherwise
+                    # silently clobber the "(attempt N)" message set below.
+                    exc_detail = ex.as_dict() if hasattr(ex, "as_dict") else {"error": str(ex)}
+                    log_context = {**(context or {}), "exception_detail": exc_detail}
                     if attempt < retries - 1:
                         LOG.warning(
                             log_json(
                                 msg=f"{log_message} (attempt {attempt + 1})",
-                                context=context,
-                                exc_info=ex,
+                                context=log_context,
                             )
                         )
                         backoff = min(2**attempt, max_wait)
@@ -180,8 +191,7 @@ def retry(
                     LOG.error(
                         log_json(
                             msg=f"Failed execution after {attempt + 1} attempts",
-                            context=context,
-                            exc_info=ex,
+                            context=log_context,
                         )
                     )
                     raise

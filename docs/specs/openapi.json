@@ -6091,6 +6091,124 @@
                 ]
             }
         },
+        "/settings/currency/": {
+            "get": {
+                "tags": [
+                    "Settings",
+                    "Currency"
+                ],
+                "summary": "List current tender ISO 4217 currencies with tenant enablement status (JSON), or export static exchange rates (CSV)",
+                "operationId": "getSettingsCurrency",
+                "description": "Returns current (active) ISO 4217 tender currencies with enablement flags for the tenant. Already-enabled inactive or withdrawn codes are still included so they remain visible and disableable. Omits non-tender codes (e.g. XXX) and withdrawn currencies that are not enabled. With Accept: text/csv, returns a flat unpaginated CSV of static exchange rates instead of the nested currency catalog.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[enabled]",
+                        "description": "Filter by tenant enablement status. JSON: true/1 returns enabled currencies only; false/0 returns disabled current-tender currencies only; omit returns current tender currencies (plus any already-enabled inactive codes) sorted by code. CSV: true/1 keeps static rates whose base currency is enabled; false/0 keeps rates whose base is disabled; omit returns all matching rates.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "true",
+                                "false",
+                                "1",
+                                "0"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "filter[currency]",
+                        "description": "Case-insensitive substring match. Accepts comma-separated values or repeated parameters (OR). JSON: matches the currency catalog code (base only). CSV: matches a static rate if the term appears in base_currency or target_currency (e.g. EUR includes USD\u2192EUR rows). Non-matching values return an empty list.",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": [
+                            "USD",
+                            "EUR"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by[code]",
+                        "description": "Sort currencies by ISO 4217 code. Defaults to asc when omitted.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "asc"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of currency settings objects (JSON), or an unpaginated flat CSV of static exchange rates when Accept is text/csv",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CurrencySettingsPagination"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "type": "string",
+                                    "description": "CSV of static exchange rates (not the ISO currency catalog). Columns in order: base_currency, target_currency, exchange_rate, start_date, end_date, uuid, name. Pagination is ignored. filter[currency] matches base or target; filter[enabled] filters by whether the rate base currency is enabled. Empty exports still include the header row."
+                                },
+                                "example": "base_currency,target_currency,exchange_rate,start_date,end_date,uuid,name\nUSD,EUR,0.87,2026-04-01,2026-06-30,a1b2c3d4-e5f6-7890-abcd-ef1234567890,USD-EUR\n"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/settings/cost-groups/": {
             "get": {
                 "tags": [
@@ -7480,6 +7598,73 @@
                                 "type": "array",
                                 "items": {
                                     "$ref": "#/components/schemas/Currencies"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "CurrencySettingsItem": {
+                "required": [
+                    "code",
+                    "symbol",
+                    "name",
+                    "description",
+                    "enabled",
+                    "has_dynamic_rate",
+                    "is_disableable",
+                    "static_rates"
+                ],
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "example": "USD"
+                    },
+                    "symbol": {
+                        "type": "string",
+                        "example": "$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "US Dollar"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "USD ($) - US Dollar"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "has_dynamic_rate": {
+                        "type": "boolean"
+                    },
+                    "is_disableable": {
+                        "type": "boolean",
+                        "description": "Whether the enable/disable toggle is available for this currency. Always true when the currency is disabled (so it can be re-enabled). When enabled, false if it is the sole enabled currency, or is referenced by a cost model, price list, cloud provider billing data, or the system/account default."
+                    },
+                    "static_rates": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/StaticExchangeRateOut"
+                        }
+                    }
+                }
+            },
+            "CurrencySettingsPagination": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/CurrencySettingsItem"
                                 }
                             }
                         }
@@ -12077,6 +12262,62 @@
                         }
                     }
                 ]
+            },
+            "StaticExchangeRateOut": {
+                "required": [
+                    "uuid",
+                    "name",
+                    "base_currency",
+                    "target_currency",
+                    "exchange_rate",
+                    "start_date",
+                    "end_date",
+                    "created_timestamp",
+                    "updated_timestamp"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "USD-EUR"
+                    },
+                    "base_currency": {
+                        "type": "string",
+                        "description": "ISO 4217 code for the source currency in the directional pair.",
+                        "example": "USD"
+                    },
+                    "target_currency": {
+                        "type": "string",
+                        "description": "ISO 4217 code for the destination currency. Use this as the display units for exchange_rate (e.g. format 0.87 as \"0.87 EUR\").",
+                        "example": "EUR"
+                    },
+                    "exchange_rate": {
+                        "type": "number",
+                        "description": "Directional multiplier: units of target_currency per 1 unit of base_currency. Example: base=AED, target=EUR, exchange_rate=0.92 means 1 AED = 0.92 EUR. Conversion is amount_in_base \u00d7 exchange_rate \u2192 amount_in_target. There is no separate exchange_rate_units field; format using target_currency.",
+                        "example": 0.87
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-04-01"
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-06-30"
+                    },
+                    "created_timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
             },
             "Status": {
                 "required": [

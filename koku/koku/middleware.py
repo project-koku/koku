@@ -4,7 +4,11 @@
 #
 """Custom Koku Middleware."""
 import binascii
+import faulthandler
 import logging
+import os
+import signal
+import sys
 import threading
 import time
 from http import HTTPStatus
@@ -367,6 +371,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 LOG.debug(f"User added to cache: {user_key}")
             else:
                 user = USER_CACHE[user_key]
+                user.customer = customer
 
             user.identity_header = {"encoded": rh_auth_header, "decoded": json_rh_auth}
             user.admin = is_admin
@@ -454,6 +459,94 @@ class RequestTimingMiddleware(MiddlewareMixin):
             stmt.update({"response_time": time_taken_ms})
             LOG.info(stmt)
         return response
+
+
+class RequestTimeoutError(Exception):
+    """Raised when a request exceeds the soft timeout."""
+
+
+def sentry_before_send(event, hint):
+    exc_info = hint.get("exc_info")
+    if exc_info and exc_info[0] is RequestTimeoutError:
+        event.setdefault("tags", {})["timeout"] = "soft"
+    return event
+
+
+def _parse_soft_timeout(default=90):
+    raw = os.environ.get("REQUEST_SOFT_TIMEOUT")
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+def _parse_faulthandler_timeout(default=95):
+    raw = os.environ.get("REQUEST_FAULTHANDLER_TIMEOUT")
+    if raw is None:
+        return default
+    try:
+        timeout = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return timeout if timeout > 0 else default
+
+
+class RequestTimeoutMiddleware(MiddlewareMixin):
+    """Abort requests that exceed a soft timeout, before gunicorn kills the worker.
+
+    Uses SIGALRM to raise RequestTimeoutError with full request context,
+    replacing the uninformative SystemExit:1 that gunicorn's SIGABRT produces.
+    The faulthandler watchdog records every thread's Python stack shortly before
+    gunicorn's hard timeout. Both timeouts are process-wide, so they are active
+    only for sync workers (the main thread).
+    """
+
+    SOFT_TIMEOUT = _parse_soft_timeout()
+    FAULTHANDLER_TIMEOUT = _parse_faulthandler_timeout()
+
+    def process_request(self, request):
+        if threading.current_thread() is not threading.main_thread():
+            return
+
+        def handler(signum, frame):
+            duration = time.time() - getattr(request, "start_time", time.time())
+            raise RequestTimeoutError(
+                f"Request exceeded {self.SOFT_TIMEOUT}s: {request.method} {request.path} ({duration:.1f}s elapsed)"
+            )
+
+        signal.signal(signal.SIGALRM, handler)
+        signal.alarm(self.SOFT_TIMEOUT)
+        faulthandler.dump_traceback_later(
+            self.FAULTHANDLER_TIMEOUT,
+            repeat=False,
+            file=sys.stderr,
+            exit=False,
+        )
+
+    def process_response(self, request, response):
+        if threading.current_thread() is threading.main_thread():
+            signal.alarm(0)
+            faulthandler.cancel_dump_traceback_later()
+        return response
+
+    def process_exception(self, request, exception):
+        """Report a soft timeout and return before the upstream proxy deadline."""
+        if not isinstance(exception, RequestTimeoutError):
+            return None
+
+        try:
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(exception)
+        except Exception:
+            LOG.warning("Unable to send request-timeout stack trace to Sentry.", exc_info=True)
+
+        return JsonResponse(
+            {"errors": [{"detail": "Request timed out.", "status": HTTPStatus.GATEWAY_TIMEOUT}]},
+            status=HTTPStatus.GATEWAY_TIMEOUT,
+        )
 
 
 class DisableCSRF(MiddlewareMixin):

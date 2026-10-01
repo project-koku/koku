@@ -42,5 +42,5 @@ These shared slash commands help with common Koku review and PR workflows.
 ## Notes
 
 - These commands are guidance templates, not hard rules.
-- Keep project standards in `.cursorrules` as the source of truth.
+- Keep project standards in `.cursor/rules/*.mdc` as the source of truth (glob-scoped; see `AGENTS.md`).
 - If a command output conflicts with current team conventions, follow team conventions.

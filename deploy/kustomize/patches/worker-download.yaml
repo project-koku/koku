@@ -94,6 +94,8 @@
           value: ${WORKER_DOWNLOAD_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: PROBE_LIVENESS_HEARTBEAT_SECONDS
+          value: ${PROBE_LIVENESS_HEARTBEAT_SECONDS}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS

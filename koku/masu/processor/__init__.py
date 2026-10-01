@@ -22,12 +22,20 @@ ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
 OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
 TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
+OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-queries"
 DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
-COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"
+COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"  # TODO: Clean up
 COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
 CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lookup_enabled"
 OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
 CONSTANT_CURRENCY_FLAG = "cost-management.backend.constant-currency"
+DISABLE_CELERY_TASK_DELAY_FLAG = "cost-management.backend.disable-celery-task-delay"
+INGRESS_DEAD_LETTER_QUEUE_FLAG = "cost-management.backend.ingress-dead-letter-queue"
+OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG = "cost-management.backend.ocp_report_distinct_arrays_parallel"
+OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG = "cost-management.backend.ocp_report_identity_exchange_rate"
+OCP_REPORT_LIMITED_DELTA_FLAG = "cost-management.backend.ocp_report_limited_delta"
+OCP_CAPACITY_SINGLE_SCAN_FLAG = "cost-management.backend.ocp_capacity_single_scan"
+OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG = "cost-management.backend.ocp_report_combined_distributed_cost"
 
 
 def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):  # pragma: no cover
@@ -66,6 +74,16 @@ def is_summary_processing_disabled(schema):  # pragma: no cover
     return res
 
 
+def is_cost_model_processing_disabled(schema):  # pragma: no cover
+    """Disable cost model processing."""
+    context = {"schema": schema}
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-cost-model-processing", context)
+    if res:
+        LOG.info(log_json(msg="cost model processing disabled", context=context))
+
+    return res
+
+
 def is_ocp_on_cloud_summary_disabled(schema):  # pragma: no cover
     """Disable OCP on Cloud summary."""
     context = {"schema": schema}
@@ -96,6 +114,12 @@ def is_customer_penalty(schema):  # pragma: no cover
     """Flag the customer as penalised."""
     context = {"schema": schema}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.penalty-customer", context)
+
+
+def is_celery_task_delay_disabled(schema):  # pragma: no cover
+    """Disable DelayedCeleryTasks wait so the task fires immediately."""
+    context = {"schema": schema}
+    return UNLEASH_CLIENT.is_enabled(DISABLE_CELERY_TASK_DELAY_FLAG, context, fallback_development_true)
 
 
 def is_rate_limit_customer_large(schema):  # pragma: no cover
@@ -169,3 +193,17 @@ def is_ingress_rbac_grace_period_enabled(schema):  # pragma: no cover
     context = {"schema": schema}
     enabled = UNLEASH_CLIENT.is_enabled("cost-management.backend.ingress-rbac-grace-period-enabled", context)
     return enabled
+
+
+def is_ocp_tag_cleanup_disabled(schema):  # pragma: no cover
+    """
+    Kill switch for cleanup_ocp_tags_values in ocp_report_db_cleaner.py
+
+    This is a temporary safeguard to allow us to turn off purge of ocp tags if we
+    experience issues in production.
+    """
+    context = {"schema": schema}
+    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ocp-tag-cleanup", context)
+    if res:
+        LOG.info(log_json(msg="OCP tag cleanup disabled", context=context))
+    return res

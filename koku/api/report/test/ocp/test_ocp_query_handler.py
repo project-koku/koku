@@ -15,9 +15,11 @@ from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
 from dateutil.relativedelta import relativedelta
+from django.db import connection
 from django.db.models import Max
 from django.db.models import Sum
 from django.db.models.expressions import OrderBy
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django_tenants.utils import tenant_context
 from rest_framework import status
@@ -38,6 +40,7 @@ from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
+from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
 from reporting.models import OCPCostSummaryByProjectP
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPGpuSummaryP
@@ -100,6 +103,57 @@ class OCPReportQueryHandlerTest(IamTestCase):
         if filters is None:
             filters = self.this_month_filter
         return self.get_totals(handler, filters)
+
+    @staticmethod
+    def _capacity_summary_selects(captured_queries):
+        return [
+            query
+            for query in captured_queries
+            if query["sql"].lstrip().startswith("SELECT")
+            and "reporting_ocpusagelineitem_daily_summary" in query["sql"]
+        ]
+
+    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_cluster_capacity_flag_uses_one_cpu_summary_scan(self, mock_feature_flag):
+        """Eligible cluster CPU capacity combines count and capacity aggregates."""
+        handler = OCPReportQueryHandler(self.mocked_query_params("?", OCPCpuView))
+
+        with CaptureQueriesContext(connection) as captured:
+            handler.get_capacity([{"row": 1}])
+
+        self.assertEqual(len(self._capacity_summary_selects(captured)), 1)
+        mock_feature_flag.assert_called_once_with(
+            handler.tenant.schema_name, OCP_CAPACITY_SINGLE_SCAN_FLAG, dev_fallback=True
+        )
+
+    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_cluster_capacity_flag_off_keeps_two_cpu_summary_scans(self, mock_feature_flag):
+        """Flag-off cluster CPU capacity retains the legacy count and capacity reads."""
+        handler = OCPReportQueryHandler(self.mocked_query_params("?", OCPCpuView))
+
+        with CaptureQueriesContext(connection) as captured:
+            handler.get_capacity([{"row": 1}])
+
+        self.assertEqual(len(self._capacity_summary_selects(captured)), 2)
+        mock_feature_flag.assert_called_once_with(
+            handler.tenant.schema_name, OCP_CAPACITY_SINGLE_SCAN_FLAG, dev_fallback=True
+        )
+
+    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_cluster_capacity_flag_ignores_node_and_volume_reports(self, mock_feature_flag):
+        """The cluster-only optimization never evaluates its flag for ineligible reports."""
+        query_params = (
+            ("node CPU", "capacity", self.mocked_query_params("?group_by[node]=*", OCPCpuView)),
+            ("volume", "capacity_count", self.mocked_query_params("?", OCPVolumeView)),
+        )
+
+        for report_type, capacity_key, params in query_params:
+            with self.subTest(report_type=report_type):
+                query_data, total_capacity = OCPReportQueryHandler(params).get_capacity([{"row": 1}])
+                self.assertIn(capacity_key, total_capacity)
+                self.assertIn(capacity_key, query_data[0])
+
+        mock_feature_flag.assert_not_called()
 
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""

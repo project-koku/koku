@@ -17,6 +17,7 @@ from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import OuterRef
+from django.db.models import Q
 from django.db.models import Subquery
 from django.db.models import Value
 from django.db.models import When
@@ -38,8 +39,19 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
+from masu.processor import OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG
+from masu.processor import OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG
+from masu.processor import OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG
+from masu.processor import OCP_REPORT_LIMITED_DELTA_FLAG
 
 LOG = logging.getLogger(__name__)
+
+# Metadata array annotations split out of the heavy aggregation queries when
+# OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG is enabled.  ARRAY_AGG(DISTINCT ...)
+# forces a serial GroupAggregate; computing these separately lets the main
+# aggregation parallelize.
+DISTINCT_METADATA_FIELDS = ("clusters", "source_uuid")
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -153,12 +165,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             else:
                 annotations["project"] = F("namespace")
 
-        if is_grouped_by_node(self.parameters):
-            # This adds the instance counts to the node group by.
-            if self._mapper.report_type_map.get("capacity_aggregate", {}).get("node"):
-                self.report_annotations.update(
-                    self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {})
-                )
         for tag_db_name, _, original_tag in self._tag_group_by:
             annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
 
@@ -204,11 +210,19 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 OuterRef(self._mapper.cost_units_key), self.currency
             )
         else:
-            exchange_rate_whens = [
-                When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
-                for uuid, cur in self.source_to_currency_map.items()
-            ]
-            exchange_rate_annotation = Case(*exchange_rate_whens, default=1, output_field=DecimalField())
+            source_to_currency_map = self.source_to_currency_map
+            if is_feature_flag_enabled_by_schema(
+                self.tenant.schema_name, OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG, dev_fallback=True
+            ) and all(currency == self.currency for currency in source_to_currency_map.values()):
+                exchange_rate_annotation = Value(1, output_field=DecimalField())
+            else:
+                exchange_rate_whens = [
+                    When(
+                        **{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))}
+                    )
+                    for uuid, cur in source_to_currency_map.items()
+                ]
+                exchange_rate_annotation = Case(*exchange_rate_whens, default=1, output_field=DecimalField())
             infra_exchange_rate_annotation = build_exchange_rate_case(
                 self._mapper.cost_units_key, self.currency, self.exchange_rates
             )
@@ -231,10 +245,90 @@ class OCPReportQueryHandler(ReportQueryHandler):
         )
         return (base_currencies | cm_currencies) - {None}
 
+    @cached_property
+    def _distinct_arrays_split_enabled(self):
+        """Whether to compute clusters/source_uuid via separate (parallel-safe) queries."""
+        return is_feature_flag_enabled_by_schema(self.tenant.schema_name, OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG)
+
+    @cached_property
+    def _is_limited_delta_for_ranked_projects_shape(self):
+        """Whether the ranked, paginated, project-only monthly delta shape is safe.
+
+        This describes the request shape only. Independent flags may use it to
+        roll out separate optimizations without enabling one another.
+        """
+        filter_params = self.parameters.get("filter") or {}
+        return (
+            self._report_type == "costs_by_project"
+            and self.resolution == "monthly"
+            and {"limit", "offset"}.issubset(filter_params)
+            and self._get_group_by() == ["project"]
+            and not self._category
+            and not self.is_csv_output
+        )
+
+    @cached_property
+    def _limited_delta_for_ranked_projects_enabled(self):
+        """Whether prior-period deltas can be limited to the returned projects."""
+        return self._is_limited_delta_for_ranked_projects_shape and is_feature_flag_enabled_by_schema(
+            self.tenant.schema_name, OCP_REPORT_LIMITED_DELTA_FLAG, dev_fallback=True
+        )
+
+    @cached_property
+    def _combined_distributed_cost_for_limited_delta_enabled(self):
+        """Whether the prior-period distributed cost can use one aggregate expression."""
+        return (
+            self._is_limited_delta_for_ranked_projects_shape
+            and self._delta == "cost_total_distributed"
+            and is_feature_flag_enabled_by_schema(
+                self.tenant.schema_name, OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG, dev_fallback=True
+            )
+        )
+
+    def _distinct_metadata_annotations(self):
+        """Return the clusters/source_uuid ArrayAgg annotations for this report type."""
+        annotations = self._mapper.report_type_map.get("annotations", {})
+        return {field: annotations[field] for field in DISTINCT_METADATA_FIELDS if field in annotations}
+
+    def _backfill_distinct_group_metadata(self, query, query_group_by, query_data):
+        """Backfill clusters/source_uuid onto rows via a separate, cheap query.
+
+        With the split flag enabled the metadata arrays are removed from the main
+        aggregation so it can parallelize.  Recompute them here in a query grouped
+        identically (same filters/joins, no currency math), keyed by the group
+        tuple, and merge them onto each row.  Used for the non-limit path; the
+        limited path sources these arrays from the rank query instead.
+        """
+        meta_annotations = self._distinct_metadata_annotations()
+        if not meta_annotations:
+            return query_data
+        meta_by_key = {
+            tuple(row[group] for group in query_group_by): {field: row[field] for field in meta_annotations}
+            for row in query.values(*query_group_by).annotate(**meta_annotations)
+        }
+        merged = []
+        for row in query_data:
+            row = dict(row)
+            metadata = meta_by_key.get(tuple(row[group] for group in query_group_by))
+            if metadata:
+                row.update(metadata)
+            else:
+                for field in meta_annotations:
+                    row.setdefault(field, [])
+            merged.append(row)
+        return merged
+
     @property
     def report_annotations(self):
         """Return annotations with OCP-specific infra_exchange_rate for CSV output."""
-        annotations = self._mapper.report_type_map.get("annotations", {})
+        annotations = dict(self._mapper.report_type_map.get("annotations", {}))
+        if is_grouped_by_node(self.parameters):
+            # Add instance counts to node reports without mutating the shared mapper.
+            annotations.update(self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {}))
+        if self._distinct_arrays_split_enabled:
+            # The metadata arrays are computed separately so the main aggregation
+            # can parallelize; drop them from the heavy annotation set.
+            annotations = {k: v for k, v in annotations.items() if k not in DISTINCT_METADATA_FIELDS}
         if self.is_csv_output:
             annotations = {
                 **annotations,
@@ -339,6 +433,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     # therefore others must be at the end.
                     # override implicit ordering when using ranked ordering.
                     query_order_by[-1] = "rank"
+            elif self._distinct_arrays_split_enabled:
+                # The main aggregation dropped the metadata arrays so it could
+                # parallelize; backfill them from a separate cheap query.
+                query_data = self._backfill_distinct_group_metadata(query, query_group_by, query_data)
 
             # Populate the 'total' section of the API response
             if query.exists():
@@ -407,8 +505,23 @@ class OCPReportQueryHandler(ReportQueryHandler):
         if self.query_exclusions:
             query = query.exclude(self.query_exclusions)
         with tenant_context(self.tenant):
-            _class = NodeCapacity if is_grouped_by_node(self.parameters) else ClusterCapacity
-            capacity = _class(self._mapper.report_type_map, query, self.resolution)
+            is_node_report = is_grouped_by_node(self.parameters)
+            capacity_class = NodeCapacity if is_node_report else ClusterCapacity
+            capacity_aggregate = self._mapper.report_type_map.get("capacity_aggregate", {})
+            use_single_scan = (
+                not is_node_report
+                and bool(capacity_aggregate.get("cluster"))
+                and bool(capacity_aggregate.get("cluster_instance_counts"))
+                and is_feature_flag_enabled_by_schema(
+                    self.tenant.schema_name, OCP_CAPACITY_SINGLE_SCAN_FLAG, dev_fallback=True
+                )
+            )
+            capacity = capacity_class(
+                self._mapper.report_type_map,
+                query,
+                self.resolution,
+                **({"use_single_scan": use_single_scan} if not is_node_report else {}),
+            )
             if not capacity.capacity_aggregate:
                 # short circuit for if the capacity dataclass in report provider map
                 return query_data, {}
@@ -434,6 +547,26 @@ class OCPReportQueryHandler(ReportQueryHandler):
             return self.add_current_month_deltas(query_data, query_sum)
         else:
             return super().add_deltas(query_data, query_sum)
+
+    def _get_previous_rows_query(self, previous_query, query_data):
+        """Limit per-row deltas to ranked projects when the flagged shape is safe."""
+        if not self._limited_delta_for_ranked_projects_enabled or not query_data:
+            return previous_query
+
+        projects = {row.get("project") for row in query_data}
+        non_null_projects = projects - {None}
+        project_filter = Q()
+        if non_null_projects:
+            project_filter |= Q(namespace__in=non_null_projects)
+        if None in projects:
+            project_filter |= Q(namespace__isnull=True)
+        return previous_query.filter(project_filter)
+
+    def _get_delta_field(self):
+        """Use the single distributed-cost aggregate only for the flagged safe shape."""
+        if self._combined_distributed_cost_for_limited_delta_enabled:
+            return self._mapper.combined_distributed_cost
+        return super()._get_delta_field()
 
     def add_current_month_deltas(self, query_data, query_sum):
         """Add delta to the resultset using current month comparisons."""

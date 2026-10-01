@@ -19,7 +19,7 @@ Comprehensive checklist for conducting thorough code reviews to ensure quality, 
 - [ ] Functions are small and focused (single responsibility)
 - [ ] Variable names are descriptive and follow snake_case
 - [ ] No code duplication
-- [ ] Follows Koku project conventions (.cursorrules)
+- [ ] Follows Koku project conventions (`.cursor/rules/*.mdc`)
 - [ ] Python 3.11+ features used appropriately
 - [ ] Type hints present for function parameters and return types
 - [ ] F-strings used for string formatting

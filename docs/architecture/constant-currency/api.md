@@ -14,7 +14,7 @@ constant currency. Base path unless noted:
 | Method | Path | Audience | Purpose |
 |--------|------|----------|---------|
 | `GET` | `/currency/` | End user | Enabled currencies for the target-currency dropdown |
-| `GET` | `/settings/currency/` | Admin | All ISO currencies with enablement, dynamic availability, nested static rates |
+| `GET` | `/settings/currency/` | Admin | Current tender ISO currencies with enablement, dynamic availability, nested static rates; CSV export of flat static rates via `Accept: text/csv` |
 | `POST` | `/settings/currency/enabled/{code}/` | Admin | Enable a currency |
 | `DELETE` | `/settings/currency/enabled/{code}/` | Admin | Disable a currency |
 | `POST` | `/settings/currency/static-rates/` | Price list admin | Create a static exchange rate |
@@ -27,7 +27,8 @@ flag on, they convert using per-month rates and may return `400` when coverage
 is incomplete (see [Report and forecast behavior](#report-and-forecast-behavior)).
 
 There is **no** dedicated `GET` collection for static rates; list them via
-`GET /settings/currency/` (`static_rates` nested under each base currency).
+`GET /settings/currency/` (`static_rates` nested under each base currency), or
+export them as a flat CSV with `Accept: text/csv` on the same endpoint.
 
 ---
 
@@ -66,7 +67,9 @@ ISO 4217 registry at response time.
 
 ## `GET /settings/currency/`
 
-Administrator currency catalog for Settings UI.
+Administrator currency catalog for Settings UI. Lists **current tender** ISO
+4217 currencies (babel territory data). Already-enabled inactive/withdrawn
+codes remain in the list so they can be disabled.
 
 **Permission:** settings access.
 
@@ -74,9 +77,10 @@ Administrator currency catalog for Settings UI.
 
 | Param | Description |
 |-------|-------------|
-| `enabled` | `true` / `1` → only enabled; any other value → only disabled; omit → enabled first, then disabled |
-| `search` | Case-insensitive substring match on currency `code` |
-| `limit` / `offset` | Standard list pagination |
+| `filter[enabled]` | **JSON:** `true` / `1` → only enabled; `false` / `0` → only disabled current-tender; omit → active tender ∪ enabled. **CSV:** keep rates whose **base** currency is enabled (`true`/`1`) or disabled (`false`/`0`); omit → all static rates |
+| `filter[currency]` | Case-insensitive substring match (comma-separated / repeated params = OR). **JSON:** matches the currency catalog `code` (base). **CSV:** matches a rate if the term appears in **base or target** currency (e.g. `EUR` includes USD→EUR). Non-matching values return an empty list |
+| `order_by[code]` | **JSON:** `asc` (default) or `desc` — sort catalog by ISO currency code. **CSV:** unused (rates are ordered by base, target, start_date) |
+| `limit` / `offset` | Standard list pagination (**JSON only**; CSV ignores pagination) |
 
 ### Response item
 
@@ -108,23 +112,57 @@ Administrator currency catalog for Settings UI.
 `DecimalField` precision; typical clients parse JSON numbers as IEEE 754
 doubles (~15–17 significant digits).
 
+**Units / direction:** `exchange_rate` is a **base → target** multiplier —
+units of `target_currency` per 1 unit of `base_currency`. Example:
+`base_currency=AED`, `target_currency=EUR`, `exchange_rate=0.92` means
+**1 AED = 0.92 EUR** (conversion: `amount_in_base × exchange_rate →
+amount_in_target`). For UI formatting, use `target_currency` as the units
+(display `0.92 EUR`). There is no separate `exchange_rate_units` field;
+that would always equal `target_currency`.
+
 | Field | Meaning |
 |-------|---------|
 | `enabled` | Currency is enabled for the tenant |
 | `has_dynamic_rate` | A dynamic (market) rate exists for this currency code |
 | `static_rates` | Static rates where this currency is the **base** |
 
+### CSV export (`Accept: text/csv`)
+
+Same path; response is a **flat, unpaginated** CSV of static exchange rates
+(not the ISO currency catalog). Nested `static_rates` arrays are expanded into
+one row per rate. Columns (stable order): `base_currency`, `target_currency`,
+`exchange_rate`, `start_date`, `end_date`, `uuid`, `name`. Empty exports still
+include the header row.
+
+Filter params are reused but **do not mean the same thing as in JSON**:
+
+| Param | JSON | CSV |
+|-------|------|-----|
+| `filter[currency]` | Match catalog `code` (base currency only) | Match rate **base or target** |
+| `filter[enabled]` | Include/exclude currency catalog rows by enablement | Keep rates whose **base** is enabled/disabled |
+| `order_by[code]` | Sort catalog `asc`/`desc` (default `asc`) | Unused |
+| `limit` / `offset` | Paginate catalog | Ignored (full matching set) |
+
+Example: `filter[currency]=EUR` returns the EUR catalog entry in JSON, but in CSV
+includes rates such as USD→EUR. Tenant enablement flags are not CSV columns.
+
+JSON behavior for `Accept: application/json` is unchanged. Implementation:
+[`CurrencySettingsView`](../../../koku/api/settings/currency_views.py).
+
 ---
 
 ## `POST /settings/currency/enabled/{code}/`
 
-Enable an ISO 4217 currency for the tenant.
+Enable a **current tender** ISO 4217 currency for the tenant.
 
 **Permission:** settings access.
 
 - `{code}` is normalized to uppercase.
-- Invalid ISO codes → `400`.
-- Idempotent: enabling an already-enabled currency returns `200`.
+- Inactive / non-tender / invalid ISO codes (e.g. `XXX`, withdrawn `FRF`) → `400`
+  (including when that code is already enabled — active-tender validation runs
+  before `get_or_create`).
+- Idempotent for **current tender** codes only: enabling an already-enabled
+  current-tender currency returns `200`.
 
 **Success:** `200` with empty body.
 
@@ -197,6 +235,9 @@ removed (past months stay finalized).
   "end_date": "2026-06-30"
 }
 ```
+
+`exchange_rate` must be the **base → target** multiplier (target per 1 base).
+Same semantics as on `GET /settings/currency/` (see units note above).
 
 #### Validation rules
 
@@ -329,8 +370,8 @@ Internal inspection of stored monthly rates.
 ```
 
 `rate_type` is `static` or `dynamic`. `exchange_rate` is a JSON number
-(same representation as Settings static-rate responses). Unknown schema or
-bad dates → `400`.
+(same representation and base → target units semantics as Settings
+static-rate responses). Unknown schema or bad dates → `400`.
 
 ---
 

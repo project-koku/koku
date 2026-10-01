@@ -12,6 +12,7 @@ from rest_framework.throttling import SimpleRateThrottle
 from api.report.constants import TIME_SCOPE_UNITS_MONTHLY
 from api.report.constants import TIME_SCOPE_VALUES_MONTHLY
 from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_REPORT_RATE_LIMIT_FLAG
 from masu.processor import TAG_QUERY_RATE_LIMIT_FLAG
 
 LOG = logging.getLogger(__name__)
@@ -142,6 +143,34 @@ class OcpTagQueryThrottle(BaseTagQueryThrottle):
             return (end_date - start_date).days
         except (ValueError, TypeError):
             return 0
+
+
+class OcpReportQueryThrottle(SimpleRateThrottle):
+    """
+    Rate-limit all OCP report API requests for schemas flagged via Unleash.
+
+    Used as an ops control for customers whose automated scrapers saturate
+    api-reads workers (WORKER TIMEOUT / SIGKILL). Unlike OcpTagQueryThrottle,
+    this applies to every report request for the schema when the flag is on —
+    not only heavy tag queries.
+    """
+
+    scope = "ocp_report_query"
+    rate = "10/m"  # 10 requests per minute per schema
+
+    def get_cache_key(self, request, view):
+        """Return a cache key when the schema is flagged; otherwise skip throttling."""
+        try:
+            schema_name = request.user.customer.schema_name
+        except AttributeError:
+            return None
+
+        if not is_feature_flag_enabled_by_schema(schema_name, OCP_REPORT_RATE_LIMIT_FLAG):
+            return None
+
+        cache_key = f"ocp_report_query_throttle:{schema_name}"
+        LOG.debug("OCP report query throttle check: %s", cache_key)
+        return cache_key
 
 
 class AwsTagQueryThrottle(BaseTagQueryThrottle):

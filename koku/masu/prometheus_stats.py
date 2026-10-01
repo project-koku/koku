@@ -42,6 +42,16 @@ COST_SUMMARY_ATTEMPTS_COUNTER = Counter("cost_summary_attempts_count", "Number o
 
 KAFKA_CONNECTION_ERRORS_COUNTER = Counter("kafka_connection_errors", "Number of Kafka connection errors")
 
+KAFKA_LISTENER_WATCHDOG_DIAGNOSTICS_COUNTER = Counter(
+    "kafka_listener_watchdog_diagnostics_total",
+    "Number of Kafka messages that exceeded the listener watchdog threshold",
+)
+
+KAFKA_LISTENER_INFLIGHT_MESSAGE_AGE_SECONDS = Gauge(
+    "kafka_listener_inflight_message_age_seconds",
+    "Elapsed processing time of the current Kafka listener message; zero when idle",
+)
+
 CELERY_ERRORS_COUNTER = Counter("celery_errors", "Number of celery errors")
 
 DOWNLOAD_BACKLOG = Gauge(

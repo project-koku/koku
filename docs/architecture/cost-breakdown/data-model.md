@@ -342,25 +342,23 @@ class OCPCostUIBreakDownP(models.Model):
     breakdown_category = models.CharField(max_length=50)   # "raw_cost", "usage_cost", "markup", "infrastructure" (IQ-9 Option 1)
 ```
 
-**Registration points**:
+**Registration points** (COST-7904):
 
-- Add `"reporting_ocp_cost_breakdown_p"` to `UI_SUMMARY_TABLES` in
-  `reporting/provider/ocp/models.py` — this ensures automatic partition
-  creation (via `_handle_partitions()`) and cleanup (via
-  `purge_expired_report_data_by_date()`)
-- Add `"rates_to_usage"` to the purge table list in
-  `masu/processor/ocp/ocp_report_db_cleaner.py` — this is the same
-  partition-based cleanup used for all partitioned OCP tables. Provider
-  deletion and data expiration both work through partition cleanup, not
-  FK cascade, since `source_uuid` is a `UUIDField` (not a FK).
-  This entry covers both SaaS and ONPREM modes since it is in the base
-  `table_names` list (before the `if settings.ONPREM` branch).
-  Do NOT also add to `get_self_hosted_table_names()` — that would
-  create a duplicate entry when ONPREM=true.
-
-**Pre-existing bug**: `reporting_ocp_vm_summary_p` is not in
-`UI_SUMMARY_TABLES` and is not cleaned by the purge job. Should be
-fixed alongside this work.
+- `COST_BREAKDOWN_UI_SUMMARY_TABLE` (`reporting_ocp_cost_breakdown_p`) and
+  `VM_UI_SUMMARY_TABLE` (`reporting_ocp_vm_summary_p`) are both in
+  `UI_SUMMARY_TABLES` in `reporting/provider/ocp/models.py` — this ensures
+  automatic partition creation (via `_handle_partitions()`) and cleanup
+  (via `purge_expired_report_data_by_date()`). Both are skipped in the
+  standard `populate_ui_summary_tables()` SQL loop (VM has its own
+  populate path; breakdown population is Phase 4).
+- `"rates_to_usage"` is in the purge table list in
+  `masu/processor/ocp/ocp_report_db_cleaner.py` — partition-based cleanup
+  for SaaS and ONPREM (base `table_names` list, before the
+  `if settings.ONPREM` branch). Do NOT also add to
+  `get_self_hosted_table_names()` — that would duplicate the entry when
+  ONPREM=true. Note: `source_uuid` on `rates_to_usage` is a `UUIDField`
+  (not a FK); source-delete cleanup for RTU is tracked separately
+  (COST-7736).
 
 ---
 
@@ -810,15 +808,14 @@ CREATE INDEX ocpcostbreakdown_depth ON reporting_ocp_cost_breakdown_p (depth);
 CREATE INDEX ocpcostbreakdown_top_category ON reporting_ocp_cost_breakdown_p (top_category);
 ```
 
-**Registration** (code change, not migration):
+**Registration** (done in COST-7904 — code change, not migration):
 
-- Add `"reporting_ocp_cost_breakdown_p"` to `UI_SUMMARY_TABLES` in
-  `reporting/provider/ocp/models.py`
-- Add to `purge_expired_report_data_by_date()` in
-  `masu/processor/ocp/ocp_report_db_cleaner.py`
+- `COST_BREAKDOWN_UI_SUMMARY_TABLE` is in `UI_SUMMARY_TABLES` in
+  `reporting/provider/ocp/models.py` (picked up by
+  `purge_expired_report_data_by_date()` and `_handle_partitions()`)
 
 **Rollback**: `DROP TABLE reporting_ocp_cost_breakdown_p CASCADE;` and
-revert the `UI_SUMMARY_TABLES` / cleaner changes.
+revert the `UI_SUMMARY_TABLES` change.
 
 ---
 
