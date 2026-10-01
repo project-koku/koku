@@ -41,11 +41,15 @@ from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_CAPACITY_BY_NODE_SUMMARY_FLAG
 from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
+from masu.processor import OCP_REPORT_CLUSTER_FILTER_INDEX_HINT_FLAG
 from masu.processor import OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG
 from masu.processor import OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG
 from masu.processor import OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG
 from masu.processor import OCP_REPORT_LIMITED_DELTA_FLAG
+from reporting.provider.ocp.models import OCPCluster
+from reporting.provider.ocp.models import OCPCostSummaryP
 from reporting.provider.ocp.models import OCPPodSummaryByNodeP
+from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 LOG = logging.getLogger(__name__)
 
@@ -81,6 +85,52 @@ def _q_uses_only_fields(q_object, allowed_fields):
         if lookup.split("__", 1)[0] not in allowed_fields or hasattr(value, "resolve_expression"):
             return False
     return True
+
+
+CLUSTER_FILTER_FIELDS = ("cluster_alias", "cluster_id")
+# Lookups for which "column matches value" implies "column contains value".
+CLUSTER_FILTER_LOOKUPS = frozenset(
+    ("exact", "iexact", "contains", "icontains", "startswith", "istartswith", "endswith", "iendswith", "in")
+)
+
+
+def _implied_cluster_values(q_object):
+    """Return values that any row matching q_object contains in cluster_alias or cluster_id.
+
+    Returns None when q_object does not guarantee such a match.  An AND node
+    implies what any of its children implies; an OR node only when every
+    branch does.  Negated nodes and other lookups imply nothing.
+    """
+    if q_object.negated:
+        return None
+    implied = []
+    for child in q_object.children:
+        if isinstance(child, Q):
+            values = _implied_cluster_values(child)
+        else:
+            values = _implied_cluster_leaf_values(child)
+        if values is None:
+            if q_object.connector == Q.OR:
+                return None
+            continue
+        implied.append(values)
+    if not implied:
+        return None
+    return set().union(*implied)
+
+
+def _implied_cluster_leaf_values(child):
+    """Return the values a single (lookup, value) condition requires, or None."""
+    if not isinstance(child, tuple) or len(child) != 2:
+        return None
+    lookup, value = child
+    field, _, operation = lookup.partition("__")
+    if field not in CLUSTER_FILTER_FIELDS or (operation or "exact") not in CLUSTER_FILTER_LOOKUPS:
+        return None
+    values = value if operation == "in" else [value]
+    if isinstance(values, str) or not all(isinstance(item, str) and item for item in values):
+        return None
+    return set(values)
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -314,6 +364,75 @@ class OCPReportQueryHandler(ReportQueryHandler):
             )
         )
 
+    @cached_property
+    def _cluster_filter_values(self):
+        """Return values that every row kept by the report filter matches on cluster_alias/cluster_id.
+
+        Read from the composed filter rather than from the request parameters,
+        so the hint follows exactly what the filter applies (wildcards,
+        operators, and group-by handling included).  Empty when the filter does
+        not restrict the cluster.
+        """
+        return _implied_cluster_values(self.query_filter) or set()
+
+    @cached_property
+    def _cluster_filter_index_hint_enabled(self):
+        """Whether cluster filters also restrict rows by indexed source/report-period ids."""
+        return bool(self._cluster_filter_values) and is_feature_flag_enabled_by_schema(
+            self.tenant.schema_name, OCP_REPORT_CLUSTER_FILTER_INDEX_HINT_FLAG, dev_fallback=True
+        )
+
+    def _cluster_filter_match(self):
+        """Return a Q matching cluster_alias/cluster_id against any cluster filter value."""
+        match = Q()
+        for value in self._cluster_filter_values:
+            match |= Q(cluster_alias__icontains=value) | Q(cluster_id__icontains=value)
+        return match
+
+    @cached_property
+    def _cluster_filter_source_uuids(self):
+        """Return the sources whose clusters can match the cluster filter.
+
+        reporting_ocp_cost_summary_p keeps the cluster alias each day was
+        summarized with, so it still matches rows written before a cluster
+        rename; reporting_ocp_clusters adds the current alias.
+        """
+        match = self._cluster_filter_match()
+        sources = set(OCPCostSummaryP.objects.filter(match).values_list("source_uuid", flat=True).distinct())
+        sources |= set(OCPCluster.objects.filter(match).values_list("provider_id", flat=True))
+        sources.discard(None)
+        return sources
+
+    @cached_property
+    def _cluster_filter_report_period_ids(self):
+        """Return the report periods whose rows can match the cluster filter."""
+        match = self._cluster_filter_match()
+        return set(
+            OCPUsageReportPeriod.objects.filter(
+                Q(provider_id__in=self._cluster_filter_source_uuids) | match
+            ).values_list("id", flat=True)
+        )
+
+    def _apply_cluster_filter_index_hint(self, queryset):
+        """Add an indexed id filter that is implied by the cluster filter.
+
+        The cluster filter is an unindexable substring match, so every report
+        query reads all rows in its date range.  Restricting to the matching
+        sources (summary tables) or report periods (daily summary table) lets
+        PostgreSQL use an existing index.  The original cluster filter stays in
+        place, so the result is unchanged.
+        """
+        if not self._cluster_filter_index_hint_enabled:
+            return queryset
+        field_names = {field.name for field in queryset.model._meta.get_fields()}
+        if "report_period" in field_names:
+            return queryset.filter(
+                Q(report_period_id__in=self._cluster_filter_report_period_ids) | Q(report_period_id__isnull=True)
+            )
+        if "source_uuid" in field_names:
+            return queryset.filter(source_uuid__in=self._cluster_filter_source_uuids)
+        return queryset
+
     def _distinct_metadata_annotations(self):
         """Return the clusters/source_uuid ArrayAgg annotations for this report type."""
         annotations = self._mapper.report_type_map.get("annotations", {})
@@ -395,7 +514,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             with tenant_context(self.tenant):
                 output["distributed_overhead"] = False
                 if (
-                    self.query_table.objects.filter(self.query_filter)
+                    self._apply_cluster_filter_index_hint(self.query_table.objects.filter(self.query_filter))
                     .filter(cost_model_rate_type__in=["platform_distributed", "worker_distributed"])
                     .exists()
                 ):
@@ -438,7 +557,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
-            query = self.query_table.objects.filter(self.query_filter)
+            query = self._apply_cluster_filter_index_hint(self.query_table.objects.filter(self.query_filter))
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
             query = query.annotate(**self.annotations)
@@ -552,10 +671,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Calculate capacity & instance count for all nodes over the date range."""
         q_table = self._capacity_query_table()
         LOG.debug(f"Using query table: {q_table}")
-        query = q_table.objects.filter(self.query_filter)
-        if self.query_exclusions:
-            query = query.exclude(self.query_exclusions)
         with tenant_context(self.tenant):
+            query = self._apply_cluster_filter_index_hint(q_table.objects.filter(self.query_filter))
+            if self.query_exclusions:
+                query = query.exclude(self.query_exclusions)
             is_node_report = is_grouped_by_node(self.parameters)
             capacity_class = NodeCapacity if is_node_report else ClusterCapacity
             capacity_aggregate = self._mapper.report_type_map.get("capacity_aggregate", {})
@@ -598,6 +717,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
             return self.add_current_month_deltas(query_data, query_sum)
         else:
             return super().add_deltas(query_data, query_sum)
+
+    def _get_previous_query(self, delta_filter):
+        """Apply the cluster filter index hint to row and total previous-period deltas."""
+        return self._apply_cluster_filter_index_hint(super()._get_previous_query(delta_filter))
 
     def _get_previous_rows_query(self, previous_query, query_data):
         """Limit per-row deltas to ranked projects when the flagged shape is safe."""
