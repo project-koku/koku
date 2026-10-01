@@ -221,6 +221,10 @@ WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS = ENVIRONMENT.get_value(
 )
 CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value("CACHE_TIMEOUT", default=3600)
 
+# OCP report API throttles (req/min per schema). Tunable via app-interface / clowdapp.
+OCP_REPORT_THROTTLE_RATE = ENVIRONMENT.get_value("OCP_REPORT_THROTTLE_RATE", default="60/m")
+OCP_REPORT_THROTTLE_TIGHT_RATE = ENVIRONMENT.get_value("OCP_REPORT_THROTTLE_TIGHT_RATE", default="10/m")
+
 HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 
 REDIS_HOST = CONFIGURATOR.get_in_memory_db_host()
