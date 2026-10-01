@@ -14,6 +14,8 @@ from api.models import Provider
 from api.utils import DateHelper
 from common.queues import PriorityQueue
 from common.queues import SummaryQueue
+from koku.cache import SOURCES_CACHE_PREFIX
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.tasks import delayed_summarize_current_month
 from masu.processor.tasks import delayed_update_cost_model_costs
 from masu.processor.tasks import UPDATE_COST_MODEL_COSTS_TASK
@@ -24,6 +26,8 @@ from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.models import DelayedCeleryTasks
 from reporting_common.models import trigger_celery_task
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 
 class TestCostUsageReportStatus(MasuTestCase):
@@ -431,3 +435,52 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertEqual(kwargs["kwargs"]["start_date"], "2026-07-01")
         self.assertEqual(kwargs["kwargs"]["end_date"], "2026-07-15")
         self.assertEqual(kwargs["queue"], PriorityQueue.DEFAULT)
+
+
+class TestManifestSourcesCacheInvalidation(MasuTestCase):
+    """Sources list cache must drop when manifest status/has_data fields change."""
+
+    def _schema_for_provider(self):
+        return self.aws_provider.customer.schema_name
+
+    @patch("koku.cache.invalidate_cache_for_tenant_and_cache_key")
+    def test_marking_manifest_complete_invalidates_sources_cache(self, mock_invalidate):
+        """has_data on /sources/ comes from completed_datetime; finishing a manifest must bust the cache."""
+        manifest = CostUsageReportManifest.objects.create(
+            assembly_id="sources-cache-complete",
+            provider_id=self.aws_provider_uuid,
+            num_total_files=1,
+            billing_period_start_datetime=timezone.now(),
+        )
+        mock_invalidate.reset_mock()
+        with self.captureOnCommitCallbacks(execute=True):
+            ReportManifestDBAccessor().mark_manifests_as_completed([manifest.id])
+        mock_invalidate.assert_called_with(self._schema_for_provider(), SOURCES_CACHE_PREFIX)
+
+    @patch("koku.cache.invalidate_cache_for_tenant_and_cache_key")
+    def test_updating_manifest_state_invalidates_sources_cache(self, mock_invalidate):
+        """status on /sources/ comes from manifest.state; processing transitions must bust the cache."""
+        manifest = CostUsageReportManifest.objects.create(
+            assembly_id="sources-cache-state",
+            provider_id=self.aws_provider_uuid,
+            num_total_files=1,
+            billing_period_start_datetime=timezone.now(),
+        )
+        mock_invalidate.reset_mock()
+        with self.captureOnCommitCallbacks(execute=True):
+            ReportManifestDBAccessor().update_manifest_state(ManifestStep.PROCESSING, ManifestState.START, manifest.id)
+        mock_invalidate.assert_called_with(self._schema_for_provider(), SOURCES_CACHE_PREFIX)
+
+    @patch("koku.cache.invalidate_cache_for_tenant_and_cache_key")
+    def test_clearing_csv_flag_does_not_invalidate_sources_cache(self, mock_invalidate):
+        """Internal S3 bookkeeping should not scan Redis to drop the sources list cache."""
+        manifest = CostUsageReportManifest.objects.create(
+            assembly_id="sources-cache-csv",
+            provider_id=self.aws_provider_uuid,
+            num_total_files=1,
+            billing_period_start_datetime=timezone.now(),
+        )
+        mock_invalidate.reset_mock()
+        with self.captureOnCommitCallbacks(execute=True):
+            ReportManifestDBAccessor().mark_s3_csv_cleared(manifest)
+        mock_invalidate.assert_not_called()
