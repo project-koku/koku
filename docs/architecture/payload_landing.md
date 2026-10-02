@@ -1,6 +1,6 @@
-# Ingress staging (COST-8282)
+# Ingress payload landing (COST-8282)
 
-Branch `COST-8282-decouple-kafka` moves HCCM Kafka ingress off the listener thread. With `cost-management.backend.ingress-staging-listener` on, the listener downloads the tarball, stores it, confirms the upload, and commits the offset. Extract, CSV split, Hive DDL, and line items run on workers.
+With `cost-management.backend.ingress-staging-listener` on, the listener downloads the tarball, stores it, confirms the upload, and commits the offset. Extract, CSV split, Hive DDL, and line items run on workers.
 
 The flag defaults off. Stage and production stay on the previous listener until it is enabled per schema. Production on-prem stays on that listener: the flag is not in `ONPREM_FLAG_DEFAULTS`, and `dev_fallback=True` is true only when the Unleash environment is `development`.
 
@@ -61,9 +61,9 @@ The flag keeps both shapes in the same binary. Off is the current thread. On is 
 
 | Area | Change |
 |------|--------|
-| Listener | [`handle_message`](../../koku/masu/external/kafka_msg_handler.py) checks `cost-management.backend.ingress-staging-listener` on `org{org_id}`. When it is on, it calls [`stage_ingress_s3_inbox`](../../koku/masu/external/downloader/ocp/ingress_staging/listener.py) with no Postgres. That path returns no report metadata, so [`process_messages`](../../koku/masu/external/kafka_msg_handler.py) confirms without extract or line items. |
+| Listener | [`handle_message`](../../koku/masu/external/kafka_msg_handler.py) checks `cost-management.backend.ingress-staging-listener` on `org{org_id}`. When it is on, it calls [`stage_ingress_s3_inbox`](../../koku/masu/external/downloader/ocp/payload_landing/listener.py) with no Postgres. That path returns no report metadata, so [`process_messages`](../../koku/masu/external/kafka_msg_handler.py) confirms without extract or line items. |
 | Download | [`download_payload`](../../koku/masu/external/downloader/ocp/download.py) streams the quarantine body to disk (1 MiB chunks, 10s connect timeout, 60s read timeout). HTTP 408 and 429 rewind the consumer. Other 4xx responses, including a missing quarantine object, confirm as failure. |
-| Staging record | Public table `reporting_common_ingress_staging_payload` ([`IngressStagingPayload`](../../koku/reporting_common/models.py), migration [`0046_ingressstagingpayload`](../../koku/reporting_common/migrations/0046_ingressstagingpayload.py)). Apply that migration before any schema has the flag on. The listener does not read or write the table. [`register_ingress_staging_marker`](../../koku/masu/external/downloader/ocp/ingress_staging/register.py) upserts the row from the pending marker. A database error leaves the marker for the next beat. |
+| Staging record | Public table `reporting_common_ingress_staging_payload` ([`IngressStagingPayload`](../../koku/reporting_common/models.py), migration [`0046_ingressstagingpayload`](../../koku/reporting_common/migrations/0046_ingressstagingpayload.py)). Apply that migration before any schema has the flag on. The listener does not read or write the table. [`register_ingress_staging_marker`](../../koku/masu/external/downloader/ocp/payload_landing/register.py) upserts the row from the pending marker. A database error leaves the marker for the next beat. |
 | Object layout | `{WAREHOUSE_PATH}/ingress_staging/{org_id}/{cluster_id}/{request_id}.tar.gz`, plus `pending/` and `by_request/` markers. `cluster_id` and the manifest uuid come from a manifest peek. The listener does not extract the archive. |
 | Workers | [`process_staged_ingress_payload`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py) claims the row and extracts on the `ingress` queue. [`process_staged_ingress_reports`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py) runs line items on the customer OCP queue (`ocp`, `ocp_xl`, or `ocp_penalty`). |
 | Day slices | Daily CSV names are `{report_type}.{day}.{manifest_id}.{digest}.csv`. `digest` is the first 12 hex characters of the SHA-256 of that slice. An identical replay writes the same object key. [`divide_csv_daily`](../../koku/masu/processor/ocp/staged_payloads/processing.py) no longer takes the manifest `report_tracker` row lock. |
@@ -75,7 +75,7 @@ The previous listener path remains as [`legacy_message_processing`](../../koku/m
 
 This is the path when `cost-management.backend.ingress-staging-listener` is on. The schema is `org{org_id}` from [`schema_name_for_org`](../../koku/masu/external/kafka_msg_handler.py), including `SCHEMA_SUFFIX`, with no `Customer` query. On-prem stays on the legacy listener.
 
-[`stage_ingress_s3_inbox`](../../koku/masu/external/downloader/ocp/ingress_staging/listener.py) writes three objects, confirms, and commits. It does not open Postgres or Trino. Postgres and Trino are used later, by the beat and the workers. The marker and the receipt hold `b64_identity`. Do not log them. The register task copies that payload onto the staging row and clears it when the row is marked processed.
+[`stage_ingress_s3_inbox`](../../koku/masu/external/downloader/ocp/payload_landing/listener.py) writes three objects, confirms, and commits. It does not open Postgres or Trino. Postgres and Trino are used later, by the beat and the workers. The marker and the receipt hold `b64_identity`. Do not log them. The register task copies that payload onto the staging row and clears it when the row is marked processed.
 
 ```mermaid
 flowchart TD
@@ -141,21 +141,21 @@ flowchart TD
 
 A redelivery HEADs the receipt. When it exists, the listener copies that receipt onto the pending marker, enqueues registration, and confirms. It does not download the quarantine object again and does not upload the tarball again.
 
-[`register_ingress_staging_marker`](../../koku/masu/external/downloader/ocp/ingress_staging/register.py) reads `pending/{request_id}.json`, upserts [`IngressStagingPayload`](../../koku/reporting_common/models.py), deletes the marker, and enqueues `process_staged_ingress_payload`. The listener enqueues that register task best-effort. A broker failure does not rewind Kafka. The same function falls back to the receipt when the pending marker is already gone.
+[`register_ingress_staging_marker`](../../koku/masu/external/downloader/ocp/payload_landing/register.py) reads `pending/{request_id}.json`, upserts [`IngressStagingPayload`](../../koku/reporting_common/models.py), deletes the marker, and enqueues `process_staged_ingress_payload`. The listener enqueues that register task best-effort. A broker failure does not rewind Kafka. The same function falls back to the receipt when the pending marker is already gone.
 
-[`reconcile_ingress_staging`](../../koku/masu/external/downloader/ocp/ingress_staging/reconcile.py) lists `ingress_staging/pending/` every minute before it enqueues rows. One run registers at most 1000 markers. The marker is deleted only after the upsert succeeds. A database error leaves the marker and stops that batch. The upsert does not reset a row that already has an `s3_key`, so a second register cannot turn `processed` back into `pending`.
+[`reconcile_ingress_staging`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) lists `ingress_staging/pending/` every minute before it enqueues rows. One run registers at most 1000 markers. The marker is deleted only after the upsert succeeds. A database error leaves the marker and stops that batch. The upsert does not reset a row that already has an `s3_key`, so a second register cannot turn `processed` back into `pending`.
 
 Postgres or Trino can be down and the listener still stores and confirms. Markers stay under `pending/` until the beat can insert rows. S3 being down still rewinds the consumer. Processing still needs Postgres, and on SaaS it still needs Trino, on the workers.
 
-[`expire_ingress_staging`](../../koku/masu/external/downloader/ocp/ingress_staging/expire.py) deletes the tarball and the `by_request` receipt with the processed row. Failed rows and their objects stay. The pending-marker gauges are `ingress_staging_pending_markers` and `ingress_staging_pending_marker_oldest_seconds`. The count and age come from that capped listing, so a backlog larger than 1000 shows as 1000 until the prefix drains.
+[`expire_ingress_staging`](../../koku/masu/external/downloader/ocp/payload_landing/expire.py) deletes the tarball and the `by_request` receipt with the processed row. Failed rows and their objects stay. The pending-marker gauges are `ingress_staging_pending_markers` and `ingress_staging_pending_marker_oldest_seconds`. The count and age come from that capped listing, so a backlog larger than 1000 shows as 1000 until the prefix drains.
 
 ## Worker state machine
 
 States on [`IngressStagingState`](../../koku/reporting_common/models.py): `pending`, `processing`, `processed`, `failed`.
 
-[`claim_ingress_staging_row`](../../koku/masu/external/downloader/ocp/ingress_staging/claim.py) wins with one `UPDATE`. It sets `claim_token`, `claimed_at`, and increments `attempts`. A second claim while the lease is held returns without processing and does not bump `attempts`. A processing row is eligible again only after [`INGRESS_STAGING_LEASE`](../../koku/masu/external/downloader/ocp/ingress_staging/constants.py) (2 hours) and only when `attempts` is still under `settings.MAX_UPDATE_RETRIES` (5).
+[`claim_ingress_staging_row`](../../koku/masu/external/downloader/ocp/payload_landing/claim.py) wins with one `UPDATE`. It sets `claim_token`, `claimed_at`, and increments `attempts`. A second claim while the lease is held returns without processing and does not bump `attempts`. A processing row is eligible again only after [`INGRESS_STAGING_LEASE`](../../koku/masu/external/downloader/ocp/payload_landing/constants.py) (2 hours) and only when `attempts` is still under `settings.MAX_UPDATE_RETRIES` (5).
 
-The extract task and the line-item task share that token. A background heartbeat refreshes `claimed_at` every 5 minutes. Both tasks use a Celery soft limit of 90 minutes and a hard limit of 105 minutes, under the lease, so a hung task is killed before another worker can claim the row. [`mark_processed`](../../koku/masu/external/downloader/ocp/ingress_staging/claim.py) and [`release_for_retry`](../../koku/masu/external/downloader/ocp/ingress_staging/claim.py) update `WHERE request_id AND claim_token`. A worker that loses the token does not write `processed`, `pending`, or `failed`.
+The extract task and the line-item task share that token. A background heartbeat refreshes `claimed_at` every 5 minutes. Both tasks use a Celery soft limit of 90 minutes and a hard limit of 105 minutes, under the lease, so a hung task is killed before another worker can claim the row. [`mark_processed`](../../koku/masu/external/downloader/ocp/payload_landing/claim.py) and [`release_for_retry`](../../koku/masu/external/downloader/ocp/payload_landing/claim.py) update `WHERE request_id AND claim_token`. A worker that loses the token does not write `processed`, `pending`, or `failed`.
 
 `process_staged_ingress_payload`:
 
@@ -170,8 +170,8 @@ Retries use `not_before` with backoff `min(2^(attempts-1), 30)` minutes. At the 
 
 | Task | Schedule | Queue | Role |
 |------|----------|-------|------|
-| [`reconcile_ingress_staging`](../../koku/masu/external/downloader/ocp/ingress_staging/reconcile.py) | Every minute | `ingress` | Registers up to 1000 pending S3 markers, then enqueues rows the eager handoff did not finish. It does not claim them. A successful publish sets `enqueued_at`; that `request_id` is skipped until the two-hour lease passes. Pending rows younger than one minute are left for the in-flight task. Row batch size 100. |
-| [`expire_ingress_staging`](../../koku/masu/external/downloader/ocp/ingress_staging/expire.py) | Hourly at minute 0 | `ingress` | Deletes `processed` rows with `stored_at` older than 7 days and deletes the tarball and `by_request` receipt. `failed` rows and their objects stay until an operator replays or drops them. |
+| [`reconcile_ingress_staging`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) | Every minute | `ingress` | Registers up to 1000 pending S3 markers, then enqueues rows the eager handoff did not finish. It does not claim them. A successful publish sets `enqueued_at`; that `request_id` is skipped until the two-hour lease passes. Pending rows younger than one minute are left for the in-flight task. Row batch size 100. |
+| [`expire_ingress_staging`](../../koku/masu/external/downloader/ocp/payload_landing/expire.py) | Hourly at minute 0 | `ingress` | Deletes `processed` rows with `stored_at` older than 7 days and deletes the tarball and `by_request` receipt. `failed` rows and their objects stay until an operator replays or drops them. |
 
 The OCP worker consumes `ocp,ingress` ([`deploy/clowdapp.yaml`](../../deploy/clowdapp.yaml), [`worker-ocp.yaml`](../../deploy/kustomize/patches/worker-ocp.yaml)). `SCHEDULER_WORKER_QUEUE` does not include `ingress`, so the scheduler publishes the beat tasks and does not run extract or Trino for them.
 
@@ -199,6 +199,6 @@ Indexes: `(state, not_before)` for claims, `(state, claimed_at)` for lease recla
 ## Tests
 
 - Listener confirms without `extract_payload` or `process_report` when the flag is on, including a redelivered `request_id`, an S3 failure that rewinds, and a broker error after the objects are stored: [`test_kafka_msg_handler.py`](../../koku/masu/test/external/test_kafka_msg_handler.py).
-- Claim fencing, reconciler publish-once, and retention: [`test_ingress_staging.py`](../../koku/masu/test/external/downloader/ocp/test_ingress_staging.py).
+- Claim fencing, reconciler publish-once, and retention: [`test_payload_landing.py`](../../koku/masu/test/external/downloader/ocp/test_payload_landing.py).
 - Line items go to the customer OCP queue, a replay of a completed file does not call `process_report` again, and the scheduler queue list omits `ingress`: [`test_process_staged.py`](../../koku/masu/test/processor/ocp/staged_payloads/test_process_staged.py).
 - With the listener flag on, a database error during stage still confirms, a redelivery HEADs the receipt and does not upload again, a failed marker upsert leaves the marker, and a second register does not reset `processed`.

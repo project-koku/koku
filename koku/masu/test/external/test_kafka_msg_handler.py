@@ -35,7 +35,7 @@ from common.queues import OCPQueue
 from kafka_utils.utils import UPLOAD_TOPIC
 from masu.config import Config
 from masu.external.downloader.ocp import download
-from masu.external.downloader.ocp.ingress_staging import REGISTER_INGRESS_STAGING_TASK
+from masu.external.downloader.ocp.payload_landing import REGISTER_INGRESS_STAGING_TASK
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor import INGRESS_DEAD_LETTER_QUEUE_FLAG
 from masu.processor import INGRESS_STAGING_LISTENER_FLAG
@@ -1019,9 +1019,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
             patch("masu.external.downloader.ocp.download.read_manifest_from_tarball", return_value=manifest),
             patch("masu.processor.ocp.staged_payloads.processing.extract_payload"),
             patch("masu.processor.ocp.staged_payloads.processing.process_report"),
-            patch("masu.external.downloader.ocp.ingress_staging.objects.copy_data_to_s3_bucket"),
-            patch("masu.external.downloader.ocp.ingress_staging.listener._s3_key_exists", **exists_kwargs),
-            patch("masu.external.downloader.ocp.ingress_staging.listener.celery_app.send_task"),
+            patch("masu.external.downloader.ocp.payload_landing.objects.copy_data_to_s3_bucket"),
+            patch("masu.external.downloader.ocp.payload_landing.listener._s3_key_exists", **exists_kwargs),
+            patch("masu.external.downloader.ocp.payload_landing.listener.celery_app.send_task"),
             patch("masu.external.kafka_msg_handler.send_confirmation"),
             patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor"),
         )
@@ -1116,7 +1116,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             enqueue_patch,
             confirm_patch,
             parquet_patch,
-            patch("masu.external.downloader.ocp.ingress_staging.listener._copy_s3_key") as mock_copy_key,
+            patch("masu.external.downloader.ocp.payload_landing.listener._copy_s3_key") as mock_copy_key,
         ):
             msg_handler.handle_message(hccm_msg)
             msg_handler.handle_message(hccm_msg)
@@ -1163,7 +1163,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             confirm_patch,
             parquet_patch,
             patch(
-                "masu.external.downloader.ocp.ingress_staging.objects.copy_data_to_s3_bucket",
+                "masu.external.downloader.ocp.payload_landing.objects.copy_data_to_s3_bucket",
                 side_effect=UploadError("s3 upload failed"),
             ),
             patch.object(Config, "RETRY_SECONDS", 0),
@@ -1236,9 +1236,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
             ),
             patch("masu.external.downloader.ocp.download.download_payload", return_value=payload_file),
             patch("masu.external.downloader.ocp.download.read_manifest_from_tarball", return_value=manifest),
-            patch("masu.external.downloader.ocp.ingress_staging.objects.copy_data_to_s3_bucket") as mock_copy,
-            patch("masu.external.downloader.ocp.ingress_staging.listener._s3_key_exists", return_value=False),
-            patch("masu.external.downloader.ocp.ingress_staging.listener.celery_app.send_task") as mock_enqueue,
+            patch("masu.external.downloader.ocp.payload_landing.objects.copy_data_to_s3_bucket") as mock_copy,
+            patch("masu.external.downloader.ocp.payload_landing.listener._s3_key_exists", return_value=False),
+            patch("masu.external.downloader.ocp.payload_landing.listener.celery_app.send_task") as mock_enqueue,
             patch("masu.external.kafka_msg_handler.send_confirmation") as mock_confirm,
             patch("masu.external.kafka_msg_handler.settings.DEBUG", False),
             patch("masu.external.kafka_msg_handler.Customer.objects.filter", side_effect=OperationalError("db down")),

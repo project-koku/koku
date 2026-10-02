@@ -39,12 +39,12 @@ from common.queues import IngressQueue
 from common.queues import OCPQueue
 from koku import celery_app
 from masu.config import Config
-from masu.external.downloader.ocp.ingress_staging import claim_ingress_staging_row
-from masu.external.downloader.ocp.ingress_staging import heartbeat_ingress_claim
-from masu.external.downloader.ocp.ingress_staging import ingress_claim_held
-from masu.external.downloader.ocp.ingress_staging import mark_processed
-from masu.external.downloader.ocp.ingress_staging import PROCESS_STAGED_INGRESS_TASK
-from masu.external.downloader.ocp.ingress_staging import release_for_retry
+from masu.external.downloader.ocp.payload_landing import claim_ingress_staging_row
+from masu.external.downloader.ocp.payload_landing import heartbeat_ingress_claim
+from masu.external.downloader.ocp.payload_landing import ingress_claim_held
+from masu.external.downloader.ocp.payload_landing import mark_processed
+from masu.external.downloader.ocp.payload_landing import PROCESS_STAGED_INGRESS_TASK
+from masu.external.downloader.ocp.payload_landing import release_for_retry
 from masu.processor.ocp.staged_payloads import processing
 from masu.util.aws.common import get_s3_resource
 

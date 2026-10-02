@@ -772,19 +772,19 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 ### Ingress Staging Reconciler
 
-**Task**: `masu.external.downloader.ocp.ingress_staging.reconcile_ingress_staging`
+**Task**: `masu.external.downloader.ocp.payload_landing.reconcile_ingress_staging`
 
 **Schedule**: Every minute
 
 **Queue**: `ingress` (consumed by the OCP worker)
 
-**Description**: Lists `ingress_staging/pending/` and registers up to 1000 S3 inbox markers into staging rows before it enqueues work. A marker is deleted only after the upsert succeeds. It then enqueues staged HCCM ingress rows that the listener's eager handoff did not finish. It does not claim rows. A successful publish sets `enqueued_at`, and that `request_id` is not published again until the two-hour lease passes. Pending rows younger than one minute are left for the in-flight task. The worker task `masu.processor.ocp.staged_payloads.process_staged.process_staged_ingress_payload` claims the row and extracts the tarball on the `ingress` queue. Line items run as `process_staged_ingress_reports` on the customer OCP queue. See [`reconcile.py`](../../koku/masu/external/downloader/ocp/ingress_staging/reconcile.py) and [`process_staged.py`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py).
+**Description**: Lists `ingress_staging/pending/` and registers up to 1000 S3 inbox markers into staging rows before it enqueues work. A marker is deleted only after the upsert succeeds. It then enqueues staged HCCM ingress rows that the listener's eager handoff did not finish. It does not claim rows. A successful publish sets `enqueued_at`, and that `request_id` is not published again until the two-hour lease passes. Pending rows younger than one minute are left for the in-flight task. The worker task `masu.processor.ocp.staged_payloads.process_staged.process_staged_ingress_payload` claims the row and extracts the tarball on the `ingress` queue. Line items run as `process_staged_ingress_reports` on the customer OCP queue. See [`reconcile.py`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) and [`process_staged.py`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py).
 
 ---
 
 ### Ingress Staging Retention
 
-**Task**: `masu.external.downloader.ocp.ingress_staging.expire_ingress_staging`
+**Task**: `masu.external.downloader.ocp.payload_landing.expire_ingress_staging`
 
 **Schedule**: Hourly at minute 0
 

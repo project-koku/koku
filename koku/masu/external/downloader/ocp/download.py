@@ -6,7 +6,7 @@
 
 The listener uses this module to fetch the quarantine object and peek at
 ``manifest.json``. The durable copy and staging row live in
-``ingress_staging``. Report extraction starts after that object is in our bucket.
+``payload_landing``. Report extraction starts after that object is in our bucket.
 """
 import logging
 import os

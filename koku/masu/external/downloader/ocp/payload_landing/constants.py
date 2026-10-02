@@ -23,6 +23,6 @@ _DB_ERRORS = (OperationalError, InterfaceError, ProgrammingError)
 _MISSING_S3_CODES = {"404", "NoSuchKey", "NotFound"}
 
 PROCESS_STAGED_INGRESS_TASK = "masu.processor.ocp.staged_payloads.process_staged.process_staged_ingress_payload"
-REGISTER_INGRESS_STAGING_TASK = "masu.external.downloader.ocp.ingress_staging.register_ingress_staging_marker"
-RECONCILE_INGRESS_STAGING_TASK = "masu.external.downloader.ocp.ingress_staging.reconcile_ingress_staging"
-EXPIRE_INGRESS_STAGING_TASK = "masu.external.downloader.ocp.ingress_staging.expire_ingress_staging"
+REGISTER_INGRESS_STAGING_TASK = "masu.external.downloader.ocp.payload_landing.register_ingress_staging_marker"
+RECONCILE_INGRESS_STAGING_TASK = "masu.external.downloader.ocp.payload_landing.reconcile_ingress_staging"
+EXPIRE_INGRESS_STAGING_TASK = "masu.external.downloader.ocp.payload_landing.expire_ingress_staging"

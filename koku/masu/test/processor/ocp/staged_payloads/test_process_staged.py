@@ -11,7 +11,7 @@ from unittest.mock import patch
 from django.utils import timezone
 
 from common.queues import OCPQueue
-from masu.external.downloader.ocp.ingress_staging import claim_ingress_staging_row
+from masu.external.downloader.ocp.payload_landing import claim_ingress_staging_row
 from masu.processor.ocp.staged_payloads.process_staged import process_staged_ingress_payload
 from masu.processor.ocp.staged_payloads.process_staged import process_staged_ingress_reports
 from masu.processor.ocp.staged_payloads.process_staged import PROCESS_STAGED_INGRESS_REPORTS_TASK

@@ -16,16 +16,16 @@ from masu.external.downloader.ocp import download
 from masu.external.downloader.ocp.exceptions import FAILURE_CONFIRM_STATUS
 from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
 from masu.external.downloader.ocp.exceptions import SUCCESS_CONFIRM_STATUS
-from masu.external.downloader.ocp.ingress_staging.constants import REGISTER_INGRESS_STAGING_TASK
-from masu.external.downloader.ocp.ingress_staging.keys import _inbox_tar_key
-from masu.external.downloader.ocp.ingress_staging.keys import _marker_document
-from masu.external.downloader.ocp.ingress_staging.keys import _pending_marker_key
-from masu.external.downloader.ocp.ingress_staging.keys import _receipt_key
-from masu.external.downloader.ocp.ingress_staging.objects import _copy_s3_key
-from masu.external.downloader.ocp.ingress_staging.objects import _put_bytes
-from masu.external.downloader.ocp.ingress_staging.objects import _put_json
-from masu.external.downloader.ocp.ingress_staging.objects import _rewind_for_staging_error
-from masu.external.downloader.ocp.ingress_staging.objects import _s3_key_exists
+from masu.external.downloader.ocp.payload_landing.constants import REGISTER_INGRESS_STAGING_TASK
+from masu.external.downloader.ocp.payload_landing.keys import _inbox_tar_key
+from masu.external.downloader.ocp.payload_landing.keys import _marker_document
+from masu.external.downloader.ocp.payload_landing.keys import _pending_marker_key
+from masu.external.downloader.ocp.payload_landing.keys import _receipt_key
+from masu.external.downloader.ocp.payload_landing.objects import _copy_s3_key
+from masu.external.downloader.ocp.payload_landing.objects import _put_bytes
+from masu.external.downloader.ocp.payload_landing.objects import _put_json
+from masu.external.downloader.ocp.payload_landing.objects import _rewind_for_staging_error
+from masu.external.downloader.ocp.payload_landing.objects import _s3_key_exists
 from masu.util.aws.common import UploadError
 
 LOG = logging.getLogger(__name__)

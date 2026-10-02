@@ -10,10 +10,10 @@ from django.utils import timezone
 from api.common import log_json
 from common.queues import IngressQueue
 from koku import celery_app
-from masu.external.downloader.ocp.ingress_staging.constants import EXPIRE_INGRESS_STAGING_TASK
-from masu.external.downloader.ocp.ingress_staging.constants import INGRESS_STAGING_RECONCILE_BATCH
-from masu.external.downloader.ocp.ingress_staging.constants import INGRESS_STAGING_RETENTION
-from masu.external.downloader.ocp.ingress_staging.keys import _receipt_key
+from masu.external.downloader.ocp.payload_landing.constants import EXPIRE_INGRESS_STAGING_TASK
+from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_RECONCILE_BATCH
+from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_RETENTION
+from masu.external.downloader.ocp.payload_landing.keys import _receipt_key
 from masu.util.aws.common import delete_s3_objects
 from reporting_common.models import IngressStagingPayload
 from reporting_common.models import IngressStagingState

@@ -17,8 +17,8 @@ from django.conf import settings
 
 from api.common import log_json
 from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
-from masu.external.downloader.ocp.ingress_staging.constants import _MISSING_S3_CODES
-from masu.external.downloader.ocp.ingress_staging.keys import _pending_marker_prefix
+from masu.external.downloader.ocp.payload_landing.constants import _MISSING_S3_CODES
+from masu.external.downloader.ocp.payload_landing.keys import _pending_marker_prefix
 from masu.util.aws.common import copy_data_to_s3_bucket
 from masu.util.aws.common import get_s3_resource
 

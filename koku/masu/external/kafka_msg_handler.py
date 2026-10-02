@@ -51,7 +51,7 @@ from masu.external.downloader.ocp.download import is_permanent_download_error as
 from masu.external.downloader.ocp.exceptions import FAILURE_CONFIRM_STATUS
 from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
 from masu.external.downloader.ocp.exceptions import SUCCESS_CONFIRM_STATUS
-from masu.external.downloader.ocp.ingress_staging import stage_ingress_s3_inbox
+from masu.external.downloader.ocp.payload_landing import stage_ingress_s3_inbox
 from masu.processor import INGRESS_DEAD_LETTER_QUEUE_FLAG
 from masu.processor import INGRESS_STAGING_LISTENER_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema

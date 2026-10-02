@@ -16,8 +16,8 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from api.common import log_json
-from masu.external.downloader.ocp.ingress_staging.constants import _LAST_ERROR_MAX_LENGTH
-from masu.external.downloader.ocp.ingress_staging.constants import INGRESS_STAGING_LEASE
+from masu.external.downloader.ocp.payload_landing.constants import _LAST_ERROR_MAX_LENGTH
+from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_LEASE
 from reporting_common.models import IngressStagingPayload
 from reporting_common.models import IngressStagingState
 
