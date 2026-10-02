@@ -59,7 +59,7 @@ class MockUnleashClient:
 
         if feature_name in self.ONPREM_FLAG_DEFAULTS:
             result = self.ONPREM_FLAG_DEFAULTS[feature_name]
-            LOG.debug(f"MockUnleashClient: {feature_name}={result} (ONPREM default)")
+            LOG.info(f"MockUnleashClient: {feature_name}={result} (ONPREM default)")
             return result
 
         merged_context = self.unleash_static_context.copy()
@@ -67,10 +67,10 @@ class MockUnleashClient:
 
         if fallback_function:
             result = fallback_function(feature_name, merged_context)
-            LOG.debug(f"MockUnleashClient: {feature_name}={result} (fallback)")
+            LOG.info(f"MockUnleashClient: {feature_name}={result} (fallback)")
             return result
 
-        LOG.debug(f"MockUnleashClient: {feature_name}=False (no match)")
+        LOG.info(f"MockUnleashClient: {feature_name}=False (no match)")
         return False
 
     def destroy(self):
