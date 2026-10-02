@@ -48,14 +48,31 @@ class MockUnleashClient:
 
     def is_enabled(self, feature_name: str, context: dict = None, fallback_function=None, **kwargs):
         """Return fallback value for feature flags."""
+        # When IQE_TEST_RUN is set, enable constant-currency to allow IQE tests to exercise
+        # the feature before enabling it for real ONPREM customers
+        if feature_name == "cost-management.backend.constant-currency":
+            LOG.info(
+                f"MockUnleashClient: Checking constant-currency - IQE_TEST_RUN={settings.IQE_TEST_RUN}, "
+                f"schema={context.get('schema') if context else 'None'}"
+            )
+            if settings.IQE_TEST_RUN:
+                LOG.info("MockUnleashClient: Enabling constant-currency for IQE testing")
+                return True
+
         if feature_name in self.ONPREM_FLAG_DEFAULTS:
-            return self.ONPREM_FLAG_DEFAULTS[feature_name]
+            result = self.ONPREM_FLAG_DEFAULTS[feature_name]
+            LOG.info(f"MockUnleashClient: {feature_name}={result} (ONPREM default)")
+            return result
 
         merged_context = self.unleash_static_context.copy()
         merged_context.update(context or {})
 
         if fallback_function:
-            return fallback_function(feature_name, merged_context)
+            result = fallback_function(feature_name, merged_context)
+            LOG.info(f"MockUnleashClient: {feature_name}={result} (fallback)")
+            return result
+
+        LOG.info(f"MockUnleashClient: {feature_name}=False (no match)")
         return False
 
     def destroy(self):
@@ -65,7 +82,11 @@ class MockUnleashClient:
 
 # Create the appropriate client based on settings
 if settings.ONPREM:
-    LOG.info("Unleash is disabled via ONPREM setting")
+    LOG.info(
+        f"Unleash is disabled via ONPREM setting - "
+        f"IQE_TEST_RUN={settings.IQE_TEST_RUN}, "
+        f"KOKU_SENTRY_ENVIRONMENT={ENVIRONMENT.get_value('KOKU_SENTRY_ENVIRONMENT', default='development')}"
+    )
     UNLEASH_CLIENT = MockUnleashClient(
         app_name="Cost Management",
         environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
