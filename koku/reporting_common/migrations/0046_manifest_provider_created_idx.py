@@ -18,7 +18,9 @@ class Migration(migrations.Migration):
             state_operations=[
                 migrations.AddIndex(
                     model_name="costusagereportmanifest",
-                    index=models.Index(fields=["provider", "-creation_datetime"], name="manifest_provider_created_idx"),
+                    index=models.Index(
+                        fields=["provider", "-creation_datetime"], name="manifest_provider_created_idx"
+                    ),
                 ),
             ],
             database_operations=[
