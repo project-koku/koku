@@ -32,8 +32,8 @@ Do not hardcode production rates in Python when ops need to retune under load.
 
 | Env | Default | Applied when |
 |-----|---------|--------------|
-| `OCP_REPORT_THROTTLE_RATE` | `60/m` | Always (all schemas) |
-| `OCP_REPORT_THROTTLE_TIGHT_RATE` | `10/m` | Unleash flag on for that schema |
+| `OCP_REPORT_THROTTLE_RATE` | `10000/m` | Always (all schemas); high so UI/IQE/on-prem are not blocked |
+| `OCP_REPORT_THROTTLE_TIGHT_RATE` | `500/m` | Unleash flag on for that schema |
 
 Both throttles must pass → effective limit is the lower rate when tighten is on.
 
