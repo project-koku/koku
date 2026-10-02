@@ -483,3 +483,22 @@ class NodeCapacityDataclassTest(IamTestCase):
                         result_value = node_capacity.capacity_by_date_node.get(usage_start, {}).get(node)
                         self.assertEqual(result_value, expected_capacity)
                     self.assertEqual(expected_total_capacity, node_capacity.capacity_total)
+
+
+class CapacityReprTest(IamTestCase):
+    """Rendering a capacity dataclass must not evaluate its QuerySet."""
+
+    def test_repr_does_not_execute_query(self):
+        """repr() is called by Sentry when it serializes frame locals on a request timeout."""
+        with tenant_context(self.tenant):
+            query = OCPUsageLineItemDailySummary.objects.all()
+            report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, "cpu", self.schema_name)._report_type_map
+            for capacity in (
+                ClusterCapacity(report_type_map, query, "daily"),
+                NodeCapacity(report_type_map, query, "daily"),
+            ):
+                with self.subTest(dataclass=type(capacity).__name__):
+                    with CaptureQueriesContext(connection) as captured:
+                        rendered = repr(capacity)
+                    self.assertEqual(len(captured), 0)
+                    self.assertNotIn("query=", rendered)
