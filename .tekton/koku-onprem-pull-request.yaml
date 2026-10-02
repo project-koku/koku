@@ -4,16 +4,17 @@ metadata:
   annotations:
     build.appstudio.openshift.io/repo: https://github.com/project-koku/koku?rev={{revision}}
     build.appstudio.redhat.com/commit_sha: '{{revision}}'
+    build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
-    pipelinesascode.tekton.dev/cancel-in-progress: "false"
+    pipelinesascode.tekton.dev/cancel-in-progress: "true"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch
+    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch
       == "main"
   labels:
     appstudio.openshift.io/application: koku-onprem
     appstudio.openshift.io/component: koku-onprem
     pipelines.appstudio.openshift.io/type: build
-  name: koku-onprem-on-push
+  name: koku-onprem-on-pull-request
   namespace: cost-mgmt-dev-tenant
 spec:
   params:
@@ -22,7 +23,9 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: output-image
-    value: quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/koku-onprem:{{revision}}
+    value: quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/koku-onprem:on-pr-{{revision}}
+  - name: image-expires-after
+    value: 5d
   - name: dockerfile
     value: Dockerfile
   - name: path-context
