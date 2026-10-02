@@ -67,6 +67,8 @@
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: GUNICORN_LOG_LEVEL
