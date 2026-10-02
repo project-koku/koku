@@ -2,6 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import copy
 import datetime
 import json
 import logging
@@ -11,13 +12,16 @@ import re
 import string
 import time
 import uuid
+from contextlib import contextmanager
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
 from django.db import connection as conn
+from django.db import OperationalError
 from django.db import transaction
 from django_tenants.utils import schema_context
 
+from api.common import log_json
 from koku.database import get_model
 
 
@@ -39,6 +43,11 @@ PARTITION_LIST = "LIST"
 VIEW_TYPE_MATERIALIZED = "MVIEW"
 
 LOG = logging.getLogger(__name__)
+
+# Bound on waiting for the parent-table lock when pre-creating partitions.
+PRECREATE_LOCK_TIMEOUT = "5s"
+# SQLSTATE lock_not_available, raised when lock_timeout expires.
+LOCK_NOT_AVAILABLE = "55P03"
 # SQLFILE = open('/tmp/pg_partition.sql', 'wt')
 
 _TEMPLATE_SCHEMA = os.environ.get("TEMPLATE_SCHEMA", "template0")
@@ -1873,6 +1882,133 @@ def get_or_create_partition(part_rec, _default_partition=None):
             partition.save()
 
     return partition, created
+
+
+@contextmanager
+def _session_lock_timeout(lock_timeout):
+    """Bound lock waits on the current connection, then restore the default."""
+    with transaction.get_connection().cursor() as cur:
+        cur.execute("SET lock_timeout = %s", [lock_timeout])
+    try:
+        yield
+    finally:
+        with transaction.get_connection().cursor() as cur:
+            cur.execute("RESET lock_timeout")
+
+
+def _is_lock_not_available(exc):
+    """Return True if a database error is a lock_timeout expiry."""
+    return getattr(exc.__cause__, "pgcode", None) == LOCK_NOT_AVAILABLE
+
+
+OUTCOME_LOG_LEVELS = {
+    "created": logging.INFO,
+    "skipped_default_data": logging.INFO,
+    "skipped_locked": logging.WARNING,
+    "failed": logging.ERROR,
+}
+
+
+def _precreate_partition(default_partition, part_rec, lock_timeout):
+    """Try to create one partition; return (outcome, error message or None)."""
+    restore_parameters, _ = _check_default_partition_data(default_partition, copy.deepcopy(part_rec))
+    if restore_parameters:
+        return "skipped_default_data", None
+    try:
+        with _session_lock_timeout(lock_timeout):
+            _, created = get_or_create_partition(part_rec, _default_partition=default_partition)
+    except OperationalError as exc:
+        if _is_lock_not_available(exc):
+            return "skipped_locked", None
+        return "failed", str(exc)
+    except Exception as exc:
+        return "failed", str(exc)
+    return ("created" if created else "existing"), None
+
+
+def precreate_monthly_partitions(schema_name, month_start, lock_timeout=PRECREATE_LOCK_TIMEOUT, table_names=None):
+    """Create the monthly partition starting at month_start for each range-partitioned table in a schema.
+
+    Creating a partition needs an ACCESS EXCLUSIVE lock on the parent table, and while that request waits,
+    every later statement on the table queues behind it. Run ahead of the month, with each attempt bounded
+    by lock_timeout, this creates the partitions before processing needs them; a table that is busy is
+    skipped and retried by a later run. Tables whose default partition already holds rows for the month
+    are left to the on-demand path, which moves those rows.
+
+    Params:
+        schema_name (str) : Tenant schema.
+        month_start (date|str) : Any date in the month to create.
+        lock_timeout (str) : PostgreSQL lock_timeout for each partition creation.
+        table_names (list|None) : Limit to these partitioned tables (all tables when None).
+
+    Each outcome is logged as a structured "partition pre-creation" event (outcome: created, skipped_locked,
+    skipped_default_data, failed; existing at debug level) so runs can be evaluated in the logs.
+
+    Returns: dict of counts (created, existing, skipped_locked, skipped_default_data, failed) and
+        "missing": the partitions that still do not exist after this run.
+    """
+    if isinstance(month_start, str):
+        month_start = ciso8601.parse_datetime(month_start).date()
+    elif isinstance(month_start, datetime.datetime):
+        month_start = month_start.date()
+    month_start = month_start.replace(day=1)
+    month_end = month_start + relativedelta(months=1)
+    counts = dict.fromkeys(("created", "existing", "skipped_locked", "skipped_default_data", "failed"), 0)
+    missing = []
+
+    def log_outcome(level, outcome, partition_rec, **extra):
+        LOG.log(
+            level,
+            log_json(
+                msg="partition pre-creation",
+                schema=schema_name,
+                table=partition_rec["partition_of_table_name"],
+                partition=partition_rec["table_name"],
+                month_start=str(month_start),
+                outcome=outcome,
+                **extra,
+            ),
+        )
+
+    with schema_context(schema_name):
+        default_partitions = PartitionedTable.objects.filter(
+            schema_name=schema_name,
+            partition_type=PartitionedTable.RANGE,
+            partition_parameters__default=True,
+        )
+        if table_names is not None:
+            default_partitions = default_partitions.filter(partition_of_table_name__in=table_names)
+
+        for default_partition in default_partitions:
+            parent = default_partition.partition_of_table_name
+            part_rec = dict(
+                schema_name=schema_name,
+                table_name=f"{parent}_{month_start.strftime('%Y_%m')}",
+                partition_of_table_name=parent,
+                partition_type=PartitionedTable.RANGE,
+                partition_col=default_partition.partition_col,
+                partition_parameters={"default": False, "from": str(month_start), "to": str(month_end)},
+                active=True,
+            )
+            if PartitionedTable.objects.filter(schema_name=schema_name, table_name=part_rec["table_name"]).exists():
+                counts["existing"] += 1
+                log_outcome(logging.DEBUG, "existing", part_rec)
+                continue
+
+            outcome, error = _precreate_partition(default_partition, part_rec, lock_timeout)
+            counts[outcome] += 1
+            if outcome == "existing":
+                log_outcome(logging.DEBUG, outcome, part_rec)
+                continue
+            if outcome != "created":
+                missing.append(part_rec["table_name"])
+            extra = {"lock_timeout": lock_timeout} if outcome == "skipped_locked" else {}
+            if error:
+                extra["error"] = error
+            log_outcome(OUTCOME_LOG_LEVELS[outcome], outcome, part_rec, **extra)
+
+    counts["missing"] = missing
+    return counts
 
 
 class PartitionHandlerMixin:
