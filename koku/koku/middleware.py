@@ -40,6 +40,7 @@ from api.iam.serializers import create_schema_name
 from api.iam.serializers import extract_header
 from api.utils import DateHelper
 from koku.cache import CacheEnum
+from koku.kessel import aws_account_access
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
@@ -280,6 +281,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         """Obtain access for given user from RBAC service."""
         if settings.ENHANCED_ORG_ADMIN and user.admin:
             return {}
+        if settings.KESSEL_AUTHZ:
+            return aws_account_access(user.username)
         return self.rbac.get_access_for_user(user)
 
     def process_request(self, request):  # noqa: C901
@@ -381,7 +384,12 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             user_access = cache.get(f"{user.uuid}_{org_id}")
 
             if not user_access:
-                if settings.DEVELOPMENT and request.user.req_id == "DEVELOPMENT":
+                dev_bypass = (
+                    not settings.KESSEL_AUTHZ
+                    and settings.DEVELOPMENT
+                    and request.user.req_id == "DEVELOPMENT"
+                )
+                if dev_bypass:
                     # passthrough for DEVELOPMENT_IDENTITY env var.
                     LOG.warning("DEVELOPMENT is Enabled. Bypassing access lookup for user: %s", json_rh_auth)
                     user_access = request.user.access
