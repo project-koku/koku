@@ -51,16 +51,26 @@ class MockUnleashClient:
         # When IQE_TEST_RUN is set, enable constant-currency to allow IQE tests to exercise
         # the feature before enabling it for real ONPREM customers
         if settings.IQE_TEST_RUN and feature_name == "cost-management.backend.constant-currency":
+            LOG.info(
+                f"MockUnleashClient: IQE_TEST_RUN={settings.IQE_TEST_RUN}, "
+                f"enabling constant-currency for schema={context.get('schema') if context else 'None'}"
+            )
             return True
 
         if feature_name in self.ONPREM_FLAG_DEFAULTS:
-            return self.ONPREM_FLAG_DEFAULTS[feature_name]
+            result = self.ONPREM_FLAG_DEFAULTS[feature_name]
+            LOG.debug(f"MockUnleashClient: {feature_name}={result} (ONPREM default)")
+            return result
 
         merged_context = self.unleash_static_context.copy()
         merged_context.update(context or {})
 
         if fallback_function:
-            return fallback_function(feature_name, merged_context)
+            result = fallback_function(feature_name, merged_context)
+            LOG.debug(f"MockUnleashClient: {feature_name}={result} (fallback)")
+            return result
+
+        LOG.debug(f"MockUnleashClient: {feature_name}=False (no match)")
         return False
 
     def destroy(self):
