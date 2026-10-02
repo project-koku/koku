@@ -1083,7 +1083,7 @@ class ReportQueryHandler(QueryHandler):
 
         if self.currency:
             output["currency"] = self.currency
-            if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+            if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
                 with tenant_context(self.tenant):
                     validate_exchange_rate_coverage(
                         self._get_base_currencies_for_conversion(),
@@ -1697,6 +1697,10 @@ class ReportQueryHandler(QueryHandler):
                 prev_total_filters = Q(usage_start=date)
         return prev_total_filters
 
+    def _get_previous_query(self, delta_filter):
+        """Return the previous-period queryset used for row and total deltas."""
+        return self.query_table.objects.filter(delta_filter).annotate(**self.annotations)
+
     def _get_previous_rows_query(self, previous_query, query_data):
         """Return the query used for per-row previous-period delta values.
 
@@ -1719,7 +1723,7 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
-        previous_query = self.query_table.objects.filter(delta_filter).annotate(**self.annotations)
+        previous_query = self._get_previous_query(delta_filter)
         previous_rows_query = self._get_previous_rows_query(previous_query, query_data)
         previous_dict = self._create_previous_totals(previous_rows_query, delta_group_by)
         for row in query_data:
