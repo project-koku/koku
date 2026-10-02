@@ -48,7 +48,12 @@ class MockUnleashClient:
 
     def is_enabled(self, feature_name: str, context: dict = None, fallback_function=None, **kwargs):
         """Return fallback value for feature flags."""
-        if feature_name in self.ONPREM_FLAG_DEFAULTS:
+        # When IQE_TEST_RUN is set, skip onprem defaults for constant-currency to allow
+        # IQE tests to exercise SaaS-like behavior (uses dev_fallback=True → ON in development)
+        if settings.IQE_TEST_RUN and feature_name == "cost-management.backend.constant-currency":
+            # Fall through to use fallback_function (dev_fallback=True in code)
+            pass
+        elif feature_name in self.ONPREM_FLAG_DEFAULTS:
             return self.ONPREM_FLAG_DEFAULTS[feature_name]
 
         merged_context = self.unleash_static_context.copy()
