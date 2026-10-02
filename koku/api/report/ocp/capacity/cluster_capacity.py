@@ -61,7 +61,8 @@ class ClusterCapacity:
     """
 
     report_type_map: defaultdict
-    query: QuerySet
+    # repr=False: QuerySet.__repr__ runs the query (e.g. when Sentry serializes frame locals).
+    query: QuerySet = field(repr=False)
     resolution: str
     capacity_total: Decimal = Decimal(0)
     capacity_by_date: defaultdict = field(default_factory=lambda: defaultdict(Decimal))
