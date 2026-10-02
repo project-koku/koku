@@ -39,6 +39,11 @@ else
 endif
 
 DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN) $(COMPOSE_FILES)
+# Kafka, Zookeeper, and init-kafka use onprem and/or payload_landing compose profiles.
+KAFKA_COMPOSE = $(DOCKER_COMPOSE) --profile onprem
+PAYLOAD_LANDING_COMPOSE = $(DOCKER_COMPOSE) --profile payload_landing
+# down must list profiles or compose leaves profile-gated containers (and the network) running.
+DOCKER_COMPOSE_DOWN = $(DOCKER_COMPOSE) --profile onprem --profile payload_landing
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
@@ -137,9 +142,16 @@ help:
 	@echo "                                         password: admin12"
 	@echo "  docker-up-min                        run database, koku/masu servers and worker"
 	@echo "  docker-up-kafka                      start Kafka, Zookeeper, and init topics"
+	@echo "  docker-up-payload-landing            SaaS min stack + Kafka + beat + listener + ingress worker"
+	@echo "  docker-up-payload-landing-no-build   same as docker-up-payload-landing without image rebuild"
+	@echo "  payload-landing-status               Kafka lag, listener logs, S4 staging, PG rows"
+	@echo "  publish-hccm-upload                  publish test message to platform.upload.announce"
+	@echo "      request_id=<id>                   @param - Required. Unique upload request id"
+	@echo "      url=<payload_url>                 @param - (optional) tarball URL for listener download"
+	@echo "  kafka-create-upload-topic            create platform.upload.announce (HCCM listener) if missing"
 	@echo "  docker-up-onprem                     run on-prem stack (core + kafka, no Trino/S3)"
 	@echo "  docker-up-onprem-no-build            run on-prem stack without building"
-	@echo "  docker-down                          shut down all containers"
+	@echo "  docker-down                          shut down all containers (incl. onprem/payload_landing profiles)"
 	@echo "  docker-up-min-trino                 start minimum targets for Trino usage"
 	@echo "  docker-up-min-trino-no-build        start minimum targets for Trino usage without building koku base"
 	@echo "  docker-up-min-with-subs             run database, koku/masu servers, worker and subs worker"
@@ -293,7 +305,7 @@ endif
 ###############################
 
 docker-down:
-	$(DOCKER_COMPOSE) down -v --remove-orphans
+	$(DOCKER_COMPOSE_DOWN) down -v --remove-orphans
 	$(PREFIX) $(MAKE) delete-testing
 	$(PREFIX) $(MAKE) delete-trino-data
 
@@ -373,10 +385,10 @@ docker-up-min-no-build-with-subs: docker-up-min-no-build
 
 # basic dev environment targets with koku-listener for local Sources Kafka testing
 docker-up-min-with-listener: docker-up-min
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
+	$(DOCKER_COMPOSE) up -d koku-listener
 
 docker-up-min-no-build-with-listener: docker-up-min-no-build
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
+	$(DOCKER_COMPOSE) up -d koku-listener
 
 docker-up-db:
 	$(DOCKER_COMPOSE) up -d db
@@ -392,11 +404,47 @@ trino-stack-up:
 	$(DOCKER_COMPOSE) up -d --wait --no-deps trino
 
 docker-up-kafka:
-	$(DOCKER_COMPOSE) up -d kafka-zookeeper kafka
+	$(KAFKA_COMPOSE) up -d kafka-zookeeper kafka
 	@echo "Waiting for Kafka to be ready..."
 	@sleep 5
-	$(DOCKER_COMPOSE) up -d init-kafka
+	$(KAFKA_COMPOSE) up -d init-kafka
 	@echo "Kafka is ready."
+
+.PHONY: docker-up-payload-landing-kafka
+docker-up-payload-landing-kafka:
+	$(PAYLOAD_LANDING_COMPOSE) up -d kafka-zookeeper kafka
+	@echo "Waiting for Kafka to be ready..."
+	@sleep 5
+	$(PAYLOAD_LANDING_COMPOSE) up -d init-kafka
+	@echo "Kafka is ready."
+
+docker-up-payload-landing: docker-build docker-up-payload-landing-no-build
+
+docker-up-payload-landing-no-build: docker-up-min-no-build docker-up-payload-landing-kafka
+	$(DOCKER_COMPOSE) up -d koku-beat koku-listener
+	$(PAYLOAD_LANDING_COMPOSE) up -d ingress-worker
+	@echo "Payload landing stack ready (SaaS + Kafka + beat + listener + ingress worker)."
+
+.PHONY: payload-landing-status publish-hccm-upload
+payload-landing-status:
+	$(SCRIPTDIR)/payload_landing/payload_landing_status.sh
+
+publish-hccm-upload:
+ifndef request_id
+	$(error param request_id is not set)
+endif
+	@{ \
+		[ -n "$(url)" ] && export PAYLOAD_URL="$(url)"; \
+		[ -n "$(account)" ] && export ACCOUNT="$(account)"; \
+		[ -n "$(org_id)" ] && export ORG_ID="$(org_id)"; \
+		$(SCRIPTDIR)/payload_landing/publish_hccm_upload.sh "$(request_id)"; \
+	}
+
+.PHONY: kafka-create-upload-topic
+kafka-create-upload-topic:
+	$(KAFKA_COMPOSE) exec kafka kafka-topics --bootstrap-server kafka:29092 \
+		--create --if-not-exists --topic platform.upload.announce \
+		--replication-factor 1 --partitions 1
 
 # On-prem development environment (core + kafka, no Trino/S3)
 docker-up-onprem: docker-build docker-up-onprem-no-build
@@ -446,7 +494,7 @@ docker-trino-ps:
 	$(DOCKER_COMPOSE) ps trino hive-metastore
 
 docker-trino-down:
-	$(DOCKER_COMPOSE) down -v --remove-orphans
+	$(DOCKER_COMPOSE_DOWN) down -v --remove-orphans
 	$(MAKE) delete-trino
 
 docker-trino-down-all: docker-trino-down docker-down

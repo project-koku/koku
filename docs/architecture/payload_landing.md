@@ -198,6 +198,7 @@ Indexes: `(state, not_before)` for claims, `(state, claimed_at)` for lease recla
 
 ## Tests
 
+- **Local manual walkthrough** (Kafka decoupled from Postgres/Trino): [`payload-landing-local-test.md`](../../dev/scripts/payload_landing/payload-landing-local-test.md) (`make docker-up-payload-landing`, `make publish-hccm-upload`, `make payload-landing-status`).
 - Listener confirms without `extract_payload` or `process_report` when the flag is on, including a redelivered `request_id`, an S3 failure that rewinds, and a broker error after the objects are stored: [`test_kafka_msg_handler.py`](../../koku/masu/test/external/test_kafka_msg_handler.py).
 - Claim fencing, reconciler publish-once, and retention: [`test_payload_landing.py`](../../koku/masu/test/external/downloader/ocp/test_payload_landing.py).
 - Line items go to the customer OCP queue, a replay of a completed file does not call `process_report` again, and the scheduler queue list omits `ingress`: [`test_process_staged.py`](../../koku/masu/test/processor/ocp/staged_payloads/test_process_staged.py).

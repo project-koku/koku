@@ -271,6 +271,21 @@ cd $WORKSPACE/nise
 curl -s "http://localhost:5042/api/cost-management/v1/download/?provider_uuid=<AWS_PROVIDER_UUID>"
 ```
 
+#### Local payload landing (Kafka / HCCM)
+
+For the ingress staging listener path (Kafka announce → S4 → workers), use SaaS mode with the **`payload_landing`** Compose profile. Full outage walkthrough: [`payload-landing-local-test.md`](../dev/scripts/payload_landing/payload-landing-local-test.md). Architecture: [`architecture/payload_landing.md`](architecture/payload_landing.md).
+
+```bash
+make docker-up-payload-landing
+make run-migrations
+make create-test-customer   # once per fresh DB; needs my-ocp-cluster-1
+
+dev/scripts/payload_landing/build_ingress_payload_tar.sh -s 2026-09-01 -e 2026-09-30
+dev/scripts/payload_landing/serve_ingress_payload.sh    # separate terminal
+make publish-hccm-upload request_id=req-baseline-1
+make payload-landing-status
+```
+
 #### Verifying Trino Is Working
 
 ```bash

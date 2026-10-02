@@ -392,6 +392,82 @@ services:
     depends_on:
       - koku-base
 
+  ingress-worker:
+    container_name: ingress_worker
+    profiles: ["payload_landing"]
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint:
+      [
+        "watchmedo",
+        "auto-restart",
+        "--directory=./",
+        "--pattern=*.py",
+        "--ignore-patterns=*test*",
+        "--recursive",
+        "--",
+        "celery",
+        "-A",
+        "koku",
+        "worker",
+        "--without-gossip",
+        "-P",
+        "solo",
+        "-l",
+        "info",
+        "-Q",
+        "ingress",
+        "-n",
+        "ingress-local@%h",
+      ]
+    environment:
+      - ONPREM=${ONPREM-False}
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - REDIS_HOST=${REDIS_HOST-valkey}
+      - REDIS_PORT=${REDIS_PORT-6379}
+      - DEVELOPMENT=${DEVELOPMENT-True}
+      - SCHEMA_SUFFIX=${SCHEMA_SUFFIX-}
+      - TRINO_S3A_OR_S3=${TRINO_S3A_OR_S3-s3a}
+      - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-DEBUG}
+      - CELERY_LOG_LEVEL=${CELERY_LOG_LEVEL-INFO}
+      - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
+      - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
+      - DJANGO_SETTINGS_MODULE=koku.settings
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - DISABLE_ROS_MSG=${DISABLE_ROS_MSG-True}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_ENDPOINT=${S4_PROXY_ENDPOINT-http://koku-s4-proxy:7480}
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - DATA_DIR=${DATA_DIR-/testing/data}
+      - TRINO_HOST=${TRINO_HOST-trino}
+      - TRINO_PORT=${TRINO_PORT-8080}
+      - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-4}
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
+    volumes:
+      - "./koku:/koku/koku:z"
+      - "./dev/containers/unleash:/koku/.unleash:z"
+      - "./db_functions:/koku/db_functions:z"
+      - "./scripts:/koku/scripts:z"
+      - "./testing:/testing:z"
+      - "./testing/local_providers/insights_local:/var/tmp/masu/insights_local:z"
+      - "./dev/credentials:/etc/credentials:z"
+    depends_on:
+      koku-base:
+        condition: service_started
+      trino:
+        condition: service_healthy
+
   sources-client:
     container_name: sources_client
     image: koku_base
@@ -804,7 +880,7 @@ services:
   kafka-zookeeper:
     container_name: koku-zookeeper
     image: confluentinc/cp-zookeeper:7.8.6
-    profiles: ["onprem"]
+    profiles: ["onprem", "payload_landing"]
     environment:
       - ZOOKEEPER_CLIENT_PORT=32181
       - ZOOKEEPER_SERVER_ID=1
@@ -812,7 +888,7 @@ services:
   kafka:
     container_name: koku-kafka
     image: confluentinc/cp-kafka:7.8.6
-    profiles: ["onprem"]
+    profiles: ["onprem", "payload_landing"]
     environment:
       - KAFKA_ADVERTISED_LISTENERS=DOCKER://kafka:29092,LOCALHOST://localhost:9092
       - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=DOCKER:PLAINTEXT,LOCALHOST:PLAINTEXT
@@ -829,17 +905,21 @@ services:
 
   init-kafka:
     image: confluentinc/cp-kafka:7.8.6
-    profiles: ["onprem"]
+    profiles: ["onprem", "payload_landing"]
     entrypoint: [ '/bin/sh', '-c' ]
-    command: |
-      # blocks until kafka is reachable
-      kafka-topics --bootstrap-server kafka:29092 --list
+    # Single list element: bare `command: |` is parsed as argv tokens, not one shell script.
+    command:
+      - |
+        set -e
+        # blocks until kafka is reachable
+        kafka-topics --bootstrap-server kafka:29092 --list
 
-      echo -e 'Creating kafka topic'
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic platform.sources.event-stream --replication-factor 1 --partitions 1
+        echo -e 'Creating kafka topics'
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic platform.sources.event-stream --replication-factor 1 --partitions 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic platform.upload.announce --replication-factor 1 --partitions 1
 
-      echo -e 'Successfully created the following topics:'
-      kafka-topics --bootstrap-server kafka:29092 --list
+        echo -e 'Successfully created the following topics:'
+        kafka-topics --bootstrap-server kafka:29092 --list
     depends_on:
       - kafka
 
