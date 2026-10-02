@@ -9,7 +9,6 @@ from uuid import uuid4
 from django.conf import settings
 from django.db import models
 from django.db import transaction
-from django.db.models.signals import post_save
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 from django.utils import timezone
@@ -17,7 +16,6 @@ from django.utils import timezone
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import to_date
-from koku import cache as koku_cache
 from koku import celery_app
 from reporting_common.states import CombinedChoices
 from reporting_common.states import ReportStep
@@ -62,21 +60,6 @@ class CostUsageReportManifest(models.Model):
     report_tracker = models.JSONField(default=dict, null=True)
     # s3_parquet_cleared_tracker is additional parquet context for OCP daily operator payloads
     s3_parquet_cleared_tracker = models.JSONField(default=dict, null=True)
-
-
-@receiver(post_save, sender=CostUsageReportManifest)
-def manifest_post_save_refresh_sources_cache(sender, instance, created, **kwargs):
-    """Bust /sources/ list cache when has_data or processing status changes."""
-    update_fields = kwargs.get("update_fields")
-    if (
-        not created
-        and update_fields is not None
-        and not koku_cache.SOURCES_LIST_MANIFEST_FIELDS.intersection(update_fields)
-    ):
-        return
-    customer = getattr(instance.provider, "customer", None)
-    if customer:
-        koku_cache.invalidate_sources_view_cache(customer.schema_name)
 
 
 class CostUsageReportStatus(models.Model):
