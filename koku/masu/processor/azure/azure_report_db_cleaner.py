@@ -136,14 +136,22 @@ class AzureReportDBCleaner:
                         partitions=partition_from,
                     )
                 )
-                del_count = execute_delete_sql(
-                    PartitionedTable.objects.filter(
-                        schema_name=self._schema,
-                        partition_of_table_name__in=table_names,
-                        partition_parameters__default=False,
-                        partition_parameters__from__lte=partition_from,
+                # COST-7249 deadlock preflight, Finding I (parity with COST-8115 / Finding H for
+                # OCP): see aws_report_db_cleaner.py's purge_expired_report_data_by_date for the
+                # full rationale -- a single combined multi-table execute_delete_sql call can hold
+                # ACCESS EXCLUSIVE on several parent tables at once, which is the precondition for
+                # Postgres's documented ATTACH/DETACH-partition queue-jump deadlock. One call per
+                # table bounds this to a single parent table's lock at a time.
+                del_count = 0
+                for table_name in table_names:
+                    del_count += execute_delete_sql(
+                        PartitionedTable.objects.filter(
+                            schema_name=self._schema,
+                            partition_of_table_name__in=[table_name],
+                            partition_parameters__default=False,
+                            partition_parameters__from__lte=partition_from,
+                        )
                     )
-                )
                 LOG.info(log_json(msg="deleted table partitions", schema=self._schema, records_deleted=del_count))
 
         return removed_items
