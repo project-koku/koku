@@ -118,7 +118,8 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         return provider
 
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
-    def test_enable_cloud_bill_currencies_enables_missing(self, mock_populate):
+    @patch("masu.processor.report_summary_updater.delete_value_from_cache")
+    def test_enable_cloud_bill_currencies_enables_missing(self, mock_delete_cache, mock_populate):
         """Cloud bill currencies missing from EnabledCurrency are enabled."""
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
@@ -131,6 +132,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         with tenant_context(self.tenant):
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="AUD").exists())
         mock_populate.assert_called_once_with(code="AUD")
+        mock_delete_cache.assert_called_once_with(f"enabled-currency-codes-{self.schema}")
 
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
     def test_enable_cloud_bill_currencies_skips_invalid_iso(self, mock_populate):
@@ -148,7 +150,8 @@ class ReportSummaryUpdaterTest(MasuTestCase):
             self.assertFalse(EnabledCurrency.objects.filter(currency_code="FOO").exists())
 
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
-    def test_enable_cloud_bill_currencies_skips_already_enabled(self, mock_populate):
+    @patch("masu.processor.report_summary_updater.delete_value_from_cache")
+    def test_enable_cloud_bill_currencies_skips_already_enabled(self, mock_delete_cache, mock_populate):
         """Currencies already in EnabledCurrency do not trigger rate population."""
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
@@ -160,6 +163,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         enable_cloud_bill_currencies(self.schema, provider, start_date="2026-01-01", end_date="2026-01-31")
 
         mock_populate.assert_not_called()
+        mock_delete_cache.assert_not_called()
 
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
     @patch("masu.processor.report_summary_updater.EnabledCurrency.objects")
