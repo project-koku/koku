@@ -41,6 +41,7 @@ from api.report.gcp.openshift.view import OCPGCPStorageView
 from api.report.gcp.view import GCPCostView
 from api.report.gcp.view import GCPInstanceTypeView
 from api.report.gcp.view import GCPStorageView
+from api.report.ocp.view import OCPCostBreakdownView
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPGpuView

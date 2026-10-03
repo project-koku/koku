@@ -7,6 +7,7 @@ import logging
 from datetime import date
 
 from django.conf import settings
+from django_tenants.utils import schema_context
 
 from api.common import log_json
 from koku.database import cascade_delete
@@ -87,6 +88,14 @@ class OCPReportDBCleaner:
 
             if not simulate:
                 cascade_delete(usage_period_objs.query.model, usage_period_objs)
+
+                # OCPCostUIBreakDownP.source_uuid is a FK to TenantAPIProvider only (no
+                # relation to OCPUsageReportPeriod), so the cascade_delete() walk above
+                # cannot reach it. Delete explicitly to avoid orphaned breakdown rows.
+                from reporting.provider.ocp.models import OCPCostUIBreakDownP
+
+                with schema_context(self._schema):
+                    OCPCostUIBreakDownP.objects.filter(source_uuid=provider_uuid).delete()
 
                 # For on-prem, also delete from self-hosted tables
                 if settings.ONPREM:

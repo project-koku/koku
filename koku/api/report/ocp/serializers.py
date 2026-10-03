@@ -511,3 +511,112 @@ class OCPMigProfilesQueryParamSerializer(OCPQueryParamSerializer):
             )
 
         return data
+
+
+class CostBreakdownFlatItemSerializer(serializers.Serializer):
+    """Response serializer for flat breakdown items.
+
+    Field set mirrors the "cost_breakdown" annotations in
+    api/report/ocp/provider_map.py and the columns written by
+    masu/database/sql/openshift/ui_summary/reporting_ocp_cost_breakdown_p.sql.
+    Used as a contract-conformance check (see test_views.py) rather than for
+    runtime (de)serialization, since OCPCostBreakdownView builds the response
+    from raw query rows like every other OCP report view.
+    """
+
+    depth = serializers.IntegerField()
+    custom_name = serializers.CharField()
+    path = serializers.CharField()
+    # Blank for the depth-1 root node, which has no parent (see step 6 of
+    # reporting_ocp_cost_breakdown_p.sql: parent_path = '').
+    parent_path = serializers.CharField(allow_blank=True)
+    top_category = serializers.CharField()
+    breakdown_category = serializers.CharField()
+    metric_type = serializers.CharField()
+    # NULL for the depth 1-3 aggregate rows and the depth-4 overhead aggregate row
+    # (see reporting_ocp_cost_breakdown_p.sql steps 3-6); only populated on the
+    # depth-4 project and depth-5 overhead leaves sourced directly from RTU.
+    cost_model_rate_type = serializers.CharField(allow_null=True)
+    cost_value = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
+    distributed_cost = serializers.DecimalField(max_digits=33, decimal_places=15, allow_null=True)
+
+
+class CostBreakdownTreeNodeSerializer(CostBreakdownFlatItemSerializer):
+    """Response serializer for tree breakdown nodes.
+
+    OCPCostBreakdownView._build_tree() nests flat rows via `**item`, so every
+    field on CostBreakdownFlatItemSerializer is still present on each tree
+    node in addition to `children`.
+    """
+
+    children = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+
+
+class OCPCostBreakdownGroupBySerializer(GroupSerializer):
+    """Serializer for cost breakdown group_by parameters."""
+
+    _opfields = ("cluster", "project", "node")
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+
+
+class OCPCostBreakdownOrderBySerializer(OrderSerializer):
+    """Serializer for cost breakdown order_by parameters."""
+
+    _opfields = ("path", "depth", "cost_value", "distributed_cost")
+    path = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    depth = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    cost_value = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    distributed_cost = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+
+
+class OCPCostBreakdownFilterSerializer(BaseFilterSerializer):
+    """Serializer for cost breakdown filter parameters."""
+
+    _opfields = ("cluster", "project", "node", "path", "depth", "top_category")
+
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+    # Path leaf segments can be a rate display name (e.g. "project.usage_cost.ns-a.CPU usage"),
+    # which may contain spaces, so a client can round-trip a `path` value from a response
+    # into this filter. Injection characters remain blocked.
+    path = StringOrListField(child=serializers.RegexField(r"^[a-zA-Z0-9_.\- ]+$", max_length=200), required=False)
+    depth = StringOrListField(child=serializers.IntegerField(min_value=1, max_value=5), required=False)
+    top_category = StringOrListField(
+        child=serializers.ChoiceField(choices=(("project", "project"), ("overhead", "overhead"), ("total", "total"))),
+        required=False,
+    )
+
+
+class OCPCostBreakdownExcludeSerializer(BaseExcludeSerializer):
+    """Serializer for cost breakdown exclude parameters."""
+
+    _opfields = ("cluster", "project", "node")
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+
+
+class OCPCostBreakdownQueryParamSerializer(ReportQueryParamSerializer):
+    """Serializer for cost breakdown query parameters."""
+
+    GROUP_BY_SERIALIZER = OCPCostBreakdownGroupBySerializer
+    ORDER_BY_SERIALIZER = OCPCostBreakdownOrderBySerializer
+    FILTER_SERIALIZER = OCPCostBreakdownFilterSerializer
+    EXCLUDE_SERIALIZER = OCPCostBreakdownExcludeSerializer
+
+    order_by_allowlist = ("cost_value", "distributed_cost", "depth", "path")
+
+    view = serializers.ChoiceField(choices=(("flat", "flat"), ("tree", "tree")), required=False, default="flat")
+
+    def __init__(self, *args, **kwargs):
+        """Strip tag keys from filter/exclude/group_by (breakdown has no tag columns)."""
+        if "data" in kwargs and kwargs["data"]:
+            data = dict(kwargs["data"])
+            for key in ("filter", "exclude", "group_by"):
+                if key in data and data[key]:
+                    data[key] = _strip_tag_keys_from_param_dict(data[key])
+            kwargs = {**kwargs, "data": data}
+        super().__init__(*args, **kwargs)

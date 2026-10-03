@@ -218,18 +218,33 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         Unlike the other tables in the standard ui_summary loop, this is a
         multi-statement script (six sequential DELETE/INSERT steps that build
-        the breakdown tree bottom-up), so it must run through
-        _execute_processing_script rather than the single-statement
-        _prepare_and_execute_raw_sql_query used by the loop. This SQL reads
-        only from rates_to_usage and reporting_ocpusagelineitem_daily_summary
-        (both PostgreSQL-native), so it runs identically on-prem and in SaaS.
+        the breakdown tree bottom-up, each autocommitted independently since
+        _execute_processing_script does not wrap them in a shared
+        transaction), so it must run through _execute_processing_script
+        rather than the single-statement _prepare_and_execute_raw_sql_query
+        used by the loop. This SQL reads only from rates_to_usage and
+        reporting_ocpusagelineitem_daily_summary (both PostgreSQL-native), so
+        it runs identically on-prem and in SaaS.
+
+        Runs under _distribution_provider_lock (see its docstring) for the
+        same reason as populate_distributed_cost_sql / aggregate_rates_to_
+        daily_summary / populate_markup_rates_to_usage: two overlapping
+        invocations for the SAME provider/date-range (e.g. a cost-model
+        update racing a resummarize) can interleave their DELETE/INSERT
+        steps. Spiked empirically (COST-7249 deadlock preflight, see
+        masu/test/database/test_ocp_breakdown_concurrency.py): this does not
+        raise a deadlock -- it silently doubles every row in the tree, with
+        zero exceptions raised, since each step commits independently and
+        both threads' Step 0 DELETEs can no-op past each other before either
+        INSERT lands.
         """
         sql_params = copy.deepcopy(params)
-        self._execute_processing_script(
-            "masu.database",
-            f"sql/openshift/ui_summary/{COST_BREAKDOWN_UI_SUMMARY_TABLE}.sql",
-            sql_params,
-        )
+        with self._distribution_provider_lock(params.get("source_uuid")):
+            self._execute_processing_script(
+                "masu.database",
+                f"sql/openshift/ui_summary/{COST_BREAKDOWN_UI_SUMMARY_TABLE}.sql",
+                sql_params,
+            )
 
     def clear_cost_breakdown_ui_summary_table(self, source_uuid, start_date, end_date):
         """Clear cost-breakdown rows for a period processed via the legacy (non-RTU) path.
