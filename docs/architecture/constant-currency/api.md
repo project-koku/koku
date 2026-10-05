@@ -102,6 +102,9 @@ codes remain in the list so they can be disabled.
       "exchange_rate": 0.87,
       "start_date": "2026-10-01",
       "end_date": "2026-12-31",
+      "status": "active",
+      "can_edit": true,
+      "can_delete": true,
       "created_timestamp": "2026-10-02T10:30:00Z",
       "updated_timestamp": "2026-10-02T10:30:00Z"
     }
@@ -126,7 +129,7 @@ that would always equal `target_currency`.
 | `enabled` | Currency is enabled for the tenant |
 | `has_dynamic_rate` | A dynamic (market) rate exists for this currency code |
 | `active_rate_type` | Rate in force **this UTC month**: `static`, `dynamic`, or `none` |
-| `static_rates` | Static rates where this currency is the **base** |
+| `static_rates` | Static rates where this currency is the **base**. Expired rates remain in the list. |
 
 `active_rate_type` is computed (not stored):
 
@@ -136,7 +139,26 @@ that would always equal `target_currency`.
 | `dynamic` | Enabled, no current-month static, and `has_dynamic_rate` is true |
 | `none` | Disabled, or enabled with neither a current-month static nor a dynamic rate |
 
-CSV export does **not** include `active_rate_type`.
+Each nested static rate includes a computed **`status`** relative to the
+**current UTC month** (not the client clock). This is distinct from
+currency-level `active_rate_type` — do not replace one with the other.
+
+| `status` | Meaning |
+|----------|---------|
+| `expired` | `end_date` is before the first day of the current UTC month |
+| `active` | Validity window includes the current UTC month |
+| `upcoming` | `start_date` is on or after the first day of next month |
+
+`status` is for UI labels (Active / Expired / Upcoming). Edit/delete are not
+gated on it — past-month rates remain editable and deletable:
+
+| Field | `true` when |
+|-------|-------------|
+| `can_edit` | Always `true` for returned rates (`base_currency` is still immutable on PUT) |
+| `can_delete` | Always `true` for returned rates |
+
+CSV export does **not** include `active_rate_type`, `status`, `can_edit`, or
+`can_delete`.
 
 ### CSV export (`Accept: text/csv`)
 
@@ -285,6 +307,8 @@ currency for end users.
 
 `name` is read-only: `"{base_currency}-{target_currency}"`.
 `exchange_rate` in responses is a JSON number (see settings list note above).
+Create/update responses include the same computed `status`, `can_edit`, and
+`can_delete` fields as the nested list (omitted above).
 
 ### `PUT /settings/currency/static-rates/{uuid}/`
 
@@ -398,6 +422,8 @@ static-rate responses). Unknown schema or bad dates → `400`.
 | Active rate (this month) | If `enabled` is false, show Not enabled. Otherwise use `active_rate_type`: Static / Dynamic / None |
 | Enable / disable toggle | `POST` / `DELETE` …`/enabled/{code}/` |
 | Static rate form create/edit/delete | `POST` / `PUT` / `DELETE` …`/static-rates/…` |
+| Active / expired / upcoming labels | `status` on each nested static rate (server UTC month) |
+| Edit / delete availability | `can_edit` / `can_delete` (currently always `true`; past-month rates are allowed) |
 | Show dynamic availability | `has_dynamic_rate` on settings list |
 | Missing conversion | Surface report/forecast `400` `currency` error text |
 | Empty dropdown | No enabled currencies → hide picker or show “No exchange rates available” |

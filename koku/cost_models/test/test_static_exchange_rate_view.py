@@ -20,7 +20,14 @@ from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import MonthlyExchangeRate
 from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
+from cost_models.static_exchange_rate_serializer import next_month_start
 from cost_models.static_exchange_rate_serializer import NumericDecimalField
+from cost_models.static_exchange_rate_serializer import static_rate_can_delete
+from cost_models.static_exchange_rate_serializer import static_rate_can_edit
+from cost_models.static_exchange_rate_serializer import static_rate_status
+from cost_models.static_exchange_rate_serializer import STATIC_RATE_STATUS_ACTIVE
+from cost_models.static_exchange_rate_serializer import STATIC_RATE_STATUS_EXPIRED
+from cost_models.static_exchange_rate_serializer import STATIC_RATE_STATUS_UPCOMING
 
 
 def _month_end(d):
@@ -50,6 +57,50 @@ class NumericDecimalFieldTest(SimpleTestCase):
                     self.assertIsNone(result)
                 else:
                     self.assertEqual(float(result), expected)
+
+
+class StaticRateStatusHelperTest(SimpleTestCase):
+    """Unit tests for computed static-rate lifecycle vs a fixed UTC month."""
+
+    def test_status_expired_active_upcoming(self):
+        current = date(2026, 10, 1)
+        cases = (
+            (date(2026, 8, 1), date(2026, 8, 31), STATIC_RATE_STATUS_EXPIRED),
+            (date(2026, 9, 1), date(2026, 9, 30), STATIC_RATE_STATUS_EXPIRED),
+            (date(2026, 10, 1), date(2026, 10, 31), STATIC_RATE_STATUS_ACTIVE),
+            (date(2026, 9, 1), date(2026, 12, 31), STATIC_RATE_STATUS_ACTIVE),
+            (date(2026, 10, 1), date(2026, 12, 31), STATIC_RATE_STATUS_ACTIVE),
+            (date(2026, 11, 1), date(2026, 11, 30), STATIC_RATE_STATUS_UPCOMING),
+            (date(2026, 12, 1), date(2026, 12, 31), STATIC_RATE_STATUS_UPCOMING),
+        )
+        for start, end, expected in cases:
+            with self.subTest(start=start, end=end):
+                self.assertEqual(
+                    static_rate_status(start, end, current_month_start=current),
+                    expected,
+                )
+
+    def test_status_upcoming_across_year_boundary(self):
+        current = date(2026, 12, 1)
+        self.assertEqual(
+            static_rate_status(date(2027, 1, 1), date(2027, 1, 31), current_month_start=current),
+            STATIC_RATE_STATUS_UPCOMING,
+        )
+        self.assertEqual(next_month_start(current), date(2027, 1, 1))
+
+    def test_can_edit_always_true(self):
+        """Past-month windows remain editable (COST-8378)."""
+        current = date(2026, 10, 1)
+        self.assertTrue(static_rate_can_edit(date(2026, 9, 30), current_month_start=current))
+        self.assertTrue(static_rate_can_edit(date(2026, 10, 31), current_month_start=current))
+        self.assertTrue(static_rate_can_edit(date(2026, 12, 31), current_month_start=current))
+
+    def test_can_delete_always_true(self):
+        """Past-month windows remain deletable (COST-8378)."""
+        current = date(2026, 10, 1)
+        self.assertTrue(static_rate_can_delete(date(2026, 9, 1), current_month_start=current))
+        self.assertTrue(static_rate_can_delete(date(2026, 10, 1), current_month_start=current))
+        self.assertTrue(static_rate_can_delete(date(2026, 11, 1), current_month_start=current))
 
 
 class StaticExchangeRateListViewTest(IamTestCase):
@@ -83,6 +134,9 @@ class StaticExchangeRateListViewTest(IamTestCase):
         self.assertEqual(data["exchange_rate"], 0.92)
         self.assertEqual(data["start_date"], month_start.isoformat())
         self.assertEqual(data["end_date"], month_end.isoformat())
+        self.assertEqual(data["status"], STATIC_RATE_STATUS_ACTIVE)
+        self.assertTrue(data["can_edit"])
+        self.assertTrue(data["can_delete"])
         self.assertIn("created_timestamp", data)
         self.assertIn("updated_timestamp", data)
 
@@ -431,6 +485,22 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
                 exchange_rate="0.920000000000000",
                 start_date=past_start,
                 end_date=_month_end(today),
+            )
+
+        response = self.client.delete(self._url(rate.uuid), **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        with tenant_context(self.tenant):
+            self.assertEqual(StaticExchangeRate.objects.count(), 0)
+
+    def test_delete_fully_expired_rate_allowed(self):
+        """A rate whose entire window is in the past can still be deleted."""
+        with tenant_context(self.tenant):
+            rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate="0.920000000000000",
+                start_date=date(2020, 1, 1),
+                end_date=date(2020, 1, 31),
             )
 
         response = self.client.delete(self._url(rate.uuid), **self.headers)
