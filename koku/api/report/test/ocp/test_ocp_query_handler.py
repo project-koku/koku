@@ -113,7 +113,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
             and "reporting_ocpusagelineitem_daily_summary" in query["sql"]
         ]
 
-    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch(
+        "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema",
+        side_effect=lambda schema, flag, **kwargs: flag == OCP_CAPACITY_SINGLE_SCAN_FLAG,
+    )
     def test_cluster_capacity_flag_uses_one_cpu_summary_scan(self, mock_feature_flag):
         """Eligible cluster CPU capacity combines count and capacity aggregates."""
         handler = OCPReportQueryHandler(self.mocked_query_params("?", OCPCpuView))
@@ -122,9 +125,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             handler.get_capacity([{"row": 1}])
 
         self.assertEqual(len(self._capacity_summary_selects(captured)), 1)
-        mock_feature_flag.assert_called_once_with(
-            handler.tenant.schema_name, OCP_CAPACITY_SINGLE_SCAN_FLAG, dev_fallback=True
-        )
+        mock_feature_flag.assert_any_call(handler.tenant.schema_name, OCP_CAPACITY_SINGLE_SCAN_FLAG, dev_fallback=True)
 
     @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False)
     def test_cluster_capacity_flag_off_keeps_two_cpu_summary_scans(self, mock_feature_flag):
@@ -135,11 +136,12 @@ class OCPReportQueryHandlerTest(IamTestCase):
             handler.get_capacity([{"row": 1}])
 
         self.assertEqual(len(self._capacity_summary_selects(captured)), 2)
-        mock_feature_flag.assert_called_once_with(
-            handler.tenant.schema_name, OCP_CAPACITY_SINGLE_SCAN_FLAG, dev_fallback=True
-        )
+        mock_feature_flag.assert_any_call(handler.tenant.schema_name, OCP_CAPACITY_SINGLE_SCAN_FLAG, dev_fallback=True)
 
-    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch(
+        "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema",
+        side_effect=lambda schema, flag, **kwargs: flag == OCP_CAPACITY_SINGLE_SCAN_FLAG,
+    )
     def test_cluster_capacity_flag_ignores_node_and_volume_reports(self, mock_feature_flag):
         """The cluster-only optimization never evaluates its flag for ineligible reports."""
         query_params = (
@@ -153,7 +155,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 self.assertIn(capacity_key, total_capacity)
                 self.assertIn(capacity_key, query_data[0])
 
-        mock_feature_flag.assert_not_called()
+        requested_flags = [call.args[1] for call in mock_feature_flag.call_args_list]
+        self.assertNotIn(OCP_CAPACITY_SINGLE_SCAN_FLAG, requested_flags)
 
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""
