@@ -3,12 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Views for currency list and enablement."""
-import calendar
 import logging
 from collections import defaultdict
 from datetime import date
-from datetime import datetime
-from datetime import timezone
 
 from django.db.models import Q
 from django.utils.decorators import method_decorator
@@ -32,6 +29,7 @@ from api.currency.currencies import is_valid_iso_currency
 from api.provider.models import Provider
 from api.report.constants import URL_ENCODED_SAFE
 from api.settings.utils import ListField
+from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
@@ -74,11 +72,13 @@ ACTIVE_RATE_TYPE_NONE = "none"
 
 
 def current_utc_month_bounds():
-    """Return (first day, last day) of the current UTC month."""
-    today = datetime.now(timezone.utc).date()
-    month_start = today.replace(day=1)
-    month_end = month_start.replace(day=calendar.monthrange(month_start.year, month_start.month)[1])
-    return month_start, month_end
+    """Return (first day, last day) of the current month.
+
+    Uses DateHelper (project TIME_ZONE is UTC), matching the product rule that
+    active_rate_type is evaluated against the current UTC month.
+    """
+    dh = DateHelper()
+    return dh.this_month_start.date(), dh.this_month_end.date()
 
 
 def _as_date(value):

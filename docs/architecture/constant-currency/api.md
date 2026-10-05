@@ -100,10 +100,10 @@ codes remain in the list so they can be disabled.
       "base_currency": "USD",
       "target_currency": "EUR",
       "exchange_rate": 0.87,
-      "start_date": "2026-04-01",
-      "end_date": "2026-06-30",
-      "created_timestamp": "2026-04-02T10:30:00Z",
-      "updated_timestamp": "2026-04-02T10:30:00Z"
+      "start_date": "2026-10-01",
+      "end_date": "2026-12-31",
+      "created_timestamp": "2026-10-02T10:30:00Z",
+      "updated_timestamp": "2026-10-02T10:30:00Z"
     }
   ]
 }

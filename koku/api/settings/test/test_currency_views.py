@@ -7,9 +7,7 @@ import calendar
 import csv
 import io
 from datetime import date
-from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 from decimal import Decimal
 from unittest.mock import patch
 from uuid import uuid4
@@ -31,6 +29,7 @@ from api.settings.currency_views import ACTIVE_RATE_TYPE_NONE
 from api.settings.currency_views import ACTIVE_RATE_TYPE_STATIC
 from api.settings.currency_views import compute_active_rate_type
 from api.settings.currency_views import CSV_STATIC_RATE_FIELDS
+from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
@@ -511,10 +510,8 @@ class CurrencySettingsViewTest(IamTestCase):
         self.assertEqual(data[0]["static_rates"][0]["target_currency"], "EUR")
 
     def _utc_month_bounds(self):
-        today = datetime.now(timezone.utc).date()
-        month_start = today.replace(day=1)
-        month_end = _month_end(month_start)
-        return month_start, month_end
+        dh = DateHelper()
+        return dh.this_month_start.date(), dh.this_month_end.date()
 
     def test_active_rate_type_none_when_currency_disabled(self):
         """Disabled currencies return none even when static and dynamic exist."""
