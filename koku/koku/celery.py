@@ -277,11 +277,12 @@ app.conf.beat_schedule["autovacuum-tune-schemas"] = {
     "args": [],
 }
 
-# Create next month's partitions ahead of time (from the 15th, retried daily) so the
-# first of the month does not need partition DDL on the processing path.
+# Create next month's partitions ahead of time (from the 15th, every 8 hours) so the
+# first of the month does not need partition DDL on the processing path. A table that
+# is busy on one run is retried at a different time of day on the next.
 app.conf.beat_schedule["precreate-upcoming-partitions"] = {
     "task": "masu.celery.tasks.precreate_upcoming_partitions",
-    "schedule": crontab(hour=5, minute=30, day_of_month="15-31"),
+    "schedule": crontab(hour="5,13,21", minute=30, day_of_month="15-31"),
     "args": [],
 }
 
