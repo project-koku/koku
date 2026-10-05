@@ -1016,7 +1016,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_ocp_cpu_query_group_by_cluster(self):
         """Test that group by cluster includes cluster and cluster_alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3&group_by[cluster]=*"  # noqa: E501
-        query_params = self.mocked_query_params(url, OCPCpuView)
+        query_params = self.mocked_query_params(
+            url, OCPCpuView, path="/api/cost-management/v1/reports/openshift/cpu/"
+        )
         handler = OCPReportQueryHandler(query_params)
 
         query_data = handler.execute_query()
