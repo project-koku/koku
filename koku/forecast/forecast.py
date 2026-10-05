@@ -294,14 +294,6 @@ class Forecast:
                 )
                 and self.currency
             ):
-                base_currencies = set(
-                    self.cost_summary_table.objects.filter(
-                        usage_start__gte=self.query_range[0],
-                        usage_start__lte=self.query_range[1],
-                    )
-                    .values_list(self.provider_map.cost_units_key, flat=True)
-                    .distinct()
-                ) - {None}
                 validate_exchange_rate_coverage(
                     self._get_base_currencies_for_conversion(),
                     self.currency,
