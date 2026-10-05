@@ -4,12 +4,17 @@
 #
 """Management capabilities for Provider functionality."""
 import logging
+from collections import defaultdict
 from datetime import timedelta
+from uuid import UUID
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.db.models import Exists
+from django.db.models import OuterRef
+from django.db.models import Subquery
 from django.db.models.signals import post_delete
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -58,6 +63,193 @@ class ManifestDoesNotExist(Exception):
     """Manifest does not exist."""
 
     pass
+
+
+def manifest_state(manifest):
+    """Get download/processing/summary statuses for a manifest."""
+    if not manifest:
+        return None
+    states = {
+        ManifestStep.DOWNLOAD: {"state": ManifestState.PENDING},
+        ManifestStep.PROCESSING: {"state": ManifestState.PENDING},
+        ManifestStep.SUMMARY: {"state": ManifestState.PENDING},
+    }
+    for key in states:
+        if current_state := manifest.state.get(key):
+            manifest.state[key].pop("time_taken_seconds", None)
+            if current_state.get(ManifestState.FAILED):
+                states[key] = manifest.state[key]
+                states[key]["state"] = "failed"
+            elif current_state.get(ManifestState.END):
+                states[key] = manifest.state[key]
+                states[key]["state"] = "complete"
+            elif current_state.get(ManifestState.START):
+                states[key] = manifest.state[key]
+                states[key]["state"] = "in-progress"
+    return states
+
+
+def provider_additional_context(provider, manifest):
+    """Return the provider's additional context, with operator details for OCP."""
+    base_additional_context = provider.additional_context if provider else {}
+    if manifest and provider.type == provider.PROVIDER_OCP:
+        base_additional_context["operator_version"] = manifest.operator_version
+        base_additional_context["operator_airgapped"] = manifest.operator_airgapped
+        base_additional_context["operator_certified"] = manifest.operator_certified
+        current_version = manifest.operator_version.split(":")[-1].lstrip("v")
+        try:
+            base_additional_context["operator_update_available"] = Version(current_version) < Version(
+                LATEST_OPERATOR_VERSION
+            )
+            is_supported = Version(current_version) >= Version("4.0.0")
+        except InvalidVersion:
+            base_additional_context["operator_update_available"] = False
+            is_supported = False
+        base_additional_context["vm_cpu_core_cost_model_support"] = is_supported
+    return base_additional_context
+
+
+def _format_timestamp(timestamp):
+    return timestamp.strftime(DATE_TIME_FORMAT) if timestamp else None
+
+
+def unlinked_source_details():
+    """GET /sources/ list fields for a source without a provider."""
+    return {
+        "provider_linked": False,
+        "active": False,
+        "paused": False,
+        "current_month_data": False,
+        "previous_month_data": False,
+        "last_payload_received_at": False,
+        "last_polling_time": False,
+        "created_timestamp": None,
+        "status": {},
+        "has_data": False,
+        "infrastructure": {},
+        "cost_models": [],
+        "additional_context": {},
+    }
+
+
+def _latest_manifest_id(date_helper):
+    """Subquery: id of the outer provider's newest manifest for this or last month."""
+    return Subquery(
+        CostUsageReportManifest.objects.filter(
+            provider=OuterRef("uuid"),
+            billing_period_start_datetime__in=[date_helper.this_month_start, date_helper.last_month_start],
+            creation_datetime__isnull=False,
+        )
+        .order_by("-creation_datetime")
+        .values("id")[:1]
+    )
+
+
+def _valid_uuids(values):
+    uuids = set()
+    for value in values:
+        try:
+            uuids.add(UUID(str(value)))
+        except (TypeError, ValueError):
+            continue
+    return uuids
+
+
+def bulk_source_details(provider_uuids, tenant):
+    """Return GET /sources/ list fields for many providers in a fixed number of queries.
+
+    Produces the same values as the per-source ProviderManager getters, which
+    cost about a dozen queries per source. Keys are str(provider uuid);
+    providers that do not exist are omitted (the caller reports them unlinked).
+    """
+    date_helper = DateHelper()
+    completed = CostUsageReportManifest.objects.filter(provider=OuterRef("uuid"), completed_datetime__isnull=False)
+    providers = {
+        str(provider.uuid): provider
+        for provider in Provider.objects.filter(uuid__in=_valid_uuids(provider_uuids))
+        .select_related("infrastructure")
+        .annotate(
+            latest_manifest_id=_latest_manifest_id(date_helper),
+            has_data=Exists(completed),
+            current_month_data=Exists(completed.filter(billing_period_start_datetime=date_helper.this_month_start)),
+            previous_month_data=Exists(completed.filter(billing_period_start_datetime=date_helper.last_month_start)),
+        )
+    }
+    if not providers:
+        return {}
+
+    infra_ids = {
+        str(provider.infrastructure.infrastructure_provider_id)
+        for provider in providers.values()
+        if provider.infrastructure and provider.infrastructure.infrastructure_type
+    }
+    infra_providers = {
+        str(provider.uuid): provider
+        for provider in Provider.objects.filter(uuid__in=infra_ids).annotate(
+            latest_manifest_id=_latest_manifest_id(date_helper)
+        )
+    }
+    infra_sources = {source.koku_uuid: source for source in Sources.objects.filter(koku_uuid__in=infra_ids)}
+
+    manifest_ids = {
+        provider.latest_manifest_id
+        for provider in (*providers.values(), *infra_providers.values())
+        if provider.latest_manifest_id
+    }
+    manifests = CostUsageReportManifest.objects.in_bulk(manifest_ids)
+
+    cost_models = defaultdict(list)
+    with tenant_context(tenant):
+        for cost_model_map in CostModelMap.objects.filter(provider_uuid__in=providers).select_related("cost_model"):
+            cost_models[str(cost_model_map.provider_uuid)].append(cost_model_map.cost_model)
+
+    details = {}
+    for uuid, provider in providers.items():
+        manifest = manifests.get(provider.latest_manifest_id)
+        details[uuid] = {
+            "provider_linked": True,
+            "active": provider.active,
+            "paused": provider.paused,
+            "current_month_data": provider.current_month_data,
+            "previous_month_data": provider.previous_month_data,
+            "last_payload_received_at": manifest.creation_datetime if manifest else None,
+            "last_polling_time": _format_timestamp(provider.polling_timestamp),
+            "created_timestamp": _format_timestamp(provider.created_timestamp),
+            "status": manifest_state(manifest),
+            "has_data": provider.has_data,
+            "infrastructure": _bulk_infrastructure_info(provider, infra_providers, infra_sources, manifests),
+            "cost_models": [{"name": model.name, "uuid": model.uuid} for model in cost_models[uuid]],
+            "additional_context": provider_additional_context(provider, manifest),
+        }
+    return details
+
+
+def _bulk_infrastructure_info(provider, infra_providers, infra_sources, manifests):
+    """Bulk counterpart of ProviderManager.get_infrastructure_info."""
+    if not (provider.infrastructure and provider.infrastructure.infrastructure_type):
+        return {}
+    infra_id = provider.infrastructure.infrastructure_provider_id
+    source = infra_sources.get(str(infra_id))
+    if not source:
+        LOG.warning(
+            log_json(
+                msg="missing infrastructure source for provider",
+                provider_uuid=str(provider.uuid),
+                infrastructure_provider_uuid=str(infra_id),
+            )
+        )
+        return {}
+    infra_provider = infra_providers.get(str(infra_id))
+    manifest = manifests.get(infra_provider.latest_manifest_id) if infra_provider else None
+    return {
+        "type": provider.infrastructure.infrastructure_type,
+        "uuid": infra_id,
+        "id": source.source_id,
+        "last_polling_time": _format_timestamp(infra_provider.polling_timestamp) if infra_provider else None,
+        "paused": source.paused,
+        "source_status": source.status,
+        "cloud_provider_state": manifest_state(manifest),
+    }
 
 
 class ProviderProcessingError(Exception):
@@ -140,26 +332,7 @@ class ProviderManager:
 
     def get_manifest_state(self, manifest):
         """Get statuses for given manifest."""
-        if not manifest:
-            return None
-        states = {
-            ManifestStep.DOWNLOAD: {"state": ManifestState.PENDING},
-            ManifestStep.PROCESSING: {"state": ManifestState.PENDING},
-            ManifestStep.SUMMARY: {"state": ManifestState.PENDING},
-        }
-        for key in states:
-            if current_state := manifest.state.get(key):
-                manifest.state[key].pop("time_taken_seconds", None)
-                if current_state.get(ManifestState.FAILED):
-                    states[key] = manifest.state[key]
-                    states[key]["state"] = "failed"
-                elif current_state.get(ManifestState.END):
-                    states[key] = manifest.state[key]
-                    states[key]["state"] = "complete"
-                elif current_state.get(ManifestState.START):
-                    states[key] = manifest.state[key]
-                    states[key]["state"] = "in-progress"
-        return states
+        return manifest_state(manifest)
 
     def get_created_timestamp(self):
         """Get provider created_timestamp."""
@@ -232,22 +405,7 @@ class ProviderManager:
 
     def get_additional_context(self):
         """Returns additional context information."""
-        base_additional_context = self.model.additional_context if self.model else {}
-        if self.manifest and self.model.type == self.model.PROVIDER_OCP:
-            base_additional_context["operator_version"] = self.manifest.operator_version
-            base_additional_context["operator_airgapped"] = self.manifest.operator_airgapped
-            base_additional_context["operator_certified"] = self.manifest.operator_certified
-            current_version = self.manifest.operator_version.split(":")[-1].lstrip("v")
-            try:
-                base_additional_context["operator_update_available"] = Version(current_version) < Version(
-                    LATEST_OPERATOR_VERSION
-                )
-                is_supported = Version(current_version) >= Version("4.0.0")
-            except InvalidVersion:
-                base_additional_context["operator_update_available"] = False
-                is_supported = False
-            base_additional_context["vm_cpu_core_cost_model_support"] = is_supported
-        return base_additional_context
+        return provider_additional_context(self.model, self.manifest)
 
     def is_removable_by_user(self, current_user):
         """Determine if the current_user can remove the provider."""
