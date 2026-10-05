@@ -1,17 +1,16 @@
 # Agent Testing Guide
 
-Compact reference for writing and running Koku unit tests. See also
-[`.cursor/rules/testing-patterns.mdc`](../../.cursor/rules/testing-patterns.mdc).
+Compact reference for writing and running Koku unit tests.
 
 ## Running Tests
 
 ```bash
 # Canonical (isolated venv)
-pipenv run tox -- koku.masu.test.path.to.test_module
-pipenv run tox -- koku.masu.test.path.to.test_module::ClassName::test_method
+pipenv run tox -- masu.test.path.to.test_module
+pipenv run tox -- masu.test.path.to.test_module.ClassName.test_method
 
-# Faster (current venv)
-cd koku && pipenv run python koku/manage.py test masu.test.path.to.test_module --no-input -v 2
+# Faster (current venv, from the repository root)
+pipenv run python koku/manage.py test masu.test.path.to.test_module --no-input -v 2
 ```
 
 Requires PostgreSQL 16 on `localhost:15432` (`postgres` / `postgres`). Test DB:
@@ -86,3 +85,51 @@ SET search_path TO org1234567;
 
 `self.skipTest()` inside `with self.subTest():` skips the **entire** test method,
 not just the subtest (fixed in 3.12+). Split subtests into separate test methods.
+
+## Conventions
+
+- Place tests in `test/` next to the code; name files `test_*.py`
+- Clean up temp files/dirs created during tests
+
+## Test Data with model_bakery
+
+```python
+from model_bakery import baker
+
+# ✅ GOOD - Use baker.make() for test objects
+report = baker.make("OCPUsageReportPeriod", provider=self.ocp_provider_uuid)
+
+# ❌ BAD - Manual object creation
+report = OCPUsageReportPeriod.objects.create(...)
+```
+
+## subTest for Multiple Scenarios
+
+Combine `schema_context` with `subTest` for clarity:
+```python
+with schema_context(self.schema), self.subTest("bill is created with original cluster alias"):
+    report_period = OCPUsageReportPeriod.objects.get(...)
+    self.assertEqual(report_period.cluster_alias, cluster_alias_orig)
+```
+
+## Mocking with Tuple Unpacking
+
+```python
+# ✅ GOOD - Tuple unpacking for multiple patches
+with (
+    patch("module.function_a") as mock_a,
+    patch("module.function_b") as mock_b,
+):
+    # test code
+
+# ❌ BAD - Nested with statements
+with patch("module.function_a") as mock_a:
+    with patch("module.function_b") as mock_b:
+        # test code
+```
+
+## Assertions
+
+- Use `self.assertEqual()` with descriptive expected values
+- Verify mock calls: `mock.assert_called_once()`, `mock.assert_called_with(...)`
+- Test edge cases: empty data, None values, boundary conditions
