@@ -117,6 +117,10 @@
           value: ${REQUEST_SOFT_TIMEOUT}
         - name: REQUEST_FAULTHANDLER_TIMEOUT
           value: ${REQUEST_FAULTHANDLER_TIMEOUT}
+        - name: OCP_REPORT_THROTTLE_RATE
+          value: ${OCP_REPORT_THROTTLE_RATE}
+        - name: OCP_REPORT_THROTTLE_TIGHT_RATE
+          value: ${OCP_REPORT_THROTTLE_TIGHT_RATE}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS

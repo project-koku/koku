@@ -19,23 +19,27 @@ LOG = logging.getLogger(__name__)
 
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
-GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
-OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
-TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
-OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-queries"
-DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
-COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"  # TODO: Clean up
-COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
-CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lookup_enabled"
-OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
+# Unleash flag names. Keep sorted by constant name: new flags then land in different
+# places instead of all appending at the end, which conflicts between concurrent PRs.
 CONSTANT_CURRENCY_FLAG = "cost-management.backend.constant-currency"
+COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
+COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"  # TODO: Clean up
+CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lookup_enabled"
 DISABLE_CELERY_TASK_DELAY_FLAG = "cost-management.backend.disable-celery-task-delay"
+DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
+GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
 INGRESS_DEAD_LETTER_QUEUE_FLAG = "cost-management.backend.ingress-dead-letter-queue"
+OCP_CAPACITY_BY_NODE_SUMMARY_FLAG = "cost-management.backend.ocp_capacity_by_node_summary"
+OCP_CAPACITY_SINGLE_SCAN_FLAG = "cost-management.backend.ocp_capacity_single_scan"
+OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
+OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
+OCP_REPORT_CLUSTER_FILTER_INDEX_HINT_FLAG = "cost-management.backend.ocp_report_cluster_filter_index_hint"
+OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG = "cost-management.backend.ocp_report_combined_distributed_cost"
 OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG = "cost-management.backend.ocp_report_distinct_arrays_parallel"
 OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG = "cost-management.backend.ocp_report_identity_exchange_rate"
 OCP_REPORT_LIMITED_DELTA_FLAG = "cost-management.backend.ocp_report_limited_delta"
-OCP_CAPACITY_SINGLE_SCAN_FLAG = "cost-management.backend.ocp_capacity_single_scan"
-OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG = "cost-management.backend.ocp_report_combined_distributed_cost"
+OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-queries"
+TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
 
 
 def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):  # pragma: no cover
