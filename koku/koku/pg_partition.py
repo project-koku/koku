@@ -17,6 +17,7 @@ from contextlib import contextmanager
 import ciso8601
 from dateutil.relativedelta import relativedelta
 from django.db import connection as conn
+from django.db import IntegrityError
 from django.db import OperationalError
 from django.db import transaction
 from django_tenants.utils import schema_context
@@ -48,6 +49,10 @@ LOG = logging.getLogger(__name__)
 PRECREATE_LOCK_TIMEOUT = "5s"
 # SQLSTATE lock_not_available, raised when lock_timeout expires.
 LOCK_NOT_AVAILABLE = "55P03"
+# SQLSTATE check_violation: CREATE TABLE ... PARTITION OF while the default partition holds rows for the range.
+CHECK_VIOLATION = "23514"
+# SQLSTATE unique_violation: the partition record was created concurrently.
+UNIQUE_VIOLATION = "23505"
 # SQLFILE = open('/tmp/pg_partition.sql', 'wt')
 
 _TEMPLATE_SCHEMA = os.environ.get("TEMPLATE_SCHEMA", "template0")
@@ -1896,34 +1901,79 @@ def _session_lock_timeout(lock_timeout):
             cur.execute("RESET lock_timeout")
 
 
-def _is_lock_not_available(exc):
-    """Return True if a database error is a lock_timeout expiry."""
-    return getattr(exc.__cause__, "pgcode", None) == LOCK_NOT_AVAILABLE
+def _pgcode(exc):
+    """Return the SQLSTATE of a wrapped database error, if any."""
+    return getattr(exc.__cause__, "pgcode", None)
 
 
 OUTCOME_LOG_LEVELS = {
     "created": logging.INFO,
     "skipped_default_data": logging.INFO,
     "skipped_locked": logging.WARNING,
+    "mismatched_existing": logging.WARNING,
     "failed": logging.ERROR,
 }
 
 
 def _precreate_partition(default_partition, part_rec, lock_timeout):
-    """Try to create one partition; return (outcome, error message or None)."""
+    """Create one partition without moving data; return (outcome, error message or None).
+
+    The tracking record is inserted in a single transaction and its trigger creates the table. If the
+    default partition holds rows for the range, PostgreSQL rejects CREATE TABLE ... PARTITION OF (23514)
+    and the whole transaction rolls back, so there is no detach/move/reattach and no half-created state.
+    Rows in the default partition are left to the on-demand path, which moves them.
+    """
+    # Cheap early skip: avoids taking the parent-table lock when the default partition already has rows.
     restore_parameters, _ = _check_default_partition_data(default_partition, copy.deepcopy(part_rec))
     if restore_parameters:
         return "skipped_default_data", None
     try:
         with _session_lock_timeout(lock_timeout):
-            _, created = get_or_create_partition(part_rec, _default_partition=default_partition)
-    except OperationalError as exc:
-        if _is_lock_not_available(exc):
+            with transaction.atomic():
+                PartitionedTable.objects.create(**part_rec)
+    except (OperationalError, IntegrityError) as exc:
+        code = _pgcode(exc)
+        if code == LOCK_NOT_AVAILABLE:
             return "skipped_locked", None
+        if code == CHECK_VIOLATION:
+            return "skipped_default_data", None
+        if code == UNIQUE_VIOLATION:
+            return "existing", None
         return "failed", str(exc)
     except Exception as exc:
         return "failed", str(exc)
-    return ("created" if created else "existing"), None
+    return "created", None
+
+
+def _partition_matches(record, part_rec):
+    """True when an existing tracking record is the attached partition for exactly this range."""
+    params = record.partition_parameters or {}
+    expected = part_rec["partition_parameters"]
+    return (
+        record.active
+        and not params.get("default")
+        and params.get("from") == expected["from"]
+        and params.get("to") == expected["to"]
+    )
+
+
+def _precreate_or_validate(default_partition, part_rec, lock_timeout):
+    """Create the partition if it has no tracking record; otherwise check the record is this month's.
+
+    Returns (outcome, error message or None). A record with the same name that is detached or has another
+    range (e.g. left by an interrupted data move) is mismatched_existing: not done, and not repaired here.
+    """
+    existing = PartitionedTable.objects.filter(schema_name=part_rec["schema_name"], table_name=part_rec["table_name"])
+    if not existing.exists():
+        outcome, error = _precreate_partition(default_partition, part_rec, lock_timeout)
+        if outcome != "existing":
+            return outcome, error
+    record = existing.first()
+    if record is None:
+        return "mismatched_existing", "record not found after a concurrent create"
+    if _partition_matches(record, part_rec):
+        return "existing", None
+    return "mismatched_existing", f"stored partition_parameters={record.partition_parameters} active={record.active}"
 
 
 def precreate_monthly_partitions(schema_name, month_start, lock_timeout=PRECREATE_LOCK_TIMEOUT, table_names=None):
@@ -1941,11 +1991,15 @@ def precreate_monthly_partitions(schema_name, month_start, lock_timeout=PRECREAT
         lock_timeout (str) : PostgreSQL lock_timeout for each partition creation.
         table_names (list|None) : Limit to these partitioned tables (all tables when None).
 
-    Each outcome is logged as a structured "partition pre-creation" event (outcome: created, skipped_locked,
-    skipped_default_data, failed; existing at debug level) so runs can be evaluated in the logs.
+    A partition counts as existing only when its tracking record is active and has exactly this month's
+    range; a record with the same name but another range or detached is reported as mismatched_existing.
 
-    Returns: dict of counts (created, existing, skipped_locked, skipped_default_data, failed) and
-        "missing": the partitions that still do not exist after this run.
+    Each outcome is logged as a structured "partition pre-creation" event (outcome: created, skipped_locked,
+    skipped_default_data, mismatched_existing, failed; existing at debug level) so runs can be evaluated
+    in the logs.
+
+    Returns: dict of counts (created, existing, skipped_locked, skipped_default_data, mismatched_existing,
+        failed) and "missing": the partitions that are not in place after this run.
     """
     if isinstance(month_start, str):
         month_start = ciso8601.parse_datetime(month_start).date()
@@ -1953,7 +2007,9 @@ def precreate_monthly_partitions(schema_name, month_start, lock_timeout=PRECREAT
         month_start = month_start.date()
     month_start = month_start.replace(day=1)
     month_end = month_start + relativedelta(months=1)
-    counts = dict.fromkeys(("created", "existing", "skipped_locked", "skipped_default_data", "failed"), 0)
+    counts = dict.fromkeys(
+        ("created", "existing", "skipped_locked", "skipped_default_data", "mismatched_existing", "failed"), 0
+    )
     missing = []
 
     def log_outcome(level, outcome, partition_rec, **extra):
@@ -1990,12 +2046,7 @@ def precreate_monthly_partitions(schema_name, month_start, lock_timeout=PRECREAT
                 partition_parameters={"default": False, "from": str(month_start), "to": str(month_end)},
                 active=True,
             )
-            if PartitionedTable.objects.filter(schema_name=schema_name, table_name=part_rec["table_name"]).exists():
-                counts["existing"] += 1
-                log_outcome(logging.DEBUG, "existing", part_rec)
-                continue
-
-            outcome, error = _precreate_partition(default_partition, part_rec, lock_timeout)
+            outcome, error = _precreate_or_validate(default_partition, part_rec, lock_timeout)
             counts[outcome] += 1
             if outcome == "existing":
                 log_outcome(logging.DEBUG, outcome, part_rec)
