@@ -653,9 +653,7 @@ class OCPForecast(Forecast):
         When constant currency is enabled, uses OCP-specific dual annotations.
         Falls back to ExchangeRateDictionary via Case/When when the flag is off.
         """
-        if is_feature_flag_enabled_by_schema(
-            self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True
-        ):
+        if is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
             cost_model_currency = Subquery(
                 CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
                     "currency"
