@@ -48,10 +48,11 @@ class MockUnleashClient:
 
     def is_enabled(self, feature_name: str, context: dict = None, fallback_function=None, **kwargs):
         """Return fallback value for feature flags."""
-        # When IQE_TEST_RUN is set, enable constant-currency to allow IQE tests to verify
-        # the feature before enabling it for real ONPREM customers
+        # ONPREM IQE test setting for constant-currency feature flag
+        # Set to True to enable constant-currency in ONPREM IQE test runs
+        # Set to False to disable (current setting)
         if settings.IQE_TEST_RUN and feature_name == "cost-management.backend.constant-currency":
-            return True
+            return False
 
         if feature_name in self.ONPREM_FLAG_DEFAULTS:
             return self.ONPREM_FLAG_DEFAULTS[feature_name]
