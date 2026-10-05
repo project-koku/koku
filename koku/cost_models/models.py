@@ -7,15 +7,10 @@ from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import connection
 from django.db import models
 from django.db.models import JSONField
-from django.db.models.signals import post_delete
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 
 from api.provider.models import Provider
-from koku import cache as koku_cache
 from koku.settings import KOKU_DEFAULT_CURRENCY
 
 DISTRIBUTION_CHOICES = (("memory", "memory"), ("cpu", "cpu"))
@@ -113,13 +108,6 @@ class CostModelMap(models.Model):
         ordering = ["-id"]
         unique_together = ("provider_uuid", "cost_model")
         db_table = "cost_model_map"
-
-
-@receiver(post_save, sender=CostModelMap)
-@receiver(post_delete, sender=CostModelMap)
-def cost_model_map_refresh_sources_cache(*args, **kwargs):
-    """Bust /sources/ list cache when cost-model assignments change."""
-    koku_cache.invalidate_sources_view_cache(connection.schema_name)
 
 
 class PriceList(models.Model):
