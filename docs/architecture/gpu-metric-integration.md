@@ -36,7 +36,7 @@ GPU cost tracking is a distinct pipeline layered on top of the standard OCP CSV/
 
 The pipeline supports both **dedicated** GPUs (one pod occupies a whole physical GPU) and **MIG-partitioned** GPUs (NVIDIA Multi-Instance GPU, where a physical GPU is split into compute slices shared by multiple pods/namespaces). Both cases flow through the same stages below; MIG only changes the slice-fraction math inside the cost-model SQL (see [`mig-gpu-support.md`](mig-gpu-support.md)).
 
-Like every OCP feature, this pipeline must work in both execution paths — see [`.cursor/rules/onprem-vs-saas.mdc`](../../.cursor/rules/onprem-vs-saas.mdc):
+Like every OCP feature, this pipeline must work in both execution paths — see [`docs/agent/onprem-vs-saas.md`](../agent/onprem-vs-saas.md):
 
 | Mode | Storage | Aggregation |
 |------|---------|-------------|
@@ -209,7 +209,7 @@ GPU costs also surface implicitly in every other OCP cost report (compute, clust
 
 ## Dual-Path SQL Inventory
 
-Per [`AGENTS.md`](../../AGENTS.md), [`.cursor/rules/onprem-vs-saas.mdc`](../../.cursor/rules/onprem-vs-saas.mdc), and [`CLAUDE.md`](../../CLAUDE.md), every Trino template has a self-hosted PostgreSQL counterpart at the same relative path. GPU-related files:
+Per [`AGENTS.md`](../../AGENTS.md) and [`docs/agent/onprem-vs-saas.md`](../agent/onprem-vs-saas.md), every Trino template has a self-hosted PostgreSQL counterpart at the same relative path. GPU-related files:
 
 | Relative path (under `masu/database/`) | Trino (SaaS) | Self-hosted (on-prem) |
 |---|---|---|
@@ -249,7 +249,7 @@ The self-hosted variants additionally fall back to node labels (`nvidia.com/gpu.
 - [`csv-processing-ocp.md`](csv-processing-ocp.md) — General OCP CSV report-type processing (of which GPU is one report type among several).
 - [`cost-models.md`](cost-models.md) — Cost model JSON structure, metric catalog, distribution mechanism used generically across platform/worker/storage/network/GPU.
 - [`api-serializers-provider-maps.md`](api-serializers-provider-maps.md) — General report API / provider-map / query-handler pattern that the GPU endpoint follows.
-- [`.cursor/rules/onprem-vs-saas.mdc`](../../.cursor/rules/onprem-vs-saas.mdc) — Trino vs self-hosted PostgreSQL conventions referenced throughout this doc.
+- [`docs/agent/onprem-vs-saas.md`](../agent/onprem-vs-saas.md) — Trino vs self-hosted PostgreSQL conventions referenced throughout this doc.
 
 ---
 

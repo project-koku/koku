@@ -123,4 +123,4 @@ Price list **PUT** adds an additional path: recalculation keyed off the
 `PriceList`, `PriceListCostModelMap`, and `CostModel` live in the **tenant**
 schema (`cost_models` app). API handlers run in tenant context like other
 cost model endpoints — same multi-tenancy rules as the rest of Koku; see
-[`.cursor/rules/multi-tenancy.mdc`](../../../.cursor/rules/multi-tenancy.mdc).
+[`docs/agent/multi-tenancy.md`](../../agent/multi-tenancy.md).
