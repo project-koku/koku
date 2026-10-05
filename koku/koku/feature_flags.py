@@ -48,31 +48,19 @@ class MockUnleashClient:
 
     def is_enabled(self, feature_name: str, context: dict = None, fallback_function=None, **kwargs):
         """Return fallback value for feature flags."""
-        # When IQE_TEST_RUN is set, enable constant-currency to allow IQE tests to exercise
+        # When IQE_TEST_RUN is set, enable constant-currency to allow IQE tests to verify
         # the feature before enabling it for real ONPREM customers
-        if feature_name == "cost-management.backend.constant-currency":
-            LOG.info(
-                f"MockUnleashClient: Checking constant-currency - IQE_TEST_RUN={settings.IQE_TEST_RUN}, "
-                f"schema={context.get('schema') if context else 'None'}"
-            )
-            if settings.IQE_TEST_RUN:
-                LOG.info("MockUnleashClient: Enabling constant-currency for IQE testing")
-                return True
+        if settings.IQE_TEST_RUN and feature_name == "cost-management.backend.constant-currency":
+            return True
 
         if feature_name in self.ONPREM_FLAG_DEFAULTS:
-            result = self.ONPREM_FLAG_DEFAULTS[feature_name]
-            LOG.info(f"MockUnleashClient: {feature_name}={result} (ONPREM default)")
-            return result
+            return self.ONPREM_FLAG_DEFAULTS[feature_name]
 
         merged_context = self.unleash_static_context.copy()
         merged_context.update(context or {})
 
         if fallback_function:
-            result = fallback_function(feature_name, merged_context)
-            LOG.info(f"MockUnleashClient: {feature_name}={result} (fallback)")
-            return result
-
-        LOG.info(f"MockUnleashClient: {feature_name}=False (no match)")
+            return fallback_function(feature_name, merged_context)
         return False
 
     def destroy(self):
@@ -82,11 +70,7 @@ class MockUnleashClient:
 
 # Create the appropriate client based on settings
 if settings.ONPREM:
-    LOG.info(
-        f"Unleash is disabled via ONPREM setting - "
-        f"IQE_TEST_RUN={settings.IQE_TEST_RUN}, "
-        f"KOKU_SENTRY_ENVIRONMENT={ENVIRONMENT.get_value('KOKU_SENTRY_ENVIRONMENT', default='development')}"
-    )
+    LOG.info("Unleash is disabled via ONPREM setting")
     UNLEASH_CLIENT = MockUnleashClient(
         app_name="Cost Management",
         environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
