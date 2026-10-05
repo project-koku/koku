@@ -339,6 +339,35 @@ This document provides a comprehensive map of all Celery tasks used in the Koku 
 
 ---
 
+### `masu.celery.tasks.precreate_upcoming_partitions`
+
+**Module**: `koku/masu/celery/tasks.py`
+
+**Queue**: `DEFAULT`
+
+**Description**: Scheduled task that queues creation of next month's partitions for all tenant schemas, so the first of the month does not need partition DDL on the processing path.
+
+**Workflow**:
+1. Retrieves all tenant schemas (excluding `public` and the template schema)
+2. Queues `precreate_schema_partitions` for each schema with next month's start date
+
+---
+
+### `masu.celery.tasks.precreate_schema_partitions`
+
+**Module**: `koku/masu/celery/tasks.py`
+
+**Queue**: `DEFAULT`
+
+**Description**: Creates the partitions for one month in one schema via `koku.pg_partition.precreate_monthly_partitions`. Gated by the `cost-management.backend.precreate_partitions` flag.
+
+**Workflow**:
+1. For each range-partitioned table with a default partition, skips the month if its partition already exists
+2. Skips the month if the default partition already holds rows for it (left to the on-demand path, which moves the rows)
+3. Creates the partition with a session `lock_timeout` (5 s); creating a partition needs an `ACCESS EXCLUSIVE` lock on the parent, so a busy table is skipped instead of making every later statement wait, and a later run retries it
+
+---
+
 ### `masu.processor.tasks.remove_stale_tenants`
 
 **Module**: `koku/masu/processor/tasks.py`
@@ -689,6 +718,16 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 **Schedule**: Configured via `VACUUM_DATA_DAY_OF_WEEK` and `VACUUM_DATA_UTC_TIME` (default: daily at 00:00)
 
 **Always Enabled**: Yes
+
+---
+
+### Partition Pre-creation
+
+**Task**: `masu.celery.tasks.precreate_upcoming_partitions`
+
+**Schedule**: Every 8 hours (05:30, 13:30, 21:30 UTC) on days 15–31 (`30 5,13,21 15-31 * *`)
+
+**Enabled**: Per schema via `cost-management.backend.precreate_partitions`
 
 ---
 
