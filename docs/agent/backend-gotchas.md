@@ -20,13 +20,13 @@ qs.annotate(
 ```
 
 Provider-map cost aggregations follow the same pattern — see
-[`.cursor/rules/provider-maps.mdc`](../../.cursor/rules/provider-maps.mdc).
+[`docs/agent/provider-maps.md`](provider-maps.md).
 
 ## TenantAPIProvider FK
 
 Some tenant models FK to `TenantAPIProvider`, not public `Provider`. Filter by
 UUID, not the public provider instance — full detail in
-[`.cursor/rules/multi-tenancy.mdc`](../../.cursor/rules/multi-tenancy.mdc).
+[`docs/agent/multi-tenancy.md`](multi-tenancy.md).
 
 ## DateHelper
 
@@ -59,7 +59,7 @@ from api.common import log_json
 LOG.info(log_json(msg="doing something", schema=self.schema, provider_uuid=uuid))
 ```
 
-See [`.cursor/rules/logging-patterns.mdc`](../../.cursor/rules/logging-patterns.mdc).
+See [`docs/agent/logging-patterns.md`](logging-patterns.md).
 
 ## DB Accessor Pattern
 
