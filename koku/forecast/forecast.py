@@ -180,7 +180,9 @@ class Forecast:
         When constant currency is enabled, uses per-month Subquery from
         MonthlyExchangeRate. Otherwise uses ExchangeRateDictionary via Case/When.
         """
-        if is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+        if is_feature_flag_enabled_by_schema(
+            self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True
+        ):
             exchange_rate_annotation = build_monthly_rate_annotation(
                 OuterRef(self.provider_map.cost_units_key), self.currency
             )
@@ -286,7 +288,20 @@ class Forecast:
         """Define ORM query to run forecast and return prediction."""
         cost_predictions = {}
         with tenant_context(self.params.tenant):
-            if self.use_base_currency_regression:
+            if (
+                is_feature_flag_enabled_by_schema(
+                    self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True
+                )
+                and self.currency
+            ):
+                base_currencies = set(
+                    self.cost_summary_table.objects.filter(
+                        usage_start__gte=self.query_range[0],
+                        usage_start__lte=self.query_range[1],
+                    )
+                    .values_list(self.provider_map.cost_units_key, flat=True)
+                    .distinct()
+                ) - {None}
                 validate_exchange_rate_coverage(
                     self._get_base_currencies_for_conversion(),
                     self.currency,
@@ -730,7 +745,9 @@ class OCPForecast(Forecast):
         When constant currency is enabled, uses OCP-specific dual annotations.
         Falls back to ExchangeRateDictionary via Case/When when the flag is off.
         """
-        if is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+        if is_feature_flag_enabled_by_schema(
+            self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True
+        ):
             cost_model_currency = Subquery(
                 CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
                     "currency"
