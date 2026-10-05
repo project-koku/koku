@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting_common", "0045_ingressdeadletterqueue"),
+        ("reporting_common", "0046_manifest_provider_created_idx"),
     ]
 
     operations = [
