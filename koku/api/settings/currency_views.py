@@ -3,8 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Views for currency list and enablement."""
+import calendar
 import logging
 from collections import defaultdict
+from datetime import date
+from datetime import datetime
+from datetime import timezone
 
 from django.db.models import Q
 from django.utils.decorators import method_decorator
@@ -63,6 +67,54 @@ CSV_STATIC_RATE_FIELDS = (
     "uuid",
     "name",
 )
+
+ACTIVE_RATE_TYPE_STATIC = "static"
+ACTIVE_RATE_TYPE_DYNAMIC = "dynamic"
+ACTIVE_RATE_TYPE_NONE = "none"
+
+
+def current_utc_month_bounds():
+    """Return (first day, last day) of the current UTC month."""
+    today = datetime.now(timezone.utc).date()
+    month_start = today.replace(day=1)
+    month_end = month_start.replace(day=calendar.monthrange(month_start.year, month_start.month)[1])
+    return month_start, month_end
+
+
+def _as_date(value):
+    """Normalize a serializer date (date or ISO string) to ``datetime.date``."""
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value)[:10])
+
+
+def static_rate_covers_current_month(start_date, end_date, month_start, month_end):
+    """True when the validity window overlaps the current UTC month."""
+    return start_date <= month_end and end_date >= month_start
+
+
+def compute_active_rate_type(*, enabled, has_dynamic_rate, static_rates, month_start=None, month_end=None):
+    """Return static, dynamic, or none for a settings catalog currency row.
+
+    Disabled currencies are always ``none``. A static window that overlaps the
+    current UTC month wins over dynamic. ``enabled`` is how the UI distinguishes
+    disabled vs enabled-with-no-rate when the type is ``none``.
+    """
+    if not enabled:
+        return ACTIVE_RATE_TYPE_NONE
+    if month_start is None or month_end is None:
+        month_start, month_end = current_utc_month_bounds()
+    for rate in static_rates:
+        if static_rate_covers_current_month(
+            _as_date(rate["start_date"]),
+            _as_date(rate["end_date"]),
+            month_start,
+            month_end,
+        ):
+            return ACTIVE_RATE_TYPE_STATIC
+    if has_dynamic_rate:
+        return ACTIVE_RATE_TYPE_DYNAMIC
+    return ACTIVE_RATE_TYPE_NONE
 
 
 def _wants_csv(request):
@@ -270,14 +322,24 @@ class CurrencySettingsView(APIView):
 
         only_one_enabled = len(enabled_codes) == 1
         non_disableable = _get_non_disableable_codes(enabled_codes)
+        month_start, month_end = current_utc_month_bounds()
 
         result = []
         for code in sorted_codes:
             info = get_currency_info(code)
             is_enabled = code in enabled_codes
+            has_dynamic_rate = code.lower() in dynamic_codes
+            static_for_code = rates_by_base.get(code, [])
             info["enabled"] = is_enabled
-            info["has_dynamic_rate"] = code.lower() in dynamic_codes
-            info["static_rates"] = rates_by_base.get(code, [])
+            info["has_dynamic_rate"] = has_dynamic_rate
+            info["static_rates"] = static_for_code
+            info["active_rate_type"] = compute_active_rate_type(
+                enabled=is_enabled,
+                has_dynamic_rate=has_dynamic_rate,
+                static_rates=static_for_code,
+                month_start=month_start,
+                month_end=month_end,
+            )
             # Disabled currencies are always toggleable so the UI can re-enable them.
             # Enabled currencies stay False when sole-enabled or blocked by a dependency.
             info["is_disableable"] = (not is_enabled) or (not only_one_enabled and code not in non_disableable)
