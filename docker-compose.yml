@@ -71,12 +71,12 @@ services:
       - 8000:8000
       - 8001:9000
     volumes:
-      - "./koku:/koku/koku"
-      - "./dev/containers/unleash:/koku/.unleash"
-      - "./db_functions:/koku/db_functions"
-      - "./scripts:/koku/scripts"
-      - "./run_server.sh:/koku/run_server.sh"
-      - "./dev/credentials:/etc/credentials"
+      - "./koku:/koku/koku:z"
+      - "./dev/containers/unleash:/koku/.unleash:z"
+      - "./db_functions:/koku/db_functions:z"
+      - "./scripts:/koku/scripts:z"
+      - "./run_server.sh:/koku/run_server.sh:z"
+      - "./dev/credentials:/etc/credentials:z"
     depends_on:
       - koku-base
 
@@ -143,12 +143,12 @@ services:
       - 5042:8000
       - 5001:9000
     volumes:
-      - "./koku:/koku/koku"
-      - "./dev/containers/unleash:/koku/.unleash"
-      - "./db_functions:/koku/db_functions"
-      - "./scripts:/koku/scripts"
-      - "./run_server.sh:/koku/run_server.sh"
-      - "./dev/credentials:/etc/credentials"
+      - "./koku:/koku/koku:z"
+      - "./dev/containers/unleash:/koku/.unleash:z"
+      - "./db_functions:/koku/db_functions:z"
+      - "./scripts:/koku/scripts:z"
+      - "./run_server.sh:/koku/run_server.sh:z"
+      - "./dev/credentials:/etc/credentials:z"
     depends_on:
       koku-base:
         condition: service_started
@@ -822,7 +822,7 @@ services:
       - DATABASE_USER=${DATABASE_USER-hive}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-hive}
     volumes:
-      - ./dev/containers/hive-metastore/metastore-site.xml:/opt/hive-metastore-bin/conf/metastore-site.xml
+      - ./dev/containers/hive-metastore/metastore-site.xml:/opt/hive-metastore-bin/conf/metastore-site.xml:z
     depends_on:
       db:
         condition: service_started
@@ -856,14 +856,14 @@ services:
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
     volumes:
-      - ./dev/containers/trino/etc/config.properties:/etc/trino/config.properties
-      - ./dev/containers/trino/etc/jvm.config:/etc/trino/jvm.config
-      - ./dev/containers/trino/etc/log.properties:/etc/trino/log.properties
-      - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/${HIVE_PROPERTIES_FILE-hive.properties}
-      - ./dev/containers/trino/etc/catalog/glue.properties:/etc/trino/catalog/${GLUE_PROPERTIES_FILE-glue.properties}
-      - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
-      - ./dev/containers/trino/data:/data/trino/data
-      - ./dev/containers/trino/logs:/data/trino/logs
+      - ./dev/containers/trino/etc/config.properties:/etc/trino/config.properties:z
+      - ./dev/containers/trino/etc/jvm.config:/etc/trino/jvm.config:z
+      - ./dev/containers/trino/etc/log.properties:/etc/trino/log.properties:z
+      - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/${HIVE_PROPERTIES_FILE-hive.properties}:z
+      - ./dev/containers/trino/etc/catalog/glue.properties:/etc/trino/catalog/${GLUE_PROPERTIES_FILE-glue.properties}:z
+      - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties:z
+      - ./dev/containers/trino/data:/data/trino/data:z
+      - ./dev/containers/trino/logs:/data/trino/logs:z
     depends_on:
       - hive-metastore
     healthcheck:

@@ -31,6 +31,10 @@ class CostUsageReportManifest(models.Model):
         """Meta for CostUsageReportManifest."""
 
         unique_together = ("provider", "assembly_id")
+        indexes = [
+            # Newest manifest per provider (GET /sources/ status, last payload received).
+            models.Index(fields=["provider", "-creation_datetime"], name="manifest_provider_created_idx"),
+        ]
 
     assembly_id = models.TextField()
     creation_datetime = models.DateTimeField(null=True, default=timezone.now)

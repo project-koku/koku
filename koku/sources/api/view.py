@@ -36,12 +36,16 @@ from api.common.permissions import RESOURCE_TYPE_MAP
 from api.common.permissions.sources_access import SourcesAccessPermission
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
+from api.provider.provider_manager import bulk_source_details
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
+from api.provider.provider_manager import unlinked_source_details
 from api.report.constants import URL_ENCODED_SAFE
 from koku.cache import CacheEnum
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import SOURCES_CACHE_PREFIX
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import SOURCES_LIST_BULK_QUERIES_FLAG
 from masu.util.aws.common import get_available_regions
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError
@@ -290,29 +294,36 @@ class SourcesViewSet(*MIXIN_LIST):
 
         response = super().list(request, *args, **kwargs)
         _, tenant = self._get_account_and_tenant(request)
-        for source in response.data["data"]:
-            if (
-                source.get("authentication")
-                and source.get("authentication").get("credentials")
-                and source.get("authentication").get("credentials").get("client_secret")
-            ):
-                del source["authentication"]["credentials"]["client_secret"]
+        if is_feature_flag_enabled_by_schema(tenant.schema_name, SOURCES_LIST_BULK_QUERIES_FLAG, dev_fallback=True):
+            self._add_provider_details_bulk(response.data["data"], tenant)
+        else:
+            self._add_provider_details(response.data["data"], tenant)
+        return response
+
+    @staticmethod
+    def _remove_client_secret(source):
+        if (
+            source.get("authentication")
+            and source.get("authentication").get("credentials")
+            and source.get("authentication").get("credentials").get("client_secret")
+        ):
+            del source["authentication"]["credentials"]["client_secret"]
+
+    def _add_provider_details_bulk(self, sources, tenant):
+        """Add provider details to every listed source with a fixed number of queries."""
+        details = bulk_source_details([source["uuid"] for source in sources], tenant)
+        for source in sources:
+            self._remove_client_secret(source)
+            source.update(details.get(str(source["uuid"])) or unlinked_source_details())
+
+    def _add_provider_details(self, sources, tenant):
+        """Add provider details source by source (about a dozen queries per source)."""
+        for source in sources:
+            self._remove_client_secret(source)
             try:
                 manager = ProviderManager(source["uuid"])
             except ProviderManagerError:
-                source["provider_linked"] = False
-                source["active"] = False
-                source["paused"] = False
-                source["current_month_data"] = False
-                source["previous_month_data"] = False
-                source["last_payload_received_at"] = False
-                source["last_polling_time"] = False
-                source["created_timestamp"] = None
-                source["status"] = {}
-                source["has_data"] = False
-                source["infrastructure"] = {}
-                source["cost_models"] = []
-                source["additional_context"] = {}
+                source.update(unlinked_source_details())
             else:
                 source["provider_linked"] = True
                 source["active"] = manager.get_active_status()
@@ -329,7 +340,6 @@ class SourcesViewSet(*MIXIN_LIST):
                     {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
                 ]
                 source["additional_context"] = manager.get_additional_context()
-        return response
 
     @method_decorator(never_cache)
     def retrieve(self, request, *args, **kwargs):

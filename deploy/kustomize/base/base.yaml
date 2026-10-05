@@ -423,6 +423,18 @@ parameters:
   displayName: Faulthandler request timeout
   name: REQUEST_FAULTHANDLER_TIMEOUT
   value: "95"
+- description: Global per-schema rate limit for OCP report API GETs (DRF
+    SimpleRateThrottle format, e.g. 10000/m). Keep high by default so UI, IQE,
+    and on-prem are not blocked; tighten via Unleash + OCP_REPORT_THROTTLE_TIGHT_RATE.
+  displayName: OCP report throttle rate
+  name: OCP_REPORT_THROTTLE_RATE
+  value: "10000/m"
+- description: Stricter per-schema OCP report rate when
+    cost-management.backend.rate-limit-ocp-report-queries is enabled for the
+    schema (e.g. 500/m)
+  displayName: OCP report tighten throttle rate
+  name: OCP_REPORT_THROTTLE_TIGHT_RATE
+  value: "500/m"
 - displayName: Celery log level
   name: CELERY_LOG_LEVEL
   value: INFO
