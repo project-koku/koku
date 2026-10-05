@@ -1,0 +1,17 @@
+# Celery Tasks
+
+## Task Design
+
+- Prefer idempotent tasks; handle failures with explicit retries/timeouts where needed
+- Log start/progress/completion with `log_json()` and `tracing_id`
+- `@celery_app.task(name=...)` should match the function name (legacy names only for backwards compat)
+
+## Wiring Checklist
+
+| Change | Also update |
+|--------|-------------|
+| New periodic task | `beat_schedule` in `koku/koku/celery.py` |
+| New queue | `koku/common/queues.py` + `deploy/clowdapp.yaml` |
+| Task behavior / scheduling docs | [`docs/architecture/celery-tasks.md`](../architecture/celery-tasks.md) |
+
+Skip `subs_task` / `hcs_task` on on-prem (`settings.ONPREM`).
