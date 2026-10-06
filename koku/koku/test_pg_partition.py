@@ -4,9 +4,13 @@
 #
 import datetime
 import json
+import threading
 import uuid
+from unittest.mock import patch
 
 from django.db import connection as conn
+from django.db import transaction
+from django.test import TransactionTestCase
 from django_tenants.utils import schema_context
 
 from . import pg_partition as ppart
@@ -1162,3 +1166,247 @@ select count(*) from {self.schema_name}.{usage_default_partition.table_name} ;
             self.assertIsNone(_get_table_partition_info(self.schema_name, usage_partition.table_name))
             self.assertIsNone(_get_table_partition_info(self.schema_name, usage_default_partition.table_name))
             self.assertIsNone(_get_table_partition_info(self.schema_name, partitioned_table_name))
+
+
+class TestPrecreateMonthlyPartitions(IamTestCase):
+    """Pre-creating next month's partitions ahead of processing."""
+
+    PARTITIONED_TABLE_NAME = "__pg_partition_precreate_test"
+    SCHEMA_NAME = "org1234567"
+
+    def setUp(self):
+        super().setUp()
+        _execute(
+            f"""
+create table if not exists {self.SCHEMA_NAME}.{self.PARTITIONED_TABLE_NAME} (
+    id bigserial,
+    usage_start date not null,
+    primary key (usage_start, id)
+)
+partition by range (usage_start);
+"""
+        )
+        with schema_context(self.SCHEMA_NAME):
+            ppart.get_or_create_partition(
+                {
+                    "schema_name": self.SCHEMA_NAME,
+                    "table_name": f"{self.PARTITIONED_TABLE_NAME}_default",
+                    "partition_of_table_name": self.PARTITIONED_TABLE_NAME,
+                    "partition_type": PartitionedTable.RANGE,
+                    "partition_col": "usage_start",
+                    "partition_parameters": {"default": True},
+                    "active": True,
+                }
+            )
+
+    def precreate(self, month_start, **kwargs):
+        return ppart.precreate_monthly_partitions(
+            self.SCHEMA_NAME, month_start, table_names=[self.PARTITIONED_TABLE_NAME], **kwargs
+        )
+
+    def partition_record(self, table_name):
+        with schema_context(self.SCHEMA_NAME):
+            return PartitionedTable.objects.filter(schema_name=self.SCHEMA_NAME, table_name=table_name).first()
+
+    def test_creates_missing_partition_once(self):
+        """The month's partition is created and attached; a second run finds it."""
+        counts = self.precreate(datetime.date(2031, 3, 17))
+        self.assertEqual(
+            counts,
+            {
+                "created": 1,
+                "existing": 0,
+                "skipped_locked": 0,
+                "skipped_default_data": 0,
+                "mismatched_existing": 0,
+                "failed": 0,
+                "missing": [],
+            },
+        )
+        record = self.partition_record(f"{self.PARTITIONED_TABLE_NAME}_2031_03")
+        self.assertIsNotNone(record)
+        self.assertEqual(record.partition_parameters, {"default": False, "from": "2031-03-01", "to": "2031-04-01"})
+        info = _get_table_partition_info(self.SCHEMA_NAME, record.table_name)
+        self.assertIsNotNone(info)
+
+        counts = self.precreate("2031-03-01")
+        self.assertEqual(counts["existing"], 1)
+        self.assertEqual(counts["created"], 0)
+
+    def test_skips_month_with_rows_in_default_partition(self):
+        """Rows already in the default partition are left to the on-demand path that moves them."""
+        _execute(
+            f"insert into {self.SCHEMA_NAME}.{self.PARTITIONED_TABLE_NAME} (usage_start) values (%s)",
+            [datetime.date(2031, 5, 2)],
+        )
+        with self.assertLogs("koku.pg_partition", "INFO") as logs:
+            counts = self.precreate("2031-05-01")
+        self.assertEqual(counts["skipped_default_data"], 1)
+        self.assertEqual(counts["missing"], [f"{self.PARTITIONED_TABLE_NAME}_2031_05"])
+        self.assertTrue(any("'outcome': 'skipped_default_data'" in line for line in logs.output))
+        self.assertIsNone(self.partition_record(f"{self.PARTITIONED_TABLE_NAME}_2031_05"))
+
+    def test_unexpected_error_is_logged_and_does_not_stop_the_run(self):
+        """A failure on one table is logged as failed and the table is reported missing."""
+        with patch.object(PartitionedTable.objects, "create", side_effect=RuntimeError("boom")):
+            with self.assertLogs("koku.pg_partition", "ERROR") as logs:
+                counts = self.precreate("2031-06-01")
+        self.assertEqual(counts["failed"], 1)
+        self.assertEqual(counts["missing"], [f"{self.PARTITIONED_TABLE_NAME}_2031_06"])
+        self.assertTrue(any("'outcome': 'failed'" in line and "boom" in line for line in logs.output))
+
+    def test_rows_arriving_after_the_check_are_not_moved(self):
+        """Rows that reach the default partition after the pre-check make PostgreSQL reject the create.
+
+        Nothing is detached or moved: no partition record or table is left behind and the row stays in the
+        default partition for the on-demand path.
+        """
+        month_table = f"{self.PARTITIONED_TABLE_NAME}_2031_10"
+        _execute(
+            f"insert into {self.SCHEMA_NAME}.{self.PARTITIONED_TABLE_NAME} (usage_start) values (%s)",
+            [datetime.date(2031, 10, 2)],
+        )
+        # Simulate the race: the pre-check ran before the row arrived.
+        with patch.object(ppart, "_check_default_partition_data", return_value=({}, "")):
+            counts = self.precreate("2031-10-01")
+        self.assertEqual(counts["skipped_default_data"], 1)
+        self.assertEqual(counts["created"], 0)
+        self.assertEqual(counts["missing"], [month_table])
+        self.assertIsNone(self.partition_record(month_table))
+        self.assertIsNone(_execute("select to_regclass(%s)", [f"{self.SCHEMA_NAME}.{month_table}"]).fetchone()[0])
+        default_rows = _execute(
+            f"select count(*) from {self.SCHEMA_NAME}.{self.PARTITIONED_TABLE_NAME}_default"
+        ).fetchone()[0]
+        self.assertEqual(default_rows, 1)
+
+    def test_existing_record_with_another_range_is_not_done(self):
+        """A record left with a temporary range (interrupted data move) is reported, not counted as existing."""
+        month_table = f"{self.PARTITIONED_TABLE_NAME}_2031_11"
+        with schema_context(self.SCHEMA_NAME):
+            PartitionedTable.objects.create(
+                schema_name=self.SCHEMA_NAME,
+                table_name=month_table,
+                partition_of_table_name=self.PARTITIONED_TABLE_NAME,
+                partition_type=PartitionedTable.RANGE,
+                partition_col="usage_start",
+                partition_parameters={"default": False, "from": "4031-11-01", "to": "4031-12-01"},
+                active=True,
+            )
+        with self.assertLogs("koku.pg_partition", "WARNING") as logs:
+            counts = self.precreate("2031-11-01")
+        self.assertEqual(counts["mismatched_existing"], 1)
+        self.assertEqual(counts["existing"], 0)
+        self.assertEqual(counts["missing"], [month_table])
+        self.assertTrue(
+            any("'outcome': 'mismatched_existing'" in line and "4031-11-01" in line for line in logs.output)
+        )
+
+    def test_concurrent_create_is_reported_as_existing(self):
+        """A record created by another process between the existence check and the insert is not an error."""
+        month_table = f"{self.PARTITIONED_TABLE_NAME}_2031_12"
+        part_rec = {
+            "schema_name": self.SCHEMA_NAME,
+            "table_name": month_table,
+            "partition_of_table_name": self.PARTITIONED_TABLE_NAME,
+            "partition_type": PartitionedTable.RANGE,
+            "partition_col": "usage_start",
+            "partition_parameters": {"default": False, "from": "2031-12-01", "to": "2032-01-01"},
+            "active": True,
+        }
+        with schema_context(self.SCHEMA_NAME):
+            PartitionedTable.objects.create(**part_rec)
+            default_partition = PartitionedTable.objects.get(
+                schema_name=self.SCHEMA_NAME, table_name=f"{self.PARTITIONED_TABLE_NAME}_default"
+            )
+            outcome, error = ppart._precreate_partition(default_partition, dict(part_rec), "5s")
+        self.assertEqual((outcome, error), ("existing", None))
+
+    def test_lock_timeout_is_reset(self):
+        """The session lock_timeout is restored after pre-creating."""
+        self.precreate("2031-07-01", lock_timeout="1s")
+        self.assertEqual(_execute("show lock_timeout").fetchone()[0], "0")
+
+
+class TestPrecreateMonthlyPartitionsLockTimeout(TransactionTestCase):
+    """A busy parent table is skipped instead of making every later statement wait."""
+
+    PARTITIONED_TABLE_NAME = "__pg_partition_precreate_lock_test"
+    SCHEMA_NAME = "org1234567"
+
+    def _fixture_teardown(self):
+        """Skip TRUNCATE flush; django-tenants FK graph breaks TransactionTestCase flush."""
+
+    def setUp(self):
+        _execute(
+            f"""
+create table if not exists {self.SCHEMA_NAME}.{self.PARTITIONED_TABLE_NAME} (
+    id bigserial,
+    usage_start date not null,
+    primary key (usage_start, id)
+)
+partition by range (usage_start);
+"""
+        )
+        with schema_context(self.SCHEMA_NAME):
+            ppart.get_or_create_partition(
+                {
+                    "schema_name": self.SCHEMA_NAME,
+                    "table_name": f"{self.PARTITIONED_TABLE_NAME}_default",
+                    "partition_of_table_name": self.PARTITIONED_TABLE_NAME,
+                    "partition_type": PartitionedTable.RANGE,
+                    "partition_col": "usage_start",
+                    "partition_parameters": {"default": True},
+                    "active": True,
+                }
+            )
+
+    def tearDown(self):
+        with schema_context(self.SCHEMA_NAME):
+            PartitionedTable.objects.filter(
+                schema_name=self.SCHEMA_NAME, partition_of_table_name=self.PARTITIONED_TABLE_NAME
+            ).delete()
+        _execute(f"drop table if exists {self.SCHEMA_NAME}.{self.PARTITIONED_TABLE_NAME}")
+
+    def precreate(self):
+        return ppart.precreate_monthly_partitions(
+            self.SCHEMA_NAME, "2031-09-01", lock_timeout="200ms", table_names=[self.PARTITIONED_TABLE_NAME]
+        )
+
+    def test_skips_locked_table_and_succeeds_later(self):
+        locked = threading.Event()
+        release = threading.Event()
+
+        def hold_read_lock():
+            # A long-running reader, like a report transaction, holds ACCESS SHARE on the parent.
+            try:
+                with transaction.atomic():
+                    _execute(f"lock table {self.SCHEMA_NAME}.{self.PARTITIONED_TABLE_NAME} in access share mode")
+                    locked.set()
+                    release.wait(30)
+            finally:
+                conn.close()
+
+        reader = threading.Thread(target=hold_read_lock)
+        reader.start()
+        try:
+            self.assertTrue(locked.wait(30))
+            with self.assertLogs("koku.pg_partition", "WARNING") as logs:
+                counts = self.precreate()
+            self.assertEqual(counts["skipped_locked"], 1)
+            self.assertEqual(counts["missing"], [f"{self.PARTITIONED_TABLE_NAME}_2031_09"])
+            self.assertTrue(any("'outcome': 'skipped_locked'" in line for line in logs.output))
+            self.assertEqual(counts["created"], 0)
+            with schema_context(self.SCHEMA_NAME):
+                self.assertFalse(
+                    PartitionedTable.objects.filter(table_name=f"{self.PARTITIONED_TABLE_NAME}_2031_09").exists()
+                )
+            self.assertEqual(_execute("show lock_timeout").fetchone()[0], "0")
+        finally:
+            release.set()
+            reader.join(30)
+
+        with self.assertLogs("koku.pg_partition", "INFO") as logs:
+            counts = self.precreate()
+        self.assertEqual(counts["created"], 1)
+        self.assertEqual(counts["missing"], [])
+        self.assertTrue(any("'outcome': 'created'" in line for line in logs.output))

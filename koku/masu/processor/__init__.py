@@ -39,6 +39,7 @@ OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG = "cost-management.backend.ocp_report_d
 OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG = "cost-management.backend.ocp_report_identity_exchange_rate"
 OCP_REPORT_LIMITED_DELTA_FLAG = "cost-management.backend.ocp_report_limited_delta"
 OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-queries"
+PRECREATE_PARTITIONS_FLAG = "cost-management.backend.precreate_partitions"
 SOURCES_LIST_BULK_QUERIES_FLAG = "cost-management.backend.sources_list_bulk_queries"
 TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
 
