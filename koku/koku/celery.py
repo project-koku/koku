@@ -199,6 +199,11 @@ def validate_cron_expression(expression, default="0 * * * *"):
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
+# Celery's Django fixup runs Django's system checks when a worker starts. The URL check
+# imports every API view and its dependencies (~100 MB per worker process before forecast
+# imported statsmodels lazily, ~12 MB after). The checks still run in CI, migrate and the API.
+# Set CELERY_SKIP_CHECKS to an empty value to run them in workers again.
+os.environ.setdefault("CELERY_SKIP_CHECKS", "1")
 
 print("starting celery")
 # 'app' is the recommended convention from celery docs
