@@ -124,7 +124,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         """Test to verify that basic report downloading works."""
         split_files = ["file_one", "file_two"]
         with patch("masu.external.downloader.aws_local.aws_local_report_downloader.os.path.isfile"):
-            with patch("masu.external.downloader.aws_local.aws_local_report_downloader.shutil.copy2"):
+            with patch("masu.external.downloader.aws_local.aws_local_report_downloader.shutil.copyfile"):
                 with patch("masu.external.downloader.aws_local.aws_local_report_downloader.os.path.getmtime"):
                     with patch("masu.external.downloader.aws.aws_report_downloader.open"):
                         with patch(
