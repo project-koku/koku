@@ -52,9 +52,15 @@ ticket (e.g. `[COST-1234] Add MIG slice support`), otherwise a plain imperative
 subject; first line under 72 characters.
 
 1. Open PRs as **DRAFT**.  Mark **Ready for Review** when done.
-2. Add `smokes-required` + `hot-fix-smoke-tests` labels (Konflux CI gate +
-   IQE smoke tests).  For non-code PRs (docs, dashboards), use
-   `ok-to-skip-smokes` instead.
+2. Do **not** add `smokes-required` or `ok-to-skip-smokes`: the PR Labeler
+   workflow sets one of them on every push, depending on whether the PR
+   changes files that go into the image.  When it sets `smokes-required`,
+   Konflux fails until the PR also has **one** label ending in `smoke-tests`,
+   which chooses the IQE tests: an area label (`ocp-`, `aws-`, `azure-`,
+   `gcp-`, `cost-model-smoke-tests`) for changes confined to one area,
+   `hot-fix-smoke-tests` for small fixes elsewhere, `smoke-tests` for
+   cross-cutting changes, `full-run-smoke-tests` for large refactors.
+   Selection rules: [`agentic-pr-labeler`](docs/team_workflows/agentic-pr-labeler/prompt.md).
 3. Smoke tests **must pass** before merging (unless the PR only touches
    non-build files like docs).
 4. Merges to `main` **auto-deploy to stage**.
