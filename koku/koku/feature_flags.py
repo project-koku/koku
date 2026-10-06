@@ -52,7 +52,7 @@ class MockUnleashClient:
         # Set to True to enable constant-currency in ONPREM IQE test runs
         # Set to False to disable (current setting)
         if settings.IQE_TEST_RUN and feature_name == "cost-management.backend.constant-currency":
-            return False
+            return True
 
         if feature_name in self.ONPREM_FLAG_DEFAULTS:
             return self.ONPREM_FLAG_DEFAULTS[feature_name]
