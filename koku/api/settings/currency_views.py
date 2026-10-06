@@ -5,7 +5,6 @@
 """Views for currency list and enablement."""
 import logging
 from collections import defaultdict
-from datetime import date
 
 from django.db.models import Q
 from django.utils.decorators import method_decorator
@@ -71,23 +70,6 @@ ACTIVE_RATE_TYPE_DYNAMIC = "dynamic"
 ACTIVE_RATE_TYPE_NONE = "none"
 
 
-def current_utc_month_bounds():
-    """Return (first day, last day) of the current month.
-
-    Uses DateHelper (project TIME_ZONE is UTC), matching the product rule that
-    active_rate_type is evaluated against the current UTC month.
-    """
-    dh = DateHelper()
-    return dh.this_month_start.date(), dh.this_month_end.date()
-
-
-def _as_date(value):
-    """Normalize a serializer date (date or ISO string) to ``datetime.date``."""
-    if isinstance(value, date):
-        return value
-    return date.fromisoformat(str(value)[:10])
-
-
 def static_rate_covers_current_month(start_date, end_date, month_start, month_end):
     """True when the validity window overlaps the current UTC month."""
     return start_date <= month_end and end_date >= month_start
@@ -102,12 +84,13 @@ def compute_active_rate_type(*, enabled, has_dynamic_rate, static_rates, month_s
     """
     if not enabled:
         return ACTIVE_RATE_TYPE_NONE
-    if month_start is None or month_end is None:
-        month_start, month_end = current_utc_month_bounds()
+    date_helper = DateHelper()
+    month_start = month_start or date_helper.this_month_start.date()
+    month_end = month_end or date_helper.this_month_end.date()
     for rate in static_rates:
         if static_rate_covers_current_month(
-            _as_date(rate["start_date"]),
-            _as_date(rate["end_date"]),
+            date_helper.parse_to_date(rate["start_date"]),
+            date_helper.parse_to_date(rate["end_date"]),
             month_start,
             month_end,
         ):
@@ -322,7 +305,9 @@ class CurrencySettingsView(APIView):
 
         only_one_enabled = len(enabled_codes) == 1
         non_disableable = _get_non_disableable_codes(enabled_codes)
-        month_start, month_end = current_utc_month_bounds()
+        date_helper = DateHelper()
+        month_start = date_helper.this_month_start.date()
+        month_end = date_helper.this_month_end.date()
 
         result = []
         for code in sorted_codes:
