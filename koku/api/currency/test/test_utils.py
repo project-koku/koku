@@ -2,18 +2,22 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 
 from django.db.models import Case
 from django_tenants.utils import schema_context
 
+from api.currency.exceptions import ExchangeRateNotFound
 from api.currency.models import ExchangeRateDictionary
 from api.currency.utils import build_exchange_dictionary
 from api.currency.utils import build_exchange_rate_case
 from api.currency.utils import exchange_dictionary
+from api.currency.utils import get_monthly_exchange_rate
 from api.iam.test.iam_test_case import IamTestCase
 from cost_models.models import EnabledCurrency
+from cost_models.models import MonthlyExchangeRate
 from koku.cache import build_enabled_currency_codes_key
 from koku.cache import delete_value_from_cache
 
@@ -76,3 +80,25 @@ class CurrencyUtilsTest(IamTestCase):
         exchange_rates = {"EUR": {"USD": Decimal("1.1"), "EUR": Decimal("1")}}
         case = build_exchange_rate_case("raw_currency", "USD", exchange_rates)
         self.assertEqual(len(case.cases), 0)
+
+    def test_get_monthly_exchange_rate_returns_one_for_same_currency(self):
+        """Same base and target currency returns 1 without a DB lookup."""
+        self.assertEqual(get_monthly_exchange_rate("USD", "USD", date(2026, 3, 1)), Decimal("1"))
+
+    def test_get_monthly_exchange_rate_returns_rate(self):
+        """Returns the MER row for the requested month."""
+        with schema_context(self.schema_name):
+            MonthlyExchangeRate.objects.create(
+                effective_date=date(2026, 3, 1),
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("1.50"),
+                rate_type="static",
+            )
+            rate = get_monthly_exchange_rate("USD", "EUR", date(2026, 3, 15))
+        self.assertEqual(rate, Decimal("1.50"))
+
+    def test_get_monthly_exchange_rate_raises_when_missing(self):
+        """Raises ExchangeRateNotFound when no MER row exists."""
+        with schema_context(self.schema_name), self.assertRaises(ExchangeRateNotFound):
+            get_monthly_exchange_rate("USD", "EUR", date(2026, 3, 1))
