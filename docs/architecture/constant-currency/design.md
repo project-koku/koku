@@ -141,7 +141,7 @@ flowchart TD
 | Rule                 | Detail                                                                                       |
 | -------------------- | -------------------------------------------------------------------------------------------- |
 | Dropdown contents    | Enabled currencies only (`GET /currency/`)                                                   |
-| Settings catalog     | Full ISO list with `enabled` + `has_dynamic_rate` + nested static rates                      |
+| Settings catalog     | Full ISO list with `enabled` + `has_dynamic_rate` + `active_rate_type` + nested static rates |
 | Auto-enable          | Base currencies from cloud provider billing (AWS/Azure/GCP) are enabled after summarization  |
 | Disable blocked when | System default, account default, used by cloud provider billing, cost models, or price lists |
 | Last currency        | Cannot disable the final enabled currency                                                    |
