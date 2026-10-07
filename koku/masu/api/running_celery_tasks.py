@@ -6,7 +6,6 @@
 import base64
 import json
 import logging
-from collections import Counter
 
 import redis
 from django.conf import settings
@@ -166,6 +165,10 @@ def _task_identity(message):
     )
 
 
+def _task_id(message):
+    return json.loads(message)["headers"].get("id")
+
+
 @never_cache
 @api_view(http_method_names=["GET", "DELETE"])
 @permission_classes((AllowAny,))
@@ -174,11 +177,13 @@ def deduplicate_celery_queue(request):
     """Find (GET) or remove (DELETE) exact duplicate tasks in a Celery queue.
 
     Tasks are duplicates when the task name, args, kwargs and chained follow-up
-    tasks are identical (kwargs include the manifest and tracing ids). One copy of each is kept:
-    the one closest to the consuming end of the list (kombu pushes with LPUSH
-    and workers pop with BRPOP, so the right end runs first). Extra copies are
-    removed by their exact message with LREM, so messages taken by a worker in
-    the meantime are simply not found.
+    tasks are identical (kwargs include the manifest and tracing ids). One copy
+    of each is kept: the one closest to the consuming end of the list (kombu
+    pushes with LPUSH and workers pop with BRPOP, so the right end runs first).
+    Extra copies are removed by their exact message with LREM, so messages taken
+    by a worker in the meantime are simply not found.
+
+    Positions in the response count from the consuming end: 0 runs next.
     """
     queue = request.query_params.get("queue")
     if queue not in QUEUES:
@@ -186,37 +191,59 @@ def deduplicate_celery_queue(request):
 
     client = _redis_client()
     messages = client.lrange(queue, 0, -1)
-    seen = set()
-    duplicates = []
-    for message in reversed(messages):
+    unreadable = 0
+    groups = {}
+    for position, message in enumerate(reversed(messages)):
         identity = _task_identity(message)
         if identity is None:
+            unreadable += 1
             continue
-        if identity in seen:
-            duplicates.append((message, identity))
-        else:
-            seen.add(identity)
+        groups.setdefault(identity, []).append((position, message))
+    duplicated = {identity: copies for identity, copies in groups.items() if len(copies) > 1}
 
+    simulate = request.method != "DELETE"
     removed = 0
-    if request.method == "DELETE":
-        for message, (name, args, kwargs, _) in duplicates:
-            if client.lrem(queue, 1, message):
-                removed += 1
-                task_id = json.loads(message)["headers"].get("id")
-                LOG.info(f"Removed duplicate task {name}[{task_id}] from {queue}: args={args} kwargs={kwargs}")
-        LOG.info(f"Removed {removed} duplicate tasks from {queue} ({len(duplicates)} found)")
+    duplicated_tasks = []
+    summary = {}
+    for (name, args, kwargs, embed), (kept, *extra) in sorted(duplicated.items(), key=lambda item: -len(item[1])):
+        entry = {
+            "name": name,
+            "args": json.loads(args),
+            "kwargs": json.loads(kwargs),
+            "extra_copies": len(extra),
+            "kept": {"id": _task_id(kept[1]), "position": kept[0]},
+            "copies": [{"id": _task_id(message), "position": position} for position, message in extra],
+        }
+        follow_up = json.loads(embed)
+        if isinstance(follow_up, dict) and any(follow_up.values()):
+            entry["follow_up"] = follow_up
+        if not simulate:
+            entry["removed_ids"], entry["not_found_ids"] = [], []
+            for _, message in extra:
+                task_id = _task_id(message)
+                if client.lrem(queue, 1, message):
+                    removed += 1
+                    entry["removed_ids"].append(task_id)
+                    LOG.info(f"Removed duplicate task {name}[{task_id}] from {queue}: args={args} kwargs={kwargs}")
+                else:
+                    entry["not_found_ids"].append(task_id)
+        duplicated_tasks.append(entry)
+        totals = summary.setdefault(name, {"duplicated_tasks": 0, "extra_copies": 0})
+        totals["duplicated_tasks"] += 1
+        totals["extra_copies"] += len(extra)
 
-    extra_copies = Counter(identity for _, identity in duplicates)
+    duplicates = sum(entry["extra_copies"] for entry in duplicated_tasks)
+    if not simulate:
+        LOG.info(f"Removed {removed} duplicate tasks from {queue} ({duplicates} found)")
     return Response(
         {
             "queue": queue,
             "queued": len(messages),
-            "duplicates": len(duplicates),
+            "unreadable": unreadable,
+            "duplicates": duplicates,
             "removed": removed,
-            "simulate": request.method != "DELETE",
-            "duplicated_tasks": [
-                {"name": name, "args": args, "kwargs": kwargs, "extra_copies": n}
-                for (name, args, kwargs, _), n in extra_copies.most_common()
-            ],
+            "simulate": simulate,
+            "summary": summary,
+            "duplicated_tasks": duplicated_tasks,
         }
     )

@@ -3320,6 +3320,10 @@
                     "queued": {
                         "type": "integer"
                     },
+                    "unreadable": {
+                        "type": "integer",
+                        "description": "Messages that could not be decoded; never removed."
+                    },
                     "duplicates": {
                         "type": "integer"
                     },
@@ -3328,6 +3332,21 @@
                     },
                     "simulate": {
                         "type": "boolean"
+                    },
+                    "summary": {
+                        "type": "object",
+                        "description": "Duplicated tasks and extra copies per task name.",
+                        "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                                "duplicated_tasks": {
+                                    "type": "integer"
+                                },
+                                "extra_copies": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
                     },
                     "duplicated_tasks": {
                         "type": "array",
@@ -3338,13 +3357,59 @@
                                     "type": "string"
                                 },
                                 "args": {
-                                    "type": "string"
+                                    "type": "array",
+                                    "items": {}
                                 },
                                 "kwargs": {
-                                    "type": "string"
+                                    "type": "object"
+                                },
+                                "follow_up": {
+                                    "type": "object",
+                                    "description": "Chained/linked follow-up tasks, when present."
                                 },
                                 "extra_copies": {
                                     "type": "integer"
+                                },
+                                "kept": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string"
+                                        },
+                                        "position": {
+                                            "type": "integer",
+                                            "description": "Distance from the consuming end; 0 runs next."
+                                        }
+                                    }
+                                },
+                                "copies": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "string"
+                                            },
+                                            "position": {
+                                                "type": "integer",
+                                                "description": "Distance from the consuming end; 0 runs next."
+                                            }
+                                        }
+                                    }
+                                },
+                                "removed_ids": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "description": "DELETE only."
+                                },
+                                "not_found_ids": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "description": "DELETE only: taken by a worker before removal."
                                 }
                             }
                         }

@@ -30,6 +30,10 @@ def message(
     return json.dumps({"body": body, "headers": headers, "properties": {"body_encoding": "base64"}}).encode()
 
 
+def task_id(msg):
+    return json.loads(msg)["headers"]["id"]
+
+
 class FakeRedisList:
     """A Redis list with LRANGE/LREM semantics; LPUSH adds at the left, workers pop from the right."""
 
@@ -108,6 +112,46 @@ class DeduplicateCeleryQueueTests(TestCase):
         body = self.client.delete(self.url).json()
         self.assertEqual((body["queued"], body["duplicates"], body["removed"]), (3, 0, 0))
         self.assertEqual(len(fake.items), 3)
+
+    def test_response_identifies_kept_and_extra_copies(self, _):
+        """Each group reports the kept copy and the extra copies by id and position (0 runs next)."""
+        newest, other, older = message(), message(task="masu.processor.tasks.summarize_reports"), message()
+        self._client([newest, other, older, b"not json"])
+        body = self.client.get(self.url).json()
+        group = body["duplicated_tasks"][0]
+        self.assertEqual(body["unreadable"], 1)
+        self.assertEqual(group["args"], ["acct1", "ocp-1", "2026-08-01"])
+        self.assertEqual(group["kept"], {"id": task_id(older), "position": 1})
+        self.assertEqual(group["copies"], [{"id": task_id(newest), "position": 3}])
+        self.assertNotIn("follow_up", group)
+        self.assertNotIn("removed_ids", group)
+        self.assertEqual(
+            body["summary"],
+            {"masu.processor.tasks.update_openshift_on_cloud": {"duplicated_tasks": 1, "extra_copies": 1}},
+        )
+
+    def test_delete_reports_removed_and_not_found_ids(self, _):
+        """DELETE lists which copies were removed and which a worker took first."""
+        first, second, third = message(), message(), message()
+        fake = self._client([first, second, third])
+        original_lrem = fake.lrem
+
+        def lrem_after_pop(name, count, value):
+            if value == first:
+                fake.items.remove(value)  # a worker took it first
+            return original_lrem(name, count, value)
+
+        fake.lrem = lrem_after_pop
+        group = self.client.delete(self.url).json()["duplicated_tasks"][0]
+        self.assertEqual(group["removed_ids"], [task_id(second)])
+        self.assertEqual(group["not_found_ids"], [task_id(first)])
+
+    def test_follow_up_is_shown_when_present(self, _):
+        """Chained follow-up tasks are part of the group output."""
+        chain = [{"task": "masu.processor.tasks.mark_manifest_complete", "args": [1]}]
+        self._client([message(chain=chain), message(chain=chain)])
+        group = self.client.get(self.url).json()["duplicated_tasks"][0]
+        self.assertEqual(group["follow_up"]["chain"], chain)
 
     def test_truncated_reprs_are_not_compared(self, _):
         """Tasks whose argsrepr headers match after truncation but whose args differ are kept."""
