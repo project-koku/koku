@@ -7,8 +7,10 @@
 ``OCP_REPORT_CLUSTER_FILTER_INDEX_HINT_FLAG`` adds an indexed
 ``source_uuid``/``report_period_id`` restriction implied by the substring
 cluster filter.  The original filter stays in place, so report output must be
-identical with the flag on and off.
+identical with the flag on and off.  Rows that tie on the report ordering may
+come back in either order, so parity compares the ranking and the row content.
 """
+import json
 from unittest.mock import patch
 
 from django.db import connection
@@ -28,6 +30,38 @@ from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPCostSummaryP
 
 FLAG_TARGET = "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema"
+
+
+def _ranking(value):
+    """Keep only the dates and the values reports sort on (cost total, usage), in output order."""
+    if isinstance(value, list):
+        return [_ranking(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    ranking = {}
+    for key, item in value.items():
+        if key == "date":
+            ranking[key] = item
+        elif key == "values" and isinstance(item, list):
+            ranking[key] = [
+                ((row.get("cost") or {}).get("total", {}).get("value"), (row.get("usage") or {}).get("value"))
+                for row in item
+            ]
+        elif isinstance(item, list) and item and all(isinstance(row, dict) for row in item):
+            ranking[key] = _ranking(item)
+    return ranking
+
+
+def _canonical_rows(value):
+    """Sort every list of rows so tied rows compare equal in any order."""
+    if isinstance(value, dict):
+        return {k: _canonical_rows(v) for k, v in value.items()}
+    if isinstance(value, list):
+        items = [_canonical_rows(v) for v in value]
+        if items and all(isinstance(item, dict) for item in items):
+            items.sort(key=lambda item: json.dumps(item, sort_keys=True, default=str))
+        return items
+    return value
 
 
 class OCPReportClusterFilterIndexHintTest(IamTestCase):
@@ -67,7 +101,10 @@ class OCPReportClusterFilterIndexHintTest(IamTestCase):
         _, legacy = self._handler(view, url, hint_enabled=False)
         _, hinted = self._handler(view, url, hint_enabled=True)
         msg = f"cluster index hint changed output for {view.__name__} {url}"
-        self.assertEqual(legacy.get("data"), hinted.get("data"), msg=msg)
+        # Same ranking: the sort values appear in the same order.
+        self.assertEqual(_ranking(legacy.get("data")), _ranking(hinted.get("data")), msg=msg)
+        # Same rows: identical in a canonical order.
+        self.assertEqual(_canonical_rows(legacy.get("data")), _canonical_rows(hinted.get("data")), msg=msg)
         self.assertEqual(legacy.get("total"), hinted.get("total"), msg=msg)
         if expect_data:
             self.assertTrue(legacy.get("total", {}).get("cost") or legacy.get("total", {}).get("usage"), msg=msg)
