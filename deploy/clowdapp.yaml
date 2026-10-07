@@ -4399,6 +4399,15 @@ objects:
         public:
           enabled: false
     - autoScaler:
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                policies:
+                - periodSeconds: ${{WORKER_SUMMARY_SCALE_DOWN_PERIOD_SECONDS}}
+                  type: Pods
+                  value: 1
+                stabilizationWindowSeconds: ${{WORKER_SUMMARY_SCALE_DOWN_STABILIZATION_SECONDS}}
         fallback:
           behavior: currentReplicasIfHigher
           failureThreshold: 3
@@ -4600,6 +4609,15 @@ objects:
         public:
           enabled: false
     - autoScaler:
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                policies:
+                - periodSeconds: ${{WORKER_SUMMARY_XL_SCALE_DOWN_PERIOD_SECONDS}}
+                  type: Pods
+                  value: 1
+                stabilizationWindowSeconds: ${{WORKER_SUMMARY_XL_SCALE_DOWN_STABILIZATION_SECONDS}}
         fallback:
           behavior: currentReplicasIfHigher
           failureThreshold: 3
@@ -4801,6 +4819,15 @@ objects:
         public:
           enabled: false
     - autoScaler:
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                policies:
+                - periodSeconds: ${{WORKER_SUMMARY_PENALTY_SCALE_DOWN_PERIOD_SECONDS}}
+                  type: Pods
+                  value: 1
+                stabilizationWindowSeconds: ${{WORKER_SUMMARY_PENALTY_SCALE_DOWN_STABILIZATION_SECONDS}}
         fallback:
           behavior: currentReplicasIfHigher
           failureThreshold: 3
@@ -6974,6 +7001,17 @@ parameters:
   name: WORKER_SUMMARY_FALLBACK_REPLICAS
   required: true
   value: "3"
+- description: Seconds the queue metric must stay low before scaling down; summary
+    tasks run for hours
+  displayName: Scale-down stabilization window
+  name: WORKER_SUMMARY_SCALE_DOWN_STABILIZATION_SECONDS
+  required: true
+  value: "1800"
+- description: Remove at most one pod per this many seconds when scaling down
+  displayName: Scale-down period per pod
+  name: WORKER_SUMMARY_SCALE_DOWN_PERIOD_SECONDS
+  required: true
+  value: "600"
 - displayName: Trigger threshold
   name: WORKER_SUMMARY_TRIGGER_THRESHOLD
   required: true
@@ -7017,6 +7055,17 @@ parameters:
   name: WORKER_SUMMARY_XL_FALLBACK_REPLICAS
   required: true
   value: "3"
+- description: Seconds the queue metric must stay low before scaling down; summary
+    tasks run for hours
+  displayName: Scale-down stabilization window
+  name: WORKER_SUMMARY_XL_SCALE_DOWN_STABILIZATION_SECONDS
+  required: true
+  value: "1800"
+- description: Remove at most one pod per this many seconds when scaling down
+  displayName: Scale-down period per pod
+  name: WORKER_SUMMARY_XL_SCALE_DOWN_PERIOD_SECONDS
+  required: true
+  value: "600"
 - displayName: Trigger threshold
   name: WORKER_SUMMARY_XL_TRIGGER_THRESHOLD
   required: true
@@ -7060,6 +7109,17 @@ parameters:
   name: WORKER_SUMMARY_PENALTY_FALLBACK_REPLICAS
   required: true
   value: "3"
+- description: Seconds the queue metric must stay low before scaling down; summary
+    tasks run for hours
+  displayName: Scale-down stabilization window
+  name: WORKER_SUMMARY_PENALTY_SCALE_DOWN_STABILIZATION_SECONDS
+  required: true
+  value: "1800"
+- description: Remove at most one pod per this many seconds when scaling down
+  displayName: Scale-down period per pod
+  name: WORKER_SUMMARY_PENALTY_SCALE_DOWN_PERIOD_SECONDS
+  required: true
+  value: "600"
 - displayName: Trigger threshold
   name: WORKER_SUMMARY_PENALTY_TRIGGER_THRESHOLD
   required: true

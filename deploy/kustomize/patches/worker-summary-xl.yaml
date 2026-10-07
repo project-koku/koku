@@ -196,6 +196,15 @@
         failureThreshold: 3
         replicas: ${{WORKER_SUMMARY_XL_FALLBACK_REPLICAS}}
         behavior: "currentReplicasIfHigher"
+      advanced:
+        horizontalPodAutoscalerConfig:
+          behavior:
+            scaleDown:
+              stabilizationWindowSeconds: ${{WORKER_SUMMARY_XL_SCALE_DOWN_STABILIZATION_SECONDS}}
+              policies:
+              - type: Pods
+                value: 1
+                periodSeconds: ${{WORKER_SUMMARY_XL_SCALE_DOWN_PERIOD_SECONDS}}
       triggers:
       - type: prometheus
         metadata:
@@ -222,6 +231,22 @@
     name: WORKER_SUMMARY_XL_FALLBACK_REPLICAS
     required: true
     value: '3'
+- op: add
+  path: /parameters/-
+  value:
+    description: Seconds the queue metric must stay low before scaling down; summary tasks run for hours
+    displayName: Scale-down stabilization window
+    name: WORKER_SUMMARY_XL_SCALE_DOWN_STABILIZATION_SECONDS
+    required: true
+    value: '1800'
+- op: add
+  path: /parameters/-
+  value:
+    description: Remove at most one pod per this many seconds when scaling down
+    displayName: Scale-down period per pod
+    name: WORKER_SUMMARY_XL_SCALE_DOWN_PERIOD_SECONDS
+    required: true
+    value: '600'
 - op: add
   path: /parameters/-
   value:
