@@ -56,6 +56,7 @@ sqlalchemy = ">=2.0.0"
 platformdirs = ">=4.3.6"  # floor set to satisfy tox's transitive dep (via fcache/unleashclient)
 pyjwt = ">=2.14.0"  # floor: reject public JWK containers as HMAC secrets (fixed in 2.14.0)
 babel = "*"
+kessel-sdk = {editable = true, path = "../kessel-sdk-py"}
 
 [dev-packages]
 argh = ">=0.26.2"
