@@ -32,6 +32,7 @@ from masu.api.report_data import report_data
 from masu.api.running_celery_tasks import celery_queue_lengths
 from masu.api.running_celery_tasks import celery_queue_tasks
 from masu.api.running_celery_tasks import clear_celery_queues
+from masu.api.running_celery_tasks import deduplicate_celery_queue
 from masu.api.running_celery_tasks import running_celery_tasks
 from masu.api.source_cleanup import cleanup
 from masu.api.sources.views import SourcesViewSet

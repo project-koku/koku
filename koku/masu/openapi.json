@@ -1028,6 +1028,76 @@
                 ]
             }
         },
+        "/deduplicate_celery_queue/": {
+            "get": {
+                "summary": "Lists exact duplicate tasks in a celery queue without removing them.",
+                "operationId": "findDuplicateCeleryTasks",
+                "description": "Lists exact duplicate tasks in a celery queue without removing them. Tasks are duplicates when the task name, args and kwargs are identical; the copy that runs first is kept.",
+                "parameters": [
+                    {
+                        "name": "queue",
+                        "description": "Celery queue to deduplicate, e.g. summary_penalty.",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Duplicate tasks found (GET) or removed (DELETE).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/deduplicateCeleryQueue"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid queue."
+                    }
+                },
+                "tags": [
+                    "Clearing Celery Tasks"
+                ]
+            },
+            "delete": {
+                "summary": "Removes exact duplicate tasks from a celery queue.",
+                "operationId": "deduplicateCeleryQueue",
+                "description": "Removes exact duplicate tasks from a celery queue. Tasks are duplicates when the task name, args and kwargs are identical; the copy that runs first is kept.",
+                "parameters": [
+                    {
+                        "name": "queue",
+                        "description": "Celery queue to deduplicate, e.g. summary_penalty.",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Duplicate tasks found (GET) or removed (DELETE).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/deduplicateCeleryQueue"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid queue."
+                    }
+                },
+                "tags": [
+                    "Clearing Celery Tasks"
+                ]
+            }
+        },
         "/db-performance/db-version/": {
             "get": {
                 "summary": "Returns a table showing the PostgreSQL database software version.",
@@ -3238,6 +3308,46 @@
                     "url": {
                         "type": "string",
                         "description": "The URL to further information about the error."
+                    }
+                }
+            },
+            "deduplicateCeleryQueue": {
+                "type": "object",
+                "properties": {
+                    "queue": {
+                        "type": "string"
+                    },
+                    "queued": {
+                        "type": "integer"
+                    },
+                    "duplicates": {
+                        "type": "integer"
+                    },
+                    "removed": {
+                        "type": "integer"
+                    },
+                    "simulate": {
+                        "type": "boolean"
+                    },
+                    "duplicated_tasks": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "args": {
+                                    "type": "string"
+                                },
+                                "kwargs": {
+                                    "type": "string"
+                                },
+                                "extra_copies": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -18,6 +18,7 @@ from masu.api.views import clear_celery_queues
 from masu.api.views import crawl_account_hierarchy
 from masu.api.views import db_performance_redirect
 from masu.api.views import dbsettings
+from masu.api.views import deduplicate_celery_queue
 from masu.api.views import download_report
 from masu.api.views import EnabledTagView
 from masu.api.views import expired_data
@@ -88,6 +89,7 @@ if not settings.ONPREM or settings.IQE_TEST_RUN:
         path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
         path("additional_context/", additional_context, name="additional_context"),
         path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
+        path("deduplicate_celery_queue/", deduplicate_celery_queue, name="deduplicate_celery_queue"),
         path("bigquery_cost/<uuid:source_uuid>/", bigquery_cost, name="bigquery_cost"),
         path("validate_cost_data/", validate_cost_data, name="validate_cost_data"),
         path("invalidate_cache/", invalidate_cache, name="invalidate_cache"),
