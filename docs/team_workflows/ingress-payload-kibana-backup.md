@@ -8,12 +8,20 @@ processing is slow, wedged, or at risk of losing data from ingress quarantine (~
 **Prod-specific names** (Kibana URL, log index pattern, listener log stream, bucket names):
 use the internal [service-docs runbook](https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/docs/operations/runbook.md) — do not copy them into public git.
 
+**CLI triage (≤1000 hits):** internal
+[`scripts/kibana-search`](https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/scripts/kibana-search)
+and [Kibana log search](https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/docs/operations/kibana-log-search.md)
+(authenticated browser cURL). That helper does **not** paginate large exports; for
+multi-thousand-hit incident dumps use Dev Tools + `search_after` below (or extend the CLI).
+
 ---
 
 ## When to use this
 
 - Listener pods are wedged or lagging on Kafka consume
 - You need presigned ingress URLs before they expire (`X-Amz-Expires=86400`)
+- URLs are **already expired** and you need a **key list** (`request_id` + `X-Amz-Date`)
+  so someone with ingress S3 access can recover objects before quarantine lifecycle delete
 - `oc logs` on listener pods does not go back far enough (short retention)
 
 ## What this covers
@@ -44,6 +52,9 @@ Use **Dev Tools** (not Discover CSV export) for full `_search` responses with `@
 
 Open: **Menu → Dev Tools → Console**
 
+Do **not** put the listener deployment name in the `@message` `query_string` — that value
+usually lives in `@log_stream`, so AND-ing it into `@message` returns zero hits.
+
 ---
 
 ## Dev Tools query
@@ -51,14 +62,16 @@ Open: **Menu → Dev Tools → Console**
 Replace placeholders with values from your **internal incident notes** (do not paste real tenant IDs into public git):
 
 - `LOG_INDEX` — Kibana index pattern from internal runbook (e.g. daily `*-YYYY.MM.DD` indices)
-- `ORG_ID` — numeric org id from Kafka payload / customer record
+- `ORG_ID` — numeric org id from Kafka payload / customer record (optional; omit for platform-wide incidents)
 - `ACCOUNT_ID` — RH account number (optional extra filter)
-- `@timestamp` range — incident window in UTC
+- `@timestamp` range — incident window in UTC; use a **fixed** `lte` while paginating (not `now`)
+
+Platform-wide (no tenant filter):
 
 ```http
 GET LOG_INDEX/_search
 {
-  "size": 500,
+  "size": 5000,
   "sort": [{ "@timestamp": "asc" }, { "_id": "asc" }],
   "query": {
     "bool": {
@@ -75,7 +88,7 @@ GET LOG_INDEX/_search
       "must": [
         {
           "query_string": {
-            "query": "\"Downloading Payload\" AND (ORG_ID OR ACCOUNT_ID)",
+            "query": "\"Downloading Payload\"",
             "default_field": "@message"
           }
         }
@@ -86,17 +99,24 @@ GET LOG_INDEX/_search
 }
 ```
 
+Single-tenant variant: add `AND (ORG_ID OR ACCOUNT_ID)` inside the `query_string` if needed.
+
 Substitute `LOG_INDEX` with the real index pattern from internal docs before running.
+If `size: 5000` is rejected by the cluster, fall back to `500`.
 
 ### Pagination
 
-If `hits.total` exceeds 500, repeat with `search_after` using the last hit's `sort` values until `hits.hits` is empty.
+If a page returns a full `size` of hits, repeat with `search_after` using the **last** hit's
+`sort` values until a page returns fewer than `size` hits (or an empty `hits` array).
+
+`hits.total` is the **entire** match count for the query — it is **not** “remaining pages.”
+As listeners recover, new log lines can increase `hits.total`; a fixed `lte` keeps the export stable.
 
 ### Save export
 
 1. Run the query in Dev Tools
-2. Save the full JSON response body to disk (Dev Tools → copy response JSON)
-3. Save locally as `scripts/incident/kibana-downloading-payload-export.json` (local only — see README)
+2. Save each page JSON response body to disk (outside Git)
+3. Point the parser at the export(s) with `--input` / a directory of pages (local only — see README)
 
 The parser accepts standard `_search` JSON (`hits.hits[]._source`). Kibana console exports
 that use triple-quoted `@message` values are also supported.
@@ -117,6 +137,15 @@ The listener logs a Python dict string. Extract:
 | `b64_identity` | Decode for OpenShift `cluster_id` |
 
 Presigned URLs expire **24 hours** after `X-Amz-Date`. Prioritize oldest `X-Amz-Date` first.
+The object key in the ingress quarantine bucket is the `request_id`.
+
+Do not confuse columns:
+
+| Field | Meaning |
+|-------|---------|
+| `X-Amz-Date` / kafka `timestamp` | When the URL was signed / message produced |
+| `url_expires_utc` | `X-Amz-Date` + 24h (link death) |
+| Log `@timestamp` | When the listener logged `Downloading Payload` (often much later during recovery) |
 
 ---
 
@@ -130,21 +159,39 @@ cd scripts/incident
 # Parse export → manifest.csv, manifest-midnight-only.csv, urls.tsv
 python3 parse_kibana_ingress_payload_logs.py
 
-# Download .tgz archives (run while URLs are valid)
+# Download .tgz archives (ONLY while URLs are still valid)
 python3 download_payloads.py --skip-existing
 
 # Optional: copy midnight subset to payloads-midnight/
 python3 split_midnight_payloads.py
 ```
 
+### What the parser produces vs what download can do
+
+| Output | Meaning |
+|--------|---------|
+| Full `manifest.csv` | Every unique `request_id` seen in `Downloading Payload` logs for the export window |
+| Expired URLs | Presigned link past TTL — **HTTP download script cannot fetch these** |
+| Still-valid URLs | `download_payloads.py` can GET them unauthenticated (signature is in the URL) |
+| Midnight heuristic CSV | Candidate full-day reports (see below) — validate with the team |
+
+Expired keys still matter: share `request_id` + `X-Amz-Date` with whoever has ingress S3
+CLI access so objects can be pulled from quarantine before lifecycle delete. Re-run the
+Kibana export after listeners stabilize (and once more later) so the list stays current.
+
+Importing the full manifest into a shared spreadsheet (with flags for expired / midnight)
+is useful for team review; keep spreadsheets and CSVs **out of git**.
+
 ### Midnight payload heuristic
 
-For full-day OCP reports (not small metadata uploads):
+For full-day OCP reports (not small metadata uploads). Operator upload timing is treated as
+**UTC** unless the team learns otherwise:
 
 1. `size >= 100_000` (100 KB)
 2. Kafka `timestamp` in UTC window `00:00`–`02:00`
 
-Validate counts with your team lead if the filter looks wrong.
+Validate counts with your team lead if the filter looks wrong. Finer filtering (full calendar
+day inside the tarball manifest) is a **second** step after archives are on disk.
 
 ---
 
@@ -188,4 +235,5 @@ Use test placeholders (`org1234567`, account `10001`) in examples only.
 ## See also
 
 - [service-docs runbook — Kibana](https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/docs/operations/runbook.md#kibana)
+- [service-docs — Kibana log search / `kibana-search` CLI](https://gitlab.cee.redhat.com/cost-management/service-docs/-/blob/main/docs/operations/kibana-log-search.md)
 - Listener message handler: `koku/masu/external/kafka_msg_handler.py`
