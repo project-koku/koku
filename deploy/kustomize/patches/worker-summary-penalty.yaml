@@ -162,7 +162,7 @@
         successThreshold: 1
         failureThreshold: 5
         timeoutSeconds: 10
-      terminationGracePeriodSeconds: 3600
+      terminationGracePeriodSeconds: ${{WORKER_SUMMARY_PENALTY_TERMINATION_GRACE_PERIOD_SECONDS}}
       resources:
         limits:
           cpu: ${CPU_LIMIT_WORKER_SUMMARY_PENALTY}
@@ -247,6 +247,14 @@
     name: WORKER_SUMMARY_PENALTY_SCALE_DOWN_PERIOD_SECONDS
     required: true
     value: '600'
+- op: add
+  path: /parameters/-
+  value:
+    description: Seconds a stopping worker may finish its current task before it is killed; summary tasks run for hours
+    displayName: Termination grace period
+    name: WORKER_SUMMARY_PENALTY_TERMINATION_GRACE_PERIOD_SECONDS
+    required: true
+    value: '21600'
 - op: add
   path: /parameters/-
   value:
