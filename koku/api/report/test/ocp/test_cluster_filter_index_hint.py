@@ -32,10 +32,18 @@ from reporting.provider.ocp.models import OCPCostSummaryP
 FLAG_TARGET = "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema"
 
 
-def _ranking(value):
-    """Keep only the dates and the values reports sort on (cost total, usage), in output order."""
+def _sort_value(row, field):
+    """Return the value a report row is ordered by."""
+    if field == "cost_total":
+        return (row.get("cost") or {}).get("total", {}).get("value")
+    value = row.get(field)
+    return value.get("value") if isinstance(value, dict) else value
+
+
+def _ranking(value, field):
+    """Keep only the dates and each row's sort value, in output order."""
     if isinstance(value, list):
-        return [_ranking(item) for item in value]
+        return [_ranking(item, field) for item in value]
     if not isinstance(value, dict):
         return value
     ranking = {}
@@ -43,12 +51,9 @@ def _ranking(value):
         if key == "date":
             ranking[key] = item
         elif key == "values" and isinstance(item, list):
-            ranking[key] = [
-                ((row.get("cost") or {}).get("total", {}).get("value"), (row.get("usage") or {}).get("value"))
-                for row in item
-            ]
+            ranking[key] = [_sort_value(row, field) for row in item]
         elif isinstance(item, list) and item and all(isinstance(row, dict) for row in item):
-            ranking[key] = _ranking(item)
+            ranking[key] = _ranking(item, field)
     return ranking
 
 
@@ -98,11 +103,12 @@ class OCPReportClusterFilterIndexHintTest(IamTestCase):
         return handler, output
 
     def _assert_parity(self, view, url, expect_data=True):
-        _, legacy = self._handler(view, url, hint_enabled=False)
+        handler, legacy = self._handler(view, url, hint_enabled=False)
         _, hinted = self._handler(view, url, hint_enabled=True)
         msg = f"cluster index hint changed output for {view.__name__} {url}"
-        # Same ranking: the sort values appear in the same order.
-        self.assertEqual(_ranking(legacy.get("data")), _ranking(hinted.get("data")), msg=msg)
+        # Same ranking: the active sort value appears in the same order.
+        field = handler.order.lstrip("-")
+        self.assertEqual(_ranking(legacy.get("data"), field), _ranking(hinted.get("data"), field), msg=msg)
         # Same rows: identical in a canonical order.
         self.assertEqual(_canonical_rows(legacy.get("data")), _canonical_rows(hinted.get("data")), msg=msg)
         self.assertEqual(legacy.get("total"), hinted.get("total"), msg=msg)
