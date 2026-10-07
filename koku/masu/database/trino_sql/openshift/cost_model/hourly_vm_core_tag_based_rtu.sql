@@ -28,7 +28,7 @@ WITH
             max(interval_start) AS max_interval_start
         FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items
         WHERE
-            source = {{source_uuid}}
+            source = {{source_uuid | string}}
             AND year = {{year}}
             AND month = {{month}}
         GROUP BY
@@ -44,7 +44,7 @@ WITH
             ON node_info.vm_name = vmi.vm_name
             AND node_info.interval_start = vmi.max_interval_start
         WHERE
-           node_info.source = {{source_uuid}}
+           node_info.source = {{source_uuid | string}}
             AND node_info.year = {{year}}
             AND node_info.month = {{month}}
     ),
