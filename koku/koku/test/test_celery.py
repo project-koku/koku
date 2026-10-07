@@ -258,3 +258,20 @@ class CeleryBrokerSecurityTest(SimpleTestCase):
         unauth = redis.Redis.from_url(open_url, socket_connect_timeout=2, socket_timeout=2)
         with self.assertRaises(AuthenticationError):
             unauth.ping()
+
+
+class CelerySkipChecksTest(SimpleTestCase):
+    """Workers skip Django's system checks at start-up unless overridden."""
+
+    def test_skip_checks_default(self):
+        """Importing koku.celery sets CELERY_SKIP_CHECKS, which Celery's Django fixup honours."""
+        self.assertTrue(os.environ.get("CELERY_SKIP_CHECKS"))
+
+    @patch.dict(os.environ, {"CELERY_SKIP_CHECKS": ""})
+    @patch("django.core.checks.run_checks")
+    def test_empty_value_runs_checks(self, mock_run_checks):
+        """An empty CELERY_SKIP_CHECKS turns the worker checks back on."""
+        from celery.fixups.django import DjangoWorkerFixup
+
+        DjangoWorkerFixup(celery_app).validate_models()
+        mock_run_checks.assert_called_once()
