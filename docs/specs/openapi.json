@@ -7612,6 +7612,7 @@
                     "description",
                     "enabled",
                     "has_dynamic_rate",
+                    "active_rate_type",
                     "is_disableable",
                     "static_rates"
                 ],
@@ -7637,6 +7638,15 @@
                     },
                     "has_dynamic_rate": {
                         "type": "boolean"
+                    },
+                    "active_rate_type": {
+                        "type": "string",
+                        "enum": [
+                            "static",
+                            "dynamic",
+                            "none"
+                        ],
+                        "description": "Rate in force for the current UTC month. static: a static rate window overlaps this month (wins over dynamic). dynamic: enabled, no current-month static, and a dynamic rate exists. none: disabled, or enabled with no current-month static and no dynamic. UI: if enabled is false show Not enabled; otherwise Static / Dynamic / None."
                     },
                     "is_disableable": {
                         "type": "boolean",

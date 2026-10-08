@@ -8,6 +8,7 @@ import logging
 
 import requests
 from botocore.exceptions import ClientError
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django_tenants.utils import schema_context
 from requests.adapters import HTTPAdapter
@@ -32,13 +33,16 @@ from cost_models.monthly_exchange_rate_utils import purge_expired_exchange_rates
 from koku import celery_app
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.notifications import NotificationService
+from koku.pg_partition import precreate_monthly_partitions
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
+from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import is_ocp_tag_cleanup_disabled
 from masu.processor import is_purge_trino_files_enabled
+from masu.processor import PRECREATE_PARTITIONS_FLAG
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
@@ -272,6 +276,37 @@ def autovacuum_tune_schemas():
         LOG.info("Scheduling autovacuum tune task for %s", schema_name)
         # called in celery.py
         autovacuum_tune_schema.delay(schema_name)
+
+
+def _tenant_schema_names():
+    """Return tenant schema names, excluding public and the template schema."""
+    excluded = {"public", Tenant._TEMPLATE_SCHEMA}
+    return [
+        schema_name
+        for schema_name in Tenant.objects.values_list("schema_name", flat=True)
+        if schema_name and schema_name not in excluded
+    ]
+
+
+@celery_app.task(name="masu.celery.tasks.precreate_upcoming_partitions", queue=DEFAULT)
+def precreate_upcoming_partitions():
+    """Queue creation of next month's partitions for every tenant schema.
+
+    Scheduled from the middle of the month so the first of the month does not need
+    partition DDL on the processing path.
+    """
+    next_month = (DateHelper().this_month_start + relativedelta(months=1)).date()
+    for schema_name in _tenant_schema_names():
+        precreate_schema_partitions.delay(schema_name, str(next_month))
+
+
+@celery_app.task(name="masu.celery.tasks.precreate_schema_partitions", queue=DEFAULT)
+def precreate_schema_partitions(schema_name, month_start):
+    """Create the partitions for month_start in one schema, skipping busy tables."""
+    if not is_feature_flag_enabled_by_schema(schema_name, PRECREATE_PARTITIONS_FLAG, dev_fallback=True):
+        return
+    counts = precreate_monthly_partitions(schema_name, month_start)
+    LOG.info(log_json(msg="pre-created partitions", schema=schema_name, month_start=month_start, **counts))
 
 
 def _fetch_and_store_exchange_rates(url):

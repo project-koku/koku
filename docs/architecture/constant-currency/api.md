@@ -92,6 +92,7 @@ codes remain in the list so they can be disabled.
   "description": "USD ($) - US Dollar",
   "enabled": true,
   "has_dynamic_rate": true,
+  "active_rate_type": "static",
   "static_rates": [
     {
       "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -99,10 +100,10 @@ codes remain in the list so they can be disabled.
       "base_currency": "USD",
       "target_currency": "EUR",
       "exchange_rate": 0.87,
-      "start_date": "2026-04-01",
-      "end_date": "2026-06-30",
-      "created_timestamp": "2026-04-02T10:30:00Z",
-      "updated_timestamp": "2026-04-02T10:30:00Z"
+      "start_date": "2026-10-01",
+      "end_date": "2026-12-31",
+      "created_timestamp": "2026-10-02T10:30:00Z",
+      "updated_timestamp": "2026-10-02T10:30:00Z"
     }
   ]
 }
@@ -124,7 +125,18 @@ that would always equal `target_currency`.
 |-------|---------|
 | `enabled` | Currency is enabled for the tenant |
 | `has_dynamic_rate` | A dynamic (market) rate exists for this currency code |
+| `active_rate_type` | Rate in force **this UTC month**: `static`, `dynamic`, or `none` |
 | `static_rates` | Static rates where this currency is the **base** |
+
+`active_rate_type` is computed (not stored):
+
+| Value | When |
+|-------|------|
+| `static` | Enabled, and at least one static rate for this base overlaps the current UTC month (wins over dynamic) |
+| `dynamic` | Enabled, no current-month static, and `has_dynamic_rate` is true |
+| `none` | Disabled, or enabled with neither a current-month static nor a dynamic rate |
+
+CSV export does **not** include `active_rate_type`.
 
 ### CSV export (`Accept: text/csv`)
 
@@ -381,6 +393,7 @@ static-rate responses). Unknown schema or bad dates → `400`.
 |---------|-----|
 | Target currency dropdown | `GET /currency/` |
 | Settings currency table | `GET /settings/currency/` |
+| Active rate (this month) | If `enabled` is false, show Not enabled. Otherwise use `active_rate_type`: Static / Dynamic / None |
 | Enable / disable toggle | `POST` / `DELETE` …`/enabled/{code}/` |
 | Static rate form create/edit/delete | `POST` / `PUT` / `DELETE` …`/static-rates/…` |
 | Show dynamic availability | `has_dynamic_rate` on settings list |

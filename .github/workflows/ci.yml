@@ -119,6 +119,7 @@ jobs:
 
       - name: Set up Python ${{ matrix.python-version }}
         if: needs.changed-files.outputs.run_tests == 'true'
+        id: setup-python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
@@ -135,7 +136,9 @@ jobs:
           path: |
             ~/.cache/pipenv
             ~/.local/share/virtualenvs
-          key: ${{ runner.os }}-env-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}
+          # The cached virtualenv links to the exact interpreter it was built with; keying on the
+          # full version (e.g. 3.11.17) avoids restoring it on a runner with another patch release.
+          key: ${{ runner.os }}-env-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/Pipfile.lock') }}
 
       - name: Install dependencies
         if: needs.changed-files.outputs.run_tests == 'true' && steps.cache-dependencies.outputs.cache-hit != 'true'

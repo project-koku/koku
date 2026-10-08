@@ -23,6 +23,7 @@ services:
       - /koku/run_server.sh
     environment:
       - ONPREM=${ONPREM-False}
+      - IQE_TEST_RUN=${IQE_TEST_RUN-True}
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -164,6 +165,7 @@ services:
       - restart_celery
     environment:
       - ONPREM=${ONPREM-False}
+      - IQE_TEST_RUN=${IQE_TEST_RUN-True}
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -275,6 +277,8 @@ services:
       ]
     environment:
       - DJANGO_READ_DOT_ENV_FILE=True
+      - ONPREM=${ONPREM-False}
+      - IQE_TEST_RUN=${IQE_TEST_RUN-True}
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - POSTGRES_SQL_SERVICE_HOST=db
       - POSTGRES_SQL_SERVICE_PORT=5432
@@ -345,6 +349,8 @@ services:
       ]
     environment:
       - DJANGO_READ_DOT_ENV_FILE=True
+      - ONPREM=${ONPREM-False}
+      - IQE_TEST_RUN=${IQE_TEST_RUN-True}
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -488,6 +494,8 @@ services:
       ]
     environment:
       - DJANGO_READ_DOT_ENV_FILE=True
+      - ONPREM=${ONPREM-False}
+      - IQE_TEST_RUN=${IQE_TEST_RUN-True}
       - SOURCES=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
@@ -545,6 +553,8 @@ services:
     working_dir: /koku/koku
     entrypoint: ["celery", "-A", "koku", "beat", "-l", "info"]
     environment:
+      - ONPREM=${ONPREM-False}
+      - IQE_TEST_RUN=${IQE_TEST_RUN-True}
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
