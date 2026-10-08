@@ -27,9 +27,11 @@ def create_single_task_cache_key(task_name, task_args=None):
 
 def rate_limit_tasks(task_name, schema_name):
     """Limit the number of concurrent tasks for a customer."""
+    # The database cache deletes expired rows only occasionally, so they must not count as running tasks.
     with connection.cursor() as cursor:
         cursor.execute(
-            "SELECT count(*) FROM public.worker_cache_table WHERE cache_key LIKE %s and cache_key LIKE %s",
+            "SELECT count(*) FROM public.worker_cache_table "
+            "WHERE cache_key LIKE %s AND cache_key LIKE %s AND expires > now()",
             [f"%{task_name}%", f"%{schema_name}%"],
         )
         count = cursor.fetchone()[0]
