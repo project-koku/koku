@@ -261,7 +261,6 @@ Same semantics as on `GET /settings/currency/` (see units note above).
 | `start_date` is the 1st of a month | `400` |
 | `end_date` is the last day of a month | `400` |
 | `end_date >= start_date` | `400` |
-| `start_date` not in a past month (for new rates / non-finalized updates) | `400` |
 | No overlapping window for the same directional pair | `400` |
 
 Note: `base_currency` and `target_currency` do not need to be enabled at the
@@ -293,20 +292,20 @@ Same body shape as create. Update rules:
 
 - **`base_currency` cannot be changed** on any update (delete and recreate
   instead).
-- When the rate already includes **finalized** months:
-  - `target_currency` cannot change
-  - `start_date` cannot change (shrink `end_date`, then create a new rate for
-    the remaining period)
-  - `end_date` cannot shrink earlier than the last day of the previous month
-- Fully finalized rates (entire window before the current month) cannot be
-  updated — create a new rate starting in the current month instead.
+- Past-month windows are allowed: target, start/end dates, and rate may change.
+  STATIC `MonthlyExchangeRate` rows are rewritten for each affected month from
+  retention through the current month. Finalized **dynamic** monthly rates are
+  not rewritten by static CRUD except when a static override for that pair/month
+  is removed and dynamic rates are restored.
 
 ### `DELETE /settings/currency/static-rates/{uuid}/`
 
 | Outcome | Status |
 |---------|--------|
 | Deleted | `204` |
-| Entire window is finalized | `400` — cannot delete; create a new rate instead |
+
+Past-month rates may be deleted. STATIC monthly overrides in the window are
+removed and dynamic rates are restored when possible.
 
 ---
 

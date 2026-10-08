@@ -122,16 +122,24 @@ class StaticExchangeRateListViewTest(IamTestCase):
         response = self.client.post(self.url, payload, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_create_past_month_rejected(self):
+    def test_create_past_month_allowed(self):
+        """Static rates may cover already-closed billing months (COST-8378)."""
+        today = timezone.now().date()
+        prev_month_end = today.replace(day=1) - timedelta(days=1)
+        prev_month_start = prev_month_end.replace(day=1)
         payload = {
             "base_currency": "USD",
             "target_currency": "EUR",
             "exchange_rate": 0.92,
-            "start_date": "2020-01-01",
-            "end_date": "2020-01-31",
+            "start_date": prev_month_start.isoformat(),
+            "end_date": prev_month_end.isoformat(),
         }
         response = self.client.post(self.url, payload, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        data = response.json()
+        self.assertEqual(data["start_date"], prev_month_start.isoformat())
+        self.assertEqual(data["end_date"], prev_month_end.isoformat())
+        self.assertEqual(data["exchange_rate"], 0.92)
 
     def test_create_overlapping_range_rejected(self):
         today = timezone.now().date()
@@ -217,26 +225,30 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["exchange_rate"], 0.95)
 
-    def test_update_fully_finalized_rejected(self):
-        """A rate whose end_date is entirely in the past cannot be edited."""
+    def test_update_fully_past_rate_allowed(self):
+        """A rate whose window is entirely in the past can still be edited."""
+        today = timezone.now().date()
+        prev_month_end = today.replace(day=1) - timedelta(days=1)
+        prev_month_start = prev_month_end.replace(day=1)
         with tenant_context(self.tenant):
             rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
                 target_currency="EUR",
                 exchange_rate="0.920000000000000",
-                start_date=date(2020, 1, 1),
-                end_date=date(2020, 1, 31),
+                start_date=prev_month_start,
+                end_date=prev_month_end,
             )
 
         payload = {
             "base_currency": "USD",
             "target_currency": "EUR",
             "exchange_rate": 0.95,
-            "start_date": "2020-01-01",
-            "end_date": "2020-01-31",
+            "start_date": prev_month_start.isoformat(),
+            "end_date": prev_month_end.isoformat(),
         }
         response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["exchange_rate"], 0.95)
 
     def test_update_rate_spanning_past_and_current(self):
         """A rate with start_date in the past but end_date in current/future months is editable."""
@@ -290,10 +302,10 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["end_date"], prev_month_end.isoformat())
 
-    def test_update_shrink_end_date_beyond_prev_month_rejected(self):
-        """Cannot shrink end_date further back than the previous month."""
+    def test_update_shrink_end_date_into_past_allowed(self):
+        """Shrinking end_date into earlier past months is allowed."""
         today = timezone.now().date()
-        past_start = date(2020, 1, 1)
+        past_start = (today.replace(day=1) - timedelta(days=90)).replace(day=1)
         two_months_ago_end = _month_end(today.replace(day=1) - timedelta(days=60))
         future_end = _month_end(today)
         with tenant_context(self.tenant):
@@ -313,13 +325,15 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
             "end_date": two_months_ago_end.isoformat(),
         }
         response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["end_date"], two_months_ago_end.isoformat())
 
-    def test_update_change_start_date_on_started_rate_rejected(self):
-        """Changing start_date on a rate that has already started is not allowed."""
+    def test_update_change_start_date_on_started_rate_allowed(self):
+        """Changing start_date on a rate that has already started is allowed."""
         today = timezone.now().date()
-        past_start = date(2020, 1, 1)
+        past_start = (today.replace(day=1) - timedelta(days=60)).replace(day=1)
         future_end = _month_end(today)
+        new_start = today.replace(day=1)
         with tenant_context(self.tenant):
             rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
@@ -333,11 +347,12 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
             "base_currency": "USD",
             "target_currency": "EUR",
             "exchange_rate": 0.92,
-            "start_date": today.replace(day=1).isoformat(),
+            "start_date": new_start.isoformat(),
             "end_date": future_end.isoformat(),
         }
         response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["start_date"], new_start.isoformat())
 
     def test_update_change_start_date_on_future_rate_allowed(self):
         """Changing start_date on a rate that hasn't started yet is allowed."""
@@ -383,20 +398,23 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         with tenant_context(self.tenant):
             self.assertEqual(StaticExchangeRate.objects.count(), 0)
 
-    def test_delete_rate_with_finalized_months(self):
-        """A rate with start_date in the past cannot be deleted."""
+    def test_delete_rate_with_past_months_allowed(self):
+        """A rate with start_date in the past can be deleted."""
         today = timezone.now().date()
+        past_start = (today.replace(day=1) - timedelta(days=60)).replace(day=1)
         with tenant_context(self.tenant):
             rate = StaticExchangeRate.objects.create(
                 base_currency="USD",
                 target_currency="EUR",
                 exchange_rate="0.920000000000000",
-                start_date=date(2020, 1, 1),
+                start_date=past_start,
                 end_date=_month_end(today),
             )
 
         response = self.client.delete(self._url(rate.uuid), **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        with tenant_context(self.tenant):
+            self.assertEqual(StaticExchangeRate.objects.count(), 0)
 
     def test_delete_nonexistent_returns_404(self):
         response = self.client.delete(self._url(uuid.uuid4()), **self.headers)
@@ -466,10 +484,10 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
         self.assertEqual(response.data["target_currency"], "GBP")
         self.assertEqual(response.data["name"], "USD-GBP")
 
-    def test_update_target_currency_with_finalized_months_rejected(self):
-        """target_currency cannot be changed when the rate has finalized months."""
+    def test_update_target_currency_with_past_months_allowed(self):
+        """target_currency can be changed even when the rate covers past months."""
         today = timezone.now().date()
-        past_start = date(2020, 1, 1)
+        past_start = (today.replace(day=1) - timedelta(days=60)).replace(day=1)
         future_end = _month_end(today)
         with tenant_context(self.tenant):
             rate = StaticExchangeRate.objects.create(
@@ -488,7 +506,9 @@ class StaticExchangeRateDetailViewTest(IamTestCase):
             "end_date": future_end.isoformat(),
         }
         response = self.client.put(self._url(rate.uuid), payload, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["target_currency"], "GBP")
+        self.assertEqual(response.data["name"], "USD-GBP")
 
     def test_update_nonexistent_returns_404(self):
         today = timezone.now().date()
