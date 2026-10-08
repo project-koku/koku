@@ -5,8 +5,8 @@
 """Turn a pending S3 marker into an IngressStagingPayload row."""
 import logging
 
+from django.conf import settings
 from django.db import IntegrityError
-from django.utils import timezone
 from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
@@ -179,7 +179,7 @@ def register_ingress_staging_marker(request_id):
 
 def _marker_age_seconds(now, oldest):
     if oldest.tzinfo is None:
-        oldest = oldest.replace(tzinfo=timezone.utc)
+        oldest = oldest.replace(tzinfo=settings.UTC)
     return max((now - oldest).total_seconds(), 0)
 
 

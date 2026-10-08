@@ -1445,6 +1445,38 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         self.assertTrue(os.path.isdir(expected_path))
                         shutil.rmtree(fake_dir, ignore_errors=True)
 
+    def test_extract_payload_local_report_dir(self):
+        """Test that staged ingress can extract into a request-specific directory."""
+        tarball_path = write_tarball_to_tmpdir(self.tarball_file, self)
+        work_dir = Path(tempfile.mkdtemp())
+        shared_dir = tempfile.mkdtemp()
+        try:
+            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", shared_dir):
+                with patch(
+                    "masu.processor.ocp.staged_payloads.processing.utils.get_source_and_provider_from_cluster_id",
+                    return_value=self.ocp_source,
+                ):
+                    with patch(
+                        "masu.processor.ocp.staged_payloads.processing.create_cost_and_usage_report_manifest",
+                        return_value=1,
+                    ):
+                        with patch("masu.processor.ocp.staged_payloads.processing.record_report_status", returns=None):
+                            processing.extract_payload(
+                                tarball_path,
+                                "test_request_id",
+                                "fake_identity",
+                                {"account": "1234", "org_id": "5678"},
+                                local_report_dir=work_dir,
+                            )
+            self.assertTrue(any(work_dir.iterdir()))
+            self.assertFalse(
+                os.path.isdir(f"{shared_dir}/{self.cluster_id}/{self.date_range}/"),
+                "shared INSIGHTS_LOCAL_REPORT_DIR must not be used when local_report_dir is set",
+            )
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
+            shutil.rmtree(shared_dir, ignore_errors=True)
+
     def test_extract_payload_cross_org_flag_not_checked_on_successful_lookup(self):
         """Test that the feature flag is never consulted when the standard org_id lookup succeeds."""
         tarball_path = write_tarball_to_tmpdir(self.tarball_file, self)

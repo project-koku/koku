@@ -303,6 +303,11 @@ def send_to_dead_letter_queue(request_id, value, schema_name, context):
             shutil.rmtree(payload_path.parent, ignore_errors=True)
 
 
+def _kafka_upload_value_for_log(value):
+    """Kafka upload message fields safe for logs (excludes b64_identity)."""
+    return {key: item for key, item in value.items() if key != "b64_identity"}
+
+
 def legacy_message_processing(request_id, value, context):
     """Download and extract an ingress payload on the listener thread.
 
@@ -312,10 +317,11 @@ def legacy_message_processing(request_id, value, context):
     ``development``. Remove this function once the flag is confirmed for every
     schema that should take the staging path.
     """
+    logged_value = _kafka_upload_value_for_log(value)
     payload_path = None
     try:
         try:
-            msg = f"Downloading Payload for msg: {str(value)}"
+            msg = f"Downloading Payload for msg: {logged_value}"
             LOG.info(log_json(request_id, msg=msg, context=context))
             payload_path = download_payload(request_id, value["url"], context)
         except Exception as error:
@@ -325,7 +331,7 @@ def legacy_message_processing(request_id, value, context):
             return FAILURE_CONFIRM_STATUS, None, None
 
         try:
-            msg = f"Extracting Payload for msg: {str(value)}"
+            msg = f"Extracting Payload for msg: {logged_value}"
             LOG.info(log_json(request_id, msg=msg, context=context))
             report_metas, manifest_uuid = extract_payload(payload_path, request_id, value["b64_identity"], context)
             return SUCCESS_CONFIRM_STATUS, report_metas, manifest_uuid
@@ -418,7 +424,7 @@ def process_messages(msg):
             files_string = ",".join(map(str, file_list))
             LOG.info(log_json(tracing_id, msg=f"Sending Ingress Service confirmation for: {files_string}"))
         else:
-            logged_value = {key: item for key, item in value.items() if key != "b64_identity"}
+            logged_value = _kafka_upload_value_for_log(value)
             LOG.info(log_json(tracing_id, msg=f"Sending Ingress Service confirmation for: {logged_value}"))
         send_confirmation(value["request_id"], status)
 

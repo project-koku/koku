@@ -275,9 +275,13 @@ def extract_payload_contents(request_id, tarball_path, context):
     return manifest_path, payload_files
 
 
-def extract_payload(payload_path, request_id, b64_identity, context):  # noqa: C901
+def extract_payload(payload_path, request_id, b64_identity, context, local_report_dir=None):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
+
+    When ``local_report_dir`` is set, manifest and report files are written there
+    instead of ``Config.INSIGHTS_LOCAL_REPORT_DIR/<cluster>/<month>``. Staged ingress
+    uses a per-request directory so the worker can delete it after extract.
 
     Payload is expected to be a .tar.gz file that contains:
     1. manifest.json - dictionary containing usage report details needed
@@ -378,9 +382,12 @@ def extract_payload(payload_path, request_id, b64_identity, context):  # noqa: C
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(manifest.date)
-    destination_dir = utils.resolve_path_within_base(
-        Config.INSIGHTS_LOCAL_REPORT_DIR, manifest.cluster_id, usage_month
-    )
+    if local_report_dir is not None:
+        destination_dir = Path(local_report_dir)
+    else:
+        destination_dir = utils.resolve_path_within_base(
+            Config.INSIGHTS_LOCAL_REPORT_DIR, manifest.cluster_id, usage_month
+        )
     os.makedirs(destination_dir, exist_ok=True)
 
     # Copy manifest

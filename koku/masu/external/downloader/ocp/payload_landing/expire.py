@@ -4,6 +4,7 @@
 #
 """Delete processed staging rows and the objects that belong to them."""
 import logging
+import time
 
 from django.utils import timezone
 
@@ -11,6 +12,7 @@ from api.common import log_json
 from common.queues import IngressQueue
 from koku import celery_app
 from masu.external.downloader.ocp.payload_landing.constants import EXPIRE_INGRESS_STAGING_TASK
+from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_EXPIRE_TIME_BUDGET
 from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_RECONCILE_BATCH
 from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_RETENTION
 from masu.external.downloader.ocp.payload_landing.keys import _receipt_key
@@ -21,22 +23,19 @@ from reporting_common.models import IngressStagingState
 LOG = logging.getLogger(__name__)
 
 
-@celery_app.task(name=EXPIRE_INGRESS_STAGING_TASK, queue=IngressQueue.DEFAULT)
-def expire_ingress_staging():
-    """Delete processed staging rows, their tarballs, and their receipts.
+def _expire_processed_batch(cutoff):
+    """Delete up to one batch of expired processed rows and their S3 objects.
 
-    Failed rows and their objects stay until an operator replays or drops them.
-    The ``by_request`` receipt is deleted with the tarball so a later redelivery
-    does not treat an expired object as already stored.
+    Returns (deleted_row_count, should_continue). ``should_continue`` is false
+    when there is no more work, S3 deletion failed, or the batch was partial.
     """
-    cutoff = timezone.now() - INGRESS_STAGING_RETENTION
     rows = list(
         IngressStagingPayload.objects.filter(state=IngressStagingState.PROCESSED, stored_at__lte=cutoff)
         .order_by("stored_at")
         .values_list("id", "s3_key", "request_id")[:INGRESS_STAGING_RECONCILE_BATCH]
     )
     if not rows:
-        return 0
+        return 0, False
     keys = []
     for _, s3_key, request_id in rows:
         if s3_key:
@@ -48,7 +47,29 @@ def expire_ingress_staging():
         deleted = delete_s3_objects("ingress-staging-expire", keys, {})
         if not deleted:
             LOG.warning(log_json(msg="ingress staging retention left objects in place", count=len(keys)))
-            return 0
+            return 0, False
     deleted_rows, _ = IngressStagingPayload.objects.filter(id__in=[row_id for row_id, _, _ in rows]).delete()
-    LOG.info(log_json(msg="expired processed ingress staging rows", count=deleted_rows))
-    return deleted_rows
+    if len(rows) < INGRESS_STAGING_RECONCILE_BATCH:
+        return deleted_rows, False
+    return deleted_rows, True
+
+
+@celery_app.task(name=EXPIRE_INGRESS_STAGING_TASK, queue=IngressQueue.DEFAULT)
+def expire_ingress_staging():
+    """Delete processed staging rows, their tarballs, and their receipts.
+
+    Failed rows and their objects stay until an operator replays or drops them.
+    The ``by_request`` receipt is deleted with the tarball so a later redelivery
+    does not treat an expired object as already stored.
+    """
+    cutoff = timezone.now() - INGRESS_STAGING_RETENTION
+    deadline = time.monotonic() + INGRESS_STAGING_EXPIRE_TIME_BUDGET.total_seconds()
+    total_deleted = 0
+    while time.monotonic() < deadline:
+        deleted_rows, should_continue = _expire_processed_batch(cutoff)
+        total_deleted += deleted_rows
+        if not should_continue:
+            break
+    if total_deleted:
+        LOG.info(log_json(msg="expired processed ingress staging rows", count=total_deleted))
+    return total_deleted

@@ -66,17 +66,55 @@ log-info "Running nise (cluster ${CLUSTER_ID})"
     --insights-upload "${NISE_OUTPUT}" \
     --daily-reports)
 
-MONTH_DIR=$(find "${NISE_OUTPUT}/${CLUSTER_ID}" -mindepth 1 -maxdepth 1 -type d | head -1)
+export NISE_OUTPUT CLUSTER_ID START_DATE END_DATE
+MONTH_DIR=$(
+    python3 - <<'PY'
+import json
+import os
+
+cluster_path = os.path.join(os.environ["NISE_OUTPUT"], os.environ["CLUSTER_ID"])
+start_date = os.environ["START_DATE"]
+end_date = os.environ["END_DATE"]
+
+matches = []
+if os.path.isdir(cluster_path):
+    for name in os.listdir(cluster_path):
+        report_dir = os.path.join(cluster_path, name)
+        manifest_path = os.path.join(report_dir, "manifest.json")
+        if not os.path.isdir(report_dir) or not os.path.isfile(manifest_path):
+            continue
+        with open(manifest_path, encoding="utf-8") as fh:
+            manifest = json.load(fh)
+        if manifest.get("start", "")[:10] == start_date and manifest.get("end", "")[:10] == end_date:
+            matches.append(report_dir)
+
+if matches:
+    matches.sort(key=lambda path: os.path.getmtime(path), reverse=True)
+    print(matches[0])
+PY
+)
+
 if [[ -z "${MONTH_DIR}" || ! -d "${MONTH_DIR}" ]]; then
-    log-err "No month directory under ${NISE_OUTPUT}/${CLUSTER_ID}"
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        PERIOD_START=$(date -j -f "%Y-%m-%d" "${START_DATE}" "+%Y%m01")
+        PERIOD_END=$(date -j -v+1m -f "%Y%m%d" "${PERIOD_START}" "+%Y%m01")
+    else
+        PERIOD_START=$(date -d "${START_DATE}" "+%Y%m01")
+        PERIOD_END=$(date -d "${PERIOD_START} +1 month" "+%Y%m01")
+    fi
+    MONTH_DIR="${NISE_OUTPUT}/${CLUSTER_ID}/${PERIOD_START}-${PERIOD_END}"
+fi
+
+if [[ -z "${MONTH_DIR}" || ! -d "${MONTH_DIR}" ]]; then
+    log-err "No report directory for ${START_DATE} .. ${END_DATE} under ${NISE_OUTPUT}/${CLUSTER_ID}"
     exit 1
 fi
 
 TARBALL="${OUTPUT_DIR}/payload.tar.gz"
 export COPYFILE_DISABLE=1
-tar czf "${TARBALL}" -C "${MONTH_DIR}" $(ls -A "${MONTH_DIR}")
+tar czf "${TARBALL}" -C "${MONTH_DIR}" .
 
-if ! tar tzf "${TARBALL}" | grep -qE '^manifest\.json$'; then
+if ! tar tzf "${TARBALL}" | grep -qE '^(\./)?manifest\.json$'; then
     log-err "Tarball missing manifest.json at archive root: ${TARBALL}"
     exit 1
 fi

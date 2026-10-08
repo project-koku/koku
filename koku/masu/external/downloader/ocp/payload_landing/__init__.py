@@ -13,6 +13,7 @@ from masu.external.downloader.ocp.payload_landing.claim import claim_ingress_sta
 from masu.external.downloader.ocp.payload_landing.claim import heartbeat_ingress_claim
 from masu.external.downloader.ocp.payload_landing.claim import ingress_claim_held
 from masu.external.downloader.ocp.payload_landing.claim import mark_processed
+from masu.external.downloader.ocp.payload_landing.claim import record_line_item_handoff
 from masu.external.downloader.ocp.payload_landing.claim import release_for_retry
 from masu.external.downloader.ocp.payload_landing.constants import EXPIRE_INGRESS_STAGING_TASK
 from masu.external.downloader.ocp.payload_landing.constants import PROCESS_STAGED_INGRESS_TASK
@@ -33,6 +34,7 @@ __all__ = [
     "heartbeat_ingress_claim",
     "ingress_claim_held",
     "mark_processed",
+    "record_line_item_handoff",
     "reconcile_ingress_staging",
     "register_ingress_staging_marker",
     "release_for_retry",

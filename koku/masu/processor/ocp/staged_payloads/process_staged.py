@@ -41,17 +41,19 @@ from koku import celery_app
 from masu.config import Config
 from masu.external.downloader.ocp.payload_landing import claim_ingress_staging_row
 from masu.external.downloader.ocp.payload_landing import heartbeat_ingress_claim
-from masu.external.downloader.ocp.payload_landing import ingress_claim_held
 from masu.external.downloader.ocp.payload_landing import mark_processed
 from masu.external.downloader.ocp.payload_landing import PROCESS_STAGED_INGRESS_TASK
+from masu.external.downloader.ocp.payload_landing import record_line_item_handoff
 from masu.external.downloader.ocp.payload_landing import release_for_retry
 from masu.processor.ocp.staged_payloads import processing
 from masu.util.aws.common import get_s3_resource
 
 LOG = logging.getLogger(__name__)
 
-# Both limits sit under INGRESS_STAGING_LEASE (2 hours). The soft limit releases
-# the claim before another worker can take a row this task still holds.
+# Celery run limits sit under INGRESS_STAGING_LEASE (2 hours). Queue wait on the
+# customer OCP queue is covered by handoff ``enqueued_at`` and a heartbeat when
+# the line-item task starts. The soft limit releases the claim before another
+# worker can take a row this task still holds.
 INGRESS_STAGING_SOFT_TIME_LIMIT = 90 * 60
 INGRESS_STAGING_HARD_TIME_LIMIT = 105 * 60
 _HEARTBEAT_SECONDS = 5 * 60
@@ -90,7 +92,7 @@ class _ClaimHeartbeat:
             self._thread = None
 
     def _run(self):
-        while not self._stop.wait(_HEARTBEAT_SECONDS):
+        while not self._stop.is_set():
             close_old_connections()
             try:
                 if not heartbeat_ingress_claim(self.request_id, self.claim_token):
@@ -106,6 +108,8 @@ class _ClaimHeartbeat:
                 )
             finally:
                 connection.close()
+            if self._stop.wait(_HEARTBEAT_SECONDS):
+                break
 
 
 def download_staged_tarball(s3_key, request_id):
@@ -201,6 +205,7 @@ def _enqueue_line_items(request_id, claim_token, report_metas, context):
         )
         release_for_retry(request_id, claim_token, error)
         return
+    record_line_item_handoff(request_id, claim_token)
     LOG.info(log_json(request_id, msg="enqueued staged ingress line items", context=context, queue=str(queue)))
 
 
@@ -286,9 +291,10 @@ def process_staged_ingress_payload(request_id):
 
     claim_token = row.claim_token
     payload_path = None
+    extract_work_dir = None
 
     def work(heartbeat):
-        nonlocal payload_path
+        nonlocal payload_path, extract_work_dir
         value = row.payload or {}
         context = {"account": row.account, "org_id": row.org_id, "cluster_id": row.cluster_id}
         LOG.info(log_json(request_id, msg="processing staged ingress payload", context=context, s3_key=row.s3_key))
@@ -296,8 +302,13 @@ def process_staged_ingress_payload(request_id):
         if heartbeat.lost:
             LOG.info(log_json(request_id, msg="ingress staging claim lost during download", context=context))
             return
+        extract_work_dir = Path(tempfile.mkdtemp(dir=Config.DATA_DIR))
         report_metas, _manifest_uuid = processing.extract_payload(
-            payload_path, request_id, value.get("b64_identity"), context
+            payload_path,
+            request_id,
+            value.get("b64_identity"),
+            context,
+            local_report_dir=extract_work_dir,
         )
         if heartbeat.lost:
             LOG.info(log_json(request_id, msg="ingress staging claim lost during extract", context=context))
@@ -311,6 +322,8 @@ def process_staged_ingress_payload(request_id):
     try:
         _run_claimed(request_id, claim_token, work)
     finally:
+        if extract_work_dir is not None:
+            shutil.rmtree(extract_work_dir, ignore_errors=True)
         if payload_path is not None:
             shutil.rmtree(payload_path.parent, ignore_errors=True)
 
@@ -322,7 +335,7 @@ def process_staged_ingress_reports(request_id, claim_token, report_metas):
     The row is marked processed only after this work returns. The extract task
     still holds ``claim_token``; this task does not claim the row again.
     """
-    if not ingress_claim_held(request_id, claim_token):
+    if not heartbeat_ingress_claim(request_id, claim_token):
         LOG.info(log_json(request_id, msg="ingress staging line-item claim missed"))
         return
 

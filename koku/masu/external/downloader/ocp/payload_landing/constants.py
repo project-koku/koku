@@ -12,9 +12,15 @@ from django.db import ProgrammingError
 # Long enough that a healthy line-item run is not reclaimed, short enough that
 # a dead worker is retried. Matches the rough upper bound used for large downloads.
 INGRESS_STAGING_LEASE = timedelta(hours=2)
+# After extract enqueues line items, ``enqueued_at`` blocks reclaim until this
+# window ends so a backed-up OCP queue does not look like a dead worker.
+INGRESS_STAGING_HANDOFF_LEASE = timedelta(hours=24)
 INGRESS_STAGING_BEAT_GRACE = timedelta(minutes=1)
 INGRESS_STAGING_RETENTION = timedelta(days=7)
 INGRESS_STAGING_RECONCILE_BATCH = 100
+# Hourly expire task loops in batches of 100 until the backlog is gone or this
+# budget elapses so retention does not fall behind a burst of processed rows.
+INGRESS_STAGING_EXPIRE_TIME_BUDGET = timedelta(minutes=55)
 # One beat registers this many markers so a long outage drains faster than the
 # row reconciler's batch of 100, without listing the prefix without a cap.
 INGRESS_STAGING_REGISTER_LIMIT = 1000

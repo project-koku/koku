@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from api.common import log_json
 from masu.external.downloader.ocp.payload_landing.constants import _LAST_ERROR_MAX_LENGTH
+from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_HANDOFF_LEASE
 from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_LEASE
 from reporting_common.models import IngressStagingPayload
 from reporting_common.models import IngressStagingState
@@ -33,6 +34,20 @@ def _claim_filter(request_id, claim_token):
     return IngressStagingPayload.objects.filter(request_id=request_id, claim_token=claim_token)
 
 
+def processing_reclaimable_q(now):
+    """Return rows in ``processing`` another worker may take after lease expiry.
+
+    ``enqueued_at`` after line-item handoff extends reclaim until
+    ``INGRESS_STAGING_HANDOFF_LEASE`` so OCP queue wait is not confused with a
+    dead extract worker.
+    """
+    lease_cutoff = now - INGRESS_STAGING_LEASE
+    handoff_cutoff = now - INGRESS_STAGING_HANDOFF_LEASE
+    return Q(state=IngressStagingState.PROCESSING, claimed_at__lte=lease_cutoff) & (
+        Q(enqueued_at__isnull=True) | Q(enqueued_at__lte=handoff_cutoff)
+    )
+
+
 def claim_ingress_staging_row(request_id, now=None):
     """Claim one staging row. Returns the row when this caller wins, otherwise None.
 
@@ -42,9 +57,8 @@ def claim_ingress_staging_row(request_id, now=None):
     marked failed by ``release_for_retry`` while that token is still held.
     """
     now = now or timezone.now()
-    lease_cutoff = now - INGRESS_STAGING_LEASE
-    eligible = Q(state=IngressStagingState.PENDING) & (Q(not_before__isnull=True) | Q(not_before__lte=now)) | Q(
-        state=IngressStagingState.PROCESSING, claimed_at__lte=lease_cutoff
+    eligible = Q(state=IngressStagingState.PENDING) & (Q(not_before__isnull=True) | Q(not_before__lte=now)) | (
+        processing_reclaimable_q(now)
     )
     attempts_remaining = Q(attempts__lt=settings.MAX_UPDATE_RETRIES) | Q(attempts__isnull=True)
     claim_token = uuid.uuid4()
@@ -68,6 +82,15 @@ def claim_ingress_staging_row(request_id, now=None):
 def ingress_claim_held(request_id, claim_token):
     """Return True when this token still owns the processing row."""
     return _claim_filter(request_id, claim_token).filter(state=IngressStagingState.PROCESSING).exists()
+
+
+def record_line_item_handoff(request_id, claim_token, now=None):
+    """Record that line items were enqueued on the customer OCP queue."""
+    now = now or timezone.now()
+    updated = (
+        _claim_filter(request_id, claim_token).filter(state=IngressStagingState.PROCESSING).update(enqueued_at=now)
+    )
+    return bool(updated)
 
 
 def heartbeat_ingress_claim(request_id, claim_token, now=None):

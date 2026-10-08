@@ -817,17 +817,25 @@ This pattern is repeated for different aggregation levels:
                             ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │  MASU Kafka Consumer (kafka_msg_handler.py)                            │
-│  Flag on: download, store the raw tar, upsert IngressStagingPayload,   │
-│           confirm. No extract or line-item work on this thread.        │
+│  Flag on: download; store tar, receipt, and pending marker in S3;      │
+│           confirm Kafka. No Postgres, extract, or line-item work.        │
 │  Flag off: extract, split CSVs by day, upload daily CSVs here.         │
 └───────────────────────────┬────────────────────────────────────────────┘
-                            │ ingress queue when the flag is on
+                            │ ingress queue (best-effort register enqueue)
+                            ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  Register task (register.py)                                           │
+│  Read the pending marker; upsert IngressStagingPayload; enqueue        │
+│  extract. reconcile_ingress_staging (every minute) registers markers   │
+│  the listener enqueue missed (e.g. Postgres or broker outage).         │
+└───────────────────────────┬────────────────────────────────────────────┘
+                            │ ingress queue
                             ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │  Ingress worker (process_staged.py)                                    │
 │  Read the staged tar from our bucket, then extract_payload and         │
-│  process_report for every file. A one-minute beat re-enqueues rows     │
-│  the listener handoff did not finish.                                  │
+│  process_report for every file. Reconcile re-enqueues staging rows     │
+│  the register handoff did not finish.                                  │
 └───────────────────────────┬────────────────────────────────────────────┘
                             │ Trigger processing
                             ▼

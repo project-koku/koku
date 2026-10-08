@@ -829,7 +829,7 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 **Queue**: `ingress` (consumed by the OCP worker)
 
-**Description**: Deletes `processed` staging rows whose `stored_at` is older than seven days, and deletes the matching tarball and `by_request` receipt. `failed` rows and their objects are kept.
+**Description**: Deletes `processed` staging rows whose `stored_at` is older than seven days, and deletes the matching tarball and `by_request` receipt. `failed` rows and their objects are kept. Each run loops in batches of 100 until the expired backlog is gone or a 55-minute time budget elapses.
 
 ---
 
@@ -1038,7 +1038,7 @@ Koku uses multiple queue types to organize task processing:
 8. **HCS_QUEUE** (`hcs`) - Hybrid Committed Spend processing
 9. **SUBS_EXTRACTION_QUEUE** (`subs_extraction`) - Subscription data extraction
 10. **SUBS_TRANSMISSION_QUEUE** (`subs_transmission`) - Subscription data messaging
-11. **IngressQueue** (`ingress`) - Staged HCCM ingress extract and line-item processing
+11. **IngressQueue** (`ingress`) - HCCM ingress registration, reconciliation, retention, and tarball extraction; line-item reports use the customer OCP queue
 
 ### Queue Selection Logic
 

@@ -4,6 +4,7 @@
 #
 """Test staged ingress claim and reconciliation."""
 import tempfile
+import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -22,10 +23,12 @@ from masu.external.downloader.ocp.payload_landing import expire_ingress_staging
 from masu.external.downloader.ocp.payload_landing import mark_processed
 from masu.external.downloader.ocp.payload_landing import PROCESS_STAGED_INGRESS_TASK
 from masu.external.downloader.ocp.payload_landing import reconcile_ingress_staging
+from masu.external.downloader.ocp.payload_landing import record_line_item_handoff
 from masu.external.downloader.ocp.payload_landing import register_ingress_staging_marker
 from masu.external.downloader.ocp.payload_landing import REGISTER_INGRESS_STAGING_TASK
 from masu.external.downloader.ocp.payload_landing import release_for_retry
 from masu.external.downloader.ocp.payload_landing import stage_ingress_s3_inbox
+from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_RECONCILE_BATCH
 from masu.external.downloader.ocp.payload_landing.keys import _receipt_key
 from masu.test import MasuTestCase
 from reporting_common.models import IngressStagingPayload
@@ -112,6 +115,51 @@ class IngressStagingTests(MasuTestCase):
         self.assertIn("RuntimeError", row.last_error)
         self.assertIsNone(row.claim_token)
         self.assertIsNotNone(row.payload)
+
+    def test_reconcile_fails_exhausted_expired_lease(self):
+        """Test that reconciler fails processing rows stuck after max retries and lease expiry."""
+        row = self._pending_row(
+            "stuck-max",
+            state=IngressStagingState.PROCESSING,
+            claimed_at=timezone.now() - timedelta(hours=3),
+            attempts=settings.MAX_UPDATE_RETRIES,
+            claim_token=uuid.uuid4(),
+        )
+        with patch("masu.external.downloader.ocp.payload_landing.reconcile.celery_app.send_task") as mock_enqueue:
+            reconcile_ingress_staging()
+
+        mock_enqueue.assert_not_called()
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.FAILED)
+        self.assertIn("LeaseExpired", row.last_error)
+        self.assertIsNone(row.claim_token)
+
+    def test_reconcile_skips_processing_rows_waiting_on_ocp_handoff(self):
+        """Test that an expired worker lease does not reclaim a row handed off to OCP."""
+        handoff = self._pending_row(
+            "ocp-handoff",
+            state=IngressStagingState.PROCESSING,
+            claimed_at=timezone.now() - timedelta(hours=3),
+            enqueued_at=timezone.now() - timedelta(hours=1),
+            attempts=1,
+            claim_token=uuid.uuid4(),
+        )
+        with patch("masu.external.downloader.ocp.payload_landing.reconcile.celery_app.send_task") as mock_enqueue:
+            reconcile_ingress_staging()
+
+        mock_enqueue.assert_not_called()
+        handoff.refresh_from_db()
+        self.assertEqual(handoff.state, IngressStagingState.PROCESSING)
+        self.assertEqual(handoff.attempts, 1)
+
+    def test_claim_respects_ocp_handoff_window(self):
+        """Test that a second claim loses while line items wait on the OCP queue."""
+        row = self._pending_row("handoff-claim")
+        first = claim_ingress_staging_row(row.request_id)
+        record_line_item_handoff(row.request_id, first.claim_token, now=timezone.now() - timedelta(hours=1))
+        row.claimed_at = timezone.now() - timedelta(hours=3)
+        row.save(update_fields=["claimed_at"])
+        self.assertIsNone(claim_ingress_staging_row(row.request_id))
 
     def test_reconcile_enqueues_stale_rows_only(self):
         """Test that the beat skips fresh pending rows and rows waiting on backoff."""
@@ -216,6 +264,31 @@ class IngressStagingTests(MasuTestCase):
         self.assertTrue(IngressStagingPayload.objects.filter(request_id="expire-recent").exists())
         failed.refresh_from_db()
         self.assertEqual(failed.state, IngressStagingState.FAILED)
+
+    def test_expire_loops_until_backlog_drained(self):
+        """Test that one hourly run deletes more than a single reconcile batch."""
+        old_stored = timezone.now() - timedelta(days=8)
+        row_count = INGRESS_STAGING_RECONCILE_BATCH + 25
+        for index in range(row_count):
+            self._pending_row(
+                f"expire-batch-{index}",
+                state=IngressStagingState.PROCESSED,
+                stored_at=old_stored,
+            )
+        with patch(
+            "masu.external.downloader.ocp.payload_landing.expire.delete_s3_objects",
+            return_value=[{"Key": "deleted"}],
+        ) as mock_delete:
+            deleted = expire_ingress_staging()
+
+        self.assertEqual(deleted, row_count)
+        self.assertEqual(mock_delete.call_count, 2)
+        self.assertFalse(
+            IngressStagingPayload.objects.filter(
+                state=IngressStagingState.PROCESSED,
+                stored_at__lte=old_stored,
+            ).exists()
+        )
 
     def _marker_document(self, request_id, s3_key, identity="secret-identity"):
         return {

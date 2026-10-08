@@ -14,6 +14,7 @@ from kombu.exceptions import OperationalError as KombuOperationalError
 from api.common import log_json
 from common.queues import IngressQueue
 from koku import celery_app
+from masu.external.downloader.ocp.payload_landing.claim import processing_reclaimable_q
 from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_BEAT_GRACE
 from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_LEASE
 from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_RECONCILE_BATCH
@@ -46,6 +47,31 @@ def _record_reconciler_enqueue(request_id, now):
     IngressStagingPayload.objects.filter(request_id=request_id).filter(still_unclaimed).update(enqueued_at=now)
 
 
+def _fail_exhausted_expired_leases(now):
+    """Mark processing rows failed when the lease expired and retries are exhausted.
+
+    A hard kill (OOM, eviction, Celery time limit) skips ``release_for_retry``, so
+    the row would otherwise stay processing forever and never hit ``ingress_staging_failed``.
+    """
+    stuck = IngressStagingPayload.objects.filter(
+        processing_reclaimable_q(now),
+        attempts__gte=settings.MAX_UPDATE_RETRIES,
+    )
+    message = "LeaseExpired: worker lost lease without release after max retries"
+    for row in stuck:
+        LOG.error(
+            log_json(
+                row.request_id,
+                msg="staged ingress payload failed permanently",
+                org_id=row.org_id,
+                cluster_id=row.cluster_id,
+                s3_key=row.s3_key,
+                attempts=row.attempts,
+            )
+        )
+    stuck.update(state=IngressStagingState.FAILED, last_error=message, claim_token=None)
+
+
 def _claimable_request_ids(now):
     """Return request ids the eager enqueue did not finish.
 
@@ -53,11 +79,10 @@ def _claimable_request_ids(now):
     Rows already published by this reconciler stay ineligible for one lease.
     """
     grace_cutoff = now - INGRESS_STAGING_BEAT_GRACE
-    lease_cutoff = now - INGRESS_STAGING_LEASE
     pending = Q(state=IngressStagingState.PENDING, stored_at__lte=grace_cutoff) & (
         Q(not_before__isnull=True) | Q(not_before__lte=now)
     )
-    expired_lease = Q(state=IngressStagingState.PROCESSING, claimed_at__lte=lease_cutoff)
+    expired_lease = processing_reclaimable_q(now)
     attempts_remaining = Q(attempts__lt=settings.MAX_UPDATE_RETRIES) | Q(attempts__isnull=True)
     return list(
         IngressStagingPayload.objects.filter(pending | expired_lease)
@@ -98,6 +123,7 @@ def reconcile_ingress_staging():
     now = timezone.now()
     _publish_ingress_staging_gauges(now)
     _register_pending_markers(now)
+    _fail_exhausted_expired_leases(now)
     request_ids = _claimable_request_ids(now)
     LOG.info(log_json(msg="reconciling staged ingress payloads", count=len(request_ids)))
     for request_id in request_ids:

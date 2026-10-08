@@ -72,6 +72,9 @@ class ProcessStagedIngressTests(MasuTestCase):
 
         mock_extract.assert_called_once()
         self.assertEqual(mock_extract.call_args.args[2], "secret-identity")
+        extract_dir = mock_extract.call_args.kwargs["local_report_dir"]
+        self.assertIsInstance(extract_dir, Path)
+        self.assertFalse(extract_dir.exists())
         mock_process.assert_not_called()
         row.refresh_from_db()
         self.assertEqual(row.state, IngressStagingState.PROCESSED)
@@ -149,6 +152,7 @@ class ProcessStagedIngressTests(MasuTestCase):
         row.refresh_from_db()
         self.assertEqual(row.state, IngressStagingState.PROCESSING)
         self.assertIsNotNone(row.payload)
+        self.assertIsNotNone(row.enqueued_at)
 
     def test_line_item_task_marks_processed_after_reports(self):
         """Test that the OCP task marks the row processed only after line items return."""
@@ -168,6 +172,10 @@ class ProcessStagedIngressTests(MasuTestCase):
         ]
         with (
             patch(
+                "masu.processor.ocp.staged_payloads.process_staged.heartbeat_ingress_claim",
+                return_value=True,
+            ) as mock_heartbeat,
+            patch(
                 "masu.processor.ocp.staged_payloads.process_staged.materialize_report_files",
                 return_value=(None, report_metas),
             ),
@@ -177,6 +185,8 @@ class ProcessStagedIngressTests(MasuTestCase):
             ) as mock_reports,
         ):
             process_staged_ingress_reports(request_id, str(claimed.claim_token), report_metas)
+
+        mock_heartbeat.assert_called()
 
         mock_reports.assert_called_once()
         row.refresh_from_db()
@@ -192,6 +202,10 @@ class ProcessStagedIngressTests(MasuTestCase):
                 if "cost_model" in line and "download" in line and "summary" in line:
                     queue_line = line
                     break
+            self.assertTrue(
+                queue_line,
+                f"no scheduler queue line (cost_model/download/summary) in {relative}",
+            )
             tokens = {token.strip().strip("'\"") for token in queue_line.split("value:")[-1].split(",")}
             self.assertNotIn("ingress", tokens, relative)
 
