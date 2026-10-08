@@ -134,6 +134,37 @@ class UpsertStaticMonthlyRatesTest(MasuTestCase):
             self.assertEqual(months[0], (past_month, Decimal("0.91"), RateType.STATIC))
             self.assertEqual(months[1], (self.month_start, Decimal("0.91"), RateType.STATIC))
 
+    def test_future_only_window_writes_nothing(self):
+        """A static rate entirely in the future does not materialize MER rows yet."""
+        future_start = (self.month_start + relativedelta(months=1)).replace(day=1)
+        future_end = future_start + relativedelta(months=1) - relativedelta(days=1)
+        with tenant_context(self.tenant):
+            static_rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="JPY",
+                exchange_rate=Decimal("150.0"),
+                start_date=future_start,
+                end_date=future_end,
+            )
+            upsert_static_monthly_rates(static_rate)
+            self.assertFalse(MonthlyExchangeRate.objects.filter(base_currency="USD", target_currency="JPY").exists())
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_window_before_retention_writes_nothing(self, mock_retention_start):
+        """Months before the retention window are skipped."""
+        past_month = (self.month_start - relativedelta(months=1)).replace(day=1)
+        mock_retention_start.return_value = self.month_start
+        with tenant_context(self.tenant):
+            static_rate = StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="CHF",
+                exchange_rate=Decimal("0.88"),
+                start_date=past_month,
+                end_date=past_month + relativedelta(months=1) - relativedelta(days=1),
+            )
+            upsert_static_monthly_rates(static_rate)
+            self.assertFalse(MonthlyExchangeRate.objects.filter(base_currency="USD", target_currency="CHF").exists())
+
     def test_no_inverse_even_when_explicit_reverse_exists(self):
         """No inverse row should be written even when a separate StaticExchangeRate defines the reverse."""
         with tenant_context(self.tenant):
@@ -342,6 +373,122 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
             )
             self.assertEqual(past.rate_type, RateType.DYNAMIC)
             self.assertEqual(past.exchange_rate, Decimal("0.87"))
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_restore_past_month_from_erd_reverse_only(self, mock_retention_start):
+        """Past-month restore synthesizes the forward rate from an ERD reverse entry."""
+        past_month = (self.month_start - relativedelta(months=1)).replace(day=1)
+        mock_retention_start.return_value = past_month
+        ExchangeRateDictionary.objects.all().delete()
+        ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"EUR": {"USD": "1.25", "EUR": "1.0"}})
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.get_or_create(currency_code="USD")
+            EnabledCurrency.objects.get_or_create(currency_code="EUR")
+            MonthlyExchangeRate.objects.create(
+                effective_date=past_month,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.92"),
+                rate_type=RateType.STATIC,
+            )
+            replace_static_to_dynamic_monthly_rates("USD", "EUR", past_month, past_month)
+
+            past = MonthlyExchangeRate.objects.get(
+                effective_date=past_month, base_currency="USD", target_currency="EUR"
+            )
+            self.assertEqual(past.rate_type, RateType.DYNAMIC)
+            self.assertEqual(past.exchange_rate, Decimal("0.8"))
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_restore_past_month_skipped_when_erd_missing(self, mock_retention_start):
+        """Without ERD, past STATIC rows are removed and no DYNAMIC row is invented."""
+        past_month = (self.month_start - relativedelta(months=1)).replace(day=1)
+        mock_retention_start.return_value = past_month
+        ExchangeRateDictionary.objects.all().delete()
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.create(
+                effective_date=past_month,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.92"),
+                rate_type=RateType.STATIC,
+            )
+            replace_static_to_dynamic_monthly_rates("USD", "EUR", past_month, past_month)
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=past_month, base_currency="USD", target_currency="EUR"
+                ).exists()
+            )
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_restore_past_month_skips_existing_non_static_row(self, mock_retention_start):
+        """Existing past DYNAMIC rows are left unchanged when replacing a static window."""
+        past_month = (self.month_start - relativedelta(months=1)).replace(day=1)
+        mock_retention_start.return_value = past_month
+        ExchangeRateDictionary.objects.all().delete()
+        ExchangeRateDictionary.objects.create(
+            currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}, "EUR": {"USD": "1.15", "EUR": "1.0"}}
+        )
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.get_or_create(currency_code="USD")
+            EnabledCurrency.objects.get_or_create(currency_code="EUR")
+            MonthlyExchangeRate.objects.create(
+                effective_date=past_month,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.55"),
+                rate_type=RateType.DYNAMIC,
+            )
+            replace_static_to_dynamic_monthly_rates("USD", "EUR", past_month, self.month_end)
+            past = MonthlyExchangeRate.objects.get(
+                effective_date=past_month, base_currency="USD", target_currency="EUR"
+            )
+            self.assertEqual(past.rate_type, RateType.DYNAMIC)
+            self.assertEqual(past.exchange_rate, Decimal("0.55"))
+
+    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
+    def test_restore_past_month_skips_non_positive_erd_rate(self, mock_retention_start):
+        """Non-positive ERD rates do not restore a past DYNAMIC row."""
+        past_month = (self.month_start - relativedelta(months=1)).replace(day=1)
+        mock_retention_start.return_value = past_month
+        ExchangeRateDictionary.objects.all().delete()
+        ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0", "USD": "1.0"}})
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.create(
+                effective_date=past_month,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.92"),
+                rate_type=RateType.STATIC,
+            )
+            replace_static_to_dynamic_monthly_rates("USD", "EUR", past_month, past_month)
+            self.assertFalse(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=past_month, base_currency="USD", target_currency="EUR"
+                ).exists()
+            )
+
+    def test_replace_noop_when_window_outside_materialization_range(self):
+        """replace is a no-op when the window has no months to materialize."""
+        future_start = (self.month_start + relativedelta(months=1)).replace(day=1)
+        future_end = future_start + relativedelta(months=1) - relativedelta(days=1)
+        with tenant_context(self.tenant):
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.month_start,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.92"),
+                rate_type=RateType.STATIC,
+            )
+            replace_static_to_dynamic_monthly_rates("USD", "EUR", future_start, future_end)
+            self.assertTrue(
+                MonthlyExchangeRate.objects.filter(
+                    effective_date=self.month_start,
+                    base_currency="USD",
+                    target_currency="EUR",
+                    rate_type=RateType.STATIC,
+                ).exists()
+            )
 
 
 class RemoveMonthlyRatesTest(MasuTestCase):

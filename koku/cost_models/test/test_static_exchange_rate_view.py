@@ -17,6 +17,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from cost_models.models import MonthlyExchangeRate
+from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
 from cost_models.static_exchange_rate_serializer import NumericDecimalField
 
@@ -140,6 +142,26 @@ class StaticExchangeRateListViewTest(IamTestCase):
         self.assertEqual(data["start_date"], prev_month_start.isoformat())
         self.assertEqual(data["end_date"], prev_month_end.isoformat())
         self.assertEqual(data["exchange_rate"], 0.92)
+        with tenant_context(self.tenant):
+            mer = MonthlyExchangeRate.objects.get(
+                effective_date=prev_month_start,
+                base_currency="USD",
+                target_currency="EUR",
+            )
+            self.assertEqual(mer.rate_type, RateType.STATIC)
+            self.assertEqual(mer.exchange_rate, Decimal("0.92"))
+
+    def test_create_zero_exchange_rate_rejected(self):
+        today = timezone.now().date()
+        payload = {
+            "base_currency": "USD",
+            "target_currency": "EUR",
+            "exchange_rate": 0,
+            "start_date": today.replace(day=1).isoformat(),
+            "end_date": _month_end(today).isoformat(),
+        }
+        response = self.client.post(self.url, payload, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_overlapping_range_rejected(self):
         today = timezone.now().date()
