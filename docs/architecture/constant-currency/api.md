@@ -149,13 +149,14 @@ currency-level `active_rate_type` — do not replace one with the other.
 | `active` | Validity window includes the current UTC month |
 | `upcoming` | `start_date` is on or after the first day of next month |
 
-`status` is for UI labels (Active / Expired / Upcoming). Edit/delete are not
-gated on it — past-month rates remain editable and deletable:
+`status` is for UI labels (Active / Expired / Upcoming). Past-month windows are
+not blocked by date rules (COST-8378). Edit/delete flags reflect **RBAC** so the
+UI can disable controls without probing PUT/DELETE:
 
 | Field | `true` when |
 |-------|-------------|
-| `can_edit` | Always `true` for returned rates (`base_currency` is still immutable on PUT) |
-| `can_delete` | Always `true` for returned rates |
+| `can_edit` | Caller can mutate static rates (`cost_model.write: ["*"]`, or enhanced org admin). `base_currency` remains immutable on PUT. |
+| `can_delete` | Same RBAC rule as `can_edit` |
 
 CSV export does **not** include `active_rate_type`, `status`, `can_edit`, or
 `can_delete`.
@@ -423,7 +424,7 @@ static-rate responses). Unknown schema or bad dates → `400`.
 | Enable / disable toggle | `POST` / `DELETE` …`/enabled/{code}/` |
 | Static rate form create/edit/delete | `POST` / `PUT` / `DELETE` …`/static-rates/…` |
 | Active / expired / upcoming labels | `status` on each nested static rate (server UTC month) |
-| Edit / delete availability | `can_edit` / `can_delete` (currently always `true`; past-month rates are allowed) |
+| Edit / delete availability | `can_edit` / `can_delete` (RBAC: cost-model write / enhanced org admin) |
 | Show dynamic availability | `has_dynamic_rate` on settings list |
 | Missing conversion | Surface report/forecast `400` `currency` error text |
 | Empty dropdown | No enabled currencies → hide picker or show “No exchange rates available” |

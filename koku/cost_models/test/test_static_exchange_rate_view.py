@@ -8,7 +8,9 @@ import uuid
 from datetime import date
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import Mock
 
+from django.test import override_settings
 from django.test import SimpleTestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -22,12 +24,11 @@ from cost_models.models import RateType
 from cost_models.models import StaticExchangeRate
 from cost_models.static_exchange_rate_serializer import next_month_start
 from cost_models.static_exchange_rate_serializer import NumericDecimalField
-from cost_models.static_exchange_rate_serializer import static_rate_can_delete
-from cost_models.static_exchange_rate_serializer import static_rate_can_edit
 from cost_models.static_exchange_rate_serializer import static_rate_status
 from cost_models.static_exchange_rate_serializer import STATIC_RATE_STATUS_ACTIVE
 from cost_models.static_exchange_rate_serializer import STATIC_RATE_STATUS_EXPIRED
 from cost_models.static_exchange_rate_serializer import STATIC_RATE_STATUS_UPCOMING
+from cost_models.static_exchange_rate_serializer import user_can_mutate_static_rates
 
 
 def _month_end(d):
@@ -88,19 +89,24 @@ class StaticRateStatusHelperTest(SimpleTestCase):
         )
         self.assertEqual(next_month_start(current), date(2027, 1, 1))
 
-    def test_can_edit_always_true(self):
-        """Past-month windows remain editable (COST-8378)."""
-        current = date(2026, 10, 1)
-        self.assertTrue(static_rate_can_edit(date(2026, 9, 30), current_month_start=current))
-        self.assertTrue(static_rate_can_edit(date(2026, 10, 31), current_month_start=current))
-        self.assertTrue(static_rate_can_edit(date(2026, 12, 31), current_month_start=current))
+    def test_user_can_mutate_requires_cost_model_write_or_enhanced_admin(self):
+        """can_edit/can_delete follow CostModelsAccessPermission write rules."""
+        self.assertFalse(user_can_mutate_static_rates(None))
 
-    def test_can_delete_always_true(self):
-        """Past-month windows remain deletable (COST-8378)."""
-        current = date(2026, 10, 1)
-        self.assertTrue(static_rate_can_delete(date(2026, 9, 1), current_month_start=current))
-        self.assertTrue(static_rate_can_delete(date(2026, 10, 1), current_month_start=current))
-        self.assertTrue(static_rate_can_delete(date(2026, 11, 1), current_month_start=current))
+        no_access = Mock(user=Mock(admin=False, access=None))
+        self.assertFalse(user_can_mutate_static_rates(no_access))
+
+        read_only = Mock(user=Mock(admin=False, access={"cost_model": {"read": ["*"], "write": []}}))
+        self.assertFalse(user_can_mutate_static_rates(read_only))
+
+        writer = Mock(user=Mock(admin=False, access={"cost_model": {"read": ["*"], "write": ["*"]}}))
+        self.assertTrue(user_can_mutate_static_rates(writer))
+
+        admin = Mock(user=Mock(admin=True, access=None))
+        with override_settings(ENHANCED_ORG_ADMIN=False):
+            self.assertFalse(user_can_mutate_static_rates(admin))
+        with override_settings(ENHANCED_ORG_ADMIN=True):
+            self.assertTrue(user_can_mutate_static_rates(admin))
 
 
 class StaticExchangeRateListViewTest(IamTestCase):
@@ -113,6 +119,7 @@ class StaticExchangeRateListViewTest(IamTestCase):
         with tenant_context(self.tenant):
             StaticExchangeRate.objects.all().delete()
 
+    @override_settings(ENHANCED_ORG_ADMIN=True)
     def test_create_rate(self):
         today = timezone.now().date()
         month_start = today.replace(day=1)

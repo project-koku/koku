@@ -6,6 +6,7 @@
 import calendar
 import logging
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
@@ -55,20 +56,35 @@ def static_rate_status(start_date, end_date, *, current_month_start=None):
     return STATIC_RATE_STATUS_ACTIVE
 
 
-def static_rate_can_edit(end_date=None, *, current_month_start=None):
-    """True when PUT is allowed.
+def user_can_mutate_static_rates(request):
+    """True when the user can PUT/DELETE static rates.
 
-    Past-month windows are editable; only ``base_currency`` is immutable.
+    Mirrors ``CostModelsAccessPermission`` write rules for static-rate URLs
+    (no ``/cost-models/{uuid}/`` in the path, so only ``cost_model.write: ["*"]``
+    or enhanced org admin grants access). Date windows no longer block mutate
+    after COST-8378; these flags exist so the UI can avoid 403 probes.
     """
-    return True
+    if request is None:
+        return False
+    user = getattr(request, "user", None)
+    if user is None:
+        return False
+    if settings.ENHANCED_ORG_ADMIN and getattr(user, "admin", False):
+        return True
+    access = getattr(user, "access", None)
+    if not access:
+        return False
+    return "*" in access.get("cost_model", {}).get("write", [])
 
 
-def static_rate_can_delete(start_date=None, *, current_month_start=None):
-    """True when DELETE is allowed.
+def static_rate_can_edit(end_date=None, *, current_month_start=None, request=None):
+    """True when PUT would be allowed for this user (RBAC)."""
+    return user_can_mutate_static_rates(request)
 
-    Past-month windows may be deleted; STATIC monthly overrides are cleaned up.
-    """
-    return True
+
+def static_rate_can_delete(start_date=None, *, current_month_start=None, request=None):
+    """True when DELETE would be allowed for this user (RBAC)."""
+    return user_can_mutate_static_rates(request)
 
 
 class NumericDecimalField(serializers.DecimalField):
@@ -128,10 +144,18 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
         )
 
     def get_can_edit(self, instance):
-        return static_rate_can_edit(instance.end_date, current_month_start=self._current_month_start())
+        return static_rate_can_edit(
+            instance.end_date,
+            current_month_start=self._current_month_start(),
+            request=self.context.get("request"),
+        )
 
     def get_can_delete(self, instance):
-        return static_rate_can_delete(instance.start_date, current_month_start=self._current_month_start())
+        return static_rate_can_delete(
+            instance.start_date,
+            current_month_start=self._current_month_start(),
+            request=self.context.get("request"),
+        )
 
     def _validate_currency_code(self, value):
         code = value.upper()

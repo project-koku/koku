@@ -24,6 +24,7 @@ from rest_framework_csv.renderers import CSVRenderer
 
 from api.currency.currencies import get_enabled_currency_codes
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.provider.models import Provider
 from api.settings.currency_views import ACTIVE_RATE_TYPE_DYNAMIC
 from api.settings.currency_views import ACTIVE_RATE_TYPE_NONE
@@ -618,6 +619,7 @@ class CurrencySettingsViewTest(IamTestCase):
         usd = next(item for item in response.data["data"] if item["code"] == "USD")
         self.assertEqual(usd["active_rate_type"], ACTIVE_RATE_TYPE_DYNAMIC)
 
+    @override_settings(ENHANCED_ORG_ADMIN=True)
     def test_list_static_rates_include_status_and_expired_rates(self):
         """GET nested static_rates include lifecycle status; expired rates are not omitted."""
         today = timezone.now().date()
@@ -684,6 +686,30 @@ class CurrencySettingsViewTest(IamTestCase):
         self.assertEqual(spanning["status"], "active")
         self.assertTrue(spanning["can_edit"])
         self.assertTrue(spanning["can_delete"])
+
+    @override_settings(ENHANCED_ORG_ADMIN=False)
+    @RbacPermissions({"settings": {"read": ["*"]}})
+    def test_list_static_rates_can_edit_false_without_cost_model_write(self):
+        """settings:read without cost_model write must not advertise can_edit/can_delete."""
+        today = timezone.now().date()
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                start_date=today.replace(day=1),
+                end_date=_month_end(today),
+            )
+
+        url = reverse("currency-list") + "?filter[currency]=USD&limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        rate = response.data["data"][0]["static_rates"][0]
+        self.assertEqual(rate["status"], "active")
+        self.assertFalse(rate["can_edit"])
+        self.assertFalse(rate["can_delete"])
 
     def test_list_all_currencies_sorted_by_code_ascending(self):
         """Unfiltered list is A-Z by code (not enabled-first then disabled)."""
