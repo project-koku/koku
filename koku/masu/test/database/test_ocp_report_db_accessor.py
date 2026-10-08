@@ -1702,7 +1702,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.accessor.update_line_item_daily_summary_with_tag_mapping(
                 self.dh.this_month_start, self.dh.today, infrastructure_only=False
             )
-        updates = [q["sql"] for q in captured.captured_queries if "UPDATE" in q["sql"] and "cte_update_labels" in q["sql"]]
+        updates = [
+            q["sql"] for q in captured.captured_queries if "UPDATE" in q["sql"] and "cte_update_labels" in q["sql"]
+        ]
         self.assertEqual(len(updates), 1)
         self.assertNotIn("infrastructure_raw_cost IS NOT NULL", updates[0])
         self.assertNotIn("infrastructure_raw_cost != 0", updates[0])
@@ -1712,7 +1714,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.accessor.update_line_item_daily_summary_with_tag_mapping(
                 self.dh.this_month_start, self.dh.today, infrastructure_only=True
             )
-        updates = [q["sql"] for q in captured.captured_queries if "UPDATE" in q["sql"] and "cte_update_labels" in q["sql"]]
+        updates = [
+            q["sql"] for q in captured.captured_queries if "UPDATE" in q["sql"] and "cte_update_labels" in q["sql"]
+        ]
         self.assertEqual(len(updates), 1)
         # Should appear twice: once in pod_labels branch, once in volume_labels branch
         self.assertEqual(updates[0].count("infrastructure_raw_cost IS NOT NULL"), 2)
