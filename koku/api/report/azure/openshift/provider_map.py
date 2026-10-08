@@ -426,4 +426,5 @@ class OCPAzureProviderMap(ProviderMap):
                 ("subscription_guid",): OCPAzureNetworkSummaryP,
             },
         }
+        self.add_cluster_summary_views(schema_name)
         super().__init__(provider, report_type, schema_name)
