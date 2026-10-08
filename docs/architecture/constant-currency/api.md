@@ -294,9 +294,11 @@ Same body shape as create. Update rules:
   instead).
 - Past-month windows are allowed: target, start/end dates, and rate may change.
   STATIC `MonthlyExchangeRate` rows are rewritten for each affected month from
-  retention through the current month. Finalized **dynamic** monthly rates are
-  not rewritten by static CRUD except when a static override for that pair/month
-  is removed and dynamic rates are restored.
+  retention through the current month. When a static override is removed or its
+  window shrinks, the current month may be restored from
+  `ExchangeRateDictionary`; missing past months are filled with the next later
+  MER rate for the pair (same rule as the daily backfill). Today's market rate
+  is not written into closed months.
 
 ### `DELETE /settings/currency/static-rates/{uuid}/`
 
@@ -305,7 +307,8 @@ Same body shape as create. Update rules:
 | Deleted | `204` |
 
 Past-month rates may be deleted. STATIC monthly overrides in the window are
-removed and dynamic rates are restored when possible.
+removed; current-month dynamic is restored from ERD when possible, and past
+gaps use next-later MER backfill.
 
 ---
 

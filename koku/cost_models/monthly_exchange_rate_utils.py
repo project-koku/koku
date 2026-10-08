@@ -88,24 +88,6 @@ def upsert_static_monthly_rates(static_rate):
         )
 
 
-def _dynamic_rate_from_erd(base_currency, target_currency):
-    """Return a positive Decimal rate from ExchangeRateDictionary, or None."""
-    erd = ExchangeRateDictionary.objects.first()
-    if not erd or not erd.currency_exchange_dictionary:
-        return None
-    exchange_dict = erd.currency_exchange_dictionary
-    forward = exchange_dict.get(base_currency, {}).get(target_currency)
-    if forward is not None:
-        rate = Decimal(str(forward))
-        return rate if rate > 0 else None
-    reverse = exchange_dict.get(target_currency, {}).get(base_currency)
-    if reverse is not None:
-        reverse_rate = Decimal(str(reverse))
-        if reverse_rate > 0:
-            return Decimal(1) / reverse_rate
-    return None
-
-
 def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, start_date, end_date):
     """Remove static MonthlyExchangeRate rows in the window and restore dynamic rates.
 
@@ -114,15 +96,14 @@ def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, star
     an explicit StaticExchangeRate defines the reverse direction for that month.
 
     After removing static overrides, repopulates the current-month dynamic rate from
-    ExchangeRateDictionary. Past months in the window that no longer have a row for
-    this pair are restored from the current ERD rate when available. Existing
-    non-static monthly rows are left unchanged.
+    ExchangeRateDictionary and backfills missing past months with the next later MER
+    rate for the pair (same rule as the daily crawl). Does not write today's ERD rate
+    into closed months. Existing non-static monthly rows are left unchanged.
     """
     months = list(_months_in_static_window(start_date, end_date))
     if not months:
         return
 
-    current_month = DateHelper().this_month_start.date()
     for month_start in months:
         MonthlyExchangeRate.objects.filter(
             effective_date=month_start,
@@ -139,30 +120,8 @@ def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, star
                 rate_type=RateType.STATIC,
             ).delete()
 
-    populate_dynamic_monthly_rates(code=base_currency)
-
-    past_months = [month for month in months if month < current_month]
-    if not past_months:
-        return
-
-    dynamic_rate = _dynamic_rate_from_erd(base_currency, target_currency)
-    if dynamic_rate is None:
-        return
-
-    for month_start in past_months:
-        if MonthlyExchangeRate.objects.filter(
-            effective_date=month_start,
-            base_currency=base_currency,
-            target_currency=target_currency,
-        ).exists():
-            continue
-        MonthlyExchangeRate.objects.create(
-            effective_date=month_start,
-            base_currency=base_currency,
-            target_currency=target_currency,
-            exchange_rate=dynamic_rate,
-            rate_type=RateType.DYNAMIC,
-        )
+    # Current month from ERD; past gaps inherit the next later MER for the pair.
+    populate_dynamic_monthly_rates(code=base_currency, backfill_past_months=True)
 
 
 def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # noqa: C901

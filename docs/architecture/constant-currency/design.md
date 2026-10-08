@@ -124,8 +124,8 @@ flowchart TD
 | Action       | Allowed when                                 | Effect on monthly rates                                                                                                                      |
 | ------------ | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | Create       | Month-bound window; no overlap for the pair  | Writes STATIC monthly rows for each month from max(start, retention) through min(end, current)                                               |
-| Update (any) | `base_currency` is immutable                 | Delete and recreate to change base. Scope/rate changes rewrite STATIC rows in the new window; old-window static rows are restored to dynamic |
-| Delete       | Always (subject to auth)                     | Removes STATIC overrides in the window (retention through current) and restores dynamic rates when possible                                  |
+| Update (any) | `base_currency` is immutable                 | Delete and recreate to change base. Scope/rate changes rewrite STATIC rows in the new window; old-window static rows fall back via current-month ERD + next-later MER backfill |
+| Delete       | Always (subject to auth)                     | Removes STATIC overrides in the window (retention through current). Current month is restored from ERD when possible; past gaps use next-later MER backfill (not today's ERD) |
 
 
 ---

@@ -338,7 +338,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
 
     @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
     def test_removes_static_rows_for_past_months(self, mock_retention_start):
-        """Deleting a past-month static override removes STATIC MER rows in the window."""
+        """Deleting past STATIC rows restores current from ERD and past via next-later backfill."""
         past_month = (self.month_start - relativedelta(months=1)).replace(day=1)
         mock_retention_start.return_value = past_month
         ExchangeRateDictionary.objects.all().delete()
@@ -368,6 +368,7 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
             )
             self.assertEqual(current.rate_type, RateType.DYNAMIC)
             self.assertEqual(current.exchange_rate, Decimal("0.87"))
+            # Past inherits the next later MER (current), not a direct ERD write.
             past = MonthlyExchangeRate.objects.get(
                 effective_date=past_month, base_currency="USD", target_currency="EUR"
             )
@@ -375,12 +376,11 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
             self.assertEqual(past.exchange_rate, Decimal("0.87"))
 
     @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
-    def test_restore_past_month_from_erd_reverse_only(self, mock_retention_start):
-        """Past-month restore synthesizes the forward rate from an ERD reverse entry."""
+    def test_past_month_gap_inherits_next_later_mer(self, mock_retention_start):
+        """Past-only static delete backfills from the next later MER, not today's ERD."""
         past_month = (self.month_start - relativedelta(months=1)).replace(day=1)
         mock_retention_start.return_value = past_month
         ExchangeRateDictionary.objects.all().delete()
-        ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"EUR": {"USD": "1.25", "EUR": "1.0"}})
         with tenant_context(self.tenant):
             EnabledCurrency.objects.get_or_create(currency_code="USD")
             EnabledCurrency.objects.get_or_create(currency_code="EUR")
@@ -391,17 +391,28 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
                 exchange_rate=Decimal("0.92"),
                 rate_type=RateType.STATIC,
             )
+            MonthlyExchangeRate.objects.create(
+                effective_date=self.month_start,
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.99"),
+                rate_type=RateType.DYNAMIC,
+            )
             replace_static_to_dynamic_monthly_rates("USD", "EUR", past_month, past_month)
 
             past = MonthlyExchangeRate.objects.get(
                 effective_date=past_month, base_currency="USD", target_currency="EUR"
             )
             self.assertEqual(past.rate_type, RateType.DYNAMIC)
-            self.assertEqual(past.exchange_rate, Decimal("0.8"))
+            self.assertEqual(past.exchange_rate, Decimal("0.99"))
+            current = MonthlyExchangeRate.objects.get(
+                effective_date=self.month_start, base_currency="USD", target_currency="EUR"
+            )
+            self.assertEqual(current.exchange_rate, Decimal("0.99"))
 
     @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
-    def test_restore_past_month_skipped_when_erd_missing(self, mock_retention_start):
-        """Without ERD, past STATIC rows are removed and no DYNAMIC row is invented."""
+    def test_restore_past_month_skipped_when_no_later_mer(self, mock_retention_start):
+        """Without ERD and without a later MER, past STATIC removal leaves a gap."""
         past_month = (self.month_start - relativedelta(months=1)).replace(day=1)
         mock_retention_start.return_value = past_month
         ExchangeRateDictionary.objects.all().delete()
@@ -445,28 +456,6 @@ class RemoveStaticAndBackfillDynamicTest(MasuTestCase):
             )
             self.assertEqual(past.rate_type, RateType.DYNAMIC)
             self.assertEqual(past.exchange_rate, Decimal("0.55"))
-
-    @patch("cost_models.monthly_exchange_rate_utils.materialized_view_month_start")
-    def test_restore_past_month_skips_non_positive_erd_rate(self, mock_retention_start):
-        """Non-positive ERD rates do not restore a past DYNAMIC row."""
-        past_month = (self.month_start - relativedelta(months=1)).replace(day=1)
-        mock_retention_start.return_value = past_month
-        ExchangeRateDictionary.objects.all().delete()
-        ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0", "USD": "1.0"}})
-        with tenant_context(self.tenant):
-            MonthlyExchangeRate.objects.create(
-                effective_date=past_month,
-                base_currency="USD",
-                target_currency="EUR",
-                exchange_rate=Decimal("0.92"),
-                rate_type=RateType.STATIC,
-            )
-            replace_static_to_dynamic_monthly_rates("USD", "EUR", past_month, past_month)
-            self.assertFalse(
-                MonthlyExchangeRate.objects.filter(
-                    effective_date=past_month, base_currency="USD", target_currency="EUR"
-                ).exists()
-            )
 
     def test_replace_noop_when_window_outside_materialization_range(self):
         """replace is a no-op when the window has no months to materialize."""
