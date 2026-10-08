@@ -126,7 +126,9 @@ jobs:
 
       - name: Install pipenv
         if: needs.changed-files.outputs.run_tests == 'true'
-        run: sudo python3 -m pip install pipenv
+        # Use the setup-python interpreter: under sudo, python3 is the runner's system Python,
+        # whose Debian-managed packages pip cannot upgrade (e.g. packaging for virtualenv).
+        run: python -m pip install pipenv
 
       - name: Cache dependencies
         if: needs.changed-files.outputs.run_tests == 'true'

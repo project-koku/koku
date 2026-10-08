@@ -6,11 +6,9 @@
 import logging
 
 from django.db import transaction
-from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -81,11 +79,6 @@ class StaticExchangeRateDetailView(APIView):
     @transaction.atomic
     def delete(self, request, *args, **kwargs):
         instance = self._get_object(kwargs["uuid"])
-
-        today = timezone.now().date()
-        current_month_start = today.replace(day=1)
-        if instance.start_date < current_month_start:
-            raise ValidationError("Rates with finalized months cannot be deleted.")
 
         replace_static_to_dynamic_monthly_rates(
             instance.base_currency,
