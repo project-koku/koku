@@ -127,7 +127,26 @@ def config():
         db_config["OPTIONS"]["sslmode"] = "verify-full"
         db_config["OPTIONS"]["sslrootcert"] = cert_file
 
+    session_options = _session_options()
+    if session_options:
+        db_config["OPTIONS"]["options"] = session_options
+
     return db_config
+
+
+def _session_options():
+    """PostgreSQL session settings for this process, from optional environment variables.
+
+    DATABASE_STATEMENT_TIMEOUT_MS cancels statements that run longer than the API
+    deadline. DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS lets PostgreSQL notice a
+    dropped client (killed Gunicorn worker, restarted pod) while a query runs and
+    cancel it. Unset or 0 leaves the server defaults.
+    """
+    settings_by_name = {
+        "statement_timeout": ENVIRONMENT.int("DATABASE_STATEMENT_TIMEOUT_MS", default=0),
+        "client_connection_check_interval": ENVIRONMENT.int("DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS", default=0),
+    }
+    return " ".join(f"-c {name}={value}" for name, value in settings_by_name.items() if value > 0)
 
 
 def dbfunc_exists(connection, function_schema, function_name, function_signature):
