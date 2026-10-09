@@ -2,10 +2,11 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Test staged ingress registration."""
+"""Test staged ingress claim and registration."""
 import io
 import json
 import tempfile
+import uuid
 from datetime import timedelta
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -13,6 +14,7 @@ from unittest.mock import patch
 import requests_mock
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
+from django.conf import settings
 from django.db import OperationalError
 from django.test import SimpleTestCase
 from django.utils import timezone
@@ -21,9 +23,13 @@ from masu.config import Config
 from masu.external.downloader.ocp.exceptions import FAILURE_CONFIRM_STATUS
 from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
 from masu.external.downloader.ocp.exceptions import SUCCESS_CONFIRM_STATUS
+from masu.external.downloader.ocp.payload_landing import claim_ingress_staging_row
+from masu.external.downloader.ocp.payload_landing import mark_processed
 from masu.external.downloader.ocp.payload_landing import PROCESS_STAGED_INGRESS_TASK
+from masu.external.downloader.ocp.payload_landing import record_line_item_handoff
 from masu.external.downloader.ocp.payload_landing import register_ingress_staging_marker
 from masu.external.downloader.ocp.payload_landing import REGISTER_INGRESS_STAGING_TASK
+from masu.external.downloader.ocp.payload_landing import release_for_retry
 from masu.external.downloader.ocp.payload_landing import stage_ingress_s3_inbox
 from masu.external.downloader.ocp.payload_landing.keys import _pending_marker_key
 from masu.external.downloader.ocp.payload_landing.keys import _pending_marker_prefix
@@ -65,6 +71,106 @@ class IngressStagingTests(MasuTestCase):
         }
         defaults.update(kwargs)
         return IngressStagingPayload.objects.create(**defaults)
+
+    def test_claim_is_single_winner(self):
+        """Test that a second claim loses while the first lease is active."""
+        row = self._pending_row("claim-one")
+        first = claim_ingress_staging_row(row.request_id)
+        second = claim_ingress_staging_row(row.request_id)
+
+        self.assertEqual(first.state, IngressStagingState.PROCESSING)
+        self.assertEqual(first.attempts, 1)
+        self.assertIsNotNone(first.claim_token)
+        self.assertIsNone(second)
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PROCESSING)
+        self.assertEqual(row.attempts, 1)
+        self.assertEqual(row.claim_token, first.claim_token)
+
+    def test_claim_leaves_exhausted_row_unchanged(self):
+        """Test that a row at the retry limit is not claimed and is not marked failed here."""
+        row = self._pending_row("claim-max", attempts=settings.MAX_UPDATE_RETRIES)
+        self.assertIsNone(claim_ingress_staging_row(row.request_id))
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PENDING)
+        self.assertEqual(row.attempts, settings.MAX_UPDATE_RETRIES)
+        self.assertIsNone(row.last_error)
+
+    def test_lost_claim_cannot_finish_the_row(self):
+        """Test that a worker whose lease was taken cannot write processed or pending."""
+        row = self._pending_row("fence-lost")
+        first = claim_ingress_staging_row(row.request_id)
+        stolen = claim_ingress_staging_row(row.request_id, now=timezone.now() + timedelta(hours=3))
+
+        self.assertIsNotNone(stolen)
+        self.assertNotEqual(stolen.claim_token, first.claim_token)
+        self.assertFalse(mark_processed(row.request_id, first.claim_token))
+        self.assertFalse(release_for_retry(row.request_id, first.claim_token, RuntimeError("late")))
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PROCESSING)
+        self.assertEqual(row.claim_token, stolen.claim_token)
+        self.assertEqual(row.attempts, stolen.attempts)
+        self.assertIsNotNone(row.payload)
+
+    def test_release_marks_exhausted_claim_failed(self):
+        """Test that the retry limit is applied by the worker that still holds the token."""
+        row = self._pending_row("release-max", attempts=settings.MAX_UPDATE_RETRIES - 1)
+        claimed = claim_ingress_staging_row(row.request_id)
+        self.assertTrue(release_for_retry(row.request_id, claimed.claim_token, RuntimeError("hive down")))
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.FAILED)
+        self.assertIn("RuntimeError", row.last_error)
+        self.assertIsNone(row.claim_token)
+        self.assertIsNotNone(row.payload)
+
+    def test_release_returns_row_to_pending_with_backoff(self):
+        """Test that a retriable failure sets pending state and exponential not_before."""
+        row = self._pending_row("release-retry")
+        claimed = claim_ingress_staging_row(row.request_id)
+        before = timezone.now()
+        self.assertTrue(release_for_retry(row.request_id, claimed.claim_token, ValueError("transient")))
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PENDING)
+        self.assertIsNone(row.claim_token)
+        self.assertEqual(row.attempts, 1)
+        self.assertIn("ValueError", row.last_error)
+        self.assertGreaterEqual(row.not_before, before + timedelta(minutes=1) - timedelta(seconds=2))
+        self.assertLessEqual(row.not_before, before + timedelta(minutes=1) + timedelta(seconds=2))
+
+    @patch("masu.external.downloader.ocp.payload_landing.claim._log_lost_claim")
+    @patch("masu.external.downloader.ocp.payload_landing.claim._claim_filter")
+    def test_release_for_retry_lost_during_retry_update(self, mock_claim_filter, mock_log_lost):
+        """Test that a lost token during the pending update does not write retry state."""
+        row = MagicMock()
+        row.attempts = 2
+        claim_token = uuid.uuid4()
+        mock_qs = MagicMock()
+        mock_qs.first.return_value = row
+        mock_qs.update.return_value = 0
+        mock_claim_filter.return_value = mock_qs
+
+        self.assertFalse(release_for_retry("retry-lost", claim_token, RuntimeError("race")))
+        mock_log_lost.assert_called_once_with("retry-lost", "retry")
+        mock_qs.update.assert_called_once()
+        update_kwargs = mock_qs.update.call_args.kwargs
+        self.assertEqual(update_kwargs["state"], IngressStagingState.PENDING)
+        self.assertEqual(update_kwargs["last_error"], "RuntimeError: race")
+        self.assertIsNone(update_kwargs["claim_token"])
+        expected_not_before = timezone.now() + timedelta(minutes=2)
+        self.assertAlmostEqual(
+            update_kwargs["not_before"].timestamp(),
+            expected_not_before.timestamp(),
+            delta=2,
+        )
+
+    def test_claim_respects_ocp_handoff_window(self):
+        """Test that a second claim loses while line items wait on the OCP queue."""
+        row = self._pending_row("handoff-claim")
+        first = claim_ingress_staging_row(row.request_id)
+        record_line_item_handoff(row.request_id, first.claim_token, now=timezone.now() - timedelta(hours=1))
+        row.claimed_at = timezone.now() - timedelta(hours=3)
+        row.save(update_fields=["claimed_at"])
+        self.assertIsNone(claim_ingress_staging_row(row.request_id))
 
     def test_stage_http_429_rewinds(self):
         """Test that a rate-limited quarantine download is retried by the consumer."""
