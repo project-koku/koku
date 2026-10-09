@@ -46,14 +46,14 @@ class ProcessStagedIngressTests(MasuTestCase):
 
     def test_summarize_manifest_skips_iso_min_date_from_json_ready(self):
         """ISO dates from _json_ready must hit the same invalid-date guard as str(datetime)."""
-        min_utc = datetime.min.replace(tzinfo=datetime.timezone.utc)
+        min_utc = datetime.min.replace(tzinfo=timezone.utc)
         report_meta = {
             "schema_name": self.schema,
             "manifest_id": "1",
             "provider_uuid": self.ocp_provider_uuid,
             "provider_type": "OCP",
             "start": _json_ready(min_utc),
-            "end": _json_ready(datetime.now(tz=datetime.timezone.utc)),
+            "end": _json_ready(datetime.now(tz=timezone.utc)),
             "ocp_files_to_process": {"filename": {"meta_reportdatestart": "2026-01-01"}},
         }
         with (
