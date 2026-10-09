@@ -40,6 +40,13 @@ SAAS_ONLY_BEAT_NAMES = (
 ONPREM_ONLY_BEAT_NAMES = ("create_source_beat",)
 
 
+def precreate_partitions_schedule(start_day: int) -> crontab:
+    """Run every eight hours from start_day through the end of each month."""
+    if not 1 <= start_day <= 28:
+        raise ValueError(f"PRECREATE_PARTITIONS_START_DAY must be between 1 and 28, got {start_day}")
+    return crontab(hour="5,13,21", minute=30, day_of_month=f"{start_day}-31")
+
+
 def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=None):
     """Register the daily currency rates beat only when CURRENCY_URL is set.
 
@@ -282,12 +289,12 @@ app.conf.beat_schedule["autovacuum-tune-schemas"] = {
     "args": [],
 }
 
-# Create next month's partitions ahead of time (from the 15th, every 8 hours) so the
+# Create next month's partitions ahead of time (from the configured day, every 8 hours) so the
 # first of the month does not need partition DDL on the processing path. A table that
 # is busy on one run is retried at a different time of day on the next.
 app.conf.beat_schedule["precreate-upcoming-partitions"] = {
     "task": "masu.celery.tasks.precreate_upcoming_partitions",
-    "schedule": crontab(hour="5,13,21", minute=30, day_of_month="15-31"),
+    "schedule": precreate_partitions_schedule(settings.PRECREATE_PARTITIONS_START_DAY),
     "args": [],
 }
 
