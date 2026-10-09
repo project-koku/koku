@@ -226,7 +226,7 @@ JSON message containing:
 
 #### **Step 2: Download Tar.gz from Quarantine Bucket**
 
-**Implementation:** See [`download_payload()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`download_payload()`](../../koku/masu/external/downloader/ocp/download.py) in `download.py`
 
 **Process:**
 1. Create temporary directory in `Config.DATA_DIR`
@@ -237,7 +237,7 @@ JSON message containing:
 
 #### **Step 3: Extract Tar.gz and Parse Manifest**
 
-**Implementation:** See [`extract_payload_contents()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`extract_payload_contents()`](../../koku/masu/processor/ocp/staged_payloads/processing.py) in `processing.py`
 
 **Process:**
 1. Open tar.gz file in read mode
@@ -262,7 +262,7 @@ JSON file containing:
 
 ### **Phase 2: CSV Splitting and Daily Archives**
 
-**File:** `koku/masu/external/kafka_msg_handler.py`
+**File:** `koku/masu/processor/ocp/staged_payloads/processing.py`
 
 OpenShift reports can contain **multiple days** of data. Koku splits them into **daily CSV files** for consistency with cloud provider processing.
 
@@ -282,7 +282,7 @@ OpenShift reports can contain **multiple days** of data. Koku splits them into *
 
 #### **Step 2: Split by Daily Interval**
 
-**Implementation:** See [`divide_csv_daily()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`divide_csv_daily()`](../../koku/masu/processor/ocp/staged_payloads/processing.py) in `processing.py`
 
 **Process:**
 1. Read CSV with pandas (pyarrow backend for performance)
@@ -290,15 +290,15 @@ OpenShift reports can contain **multiple days** of data. Koku splits them into *
 3. Extract unique days from `interval_start` column (YYYY-MM-DD)
 4. Group DataFrame by day
 5. For each day:
-   - Create filename: `{report_type}.{day}.{manifest_id}.{counter}.csv`
-   - Use database transaction to track file counter (prevents collisions)
+   - Create filename: `{report_type}.{day}.{manifest_id}.{digest}.csv`
+   - `digest` is a hash of that slice's CSV bytes ([`_day_slice_csv_name()`](../../koku/masu/processor/ocp/staged_payloads/processing.py)), so an identical replay writes the same object key
    - Write daily DataFrame to CSV
    - Track filepath, date, and number of hours
 6. Return list of daily file metadata
 
 #### **Step 3: Upload Daily CSVs to S3/MinIO**
 
-**Implementation:** See [`create_daily_archives()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`create_daily_archives()`](../../koku/masu/processor/ocp/staged_payloads/processing.py) in `processing.py`
 
 **Process:**
 1. Check operator version and daily_reports flag
@@ -313,12 +313,11 @@ OpenShift reports can contain **multiple days** of data. Koku splits them into *
 **S3/MinIO Path Structure:**
 ```
 org1234567/openshift/csv/
-├── pod_usage.2025-01-15.12345.0.csv
-├── pod_usage.2025-01-15.12345.1.csv
-├── storage_usage.2025-01-15.12345.0.csv
-├── node_labels.2025-01-15.12345.0.csv
-├── namespace_labels.2025-01-15.12345.0.csv
-└── vm_usage.2025-01-15.12345.0.csv
+├── pod_usage.2025-01-15.12345.{digest}.csv
+├── storage_usage.2025-01-15.12345.{digest}.csv
+├── node_labels.2025-01-15.12345.{digest}.csv
+├── namespace_labels.2025-01-15.12345.{digest}.csv
+└── vm_usage.2025-01-15.12345.{digest}.csv
 ```
 
 ---
@@ -984,6 +983,8 @@ For testing OCP processing, generate synthetic CSV reports with realistic data:
 ### **Primary Files**
 
 - **Kafka Message Handler:** `koku/masu/external/kafka_msg_handler.py`
+- **Ingress download:** `koku/masu/external/downloader/ocp/download.py`
+- **Ingress processing:** `koku/masu/processor/ocp/staged_payloads/processing.py`
 - **Parquet Processor:** `koku/masu/processor/ocp/ocp_report_parquet_processor.py`
 - **Summary Updater:** `koku/masu/processor/ocp/ocp_report_parquet_summary_updater.py`
 - **Cost Model Updater:** `koku/masu/processor/ocp/ocp_cost_model_cost_updater.py`
