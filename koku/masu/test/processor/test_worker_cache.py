@@ -6,6 +6,7 @@
 from unittest.mock import patch
 
 from django.core.cache import cache
+from django.db import connection
 from django.test.utils import override_settings
 
 from masu.processor.worker_cache import rate_limit_tasks
@@ -219,4 +220,33 @@ class WorkerCacheTest(MasuTestCase):
 
         with patch("masu.processor.worker_cache.connection") as mock_conn:
             mock_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (2,)
+            self.assertTrue(rate_limit_tasks(task_name, self.schema))
+
+    @override_settings(WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS=2)
+    def test_rate_limit_tasks_ignores_expired_locks(self):
+        """Test that expired lock rows in the worker cache table do not count as running tasks."""
+        task_name = "masu.processor.tasks.update_openshift_on_cloud"
+        expired = [f":1:{task_name}:{self.schema}:expired-{i}" for i in range(3)]
+        live = [f":1:{task_name}:{self.schema}:live-{i}" for i in range(2)]
+        with connection.cursor() as cursor:
+            for key in expired:
+                cursor.execute(
+                    "INSERT INTO public.worker_cache_table (cache_key, value, expires) "
+                    "VALUES (%s, 'x', now() - interval '1 day')",
+                    [key],
+                )
+            self.assertFalse(rate_limit_tasks(task_name, self.schema))
+
+            cursor.execute(
+                "INSERT INTO public.worker_cache_table (cache_key, value, expires) "
+                "VALUES (%s, 'x', now() + interval '1 hour')",
+                [live[0]],
+            )
+            self.assertFalse(rate_limit_tasks(task_name, self.schema))
+
+            cursor.execute(
+                "INSERT INTO public.worker_cache_table (cache_key, value, expires) "
+                "VALUES (%s, 'x', now() + interval '1 hour')",
+                [live[1]],
+            )
             self.assertTrue(rate_limit_tasks(task_name, self.schema))
