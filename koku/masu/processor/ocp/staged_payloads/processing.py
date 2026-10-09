@@ -451,6 +451,21 @@ def extract_payload(payload_path, request_id, b64_identity, context, local_repor
     return report_metas, manifest.uuid
 
 
+_INVALID_MANIFEST_DATE = "0001-01-01 00:00:00+00:00"
+
+
+def _normalized_manifest_date(value):
+    """Normalize manifest start/end for sentinel checks (space vs ISO T separator)."""
+    if value is None:
+        return None
+    return str(value).replace("T", " ", 1)
+
+
+def _has_invalid_manifest_date(start_date, end_date):
+    normalized = (_normalized_manifest_date(start_date), _normalized_manifest_date(end_date))
+    return _INVALID_MANIFEST_DATE in normalized
+
+
 def summarize_manifest(report_meta, manifest_uuid):
     """Kick off manifest summary when all report files have completed line item processing."""
     manifest_id = report_meta.get("manifest_id")
@@ -490,7 +505,7 @@ def summarize_manifest(report_meta, manifest_uuid):
         )
         return
 
-    if "0001-01-01 00:00:00+00:00" not in [str(start_date), str(end_date)]:
+    if not _has_invalid_manifest_date(start_date, end_date):
         dates = {
             datetime.strptime(meta["meta_reportdatestart"], "%Y-%m-%d").date()
             for meta in report_meta["ocp_files_to_process"].values()

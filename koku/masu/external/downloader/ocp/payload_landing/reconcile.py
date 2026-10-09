@@ -30,21 +30,15 @@ from reporting_common.models import IngressStagingState
 LOG = logging.getLogger(__name__)
 
 
-def _recently_enqueued(now):
+def _recently_reconciled(now):
     """Skip rows the reconciler already handed off inside the lease window."""
     lease_cutoff = now - INGRESS_STAGING_LEASE
-    return Q(enqueued_at__isnull=True) | Q(enqueued_at__lte=lease_cutoff)
+    return Q(reconciled_at__isnull=True) | Q(reconciled_at__lte=lease_cutoff)
 
 
 def _record_reconciler_enqueue(request_id, now):
     """Remember a successful reconciler publish without blocking a live claim."""
-    lease_cutoff = now - INGRESS_STAGING_LEASE
-    still_unclaimed = (
-        Q(state=IngressStagingState.PENDING)
-        | Q(state=IngressStagingState.PROCESSING, claimed_at__lte=lease_cutoff)
-        | Q(state=IngressStagingState.PROCESSING, claimed_at__isnull=True)
-    )
-    IngressStagingPayload.objects.filter(request_id=request_id).filter(still_unclaimed).update(enqueued_at=now)
+    IngressStagingPayload.objects.filter(request_id=request_id).update(reconciled_at=now)
 
 
 def _fail_exhausted_expired_leases(now):
@@ -87,7 +81,7 @@ def _claimable_request_ids(now):
     return list(
         IngressStagingPayload.objects.filter(pending | expired_lease)
         .filter(attempts_remaining)
-        .filter(_recently_enqueued(now))
+        .filter(_recently_reconciled(now))
         .order_by("stored_at")
         .values_list("request_id", flat=True)[:INGRESS_STAGING_RECONCILE_BATCH]
     )
@@ -116,9 +110,9 @@ def reconcile_ingress_staging():
     """Register pending S3 markers, then enqueue rows the eager handoff did not finish.
 
     Marker registration upserts a staging row and deletes the marker only after
-    that upsert succeeds. A successful row publish sets ``enqueued_at``. That
+    that upsert succeeds. A successful row publish sets ``reconciled_at``. That
     row is not published again until the lease passes, which is the same window
-    used for a dropped worker.
+    used for a dropped worker. ``enqueued_at`` is reserved for OCP line-item handoff.
     """
     now = timezone.now()
     _publish_ingress_staging_gauges(now)

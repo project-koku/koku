@@ -4,6 +4,7 @@
 #
 """Test the worker that processes a staged ingress tarball."""
 import tempfile
+from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -12,6 +13,8 @@ from django.utils import timezone
 
 from common.queues import OCPQueue
 from masu.external.downloader.ocp.payload_landing import claim_ingress_staging_row
+from masu.processor.ocp.staged_payloads import processing
+from masu.processor.ocp.staged_payloads.process_staged import _json_ready
 from masu.processor.ocp.staged_payloads.process_staged import process_staged_ingress_payload
 from masu.processor.ocp.staged_payloads.process_staged import process_staged_ingress_reports
 from masu.processor.ocp.staged_payloads.process_staged import PROCESS_STAGED_INGRESS_REPORTS_TASK
@@ -40,6 +43,30 @@ class ProcessStagedIngressTests(MasuTestCase):
         }
         defaults.update(kwargs)
         return IngressStagingPayload.objects.create(**defaults)
+
+    def test_summarize_manifest_skips_iso_min_date_from_json_ready(self):
+        """ISO dates from _json_ready must hit the same invalid-date guard as str(datetime)."""
+        min_utc = datetime.min.replace(tzinfo=datetime.timezone.utc)
+        report_meta = {
+            "schema_name": self.schema,
+            "manifest_id": "1",
+            "provider_uuid": self.ocp_provider_uuid,
+            "provider_type": "OCP",
+            "start": _json_ready(min_utc),
+            "end": _json_ready(datetime.now(tz=datetime.timezone.utc)),
+            "ocp_files_to_process": {"filename": {"meta_reportdatestart": "2026-01-01"}},
+        }
+        with (
+            patch(
+                "masu.processor.ocp.staged_payloads.processing.MANIFEST_ACCESSOR.manifest_ready_for_summary",
+                return_value=True,
+            ),
+            patch("masu.processor.ocp.staged_payloads.processing.summarize_reports.s") as mock_summarize_reports,
+        ):
+            result = processing.summarize_manifest(report_meta, "manifest-uuid")
+
+        self.assertIsNone(result)
+        mock_summarize_reports.assert_not_called()
 
     def test_replay_does_not_reprocess_completed_report_file(self):
         """Test that a file already marked complete is not sent through process_report again."""

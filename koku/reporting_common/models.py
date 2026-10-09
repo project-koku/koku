@@ -346,6 +346,7 @@ class IngressStagingPayload(models.Model):
     payload = models.JSONField(null=True)
     claim_token = models.UUIDField(null=True)
     enqueued_at = models.DateTimeField(null=True)
+    reconciled_at = models.DateTimeField(null=True)
     s3_key = models.TextField(null=True)
     org_id = models.CharField(max_length=36, null=True)
     cluster_id = models.TextField(null=True)

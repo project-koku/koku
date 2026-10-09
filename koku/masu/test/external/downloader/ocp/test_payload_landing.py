@@ -203,7 +203,26 @@ class IngressStagingTests(MasuTestCase):
         ):
             reconcile_ingress_staging()
         row = IngressStagingPayload.objects.get(request_id="broker-down")
+        self.assertIsNone(row.reconciled_at)
+
+    def test_reconcile_does_not_block_claim_after_expired_processing(self):
+        """Test that reconciler publish-once does not set the OCP handoff lease."""
+        row = self._pending_row(
+            "reconcile-then-claim",
+            state=IngressStagingState.PROCESSING,
+            claimed_at=timezone.now() - timedelta(hours=3),
+            attempts=1,
+            claim_token=uuid.uuid4(),
+        )
+        with patch("masu.external.downloader.ocp.payload_landing.reconcile.celery_app.send_task"):
+            reconcile_ingress_staging()
+
+        row.refresh_from_db()
+        self.assertIsNotNone(row.reconciled_at)
         self.assertIsNone(row.enqueued_at)
+        claimed = claim_ingress_staging_row(row.request_id)
+        self.assertIsNotNone(claimed)
+        self.assertEqual(claimed.state, IngressStagingState.PROCESSING)
 
     def test_stage_http_429_rewinds(self):
         """Test that a rate-limited quarantine download is retried by the consumer."""
