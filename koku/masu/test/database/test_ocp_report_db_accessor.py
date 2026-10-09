@@ -1653,7 +1653,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 usage_start__lte=self.dh.today,
             ).count()
             TagMapping.objects.create(parent=parent_obj, child=child_obj)
-            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+            # Usage and infrastructure rows are mapped by separate ownership paths.
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                self.dh.this_month_start, self.dh.today, infrastructure_only=False
+            )
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                self.dh.this_month_start, self.dh.today, infrastructure_only=True
+            )
             expected_parent_count = (parent_count + child_count) - value_precedence_count
             actual_parent_count = OCPUsageLineItemDailySummary.objects.filter(
                 all_labels__has_key=parent_key,
@@ -1690,6 +1696,40 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 self.assertNotIn(distinct_value, child_values)
                 tested = True
             self.assertTrue(tested)
+
+    def test_update_line_item_daily_summary_with_tag_mapping_row_ownership_filters(self):
+        """OCP and cloud summaries partition tag mapping by infrastructure_raw_cost."""
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+
+        # Default (OCP summary): usage rows only
+        with CaptureQueriesContext(connection) as captured:
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                self.dh.this_month_start, self.dh.today, infrastructure_only=False
+            )
+        updates = [
+            q["sql"] for q in captured.captured_queries if "UPDATE" in q["sql"] and "cte_update_labels" in q["sql"]
+        ]
+        self.assertEqual(len(updates), 1)
+        self.assertEqual(
+            updates[0].count("infrastructure_raw_cost IS NULL OR lids.infrastructure_raw_cost = 0"),
+            2,
+        )
+        self.assertNotIn("infrastructure_raw_cost IS NOT NULL", updates[0])
+
+        # Cloud summary: infrastructure rows only
+        with CaptureQueriesContext(connection) as captured:
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                self.dh.this_month_start, self.dh.today, infrastructure_only=True
+            )
+        updates = [
+            q["sql"] for q in captured.captured_queries if "UPDATE" in q["sql"] and "cte_update_labels" in q["sql"]
+        ]
+        self.assertEqual(len(updates), 1)
+        self.assertEqual(updates[0].count("infrastructure_raw_cost IS NOT NULL"), 2)
+        self.assertEqual(updates[0].count("infrastructure_raw_cost != 0"), 2)
+        self.assertNotIn("infrastructure_raw_cost IS NULL OR", updates[0])
 
     def test_no_report_period_populate_vm_tag_based_costs(self):
         """

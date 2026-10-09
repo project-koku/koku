@@ -171,6 +171,12 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         # Update the UI tables for the OpenShift provider
         with OCPReportDBAccessor(self._schema) as ocp_accessor:
+            # back_populate_ocp_infrastructure_costs inserts these rows with raw
+            # labels. Map them here; the OCP summary only maps usage rows.
+            if report_period := ocp_accessor.report_periods_for_provider_uuid(ocp_provider_uuid, start_date):
+                ocp_accessor.update_line_item_daily_summary_with_tag_mapping(
+                    start_date, end_date, [report_period.id], infrastructure_only=True
+                )
             ocp_accessor.populate_ui_summary_tables(
                 SummaryRangeConfig(start_date=start_date, end_date=end_date), ocp_provider_uuid
             )
