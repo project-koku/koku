@@ -9,6 +9,7 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.db import connection as conn
 from django.db import DatabaseError
+from django.test import override_settings
 from django_tenants.utils import schema_context
 from django_tenants.utils import schema_exists
 
@@ -232,22 +233,32 @@ class CloneSchemaTest(IamTestCase):
         finally:
             Tenant.objects.filter(schema_name=schema_name).delete()
 
-    @patch("cost_models.monthly_exchange_rate_utils.ensure_exchange_rate_dictionary")
-    def test_new_schema_ensures_erd_before_mer_populate(self, mock_ensure):
-        """Empty ERD path runs ensure before writing MER for the cloned schema."""
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
+    @patch("masu.celery.tasks._fetch_and_store_exchange_rates")
+    def test_new_schema_fetches_erd_before_mer_populate(self, mock_fetch):
+        """Empty ERD path fetches rates, then writes MER for the cloned schema."""
         schema_name = "org90909097"
         ExchangeRateDictionary.objects.all().delete()
-        ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}})
-        mock_ensure.return_value = True
+
+        def store_rates(_url):
+            ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}})
+
+        mock_fetch.side_effect = store_rates
         tenant = Tenant(schema_name=schema_name)
         tenant.save()
         try:
             with self.captureOnCommitCallbacks(execute=True):
                 self.assertTrue(tenant.create_schema())
-            mock_ensure.assert_called_once_with()
+            mock_fetch.assert_called_once_with("https://exchange-rates.example/v6/latest/USD")
+            current_month = self.dh.this_month_start.date()
             with schema_context(schema_name):
                 self.assertTrue(
-                    MonthlyExchangeRate.objects.filter(base_currency="USD", target_currency="EUR").exists()
+                    MonthlyExchangeRate.objects.filter(
+                        effective_date=current_month,
+                        base_currency="USD",
+                        target_currency="EUR",
+                        exchange_rate=Decimal("0.87"),
+                    ).exists()
                 )
         finally:
             Tenant.objects.filter(schema_name=schema_name).delete()
