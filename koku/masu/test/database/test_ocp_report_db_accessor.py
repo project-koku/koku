@@ -1653,7 +1653,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 usage_start__lte=self.dh.today,
             ).count()
             TagMapping.objects.create(parent=parent_obj, child=child_obj)
-            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+            # Usage and infrastructure rows are mapped by separate ownership paths.
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                self.dh.this_month_start, self.dh.today, infrastructure_only=False
+            )
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                self.dh.this_month_start, self.dh.today, infrastructure_only=True
+            )
             expected_parent_count = (parent_count + child_count) - value_precedence_count
             actual_parent_count = OCPUsageLineItemDailySummary.objects.filter(
                 all_labels__has_key=parent_key,
