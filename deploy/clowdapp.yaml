@@ -896,6 +896,8 @@ objects:
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_SCHEDULE
           value: ${SOURCE_STATUS_SCHEDULE}
+        - name: PRECREATE_PARTITIONS_START_DAY
+          value: ${PRECREATE_PARTITIONS_START_DAY}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
           value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
         - name: REMOVE_EXPIRED_REPORT_UTC_TIME
@@ -4405,6 +4407,15 @@ objects:
         public:
           enabled: false
     - autoScaler:
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                policies:
+                - periodSeconds: ${{WORKER_SUMMARY_SCALE_DOWN_PERIOD_SECONDS}}
+                  type: Pods
+                  value: 1
+                stabilizationWindowSeconds: ${{WORKER_SUMMARY_SCALE_DOWN_STABILIZATION_SECONDS}}
         fallback:
           behavior: currentReplicasIfHigher
           failureThreshold: 3
@@ -4580,7 +4591,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_WORKER_SUMMARY}
             memory: ${MEMORY_REQUEST_WORKER_SUMMARY}
-        terminationGracePeriodSeconds: 3600
+        terminationGracePeriodSeconds: ${{WORKER_SUMMARY_TERMINATION_GRACE_PERIOD_SECONDS}}
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -4606,6 +4617,15 @@ objects:
         public:
           enabled: false
     - autoScaler:
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                policies:
+                - periodSeconds: ${{WORKER_SUMMARY_XL_SCALE_DOWN_PERIOD_SECONDS}}
+                  type: Pods
+                  value: 1
+                stabilizationWindowSeconds: ${{WORKER_SUMMARY_XL_SCALE_DOWN_STABILIZATION_SECONDS}}
         fallback:
           behavior: currentReplicasIfHigher
           failureThreshold: 3
@@ -4781,7 +4801,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_WORKER_SUMMARY_XL}
             memory: ${MEMORY_REQUEST_WORKER_SUMMARY_XL}
-        terminationGracePeriodSeconds: 3600
+        terminationGracePeriodSeconds: ${{WORKER_SUMMARY_XL_TERMINATION_GRACE_PERIOD_SECONDS}}
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -4807,6 +4827,15 @@ objects:
         public:
           enabled: false
     - autoScaler:
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                policies:
+                - periodSeconds: ${{WORKER_SUMMARY_PENALTY_SCALE_DOWN_PERIOD_SECONDS}}
+                  type: Pods
+                  value: 1
+                stabilizationWindowSeconds: ${{WORKER_SUMMARY_PENALTY_SCALE_DOWN_STABILIZATION_SECONDS}}
         fallback:
           behavior: currentReplicasIfHigher
           failureThreshold: 3
@@ -4982,7 +5011,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_WORKER_SUMMARY_PENALTY}
             memory: ${MEMORY_REQUEST_WORKER_SUMMARY_PENALTY}
-        terminationGracePeriodSeconds: 3600
+        terminationGracePeriodSeconds: ${{WORKER_SUMMARY_PENALTY_TERMINATION_GRACE_PERIOD_SECONDS}}
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -6028,6 +6057,10 @@ parameters:
   displayName: Report download schedule
   name: REPORT_DOWNLOAD_SCHEDULE
   value: 0 * * * *
+- description: First day to pre-create next month's partitions (1-28)
+  displayName: Partition pre-creation start day
+  name: PRECREATE_PARTITIONS_START_DAY
+  value: "15"
 - description: Remove expired data on day
   displayName: Remove expired data on day
   name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -6998,6 +7031,23 @@ parameters:
   name: WORKER_SUMMARY_FALLBACK_REPLICAS
   required: true
   value: "3"
+- description: Seconds the queue metric must stay low before scaling down; summary
+    tasks run for hours
+  displayName: Scale-down stabilization window
+  name: WORKER_SUMMARY_SCALE_DOWN_STABILIZATION_SECONDS
+  required: true
+  value: "1800"
+- description: Remove at most one pod per this many seconds when scaling down
+  displayName: Scale-down period per pod
+  name: WORKER_SUMMARY_SCALE_DOWN_PERIOD_SECONDS
+  required: true
+  value: "600"
+- description: Seconds a stopping worker may finish its current task before it is
+    killed; summary tasks run for hours
+  displayName: Termination grace period
+  name: WORKER_SUMMARY_TERMINATION_GRACE_PERIOD_SECONDS
+  required: true
+  value: "21600"
 - displayName: Trigger threshold
   name: WORKER_SUMMARY_TRIGGER_THRESHOLD
   required: true
@@ -7041,6 +7091,23 @@ parameters:
   name: WORKER_SUMMARY_XL_FALLBACK_REPLICAS
   required: true
   value: "3"
+- description: Seconds the queue metric must stay low before scaling down; summary
+    tasks run for hours
+  displayName: Scale-down stabilization window
+  name: WORKER_SUMMARY_XL_SCALE_DOWN_STABILIZATION_SECONDS
+  required: true
+  value: "1800"
+- description: Remove at most one pod per this many seconds when scaling down
+  displayName: Scale-down period per pod
+  name: WORKER_SUMMARY_XL_SCALE_DOWN_PERIOD_SECONDS
+  required: true
+  value: "600"
+- description: Seconds a stopping worker may finish its current task before it is
+    killed; summary tasks run for hours
+  displayName: Termination grace period
+  name: WORKER_SUMMARY_XL_TERMINATION_GRACE_PERIOD_SECONDS
+  required: true
+  value: "21600"
 - displayName: Trigger threshold
   name: WORKER_SUMMARY_XL_TRIGGER_THRESHOLD
   required: true
@@ -7084,6 +7151,23 @@ parameters:
   name: WORKER_SUMMARY_PENALTY_FALLBACK_REPLICAS
   required: true
   value: "3"
+- description: Seconds the queue metric must stay low before scaling down; summary
+    tasks run for hours
+  displayName: Scale-down stabilization window
+  name: WORKER_SUMMARY_PENALTY_SCALE_DOWN_STABILIZATION_SECONDS
+  required: true
+  value: "1800"
+- description: Remove at most one pod per this many seconds when scaling down
+  displayName: Scale-down period per pod
+  name: WORKER_SUMMARY_PENALTY_SCALE_DOWN_PERIOD_SECONDS
+  required: true
+  value: "600"
+- description: Seconds a stopping worker may finish its current task before it is
+    killed; summary tasks run for hours
+  displayName: Termination grace period
+  name: WORKER_SUMMARY_PENALTY_TERMINATION_GRACE_PERIOD_SECONDS
+  required: true
+  value: "21600"
 - displayName: Trigger threshold
   name: WORKER_SUMMARY_PENALTY_TRIGGER_THRESHOLD
   required: true

@@ -538,6 +538,10 @@ parameters:
   displayName: Report download schedule
   name: REPORT_DOWNLOAD_SCHEDULE
   value: "0 * * * *"
+- description: First day to pre-create next month's partitions (1-28)
+  displayName: Partition pre-creation start day
+  name: PRECREATE_PARTITIONS_START_DAY
+  value: "15"
 - description: Remove expired data on day
   displayName: Remove expired data on day
   name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY

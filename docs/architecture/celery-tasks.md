@@ -725,7 +725,7 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 **Task**: `masu.celery.tasks.precreate_upcoming_partitions`
 
-**Schedule**: Every 8 hours (05:30, 13:30, 21:30 UTC) on days 15–31 (`30 5,13,21 15-31 * *`)
+**Schedule**: Every 8 hours (05:30, 13:30, 21:30 UTC) from `PRECREATE_PARTITIONS_START_DAY` through month end. The default is 15 (`30 5,13,21 15-31 * *`); the setting accepts 1–28 so every month has at least one run. Set it on the scheduler deployment to start earlier in an environment.
 
 **Enabled**: Per schema via `cost-management.backend.precreate_partitions`
 
