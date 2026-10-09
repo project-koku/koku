@@ -15,6 +15,7 @@ from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
 from urllib3.util.retry import Retry
 
+import masu.external.downloader.ocp.payload_landing  # noqa: F401  registers reconcile_ingress_staging
 import masu.processor.ocp.staged_payloads.process_staged  # noqa: F401  registers process_staged_ingress_payload
 from api.common import log_json
 from api.currency.currencies import is_valid_iso_currency
