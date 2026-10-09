@@ -194,6 +194,16 @@ Conceptual daily job (product behavior, not task wiring):
   (see below).
   - Invalidate cached report views when monthly rates changed.
 
+New tenant schemas do not wait for that daily job. `template0` is cloned with
+its table data, and on a fresh database that template has an empty
+`MonthlyExchangeRate` table because it is migrated before any market snapshot
+exists. After [`Tenant.create_schema`](../../../koku/api/iam/models.py) commits
+a clone, it runs the same current-month upsert and retention backfill for that
+schema from the shared `ExchangeRateDictionary`
+([`populate_monthly_rates_for_schema`](../../../koku/cost_models/monthly_exchange_rate_utils.py)).
+The daily job remains the refresh path. A failed fill is logged and does not
+roll back schema creation.
+
 
 
 ### Backward-looking backfill
@@ -259,6 +269,7 @@ reports.
 | Currency visibility            | Dropdown = enabled set only; enablement is admin or cloud-bill auto-enable |
 | Month writing                  | Populate when month is current; finalize when month ends                  |
 | Historical gaps                | Backward-looking fill from next later rate within retention               |
+| New tenant schema              | Fill monthly rates from the shared snapshot when the clone commits        |
 | Query-time missing rate        | Hard error (`400`), not silent omit or cross-month substitution           |
 | Multi-hop conversion           | Not supported                                                             |
 | Retention                      | Same window as retained cost months                                       |

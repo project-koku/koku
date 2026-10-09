@@ -3,16 +3,20 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the clone_schema functionality."""
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.db import connection as conn
 from django.db import DatabaseError
+from django_tenants.utils import schema_context
 from django_tenants.utils import schema_exists
 
 from ..models import CloneSchemaFuncMissing
 from ..models import Tenant
 from .iam_test_case import IamTestCase
+from api.currency.models import ExchangeRateDictionary
+from cost_models.models import MonthlyExchangeRate
 from koku.database import dbfunc_exists
 
 
@@ -192,6 +196,76 @@ class CloneSchemaTest(IamTestCase):
             cur.execute("""select count(*) from pg_namespace where nspname = 'eek01';""")
             res = cur.fetchone()[0]
             self.assertEqual(res, 0)
+
+    @patch("cost_models.monthly_exchange_rate_utils.populate_monthly_rates_for_schema")
+    def test_template_schema_creation_does_not_populate_exchange_rates(self, mock_populate):
+        """template0 is migrated, not cloned, and must not run the new-tenant rate fill."""
+        template = Tenant.objects.get(schema_name=Tenant._TEMPLATE_SCHEMA)
+        with self.captureOnCommitCallbacks(execute=True):
+            template.create_schema()
+        mock_populate.assert_not_called()
+
+    def test_new_schema_populates_monthly_exchange_rates(self):
+        """A cloned tenant schema gets current and backfilled monthly rates from the shared dictionary."""
+        schema_name = "org90909094"
+        ExchangeRateDictionary.objects.all().delete()
+        ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}})
+        tenant = Tenant(schema_name=schema_name)
+        tenant.save()
+        try:
+            with self.captureOnCommitCallbacks(execute=True):
+                self.assertTrue(tenant.create_schema())
+
+            current_month = self.dh.this_month_start.date()
+            with schema_context(schema_name):
+                current = MonthlyExchangeRate.objects.get(
+                    effective_date=current_month,
+                    base_currency="USD",
+                    target_currency="EUR",
+                )
+                self.assertEqual(current.exchange_rate, Decimal("0.87"))
+                self.assertTrue(
+                    MonthlyExchangeRate.objects.filter(base_currency="USD", target_currency="EUR")
+                    .exclude(effective_date=current_month)
+                    .exists()
+                )
+        finally:
+            Tenant.objects.filter(schema_name=schema_name).delete()
+
+    @patch(
+        "cost_models.monthly_exchange_rate_utils.populate_monthly_rates_for_schema",
+        side_effect=RuntimeError("fx down"),
+    )
+    def test_exchange_rate_population_failure_does_not_block_schema_creation(self, mock_populate):
+        """A rate-fill failure is logged and still leaves the new schema in place."""
+        schema_name = "org90909095"
+        tenant = Tenant(schema_name=schema_name)
+        tenant.save()
+        try:
+            with self.assertLogs("api.iam.models", level="ERROR") as captured_logs:
+                with self.captureOnCommitCallbacks(execute=True):
+                    self.assertTrue(tenant.create_schema())
+            self.assertTrue(schema_exists(schema_name))
+            mock_populate.assert_called_once_with(schema_name)
+            self.assertTrue(any("Failed to populate monthly exchange rates" in line for line in captured_logs.output))
+        finally:
+            Tenant.objects.filter(schema_name=schema_name).delete()
+
+    @patch("cost_models.monthly_exchange_rate_utils.populate_monthly_rates_for_schema")
+    def test_existing_schema_does_not_populate_exchange_rates(self, mock_populate):
+        """Re-running create_schema on a schema that already exists does not rewrite rates."""
+        schema_name = "org90909096"
+        tenant = Tenant(schema_name=schema_name)
+        tenant.save()
+        try:
+            with self.captureOnCommitCallbacks(execute=True):
+                self.assertTrue(tenant.create_schema())
+            mock_populate.reset_mock()
+            with self.captureOnCommitCallbacks(execute=True):
+                self.assertFalse(tenant.create_schema())
+            mock_populate.assert_not_called()
+        finally:
+            Tenant.objects.filter(schema_name=schema_name).delete()
 
     def test_create_bad_tenant_name(self):
         """
