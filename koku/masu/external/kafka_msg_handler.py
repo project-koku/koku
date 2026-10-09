@@ -4,8 +4,11 @@
 #
 """Kafka listener for HCCM ingress uploads.
 
-This module polls Kafka and, on the listener thread, downloads the quarantine
-tarball, extracts it, and runs line-item processing.
+Downloading a payload and turning it into line items are separate steps.
+Download ends when the raw tarball is durable in our bucket. Processing
+starts on the ingress worker, which reads that object back.
+This module polls Kafka, confirms the upload, and chooses which step runs
+on the listener.
 """
 import itertools
 import json
@@ -48,7 +51,9 @@ from masu.external.downloader.ocp.download import is_permanent_download_error as
 from masu.external.downloader.ocp.exceptions import FAILURE_CONFIRM_STATUS
 from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
 from masu.external.downloader.ocp.exceptions import SUCCESS_CONFIRM_STATUS
+from masu.external.downloader.ocp.payload_landing import stage_ingress_s3_inbox
 from masu.processor import INGRESS_DEAD_LETTER_QUEUE_FLAG
+from masu.processor import INGRESS_STAGING_LISTENER_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor.ocp.staged_payloads.processing import extract_payload
 from masu.processor.ocp.staged_payloads.processing import process_extracted_reports
@@ -304,7 +309,14 @@ def _kafka_upload_value_for_log(value):
 
 
 def legacy_message_processing(request_id, value, context):
-    """Download and extract an ingress payload on the listener thread."""
+    """Download and extract an ingress payload on the listener thread.
+
+    This is the path used when INGRESS_STAGING_LISTENER_FLAG is off. Production
+    on-prem stays here: MockUnleashClient does not list that flag, and
+    ``dev_fallback=True`` is true only when the Unleash environment is
+    ``development``. Remove this function once the flag is confirmed for every
+    schema that should take the staging path.
+    """
     logged_value = _kafka_upload_value_for_log(value)
     payload_path = None
     try:
@@ -369,12 +381,20 @@ def handle_message(kmsg):
         LOG.info(log_json(request_id, msg=msg, context=context))
         return FAILURE_CONFIRM_STATUS, None, None
 
+    # For this unleash flag we will always have to use org{org_id}
+    # while testing this path. The listener does not query Customer.
+    derived_schema = schema_name_for_org(org_id)
+    if is_feature_flag_enabled_by_schema(derived_schema, INGRESS_STAGING_LISTENER_FLAG, dev_fallback=True):
+        context["schema"] = derived_schema
+        return stage_ingress_s3_inbox(request_id, value, context), None, None
+
     schema_name = Customer.objects.filter(org_id=org_id).values_list("schema_name", flat=True).first()
     # Park-and-skip: keep default dev_fallback=False so local/dev still extracts payloads.
     if schema_name and is_feature_flag_enabled_by_schema(schema_name, INGRESS_DEAD_LETTER_QUEUE_FLAG):
         context["schema"] = schema_name
         return send_to_dead_letter_queue(request_id, value, schema_name, context), None, None
 
+    # Remove with legacy_message_processing once INGRESS_STAGING_LISTENER_FLAG is confirmed.
     return legacy_message_processing(request_id, value, context)
 
 

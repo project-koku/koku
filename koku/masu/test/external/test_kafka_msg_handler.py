@@ -16,6 +16,7 @@ import uuid
 from datetime import date
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -24,6 +25,7 @@ import requests_mock
 from confluent_kafka import KafkaError
 from django.db import InterfaceError
 from django.db import OperationalError
+from kombu.exceptions import OperationalError as KombuOperationalError
 from model_bakery import baker
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError
@@ -33,8 +35,10 @@ from common.queues import OCPQueue
 from kafka_utils.utils import UPLOAD_TOPIC
 from masu.config import Config
 from masu.external.downloader.ocp import download
+from masu.external.downloader.ocp.payload_landing import REGISTER_INGRESS_STAGING_TASK
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor import INGRESS_DEAD_LETTER_QUEUE_FLAG
+from masu.processor import INGRESS_STAGING_LISTENER_FLAG
 from masu.processor.ocp.staged_payloads import processing
 from masu.processor.ocp.staged_payloads.processing import EmptyPayloadFileError
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
@@ -46,6 +50,7 @@ from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import IngressDeadLetterQueue
+from reporting_common.models import IngressStagingPayload
 
 FILE_PATH_ONE = Path("path/to/file_one")
 FILE_PATH_TWO = Path("path/to/file_two")
@@ -62,8 +67,13 @@ def raise_OSError(*_args, **_kwargs):
 
 
 def _only_dlq_flag(schema, flag, dev_fallback=False):
-    """Enable the DLQ flag."""
+    """Enable the DLQ flag and leave the staging flag off."""
     return flag == INGRESS_DEAD_LETTER_QUEUE_FLAG
+
+
+def _only_staging_flag(schema, flag, dev_fallback=False):
+    """Enable the staging flag and leave the DLQ flag off."""
+    return flag == INGRESS_STAGING_LISTENER_FLAG
 
 
 def _kafka_error_from_http_status(status_code):
@@ -218,6 +228,21 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Set up each test case."""
         super().setUp()
         logging.disable(logging.NOTSET)
+        # dev_fallback turns this flag on when the Unleash environment is development.
+        # Keep the legacy listener path unless a test patches the flag itself.
+        real_flag = msg_handler.is_feature_flag_enabled_by_schema
+
+        def _staging_flag_off(schema, flag, dev_fallback=False):
+            if flag == INGRESS_STAGING_LISTENER_FLAG:
+                return False
+            return real_flag(schema, flag, dev_fallback=dev_fallback)
+
+        staging_flag = patch(
+            "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema",
+            side_effect=_staging_flag_off,
+        )
+        staging_flag.start()
+        self.addCleanup(staging_flag.stop)
 
         self.test_payload_file = Path("./koku/masu/test/data/ocp/payload2.tar.gz")
 
@@ -742,7 +767,13 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.assertEqual(status, msg_handler.SUCCESS_CONFIRM_STATUS)
         self.assertIsNone(report_metas)
         self.assertIsNone(manifest_uuid)
-        mock_flag.assert_called_once_with(self.schema, INGRESS_DEAD_LETTER_QUEUE_FLAG)
+        self.assertEqual(
+            mock_flag.call_args_list,
+            [
+                call(self.schema, INGRESS_STAGING_LISTENER_FLAG, dev_fallback=True),
+                call(self.schema, INGRESS_DEAD_LETTER_QUEUE_FLAG),
+            ],
+        )
         mock_extract.assert_called_once()
         mock_copy.assert_not_called()
         self.assertFalse(IngressDeadLetterQueue.objects.filter(request_id=request_id).exists())
@@ -766,7 +797,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
         )
         expected_filename = "testdlqrequestid.tar.gz"
         with (
-            patch("masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema", return_value=True) as mock_flag,
+            patch(
+                "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema", side_effect=_only_dlq_flag
+            ) as mock_flag,
             patch("masu.external.kafka_msg_handler.download_payload", return_value=payload_file),
             patch("masu.external.kafka_msg_handler.copy_data_to_s3_bucket") as mock_copy,
             patch("masu.external.kafka_msg_handler.extract_payload") as mock_extract,
@@ -778,7 +811,13 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.assertEqual(status, msg_handler.SUCCESS_CONFIRM_STATUS)
         self.assertIsNone(report_metas)
         self.assertIsNone(manifest_uuid)
-        mock_flag.assert_called_once_with(self.schema, INGRESS_DEAD_LETTER_QUEUE_FLAG)
+        self.assertEqual(
+            mock_flag.call_args_list,
+            [
+                call(self.schema, INGRESS_STAGING_LISTENER_FLAG, dev_fallback=True),
+                call(self.schema, INGRESS_DEAD_LETTER_QUEUE_FLAG),
+            ],
+        )
         mock_extract.assert_not_called()
         mock_copy.assert_called_once()
         self.assertEqual(mock_copy.call_args.args[1], expected_s3_path)
@@ -926,7 +965,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
         )
         fake_payload_path = Path("fake") / "payload.tar.gz"
         with (
-            patch("masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema") as mock_flag,
+            patch(
+                "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema", return_value=False
+            ) as mock_flag,
             patch("masu.external.kafka_msg_handler.download_payload", return_value=fake_payload_path),
             patch("masu.external.kafka_msg_handler.extract_payload", return_value=(None, None)) as mock_extract,
             patch("masu.external.kafka_msg_handler.copy_data_to_s3_bucket") as mock_copy,
@@ -936,7 +977,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.assertEqual(status, msg_handler.SUCCESS_CONFIRM_STATUS)
         self.assertIsNone(report_metas)
         self.assertIsNone(manifest_uuid)
-        mock_flag.assert_not_called()
+        mock_flag.assert_called_once_with(
+            msg_handler.schema_name_for_org("9999999"), INGRESS_STAGING_LISTENER_FLAG, dev_fallback=True
+        )
         mock_extract.assert_called_once()
         mock_copy.assert_not_called()
         self.assertFalse(IngressDeadLetterQueue.objects.filter(request_id=request_id).exists())
@@ -964,6 +1007,257 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.assertEqual(IngressDeadLetterQueue.objects.filter(request_id=request_id).count(), 1)
         dlq = IngressDeadLetterQueue.objects.get(request_id=request_id)
         self.assertIsNone(dlq.s3_key)
+
+    def _stage_ingress_patches(self, payload_file, manifest, receipt_exists=False):
+        """Patches for the listener staging path. S3 and the manifest peek are faked."""
+        exists_kwargs = (
+            {"side_effect": receipt_exists} if isinstance(receipt_exists, list) else {"return_value": receipt_exists}
+        )
+        return (
+            patch("masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema", side_effect=_only_staging_flag),
+            patch("masu.external.downloader.ocp.download.download_payload", return_value=payload_file),
+            patch("masu.external.downloader.ocp.download.read_manifest_from_tarball", return_value=manifest),
+            patch("masu.processor.ocp.staged_payloads.processing.extract_payload"),
+            patch("masu.processor.ocp.staged_payloads.processing.process_report"),
+            patch("masu.external.downloader.ocp.payload_landing.objects.copy_data_to_s3_bucket"),
+            patch("masu.external.downloader.ocp.payload_landing.listener._s3_key_exists", **exists_kwargs),
+            patch("masu.external.downloader.ocp.payload_landing.listener.celery_app.send_task"),
+            patch("masu.external.kafka_msg_handler.send_confirmation"),
+            patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor"),
+        )
+
+    def test_handle_message_staging_flag_confirms_without_extract(self):
+        """Test that the staging flag confirms the message without listener-side processing."""
+        request_id = "test-staging-request-id"
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC,
+            "http://insights-upload.com/quarantine/file_to_validate",
+            {"org_id": self.org_id, "account": self.acct, "request_id": request_id},
+        )
+        payload_dir = Path(tempfile.mkdtemp())
+        payload_file = payload_dir / "payload.tar.gz"
+        payload_file.write_bytes(b"fake-tarball")
+        manifest = Mock(cluster_id="cluster-1", uuid="assembly-1")
+        (
+            flag_patch,
+            download_patch,
+            manifest_patch,
+            extract_patch,
+            process_patch,
+            copy_patch,
+            exists_patch,
+            enqueue_patch,
+            confirm_patch,
+            parquet_patch,
+        ) = self._stage_ingress_patches(payload_file, manifest)
+        with (
+            flag_patch,
+            download_patch,
+            manifest_patch,
+            extract_patch as mock_extract,
+            process_patch as mock_process,
+            copy_patch as mock_copy,
+            exists_patch,
+            enqueue_patch as mock_enqueue,
+            confirm_patch as mock_confirm,
+            parquet_patch as mock_parquet,
+            patch("masu.external.kafka_msg_handler.settings.DEBUG", False),
+        ):
+            msg_handler.process_messages(hccm_msg)
+
+        mock_extract.assert_not_called()
+        mock_process.assert_not_called()
+        mock_parquet.assert_not_called()
+        mock_confirm.assert_called_once_with(request_id, msg_handler.SUCCESS_CONFIRM_STATUS)
+        mock_enqueue.assert_called_once_with(REGISTER_INGRESS_STAGING_TASK, args=[request_id], queue="ingress")
+        uploaded = [f"{call_args.args[1]}/{call_args.args[2]}" for call_args in mock_copy.call_args_list]
+        self.assertEqual(
+            uploaded,
+            [
+                f"{Config.WAREHOUSE_PATH}/ingress_staging/{self.org_id}/cluster-1/teststagingrequestid.tar.gz",
+                f"{Config.WAREHOUSE_PATH}/ingress_staging/by_request/teststagingrequestid.json",
+                f"{Config.WAREHOUSE_PATH}/ingress_staging/pending/teststagingrequestid.json",
+            ],
+        )
+        self.assertFalse(IngressStagingPayload.objects.filter(request_id=request_id).exists())
+
+    def test_staging_duplicate_request_id_does_not_rewrite(self):
+        """Test that a redelivered request id confirms from the receipt and does not upload again."""
+        request_id = "test-staging-duplicate"
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC,
+            "http://insights-upload.com/quarantine/file_to_validate",
+            {"org_id": self.org_id, "account": self.acct, "request_id": request_id},
+        )
+        payload_dir = Path(tempfile.mkdtemp())
+        payload_file = payload_dir / "payload.tar.gz"
+        payload_file.write_bytes(b"fake-tarball")
+        manifest = Mock(cluster_id="cluster-1", uuid="assembly-1")
+        (
+            flag_patch,
+            download_patch,
+            manifest_patch,
+            extract_patch,
+            process_patch,
+            copy_patch,
+            exists_patch,
+            enqueue_patch,
+            confirm_patch,
+            parquet_patch,
+        ) = self._stage_ingress_patches(payload_file, manifest, receipt_exists=[False, True])
+        with (
+            flag_patch,
+            download_patch as mock_download,
+            manifest_patch,
+            extract_patch,
+            process_patch,
+            copy_patch as mock_copy,
+            exists_patch,
+            enqueue_patch,
+            confirm_patch,
+            parquet_patch,
+            patch("masu.external.downloader.ocp.payload_landing.listener._copy_s3_key") as mock_copy_key,
+        ):
+            msg_handler.handle_message(hccm_msg)
+            msg_handler.handle_message(hccm_msg)
+
+        self.assertEqual(mock_copy.call_count, 3)
+        self.assertEqual(mock_download.call_count, 1)
+        mock_copy_key.assert_called_once()
+        self.assertFalse(IngressStagingPayload.objects.filter(request_id=request_id).exists())
+
+    def test_staging_s3_failure_rewinds(self):
+        """Test that an S3 failure rewinds the consumer instead of committing the offset."""
+        request_id = "test-staging-s3-failure"
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC,
+            "http://insights-upload.com/quarantine/file_to_validate",
+            {"org_id": self.org_id, "account": self.acct, "request_id": request_id},
+        )
+        payload_dir = Path(tempfile.mkdtemp())
+        payload_file = payload_dir / "payload.tar.gz"
+        payload_file.write_bytes(b"fake-tarball")
+        manifest = Mock(cluster_id="cluster-1", uuid="assembly-1")
+        (
+            flag_patch,
+            download_patch,
+            manifest_patch,
+            extract_patch,
+            process_patch,
+            copy_patch,
+            exists_patch,
+            enqueue_patch,
+            confirm_patch,
+            parquet_patch,
+        ) = self._stage_ingress_patches(payload_file, manifest)
+        consumer = Mock()
+        with (
+            flag_patch,
+            download_patch,
+            manifest_patch,
+            extract_patch,
+            process_patch,
+            copy_patch,
+            exists_patch,
+            enqueue_patch as mock_enqueue,
+            confirm_patch,
+            parquet_patch,
+            patch(
+                "masu.external.downloader.ocp.payload_landing.objects.copy_data_to_s3_bucket",
+                side_effect=UploadError("s3 upload failed"),
+            ),
+            patch.object(Config, "RETRY_SECONDS", 0),
+        ):
+            msg_handler.listen_for_messages(hccm_msg, consumer)
+
+        consumer.seek.assert_called_once()
+        consumer.commit.assert_not_called()
+        mock_enqueue.assert_not_called()
+
+    def test_staging_enqueue_failure_still_confirms(self):
+        """Test that a broker error after the objects are stored still confirms the Kafka message."""
+        request_id = "test-staging-enqueue-failure"
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC,
+            "http://insights-upload.com/quarantine/file_to_validate",
+            {"org_id": self.org_id, "account": self.acct, "request_id": request_id},
+        )
+        payload_dir = Path(tempfile.mkdtemp())
+        payload_file = payload_dir / "payload.tar.gz"
+        payload_file.write_bytes(b"fake-tarball")
+        manifest = Mock(cluster_id="cluster-1", uuid="assembly-1")
+        (
+            flag_patch,
+            download_patch,
+            manifest_patch,
+            extract_patch,
+            process_patch,
+            copy_patch,
+            exists_patch,
+            enqueue_patch,
+            confirm_patch,
+            parquet_patch,
+        ) = self._stage_ingress_patches(payload_file, manifest)
+        with (
+            flag_patch,
+            download_patch,
+            manifest_patch,
+            extract_patch,
+            process_patch,
+            copy_patch,
+            exists_patch,
+            enqueue_patch as mock_enqueue,
+            confirm_patch as mock_confirm,
+            parquet_patch,
+            patch("masu.external.kafka_msg_handler.settings.DEBUG", False),
+        ):
+            mock_enqueue.side_effect = KombuOperationalError("broker down")
+            msg_handler.process_messages(hccm_msg)
+
+        mock_confirm.assert_called_once_with(request_id, msg_handler.SUCCESS_CONFIRM_STATUS)
+        self.assertFalse(IngressStagingPayload.objects.filter(request_id=request_id).exists())
+
+    def test_staging_confirms_when_postgres_is_down(self):
+        """Test that the staging flag confirms when Postgres raises on the listener path."""
+        request_id = "test-s3-inbox"
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC,
+            "http://insights-upload.com/quarantine/file_to_validate",
+            {"org_id": self.org_id, "account": self.acct, "request_id": request_id},
+        )
+        payload_dir = Path(tempfile.mkdtemp())
+        payload_file = payload_dir / "payload.tar.gz"
+        payload_file.write_bytes(b"fake-tarball")
+        manifest = Mock(cluster_id="cluster-1", uuid="assembly-1")
+        with (
+            patch(
+                "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema",
+                side_effect=_only_staging_flag,
+            ),
+            patch("masu.external.downloader.ocp.download.download_payload", return_value=payload_file),
+            patch("masu.external.downloader.ocp.download.read_manifest_from_tarball", return_value=manifest),
+            patch("masu.external.downloader.ocp.payload_landing.objects.copy_data_to_s3_bucket") as mock_copy,
+            patch("masu.external.downloader.ocp.payload_landing.listener._s3_key_exists", return_value=False),
+            patch("masu.external.downloader.ocp.payload_landing.listener.celery_app.send_task") as mock_enqueue,
+            patch("masu.external.kafka_msg_handler.send_confirmation") as mock_confirm,
+            patch("masu.external.kafka_msg_handler.settings.DEBUG", False),
+            patch("masu.external.kafka_msg_handler.Customer.objects.filter", side_effect=OperationalError("db down")),
+            patch.object(IngressStagingPayload.objects, "get_or_create", side_effect=OperationalError("db down")),
+        ):
+            msg_handler.process_messages(hccm_msg)
+
+        mock_confirm.assert_called_once_with(request_id, msg_handler.SUCCESS_CONFIRM_STATUS)
+        mock_enqueue.assert_called_once_with(REGISTER_INGRESS_STAGING_TASK, args=[request_id], queue="ingress")
+        uploaded = [f"{call_args.args[1]}/{call_args.args[2]}" for call_args in mock_copy.call_args_list]
+        self.assertEqual(
+            uploaded,
+            [
+                f"{Config.WAREHOUSE_PATH}/ingress_staging/{self.org_id}/cluster-1/tests3inbox.tar.gz",
+                f"{Config.WAREHOUSE_PATH}/ingress_staging/by_request/tests3inbox.json",
+                f"{Config.WAREHOUSE_PATH}/ingress_staging/pending/tests3inbox.json",
+            ],
+        )
+        self.assertFalse(IngressStagingPayload.objects.filter(request_id=request_id).exists())
 
     def test_process_report(self):
         """Test report processing."""
