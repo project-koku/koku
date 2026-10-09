@@ -29,6 +29,7 @@ DISABLE_CELERY_TASK_DELAY_FLAG = "cost-management.backend.disable-celery-task-de
 DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
 GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
 INGRESS_DEAD_LETTER_QUEUE_FLAG = "cost-management.backend.ingress-dead-letter-queue"
+INGRESS_STAGING_LISTENER_FLAG = "cost-management.backend.ingress-staging-listener"
 OCP_CAPACITY_BY_NODE_SUMMARY_FLAG = "cost-management.backend.ocp_capacity_by_node_summary"
 OCP_CAPACITY_SINGLE_SCAN_FLAG = "cost-management.backend.ocp_capacity_single_scan"
 OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
