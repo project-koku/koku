@@ -226,7 +226,7 @@ JSON message containing:
 
 #### **Step 2: Download Tar.gz from Quarantine Bucket**
 
-**Implementation:** See [`download_payload()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`download_payload()`](../../koku/masu/external/downloader/ocp/download.py) in `download.py`
 
 **Process:**
 1. Create temporary directory in `Config.DATA_DIR`
@@ -235,9 +235,11 @@ JSON message containing:
 4. Write tar.gz to temporary file
 5. Return file path for extraction
 
+When `cost-management.backend.ingress-staging-listener` is enabled for the schema, the listener stops after storing the raw tarball. [`stage_ingress_s3_inbox()`](../../koku/masu/external/downloader/ocp/payload_landing/listener.py) derives the schema as `org{org_id}`, reads `cluster_id` and the manifest uuid, and writes the tar, a receipt, and a pending marker under `ingress_staging/`. It does not open Postgres. Download is finished at that point. It confirms the Kafka message without calling `extract_payload` or `process_report`. [`register_ingress_staging_marker()`](../../koku/masu/external/downloader/ocp/payload_landing/register.py) upserts [`IngressStagingPayload`](../../koku/reporting_common/models.py). [`process_staged_ingress_payload()`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py) on the `ingress` queue reads that object back and extracts it. Line items then run as `process_staged_ingress_reports` on the customer OCP queue (`ocp`, `ocp_xl`, or `ocp_penalty`). [`reconcile_ingress_staging()`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) runs every minute, registers pending markers, and enqueues rows the eager handoff did not finish. Production on-prem stays on the legacy listener until a later release. The flag stays off in stage and production until it is enabled per schema. With the flag off, the listener still extracts and splits on the consumer thread, as the following steps describe.
+
 #### **Step 3: Extract Tar.gz and Parse Manifest**
 
-**Implementation:** See [`extract_payload_contents()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`extract_payload_contents()`](../../koku/masu/processor/ocp/staged_payloads/processing.py) in `processing.py`
 
 **Process:**
 1. Open tar.gz file in read mode
@@ -262,7 +264,7 @@ JSON file containing:
 
 ### **Phase 2: CSV Splitting and Daily Archives**
 
-**File:** `koku/masu/external/kafka_msg_handler.py`
+**File:** `koku/masu/processor/ocp/staged_payloads/processing.py`
 
 OpenShift reports can contain **multiple days** of data. Koku splits them into **daily CSV files** for consistency with cloud provider processing.
 
@@ -282,7 +284,7 @@ OpenShift reports can contain **multiple days** of data. Koku splits them into *
 
 #### **Step 2: Split by Daily Interval**
 
-**Implementation:** See [`divide_csv_daily()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`divide_csv_daily()`](../../koku/masu/processor/ocp/staged_payloads/processing.py) in `processing.py`
 
 **Process:**
 1. Read CSV with pandas (pyarrow backend for performance)
@@ -290,15 +292,15 @@ OpenShift reports can contain **multiple days** of data. Koku splits them into *
 3. Extract unique days from `interval_start` column (YYYY-MM-DD)
 4. Group DataFrame by day
 5. For each day:
-   - Create filename: `{report_type}.{day}.{manifest_id}.{counter}.csv`
-   - Use database transaction to track file counter (prevents collisions)
+   - Create filename: `{report_type}.{day}.{manifest_id}.{digest}.csv`
+   - `digest` is a hash of that slice's CSV bytes ([`_day_slice_csv_name()`](../../koku/masu/processor/ocp/staged_payloads/processing.py)), so an identical replay writes the same object key
    - Write daily DataFrame to CSV
    - Track filepath, date, and number of hours
 6. Return list of daily file metadata
 
 #### **Step 3: Upload Daily CSVs to S3/MinIO**
 
-**Implementation:** See [`create_daily_archives()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`create_daily_archives()`](../../koku/masu/processor/ocp/staged_payloads/processing.py) in `processing.py`
 
 **Process:**
 1. Check operator version and daily_reports flag
@@ -313,12 +315,11 @@ OpenShift reports can contain **multiple days** of data. Koku splits them into *
 **S3/MinIO Path Structure:**
 ```
 org1234567/openshift/csv/
-├── pod_usage.2025-01-15.12345.0.csv
-├── pod_usage.2025-01-15.12345.1.csv
-├── storage_usage.2025-01-15.12345.0.csv
-├── node_labels.2025-01-15.12345.0.csv
-├── namespace_labels.2025-01-15.12345.0.csv
-└── vm_usage.2025-01-15.12345.0.csv
+├── pod_usage.2025-01-15.12345.{digest}.csv
+├── storage_usage.2025-01-15.12345.{digest}.csv
+├── node_labels.2025-01-15.12345.{digest}.csv
+├── namespace_labels.2025-01-15.12345.{digest}.csv
+└── vm_usage.2025-01-15.12345.{digest}.csv
 ```
 
 ---
@@ -816,11 +817,25 @@ This pattern is repeated for different aggregation levels:
                             ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │  MASU Kafka Consumer (kafka_msg_handler.py)                            │
-│  1. Download tar.gz from quarantine S3                                 │
-│  2. Extract tar.gz → CSV files + manifest.json                         │
-│  3. Parse manifest, create CostUsageReportManifest                     │
-│  4. Split CSVs by day (divide_csv_daily)                               │
-│  5. Upload daily CSVs to org S3 bucket                                 │
+│  Flag on: download; store tar, receipt, and pending marker in S3;      │
+│           confirm Kafka. No Postgres, extract, or line-item work.        │
+│  Flag off: extract, split CSVs by day, upload daily CSVs here.         │
+└───────────────────────────┬────────────────────────────────────────────┘
+                            │ ingress queue (best-effort register enqueue)
+                            ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  Register task (register.py)                                           │
+│  Read the pending marker; upsert IngressStagingPayload; enqueue        │
+│  extract. reconcile_ingress_staging (every minute) registers markers   │
+│  the listener enqueue missed (e.g. Postgres or broker outage).         │
+└───────────────────────────┬────────────────────────────────────────────┘
+                            │ ingress queue
+                            ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  Ingress worker (process_staged.py)                                    │
+│  Read the staged tar from our bucket, then extract_payload and         │
+│  process_report for every file. Reconcile re-enqueues staging rows     │
+│  the register handoff did not finish.                                  │
 └───────────────────────────┬────────────────────────────────────────────┘
                             │ Trigger processing
                             ▼
@@ -984,6 +999,10 @@ For testing OCP processing, generate synthetic CSV reports with realistic data:
 ### **Primary Files**
 
 - **Kafka Message Handler:** `koku/masu/external/kafka_msg_handler.py`
+- **Ingress download:** `koku/masu/external/downloader/ocp/download.py`
+- **Ingress staging:** `koku/masu/external/downloader/ocp/payload_landing/`
+- **Ingress worker:** `koku/masu/processor/ocp/staged_payloads/process_staged.py`
+- **Ingress processing:** `koku/masu/processor/ocp/staged_payloads/processing.py`
 - **Parquet Processor:** `koku/masu/processor/ocp/ocp_report_parquet_processor.py`
 - **Summary Updater:** `koku/masu/processor/ocp/ocp_report_parquet_summary_updater.py`
 - **Cost Model Updater:** `koku/masu/processor/ocp/ocp_cost_model_cost_updater.py`

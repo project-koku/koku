@@ -109,17 +109,18 @@ class ClusterCapacityDataclassTest(IamTestCase):
                     )
 
                     for date, total_count_by_date in cluster_capacity.count_by_date.items():
-                        expected_total_count_by_date = 0
-                        node_counts = {}
-                        for node_info in (
-                            cluster_capacity_vals.filter(usage_start=date).values("node", "capacity_count").distinct()
+                        cluster_node_counts = {}
+                        for node_info in cluster_capacity_vals.filter(usage_start=date).values(
+                            "cluster", "node", "capacity_count"
                         ):
+                            cluster = node_info["cluster"]
                             node = node_info["node"]
                             node_capacity = node_info["capacity_count"]
-                            node_counts[node] = (
-                                max(node_counts[node], node_capacity) if node in node_counts else node_capacity
+                            cluster_node_key = (cluster, node)
+                            cluster_node_counts[cluster_node_key] = max(
+                                cluster_node_counts.get(cluster_node_key, Decimal(0)), node_capacity
                             )
-                            expected_total_count_by_date += node_counts[node]
+                        expected_total_count_by_date = sum(cluster_node_counts.values())
                         self.assertEqual(expected_total_count_by_date, total_count_by_date)
 
     def test_get_cluster_capacity_count_by_cluster(self):
@@ -196,17 +197,14 @@ class ClusterCapacityDataclassTest(IamTestCase):
                     for date, clusters in cluster_capacity.count_by_date_cluster.items():
                         for cluster, total_cluster_capacity in clusters.items():
 
-                            expected_total_cluster_capacity = 0
                             node_counts = {}
                             for node_info in cluster_capacity_vals.filter(cluster=cluster, usage_start=date).values(
                                 "node", "capacity_count"
                             ):
                                 node = node_info["node"]
                                 node_capacity = node_info["capacity_count"]
-                                node_counts[node] = (
-                                    max(node_counts[node], node_capacity) if node in node_counts else node_capacity
-                                )
-                                expected_total_cluster_capacity += node_counts[node]
+                                node_counts[node] = max(node_counts.get(node, Decimal(0)), node_capacity)
+                            expected_total_cluster_capacity = sum(node_counts.values())
                             self.assertEqual(total_cluster_capacity, expected_total_cluster_capacity)
 
     def test_capacity_aggregations(self):
