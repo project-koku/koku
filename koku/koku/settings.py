@@ -728,6 +728,9 @@ DISABLE_ROS_MSG = ENVIRONMENT.bool("DISABLE_ROS_MSG", default=False)
 # Delay Celery Tasks Timeout
 DELAYED_TASK_TIME = ENVIRONMENT.int("DELAYED_TASK_TIME", default=3600)
 
+# First day to retry creating next month's partitions every eight hours.
+PRECREATE_PARTITIONS_START_DAY = ENVIRONMENT.int("PRECREATE_PARTITIONS_START_DAY", default=15)
+
 AZURE_COST_MGMT_CLIENT_API_VERSION = ENVIRONMENT.get_value(
     "AZURE_COST_MGMT_CLIENT_API_VERSION", default="2023-07-01-preview"
 )
