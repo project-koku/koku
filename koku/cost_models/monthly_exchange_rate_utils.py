@@ -41,62 +41,93 @@ def _explicit_static_rate_exists(base_currency, target_currency, month_start):
     ).exists()
 
 
-def upsert_static_monthly_rates(static_rate):
-    """Upsert a MonthlyExchangeRate row for the current month.
+def _retention_month_start():
+    """First month of the tenant retention window (date), or RETAIN_NUM_MONTHS fallback."""
+    return to_date(materialized_view_month_start(schema_name=getattr(connection, "schema_name", None)))
 
-    Only writes if the current month falls within the static rate's date range.
-    Past and future months are not touched — each month is populated when it becomes current.
+
+def _iter_month_starts(start_date, end_date):
+    """Yield first-of-month dates from start_date through end_date inclusive."""
+    month = to_date(start_date).replace(day=1)
+    end = to_date(end_date).replace(day=1)
+    while month <= end:
+        yield month
+        month += relativedelta(months=1)
+
+
+def _months_in_static_window(start_date, end_date):
+    """Months to materialize for a static rate: retention through current month only.
+
+    Future months are not pre-written — they are populated when they become current.
+    Months before the retention window are skipped (reports cannot query them).
+    """
+    current_month = DateHelper().this_month_start.date()
+    retention_start = _retention_month_start()
+    window_start = max(to_date(start_date).replace(day=1), retention_start)
+    window_end = min(to_date(end_date).replace(day=1), current_month)
+    if window_start > window_end:
+        return
+    yield from _iter_month_starts(window_start, window_end)
+
+
+def upsert_static_monthly_rates(static_rate):
+    """Upsert MonthlyExchangeRate STATIC rows for each month in the rate window.
+
+    Writes every month from max(rate.start, retention) through min(rate.end, current).
+    Future months are not pre-written — each is populated when it becomes current.
 
     The reverse direction uses dynamic rates unless the user has explicitly
-    defined a StaticExchangeRate for that direction. If no MonthlyExchangeRate row
-    exists for the inverse pair, dynamic rates are backfilled from ExchangeRateDictionary.
+    defined a StaticExchangeRate for that direction.
     """
     if static_rate.exchange_rate <= 0:
         raise ValueError(f"exchange_rate must be positive, got {static_rate.exchange_rate}")
 
-    current_month = DateHelper().this_month_start.date()
-    if current_month < static_rate.start_date or current_month > static_rate.end_date:
-        return
-
-    MonthlyExchangeRate.objects.update_or_create(
-        effective_date=current_month,
-        base_currency=static_rate.base_currency,
-        target_currency=static_rate.target_currency,
-        defaults={
-            "exchange_rate": static_rate.exchange_rate,
-            "rate_type": RateType.STATIC,
-        },
-    )
+    for month_start in _months_in_static_window(static_rate.start_date, static_rate.end_date):
+        MonthlyExchangeRate.objects.update_or_create(
+            effective_date=month_start,
+            base_currency=static_rate.base_currency,
+            target_currency=static_rate.target_currency,
+            defaults={
+                "exchange_rate": static_rate.exchange_rate,
+                "rate_type": RateType.STATIC,
+            },
+        )
 
 
 def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, start_date, end_date):
-    """Remove static MonthlyExchangeRate rows for the current month and backfill with dynamic rates.
+    """Remove static MonthlyExchangeRate rows in the window and restore dynamic rates.
 
-    Only acts if the current month falls within the given date range.
-    Past and future months are not touched — past months are finalized and read-only.
-    Also removes any stale inverse static row unless an explicit StaticExchangeRate
-    defines the reverse direction for this month.
+    Acts on every month from max(start, retention) through min(end, current).
+    Future months are not touched. Also removes any stale inverse static row unless
+    an explicit StaticExchangeRate defines the reverse direction for that month.
+
+    After removing static overrides, repopulates the current-month dynamic rate from
+    ExchangeRateDictionary and backfills missing past months with the next later MER
+    rate for the pair (same rule as the daily crawl). Does not write today's ERD rate
+    into closed months. Existing non-static monthly rows are left unchanged.
     """
-    current_month = DateHelper().this_month_start.date()
-    if current_month < start_date or current_month > end_date:
+    months = list(_months_in_static_window(start_date, end_date))
+    if not months:
         return
 
-    MonthlyExchangeRate.objects.filter(
-        effective_date=current_month,
-        base_currency=base_currency,
-        target_currency=target_currency,
-        rate_type=RateType.STATIC,
-    ).delete()
-
-    if not _explicit_static_rate_exists(target_currency, base_currency, current_month):
+    for month_start in months:
         MonthlyExchangeRate.objects.filter(
-            effective_date=current_month,
-            base_currency=target_currency,
-            target_currency=base_currency,
+            effective_date=month_start,
+            base_currency=base_currency,
+            target_currency=target_currency,
             rate_type=RateType.STATIC,
         ).delete()
 
-    populate_dynamic_monthly_rates(code=base_currency)
+        if not _explicit_static_rate_exists(target_currency, base_currency, month_start):
+            MonthlyExchangeRate.objects.filter(
+                effective_date=month_start,
+                base_currency=target_currency,
+                target_currency=base_currency,
+                rate_type=RateType.STATIC,
+            ).delete()
+
+    # Current month from ERD; past gaps inherit the next later MER for the pair.
+    populate_dynamic_monthly_rates(code=base_currency, backfill_past_months=True)
 
 
 def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # noqa: C901

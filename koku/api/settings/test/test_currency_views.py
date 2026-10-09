@@ -7,12 +7,16 @@ import calendar
 import csv
 import io
 from datetime import date
+from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import patch
 from uuid import uuid4
 
 from django.core.cache import caches
+from django.test import SimpleTestCase
 from django.test.utils import override_settings
 from django.urls import reverse
+from django.utils import timezone
 from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -20,8 +24,14 @@ from rest_framework_csv.renderers import CSVRenderer
 
 from api.currency.currencies import get_enabled_currency_codes
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.provider.models import Provider
+from api.settings.currency_views import ACTIVE_RATE_TYPE_DYNAMIC
+from api.settings.currency_views import ACTIVE_RATE_TYPE_NONE
+from api.settings.currency_views import ACTIVE_RATE_TYPE_STATIC
+from api.settings.currency_views import compute_active_rate_type
 from api.settings.currency_views import CSV_STATIC_RATE_FIELDS
+from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import EnabledCurrency
 from cost_models.models import PriceList
@@ -64,6 +74,58 @@ CACHE_OVERRIDE = {
         "LOCATION": "unique-snowflake",
     },
 }
+
+
+class ActiveRateTypeHelperTest(SimpleTestCase):
+    """Unit tests for compute_active_rate_type vs a fixed UTC month."""
+
+    def test_disabled_is_none_even_with_static_and_dynamic(self):
+        self.assertEqual(
+            compute_active_rate_type(
+                enabled=False,
+                has_dynamic_rate=True,
+                static_rates=[{"start_date": date(2026, 10, 1), "end_date": date(2026, 10, 31)}],
+                month_start=date(2026, 10, 1),
+                month_end=date(2026, 10, 31),
+            ),
+            ACTIVE_RATE_TYPE_NONE,
+        )
+
+    def test_static_wins_over_dynamic_when_window_overlaps_month(self):
+        self.assertEqual(
+            compute_active_rate_type(
+                enabled=True,
+                has_dynamic_rate=True,
+                static_rates=[{"start_date": "2026-09-01", "end_date": "2026-12-31"}],
+                month_start=date(2026, 10, 1),
+                month_end=date(2026, 10, 31),
+            ),
+            ACTIVE_RATE_TYPE_STATIC,
+        )
+
+    def test_dynamic_when_enabled_without_covering_static(self):
+        self.assertEqual(
+            compute_active_rate_type(
+                enabled=True,
+                has_dynamic_rate=True,
+                static_rates=[{"start_date": date(2026, 8, 1), "end_date": date(2026, 8, 31)}],
+                month_start=date(2026, 10, 1),
+                month_end=date(2026, 10, 31),
+            ),
+            ACTIVE_RATE_TYPE_DYNAMIC,
+        )
+
+    def test_none_when_enabled_without_static_or_dynamic(self):
+        self.assertEqual(
+            compute_active_rate_type(
+                enabled=True,
+                has_dynamic_rate=False,
+                static_rates=[],
+                month_start=date(2026, 10, 1),
+                month_end=date(2026, 10, 31),
+            ),
+            ACTIVE_RATE_TYPE_NONE,
+        )
 
 
 class CurrencySettingsViewTest(IamTestCase):
@@ -448,6 +510,206 @@ class CurrencySettingsViewTest(IamTestCase):
         self.assertIn("static_rates", data[0])
         self.assertEqual(len(data[0]["static_rates"]), 1)
         self.assertEqual(data[0]["static_rates"][0]["target_currency"], "EUR")
+
+    def _utc_month_bounds(self):
+        dh = DateHelper()
+        return dh.this_month_start.date(), dh.this_month_end.date()
+
+    def test_active_rate_type_none_when_currency_disabled(self):
+        """Disabled currencies return none even when static and dynamic exist."""
+        month_start, month_end = self._utc_month_bounds()
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.all().delete()
+            StaticExchangeRate.objects.create(
+                base_currency="CHF",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+
+        url = reverse("currency-list") + "?filter[currency]=CHF&limit=500"
+        with patch("api.settings.currency_views.get_dynamic_rate_currencies", return_value={"chf"}):
+            response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        chf = next(item for item in response.data["data"] if item["code"] == "CHF")
+        self.assertFalse(chf["enabled"])
+        self.assertEqual(chf["active_rate_type"], ACTIVE_RATE_TYPE_NONE)
+
+    def test_active_rate_type_static_when_static_covers_current_month(self):
+        """Current-month static override wins over dynamic."""
+        month_start, month_end = self._utc_month_bounds()
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+
+        url = reverse("currency-list") + "?filter[currency]=USD&limit=500"
+        with patch("api.settings.currency_views.get_dynamic_rate_currencies", return_value={"usd"}):
+            response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        usd = next(item for item in response.data["data"] if item["code"] == "USD")
+        self.assertTrue(usd["enabled"])
+        self.assertTrue(usd["has_dynamic_rate"])
+        self.assertEqual(usd["active_rate_type"], ACTIVE_RATE_TYPE_STATIC)
+
+    def test_active_rate_type_dynamic_when_enabled_no_static_override(self):
+        """Enabled with dynamic and no current-month static returns dynamic."""
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+
+        url = reverse("currency-list") + "?filter[currency]=USD&limit=500"
+        with patch("api.settings.currency_views.get_dynamic_rate_currencies", return_value={"usd"}):
+            response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        usd = next(item for item in response.data["data"] if item["code"] == "USD")
+        self.assertTrue(usd["enabled"])
+        self.assertTrue(usd["has_dynamic_rate"])
+        self.assertEqual(usd["active_rate_type"], ACTIVE_RATE_TYPE_DYNAMIC)
+
+    def test_active_rate_type_none_when_enabled_without_static_or_dynamic(self):
+        """Enabled with no rate path returns none; UI uses enabled to tell it from disabled."""
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="CHF")
+
+        url = reverse("currency-list") + "?filter[currency]=CHF&limit=500"
+        with patch("api.settings.currency_views.get_dynamic_rate_currencies", return_value=set()):
+            response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        chf = next(item for item in response.data["data"] if item["code"] == "CHF")
+        self.assertTrue(chf["enabled"])
+        self.assertFalse(chf["has_dynamic_rate"])
+        self.assertEqual(chf["active_rate_type"], ACTIVE_RATE_TYPE_NONE)
+
+    def test_active_rate_type_ignores_static_outside_current_month(self):
+        """Past or future static windows do not count as the active rate this month."""
+        _, month_end = self._utc_month_bounds()
+        next_month_start = month_end + timedelta(days=1)
+        next_month_end = _month_end(next_month_start)
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                start_date=date(2020, 1, 1),
+                end_date=date(2020, 1, 31),
+            )
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="GBP",
+                exchange_rate=Decimal("0.790000000000000"),
+                start_date=next_month_start,
+                end_date=next_month_end,
+            )
+
+        url = reverse("currency-list") + "?filter[currency]=USD&limit=500"
+        with patch("api.settings.currency_views.get_dynamic_rate_currencies", return_value={"usd"}):
+            response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        usd = next(item for item in response.data["data"] if item["code"] == "USD")
+        self.assertEqual(usd["active_rate_type"], ACTIVE_RATE_TYPE_DYNAMIC)
+
+    @override_settings(ENHANCED_ORG_ADMIN=True)
+    def test_list_static_rates_include_status_and_expired_rates(self):
+        """GET nested static_rates include lifecycle status; expired rates are not omitted."""
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+        month_end = _month_end(today)
+        next_month_start = month_end + timedelta(days=1)
+        next_month_end = _month_end(next_month_start)
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                start_date=date(2020, 1, 1),
+                end_date=date(2020, 1, 31),
+            )
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="GBP",
+                exchange_rate=Decimal("0.790000000000000"),
+                start_date=month_start,
+                end_date=month_end,
+            )
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="JPY",
+                exchange_rate=Decimal("150.000000000000"),
+                start_date=next_month_start,
+                end_date=next_month_end,
+            )
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="CAD",
+                exchange_rate=Decimal("1.350000000000000"),
+                start_date=date(2020, 1, 1),
+                end_date=month_end,
+            )
+
+        url = reverse("currency-list") + "?filter[currency]=USD&limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        usd = response.data["data"][0]
+        self.assertEqual(usd["code"], "USD")
+        rates_by_target = {rate["target_currency"]: rate for rate in usd["static_rates"]}
+        self.assertEqual(set(rates_by_target), {"EUR", "GBP", "JPY", "CAD"})
+
+        expired = rates_by_target["EUR"]
+        self.assertEqual(expired["status"], "expired")
+        self.assertTrue(expired["can_edit"])
+        self.assertTrue(expired["can_delete"])
+
+        active = rates_by_target["GBP"]
+        self.assertEqual(active["status"], "active")
+        self.assertTrue(active["can_edit"])
+        self.assertTrue(active["can_delete"])
+
+        upcoming = rates_by_target["JPY"]
+        self.assertEqual(upcoming["status"], "upcoming")
+        self.assertTrue(upcoming["can_edit"])
+        self.assertTrue(upcoming["can_delete"])
+
+        spanning = rates_by_target["CAD"]
+        self.assertEqual(spanning["status"], "active")
+        self.assertTrue(spanning["can_edit"])
+        self.assertTrue(spanning["can_delete"])
+
+    @override_settings(ENHANCED_ORG_ADMIN=False)
+    @RbacPermissions({"settings": {"read": ["*"]}})
+    def test_list_static_rates_can_edit_false_without_cost_model_write(self):
+        """settings:read without cost_model write must not advertise can_edit/can_delete."""
+        today = timezone.now().date()
+        with tenant_context(self.tenant):
+            StaticExchangeRate.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+            StaticExchangeRate.objects.create(
+                base_currency="USD",
+                target_currency="EUR",
+                exchange_rate=Decimal("0.920000000000000"),
+                start_date=today.replace(day=1),
+                end_date=_month_end(today),
+            )
+
+        url = reverse("currency-list") + "?filter[currency]=USD&limit=500"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        rate = response.data["data"][0]["static_rates"][0]
+        self.assertEqual(rate["status"], "active")
+        self.assertFalse(rate["can_edit"])
+        self.assertFalse(rate["can_delete"])
 
     def test_list_all_currencies_sorted_by_code_ascending(self):
         """Unfiltered list is A-Z by code (not enabled-first then disabled)."""

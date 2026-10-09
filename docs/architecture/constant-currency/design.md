@@ -87,10 +87,10 @@ flowchart TD
 
 
 
-| Type        | Source                                                                                 | Mutability                                                                                      |
-| ----------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| **Static**  | Admin CRUD                                                                             | Current month follows the static definition; past months stay as written when they were current |
-| **Dynamic** | Market feed (when `CURRENCY_URL` is set) + inverse synthesis for missing reverse pairs | Current month refreshed while the month is open; past months finalized                          |
+| Type        | Source                                                                                 | Mutability                                                                                                                      |
+| ----------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Static**  | Admin CRUD                                                                             | Create/update/delete may cover past months; STATIC monthly rows are rewritten for each month in the window (through current) |
+| **Dynamic** | Market feed (when `CURRENCY_URL` is set) + inverse synthesis for missing reverse pairs | Current month refreshed while the month is open; past months finalized (not rewritten by daily refresh or static CRUD)         |
 
 
 
@@ -109,11 +109,11 @@ flowchart TD
 ## Month lifecycle
 
 
-| Period                      | Behavior                                                                                                                         |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| **Current month**           | Dynamic rates can be refreshed daily. Static CRUD updates the current month’s monthly row when the static window includes today. |
-| **Past months (finalized)** | Monthly rows are not rewritten by the daily refresh or by routine static edits.                                                  |
-| **Future months**           | Not pre-written. When a future month becomes current, writers populate it then.                                                  |
+| Period                      | Behavior                                                                                                                                              |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current month**           | Dynamic rates can be refreshed daily. Static CRUD upserts the current month’s monthly row when the static window includes today.                      |
+| **Past months (finalized)** | Dynamic monthly rows are not rewritten by the daily refresh. Static CRUD may create/update/delete STATIC rows for past months in the retention window. |
+| **Future months**           | Not pre-written. When a future month becomes current, writers populate it then.                                                                       |
 
 
 
@@ -121,14 +121,11 @@ flowchart TD
 ### Static rate lifecycle
 
 
-| Action                        | Allowed when                                                                            | Effect on monthly rates                                                                             |
-| ----------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Create                        | Window starts in current or future month                                                | Writes current-month static row if the window includes the current month                            |
-| Update (any)                  | `base_currency` is immutable                                                            | Delete and recreate to change base                                                                  |
-| Update (no finalized months)  | May change target/window/rate                                                           | Current-month monthly row updated; scope changes may restore dynamic for the old current-month pair |
-| Update (has finalized months) | Can shrink `end_date` (not before previous month); cannot change target or `start_date` | Past months untouched; current month follows new definition                                         |
-| Delete                        | Window not entirely in the past                                                         | Removes current-month static override and restores dynamic for that pair when possible              |
-| Delete fully finalized        | Rejected                                                                                | Create a new rate from the current month instead                                                    |
+| Action       | Allowed when                                 | Effect on monthly rates                                                                                                                      |
+| ------------ | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create       | Month-bound window; no overlap for the pair  | Writes STATIC monthly rows for each month from max(start, retention) through min(end, current)                                               |
+| Update (any) | `base_currency` is immutable                 | Delete and recreate to change base. Scope/rate changes rewrite STATIC rows in the new window; old-window static rows fall back via current-month ERD + next-later MER backfill |
+| Delete       | Always (subject to auth)                     | Removes STATIC overrides in the window (retention through current). Current month is restored from ERD when possible; past gaps use next-later MER backfill (not today's ERD) |
 
 
 ---
@@ -141,7 +138,7 @@ flowchart TD
 | Rule                 | Detail                                                                                       |
 | -------------------- | -------------------------------------------------------------------------------------------- |
 | Dropdown contents    | Enabled currencies only (`GET /currency/`)                                                   |
-| Settings catalog     | Full ISO list with `enabled` + `has_dynamic_rate` + nested static rates                      |
+| Settings catalog     | Full ISO list with `enabled` + `has_dynamic_rate` + `active_rate_type` + nested static rates |
 | Auto-enable          | Base currencies from cloud provider billing (AWS/Azure/GCP) are enabled after summarization  |
 | Disable blocked when | System default, account default, used by cloud provider billing, cost models, or price lists |
 | Last currency        | Cannot disable the final enabled currency                                                    |

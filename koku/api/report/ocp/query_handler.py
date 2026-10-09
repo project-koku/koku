@@ -43,7 +43,6 @@ from masu.processor import OCP_CAPACITY_BY_NODE_SUMMARY_FLAG
 from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
 from masu.processor import OCP_REPORT_CLUSTER_FILTER_INDEX_HINT_FLAG
 from masu.processor import OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG
-from masu.processor import OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG
 from masu.processor import OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG
 from masu.processor import OCP_REPORT_LIMITED_DELTA_FLAG
 from reporting.provider.ocp.models import OCPCluster
@@ -53,10 +52,9 @@ from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 LOG = logging.getLogger(__name__)
 
-# Metadata array annotations split out of the heavy aggregation queries when
-# OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG is enabled.  ARRAY_AGG(DISTINCT ...)
-# forces a serial GroupAggregate; computing these separately lets the main
-# aggregation parallelize.
+# Metadata array annotations are split out of the heavy aggregation queries.
+# ARRAY_AGG(DISTINCT ...) forces a serial GroupAggregate; computing these
+# separately lets the main aggregation parallelize.
 DISTINCT_METADATA_FIELDS = ("clusters", "source_uuid")
 
 # Report types whose capacity annotations only read columns that
@@ -137,6 +135,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for OCP."""
 
     provider = Provider.PROVIDER_OCP
+
+    @property
+    def _distinct_arrays_split_enabled(self):
+        """OCP metadata arrays use separate parallel-safe queries."""
+        return True
 
     def __init__(self, parameters):
         """Establish OCP report query handler.
@@ -325,11 +328,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return (base_currencies | cm_currencies) - {None}
 
     @cached_property
-    def _distinct_arrays_split_enabled(self):
-        """Whether to compute clusters/source_uuid via separate (parallel-safe) queries."""
-        return is_feature_flag_enabled_by_schema(self.tenant.schema_name, OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG)
-
-    @cached_property
     def _is_limited_delta_for_ranked_projects_shape(self):
         """Whether the ranked, paginated, project-only monthly delta shape is safe.
 
@@ -441,11 +439,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
     def _backfill_distinct_group_metadata(self, query, query_group_by, query_data):
         """Backfill clusters/source_uuid onto rows via a separate, cheap query.
 
-        With the split flag enabled the metadata arrays are removed from the main
-        aggregation so it can parallelize.  Recompute them here in a query grouped
-        identically (same filters/joins, no currency math), keyed by the group
-        tuple, and merge them onto each row.  Used for the non-limit path; the
-        limited path sources these arrays from the rank query instead.
+        The metadata arrays are removed from the main aggregation so it can
+        parallelize. Recompute them here in a query grouped identically (same
+        filters/joins, no currency math), keyed by the group tuple, and merge
+        them onto each row. Used for the non-limit path; the limited path
+        sources these arrays from the rank query instead.
         """
         meta_annotations = self._distinct_metadata_annotations()
         if not meta_annotations:
@@ -473,10 +471,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
         if is_grouped_by_node(self.parameters):
             # Add instance counts to node reports without mutating the shared mapper.
             annotations.update(self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {}))
-        if self._distinct_arrays_split_enabled:
-            # The metadata arrays are computed separately so the main aggregation
-            # can parallelize; drop them from the heavy annotation set.
-            annotations = {k: v for k, v in annotations.items() if k not in DISTINCT_METADATA_FIELDS}
+        # The metadata arrays are computed separately so the main aggregation
+        # can parallelize; drop them from the heavy annotation set.
+        annotations = {k: v for k, v in annotations.items() if k not in DISTINCT_METADATA_FIELDS}
         if self.is_csv_output:
             annotations = {
                 **annotations,
@@ -581,8 +578,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     # therefore others must be at the end.
                     # override implicit ordering when using ranked ordering.
                     query_order_by[-1] = "rank"
-            elif self._distinct_arrays_split_enabled:
-                # The main aggregation dropped the metadata arrays so it could
+            else:
+                # The main aggregation drops the metadata arrays so it can
                 # parallelize; backfill them from a separate cheap query.
                 query_data = self._backfill_distinct_group_metadata(query, query_group_by, query_data)
 
