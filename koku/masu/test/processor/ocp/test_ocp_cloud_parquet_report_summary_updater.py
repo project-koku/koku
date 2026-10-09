@@ -703,9 +703,7 @@ create table {self.schema}._eek_pt0 (usage_start date not null, id int) partitio
             self.ocpaws_provider_uuid, self.aws_provider_uuid, start_date, end_date
         )
         mock_cost_updater.return_value._update_markup_cost.assert_called_once_with(start_date, end_date)
-        mock_accessor.report_periods_for_provider_uuid.assert_called_once_with(
-            self.ocpaws_provider_uuid, start_date
-        )
+        mock_accessor.report_periods_for_provider_uuid.assert_called_once_with(self.ocpaws_provider_uuid, start_date)
         mock_accessor.update_line_item_daily_summary_with_tag_mapping.assert_called_once_with(
             start_date, end_date, [42], infrastructure_only=True
         )
