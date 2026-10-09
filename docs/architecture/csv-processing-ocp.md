@@ -235,6 +235,8 @@ JSON message containing:
 4. Write tar.gz to temporary file
 5. Return file path for extraction
 
+When `cost-management.backend.ingress-staging-listener` is enabled for the schema, the listener stops after storing the raw tarball. [`stage_ingress_s3_inbox()`](../../koku/masu/external/downloader/ocp/payload_landing/listener.py) derives the schema as `org{org_id}`, reads `cluster_id` and the manifest uuid, and writes the tar, a receipt, and a pending marker under `ingress_staging/`. It does not open Postgres. Download is finished at that point. It confirms the Kafka message without calling `extract_payload` or `process_report`. [`register_ingress_staging_marker()`](../../koku/masu/external/downloader/ocp/payload_landing/register.py) upserts [`IngressStagingPayload`](../../koku/reporting_common/models.py). [`process_staged_ingress_payload()`](../../koku/masu/processor/ocp/staged_payloads/process_staged.py) on the `ingress` queue reads that object back and extracts it. Line items then run as `process_staged_ingress_reports` on the customer OCP queue (`ocp`, `ocp_xl`, or `ocp_penalty`). [`reconcile_ingress_staging()`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) runs every minute, registers pending markers, and enqueues rows the eager handoff did not finish. Production on-prem stays on the legacy listener until a later release. The flag stays off in stage and production until it is enabled per schema. With the flag off, the listener still extracts and splits on the consumer thread, as the following steps describe.
+
 #### **Step 3: Extract Tar.gz and Parse Manifest**
 
 **Implementation:** See [`extract_payload_contents()`](../../koku/masu/processor/ocp/staged_payloads/processing.py) in `processing.py`
@@ -815,11 +817,25 @@ This pattern is repeated for different aggregation levels:
                             ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │  MASU Kafka Consumer (kafka_msg_handler.py)                            │
-│  1. Download tar.gz from quarantine S3                                 │
-│  2. Extract tar.gz → CSV files + manifest.json                         │
-│  3. Parse manifest, create CostUsageReportManifest                     │
-│  4. Split CSVs by day (divide_csv_daily)                               │
-│  5. Upload daily CSVs to org S3 bucket                                 │
+│  Flag on: download; store tar, receipt, and pending marker in S3;      │
+│           confirm Kafka. No Postgres, extract, or line-item work.        │
+│  Flag off: extract, split CSVs by day, upload daily CSVs here.         │
+└───────────────────────────┬────────────────────────────────────────────┘
+                            │ ingress queue (best-effort register enqueue)
+                            ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  Register task (register.py)                                           │
+│  Read the pending marker; upsert IngressStagingPayload; enqueue        │
+│  extract. reconcile_ingress_staging (every minute) registers markers   │
+│  the listener enqueue missed (e.g. Postgres or broker outage).         │
+└───────────────────────────┬────────────────────────────────────────────┘
+                            │ ingress queue
+                            ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  Ingress worker (process_staged.py)                                    │
+│  Read the staged tar from our bucket, then extract_payload and         │
+│  process_report for every file. Reconcile re-enqueues staging rows     │
+│  the register handoff did not finish.                                  │
 └───────────────────────────┬────────────────────────────────────────────┘
                             │ Trigger processing
                             ▼
@@ -984,6 +1000,8 @@ For testing OCP processing, generate synthetic CSV reports with realistic data:
 
 - **Kafka Message Handler:** `koku/masu/external/kafka_msg_handler.py`
 - **Ingress download:** `koku/masu/external/downloader/ocp/download.py`
+- **Ingress staging:** `koku/masu/external/downloader/ocp/payload_landing/`
+- **Ingress worker:** `koku/masu/processor/ocp/staged_payloads/process_staged.py`
 - **Ingress processing:** `koku/masu/processor/ocp/staged_payloads/processing.py`
 - **Parquet Processor:** `koku/masu/processor/ocp/ocp_report_parquet_processor.py`
 - **Summary Updater:** `koku/masu/processor/ocp/ocp_report_parquet_summary_updater.py`
