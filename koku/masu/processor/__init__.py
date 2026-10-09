@@ -40,6 +40,7 @@ OCP_REPORT_LIMITED_DELTA_FLAG = "cost-management.backend.ocp_report_limited_delt
 OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-queries"
 PRECREATE_PARTITIONS_FLAG = "cost-management.backend.precreate_partitions"
 SOURCES_LIST_BULK_QUERIES_FLAG = "cost-management.backend.sources_list_bulk_queries"
+TAG_KEYS_REPORT_PERIOD_IDS_FLAG = "cost-management.backend.tag_keys_report_period_ids"
 TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
 
 
