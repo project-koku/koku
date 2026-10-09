@@ -24,6 +24,12 @@ from cost_models.models import StaticExchangeRate
 
 LOG = logging.getLogger(__name__)
 
+# TEMPORARY (local debugging only): forces backfilled MonthlyExchangeRate rows to this
+# sentinel value instead of inheriting the next later real rate. Makes synthetically
+# backfilled rows unmistakable in persistent environments where stale backfill data can
+# be mistaken for genuine dynamic rates. Revert before committing.
+DEBUG_BACKFILL_SENTINEL_RATE = Decimal("1001.0")
+
 
 def _explicit_static_rate_exists(base_currency, target_currency, month_start):
     """Check if a StaticExchangeRate explicitly defines this direction covering the given month."""
@@ -292,7 +298,9 @@ def _backfill_missing_past_months(current_month, enabled_codes, code=None):
                         effective_date=current_fill_month,
                         base_currency=base,
                         target_currency=target,
-                        exchange_rate=fill_rate,
+                        # DEBUG: sentinel value in place of `fill_rate` so backfilled rows
+                        # are identifiable. Revert to `exchange_rate=fill_rate` afterward.
+                        exchange_rate=DEBUG_BACKFILL_SENTINEL_RATE,
                         rate_type=RateType.DYNAMIC,
                     )
                 )
