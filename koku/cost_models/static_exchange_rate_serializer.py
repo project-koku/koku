@@ -6,7 +6,9 @@
 import calendar
 import logging
 
+from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from api.common import log_json
@@ -17,6 +19,72 @@ from cost_models.monthly_exchange_rate_utils import upsert_static_monthly_rates
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 
 LOG = logging.getLogger(__name__)
+
+STATIC_RATE_STATUS_EXPIRED = "expired"
+STATIC_RATE_STATUS_ACTIVE = "active"
+STATIC_RATE_STATUS_UPCOMING = "upcoming"
+
+
+def current_utc_month_start():
+    """First day of the current UTC month."""
+    return timezone.now().date().replace(day=1)
+
+
+def next_month_start(month_start):
+    """First day of the month after ``month_start``."""
+    if month_start.month == 12:
+        return month_start.replace(year=month_start.year + 1, month=1, day=1)
+    return month_start.replace(month=month_start.month + 1, day=1)
+
+
+def static_rate_status(start_date, end_date, *, current_month_start=None):
+    """Lifecycle of a static rate vs the current UTC month.
+
+    * ``expired`` — window ends before the current month
+    * ``upcoming`` — window starts in a future month
+    * ``active`` — window includes the current UTC month
+
+    Status is for UI labels only. Past-month rates remain editable and
+    deletable (see ``static_rate_can_edit`` / ``static_rate_can_delete``).
+    """
+    if current_month_start is None:
+        current_month_start = current_utc_month_start()
+    if end_date < current_month_start:
+        return STATIC_RATE_STATUS_EXPIRED
+    if start_date >= next_month_start(current_month_start):
+        return STATIC_RATE_STATUS_UPCOMING
+    return STATIC_RATE_STATUS_ACTIVE
+
+
+def user_can_mutate_static_rates(request):
+    """True when the user can PUT/DELETE static rates.
+
+    Mirrors ``CostModelsAccessPermission`` write rules for static-rate URLs
+    (no ``/cost-models/{uuid}/`` in the path, so only ``cost_model.write: ["*"]``
+    or enhanced org admin grants access). Date windows no longer block mutate
+    after COST-8378; these flags exist so the UI can avoid 403 probes.
+    """
+    if request is None:
+        return False
+    user = getattr(request, "user", None)
+    if user is None:
+        return False
+    if settings.ENHANCED_ORG_ADMIN and getattr(user, "admin", False):
+        return True
+    access = getattr(user, "access", None)
+    if not access:
+        return False
+    return "*" in access.get("cost_model", {}).get("write", [])
+
+
+def static_rate_can_edit(end_date=None, *, current_month_start=None, request=None):
+    """True when PUT would be allowed for this user (RBAC)."""
+    return user_can_mutate_static_rates(request)
+
+
+def static_rate_can_delete(start_date=None, *, current_month_start=None, request=None):
+    """True when DELETE would be allowed for this user (RBAC)."""
+    return user_can_mutate_static_rates(request)
 
 
 class NumericDecimalField(serializers.DecimalField):
@@ -36,6 +104,9 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
 
     name = serializers.CharField(read_only=True)
     exchange_rate = NumericDecimalField(max_digits=33, decimal_places=15)
+    status = serializers.SerializerMethodField()
+    can_edit = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
 
     class Meta:
         model = StaticExchangeRate
@@ -47,10 +118,44 @@ class StaticExchangeRateSerializer(serializers.ModelSerializer):
             "exchange_rate",
             "start_date",
             "end_date",
+            "status",
+            "can_edit",
+            "can_delete",
             "created_timestamp",
             "updated_timestamp",
         ]
-        read_only_fields = ["uuid", "created_timestamp", "updated_timestamp"]
+        read_only_fields = [
+            "uuid",
+            "status",
+            "can_edit",
+            "can_delete",
+            "created_timestamp",
+            "updated_timestamp",
+        ]
+
+    def _current_month_start(self):
+        if not hasattr(self, "_cached_current_month_start"):
+            self._cached_current_month_start = current_utc_month_start()
+        return self._cached_current_month_start
+
+    def get_status(self, instance):
+        return static_rate_status(
+            instance.start_date, instance.end_date, current_month_start=self._current_month_start()
+        )
+
+    def get_can_edit(self, instance):
+        return static_rate_can_edit(
+            instance.end_date,
+            current_month_start=self._current_month_start(),
+            request=self.context.get("request"),
+        )
+
+    def get_can_delete(self, instance):
+        return static_rate_can_delete(
+            instance.start_date,
+            current_month_start=self._current_month_start(),
+            request=self.context.get("request"),
+        )
 
     def _validate_currency_code(self, value):
         code = value.upper()
