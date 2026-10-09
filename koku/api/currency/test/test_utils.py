@@ -7,12 +7,14 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.db.models import Case
+from django.test import override_settings
 from django_tenants.utils import schema_context
 
 from api.currency.exceptions import ExchangeRateNotFound
 from api.currency.models import ExchangeRateDictionary
 from api.currency.utils import build_exchange_dictionary
 from api.currency.utils import build_exchange_rate_case
+from api.currency.utils import ensure_exchange_rate_dictionary
 from api.currency.utils import exchange_dictionary
 from api.currency.utils import get_monthly_exchange_rate
 from api.iam.test.iam_test_case import IamTestCase
@@ -44,6 +46,33 @@ class CurrencyUtilsTest(IamTestCase):
         exchange_dictionary({"USD": 1, "AUD": 2, "CAD": 1.25})
         exchanged_data = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
         self.assertIsNotNone(exchanged_data)
+
+    def test_ensure_exchange_rate_dictionary_noop_when_populated(self):
+        """Existing ERD content skips the remote fetch."""
+        ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": Decimal("0.9")}})
+        with patch("masu.celery.tasks._fetch_and_store_exchange_rates") as mock_fetch:
+            self.assertTrue(ensure_exchange_rate_dictionary())
+            mock_fetch.assert_not_called()
+
+    @override_settings(CURRENCY_URL="")
+    def test_ensure_exchange_rate_dictionary_false_without_url(self):
+        """Empty ERD with no CURRENCY_URL cannot be filled."""
+        with patch("masu.celery.tasks._fetch_and_store_exchange_rates") as mock_fetch:
+            self.assertFalse(ensure_exchange_rate_dictionary())
+            mock_fetch.assert_not_called()
+
+    @override_settings(CURRENCY_URL="https://exchange-rates.example/v6/latest/USD")
+    def test_ensure_exchange_rate_dictionary_fetches_when_empty(self):
+        """Empty ERD triggers a fetch when CURRENCY_URL is configured."""
+
+        def _store(_url):
+            exchange_dictionary({"USD": 1, "EUR": 0.87})
+            return {"USD": 1, "EUR": 0.87}
+
+        with patch("masu.celery.tasks._fetch_and_store_exchange_rates", side_effect=_store) as mock_fetch:
+            self.assertTrue(ensure_exchange_rate_dictionary())
+            mock_fetch.assert_called_once_with("https://exchange-rates.example/v6/latest/USD")
+        self.assertTrue(ExchangeRateDictionary.objects.first().currency_exchange_dictionary)
 
     def test_build_exchange_rate_case_limits_to_provided_bases(self):
         """When clauses are limited to provided bases that exist in ERD."""
