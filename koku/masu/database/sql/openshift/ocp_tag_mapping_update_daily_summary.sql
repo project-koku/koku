@@ -34,6 +34,8 @@ cte_labels_to_update as (
         {% if infrastructure_only %}
             AND lids.infrastructure_raw_cost IS NOT NULL
             AND lids.infrastructure_raw_cost != 0
+        {% else %}
+            AND (lids.infrastructure_raw_cost IS NULL OR lids.infrastructure_raw_cost = 0)
         {% endif %}
     UNION ALL
     SELECT
@@ -59,6 +61,8 @@ cte_labels_to_update as (
         {% if infrastructure_only %}
             AND lids.infrastructure_raw_cost IS NOT NULL
             AND lids.infrastructure_raw_cost != 0
+        {% else %}
+            AND (lids.infrastructure_raw_cost IS NULL OR lids.infrastructure_raw_cost = 0)
         {% endif %}
 ),
 cte_update_labels as (

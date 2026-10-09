@@ -1691,13 +1691,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 tested = True
             self.assertTrue(tested)
 
-    def test_update_line_item_daily_summary_with_tag_mapping_infrastructure_only(self):
-        """Test that infrastructure_only adds the infrastructure_raw_cost filter to the SQL."""
+    def test_update_line_item_daily_summary_with_tag_mapping_row_ownership_filters(self):
+        """OCP and cloud summaries partition tag mapping by infrastructure_raw_cost."""
         with schema_context(self.schema):
             parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
             TagMapping.objects.create(parent=parent, child=child)
 
-        # Call with infrastructure_only=False (default)
+        # Default (OCP summary): usage rows only
         with CaptureQueriesContext(connection) as captured:
             self.accessor.update_line_item_daily_summary_with_tag_mapping(
                 self.dh.this_month_start, self.dh.today, infrastructure_only=False
@@ -1706,10 +1706,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
             q["sql"] for q in captured.captured_queries if "UPDATE" in q["sql"] and "cte_update_labels" in q["sql"]
         ]
         self.assertEqual(len(updates), 1)
+        self.assertEqual(
+            updates[0].count("infrastructure_raw_cost IS NULL OR lids.infrastructure_raw_cost = 0"),
+            2,
+        )
         self.assertNotIn("infrastructure_raw_cost IS NOT NULL", updates[0])
-        self.assertNotIn("infrastructure_raw_cost != 0", updates[0])
 
-        # Call with infrastructure_only=True
+        # Cloud summary: infrastructure rows only
         with CaptureQueriesContext(connection) as captured:
             self.accessor.update_line_item_daily_summary_with_tag_mapping(
                 self.dh.this_month_start, self.dh.today, infrastructure_only=True
@@ -1718,9 +1721,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
             q["sql"] for q in captured.captured_queries if "UPDATE" in q["sql"] and "cte_update_labels" in q["sql"]
         ]
         self.assertEqual(len(updates), 1)
-        # Should appear twice: once in pod_labels branch, once in volume_labels branch
         self.assertEqual(updates[0].count("infrastructure_raw_cost IS NOT NULL"), 2)
         self.assertEqual(updates[0].count("infrastructure_raw_cost != 0"), 2)
+        self.assertNotIn("infrastructure_raw_cost IS NULL OR", updates[0])
 
     def test_no_report_period_populate_vm_tag_based_costs(self):
         """

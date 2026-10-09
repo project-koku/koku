@@ -363,11 +363,17 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         self, start_date, end_date, report_period_ids=None, infrastructure_only=False
     ):
         """Maps child keys to parent key.
+
+        OCP and cloud summaries partition this table by infrastructure_raw_cost.
+        Pass infrastructure_only=False (default) from the OCP summary to map usage
+        rows only; pass True from the cloud summary to map infrastructure rows only.
+
         Args:
             start_date (datetime.date) The date to start mapping keys
             end_date (datetime.date) The date to end on.
-            bill_ids (list) A list of bill IDs.
-            infrastructure_only (bool) Restrict to rows carrying infrastructure raw cost.
+            report_period_ids (list) A list of report period IDs.
+            infrastructure_only (bool) True maps nonzero infrastructure_raw_cost
+                rows; False maps null/zero infrastructure_raw_cost rows.
         Returns
             (None)
         """

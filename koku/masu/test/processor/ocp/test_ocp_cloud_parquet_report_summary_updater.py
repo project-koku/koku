@@ -4,6 +4,8 @@
 #
 """Test the OCPCloudParquetReportSummaryUpdaterTest."""
 import datetime
+from unittest.mock import call
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
@@ -21,6 +23,7 @@ from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
 from masu.test import MasuTestCase
+from masu.util.common import SummaryRangeConfig
 
 
 class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
@@ -672,3 +675,77 @@ create table {self.schema}._eek_pt0 (usage_start date not null, id int) partitio
         mock_infra_map.return_value = updater.get_infra_map_from_providers()
         infra_map = updater._generate_ocp_infra_map_from_sql_trino(start_date, end_date)
         self.assertIn(self.aws_provider_uuid, str(infra_map))
+
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPCostModelCostUpdater")
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor")
+    @patch.object(OCPCloudParquetReportSummaryUpdater, "update_aws_summary_tables")
+    def test_update_summary_tables_maps_infrastructure_tags_before_ui(
+        self, mock_aws_summary, mock_ocp_accessor_cls, mock_cost_updater
+    ):
+        """Cloud summary applies infrastructure-only tag mapping before UI tables."""
+        start_date = self.dh.today.date()
+        end_date = start_date + datetime.timedelta(days=1)
+        report_period = Mock(id=42)
+        mock_accessor = MagicMock()
+        mock_accessor.report_periods_for_provider_uuid.return_value = report_period
+        mock_ocp_accessor_cls.return_value.__enter__.return_value = mock_accessor
+
+        updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=self.aws_provider, manifest=None)
+        updater.update_summary_tables(
+            start_date,
+            end_date,
+            self.ocpaws_provider_uuid,
+            self.aws_provider_uuid,
+            Provider.PROVIDER_AWS,
+        )
+
+        mock_aws_summary.assert_called_once_with(
+            self.ocpaws_provider_uuid, self.aws_provider_uuid, start_date, end_date
+        )
+        mock_cost_updater.return_value._update_markup_cost.assert_called_once_with(start_date, end_date)
+        mock_accessor.report_periods_for_provider_uuid.assert_called_once_with(
+            self.ocpaws_provider_uuid, start_date
+        )
+        mock_accessor.update_line_item_daily_summary_with_tag_mapping.assert_called_once_with(
+            start_date, end_date, [42], infrastructure_only=True
+        )
+        mock_accessor.populate_ui_summary_tables.assert_called_once_with(
+            SummaryRangeConfig(start_date=start_date, end_date=end_date), self.ocpaws_provider_uuid
+        )
+        self.assertLess(
+            mock_accessor.method_calls.index(
+                call.update_line_item_daily_summary_with_tag_mapping(
+                    start_date, end_date, [42], infrastructure_only=True
+                )
+            ),
+            mock_accessor.method_calls.index(
+                call.populate_ui_summary_tables(
+                    SummaryRangeConfig(start_date=start_date, end_date=end_date), self.ocpaws_provider_uuid
+                )
+            ),
+        )
+
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPCostModelCostUpdater")
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor")
+    @patch.object(OCPCloudParquetReportSummaryUpdater, "update_aws_summary_tables")
+    def test_update_summary_tables_skips_tag_mapping_without_report_period(
+        self, mock_aws_summary, mock_ocp_accessor_cls, mock_cost_updater
+    ):
+        """Without a report period, skip tag mapping but still populate UI tables."""
+        start_date = self.dh.today.date()
+        end_date = start_date
+        mock_accessor = MagicMock()
+        mock_accessor.report_periods_for_provider_uuid.return_value = None
+        mock_ocp_accessor_cls.return_value.__enter__.return_value = mock_accessor
+
+        updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=self.aws_provider, manifest=None)
+        updater.update_summary_tables(
+            start_date,
+            end_date,
+            self.ocpaws_provider_uuid,
+            self.aws_provider_uuid,
+            Provider.PROVIDER_AWS,
+        )
+
+        mock_accessor.update_line_item_daily_summary_with_tag_mapping.assert_not_called()
+        mock_accessor.populate_ui_summary_tables.assert_called_once()
