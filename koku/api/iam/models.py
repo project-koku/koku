@@ -39,8 +39,10 @@ class CloneSchemaTemplateMissing(CloneSchemaError):
 def _populate_exchange_rates_for_new_schema(schema_name):
     """Best-effort monthly rate fill after a tenant schema is cloned.
 
-    Schema creation must succeed even when the shared rate dictionary is empty
-    or the write fails. The daily currency task retries every tenant.
+    Ensures ExchangeRateDictionary is populated when empty (CURRENCY_URL fetch),
+    then writes MER for this schema. Schema creation must succeed even when the
+    shared dictionary stays empty or the write fails. The daily currency task
+    retries every tenant.
     """
     try:
         from cost_models.monthly_exchange_rate_utils import populate_monthly_rates_for_schema

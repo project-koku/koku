@@ -13,6 +13,7 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.currency.models import ExchangeRateDictionary
+from api.currency.utils import ensure_exchange_rate_dictionary
 from api.iam.models import Tenant
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
@@ -130,9 +131,12 @@ def populate_monthly_rates_for_schema(schema_name):
     ``template0`` is cloned with ``copy_data`` and does not carry a current market
     snapshot on a fresh database. Call this after the clone commits so the new
     schema can convert costs without waiting for the daily currency beat.
-    Current-month rows are upserted and missing months in the retention window
-    are backfilled, matching ``get_daily_currency_rates``.
+    If ``ExchangeRateDictionary`` is empty, fetch rates first (when
+    ``CURRENCY_URL`` is set) before writing MER. Current-month rows are upserted
+    and missing months in the retention window are backfilled, matching
+    ``get_daily_currency_rates``.
     """
+    ensure_exchange_rate_dictionary()
     with schema_context(schema_name):
         updated = populate_dynamic_monthly_rates(backfill_past_months=True)
     LOG.info(

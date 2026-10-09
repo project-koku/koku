@@ -201,8 +201,12 @@ exists. After [`Tenant.create_schema`](../../../koku/api/iam/models.py) commits
 a clone, it runs the same current-month upsert and retention backfill for that
 schema from the shared `ExchangeRateDictionary`
 ([`populate_monthly_rates_for_schema`](../../../koku/cost_models/monthly_exchange_rate_utils.py)).
-The daily job remains the refresh path. A failed fill is logged and does not
-roll back schema creation.
+If the dictionary is empty, that path fetches rates into ERD first when
+`CURRENCY_URL` is configured
+([`ensure_exchange_rate_dictionary`](../../../koku/api/currency/utils.py)), then
+writes MER for the new schema only (it does not crawl every tenant). The daily
+job remains the refresh path. A failed fill is logged and does not roll back
+schema creation.
 
 
 

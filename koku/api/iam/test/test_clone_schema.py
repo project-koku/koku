@@ -232,6 +232,26 @@ class CloneSchemaTest(IamTestCase):
         finally:
             Tenant.objects.filter(schema_name=schema_name).delete()
 
+    @patch("cost_models.monthly_exchange_rate_utils.ensure_exchange_rate_dictionary")
+    def test_new_schema_ensures_erd_before_mer_populate(self, mock_ensure):
+        """Empty ERD path runs ensure before writing MER for the cloned schema."""
+        schema_name = "org90909097"
+        ExchangeRateDictionary.objects.all().delete()
+        ExchangeRateDictionary.objects.create(currency_exchange_dictionary={"USD": {"EUR": "0.87", "USD": "1.0"}})
+        mock_ensure.return_value = True
+        tenant = Tenant(schema_name=schema_name)
+        tenant.save()
+        try:
+            with self.captureOnCommitCallbacks(execute=True):
+                self.assertTrue(tenant.create_schema())
+            mock_ensure.assert_called_once_with()
+            with schema_context(schema_name):
+                self.assertTrue(
+                    MonthlyExchangeRate.objects.filter(base_currency="USD", target_currency="EUR").exists()
+                )
+        finally:
+            Tenant.objects.filter(schema_name=schema_name).delete()
+
     @patch(
         "cost_models.monthly_exchange_rate_utils.populate_monthly_rates_for_schema",
         side_effect=RuntimeError("fx down"),
