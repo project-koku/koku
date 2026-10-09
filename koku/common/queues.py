@@ -46,6 +46,12 @@ class RefreshQueue(StrEnum):
     PENALTY_BOX = "refresh_penalty"
 
 
+class IngressQueue(StrEnum):
+    """Worker queue for staged HCCM ingress payloads."""
+
+    DEFAULT = "ingress"
+
+
 # any additional queues should be added to this list
 QUEUE_LIST = [
     DEFAULT,
@@ -64,6 +70,7 @@ QUEUE_LIST = [
     SummaryQueue.DEFAULT,
     SummaryQueue.XL,
     SummaryQueue.PENALTY_BOX,
+    IngressQueue.DEFAULT,
 ]
 
 
