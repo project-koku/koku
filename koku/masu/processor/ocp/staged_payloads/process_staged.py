@@ -332,8 +332,8 @@ def process_staged_ingress_payload(request_id):
 def process_staged_ingress_reports(request_id, claim_token, report_metas):
     """Download extracted CSVs and run line-item processing for one staged payload.
 
-    The row is marked processed only after this work returns. The extract task
-    still holds ``claim_token``; this task does not claim the row again.
+    The row is marked processed only when line items finish successfully. The
+    extract task still holds ``claim_token``; this task does not claim the row again.
     """
     if not heartbeat_ingress_claim(request_id, claim_token):
         LOG.info(log_json(request_id, msg="ingress staging line-item claim missed"))
@@ -350,7 +350,15 @@ def process_staged_ingress_reports(request_id, claim_token, report_metas):
             LOG.info(log_json(request_id, msg="ingress staging claim lost during csv download"))
             return
         tracing_id = _tracing_id(request_id, local_metas)
-        processing.process_extracted_reports(request_id, local_metas, tracing_id)
+        if not processing.process_extracted_reports(request_id, local_metas, tracing_id):
+            if heartbeat.lost:
+                return
+            release_for_retry(
+                request_id,
+                claim_token,
+                RuntimeError("staged ingress line items incomplete"),
+            )
+            return
         if heartbeat.lost:
             LOG.info(log_json(request_id, msg="ingress staging claim lost during line items"))
             return

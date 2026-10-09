@@ -4665,6 +4665,450 @@ data:
             "x": 0,
             "y": 107
           },
+          "id": 10000,
+          "panels": [],
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "iLX_mMBnk"
+              },
+              "refId": "A"
+            }
+          ],
+          "title": "Ingress staging",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Celery depth of the ingress queue (HCCM staging register, reconcile, extract)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 50
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 108
+          },
+          "id": 10001,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "expr": "koku:celery:ingress_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Ingress queue",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Celery depth of the ingress queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 50
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 8,
+            "y": 108
+          },
+          "id": 10002,
+          "options": {
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "sizing": "auto"
+          },
+          "pluginVersion": "10.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "expr": "koku:celery:ingress_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Ingress queue",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Pending and failed ingress staging rows in Postgres",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 10
+                  },
+                  {
+                    "color": "red",
+                    "value": 50
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 7,
+            "x": 10,
+            "y": 108
+          },
+          "id": 10003,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "expr": "max(ingress_staging_pending{namespace=\"$namespace\"})",
+              "refId": "A",
+              "legendFormat": "pending"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "expr": "max(ingress_staging_failed{namespace=\"$namespace\"})",
+              "legendFormat": "failed",
+              "refId": "B"
+            }
+          ],
+          "title": "Staging rows",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Age of the oldest ingress staging row in pending, processing, or failed",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 3600
+                  },
+                  {
+                    "color": "red",
+                    "value": 14400
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 7,
+            "x": 17,
+            "y": 108
+          },
+          "id": 10004,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "expr": "max(ingress_staging_oldest_unprocessed_seconds{namespace=\"$namespace\"})",
+              "refId": "A"
+            }
+          ],
+          "title": "Oldest unprocessed (s)",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "iLX_mMBnk"
+          },
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 116
+          },
           "id": 28,
           "panels": [],
           "targets": [
@@ -4699,7 +5143,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 108
+            "y": 117
           },
           "hiddenSeries": false,
           "id": 24,
@@ -4835,7 +5279,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 108
+            "y": 117
           },
           "hiddenSeries": false,
           "id": 22,
@@ -4932,7 +5376,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 116
+            "y": 125
           },
           "hiddenSeries": false,
           "id": 20,
@@ -5024,7 +5468,7 @@ data:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 116
+            "y": 125
           },
           "hiddenSeries": false,
           "id": 26,
@@ -5136,7 +5580,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 124
+            "y": 133
           },
           "id": 32,
           "panels": [],
@@ -5172,7 +5616,7 @@ data:
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 125
+            "y": 134
           },
           "hiddenSeries": false,
           "id": 30,
@@ -5250,7 +5694,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 132
+            "y": 141
           },
           "id": 40,
           "panels": [],
@@ -5293,7 +5737,7 @@ data:
             "h": 6,
             "w": 4,
             "x": 0,
-            "y": 133
+            "y": 142
           },
           "id": 42,
           "options": {
@@ -5353,7 +5797,7 @@ data:
             "h": 6,
             "w": 5,
             "x": 4,
-            "y": 133
+            "y": 142
           },
           "id": 44,
           "options": {
@@ -5413,7 +5857,7 @@ data:
             "h": 6,
             "w": 4,
             "x": 9,
-            "y": 133
+            "y": 142
           },
           "id": 46,
           "options": {
@@ -5462,7 +5906,7 @@ data:
             "h": 6,
             "w": 11,
             "x": 13,
-            "y": 133
+            "y": 142
           },
           "id": 54,
           "legend": {
@@ -5515,7 +5959,7 @@ data:
             "h": 7,
             "w": 4,
             "x": 0,
-            "y": 139
+            "y": 148
           },
           "id": 48,
           "options": {
@@ -5568,7 +6012,7 @@ data:
             "h": 7,
             "w": 9,
             "x": 4,
-            "y": 139
+            "y": 148
           },
           "hiddenSeries": false,
           "id": 50,
@@ -5656,7 +6100,7 @@ data:
             "h": 7,
             "w": 11,
             "x": 13,
-            "y": 139
+            "y": 148
           },
           "hiddenSeries": false,
           "id": 52,
@@ -5751,7 +6195,7 @@ data:
             "h": 7,
             "w": 4,
             "x": 0,
-            "y": 146
+            "y": 155
           },
           "id": 56,
           "options": {
@@ -5804,7 +6248,7 @@ data:
             "h": 7,
             "w": 9,
             "x": 4,
-            "y": 146
+            "y": 155
           },
           "hiddenSeries": false,
           "id": 57,
@@ -5893,7 +6337,7 @@ data:
             "h": 7,
             "w": 11,
             "x": 13,
-            "y": 146
+            "y": 155
           },
           "hiddenSeries": false,
           "id": 58,
@@ -5988,7 +6432,7 @@ data:
             "h": 7,
             "w": 4,
             "x": 0,
-            "y": 153
+            "y": 162
           },
           "id": 59,
           "options": {
@@ -6041,7 +6485,7 @@ data:
             "h": 7,
             "w": 9,
             "x": 4,
-            "y": 153
+            "y": 162
           },
           "hiddenSeries": false,
           "id": 60,
@@ -6130,7 +6574,7 @@ data:
             "h": 7,
             "w": 11,
             "x": 13,
-            "y": 153
+            "y": 162
           },
           "hiddenSeries": false,
           "id": 61,
@@ -6225,7 +6669,7 @@ data:
             "h": 7,
             "w": 4,
             "x": 0,
-            "y": 160
+            "y": 169
           },
           "id": 63,
           "options": {
@@ -6278,7 +6722,7 @@ data:
             "h": 7,
             "w": 9,
             "x": 4,
-            "y": 160
+            "y": 169
           },
           "hiddenSeries": false,
           "id": 65,
@@ -6367,7 +6811,7 @@ data:
             "h": 7,
             "w": 11,
             "x": 13,
-            "y": 160
+            "y": 169
           },
           "hiddenSeries": false,
           "id": 66,
@@ -6462,7 +6906,7 @@ data:
             "h": 7,
             "w": 4,
             "x": 0,
-            "y": 167
+            "y": 176
           },
           "id": 64,
           "options": {
@@ -6515,7 +6959,7 @@ data:
             "h": 7,
             "w": 9,
             "x": 4,
-            "y": 167
+            "y": 176
           },
           "hiddenSeries": false,
           "id": 67,
@@ -6604,7 +7048,7 @@ data:
             "h": 7,
             "w": 11,
             "x": 13,
-            "y": 167
+            "y": 176
           },
           "hiddenSeries": false,
           "id": 68,
@@ -6682,7 +7126,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 174
+            "y": 183
           },
           "id": 114,
           "panels": [],
@@ -6742,7 +7186,7 @@ data:
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 175
+            "y": 184
           },
           "id": 113,
           "options": {

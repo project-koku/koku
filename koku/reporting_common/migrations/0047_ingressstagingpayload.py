@@ -49,6 +49,7 @@ class Migration(migrations.Migration):
                 "indexes": [
                     models.Index(fields=["state", "not_before"], name="ingress_staging_claim_idx"),
                     models.Index(fields=["state", "claimed_at"], name="ingress_staging_lease_idx"),
+                    models.Index(fields=["state", "stored_at"], name="ingress_staging_stored_at_idx"),
                 ],
             },
         ),

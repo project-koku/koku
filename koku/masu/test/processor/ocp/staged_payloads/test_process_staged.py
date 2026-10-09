@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the worker that processes a staged ingress tarball."""
+import shutil
 import tempfile
 from datetime import datetime
 from datetime import timedelta
@@ -10,12 +11,15 @@ from datetime import timezone as dt_timezone
 from pathlib import Path
 from unittest.mock import patch
 
+from django.conf import settings
 from django.utils import timezone
 
 from common.queues import OCPQueue
 from masu.external.downloader.ocp.payload_landing import claim_ingress_staging_row
 from masu.processor.ocp.staged_payloads import processing
 from masu.processor.ocp.staged_payloads.process_staged import _json_ready
+from masu.processor.ocp.staged_payloads.process_staged import download_staged_tarball
+from masu.processor.ocp.staged_payloads.process_staged import materialize_report_files
 from masu.processor.ocp.staged_payloads.process_staged import process_staged_ingress_payload
 from masu.processor.ocp.staged_payloads.process_staged import process_staged_ingress_reports
 from masu.processor.ocp.staged_payloads.process_staged import PROCESS_STAGED_INGRESS_REPORTS_TASK
@@ -221,6 +225,47 @@ class ProcessStagedIngressTests(MasuTestCase):
         self.assertEqual(row.state, IngressStagingState.PROCESSED)
         self.assertIsNone(row.payload)
 
+    def test_line_item_task_retries_when_reports_incomplete(self):
+        """Test that incomplete line items release the claim instead of marking processed."""
+        request_id = "line-items-incomplete"
+        row = self._pending_row(request_id)
+        claimed = claim_ingress_staging_row(request_id)
+        report_metas = [
+            {
+                "schema_name": self.schema,
+                "uuid": "manifest-uuid",
+                "split_files": ["pod_usage.2026-01-01.1.abc.csv"],
+                "current_file": "file.csv",
+                "ocp_files_to_process": {
+                    "pod_usage.2026-01-01.1.abc": {"s3_key": "data/csv/pod_usage.2026-01-01.1.abc.csv"}
+                },
+            }
+        ]
+        with (
+            patch(
+                "masu.processor.ocp.staged_payloads.process_staged.heartbeat_ingress_claim",
+                return_value=True,
+            ),
+            patch(
+                "masu.processor.ocp.staged_payloads.process_staged.materialize_report_files",
+                return_value=(None, report_metas),
+            ),
+            patch(
+                "masu.processor.ocp.staged_payloads.processing.process_extracted_reports",
+                return_value=False,
+            ),
+            patch(
+                "masu.processor.ocp.staged_payloads.process_staged.mark_processed",
+            ) as mock_mark_processed,
+        ):
+            process_staged_ingress_reports(request_id, str(claimed.claim_token), report_metas)
+
+        mock_mark_processed.assert_not_called()
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PENDING)
+        self.assertIsNotNone(row.payload)
+        self.assertIsNone(row.claim_token)
+
     def test_scheduler_worker_queue_omits_ingress(self):
         """Test that the scheduler pod is not subscribed to the ingress queue."""
         repo = Path(__file__).resolve().parents[6]
@@ -245,3 +290,137 @@ class ProcessStagedIngressTests(MasuTestCase):
         mock_extract.assert_not_called()
         row.refresh_from_db()
         self.assertEqual(row.state, IngressStagingState.PROCESSED)
+
+
+class DownloadStagedTarballTests(MasuTestCase):
+    """Tests for download_staged_tarball."""
+
+    @patch("masu.processor.ocp.staged_payloads.process_staged.get_s3_resource")
+    def test_download_staged_tarball_writes_object_to_sanitized_path(self, mock_s3):
+        """Staged tarball is downloaded under DATA_DIR with a sanitized request_id filename."""
+        mock_s3.return_value.Object.return_value.download_file.side_effect = lambda dest: Path(dest).write_bytes(
+            b"payload"
+        )
+        s3_key = "data/ingress_staging/foo.tar.gz"
+        request_id = "req-123_ab"
+        dest = download_staged_tarball(s3_key, request_id)
+        try:
+            self.assertTrue(dest.is_file())
+            self.assertEqual(dest.name, "req123ab.tar.gz")
+            self.assertEqual(dest.read_bytes(), b"payload")
+            mock_s3.return_value.Object.assert_called_once_with(settings.S3_BUCKET_NAME, s3_key)
+            mock_s3.return_value.Object.return_value.download_file.assert_called_once_with(str(dest))
+        finally:
+            shutil.rmtree(dest.parent, ignore_errors=True)
+
+    @patch("masu.processor.ocp.staged_payloads.process_staged.get_s3_resource")
+    def test_download_staged_tarball_removes_temp_dir_on_failure(self, mock_s3):
+        """A failed download removes the temp directory before raising."""
+        work_dir = Path(tempfile.mkdtemp())
+        mock_s3.return_value.Object.return_value.download_file.side_effect = RuntimeError("s3 down")
+        with patch(
+            "masu.processor.ocp.staged_payloads.process_staged.tempfile.mkdtemp",
+            return_value=str(work_dir),
+        ):
+            with self.assertRaises(RuntimeError):
+                download_staged_tarball("data/ingress_staging/x.tar.gz", "request-id")
+        self.assertFalse(work_dir.exists())
+
+
+class MaterializeReportFilesTests(MasuTestCase):
+    """Tests for materialize_report_files."""
+
+    def _write_download(self, dest):
+        Path(dest).write_bytes(b"csv")
+
+    @patch("masu.processor.ocp.staged_payloads.process_staged.get_s3_resource")
+    def test_materialize_report_files_rebuilds_local_paths(self, mock_s3):
+        """Daily CSVs are downloaded once and split_files/current_file become local Paths."""
+        mock_s3.return_value.Object.return_value.download_file.side_effect = self._write_download
+        report_metas = [
+            {
+                "split_files": ["pod_usage.2026-01-01.1.abc.csv"],
+                "current_file": "file.csv",
+                "ocp_files_to_process": {
+                    "pod_usage.2026-01-01.1.abc": {"s3_key": "data/csv/pod_usage.2026-01-01.1.abc.csv"},
+                    "file": {"s3_key": "data/csv/file.csv"},
+                },
+            }
+        ]
+        report_dir = None
+        try:
+            report_dir, rebuilt = materialize_report_files(report_metas)
+            self.assertTrue(report_dir.is_dir())
+            usage_path = report_dir / "pod_usage.2026-01-01.1.abc.csv"
+            file_path = report_dir / "file.csv"
+            self.assertTrue(usage_path.is_file())
+            self.assertTrue(file_path.is_file())
+            self.assertEqual(rebuilt[0]["split_files"], [usage_path])
+            self.assertEqual(rebuilt[0]["current_file"], file_path)
+            self.assertEqual(report_metas[0]["split_files"], ["pod_usage.2026-01-01.1.abc.csv"])
+        finally:
+            if report_dir is not None:
+                shutil.rmtree(report_dir, ignore_errors=True)
+
+    @patch("masu.processor.ocp.staged_payloads.process_staged.get_s3_resource")
+    def test_materialize_report_files_deduplicates_by_filename(self, mock_s3):
+        """Two object keys with the same basename download only once."""
+        download = mock_s3.return_value.Object.return_value.download_file
+        download.side_effect = self._write_download
+        report_metas = [
+            {
+                "split_files": ["pod_usage.2026-01-01.1.abc.csv"],
+                "ocp_files_to_process": {
+                    "a": {"s3_key": "data/csv/pod_usage.2026-01-01.1.abc.csv"},
+                    "b": {"s3_key": "archive/pod_usage.2026-01-01.1.abc.csv"},
+                },
+            }
+        ]
+        report_dir = None
+        try:
+            report_dir, rebuilt = materialize_report_files(report_metas)
+            self.assertEqual(download.call_count, 1)
+            self.assertEqual(len(rebuilt[0]["split_files"]), 1)
+        finally:
+            if report_dir is not None:
+                shutil.rmtree(report_dir, ignore_errors=True)
+
+    @patch("masu.processor.ocp.staged_payloads.process_staged.get_s3_resource")
+    def test_materialize_report_files_skips_entries_without_s3_key(self, mock_s3):
+        """ocp_files_to_process rows without s3_key are ignored."""
+        mock_s3.return_value.Object.return_value.download_file.side_effect = self._write_download
+        report_metas = [
+            {
+                "split_files": [],
+                "ocp_files_to_process": {"pending": {"meta_reportdatestart": "2026-01-01"}},
+            }
+        ]
+        report_dir = None
+        try:
+            report_dir, rebuilt = materialize_report_files(report_metas)
+            mock_s3.return_value.Object.return_value.download_file.assert_not_called()
+            self.assertEqual(rebuilt[0]["split_files"], [])
+        finally:
+            if report_dir is not None:
+                shutil.rmtree(report_dir, ignore_errors=True)
+
+    @patch("masu.processor.ocp.staged_payloads.process_staged.get_s3_resource")
+    def test_materialize_report_files_removes_temp_dir_on_failure(self, mock_s3):
+        """A failed download removes the temp directory before raising."""
+        work_dir = Path(tempfile.mkdtemp())
+        mock_s3.return_value.Object.return_value.download_file.side_effect = RuntimeError("s3 down")
+        report_metas = [
+            {
+                "split_files": ["pod_usage.2026-01-01.1.abc.csv"],
+                "ocp_files_to_process": {
+                    "pod_usage.2026-01-01.1.abc": {"s3_key": "data/csv/pod_usage.2026-01-01.1.abc.csv"},
+                },
+            }
+        ]
+        with patch(
+            "masu.processor.ocp.staged_payloads.process_staged.tempfile.mkdtemp",
+            return_value=str(work_dir),
+        ):
+            with self.assertRaises(RuntimeError):
+                materialize_report_files(report_metas)
+        self.assertFalse(work_dir.exists())

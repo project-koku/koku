@@ -175,16 +175,31 @@ Retries use `not_before` with backoff `min(2^(attempts-1), 30)` minutes. At the 
 
 The OCP worker consumes `ocp,ingress` ([`deploy/clowdapp.yaml`](../../deploy/clowdapp.yaml), [`worker-ocp.yaml`](../../deploy/kustomize/patches/worker-ocp.yaml)). `SCHEDULER_WORKER_QUEUE` does not include `ingress`, so the scheduler publishes the beat tasks and does not run extract or Trino for them.
 
-Gauges, published by the reconciler:
+**Shared worker capacity.** `worker-ocp` multiplexes both queues on the same Celery concurrency. A long `ocp` task (parquet, Trino on SaaS) occupies a slot that cannot run `ingress` work until it finishes. Line items after extract use `ocp`, `ocp_xl`, or `ocp_penalty` on the matching OCP worker pools; only register, reconcile, expire, and tarball extract share the single `ingress` queue.
 
-| Metric | Meaning |
-|--------|---------|
-| `ingress_backlog` | Celery depth of the `ingress` queue |
-| `ingress_staging_pending` | Rows in `pending` |
-| `ingress_staging_failed` | Rows in `failed` |
-| `ingress_staging_oldest_unprocessed_seconds` | Age of the oldest row in `pending`, `processing`, or `failed` |
-| `ingress_staging_pending_markers` | Pending S3 markers listed this run, capped at 1000 |
-| `ingress_staging_pending_marker_oldest_seconds` | Age of the oldest marker in that listing |
+**Autoscaling.** KEDA for `worker-ocp` scales on `koku:celery:ocp_queue` only ([`WORKER_OCP_TRIGGER_QUERY`](../../deploy/kustomize/patches/worker-ocp.yaml)). Deep `ocp` backlog adds replicas that also drain `ingress`. Ingress-only pressure does not trigger scale-out until a recording rule exists and the trigger query includes ingress depth (see below).
+
+### Metrics
+
+| Metric | Source | Meaning |
+|--------|--------|---------|
+| `ingress_backlog` | [`collect_queue_metrics`](../../koku/masu/celery/tasks.py) on worker metrics scrape | Celery depth of the `ingress` queue |
+| `ingress_staging_pending` | [`reconcile_ingress_staging`](../../koku/masu/external/downloader/ocp/payload_landing/reconcile.py) (also register for marker gauges) | Rows in `pending` |
+| `ingress_staging_failed` | Reconciler | Rows in `failed` |
+| `ingress_staging_oldest_unprocessed_seconds` | Reconciler | Age of the oldest row in `pending`, `processing`, or `failed` |
+| `ingress_staging_pending_markers` | [`register_ingress_staging_marker`](../../koku/masu/external/downloader/ocp/payload_landing/register.py) | Pending S3 markers listed this run, capped at 1000 |
+| `ingress_staging_pending_marker_oldest_seconds` | Register task | Age of the oldest marker in that listing |
+
+**Grafana.** The Cost Management dashboard ([`grafana-dashboard-insights-hccm.configmap.yaml`](../../dashboards/grafana-dashboard-insights-hccm.configmap.yaml)) has an **Ingress staging** row: `koku:celery:ingress_queue`, staging row counts, and oldest-unprocessed age (filter `namespace` like other panels).
+
+**Prometheus recording rule.** Queue panels and KEDA use `koku:celery:*_queue` recording rules maintained in app-interface (same pattern as `koku:celery:ocp_queue`). Add a sibling rule for ingress, for example:
+
+```yaml
+- record: koku:celery:ingress_queue
+  expr: sum(ingress_backlog{namespace=~"hccm-.*"})
+```
+
+Until that rule is deployed, query `sum(ingress_backlog{namespace="$namespace"})` directly or rely on the raw gauge in ad-hoc queries.
 
 Indexes: `(state, not_before)` for claims, `(state, claimed_at)` for lease reclaim.
 
@@ -193,7 +208,7 @@ Indexes: `(state, not_before)` for claims, `(state, claimed_at)` for lease recla
 1. Apply migration [`0047_ingressstagingpayload`](../../koku/reporting_common/migrations/0047_ingressstagingpayload.py) before enabling the flag. The listener does not read the table. The register task needs it before a marker can become a claimable row.
 2. Enable `cost-management.backend.ingress-staging-listener` per schema in Unleash. Stickiness is `schema`, and the context is `org{org_id}`. ON stores the tarball and a pending marker, then confirms. Default remains off in stage and production.
 3. Leave on-prem on [`legacy_message_processing`](../../koku/masu/external/kafka_msg_handler.py) until a later release adds the flag to `ONPREM_FLAG_DEFAULTS`.
-4. Watch `ingress_staging_failed` and `ingress_staging_oldest_unprocessed_seconds`. A confirmed upload that never becomes cost data shows up there. This branch does not add a paging rule.
+4. Watch the **Ingress staging** Grafana row, `ingress_staging_failed`, and `ingress_staging_oldest_unprocessed_seconds`. A confirmed upload that never becomes cost data shows up there. This branch does not add a paging rule.
 5. The dead-letter flag can stay as the incident park-and-skip path for schemas that are not on staging. It still has no replay worker.
 
 ## Tests
