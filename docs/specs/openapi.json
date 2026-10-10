@@ -59,6 +59,10 @@
             "description": "Operations about status"
         },
         {
+            "name": "Celery Queue Tasks",
+            "description": "Lists queued Celery tasks or removes one queued task by ID."
+        },
+        {
             "name": "Optimizations",
             "description": "Resource Optimization for Openshift"
         }
@@ -88,6 +92,121 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/celery_queue_tasks/": {
+            "get": {
+                "tags": [
+                    "Celery Queue Tasks"
+                ],
+                "summary": "List queued Celery tasks",
+                "operationId": "celeryQueueTasks",
+                "parameters": [
+                    {
+                        "name": "queue",
+                        "in": "query",
+                        "required": false,
+                        "description": "A Celery queue to inspect.",
+                        "schema": {
+                            "type": "string",
+                            "example": "summary"
+                        }
+                    },
+                    {
+                        "name": "task",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter queued messages by Celery task name.",
+                        "schema": {
+                            "type": "string",
+                            "example": "masu.processor.tasks.update_summary_tables"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Queued tasks grouped by queue.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CeleryQueueTasksResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid queue.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CeleryQueueTaskError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Celery Queue Tasks"
+                ],
+                "summary": "Remove one queued Celery task by ID",
+                "operationId": "deleteCeleryQueueTask",
+                "description": "Removes at most one exact serialized message from the selected queue. Active tasks are not affected.",
+                "parameters": [
+                    {
+                        "name": "queue",
+                        "in": "query",
+                        "required": true,
+                        "description": "The Celery queue containing the task.",
+                        "schema": {
+                            "type": "string",
+                            "example": "summary"
+                        }
+                    },
+                    {
+                        "name": "task_id",
+                        "in": "query",
+                        "required": true,
+                        "description": "The exact Celery task ID in the queued message headers.",
+                        "schema": {
+                            "type": "string",
+                            "example": "a8d39868-dbd3-47ac-9220-82370e35b59c"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One matching queued task was removed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeleteCeleryQueueTaskResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing parameters or invalid queue.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CeleryQueueTaskError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No matching queued task was found, or a worker consumed it before removal.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CeleryQueueTaskError"
                                 }
                             }
                         }
@@ -12357,6 +12476,65 @@
                     "status": {
                         "type": "string",
                         "example": "OK"
+                    }
+                }
+            },
+            "CeleryQueueTasksResponse": {
+                "type": "object",
+                "properties": {
+                    "queued_tasks": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/QueuedCeleryTask"
+                            }
+                        }
+                    }
+                }
+            },
+            "QueuedCeleryTask": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "args": {
+                        "type": "string"
+                    },
+                    "kwargs": {
+                        "type": "string"
+                    }
+                }
+            },
+            "DeleteCeleryQueueTaskResponse": {
+                "type": "object",
+                "required": [
+                    "queue",
+                    "task_id",
+                    "removed"
+                ],
+                "properties": {
+                    "queue": {
+                        "type": "string"
+                    },
+                    "task_id": {
+                        "type": "string"
+                    },
+                    "removed": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                }
+            },
+            "CeleryQueueTaskError": {
+                "type": "object",
+                "properties": {
+                    "Error": {
+                        "type": "string"
                     }
                 }
             },
