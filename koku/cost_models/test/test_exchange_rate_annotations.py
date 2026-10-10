@@ -15,6 +15,7 @@ from django_tenants.utils import tenant_context
 
 from api.currency.exceptions import ExchangeRateNotFound
 from api.currency.utils import build_monthly_rate_annotation
+from api.currency.utils import get_monthly_exchange_rate_map
 from api.currency.utils import validate_exchange_rate_coverage
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.view import AWSCostView
@@ -72,6 +73,21 @@ class ValidateExchangeRateCoverageTest(MasuTestCase):
                 )
             validate_exchange_rate_coverage({"GBP"}, "EUR", date(2026, 1, 1), date(2026, 2, 1))
 
+    def test_rate_map_returns_rates_and_identity(self):
+        """get_monthly_exchange_rate_map returns DB rates and target-currency identity rates."""
+        with schema_context(self.schema):
+            MonthlyExchangeRate.objects.create(
+                effective_date=date(2026, 1, 1),
+                base_currency="GBP",
+                target_currency="EUR",
+                exchange_rate=Decimal("1.17"),
+                rate_type="static",
+            )
+            rate_map = get_monthly_exchange_rate_map({"GBP", "EUR"}, "EUR", date(2026, 1, 1), date(2026, 1, 31))
+
+        self.assertEqual(rate_map["GBP"][date(2026, 1, 1)], Decimal("1.17"))
+        self.assertEqual(rate_map["EUR"][date(2026, 1, 1)], Decimal("1"))
+
 
 class QueryHandlerFeatureFlagTest(MasuTestCase):
     """Test that the feature flag gates exchange-rate behaviour in query handlers."""
@@ -88,10 +104,17 @@ class QueryHandlerFeatureFlagTest(MasuTestCase):
         return AWSReportQueryHandler(self.mocked_query_params("?", AWSCostView, path=self.AWS_PATH))
 
     @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=True)
-    def test_flag_on_uses_subquery_annotations(self, _):
-        """Flag ON → OCP handler returns Subquery-based annotations (both keys present)."""
-        ann = self._make_ocp_handler().exchange_rate_annotation_dict
+    def test_ocp_flag_on_uses_bounded_case_annotations(self, _):
+        """Flag ON → OCP handler returns bounded Case annotations (both keys present)."""
+        handler = self._make_ocp_handler()
+        handler.__dict__["request_source_to_currency_map"] = {}
+        handler.__dict__["raw_currencies_for_conversion"] = {"USD"}
+        handler.__dict__["monthly_exchange_rate_map"] = {}
+
+        ann = handler.exchange_rate_annotation_dict
         self.assertEqual(set(ann.keys()), {"exchange_rate", "infra_exchange_rate"})
+        self.assertIsInstance(ann["exchange_rate"], Case)
+        self.assertIsInstance(ann["infra_exchange_rate"], Case)
 
     @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False)
     def test_flag_off_uses_dict_annotations(self, _):
