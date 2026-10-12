@@ -1952,25 +1952,30 @@ class KafkaMsgHandlerTest(MasuTestCase):
             self.assertIsNone(report_metas)
             self.assertIsNone(manifest_uuid)
 
-    def test_handle_message_download_time_limit_returns_failure_status(self):
-        """Test that time limit violations return FAILURE_CONFIRM_STATUS (permanent failure)."""
+    def test_handle_message_download_time_limit_rewinds(self):
+        """Test that time limit violations rewind for retry (transient ingress slowness)."""
         hccm_msg = MockMessage(
             UPLOAD_TOPIC,
             "http://insights-upload.com/quarantine/file_to_validate",
             {"org_id": self.org_id},
         )
-        # Simulate time limit violation
         time_limit_error = msg_handler.KafkaMsgHandlerError(
             "Unable to download file. Download exceeded total time limit of 900 seconds."
         )
-        with patch(
-            "masu.external.kafka_msg_handler.download_payload",
-            side_effect=time_limit_error,
+        with (
+            patch(
+                "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema",
+                return_value=False,
+            ),
+            patch(
+                "masu.external.kafka_msg_handler.download_payload",
+                side_effect=time_limit_error,
+            ),
+            patch("masu.external.kafka_msg_handler.extract_payload") as mock_extract,
         ):
-            status, report_metas, manifest_uuid = msg_handler.handle_message(hccm_msg)
-            self.assertEqual(status, msg_handler.FAILURE_CONFIRM_STATUS)
-            self.assertIsNone(report_metas)
-            self.assertIsNone(manifest_uuid)
+            with self.assertRaises(KafkaMsgHandlerError):
+                msg_handler.handle_message(hccm_msg)
+        mock_extract.assert_not_called()
 
     def test_handle_message_legacy_download_transient_errors_raise(self):
         """Test legacy path rewinds on timeout, connection, and 5xx download errors."""

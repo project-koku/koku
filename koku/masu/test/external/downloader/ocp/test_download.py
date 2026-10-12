@@ -22,10 +22,10 @@ class TestIsPermanentDownloadError(MasuTestCase):
         )
         self.assertTrue(is_permanent_download_error(error))
 
-    def test_time_limit_violation_is_permanent(self):
-        """Test that time limit violations are treated as permanent failures."""
+    def test_time_limit_violation_is_rewindable(self):
+        """Test that time limit violations rewind so transient slowness can recover."""
         error = KafkaMsgHandlerError("Unable to download file. Download exceeded total time limit of 900 seconds.")
-        self.assertTrue(is_permanent_download_error(error))
+        self.assertFalse(is_permanent_download_error(error))
 
     def test_http_4xx_error_is_permanent(self):
         """Test that HTTP 4xx errors (except 408, 429) are permanent."""

@@ -24,14 +24,15 @@ from pydantic import ValidationError
 from api.common import log_json
 from masu.config import Config
 from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
+from masu.prometheus_stats import OCP_INGRESS_DOWNLOAD_GUARDRAIL_COUNTER
 from masu.util.ocp import common as utils
 
 LOG = logging.getLogger(__name__)
 _MAX_MANIFEST_BYTES = 10 * 1_024 * 1_024  # 10 MB — orders of magnitude above any real manifest
 _CONNECT_TIMEOUT_SECONDS = 10
 _READ_TIMEOUT_SECONDS = 60
-_TOTAL_DOWNLOAD_TIMEOUT_SECONDS = 15 * 60
-_MAX_PAYLOAD_BYTES = 5 * 1024 * 1024 * 1024
+_TOTAL_DOWNLOAD_TIMEOUT_SECONDS = Config.OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS
+_MAX_PAYLOAD_BYTES = Config.OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES
 _DOWNLOAD_CHUNK_BYTES = 1024 * 1024
 _REWINDABLE_STATUS_CODES = {408, 429}
 
@@ -45,6 +46,7 @@ def _write_download_chunks(request_id, download_response, payload_file, context)
             continue
         elapsed_seconds = time.monotonic() - download_started
         if elapsed_seconds > _TOTAL_DOWNLOAD_TIMEOUT_SECONDS:
+            OCP_INGRESS_DOWNLOAD_GUARDRAIL_COUNTER.labels(failure_type="timeout").inc()
             msg = (
                 "Unable to download file. Download exceeded total time limit of "
                 f"{_TOTAL_DOWNLOAD_TIMEOUT_SECONDS} seconds."
@@ -53,6 +55,7 @@ def _write_download_chunks(request_id, download_response, payload_file, context)
             raise KafkaMsgHandlerError(msg)
         bytes_written += len(chunk)
         if bytes_written > _MAX_PAYLOAD_BYTES:
+            OCP_INGRESS_DOWNLOAD_GUARDRAIL_COUNTER.labels(failure_type="size").inc()
             msg = "Unable to download file. Download exceeded maximum allowed size of " f"{_MAX_PAYLOAD_BYTES} bytes."
             LOG.warning(log_json(request_id, msg=msg, context=context))
             raise KafkaMsgHandlerError(msg)
@@ -136,12 +139,12 @@ def is_permanent_download_error(error):
     408 and 429 are rewindable. Other 4xx responses, including a quarantine
     object that is gone, are confirmed as failures.
 
-    Size and time limit violations are also permanent — an oversized payload
-    or trickle download will not succeed on retry.
+    Payload size over the configured cap is permanent for the same presigned URL —
+    retry would hit the same object. Slow downloads may succeed on retry (transient
+    ingress or network), so time limit violations are not permanent here.
     """
-    # Check for size or time limit violations
     error_msg = str(error)
-    if "exceeded total time limit" in error_msg or "exceeded maximum allowed size" in error_msg:
+    if "exceeded maximum allowed size" in error_msg:
         return True
 
     # Check for HTTP 4xx errors (except rewindable status codes)
