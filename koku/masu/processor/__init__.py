@@ -34,6 +34,7 @@ OCP_CAPACITY_BY_NODE_SUMMARY_FLAG = "cost-management.backend.ocp_capacity_by_nod
 OCP_CAPACITY_SINGLE_SCAN_FLAG = "cost-management.backend.ocp_capacity_single_scan"
 OCP_CLOUD_CLUSTER_SUMMARY_VIEWS_FLAG = "cost-management.backend.ocp_cloud_cluster_summary_views"
 OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
+OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG = "cost-management.backend.ocp_on_cloud_pg_idempotent_delete"
 OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
 OCP_REPORT_CLUSTER_FILTER_INDEX_HINT_FLAG = "cost-management.backend.ocp_report_cluster_filter_index_hint"
 OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG = "cost-management.backend.ocp_report_combined_distributed_cost"

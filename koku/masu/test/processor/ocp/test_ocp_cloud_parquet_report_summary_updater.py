@@ -4,6 +4,7 @@
 #
 """Test the OCPCloudParquetReportSummaryUpdaterTest."""
 import datetime
+from decimal import Decimal
 from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -23,6 +24,12 @@ from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquet
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
 from masu.test import MasuTestCase
 from masu.util.common import SummaryRangeConfig
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
+from reporting.provider.aws.openshift.models import UI_SUMMARY_TABLES as OCPAWS_UI_SUMMARY_TABLES
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummaryP
+from reporting.provider.azure.openshift.models import UI_SUMMARY_TABLES as OCPAZURE_UI_SUMMARY_TABLES
+from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemProjectDailySummaryP
+from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES as OCPGCP_UI_SUMMARY_TABLES
 
 
 class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
@@ -740,3 +747,451 @@ create table {self.schema}._eek_pt0 (usage_start date not null, id int) partitio
 
         mock_apply_tag_mappings.assert_not_called()
         mock_accessor.populate_ui_summary_tables.assert_called_once()
+
+    def _scope_filters_from_delete_calls(self, mock_delete):
+        """Collect filter dicts from delete_line_item_daily_summary_entries_for_date_range_raw calls."""
+        return [c.kwargs.get("filters") or {} for c in mock_delete.call_args_list]
+
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.delete_infrastructure_raw_cost_from_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.report_periods_for_provider_uuid",
+        return_value=Mock(id=901),
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider",
+        return_value=True,
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_category_summary_table"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_tag_information"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_ui_summary_tables_trino"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.back_populate_ocp_infrastructure_costs"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary_trino"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
+    )
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.aws_get_bills_from_provider")
+    def test_update_aws_summary_deletes_cluster_scoped_pg_before_populate_when_flag_on(
+        self,
+        mock_utility,
+        mock_delete,
+        mock_ocp_on_aws,
+        mock_back_populate,
+        mock_ui_summary,
+        mock_tag_summary,
+        mock_category,
+        mock_ocpall_proj,
+        mock_ocpall_summ,
+        mock_ocpall_ui,
+        mock_cluster_info,
+        mock_report_period,
+        mock_delete_infra,
+        mock_flag,
+    ):
+        """Flag ON: cluster-scoped PG delete runs before populate for each date step."""
+        fake_bills = [Mock(id=42), Mock(id=43)]
+        mock_utility.return_value = fake_bills
+        start_date = self.dh.today.date()
+        end_date = start_date + datetime.timedelta(days=1)
+        report_period_id = 901
+        call_order = []
+        mock_delete.side_effect = lambda *args, **kwargs: call_order.append("delete")
+        mock_ocp_on_aws.side_effect = lambda *args, **kwargs: call_order.append("populate")
+
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+        updater.update_aws_summary_tables(self.ocpaws_provider_uuid, self.aws_test_provider_uuid, start_date, end_date)
+
+        self.assertIn("delete", call_order)
+        self.assertIn("populate", call_order)
+        self.assertLess(call_order.index("delete"), call_order.index("populate"))
+        mock_flag.assert_called()
+
+        filter_dicts = self._scope_filters_from_delete_calls(mock_delete)
+        project_filters = [
+            f
+            for f in filter_dicts
+            if f.get("cost_entry_bill_id") == 42 and f.get("report_period_id") == report_period_id
+        ]
+        self.assertTrue(project_filters, "expected project delete with bill_id + report_period_id")
+
+        ui_filters = [
+            f
+            for f in filter_dicts
+            if f.get("cluster_id") == self.ocpaws_ocp_cluster_id
+            and str(f.get("source_uuid")) == str(self.aws_provider.uuid)
+        ]
+        self.assertEqual(len(ui_filters), len(OCPAWS_UI_SUMMARY_TABLES))
+
+        project_delete_calls = [
+            c
+            for c in mock_delete.call_args_list
+            if c.kwargs.get("table") is OCPAWSCostLineItemProjectDailySummaryP
+            and (c.kwargs.get("filters") or {}) == {"cost_entry_bill_id": 42, "report_period_id": report_period_id}
+        ]
+        self.assertTrue(project_delete_calls)
+        # Patched unbound method: first positional arg is source_uuid (no explicit self).
+        self.assertEqual(project_delete_calls[0].args[0], self.aws_provider.uuid)
+
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.is_feature_flag_enabled_by_schema", return_value=False
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.delete_infrastructure_raw_cost_from_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.report_periods_for_provider_uuid",
+        return_value=Mock(id=902),
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider",
+        return_value=True,
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_category_summary_table"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_tag_information"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_ui_summary_tables_trino"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.back_populate_ocp_infrastructure_costs"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary_trino"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
+    )
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.aws_get_bills_from_provider")
+    def test_update_aws_summary_skips_idempotent_delete_when_flag_off(
+        self,
+        mock_utility,
+        mock_delete,
+        mock_ocp_on_aws,
+        mock_back_populate,
+        mock_ui_summary,
+        mock_tag_summary,
+        mock_category,
+        mock_ocpall_proj,
+        mock_ocpall_summ,
+        mock_ocpall_ui,
+        mock_cluster_info,
+        mock_report_period,
+        mock_delete_infra,
+        mock_flag,
+    ):
+        """Flag OFF: legacy insert-only path — no cluster-scoped pre-delete."""
+        fake_bills = [Mock(id=1), Mock(id=2)]
+        mock_utility.return_value = fake_bills
+        start_date = self.dh.today.date()
+        end_date = start_date + datetime.timedelta(days=1)
+
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+        updater.update_aws_summary_tables(self.ocpaws_provider_uuid, self.aws_test_provider_uuid, start_date, end_date)
+
+        mock_ocp_on_aws.assert_called()
+        mock_delete.assert_not_called()
+
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.delete_infrastructure_raw_cost_from_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.report_periods_for_provider_uuid",
+        return_value=Mock(id=8801),
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider",
+        return_value=True,
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_category_summary_table"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_tag_information"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_ui_summary_tables_trino"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.back_populate_ocp_infrastructure_costs"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary_trino"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
+    )
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.aws_get_bills_from_provider")
+    def test_ocp_on_aws_pg_idempotent_on_second_populate_flag_on(
+        self,
+        mock_utility,
+        mock_delete,
+        mock_ocp_on_aws,
+        mock_back_populate,
+        mock_ui_summary,
+        mock_tag_summary,
+        mock_category,
+        mock_ocpall_proj,
+        mock_ocpall_summ,
+        mock_ocpall_ui,
+        mock_cluster_info,
+        mock_report_period,
+        mock_delete_infra,
+        mock_flag,
+    ):
+        """Second populate with flag ON does not inflate row count or unblended_cost sum."""
+        start_date = self.dh.today.date()
+        end_date = start_date
+        bill_id = 7701
+        report_period_id = 8801
+        mock_utility.return_value = [Mock(id=bill_id)]
+        # Stand-in for PG project daily summary rows for this logical scope.
+        scope_state = {"count": 0, "sum": Decimal("0.00")}
+
+        def fake_delete(*args, **kwargs):
+            filters = kwargs.get("filters") or {}
+            if filters.get("cost_entry_bill_id") == bill_id and filters.get("report_period_id") == report_period_id:
+                scope_state["count"] = 0
+                scope_state["sum"] = Decimal("0.00")
+
+        def fake_populate(*args, **kwargs):
+            # Simulate non-idempotent uuid() INSERT of the same logical costs.
+            scope_state["count"] += 2
+            scope_state["sum"] += Decimal("20.00")
+
+        mock_delete.side_effect = fake_delete
+        mock_ocp_on_aws.side_effect = fake_populate
+
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+        updater.update_aws_summary_tables(self.ocpaws_provider_uuid, self.aws_test_provider_uuid, start_date, end_date)
+
+        first_count = scope_state["count"]
+        first_sum = scope_state["sum"]
+        self.assertEqual(first_count, 2)
+        self.assertEqual(first_sum, Decimal("20.00"))
+
+        # Simulate Celery retry without chain delete: second populate of same scope.
+        updater.update_aws_summary_tables(self.ocpaws_provider_uuid, self.aws_test_provider_uuid, start_date, end_date)
+
+        self.assertEqual(scope_state["count"], first_count)
+        self.assertEqual(scope_state["sum"], first_sum)
+        self.assertGreaterEqual(mock_delete.call_count, 2)
+
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.delete_infrastructure_raw_cost_from_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.report_periods_for_provider_uuid",
+        return_value=Mock(id=903),
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider",
+        return_value=True,
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tag_information"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_ui_summary_tables_trino"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.back_populate_ocp_infrastructure_costs"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_cost_daily_summary_trino"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
+    )
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.azure_get_bills_from_provider")
+    def test_update_azure_summary_deletes_cluster_scoped_pg_before_populate_when_flag_on(
+        self,
+        mock_utility,
+        mock_delete,
+        mock_ocp_on_azure,
+        mock_back_populate,
+        mock_ui_summary,
+        mock_tag_summary,
+        mock_ocpall_proj,
+        mock_ocpall_summ,
+        mock_ocpall_ui,
+        mock_cluster_info,
+        mock_report_period,
+        mock_delete_infra,
+        mock_flag,
+    ):
+        """Flag ON: Azure cluster-scoped PG delete runs before populate."""
+        fake_bills = [Mock(id=55)]
+        mock_utility.return_value = fake_bills
+        start_date = self.dh.today.date()
+        end_date = start_date + datetime.timedelta(days=1)
+        report_period_id = 903
+        call_order = []
+        mock_delete.side_effect = lambda *args, **kwargs: call_order.append("delete")
+        mock_ocp_on_azure.side_effect = lambda *args, **kwargs: call_order.append("populate")
+
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.azure_provider, manifest=None)
+        updater.update_azure_summary_tables(
+            self.ocpazure_provider_uuid, self.azure_test_provider_uuid, start_date, end_date
+        )
+
+        self.assertLess(call_order.index("delete"), call_order.index("populate"))
+        filter_dicts = self._scope_filters_from_delete_calls(mock_delete)
+        self.assertTrue(
+            any(
+                f.get("cost_entry_bill_id") == 55 and f.get("report_period_id") == report_period_id
+                for f in filter_dicts
+            )
+        )
+        ui_filters = [
+            f
+            for f in filter_dicts
+            if f.get("cluster_id") == self.ocpazure_ocp_cluster_id
+            and str(f.get("source_uuid")) == str(self.azure_provider.uuid)
+        ]
+        self.assertEqual(len(ui_filters), len(OCPAZURE_UI_SUMMARY_TABLES))
+        project_delete_calls = [
+            c
+            for c in mock_delete.call_args_list
+            if c.kwargs.get("table") is OCPAzureCostLineItemProjectDailySummaryP
+            and (c.kwargs.get("filters") or {}) == {"cost_entry_bill_id": 55, "report_period_id": report_period_id}
+        ]
+        self.assertTrue(project_delete_calls)
+        self.assertEqual(project_delete_calls[0].args[0], self.azure_provider.uuid)
+
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.delete_infrastructure_raw_cost_from_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.report_periods_for_provider_uuid",
+        return_value=Mock(id=904),
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_tag_information"
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables_trino"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.back_populate_ocp_infrastructure_costs"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_cost_daily_summary_trino"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
+    )
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.gcp_get_bills_from_provider")
+    def test_update_gcp_summary_deletes_cluster_scoped_pg_before_populate_when_flag_on(
+        self,
+        mock_utility,
+        mock_delete,
+        mock_ocp_on_gcp,
+        mock_back_populate,
+        mock_ui_summary,
+        mock_tag_summary,
+        mock_ocpall_proj,
+        mock_ocpall_summ,
+        mock_ocpall_ui,
+        mock_report_period,
+        mock_delete_infra,
+        mock_flag,
+    ):
+        """Flag ON: GCP cluster-scoped PG delete runs before populate."""
+        fake_bills = [Mock(id=66)]
+        mock_utility.return_value = fake_bills
+        start_date = self.dh.today.date()
+        end_date = start_date + datetime.timedelta(days=1)
+        report_period_id = 904
+        call_order = []
+        mock_delete.side_effect = lambda *args, **kwargs: call_order.append("delete")
+        mock_ocp_on_gcp.side_effect = lambda *args, **kwargs: call_order.append("populate")
+
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.gcp_provider, manifest=None)
+        updater.update_gcp_summary_tables(self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid, start_date, end_date)
+
+        self.assertLess(call_order.index("delete"), call_order.index("populate"))
+        filter_dicts = self._scope_filters_from_delete_calls(mock_delete)
+        self.assertTrue(
+            any(
+                f.get("cost_entry_bill_id") == 66 and f.get("report_period_id") == report_period_id
+                for f in filter_dicts
+            )
+        )
+        ui_filters = [
+            f
+            for f in filter_dicts
+            if f.get("cluster_id") == self.ocpgcp_ocp_cluster_id
+            and str(f.get("source_uuid")) == str(self.gcp_provider.uuid)
+        ]
+        self.assertEqual(len(ui_filters), len(OCPGCP_UI_SUMMARY_TABLES))
+        project_delete_calls = [
+            c
+            for c in mock_delete.call_args_list
+            if c.kwargs.get("table") is OCPGCPCostLineItemProjectDailySummaryP
+            and (c.kwargs.get("filters") or {}) == {"cost_entry_bill_id": 66, "report_period_id": report_period_id}
+        ]
+        self.assertTrue(project_delete_calls)
+        self.assertEqual(project_delete_calls[0].args[0], self.gcp_provider.uuid)

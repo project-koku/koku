@@ -19,10 +19,12 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
-from masu.processor.tag_mapping import apply_tag_mappings
 from masu.processor.tag_mapping import ROW_SCOPE_INFRA
+from masu.processor.tag_mapping import apply_tag_mappings
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair
@@ -146,6 +148,38 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         """Clear out existing data in summary tables by TRUNCATE."""
         with self.db_accessor(self._schema) as accessor:
             accessor.truncate_partition(partition_name)
+
+    def _delete_cluster_scoped_ocp_on_cloud_pg_data(
+        self, accessor, start_date, end_date, bill_id, report_period_id, cluster_id
+    ):
+        """Delete cluster-scoped OCP-on-cloud PG rows before re-populate (idempotent retry).
+
+        Project daily summary is scoped by cost_entry_bill_id + report_period_id.
+        UI summary tables are scoped by source_uuid + cluster_id.
+        """
+        project_filters = {
+            "cost_entry_bill_id": bill_id,
+            "report_period_id": report_period_id,
+        }
+        accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
+            self._provider.uuid,
+            start_date,
+            end_date,
+            table=self.daily_summary_table,
+            filters=project_filters,
+        )
+        ui_filters = {
+            "source_uuid": str(self._provider.uuid),
+            "cluster_id": cluster_id,
+        }
+        for table in self.ui_summary_tables:
+            accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
+                self._provider.uuid,
+                start_date,
+                end_date,
+                table=table,
+                filters=ui_filters,
+            )
 
     def update_summary_tables(self, start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type):
         """Populate the summary tables for reporting.
@@ -273,6 +307,17 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 context["start_date"] = start
                 context["end_date"] = end
                 LOG.info(log_json(msg="updating OpenShift on AWS summary table", **context))
+                if is_feature_flag_enabled_by_schema(
+                    self._schema, OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG, dev_fallback=True
+                ):
+                    self._delete_cluster_scoped_ocp_on_cloud_pg_data(
+                        accessor,
+                        start,
+                        end,
+                        current_aws_bill_id,
+                        current_ocp_report_period_id,
+                        cluster_id,
+                    )
                 accessor.populate_ocp_on_aws_cost_daily_summary_trino(
                     start,
                     end,
@@ -401,6 +446,17 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                         **context,
                     )
                 )
+                if is_feature_flag_enabled_by_schema(
+                    self._schema, OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG, dev_fallback=True
+                ):
+                    self._delete_cluster_scoped_ocp_on_cloud_pg_data(
+                        accessor,
+                        start,
+                        end,
+                        current_azure_bill_id,
+                        current_ocp_report_period_id,
+                        cluster_id,
+                    )
                 accessor.populate_ocp_on_azure_cost_daily_summary_trino(
                     start,
                     end,
@@ -510,6 +566,17 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 context["start_date"] = start
                 context["end_date"] = end
                 LOG.info(log_json(msg="updating OpenShift on GCP summary table", **context))
+                if is_feature_flag_enabled_by_schema(
+                    self._schema, OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG, dev_fallback=True
+                ):
+                    self._delete_cluster_scoped_ocp_on_cloud_pg_data(
+                        accessor,
+                        start,
+                        end,
+                        current_gcp_bill_id,
+                        current_ocp_report_period_id,
+                        cluster_id,
+                    )
                 accessor.populate_ocp_on_gcp_cost_daily_summary_trino(
                     start,
                     end,
