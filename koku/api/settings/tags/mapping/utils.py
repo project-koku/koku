@@ -117,8 +117,8 @@ def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
                 infra_sorting[provider_type].add(provider.uuid)
                 if infra := provider.infrastructure:
                     infra_sorting[infra.infrastructure_type].add(infra.infrastructure_provider_id)
-            for p_type, queued_uuids in infra_sorting.items():
-                delayed_summarize_current_month(schema_name, list(queued_uuids), p_type)
+            for p_type, provider_uuids in infra_sorting.items():
+                delayed_summarize_current_month(schema_name, list(provider_uuids), p_type)
 
 
 def retrieve_tag_rate_mapping(schema_name):

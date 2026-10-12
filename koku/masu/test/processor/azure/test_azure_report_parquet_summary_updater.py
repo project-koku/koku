@@ -14,9 +14,7 @@ from api.utils import DateHelper
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.processor.azure.azure_report_parquet_summary_updater import (
-    AzureReportParquetSummaryUpdater,
-)
+from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
 
@@ -92,17 +90,10 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
 
         start_return, end_return = self.updater.update_summary_tables(start, end)
         mock_delete.assert_called_with(
-            self.azure_provider.uuid,
-            expected_start,
-            expected_end,
-            {"cost_entry_bill_id": current_bill_id},
+            self.azure_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
         )
         mock_trino.assert_called_with(
-            expected_start,
-            expected_end,
-            self.azure_provider.uuid,
-            current_bill_id,
-            markup_value,
+            expected_start, expected_end, self.azure_provider.uuid, current_bill_id, markup_value
         )
         mock_apply_tag_mappings.assert_called_once_with(self.schema, self.azure_provider, start, end)
 
@@ -120,10 +111,7 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
             "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.bills_for_provider_uuid",
             return_value=[],
         ):
-            with self.assertLogs(
-                "masu.processor.azure.azure_report_parquet_summary_updater",
-                level="INFO",
-            ) as logs:
+            with self.assertLogs("masu.processor.azure.azure_report_parquet_summary_updater", level="INFO") as logs:
                 start_return, end_return = self.updater.update_summary_tables(start_str, end_str)
                 expected_log_msg = "no bill was found, skipping summarization"
 

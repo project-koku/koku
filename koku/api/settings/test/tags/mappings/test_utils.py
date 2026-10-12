@@ -41,16 +41,12 @@ class TestTagMappingUtils(MasuTestCase):
             for uuid in self.test_matrix.values():
                 self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=uuid).exists())
 
-    @patch(
-        "api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled",
-        return_value=False,
-    )
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=False)
     @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
     def test_ocp_on_cloud_resummarize(self, _mock_delay_disabled, _mock_flag):
         with tenant_context(self.tenant):
             infra_map = ProviderInfrastructureMap.objects.create(
-                infrastructure_type=Provider.PROVIDER_AWS,
-                infrastructure_provider=self.aws_provider,
+                infrastructure_type=Provider.PROVIDER_AWS, infrastructure_provider=self.aws_provider
             )
             self.ocp_provider.infrastructure = infra_map
             self.ocp_provider.save()
@@ -61,16 +57,12 @@ class TestTagMappingUtils(MasuTestCase):
             self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=self.aws_provider_uuid).exists())
             self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=self.ocp_provider.uuid).exists())
 
-    @patch(
-        "api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled",
-        return_value=False,
-    )
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=False)
     @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
     def test_ocp_on_cloud_resummarize_queues_shared_infra_once(self, mock_delayed_summarize, _mock_flag):
         with tenant_context(self.tenant):
             infra_map = ProviderInfrastructureMap.objects.create(
-                infrastructure_type=Provider.PROVIDER_AWS,
-                infrastructure_provider=self.aws_provider,
+                infrastructure_type=Provider.PROVIDER_AWS, infrastructure_provider=self.aws_provider
             )
             ocp_providers = Provider.objects.filter(type=Provider.PROVIDER_OCP)
             ocp_providers.update(infrastructure=infra_map)
@@ -82,18 +74,14 @@ class TestTagMappingUtils(MasuTestCase):
         self.assertIn(self.ocp_provider.uuid, queued[Provider.PROVIDER_OCP])
         self.assertEqual(queued[Provider.PROVIDER_AWS], [self.aws_provider.uuid])
 
-    @patch(
-        "api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled",
-        return_value=True,
-    )
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
     @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=False)
     def test_ocp_on_cloud_queues_mapping_only_job(self, _mock_delay_disabled, _mock_flag):
         """Flag on: OCP-on-cloud mapping queues the OCP source, not a cloud re-summary."""
         with tenant_context(self.tenant):
             DelayedCeleryTasks.objects.all().delete()
             infra_map = ProviderInfrastructureMap.objects.create(
-                infrastructure_type=Provider.PROVIDER_AWS,
-                infrastructure_provider=self.aws_provider,
+                infrastructure_type=Provider.PROVIDER_AWS, infrastructure_provider=self.aws_provider
             )
             self.ocp_provider.infrastructure = infra_map
             self.ocp_provider.save()
@@ -104,21 +92,16 @@ class TestTagMappingUtils(MasuTestCase):
             self.assertTrue(all(task.task_name == APPLY_TAG_MAPPINGS_TASK for task in ocp_tasks))
             self.assertFalse(
                 DelayedCeleryTasks.objects.filter(
-                    provider_uuid=self.aws_provider_uuid,
-                    task_name=UPDATE_SUMMARY_TABLES_TASK,
+                    provider_uuid=self.aws_provider_uuid, task_name=UPDATE_SUMMARY_TABLES_TASK
                 ).exists()
             )
 
-    @patch(
-        "api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled",
-        return_value=True,
-    )
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
     @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
     def test_ocp_on_cloud_mapping_job_does_not_queue_shared_infra(self, mock_delayed_apply, _mock_flag):
         with tenant_context(self.tenant):
             infra_map = ProviderInfrastructureMap.objects.create(
-                infrastructure_type=Provider.PROVIDER_AWS,
-                infrastructure_provider=self.aws_provider,
+                infrastructure_type=Provider.PROVIDER_AWS, infrastructure_provider=self.aws_provider
             )
             ocp_providers = Provider.objects.filter(type=Provider.PROVIDER_OCP)
             ocp_providers.update(infrastructure=infra_map)

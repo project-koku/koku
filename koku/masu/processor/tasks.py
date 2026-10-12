@@ -65,9 +65,7 @@ from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
-from masu.processor.report_summary_updater import (
-    ReportSummaryUpdaterProviderNotFoundError,
-)
+from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WorkerCache
 from masu.util.common import get_latest_openshift_on_cloud_manifest
@@ -137,23 +135,13 @@ def deduplicate_summary_reports(reports_to_summarize, manifest_list):
 
 
 def trigger_ocp_on_cloud_summary(
-    context,
-    schema,
-    provider_uuid,
-    manifest_id,
-    tracing_id,
-    start_date,
-    end_date,
-    queue_name=None,
-    synchronous=False,
+    context, schema, provider_uuid, manifest_id, tracing_id, start_date, end_date, queue_name=None, synchronous=False
 ):
     """Queue up the ocp on cloud delete and summary tasks for a provider."""
     if is_ocp_on_cloud_summary_disabled(schema):
         LOG.info(
             log_json(
-                tracing_id,
-                msg="ocp on cloud summary disabled for schema, skipping ocp cloud summary",
-                context=context,
+                tracing_id, msg="ocp on cloud summary disabled for schema, skipping ocp cloud summary", context=context
             )
         )
         return
@@ -172,21 +160,9 @@ def trigger_ocp_on_cloud_summary(
         )
         return
     except ReportSummaryUpdaterCloudError as ex:
-        LOG.info(
-            log_json(
-                tracing_id,
-                msg=f"failed to correlate OpenShift metrics: error: {ex}",
-                context=context,
-            )
-        )
+        LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
     if not ocp_on_cloud_infra_map:
-        LOG.info(
-            log_json(
-                tracing_id,
-                msg="ocp on cloud infra map empty, skipping ocp cloud summary",
-                context=context,
-            )
-        )
+        LOG.info(log_json(tracing_id, msg="ocp on cloud infra map empty, skipping ocp cloud summary", context=context))
         return
     fallback_update_summary_tables_queue = get_customer_queue(schema, SummaryQueue)
     delete_truncate_queue = get_customer_queue(schema, RefreshQueue)
@@ -337,12 +313,7 @@ def record_all_manifest_files(manifest_id, report_files, tracing_id):
     for report in report_files:
         try:
             _, created = CostUsageReportStatus.objects.get_or_create(report_name=report, manifest_id=manifest_id)
-            LOG.debug(
-                log_json(
-                    tracing_id,
-                    msg=f"Logging {report} for manifest ID: {manifest_id}, created: {created}",
-                )
-            )
+            LOG.debug(log_json(tracing_id, msg=f"Logging {report} for manifest ID: {manifest_id}, created: {created}"))
         except IntegrityError:
             # OCP records the entire file list for a new manifest when the listener
             # recieves a payload.  With multiple listeners it is possilbe for
@@ -464,9 +435,7 @@ def get_report_files(  # noqa: C901
             WorkerCache().remove_task_from_cache(cache_key)
             LOG.warning(log_json(tracing_id, msg=str(err), context=context), exc_info=err)
             ReportManifestDBAccessor().update_manifest_state(
-                ManifestStep.DOWNLOAD,
-                ManifestState.FAILED,
-                report_context["manifest_id"],
+                ManifestStep.DOWNLOAD, ManifestState.FAILED, report_context["manifest_id"]
             )
             return
 
@@ -499,11 +468,7 @@ def get_report_files(  # noqa: C901
 
             # The real processing (convert to parquet and push to S3) happens in _process_report_file
             result = _process_report_file(
-                schema_name,
-                provider_type,
-                report_dict,
-                ingress_reports,
-                ingress_reports_uuid,
+                schema_name, provider_type, report_dict, ingress_reports, ingress_reports_uuid
             )
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
@@ -520,38 +485,22 @@ def get_report_files(  # noqa: C901
                 raise TrinoQueryNotFoundError(str(processing_error)) from processing_error
 
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-            LOG.error(
-                log_json(
-                    tracing_id,
-                    msg=f"Report processing error: {processing_error}",
-                    context=context,
-                )
-            )
+            LOG.error(log_json(tracing_id, msg=f"Report processing error: {processing_error}", context=context))
             ReportManifestDBAccessor().update_manifest_state(
-                ManifestStep.PROCESSING,
-                ManifestState.FAILED,
-                report_context["manifest_id"],
+                ManifestStep.PROCESSING, ManifestState.FAILED, report_context["manifest_id"]
             )
             WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
         except NotImplementedError as err:
             LOG.info(log_json(tracing_id, msg=f"Not implemented error: {err}", context=context))
             ReportManifestDBAccessor().update_manifest_state(
-                ManifestStep.PROCESSING,
-                ManifestState.FAILED,
-                report_context["manifest_id"],
+                ManifestStep.PROCESSING, ManifestState.FAILED, report_context["manifest_id"]
             )
             WorkerCache().remove_task_from_cache(cache_key)
 
         WorkerCache().remove_task_from_cache(cache_key)
         if not result:
-            LOG.info(
-                log_json(
-                    tracing_id,
-                    msg="no report files processed, skipping summary",
-                    context=context,
-                )
-            )
+            LOG.info(log_json(tracing_id, msg="no report files processed, skipping summary", context=context))
             # update provider even when there are no new reports so we continue polling
             if provider := Provider.objects.filter(uuid=provider_uuid).first():
                 provider.set_data_updated_timestamp()
@@ -559,17 +508,11 @@ def get_report_files(  # noqa: C901
 
         return report_meta
     except ReportDownloaderWarning as err:
-        LOG.warning(
-            log_json(tracing_id, msg=f"Report downloader Warning: {err}", context=context),
-            exc_info=err,
-        )
+        LOG.warning(log_json(tracing_id, msg=f"Report downloader Warning: {err}", context=context), exc_info=err)
         WorkerCache().remove_task_from_cache(cache_key)
     except Exception as err:
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        LOG.error(
-            log_json(tracing_id, msg=f"Unknown downloader exception: {err}", context=context),
-            exc_info=err,
-        )
+        LOG.error(log_json(tracing_id, msg=f"Unknown downloader exception: {err}", context=context), exc_info=err)
         WorkerCache().remove_task_from_cache(cache_key)
 
 
@@ -741,13 +684,7 @@ def apply_tag_mappings(
         "end_date": end_date,
     }
     if is_summary_processing_disabled(schema) or is_source_disabled(provider_uuid):
-        LOG.info(
-            log_json(
-                tracing_id,
-                msg="skipping tag mapping apply; processing disabled",
-                context=context,
-            )
-        )
+        LOG.info(log_json(tracing_id, msg="skipping tag mapping apply; processing disabled", context=context))
         return
 
     task_name = APPLY_TAG_MAPPINGS_TASK
@@ -759,12 +696,7 @@ def apply_tag_mappings(
         if fallback_queue != SummaryQueue.DEFAULT:
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if worker_cache.single_task_is_running(task_name, cache_args):
-            LOG.info(
-                log_json(
-                    tracing_id,
-                    msg=f"Task {task_name} already running for {cache_args}. Requeuing.",
-                )
-            )
+            LOG.info(log_json(tracing_id, msg=f"Task {task_name} already running for {cache_args}. Requeuing."))
             apply_tag_mappings.s(
                 schema,
                 provider_uuid,
@@ -780,26 +712,12 @@ def apply_tag_mappings(
     try:
         provider = Provider.objects.select_related("infrastructure").filter(uuid=provider_uuid).first()
         if not provider:
-            LOG.warning(
-                log_json(
-                    tracing_id,
-                    msg="provider not found; skipping tag mapping apply",
-                    context=context,
-                )
-            )
+            LOG.warning(log_json(tracing_id, msg="provider not found; skipping tag mapping apply", context=context))
             return
         LOG.info(log_json(tracing_id, msg="applying tag mappings", context=context))
-        from masu.processor.tag_mapping import (
-            apply_tag_mappings as apply_tag_mappings_for_provider,
-        )
+        from masu.processor.tag_mapping import apply_tag_mappings as apply_tag_mappings_for_provider
 
-        apply_tag_mappings_for_provider(
-            schema,
-            provider,
-            start_date,
-            end_date,
-            include_linked_ocp_on_cloud=True,
-        )
+        apply_tag_mappings_for_provider(schema, provider, start_date, end_date, include_linked_ocp_on_cloud=True)
         _bump_mapping_apply_freshness(schema, provider, start_date)
     finally:
         if not synchronous:
@@ -935,15 +853,7 @@ def update_summary_tables(  # noqa: C901
 
     LOG.info(log_json(tracing_id, msg="triggering ocp on cloud summary", context=context))
     trigger_ocp_on_cloud_summary(
-        context,
-        schema,
-        provider_uuid,
-        manifest_id,
-        tracing_id,
-        start_date,
-        end_date,
-        queue_name,
-        synchronous,
+        context, schema, provider_uuid, manifest_id, tracing_id, start_date, end_date, queue_name, synchronous
     )
 
     if not manifest_list and manifest_id:
@@ -952,23 +862,13 @@ def update_summary_tables(  # noqa: C901
     # OCP cost distribution of unattributed costs occurs within the `update_cost_model_costs` method.
     # This method should always be called for OCP providers even when it does not have a cost model
     if provider_type == Provider.PROVIDER_OCP:
-        LOG.info(
-            log_json(
-                tracing_id,
-                msg="Queue OCP cost model/manifest complete tasks",
-                context=context,
-            )
-        )
+        LOG.info(log_json(tracing_id, msg="Queue OCP cost model/manifest complete tasks", context=context))
         linked_tasks = (
             update_cost_model_costs.s(schema, provider_uuid, start_date, end_date, tracing_id=tracing_id).set(
                 queue=update_cost_model_queue
             )
             | mark_manifest_complete.si(
-                schema,
-                provider_type,
-                provider_uuid,
-                manifest_list=manifest_list,
-                tracing_id=tracing_id,
+                schema, provider_type, provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
             ).set(queue=priority_queue)
             | validate_daily_data.si(schema, start_date, end_date, provider_uuid, context=context).set(
                 queue=priority_queue
@@ -996,10 +896,7 @@ def update_summary_tables(  # noqa: C901
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@celery_app.task(
-    name="masu.processor.tasks.delete_openshift_on_cloud_data",
-    queue=RefreshQueue.DEFAULT,
-)  # noqa: C901
+@celery_app.task(name="masu.processor.tasks.delete_openshift_on_cloud_data", queue=RefreshQueue.DEFAULT)  # noqa: C901
 def delete_openshift_on_cloud_data(
     schema_name,
     infrastructure_provider_uuid,
@@ -1065,13 +962,7 @@ def update_openshift_on_cloud(  # noqa: C901
         "start": start_date,
         "end": end_date,
     }
-    LOG.info(
-        log_json(
-            tracing_id,
-            msg="update openshift on cloud processing started",
-            context=context,
-        )
-    )
+    LOG.info(log_json(tracing_id, msg="update openshift on cloud processing started", context=context))
     ocp_manifest_id = get_latest_openshift_on_cloud_manifest(start_date, openshift_provider_uuid)
     task_name = "masu.processor.tasks.update_openshift_on_cloud"
     if is_ocp_on_cloud_summary_disabled(schema_name):
@@ -1082,12 +973,7 @@ def update_openshift_on_cloud(  # noqa: C901
         cache_arg_date = start_date[:-3]  # Strip days from string
     else:
         cache_arg_date = start_date.strftime("%Y-%m")
-    cache_args = [
-        schema_name,
-        infrastructure_provider_uuid,
-        openshift_provider_uuid,
-        cache_arg_date,
-    ]
+    cache_args = [schema_name, infrastructure_provider_uuid, openshift_provider_uuid, cache_arg_date]
     if not synchronous:
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
@@ -1147,11 +1033,7 @@ def update_openshift_on_cloud(  # noqa: C901
         cost_model_fallback_queue = get_customer_queue(schema_name, CostModelQueue)
         priority_queue = get_customer_queue(schema_name, PriorityQueue)
         update_cost_model_costs.s(
-            schema_name,
-            openshift_provider_uuid,
-            start_date,
-            end_date,
-            tracing_id=tracing_id,
+            schema_name, openshift_provider_uuid, start_date, end_date, tracing_id=tracing_id
         ).apply_async(queue=queue_name or cost_model_fallback_queue)
         # Set OpenShift manifest summary end time
         set_summary_timestamp(ManifestState.END, ocp_manifest_id)
@@ -1178,9 +1060,7 @@ def update_openshift_on_cloud(  # noqa: C901
     except ReportSummaryUpdaterProviderNotFoundError as ex:
         LOG.warning(
             log_json(
-                tracing_id,
-                msg="possible source/provider delete during processing - halting processing",
-                context=ctx,
+                tracing_id, msg="possible source/provider delete during processing - halting processing", context=ctx
             ),
             exc_info=ex,
         )
@@ -1220,12 +1100,7 @@ def update_all_summary_tables(start_date, end_date=None):
         ocp_process_queue = get_customer_queue(schema_name, OCPQueue)
         queue_name = ocp_process_queue if provider_type and provider_type.lower() == "ocp" else None
         update_summary_tables.s(
-            schema_name,
-            provider_type,
-            provider_uuid,
-            str(start_date),
-            end_date,
-            queue_name=queue_name,
+            schema_name, provider_type, provider_uuid, str(start_date), end_date, queue_name=queue_name
         ).apply_async(queue=queue_name or fallback_queue)
 
 
@@ -1344,13 +1219,7 @@ def mark_manifest_complete(
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_accessor.mark_manifests_as_completed(manifest_list)
     else:
-        LOG.info(
-            log_json(
-                tracing_id,
-                msg="no manifest to mark complete, likely masu resummary task",
-                context=context,
-            )
-        )
+        LOG.info(log_json(tracing_id, msg="no manifest to mark complete, likely masu resummary task", context=context))
     if ingress_report_uuid:
         with schema_context(schema):
             report = IngressReports.objects.get(uuid=ingress_report_uuid)
@@ -1405,11 +1274,7 @@ SELECT s.relname as "table_name",
 """
 
     # initialize settings
-    scale_table = [
-        (10000000, Decimal("0.01")),
-        (1000000, Decimal("0.02")),
-        (100000, Decimal("0.05")),
-    ]
+    scale_table = [(10000000, Decimal("0.01")), (1000000, Decimal("0.02")), (100000, Decimal("0.05"))]
     alter_count = 0
     no_scale = Decimal("100")
     zero = Decimal("0")

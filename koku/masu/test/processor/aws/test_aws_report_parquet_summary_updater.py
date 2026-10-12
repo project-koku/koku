@@ -16,9 +16,7 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.processor.aws.aws_report_parquet_summary_updater import (
-    AWSReportParquetSummaryUpdater,
-)
+from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
 
@@ -108,12 +106,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
 
         mock_delete_summary_date_range.assert_has_calls(
             [
-                call(
-                    self.aws_provider.uuid,
-                    expected_start,
-                    expected_end,
-                    {"cost_entry_bill_id": current_bill_id},
-                ),
+                call(self.aws_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}),
                 call(
                     self.aws_provider.uuid,
                     expected_start,
@@ -124,11 +117,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
             ]
         )
         mock_insert_daily_summary.assert_called_with(
-            expected_start,
-            expected_end,
-            self.aws_provider.uuid,
-            current_bill_id,
-            markup_value,
+            expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
         )
         mock_apply_tag_mappings.assert_called_once_with(self.schema_name, self.aws_provider, start, end)
         mock_category_update.assert_called_with(bill_ids, start, end)
@@ -160,7 +149,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         mock_delete_summary_date_range,
         mock_category_update,
         mock_insert_ec2_compute_summary,
-        mock_ec2_enabled,
+        _mock_ec2_enabled,
         mock_apply_tag_mappings,
     ):
         """Test that summarization is skipped if schema is not enabled for ec2 compute summary."""
@@ -187,17 +176,10 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         start_return, end_return = self.updater.update_summary_tables(start, end)
 
         mock_delete_summary_date_range.assert_called_with(
-            self.aws_provider.uuid,
-            expected_start,
-            expected_end,
-            {"cost_entry_bill_id": current_bill_id},
+            self.aws_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
         )
         mock_insert_daily_summary.assert_called_with(
-            expected_start,
-            expected_end,
-            self.aws_provider.uuid,
-            current_bill_id,
-            markup_value,
+            expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
         )
         mock_apply_tag_mappings.assert_called_once_with(self.schema_name, self.aws_provider, start, end)
         mock_category_update.assert_called_with(bill_ids, start, end)
