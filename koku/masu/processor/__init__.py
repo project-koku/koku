@@ -31,6 +31,7 @@ GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_st
 INGRESS_DEAD_LETTER_QUEUE_FLAG = "cost-management.backend.ingress-dead-letter-queue"
 OCP_CAPACITY_BY_NODE_SUMMARY_FLAG = "cost-management.backend.ocp_capacity_by_node_summary"
 OCP_CAPACITY_SINGLE_SCAN_FLAG = "cost-management.backend.ocp_capacity_single_scan"
+OCP_CLOUD_CLUSTER_SUMMARY_VIEWS_FLAG = "cost-management.backend.ocp_cloud_cluster_summary_views"
 OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
 OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"
 OCP_REPORT_CLUSTER_FILTER_INDEX_HINT_FLAG = "cost-management.backend.ocp_report_cluster_filter_index_hint"
@@ -40,6 +41,7 @@ OCP_REPORT_LIMITED_DELTA_FLAG = "cost-management.backend.ocp_report_limited_delt
 OCP_REPORT_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-ocp-report-queries"
 PRECREATE_PARTITIONS_FLAG = "cost-management.backend.precreate_partitions"
 SOURCES_LIST_BULK_QUERIES_FLAG = "cost-management.backend.sources_list_bulk_queries"
+TAG_KEYS_REPORT_PERIOD_IDS_FLAG = "cost-management.backend.tag_keys_report_period_ids"
 TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
 
 
