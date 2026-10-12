@@ -231,6 +231,9 @@ def connect(**connect_args):
         "legacy_primitive_types": connect_args.get("legacy_primitive_types", False),
         "max_attempts": 9,  # based on exponential backoff used in the trino lib, 9 max retries with take ~100 seconds
     }
+    if "session_properties" in connect_args:
+        # Keep opt-in session settings explicit; other connections receive no retry override.
+        trino_connect_args["session_properties"] = connect_args["session_properties"]
     return get_report_db_accessor().connect(**trino_connect_args)
 
 

@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import psycopg2
 from django.db import OperationalError
+from django.test import override_settings
 from psycopg2.errors import DeadlockDetected
 
 import masu
@@ -114,6 +115,59 @@ class ReportDBAccessorBaseTest(MasuTestCase):
         with patch("masu.database.report_db_accessor_base.set_value_in_cache") as mock_cache_set:
             self.assertFalse(self.accessor.table_exists_trino(table))
             mock_cache_set.assert_called_with(key, False)
+
+    @patch("masu.database.report_db_accessor_base.trino_db.executescript")
+    @patch("masu.database.report_db_accessor_base.trino_db.connect")
+    def test_multipart_trino_query_can_set_connection_properties(self, mock_connect, mock_executescript):
+        connection_properties = {"session_properties": {"retry_policy": "QUERY"}}
+
+        self.accessor._execute_trino_multipart_sql_query("SELECT 1", conn_params=connection_properties)
+
+        mock_connect.assert_called_once_with(schema=self.schema, **connection_properties)
+        mock_executescript.assert_called_once()
+
+    @patch("masu.database.report_db_accessor_base.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch.object(ReportDBAccessorBase, "_execute_trino_multipart_sql_query", return_value=[[["matched"]]])
+    def test_matched_tag_read_opts_into_query_retry(self, mock_query, mock_flag):
+        sql_metadata = MagicMock()
+        sql_metadata.build_params.return_value = {"schema": self.schema}
+
+        self.accessor.find_openshift_keys_expected_values(sql_metadata)
+
+        self.assertEqual(mock_query.call_args.kwargs["conn_params"], {"session_properties": {"retry_policy": "QUERY"}})
+        mock_flag.assert_called_once()
+
+    @patch("masu.database.report_db_accessor_base.is_feature_flag_enabled_by_schema", return_value=False)
+    @patch.object(ReportDBAccessorBase, "_execute_trino_multipart_sql_query", return_value=[[["matched"]]])
+    def test_matched_tag_read_keeps_current_policy_when_flag_off(self, mock_query, mock_flag):
+        sql_metadata = MagicMock()
+        sql_metadata.build_params.return_value = {"schema": self.schema}
+
+        self.accessor.find_openshift_keys_expected_values(sql_metadata)
+
+        self.assertNotIn("conn_params", mock_query.call_args.kwargs)
+        mock_flag.assert_called_once()
+
+    @override_settings(ONPREM=True)
+    @patch("masu.database.report_db_accessor_base.pkgutil.get_data", return_value=b"SELECT 1")
+    @patch("masu.database.report_db_accessor_base.is_feature_flag_enabled_by_schema")
+    @patch.object(ReportDBAccessorBase, "_execute_trino_multipart_sql_query", return_value=[[["matched"]]])
+    def test_matched_tag_read_does_not_change_onprem(self, mock_query, mock_flag, mock_sql):
+        sql_metadata = MagicMock()
+        sql_metadata.build_params.return_value = {"schema": self.schema}
+
+        self.accessor.find_openshift_keys_expected_values(sql_metadata)
+
+        self.assertNotIn("conn_params", mock_query.call_args.kwargs)
+        mock_flag.assert_not_called()
+
+    @patch("masu.database.report_db_accessor_base.trino_db.connect")
+    @patch("masu.database.report_db_accessor_base.trino_db.executescript")
+    def test_unselected_multipart_script_keeps_current_policy(self, mock_script, mock_connect):
+        self.accessor._execute_trino_multipart_sql_query("SELECT 1; INSERT INTO example SELECT 1")
+
+        mock_connect.assert_called_once_with(schema=self.schema)
+        mock_script.assert_called_once()
 
 
 class ReportDBAccessorBaseDeadlockRetryTest(MasuTestCase):

@@ -32,6 +32,8 @@ from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
 from koku.trino_database import TrinoHiveMetastoreError
 from koku.trino_database import TrinoNoSuchKeyError
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import TRINO_READ_QUERY_RETRY_FLAG
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.processor.parquet.summary_sql_metadata import trino_safe_array_literal
 
@@ -212,9 +214,9 @@ class ReportDBAccessorBase:
         LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
         return results, description
 
-    def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None):
+    def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None, conn_params=None):
         """Execute multiple related SQL queries in Trino."""
-        trino_conn = trino_db.connect(schema=self.schema)
+        trino_conn = trino_db.connect(schema=self.schema, **(conn_params or {}))
         return trino_db.executescript(trino_conn, sql, params=bind_params, preprocessor=self.trino_prepare_query)
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
@@ -352,5 +354,12 @@ class ReportDBAccessorBase:
         )
         matched_tags_sql = matched_tags_sql.decode("utf-8")
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matched_tag_params))
-        matched_tags_result = self._execute_trino_multipart_sql_query(matched_tags_sql, bind_params=matched_tag_params)
+        query_kwargs = {"bind_params": matched_tag_params}
+        if not settings.ONPREM and is_feature_flag_enabled_by_schema(
+            self.schema, TRINO_READ_QUERY_RETRY_FLAG, dev_fallback=True
+        ):
+            # This named read is safe to retry; the surrounding writes keep their current policy.
+            query_kwargs["conn_params"] = {"session_properties": {"retry_policy": "QUERY"}}
+            LOG.info(log_json(msg="Trino query retry enabled for matched-tags read", schema=self.schema))
+        matched_tags_result = self._execute_trino_multipart_sql_query(matched_tags_sql, **query_kwargs)
         return trino_safe_array_literal(matched_tags_result[0][0] or [])

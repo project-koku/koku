@@ -45,6 +45,7 @@ PRECREATE_PARTITIONS_FLAG = "cost-management.backend.precreate_partitions"
 SOURCES_LIST_BULK_QUERIES_FLAG = "cost-management.backend.sources_list_bulk_queries"
 TAG_KEYS_REPORT_PERIOD_IDS_FLAG = "cost-management.backend.tag_keys_report_period_ids"
 TAG_QUERY_RATE_LIMIT_FLAG = "cost-management.backend.rate-limit-tag-queries"
+TRINO_READ_QUERY_RETRY_FLAG = "cost-management.backend.trino_read_query_retry"
 
 
 def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):  # pragma: no cover

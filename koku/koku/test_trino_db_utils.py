@@ -27,6 +27,21 @@ class TestTrinoDatabaseUtils(IamTestCase):
         self.assertEqual(conn.schema, self.schema_name)
         self.assertEqual(conn.catalog, "hive")
 
+    @patch("koku.trino_database.get_report_db_accessor")
+    def test_connect_forwards_explicit_session_properties(self, mock_accessor):
+        connect(schema=self.schema_name, session_properties={"retry_policy": "QUERY"})
+
+        self.assertEqual(
+            mock_accessor.return_value.connect.call_args.kwargs["session_properties"],
+            {"retry_policy": "QUERY"},
+        )
+
+    @patch("koku.trino_database.get_report_db_accessor")
+    def test_connect_keeps_default_session_when_unspecified(self, mock_accessor):
+        connect(schema=self.schema_name)
+
+        self.assertNotIn("session_properties", mock_accessor.return_value.connect.call_args.kwargs)
+
     def test_executescript_jinja_conditionals(self):
         """
         Test that execute of a buffer with jinja conditionals.
