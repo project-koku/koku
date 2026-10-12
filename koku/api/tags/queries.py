@@ -14,6 +14,8 @@ from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
+from masu.processor import is_feature_flag_enabled_by_schema
+from masu.processor import TAG_KEYS_REPORT_PERIOD_IDS_FLAG
 from reporting.provider.all.models import TagMapping
 from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 
@@ -329,6 +331,30 @@ class TagQueryHandler(QueryHandler):
         LOG.debug(f"_get_exclusions: {composed_exclusions}")
         return composed_exclusions
 
+    def _report_period_ids_filter(self, source):
+        """Return a filter on the report period ids matching the time filter, or None.
+
+        The time filter compares the related report period's start date, so
+        PostgreSQL joins the period table and scans every period of the tag
+        summary table (e.g. 26 M rows to keep 1 M for one month). Filtering on
+        the period ids as well lets it use the index on the foreign key. The
+        time filter stays in place, so the result is unchanged.
+        """
+        if self.parameters.get_filter("value") or not is_feature_flag_enabled_by_schema(
+            self.tenant.schema_name, TAG_KEYS_REPORT_PERIOD_IDS_FLAG, dev_fallback=True
+        ):
+            return None
+        fk_name, _, period_field = (source.get("db_column_period") or "").partition("__")
+        if not period_field:
+            return None
+        period_model = source["db_table"]._meta.get_field(fk_name).related_model
+        start = self.dh.month_start(self.start_datetime)
+        end = self.dh.month_end(self.end_datetime)
+        period_ids = period_model.objects.filter(
+            **{f"{period_field}_start__gte": start, f"{period_field}_start__lte": end}
+        ).values_list("id", flat=True)
+        return Q(**{f"{fk_name}_id__in": list(period_ids)})
+
     def get_tag_keys(self, filters=True):
         """Get a list of tag keys to validate filters."""
         type_filter = self.parameters.get_filter("type")
@@ -343,6 +369,8 @@ class TagQueryHandler(QueryHandler):
                     select_cols.extend(annotations)
                 if filters is True:
                     tag_keys_query = tag_keys_query.filter(self.query_filter)
+                    if (period_ids_filter := self._report_period_ids_filter(source)) is not None:
+                        tag_keys_query = tag_keys_query.filter(period_ids_filter)
 
                 if type_filter and type_filter != source.get("type"):
                     continue
