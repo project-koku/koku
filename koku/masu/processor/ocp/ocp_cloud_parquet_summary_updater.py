@@ -21,6 +21,8 @@ from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
+from masu.processor.tag_mapping import apply_tag_mappings
+from masu.processor.tag_mapping import ROW_SCOPE_INFRA
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair
@@ -171,6 +173,17 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         # Update the UI tables for the OpenShift provider
         with OCPReportDBAccessor(self._schema) as ocp_accessor:
+            # back_populate_ocp_infrastructure_costs inserts these rows with raw
+            # labels. Map them here; the OCP summary only maps usage rows.
+            ocp_provider = Provider.objects.filter(uuid=ocp_provider_uuid).first()
+            if ocp_provider and ocp_accessor.report_periods_for_provider_uuid(ocp_provider_uuid, start_date):
+                apply_tag_mappings(
+                    self._schema,
+                    ocp_provider,
+                    start_date,
+                    end_date,
+                    row_scope=ROW_SCOPE_INFRA,
+                )
             ocp_accessor.populate_ui_summary_tables(
                 SummaryRangeConfig(start_date=start_date, end_date=end_date), ocp_provider_uuid
             )

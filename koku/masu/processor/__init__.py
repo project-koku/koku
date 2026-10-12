@@ -21,6 +21,7 @@ ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 # Unleash flag names. Keep sorted by constant name: new flags then land in different
 # places instead of all appending at the end, which conflicts between concurrent PRs.
+APPLY_TAG_MAPPINGS_FLAG = "cost-management.backend.apply-tag-mappings"
 CONSTANT_CURRENCY_FLAG = "cost-management.backend.constant-currency"
 COST_BREAKDOWN_RTU_UNLEASH_FLAG = "cost-management.backend.cost_breakdown_rates_to_usage"
 COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-writes"  # TODO: Clean up
@@ -52,6 +53,11 @@ def is_feature_flag_enabled_by_schema(schema, feature_flag, dev_fallback=False):
         return UNLEASH_CLIENT.is_enabled(feature_flag, context, fallback_development_true)
     else:
         return UNLEASH_CLIENT.is_enabled(feature_flag, context)
+
+
+def is_apply_tag_mappings_enabled(schema):  # pragma: no cover
+    """Apply tag mappings without a full current-month re-summary."""
+    return is_feature_flag_enabled_by_schema(schema, APPLY_TAG_MAPPINGS_FLAG, dev_fallback=True)
 
 
 def is_purge_trino_files_enabled(schema):  # pragma: no cover

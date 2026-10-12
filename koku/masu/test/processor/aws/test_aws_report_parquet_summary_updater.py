@@ -16,7 +16,9 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
+from masu.processor.aws.aws_report_parquet_summary_updater import (
+    AWSReportParquetSummaryUpdater,
+)
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
 
@@ -63,6 +65,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start, start_date.date())
         self.assertEqual(end, self.dh.last_month_end.date())
 
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.apply_tag_mappings")
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_ec2_compute_summary_table_trino"  # noqa: E501
     )
@@ -70,17 +73,16 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
-    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_tags_summary_table")
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
     def test_update_summary_tables(
         self,
         mock_insert_daily_summary,
-        mock_tag_update,
         mock_delete_summary_date_range,
         mock_category_update,
         mock_insert_ec2_compute_summary,
+        mock_apply_tag_mappings,
     ):
         """Test that we run Trino summary."""
         start_str = self.dh.this_month_start.isoformat()
@@ -106,7 +108,12 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
 
         mock_delete_summary_date_range.assert_has_calls(
             [
-                call(self.aws_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}),
+                call(
+                    self.aws_provider.uuid,
+                    expected_start,
+                    expected_end,
+                    {"cost_entry_bill_id": current_bill_id},
+                ),
                 call(
                     self.aws_provider.uuid,
                     expected_start,
@@ -117,9 +124,13 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
             ]
         )
         mock_insert_daily_summary.assert_called_with(
-            expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
+            expected_start,
+            expected_end,
+            self.aws_provider.uuid,
+            current_bill_id,
+            markup_value,
         )
-        mock_tag_update.assert_called_with(bill_ids, start, end)
+        mock_apply_tag_mappings.assert_called_once_with(self.schema_name, self.aws_provider, start, end)
         mock_category_update.assert_called_with(bill_ids, start, end)
         mock_insert_ec2_compute_summary.assert_called_with(
             self.aws_provider.uuid, expected_start, current_bill_id, markup_value
@@ -128,6 +139,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
 
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.apply_tag_mappings")
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.is_feature_cost_4403_ec2_compute_cost_enabled",
         return_value=False,
@@ -139,18 +151,17 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
-    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_tags_summary_table")
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
     def test_update_summary_tables_ec2_compute_not_enabled(
         self,
         mock_insert_daily_summary,
-        mock_tag_update,
         mock_delete_summary_date_range,
         mock_category_update,
         mock_insert_ec2_compute_summary,
-        *args
+        mock_ec2_enabled,
+        mock_apply_tag_mappings,
     ):
         """Test that summarization is skipped if schema is not enabled for ec2 compute summary."""
 
@@ -176,12 +187,19 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         start_return, end_return = self.updater.update_summary_tables(start, end)
 
         mock_delete_summary_date_range.assert_called_with(
-            self.aws_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
+            self.aws_provider.uuid,
+            expected_start,
+            expected_end,
+            {"cost_entry_bill_id": current_bill_id},
         )
         mock_insert_daily_summary.assert_called_with(
-            expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
+            expected_start,
+            expected_end,
+            self.aws_provider.uuid,
+            current_bill_id,
+            markup_value,
         )
-        mock_tag_update.assert_called_with(bill_ids, start, end)
+        mock_apply_tag_mappings.assert_called_once_with(self.schema_name, self.aws_provider, start, end)
         mock_category_update.assert_called_with(bill_ids, start, end)
         mock_delete_summary_date_range.assert_called_once()
         mock_insert_ec2_compute_summary.assert_not_called()

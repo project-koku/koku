@@ -17,6 +17,8 @@ from api.utils import DateHelper
 from cost_models.models import CostModel
 from koku.cache import get_cached_tag_rate_map
 from koku.cache import set_cached_tag_rate_map
+from masu.processor import is_apply_tag_mappings_enabled
+from masu.processor.tasks import delayed_apply_tag_mappings
 from masu.processor.tasks import delayed_summarize_current_month
 from reporting.models import AWSTagsSummary
 from reporting.models import AzureTagsSummary
@@ -56,6 +58,14 @@ class TagMappingFilters(SettingsFilter):
         return queryset.filter(self._combine_query_filters(q_list))
 
 
+def _queue_tag_mapping_refresh(schema_name, provider_uuids, provider_type):
+    """Queue mapping-only apply when enabled; otherwise a full current-month summary."""
+    if is_apply_tag_mappings_enabled(schema_name):
+        delayed_apply_tag_mappings(schema_name, provider_uuids)
+        return
+    delayed_summarize_current_month(schema_name, provider_uuids, provider_type)
+
+
 def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
     """Creates a mapping to use for resummarizing sources given tag keys
 
@@ -81,7 +91,7 @@ def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
                 .values_list("cost_entry_bill__provider__uuid", flat=True)
                 .distinct()
             )
-            delayed_summarize_current_month(schema_name, list(provider_uuids), provider_type)
+            _queue_tag_mapping_refresh(schema_name, list(provider_uuids), provider_type)
         elif provider_type == Provider.PROVIDER_OCP:
             clusters = (
                 OCPTagsValues.objects.filter(key__in=key_list)
@@ -89,22 +99,26 @@ def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
                 .values_list("clusters", flat=True)
                 .distinct()
             )
-            # Only an OCP summary applies the mapping to the OCP daily summary,
-            # and only the cloud source's summary refreshes the OCP-on-cloud
-            # tables, so a cluster on cloud infrastructure needs both.
-            infra_sorting = defaultdict(set)
             provider_uuids = (
                 OCPUsageReportPeriod.objects.filter(cluster_id__in=clusters, report_period_start=start_date)
                 .values_list("provider__uuid", flat=True)
                 .distinct()
             )
+            if is_apply_tag_mappings_enabled(schema_name):
+                # Mapping-only job covers OCP daily summary and linked OCP-on-cloud
+                # tables; do not also queue a cloud re-summary.
+                delayed_apply_tag_mappings(schema_name, list(provider_uuids))
+                continue
+            # Legacy: only an OCP summary maps OCP daily summary, and only the
+            # cloud source's summary refreshes OCP-on-cloud tables.
+            infra_sorting = defaultdict(set)
             providers = Provider.objects.filter(uuid__in=provider_uuids)
             for provider in providers:
                 infra_sorting[provider_type].add(provider.uuid)
                 if infra := provider.infrastructure:
                     infra_sorting[infra.infrastructure_type].add(infra.infrastructure_provider_id)
-            for p_type, provider_uuids in infra_sorting.items():
-                delayed_summarize_current_month(schema_name, list(provider_uuids), p_type)
+            for p_type, queued_uuids in infra_sorting.items():
+                delayed_summarize_current_month(schema_name, list(queued_uuids), p_type)
 
 
 def retrieve_tag_rate_mapping(schema_name):

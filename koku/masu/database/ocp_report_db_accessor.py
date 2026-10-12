@@ -359,12 +359,21 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(VM_UI_SUMMARY_TABLE, sql, sql_params, operation="DELETE/INSERT")
 
-    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
+    def update_line_item_daily_summary_with_tag_mapping(
+        self, start_date, end_date, report_period_ids=None, infrastructure_only=False
+    ):
         """Maps child keys to parent key.
+
+        OCP and cloud summaries partition this table by infrastructure_raw_cost.
+        Pass infrastructure_only=False (default) from the OCP summary to map usage
+        rows only; pass True from the cloud summary to map infrastructure rows only.
+
         Args:
             start_date (datetime.date) The date to start mapping keys
             end_date (datetime.date) The date to end on.
-            bill_ids (list) A list of bill IDs.
+            report_period_ids (list) A list of report period IDs.
+            infrastructure_only (bool) True maps nonzero infrastructure_raw_cost
+                rows; False maps null/zero infrastructure_raw_cost rows.
         Returns
             (None)
         """
@@ -381,6 +390,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "end_date": end_date,
             "report_period_ids": report_period_ids,
             "schema": self.schema,
+            "infrastructure_only": infrastructure_only,
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 

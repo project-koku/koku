@@ -339,21 +339,22 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "report_period_id": report_period_id,
         }
-        # Tag Summary
+        # Map fact-table keys first so tags summary is built from parent keys.
+        with schema_context(self.schema):
+            has_mappings = TagMapping.objects.filter(
+                Q(child__provider_type=Provider.PROVIDER_AWS) | Q(child__provider_type=Provider.PROVIDER_OCP)
+            ).exists()
+        if has_mappings:
+            sql = pkgutil.get_data("masu.database", "sql/aws/openshift/ocpaws_tag_mapping_update_daily_summary.sql")
+            sql = sql.decode("utf-8")
+            self._prepare_and_execute_raw_sql_query(
+                self._table_map["ocp_on_aws_project_daily_summary"], sql, sql_params
+            )
+        else:
+            LOG.debug("No tag mappings for AWS.")
         sql = pkgutil.get_data("masu.database", "sql/aws/openshift/reporting_ocpawstags_summary.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_aws_tags_summary"], sql, sql_params)
-        # Tag Mapping
-        with schema_context(self.schema):
-            # Early return check to see if they have any tag mappings set.
-            if not TagMapping.objects.filter(
-                Q(child__provider_type=Provider.PROVIDER_AWS) | Q(child__provider_type=Provider.PROVIDER_OCP)
-            ).exists():
-                LOG.debug("No tag mappings for AWS.")
-                return
-        sql = pkgutil.get_data("masu.database", "sql/aws/openshift/ocpaws_tag_mapping_update_daily_summary.sql")
-        sql = sql.decode("utf-8")
-        self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_aws_project_daily_summary"], sql, sql_params)
 
     def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""

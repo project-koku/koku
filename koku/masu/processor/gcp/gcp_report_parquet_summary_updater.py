@@ -15,6 +15,7 @@ from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.processor.tag_mapping import apply_tag_mappings
 from masu.util.common import date_range_pair
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 
@@ -74,7 +75,6 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     LOG.info(f"No dates for {invoice_month}. Falling back to original {start_date, end_date}.")
                     invoice_start, invoice_end = start_date, end_date
                 bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month=invoice_month)
-                bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
                 if current_bill_id is None:
@@ -107,14 +107,18 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                         self._provider.uuid, start, end, filters
                     )
                     accessor.populate_line_item_daily_summary_table_trino(
-                        start, end, self._provider.uuid, current_bill_id, markup_value, invoice_month
+                        start,
+                        end,
+                        self._provider.uuid,
+                        current_bill_id,
+                        markup_value,
+                        invoice_month,
                     )
                     accessor.populate_ui_summary_tables(start, end, self._provider.uuid, invoice_month)
                     accessor.populate_gcp_topology_information_tables(
                         self._provider, start_date, end_date, invoice_month
                     )
-            accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
-            accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
+            apply_tag_mappings(self._schema, self._provider, start_date, end_date)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = timezone.now()

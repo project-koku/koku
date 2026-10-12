@@ -14,7 +14,9 @@ from api.utils import DateHelper
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
+from masu.processor.azure.azure_report_parquet_summary_updater import (
+    AzureReportParquetSummaryUpdater,
+)
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
 
@@ -61,16 +63,14 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start, start_date.date())
         self.assertEqual(end, self.dh.last_month_end.date())
 
+    @patch("masu.processor.azure.azure_report_parquet_summary_updater.apply_tag_mappings")
     @patch(
         "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
     @patch(
-        "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.populate_tags_summary_table"
-    )
-    @patch(
         "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
-    def test_update_daily_summary_tables(self, mock_trino, mock_tag_update, mock_delete):
+    def test_update_daily_summary_tables(self, mock_trino, mock_delete, mock_apply_tag_mappings):
         """Test that we run Trino summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
@@ -82,7 +82,6 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
         with AzureReportDBAccessor(self.schema) as accessor:
             with schema_context(self.schema):
                 bills = accessor.bills_for_provider_uuid(self.azure_provider.uuid, start)
-                bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
         with CostModelDBAccessor(
@@ -93,12 +92,19 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
 
         start_return, end_return = self.updater.update_summary_tables(start, end)
         mock_delete.assert_called_with(
-            self.azure_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
+            self.azure_provider.uuid,
+            expected_start,
+            expected_end,
+            {"cost_entry_bill_id": current_bill_id},
         )
         mock_trino.assert_called_with(
-            expected_start, expected_end, self.azure_provider.uuid, current_bill_id, markup_value
+            expected_start,
+            expected_end,
+            self.azure_provider.uuid,
+            current_bill_id,
+            markup_value,
         )
-        mock_tag_update.assert_called_with(bill_ids, start, end)
+        mock_apply_tag_mappings.assert_called_once_with(self.schema, self.azure_provider, start, end)
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
@@ -114,7 +120,10 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
             "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.bills_for_provider_uuid",
             return_value=[],
         ):
-            with self.assertLogs("masu.processor.azure.azure_report_parquet_summary_updater", level="INFO") as logs:
+            with self.assertLogs(
+                "masu.processor.azure.azure_report_parquet_summary_updater",
+                level="INFO",
+            ) as logs:
                 start_return, end_return = self.updater.update_summary_tables(start_str, end_str)
                 expected_log_msg = "no bill was found, skipping summarization"
 

@@ -165,21 +165,22 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
             "report_period_id": report_period_id,
         }
-        # Tag summary
+        # Map fact-table keys first so tags summary is built from parent keys.
+        with schema_context(self.schema):
+            has_mappings = TagMapping.objects.filter(
+                Q(child__provider_type=Provider.PROVIDER_AZURE) | Q(child__provider_type=Provider.PROVIDER_OCP)
+            ).exists()
+        if has_mappings:
+            sql = pkgutil.get_data("masu.database", "sql/azure/openshift/ocpazure_tag_mapping_update_daily_summary.sql")
+            sql = sql.decode("utf-8")
+            self._prepare_and_execute_raw_sql_query(
+                self._table_map["ocp_on_azure_project_daily_summary"], sql, sql_params
+            )
+        else:
+            LOG.debug("No tag mappings for Azure.")
         sql = pkgutil.get_data("masu.database", "sql/azure/openshift/reporting_ocpazuretags_summary.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_azure_tags_summary"], sql, sql_params)
-        # Tag Mapping
-        with schema_context(self.schema):
-            # Early return check to see if they have any tag mappings set.
-            if not TagMapping.objects.filter(
-                Q(child__provider_type=Provider.PROVIDER_AZURE) | Q(child__provider_type=Provider.PROVIDER_OCP)
-            ).exists():
-                LOG.debug("No tag mappings for Azure.")
-                return
-        sql = pkgutil.get_data("masu.database", "sql/azure/openshift/ocpazure_tag_mapping_update_daily_summary.sql")
-        sql = sql.decode("utf-8")
-        self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_azure_project_daily_summary"], sql, sql_params)
 
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""

@@ -9,6 +9,7 @@ from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
+from masu.processor.tag_mapping import apply_tag_mappings
 from masu.util.common import date_range_pair
 from reporting.provider.azure.models import UI_SUMMARY_TABLES
 
@@ -63,7 +64,6 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
             # Need these bills on the session to update dates after processing
             with schema_context(self._schema):
                 bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
-                bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
             if current_bill_id is None:
@@ -95,8 +95,7 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
                     start, end, self._provider.uuid, current_bill_id, markup_value
                 )
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
-            accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
-            accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
+            apply_tag_mappings(self._schema, self._provider, start_date, end_date)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = timezone.now()
