@@ -16,8 +16,8 @@ from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
-from masu.processor.tag_mapping import ROW_SCOPE_USAGE
 from masu.processor.tag_mapping import apply_tag_mappings
+from masu.processor.tag_mapping import ROW_SCOPE_USAGE
 from masu.util.common import date_range_pair
 from masu.util.common import SummaryRangeConfig
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id

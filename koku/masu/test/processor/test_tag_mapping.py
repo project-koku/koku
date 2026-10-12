@@ -25,10 +25,10 @@ from masu.processor.tag_mapping import ROW_SCOPE_USAGE
 from masu.processor.tasks import apply_tag_mappings as apply_tag_mappings_task
 from masu.processor.tasks import delayed_apply_tag_mappings
 from masu.test import MasuTestCase
-from reporting_common.models import DelayedCeleryTasks
 from masu.util.common import SummaryRangeConfig
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import VM_UI_SUMMARY_TABLE
+from reporting_common.models import DelayedCeleryTasks
 
 
 class ApplyTagMappingsTest(MasuTestCase):
