@@ -1,11 +1,12 @@
 WITH cte_array_agg_nodes AS (
     SELECT DISTINCT node
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE source = {{ocp_provider_uuid}}
         AND year = {{year}}
-        AND month = {{month}}
-        AND interval_start >= {{start_date}}
-        AND interval_start < date_add('day', 1, {{end_date}})
+        AND lpad(month, 2, '0') = {{month}}
+        AND day IN {{days | inclause}}
+        AND node IS NOT NULL
+        AND node != ''
 ),
 cte_cluster_info as (
     select
@@ -34,11 +35,12 @@ cte_tag_matches AS (
     UNION
 
     SELECT distinct format('"openshift_project": "%s"', namespace)
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE source = {{ocp_provider_uuid}}
-    AND month = {{month}}
-    AND year = {{year}}
-    AND interval_start >= {{start_date}}
-    AND interval_start < date_add('day', 1, {{end_date}})
+        AND year = {{year}}
+        AND lpad(month, 2, '0') = {{month}}
+        AND day IN {{days | inclause}}
+        AND namespace IS NOT NULL
+        AND namespace != ''
 )
 SELECT array_agg(matched_tag) as matched_tags from cte_tag_matches;
