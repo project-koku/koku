@@ -135,7 +135,16 @@ def is_permanent_download_error(error):
 
     408 and 429 are rewindable. Other 4xx responses, including a quarantine
     object that is gone, are confirmed as failures.
+
+    Size and time limit violations are also permanent — an oversized payload
+    or trickle download will not succeed on retry.
     """
+    # Check for size or time limit violations
+    error_msg = str(error)
+    if "exceeded total time limit" in error_msg or "exceeded maximum allowed size" in error_msg:
+        return True
+
+    # Check for HTTP 4xx errors (except rewindable status codes)
     cause = error.__cause__
     if isinstance(cause, requests.exceptions.HTTPError) and cause.response is not None:
         status_code = cause.response.status_code
