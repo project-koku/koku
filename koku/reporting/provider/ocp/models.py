@@ -1165,9 +1165,15 @@ class OCPCostUIBreakDownP(models.Model):
     cost_value = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     raw_currency = models.TextField(null=True)
-    path = models.CharField(max_length=512)
+    # path/parent_path are built by concatenating up to 2 k8s names (max 253 chars each,
+    # see rates_to_usage.namespace/node) plus a custom_name (max 50) and fixed segment
+    # prefixes/separators. Worst case (depth 5, namespace + node both present) is ~598
+    # chars, so these must stay unbounded -- a fixed max_length was exceeded once already
+    # (widened 253->512 in an earlier PR) and would be exceeded again by 512. See
+    # docs/agent/ga-readiness-review-patterns.md pattern 6.
+    path = models.TextField()
     depth = models.SmallIntegerField()
-    parent_path = models.CharField(max_length=512)
+    parent_path = models.TextField()
     top_category = models.CharField(max_length=512)
     breakdown_category = models.CharField(max_length=50)
 
