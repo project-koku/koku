@@ -9,6 +9,8 @@ import uuid
 from datetime import date
 
 from django.db import transaction
+from django.db.models import OuterRef
+from django.db.models import Subquery
 from packaging.version import InvalidVersion
 from packaging.version import Version
 
@@ -191,24 +193,24 @@ class CostModelManager:
         """Get a list of provider uuids assoicated with rate."""
         providers_query = CostModelMap.objects.filter(cost_model=self._model)
         provider_uuids = [provider.provider_uuid for provider in providers_query]
-        providers_qs_list = Provider.objects.filter(uuid__in=provider_uuids)
-        ocp_provider_uuids = [
-            provider.uuid for provider in providers_qs_list if provider.type == Provider.PROVIDER_OCP
-        ]
-        manifests_by_provider = {}
-        if ocp_provider_uuids:
-            date_helper = DateHelper()
-            manifests = CostUsageReportManifest.objects.filter(
-                provider__in=ocp_provider_uuids,
+        date_helper = DateHelper()
+        # Newest manifest per provider, read newest-first from manifest_provider_created_idx.
+        # Loading all manifests of both months instead takes minutes on a busy primary.
+        latest_operator_version = (
+            CostUsageReportManifest.objects.filter(
+                provider=OuterRef("uuid"),
                 billing_period_start_datetime__in=[
                     date_helper.this_month_start,
                     date_helper.last_month_start,
                 ],
                 creation_datetime__isnull=False,
-            ).order_by("-creation_datetime")
-            for manifest in manifests:
-                if manifest.provider_id not in manifests_by_provider:
-                    manifests_by_provider[manifest.provider_id] = manifest
+            )
+            .order_by("-creation_datetime")
+            .values("operator_version")[:1]
+        )
+        providers_qs_list = Provider.objects.filter(uuid__in=provider_uuids).annotate(
+            latest_operator_version=Subquery(latest_operator_version)
+        )
 
         provider_names_uuids = []
         for provider in providers_qs_list:
@@ -218,9 +220,8 @@ class CostModelManager:
                 "last_processed": provider.data_updated_timestamp,
             }
             if provider.type == Provider.PROVIDER_OCP:
-                manifest = manifests_by_provider.get(provider.uuid)
-                if manifest and manifest.operator_version:
-                    current_version = manifest.operator_version.split(":")[-1].lstrip("v")
+                if provider.latest_operator_version:
+                    current_version = provider.latest_operator_version.split(":")[-1].lstrip("v")
                     try:
                         source["operator_update_available"] = Version(current_version) < Version(
                             LATEST_OPERATOR_VERSION
