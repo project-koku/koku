@@ -112,3 +112,15 @@ class TestTagMappingUtils(MasuTestCase):
         queued_uuids = mock_delayed_apply.call_args.args[1]
         self.assertIn(self.ocp_provider.uuid, queued_uuids)
         self.assertNotIn(self.aws_provider.uuid, queued_uuids)
+
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
+    @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
+    @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
+    def test_cloud_tag_keys_queue_mapping_only_when_flag_on(
+        self, mock_delayed_apply, mock_delayed_summarize, _mock_flag
+    ):
+        with tenant_context(self.tenant):
+            uuids = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).values_list("uuid", flat=True)
+            resummarize_current_month_by_tag_keys(uuids, self.schema_name)
+        mock_delayed_apply.assert_called()
+        mock_delayed_summarize.assert_not_called()
