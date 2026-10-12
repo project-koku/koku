@@ -171,7 +171,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 Q(child__provider_type=Provider.PROVIDER_AZURE) | Q(child__provider_type=Provider.PROVIDER_OCP)
             ).exists()
         if has_mappings:
-            sql = pkgutil.get_data("masu.database", "sql/azure/openshift/ocpazure_tag_mapping_update_daily_summary.sql")
+            sql = pkgutil.get_data(
+                "masu.database", "sql/azure/openshift/ocpazure_tag_mapping_update_daily_summary.sql"
+            )
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(
                 self._table_map["ocp_on_azure_project_daily_summary"], sql, sql_params

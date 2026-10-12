@@ -23,8 +23,8 @@ from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
-from masu.processor.tag_mapping import ROW_SCOPE_INFRA
 from masu.processor.tag_mapping import apply_tag_mappings
+from masu.processor.tag_mapping import ROW_SCOPE_INFRA
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair
