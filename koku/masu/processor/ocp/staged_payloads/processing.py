@@ -2,18 +2,13 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Turn a stored OCP ingress tarball into line items.
+"""Process OCP ingress payloads after download.
 
-This is the slow path: extract the archive, write daily CSVs, update manifest
-records, and run report processing. With ingress staging enabled, the listener
-does not call this module. The ingress worker does, after the raw tarball is
-durable.
-
-The listener still imports this module when INGRESS_STAGING_LISTENER_FLAG is
-off. This file and ``process_staged`` can be combined once
-``legacy_message_processing`` is removed.
+``masu.external.kafka_msg_handler`` calls this module on the listener thread:
+``extract_payload`` unpacks the tarball, writes daily CSVs to the local report
+directory, and records manifest metadata; ``process_extracted_reports`` runs
+line-item processing and may enqueue manifest summarization.
 """
-import hashlib
 import logging
 import os
 import re
@@ -26,6 +21,7 @@ from tarfile import TarFile
 
 import pandas as pd
 from django.db import IntegrityError
+from django.db import transaction
 
 import masu.util.ocp.ocp_data_validator  # noqa: F401
 from api.common import log_json
@@ -57,7 +53,6 @@ from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
 
 LOG = logging.getLogger(__name__)
-_DAY_SLICE_DIGEST_LENGTH = 12
 MANIFEST_ACCESSOR = ReportManifestDBAccessor()
 
 
@@ -92,18 +87,6 @@ def get_data_frame(file_path: os.PathLike):
         raise error
 
 
-def _day_slice_csv_name(report_type: str, day: str, manifest_id: int, data_frame: pd.DataFrame) -> tuple[str, str]:
-    """Return a stable day-slice filename and the CSV text it names.
-
-    The digest is a hash of that slice's CSV bytes. An identical replay writes the
-    same object key. Different slices do not share a name, so the manifest
-    ``report_tracker`` counter and its row lock are not needed.
-    """
-    csv_text = data_frame.to_csv(index=False, header=True)
-    digest = hashlib.sha256(csv_text.encode("utf-8")).hexdigest()[:_DAY_SLICE_DIGEST_LENGTH]
-    return f"{report_type}.{day}.{manifest_id}.{digest}.csv", csv_text
-
-
 def divide_csv_daily(file_path: os.PathLike, manifest_id: int, hour_dict: dict, data_frame: pd.DataFrame = None):
     """Split local file into daily content.
 
@@ -129,9 +112,20 @@ def divide_csv_daily(file_path: os.PathLike, manifest_id: int, hour_dict: dict, 
     for daily_data in daily_data_frames:
         day = daily_data["date"]
         df = daily_data["data_frame"]
-        day_file, csv_text = _day_slice_csv_name(report_type, day, manifest_id, df)
+        file_prefix = f"{report_type}.{day}.{manifest_id}"
+        with transaction.atomic():
+            # With split payloads, we could have a race condition trying to update the `report_tracker`.
+            # using a transaction and `select_for_update` should minimize the risk of multiple
+            # workers trying to update this field at the same time by locking the manifest during update.
+            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+            if not manifest.report_tracker.get(file_prefix):
+                manifest.report_tracker[file_prefix] = 0
+            counter = manifest.report_tracker[file_prefix]
+            manifest.report_tracker[file_prefix] = counter + 1
+            manifest.save(update_fields=["report_tracker"])
+        day_file = f"{file_prefix}.{counter}.csv"
         day_filepath = file_path.parent.joinpath(day_file)
-        day_filepath.write_text(csv_text)
+        df.to_csv(day_filepath, index=False, header=True)
         daily_files.append(
             {
                 "filepath": day_filepath,

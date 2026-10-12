@@ -13,6 +13,7 @@ import os
 import re
 import shutil
 import tempfile
+import time
 from pathlib import Path
 from tarfile import ReadError
 from tarfile import TarFile
@@ -29,16 +30,63 @@ LOG = logging.getLogger(__name__)
 _MAX_MANIFEST_BYTES = 10 * 1_024 * 1_024  # 10 MB — orders of magnitude above any real manifest
 _CONNECT_TIMEOUT_SECONDS = 10
 _READ_TIMEOUT_SECONDS = 60
+_TOTAL_DOWNLOAD_TIMEOUT_SECONDS = 15 * 60
+_MAX_PAYLOAD_BYTES = 5 * 1024 * 1024 * 1024
 _DOWNLOAD_CHUNK_BYTES = 1024 * 1024
 _REWINDABLE_STATUS_CODES = {408, 429}
+
+
+def _write_download_chunks(request_id, download_response, payload_file, context):
+    """Stream response body to ``payload_file`` with time and size limits."""
+    download_started = time.monotonic()
+    bytes_written = 0
+    for chunk in download_response.iter_content(chunk_size=_DOWNLOAD_CHUNK_BYTES):
+        if not chunk:
+            continue
+        elapsed_seconds = time.monotonic() - download_started
+        if elapsed_seconds > _TOTAL_DOWNLOAD_TIMEOUT_SECONDS:
+            msg = (
+                "Unable to download file. Download exceeded total time limit of "
+                f"{_TOTAL_DOWNLOAD_TIMEOUT_SECONDS} seconds."
+            )
+            LOG.warning(log_json(request_id, msg=msg, context=context))
+            raise KafkaMsgHandlerError(msg)
+        bytes_written += len(chunk)
+        if bytes_written > _MAX_PAYLOAD_BYTES:
+            msg = "Unable to download file. Download exceeded maximum allowed size of " f"{_MAX_PAYLOAD_BYTES} bytes."
+            LOG.warning(log_json(request_id, msg=msg, context=context))
+            raise KafkaMsgHandlerError(msg)
+        payload_file.write(chunk)
+
+
+def _stream_url_to_file(request_id, url, temp_file, context):
+    """HTTP GET ``url`` and write the body to ``temp_file``."""
+    try:
+        with requests.get(
+            url,
+            stream=True,
+            timeout=(_CONNECT_TIMEOUT_SECONDS, _READ_TIMEOUT_SECONDS),
+        ) as download_response:
+            download_response.raise_for_status()
+            try:
+                with temp_file.open("wb") as payload_file:
+                    _write_download_chunks(request_id, download_response, payload_file, context)
+            except OSError as error:
+                msg = f"Unable to write file. Error: {str(error)}"
+                LOG.warning(log_json(request_id, msg=msg, context=context), exc_info=error)
+                raise KafkaMsgHandlerError(msg) from error
+    except requests.exceptions.HTTPError as err:
+        msg = f"Unable to download file. Error: {str(err)}"
+        LOG.warning(log_json(request_id, msg=msg), exc_info=err)
+        raise KafkaMsgHandlerError(msg) from err
 
 
 def download_payload(request_id, url, context):
     """Download the payload from ingress to temporary location.
 
-    The body is streamed to disk. Connect and read timeouts keep a stalled
-    quarantine response from holding the listener thread until the Kafka
-    session times out.
+    The body is streamed to disk. Connect and per-read timeouts bound idle
+    gaps; a total wall-clock limit and payload size cap stop trickle responses
+    from holding the listener thread until the Kafka session times out.
     """
     # Create temporary directory for initial file staging and verification in the
     # OpenShift PVC directory so that any failures can be triaged in the event
@@ -48,26 +96,7 @@ def download_payload(request_id, url, context):
     try:
         sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
         temp_file = Path(temp_dir, sanitized_request_id).with_suffix(".tar.gz")
-        try:
-            with requests.get(
-                url,
-                stream=True,
-                timeout=(_CONNECT_TIMEOUT_SECONDS, _READ_TIMEOUT_SECONDS),
-            ) as download_response:
-                download_response.raise_for_status()
-                try:
-                    with temp_file.open("wb") as payload_file:
-                        for chunk in download_response.iter_content(chunk_size=_DOWNLOAD_CHUNK_BYTES):
-                            if chunk:
-                                payload_file.write(chunk)
-                except OSError as error:
-                    msg = f"Unable to write file. Error: {str(error)}"
-                    LOG.warning(log_json(request_id, msg=msg, context=context), exc_info=error)
-                    raise KafkaMsgHandlerError(msg) from error
-        except requests.exceptions.HTTPError as err:
-            msg = f"Unable to download file. Error: {str(err)}"
-            LOG.warning(log_json(request_id, msg=msg), exc_info=err)
-            raise KafkaMsgHandlerError(msg) from err
+        _stream_url_to_file(request_id, url, temp_file, context)
         return temp_file
     except Exception:
         shutil.rmtree(temp_dir, ignore_errors=True)

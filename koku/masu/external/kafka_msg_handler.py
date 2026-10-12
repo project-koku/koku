@@ -279,16 +279,16 @@ def send_to_dead_letter_queue(request_id, value, schema_name, context):
         return SUCCESS_CONFIRM_STATUS
     except (OperationalError, InterfaceError):
         raise
-    except (UploadError, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as error:
+    except UploadError as error:
         msg = f"Unable to send payload to dead letter queue. Error: {type(error).__name__}: {error}"
         LOG.warning(log_json(request_id, msg=msg, context=context))
         raise KafkaMsgHandlerError(msg) from error
-    except KafkaMsgHandlerError as error:
-        if _is_permanent_download_error(error):
-            msg = f"Unable to send payload to dead letter queue. Error: {type(error).__name__}: {error}"
-            LOG.warning(log_json(request_id, msg=msg, context=context))
-            return FAILURE_CONFIRM_STATUS
-        raise
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, KafkaMsgHandlerError) as error:
+        outcome = _ingress_download_error_outcome(
+            request_id, context, error, "Unable to send payload to dead letter queue."
+        )
+        if outcome is not None:
+            return outcome
     except KeyError as error:
         msg = f"Unable to send payload to dead letter queue. Error: {type(error).__name__}: {error}"
         LOG.warning(log_json(request_id, msg=msg, context=context))
@@ -303,6 +303,23 @@ def _kafka_upload_value_for_log(value):
     return {key: item for key, item in value.items() if key != "b64_identity"}
 
 
+def _ingress_download_error_outcome(request_id, context, error, log_preamble):
+    """Raise KafkaMsgHandlerError for transient ingress download errors.
+
+    Return FAILURE_CONFIRM_STATUS when the error is a permanent client HTTP failure.
+    """
+    msg = f"{log_preamble} Error: {type(error).__name__}: {error}"
+    if isinstance(error, (requests.exceptions.ConnectionError, requests.exceptions.Timeout)):
+        LOG.warning(log_json(request_id, msg=msg, context=context))
+        raise KafkaMsgHandlerError(msg) from error
+    if isinstance(error, KafkaMsgHandlerError):
+        if _is_permanent_download_error(error):
+            LOG.warning(log_json(request_id, msg=msg, context=context))
+            return FAILURE_CONFIRM_STATUS
+        raise
+    raise TypeError(f"unexpected ingress download error type: {type(error)!r}")
+
+
 def legacy_message_processing(request_id, value, context):
     """Download and extract an ingress payload on the listener thread."""
     logged_value = _kafka_upload_value_for_log(value)
@@ -312,6 +329,10 @@ def legacy_message_processing(request_id, value, context):
             msg = f"Downloading Payload for msg: {logged_value}"
             LOG.info(log_json(request_id, msg=msg, context=context))
             payload_path = download_payload(request_id, value["url"], context)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, KafkaMsgHandlerError) as error:
+            outcome = _ingress_download_error_outcome(request_id, context, error, "Unable to download payload")
+            if outcome is not None:
+                return outcome, None, None
         except Exception as error:
             traceback.print_exc()
             msg = f"Unable to download payload. Error: {type(error).__name__}: {error}"

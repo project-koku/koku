@@ -6,6 +6,7 @@
 import copy
 import gzip
 import io
+import itertools
 import json
 import logging
 import os
@@ -27,6 +28,7 @@ from django.db import OperationalError
 from model_bakery import baker
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError
+from requests.exceptions import Timeout as RequestsTimeout
 
 import masu.external.kafka_msg_handler as msg_handler
 from common.queues import OCPQueue
@@ -1486,6 +1488,40 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         download.download_payload("test_request_id", payload_url, {})
                     self.assertEqual(os.listdir(fake_data_dir), [])
 
+    def test_download_payload_exceeds_total_time_limit(self):
+        """A trickle download must fail once the total wall-clock budget is exhausted."""
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        chunk_one = b"a" * download._DOWNLOAD_CHUNK_BYTES
+        chunk_two = b"b" * download._DOWNLOAD_CHUNK_BYTES
+        monotonic_values = itertools.chain(
+            [0.0, 0.0],
+            [download._TOTAL_DOWNLOAD_TIMEOUT_SECONDS + 1],
+        )
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=chunk_one + chunk_two)
+            with tempfile.TemporaryDirectory() as fake_data_dir:
+                with patch.object(Config, "DATA_DIR", fake_data_dir):
+                    with patch(
+                        "masu.external.downloader.ocp.download.time.monotonic",
+                        side_effect=lambda: next(monotonic_values),
+                    ):
+                        with self.assertRaises(msg_handler.KafkaMsgHandlerError):
+                            download.download_payload("test_request_id", payload_url, {})
+                    self.assertEqual(os.listdir(fake_data_dir), [])
+
+    def test_download_payload_exceeds_max_size(self):
+        """Downloads larger than the ingress payload cap must fail and clean up."""
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        max_bytes = 16
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=b"x" * (max_bytes + 1))
+            with tempfile.TemporaryDirectory() as fake_data_dir:
+                with patch.object(Config, "DATA_DIR", fake_data_dir):
+                    with patch.object(download, "_MAX_PAYLOAD_BYTES", max_bytes):
+                        with self.assertRaises(msg_handler.KafkaMsgHandlerError):
+                            download.download_payload("test_request_id", payload_url, {})
+                    self.assertEqual(os.listdir(fake_data_dir), [])
+
     def test_extract_payload_wrong_file_type(self):
         """Test that extract_payload raises KafkaMsgHandlerError when the file is not a valid tar.gz."""
         with open("./koku/masu/test/data/test_cur.csv", "rb") as f:
@@ -1618,29 +1654,34 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     }
                     df = pd.DataFrame(data=mock_report)
                     mock_pd.read_csv.return_value = df
-                    manifest = CostUsageReportManifest.objects.get(id=self.ocp_manifest_id)
-                    tracker_before = copy.deepcopy(manifest.report_tracker)
-                    with patch.object(
-                        CostUsageReportManifest.objects,
-                        "select_for_update",
-                        side_effect=AssertionError("manifest lock"),
-                    ):
-                        daily_files = processing.divide_csv_daily(file_path, self.ocp_manifest_id, hour_dict)
-                        daily_files_again = processing.divide_csv_daily(file_path, self.ocp_manifest_id, hour_dict)
-                    manifest.refresh_from_db()
-                    self.assertEqual(manifest.report_tracker, tracker_before)
+                    daily_files = processing.divide_csv_daily(file_path, self.ocp_manifest_id, hour_dict)
+                    daily_files_again = processing.divide_csv_daily(file_path, self.ocp_manifest_id, hour_dict)
+                    self.assertNotEqual([], daily_files)
                     self.assertEqual(len(daily_files), 2)
                     expected_dates = [datetime.strptime(date[:10], "%Y-%m-%d") for date in dates]
-                    self.assertCountEqual([item["date"] for item in daily_files], expected_dates)
-                    self.assertTrue(all(item["num_hours"] == 1 for item in daily_files))
-                    names = sorted(item["filepath"].name for item in daily_files)
-                    names_again = sorted(item["filepath"].name for item in daily_files_again)
-                    self.assertEqual(names, names_again)
-                    for name in names:
-                        self.assertRegex(
-                            name,
-                            rf"^storage_usage\.2020-01-0[12]\.{self.ocp_manifest_id}\.[0-9a-f]{{12}}\.csv$",
-                        )
+                    gen_files = [
+                        f"storage_usage.2020-01-01.{self.ocp_manifest_id}.0.csv",
+                        f"storage_usage.2020-01-02.{self.ocp_manifest_id}.0.csv",
+                    ]
+                    expected = [
+                        {"filepath": Path(td, gen_file), "date": expected_dates[i], "num_hours": 1}
+                        for i, gen_file in enumerate(gen_files)
+                    ]
+                    for expected_item in expected:
+                        self.assertIn(expected_item, daily_files)
+                    gen_files_again = [
+                        f"storage_usage.2020-01-01.{self.ocp_manifest_id}.1.csv",
+                        f"storage_usage.2020-01-02.{self.ocp_manifest_id}.1.csv",
+                    ]
+                    expected_again = [
+                        {"filepath": Path(td, gen_file), "date": expected_dates[i], "num_hours": 1}
+                        for i, gen_file in enumerate(gen_files_again)
+                    ]
+                    for expected_item in expected_again:
+                        self.assertIn(expected_item, daily_files_again)
+                    manifest = CostUsageReportManifest.objects.get(id=self.ocp_manifest_id)
+                    self.assertEqual(manifest.report_tracker[f"storage_usage.2020-01-01.{self.ocp_manifest_id}"], 2)
+                    self.assertEqual(manifest.report_tracker[f"storage_usage.2020-01-02.{self.ocp_manifest_id}"], 2)
 
     def test_get_data_frame_no_tokenizing_error(self):
         """Test get_data_frame does not raise Tokenizing error when reading files."""
@@ -1867,12 +1908,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 download.read_manifest_from_tarball("test_request_id", tarball_path, {})
 
     def test_handle_message_download_failure_returns_failure_status(self):
-        """Test that handle_message returns FAILURE_CONFIRM_STATUS when download_payload raises.
-
-        Covers the except Exception block in handle_message (lines 594-598) where any unexpected
-        error during download (network failure, permission error, etc.) is caught and results in
-        FAILURE_CONFIRM_STATUS rather than propagating the exception to the caller.
-        """
+        """Test unexpected download errors confirm failure; permanent HTTP 4xx does the same."""
         hccm_msg = MockMessage(
             UPLOAD_TOPIC,
             "http://insights-upload.com/quarantine/file_to_validate",
@@ -1880,12 +1916,73 @@ class KafkaMsgHandlerTest(MasuTestCase):
         )
         with patch(
             "masu.external.kafka_msg_handler.download_payload",
-            side_effect=Exception("unexpected network error"),
+            side_effect=Exception("unexpected error"),
         ):
             status, report_metas, manifest_uuid = msg_handler.handle_message(hccm_msg)
             self.assertEqual(status, msg_handler.FAILURE_CONFIRM_STATUS)
             self.assertIsNone(report_metas)
             self.assertIsNone(manifest_uuid)
+
+        with patch(
+            "masu.external.kafka_msg_handler.download_payload",
+            side_effect=_kafka_error_from_http_status(404),
+        ):
+            status, report_metas, manifest_uuid = msg_handler.handle_message(hccm_msg)
+            self.assertEqual(status, msg_handler.FAILURE_CONFIRM_STATUS)
+            self.assertIsNone(report_metas)
+            self.assertIsNone(manifest_uuid)
+
+    def test_handle_message_legacy_download_transient_errors_raise(self):
+        """Test legacy path rewinds on timeout, connection, and 5xx download errors."""
+        hccm_msg = MockMessage(
+            UPLOAD_TOPIC,
+            "http://insights-upload.com/quarantine/file_to_validate",
+            {"org_id": self.org_id},
+        )
+        with (
+            patch(
+                "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema",
+                return_value=False,
+            ),
+            patch(
+                "masu.external.kafka_msg_handler.download_payload",
+                side_effect=RequestsConnectionError("connection failed"),
+            ),
+            patch("masu.external.kafka_msg_handler.extract_payload") as mock_extract,
+        ):
+            with self.assertRaises(KafkaMsgHandlerError):
+                msg_handler.handle_message(hccm_msg)
+        mock_extract.assert_not_called()
+
+        with (
+            patch(
+                "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema",
+                return_value=False,
+            ),
+            patch(
+                "masu.external.kafka_msg_handler.download_payload",
+                side_effect=RequestsTimeout("read timed out"),
+            ),
+            patch("masu.external.kafka_msg_handler.extract_payload") as mock_extract,
+        ):
+            with self.assertRaises(KafkaMsgHandlerError):
+                msg_handler.handle_message(hccm_msg)
+        mock_extract.assert_not_called()
+
+        with (
+            patch(
+                "masu.external.kafka_msg_handler.is_feature_flag_enabled_by_schema",
+                return_value=False,
+            ),
+            patch(
+                "masu.external.kafka_msg_handler.download_payload",
+                side_effect=_kafka_error_from_http_status(503),
+            ),
+            patch("masu.external.kafka_msg_handler.extract_payload") as mock_extract,
+        ):
+            with self.assertRaises(KafkaMsgHandlerError):
+                msg_handler.handle_message(hccm_msg)
+        mock_extract.assert_not_called()
 
     def test_handle_message_cleans_up_temp_dir_on_unexpected_exception(self):
         """Test that handle_message removes the temp directory when extract_payload raises unexpectedly."""
