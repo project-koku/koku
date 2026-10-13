@@ -9,6 +9,7 @@ import random
 import uuid
 from collections import defaultdict
 from datetime import datetime
+from decimal import Decimal
 from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -16,6 +17,9 @@ from unittest.mock import patch
 from django.conf import settings
 from django.db import connection
 from django.db import IntegrityError
+from django.db.models import F
+from django.db.models import Max
+from django.db.models import Min
 from django.db.models import Q
 from django.db.models import Sum
 from django.test import override_settings
@@ -2435,3 +2439,90 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
             # Should use populate_vm_tmp_table.sql (fallback) instead of populate_vm_tmp_table_with_vm_report.sql
             sql_files_used = [str(call) for call in calls]
             self.assertTrue(any("populate_vm_tmp_table.sql" in s for s in sql_files_used))
+
+
+class OCPMarkupSkipUnchangedTest(MasuTestCase):
+    """Test that populate_markup_cost skips rows a 0 markup would not change."""
+
+    FLAG_TARGET = "masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema"
+
+    def setUp(self):
+        """Give some rows of an OCP-on-cloud cluster a stale markup and leave the rest NULL."""
+        super().setUp()
+        self.cluster_id = "OCP-on-AWS"
+        with schema_context(self.schema):
+            rows = OCPUsageLineItemDailySummary.objects.filter(cluster_id=self.cluster_id)
+            dates = rows.aggregate(start=Min("usage_start"), end=Max("usage_start"))
+            self.start_date, self.end_date = dates["start"], dates["end"]
+            rows.update(infrastructure_markup_cost=None, infrastructure_project_markup_cost=None)
+            self.stale_uuids = list(
+                rows.exclude(infrastructure_raw_cost__isnull=True)
+                .exclude(infrastructure_raw_cost=0)
+                .values_list("uuid", flat=True)[:5]
+            )
+            rows.filter(uuid__in=self.stale_uuids).update(
+                infrastructure_markup_cost=F("infrastructure_raw_cost") * Decimal("0.1"),
+                infrastructure_project_markup_cost=Decimal("1.5"),
+            )
+        self.assertTrue(self.stale_uuids, "test data has no OCP-on-AWS rows with infrastructure cost")
+
+    def _populate(self, markup, flag_enabled):
+        with patch(self.FLAG_TARGET, return_value=flag_enabled):
+            with OCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_markup_cost(markup, self.start_date, self.end_date, self.cluster_id)
+
+    def _markups(self):
+        with schema_context(self.schema):
+            return {
+                row["uuid"]: (row["infrastructure_markup_cost"], row["infrastructure_project_markup_cost"])
+                for row in OCPUsageLineItemDailySummary.objects.filter(cluster_id=self.cluster_id).values(
+                    "uuid", "infrastructure_markup_cost", "infrastructure_project_markup_cost"
+                )
+            }
+
+    def test_zero_markup_clears_stale_markup_and_leaves_null_rows(self):
+        """With the flag on, markup 0 only rewrites rows that still have a non-zero markup."""
+        self._populate(Decimal(0), flag_enabled=True)
+        markups = self._markups()
+        for row_uuid, values in markups.items():
+            with self.subTest(row=row_uuid):
+                if row_uuid in self.stale_uuids:
+                    self.assertEqual(values, (Decimal(0), Decimal(0)))
+                else:
+                    self.assertEqual(values, (None, None))
+
+    def test_zero_markup_without_flag_writes_every_row(self):
+        """With the flag off, markup 0 still sets every row to 0."""
+        self._populate(Decimal(0), flag_enabled=False)
+        self.assertEqual(set(self._markups().values()), {(Decimal(0), Decimal(0))})
+
+    def test_non_zero_markup_is_unchanged(self):
+        """A non-zero markup writes raw cost times markup to every row, flag on or off."""
+        for flag_enabled in (True, False):
+            with self.subTest(flag_enabled=flag_enabled):
+                self._populate(Decimal("0.25"), flag_enabled=flag_enabled)
+                with schema_context(self.schema):
+                    rows = OCPUsageLineItemDailySummary.objects.filter(cluster_id=self.cluster_id)
+                    for row in rows.values(
+                        "infrastructure_raw_cost",
+                        "infrastructure_project_raw_cost",
+                        "infrastructure_markup_cost",
+                        "infrastructure_project_markup_cost",
+                    ):
+                        # The columns keep 15 decimal places, rounded by the database.
+                        expected = (row["infrastructure_raw_cost"] or 0) * Decimal("0.25")
+                        expected_project = (row["infrastructure_project_raw_cost"] or 0) * Decimal("0.25")
+                        self.assertAlmostEqual(row["infrastructure_markup_cost"], expected, delta=Decimal("1e-14"))
+                        self.assertAlmostEqual(
+                            row["infrastructure_project_markup_cost"], expected_project, delta=Decimal("1e-14")
+                        )
+
+    def test_zero_markup_update_is_filtered_only_with_flag(self):
+        """The UPDATE carries the non-zero filter only when the flag is on."""
+        for flag_enabled in (True, False):
+            with self.subTest(flag_enabled=flag_enabled):
+                with CaptureQueriesContext(connection) as captured:
+                    self._populate(Decimal(0), flag_enabled=flag_enabled)
+                updates = [q["sql"] for q in captured.captured_queries if q["sql"].startswith("UPDATE")]
+                self.assertEqual(len(updates), 1)
+                self.assertEqual('infrastructure_markup_cost" IS NOT NULL' in updates[0], flag_enabled)
