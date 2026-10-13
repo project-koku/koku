@@ -52,6 +52,12 @@ KAFKA_LISTENER_INFLIGHT_MESSAGE_AGE_SECONDS = Gauge(
     "Elapsed processing time of the current Kafka listener message; zero when idle",
 )
 
+OCP_INGRESS_DOWNLOAD_GUARDRAIL_COUNTER = Counter(
+    "ocp_ingress_download_guardrail_failures_total",
+    "OCP ingress payload downloads stopped by listener guardrails",
+    ["failure_type"],
+)
+
 CELERY_ERRORS_COUNTER = Counter("celery_errors", "Number of celery errors")
 
 DOWNLOAD_BACKLOG = Gauge(
