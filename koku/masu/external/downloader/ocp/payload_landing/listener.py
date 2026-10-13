@@ -7,11 +7,8 @@ import logging
 import shutil
 
 import requests
-from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
-from common.queues import IngressQueue
-from koku import celery_app
 from masu.external.downloader.ocp import download
 from masu.external.downloader.ocp.exceptions import FAILURE_CONFIRM_STATUS
 from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
@@ -26,24 +23,10 @@ from masu.external.downloader.ocp.payload_landing.objects import _put_bytes
 from masu.external.downloader.ocp.payload_landing.objects import _put_json
 from masu.external.downloader.ocp.payload_landing.objects import _rewind_for_staging_error
 from masu.external.downloader.ocp.payload_landing.objects import _s3_key_exists
+from masu.external.downloader.ocp.payload_landing.register import _enqueue_task
 from masu.util.aws.common import UploadError
 
 LOG = logging.getLogger(__name__)
-
-
-def _enqueue_task(request_id, context, task_name, failure_message):
-    """Best-effort enqueue. A broker failure must not rewind the Kafka consumer."""
-    try:
-        celery_app.send_task(task_name, args=[request_id], queue=IngressQueue.DEFAULT)
-    except KombuOperationalError as error:
-        LOG.warning(
-            log_json(
-                request_id,
-                msg=failure_message,
-                context=context,
-                error=type(error).__name__,
-            )
-        )
 
 
 def _enqueue_register_ingress(request_id, context):

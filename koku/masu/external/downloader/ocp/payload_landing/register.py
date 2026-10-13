@@ -10,8 +10,10 @@ from django.db import IntegrityError
 from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
+from api.iam.serializers import create_schema_name
 from api.utils import DateHelper
-from common.queues import IngressQueue
+from common.queues import get_customer_queue
+from common.queues import OCPQueue
 from koku import celery_app
 from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
 from masu.external.downloader.ocp.payload_landing.constants import _DB_ERRORS
@@ -31,10 +33,21 @@ from reporting_common.models import IngressStagingState
 LOG = logging.getLogger(__name__)
 
 
+def _staging_celery_queue(context=None):
+    """Route ingress staging tasks to the same OCP worker pool as report processing."""
+    if context:
+        schema = context.get("schema")
+        if not schema and context.get("org_id"):
+            schema = create_schema_name(str(context["org_id"]))
+        if schema:
+            return get_customer_queue(schema, OCPQueue)
+    return OCPQueue.DEFAULT
+
+
 def _enqueue_task(request_id, context, task_name, failure_message):
     """Best-effort enqueue. A broker failure must not rewind the Kafka consumer."""
     try:
-        celery_app.send_task(task_name, args=[request_id], queue=IngressQueue.DEFAULT)
+        celery_app.send_task(task_name, args=[request_id], queue=_staging_celery_queue(context))
     except KombuOperationalError as error:
         LOG.warning(
             log_json(
@@ -159,7 +172,7 @@ def _marker_document_or_none(key):
     return document
 
 
-@celery_app.task(name=REGISTER_INGRESS_STAGING_TASK, queue=IngressQueue.DEFAULT)
+@celery_app.task(name=REGISTER_INGRESS_STAGING_TASK, queue=OCPQueue.DEFAULT)
 def register_ingress_staging_marker(request_id):
     """Insert the staging row for one S3 marker and enqueue extract.
 

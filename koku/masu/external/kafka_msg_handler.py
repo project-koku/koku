@@ -6,7 +6,7 @@
 
 Downloading a payload and turning it into line items are separate steps.
 Download ends when the raw tarball is durable in our bucket. Processing
-starts on the ingress worker, which reads that object back.
+starts on the OCP Celery worker, which reads that object back.
 This module polls Kafka, confirms the upload, and chooses which step runs
 on the listener.
 """

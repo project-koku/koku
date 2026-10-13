@@ -33,6 +33,7 @@ from requests.exceptions import HTTPError
 from requests.exceptions import Timeout as RequestsTimeout
 
 import masu.external.kafka_msg_handler as msg_handler
+from common.queues import get_customer_queue
 from common.queues import OCPQueue
 from kafka_utils.utils import UPLOAD_TOPIC
 from masu.config import Config
@@ -1023,7 +1024,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             patch("masu.processor.ocp.staged_payloads.processing.process_report"),
             patch("masu.external.downloader.ocp.payload_landing.objects.copy_data_to_s3_bucket"),
             patch("masu.external.downloader.ocp.payload_landing.listener._s3_key_exists", **exists_kwargs),
-            patch("masu.external.downloader.ocp.payload_landing.listener.celery_app.send_task"),
+            patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task"),
             patch("masu.external.kafka_msg_handler.send_confirmation"),
             patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor"),
         )
@@ -1071,7 +1072,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
         mock_process.assert_not_called()
         mock_parquet.assert_not_called()
         mock_confirm.assert_called_once_with(request_id, msg_handler.SUCCESS_CONFIRM_STATUS)
-        mock_enqueue.assert_called_once_with(REGISTER_INGRESS_STAGING_TASK, args=[request_id], queue="ingress")
+        mock_enqueue.assert_called_once_with(
+            REGISTER_INGRESS_STAGING_TASK,
+            args=[request_id],
+            queue=get_customer_queue(self.schema, OCPQueue),
+        )
         uploaded = [f"{call_args.args[1]}/{call_args.args[2]}" for call_args in mock_copy.call_args_list]
         self.assertEqual(
             uploaded,
@@ -1240,7 +1245,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             patch("masu.external.downloader.ocp.download.read_manifest_from_tarball", return_value=manifest),
             patch("masu.external.downloader.ocp.payload_landing.objects.copy_data_to_s3_bucket") as mock_copy,
             patch("masu.external.downloader.ocp.payload_landing.listener._s3_key_exists", return_value=False),
-            patch("masu.external.downloader.ocp.payload_landing.listener.celery_app.send_task") as mock_enqueue,
+            patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue,
             patch("masu.external.kafka_msg_handler.send_confirmation") as mock_confirm,
             patch("masu.external.kafka_msg_handler.settings.DEBUG", False),
             patch("masu.external.kafka_msg_handler.Customer.objects.filter", side_effect=OperationalError("db down")),
@@ -1249,7 +1254,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
             msg_handler.process_messages(hccm_msg)
 
         mock_confirm.assert_called_once_with(request_id, msg_handler.SUCCESS_CONFIRM_STATUS)
-        mock_enqueue.assert_called_once_with(REGISTER_INGRESS_STAGING_TASK, args=[request_id], queue="ingress")
+        mock_enqueue.assert_called_once_with(
+            REGISTER_INGRESS_STAGING_TASK,
+            args=[request_id],
+            queue=get_customer_queue(self.schema, OCPQueue),
+        )
         uploaded = [f"{call_args.args[1]}/{call_args.args[2]}" for call_args in mock_copy.call_args_list]
         self.assertEqual(
             uploaded,

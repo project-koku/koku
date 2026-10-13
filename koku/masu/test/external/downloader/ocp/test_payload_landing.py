@@ -17,6 +17,8 @@ from django.db import OperationalError
 from django.test import SimpleTestCase
 from django.utils import timezone
 
+from common.queues import get_customer_queue
+from common.queues import OCPQueue
 from masu.config import Config
 from masu.external.downloader.ocp.exceptions import FAILURE_CONFIRM_STATUS
 from masu.external.downloader.ocp.exceptions import KafkaMsgHandlerError
@@ -123,7 +125,7 @@ class IngressStagingTests(MasuTestCase):
             patch("masu.external.downloader.ocp.payload_landing.listener._copy_s3_key") as mock_copy_key,
             patch("masu.external.downloader.ocp.payload_landing.objects.copy_data_to_s3_bucket") as mock_upload,
             patch("masu.external.downloader.ocp.download.download_payload") as mock_download,
-            patch("masu.external.downloader.ocp.payload_landing.listener.celery_app.send_task") as mock_enqueue,
+            patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue,
             patch.object(IngressStagingPayload.objects, "get_or_create", side_effect=OperationalError("db down")),
         ):
             status = stage_ingress_s3_inbox(
@@ -138,7 +140,11 @@ class IngressStagingTests(MasuTestCase):
         self.assertEqual(mock_copy_key.call_args.args[1], _receipt_key(request_id))
         mock_upload.assert_not_called()
         mock_download.assert_not_called()
-        mock_enqueue.assert_called_once_with(REGISTER_INGRESS_STAGING_TASK, args=[request_id], queue="ingress")
+        mock_enqueue.assert_called_once_with(
+            REGISTER_INGRESS_STAGING_TASK,
+            args=[request_id],
+            queue=get_customer_queue(self.schema, OCPQueue),
+        )
         self.assertFalse(IngressStagingPayload.objects.filter(request_id=request_id).exists())
 
     def test_register_leaves_marker_when_upsert_fails(self):
@@ -185,7 +191,11 @@ class IngressStagingTests(MasuTestCase):
         self.assertEqual(row.s3_key, s3_key)
         self.assertEqual(row.state, IngressStagingState.PENDING)
         mock_delete.assert_not_called()
-        mock_enqueue.assert_called_once_with(PROCESS_STAGED_INGRESS_TASK, args=[request_id], queue="ingress")
+        mock_enqueue.assert_called_once_with(
+            PROCESS_STAGED_INGRESS_TASK,
+            args=[request_id],
+            queue=get_customer_queue(self.schema, OCPQueue),
+        )
 
     def test_register_returns_when_markers_gone(self):
         """Test that registration is a no-op when pending and receipt markers are missing."""
