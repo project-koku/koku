@@ -304,7 +304,7 @@ class IngressStagingTests(MasuTestCase):
                 "masu.external.downloader.ocp.payload_landing.register.delete_s3_objects",
                 return_value=[{"Key": "pending"}],
             ),
-            patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task"),
+            patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue,
         ):
             register_ingress_staging_marker(request_id)
             register_ingress_staging_marker(request_id)
@@ -313,6 +313,7 @@ class IngressStagingTests(MasuTestCase):
         self.assertEqual(row.state, IngressStagingState.PROCESSED)
         self.assertEqual(row.payload["b64_identity"], "original-secret")
         self.assertEqual(row.s3_key, document["s3_key"])
+        mock_enqueue.assert_not_called()
 
 
 class S3KeyExistsTests(SimpleTestCase):

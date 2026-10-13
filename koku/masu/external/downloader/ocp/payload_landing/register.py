@@ -128,7 +128,8 @@ def _register_staging_document(document, pending_key):
 
     Returns False when Postgres rejects the upsert or Celery enqueue fails. The
     marker stays so the next beat can retry. A row that already has an
-    ``s3_key`` is not reset.
+    ``s3_key`` is not reset. Extract is not enqueued when the row is already
+    processed.
     """
     request_id = document.get("request_id")
     s3_key = document.get("s3_key")
@@ -138,7 +139,7 @@ def _register_staging_document(document, pending_key):
     value = _payload_for_marker(document)
     now = DateHelper().now_utc
     try:
-        _save_staging_row(
+        row = _save_staging_row(
             request_id,
             value,
             s3_key,
@@ -158,7 +159,7 @@ def _register_staging_document(document, pending_key):
         )
         return False
     context = {"org_id": document.get("org_id"), "account": document.get("account")}
-    if not _enqueue_staged_ingress(request_id, context):
+    if row.state != IngressStagingState.PROCESSED and not _enqueue_staged_ingress(request_id, context):
         return False
     if pending_key:
         deleted = delete_s3_objects(request_id, [pending_key], {})
