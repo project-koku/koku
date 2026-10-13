@@ -7,18 +7,23 @@ import ast
 import inspect
 import os
 import pathlib
+import pkgutil
+from datetime import timedelta
 from unittest import TestCase
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import psycopg2
 from django.db import OperationalError
+from django.test import SimpleTestCase
 from psycopg2.errors import DeadlockDetected
 
 import masu
 from koku.cache import build_trino_schema_exists_key
 from koku.cache import build_trino_table_exists_key
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
+from masu.processor.parquet.summary_sql_metadata import trino_safe_array_literal
 from masu.test import MasuTestCase
 
 
@@ -114,6 +119,47 @@ class ReportDBAccessorBaseTest(MasuTestCase):
         with patch("masu.database.report_db_accessor_base.set_value_in_cache") as mock_cache_set:
             self.assertFalse(self.accessor.table_exists_trino(table))
             mock_cache_set.assert_called_with(key, False)
+
+    @patch.object(ReportDBAccessorBase, "_execute_trino_multipart_sql_query")
+    def test_find_openshift_keys_expected_values_uses_day_pruned_summary(self, mock_trino):
+        """Special-tag lookup must pass days and query the day-partitioned summary table."""
+        mock_trino.return_value = [[['{"openshift_cluster": "cluster-a"}']]]
+        start_date = self.dh.this_month_start.date()
+        end_date = start_date + timedelta(days=4)
+        sql_metadata = SummarySqlMetadata(
+            self.schema,
+            str(self.ocp_provider_uuid),
+            str(self.aws_provider_uuid),
+            start_date,
+            end_date,
+            ['{"app": "cost"}'],
+            1,
+            1,
+        )
+
+        result = self.accessor.find_openshift_keys_expected_values(sql_metadata)
+
+        mock_trino.assert_called_once()
+        (sql,) = mock_trino.call_args.args
+        bind_params = mock_trino.call_args.kwargs["bind_params"]
+        self.assertIn("reporting_ocpusagelineitem_daily_summary", sql)
+        self.assertNotIn("openshift_pod_usage_line_items_daily", sql)
+        self.assertIn("day IN {{days | inclause}}", sql)
+        self.assertEqual(bind_params["days"], sql_metadata.days_tup)
+        self.assertEqual(result, trino_safe_array_literal(['{"openshift_cluster": "cluster-a"}']))
+
+
+class OCPSpecialMatchedTagsSqlTemplateTest(SimpleTestCase):
+    """Static checks for the OCP special matched-tags Trino template."""
+
+    def test_template_reads_day_partitioned_summary_not_raw_pod_usage(self):
+        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/ocp_special_matched_tags.sql").decode("utf-8")
+        self.assertIn("reporting_ocpusagelineitem_daily_summary", sql)
+        self.assertNotIn("openshift_pod_usage_line_items_daily", sql)
+        self.assertIn("day IN {{days | inclause}}", sql)
+        self.assertIn("lpad(month, 2, '0') = {{month}}", sql)
+        self.assertIn("node IS NOT NULL", sql)
+        self.assertIn("namespace IS NOT NULL", sql)
 
 
 class ReportDBAccessorBaseDeadlockRetryTest(MasuTestCase):

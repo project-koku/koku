@@ -345,10 +345,11 @@ class ReportDBAccessorBase:
         Ex: ("openshift-project": "project_a")
         """
         matched_tag_params = sql_metadata.build_params(
-            ["schema", "start_date", "end_date", "month", "year", "matched_tag_strs", "ocp_provider_uuid"]
+            ["schema", "start_date", "end_date", "month", "year", "days", "matched_tag_strs", "ocp_provider_uuid"]
         )
+        # OCP-on-cloud special-tag lookup is Trino-only (no self_hosted_sql counterpart).
         matched_tags_sql = pkgutil.get_data(
-            "masu.database", f"{self.get_sql_folder_name()}/openshift/ocp_special_matched_tags.sql"
+            "masu.database", f"{self.trino_sql_folder_name}/openshift/ocp_special_matched_tags.sql"
         )
         matched_tags_sql = matched_tags_sql.decode("utf-8")
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matched_tag_params))
