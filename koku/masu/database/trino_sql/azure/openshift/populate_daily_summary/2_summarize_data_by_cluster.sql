@@ -140,7 +140,7 @@ SELECT cast(uuid() as varchar) as row_uuid,
         AND az_disk.ocp_source = azure.ocp_source
     WHERE ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
-        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+        AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
         AND ocp.persistentvolume is not null
@@ -205,7 +205,7 @@ WITH cte_total_pv_capacity as (
                 (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
             )
         WHERE ocp.year = {{year}}
-            AND lpad(ocp.month, 2, '0') = {{month}}
+            AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
             AND ocp.usage_start >= {{start_date}}
             AND ocp.usage_start < date_add('day', 1, {{end_date}})
             AND azure.ocp_source = {{ocp_provider_uuid}}
@@ -258,7 +258,7 @@ SELECT cast(uuid() as varchar) as row_uuid, -- need a new uuid or it will dedupl
         ON pv_cap.azure_resource_id = azure.resource_id
     WHERE ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
-        AND lpad(ocp.month, 2, '0') = {{month}}
+        AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
         AND azure.ocp_source = {{ocp_provider_uuid}}
@@ -359,7 +359,7 @@ SELECT azure.row_uuid as row_uuid,
         AND disk_cap.ocp_source = azure.ocp_source
     WHERE ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
-        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+        AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
@@ -459,7 +459,7 @@ SELECT azure.row_uuid,
         AND azure.ocp_source = ocp.source
     WHERE ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
-        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+        AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
         AND azure.ocp_source = {{ocp_provider_uuid}}
@@ -649,7 +649,7 @@ SELECT azure.row_uuid as row_uuid,
         AND azure.ocp_source = ocp.source
     WHERE ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
-        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+        AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')

@@ -188,7 +188,7 @@ JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_disk_capacities_temp as gcp
 WHERE ocp.source = {{ocp_provider_uuid}}
     AND ocp.data_source = 'Storage'
     AND ocp.year = {{year}}
-    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
     AND ocp.day IN {{days_tup | inclause}}
     AND (ocp.csi_volume_handle IS NOT NULL AND ocp.csi_volume_handle != '')
     AND ocp.persistentvolume is not null
@@ -264,7 +264,7 @@ WITH cte_total_pv_capacity as (
             AND ocp.csi_volume_handle is not null
             AND ocp.csi_volume_handle != ''
         WHERE ocp.year = {{year}}
-            AND lpad(ocp.month, 2, '0') = {{month}}
+            AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
             AND ocp.usage_start >= {{start_date}}
             AND ocp.usage_start < date_add('day', 1, {{end_date}})
             AND gcp.ocp_source = {{ocp_provider_uuid}}
@@ -348,7 +348,7 @@ LEFT JOIN cte_total_pv_capacity as pv_cap
 WHERE ocp.source = {{ocp_provider_uuid}}
     AND ocp.data_source = 'Storage'
     AND ocp.year = {{year}}
-    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
     AND ocp.day IN {{days_tup | inclause}}
     AND (ocp.csi_volume_handle IS NOT NULL AND ocp.csi_volume_handle != '')
     AND ocp.persistentvolume is not null
@@ -459,7 +459,7 @@ JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
         )
 WHERE ocp.source = {{ocp_provider_uuid}}
     AND ocp.year = {{year}}
-    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
     AND ocp.day IN {{days_tup | inclause}}
     AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
     AND gcp.ocp_source = {{ocp_provider_uuid}}
@@ -577,7 +577,7 @@ JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
 WHERE ocp.source = {{ocp_provider_uuid}}
     AND ocp.report_period_id = {{report_period_id}}
     AND ocp.year = {{year}}
-    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
     AND ocp.day IN {{days_tup | inclause}}
     AND gcp.ocp_source = {{ocp_provider_uuid}}
     AND gcp.source = {{cloud_provider_uuid}}
@@ -800,7 +800,7 @@ JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
         )
 WHERE ocp.source = {{ocp_provider_uuid}}
     AND ocp.year = {{year}}
-    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
     AND ocp.day IN {{days_tup | inclause}}
     AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
     AND gcp.ocp_source = {{ocp_provider_uuid}}

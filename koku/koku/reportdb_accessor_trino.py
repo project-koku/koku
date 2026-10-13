@@ -131,12 +131,16 @@ AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{
     def get_delete_by_day_sql(
         self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str, day: str
     ):
-        """Generate Trino DELETE SQL for partitions by day."""
+        """Generate Trino DELETE SQL for partitions by day.
+
+        Month/day partition values may be zero-padded (new writes) or unpadded (legacy).
+        Match both so deletes clear the correct Hive directories during the transition.
+        """
         return f"""DELETE FROM hive.{schema_name}.{table_name}
 WHERE {source_column} = '{source}'
 AND year = '{year}'
 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-AND day = '{day}'"""
+AND (day = replace(ltrim(replace(lpad('{day}', 2, '0'), '0', ' ')),' ', '0') OR day = lpad('{day}', 2, '0'))"""
 
     def get_delete_by_source_sql(self, schema_name: str, table_name: str, partition_column: str, provider_uuid: str):
         """Generate Trino DELETE SQL for partitions by source."""

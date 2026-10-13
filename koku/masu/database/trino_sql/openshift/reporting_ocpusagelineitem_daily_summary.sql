@@ -255,8 +255,8 @@ SELECT null as uuid,
     pua.cost_category_id,
     {{source}} as source,
     cast(year(pua.usage_start) as varchar) as year,
-    cast(month(pua.usage_start) as varchar) as month,
-    cast(day(pua.usage_start) as varchar) as day
+    lpad(cast(month(pua.usage_start) as varchar), 2, '0') as month,
+    lpad(cast(day(pua.usage_start) as varchar), 2, '0') as day
 FROM (
     SELECT date(li.interval_start) as usage_start,
         li.namespace,
@@ -379,8 +379,8 @@ SELECT null as uuid,
     sua.cost_category_id,
     {{source}} as source,
     cast(year(sua.usage_start) as varchar) as year,
-    cast(month(sua.usage_start) as varchar) as month,
-    cast(day(sua.usage_start) as varchar) as day
+    lpad(cast(month(sua.usage_start) as varchar), 2, '0') as month,
+    lpad(cast(day(sua.usage_start) as varchar), 2, '0') as day
 FROM (
     SELECT sli.namespace,
         vn.node,
@@ -527,15 +527,15 @@ cte_unallocated_capacity AS (
         lids.source_uuid,
         {{source}} as source,
         cast(year(lids.usage_start) as varchar) as year,
-        cast(month(lids.usage_start) as varchar) as month,
-        cast(day(lids.usage_start) as varchar) as day
+        lpad(cast(month(lids.usage_start) as varchar), 2, '0') as month,
+        lpad(cast(day(lids.usage_start) as varchar), 2, '0') as day
     FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
     LEFT JOIN cte_node_role AS nodes
         ON lids.node = nodes.node
         AND lids.resource_id = nodes.resource_id
     WHERE lids.source = {{source}}
         AND lids.year = {{year}}
-        AND lpad(lids.month, 2, '0') = {{month}}
+        AND lids.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
         AND lids.usage_start >= {{start_date}}
         AND lids.usage_start < date_add('day', 1, {{end_date}})
         AND lids.namespace != 'Platform unallocated'
@@ -662,6 +662,7 @@ SELECT uuid(),
 FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}
-    AND lpad(lids.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    -- Match zero-padded (new) and unpadded (legacy) month partitions for prune
+    AND lids.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
     AND lids.day IN {{days | inclause}}
 ;

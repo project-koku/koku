@@ -545,6 +545,25 @@ class AWSReportDBAccessorTest(MasuTestCase):
         )[0]
         self.assertIn("lineitem_usagetype LIKE '%EBS:VolumeUsage%'", capacity_section)
 
+    def test_ocp_on_aws_summary_uses_prunable_month_predicate(self):
+        """COST-8094: avoid lpad on partition column so Trino can prune month partitions."""
+        sql_template = pkgutil.get_data(
+            "masu.database",
+            "trino_sql/aws/openshift/populate_daily_summary/2_summarize_data_by_cluster.sql",
+        )
+        sql_template = sql_template.decode("utf-8")
+        self.assertNotIn("lpad(ocp.month, 2, '0') = {{month}}", sql_template)
+        self.assertIn(
+            "ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
+            sql_template,
+        )
+        # Unattributed storage CTE must use the prunable predicate
+        unattributed = sql_template.split("cte_total_pv_capacity as (")[1].split("SELECT  cast(uuid()")[0]
+        self.assertIn(
+            "ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
+            unattributed,
+        )
+
     def test_ocp_on_aws_disk_capacity_formula_ignores_provisioned_performance_lines(self):
         """COST-8328: provisioned throughput/IOPS rates must not drive capacity."""
         hours_in_month = 720

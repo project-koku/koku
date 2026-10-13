@@ -127,12 +127,15 @@ AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{
     def get_delete_by_day_sql(
         self, schema_name: str, table_name: str, source_column: str, source: str, year: str, month: str, day: str
     ):
-        """Generate PostgreSQL DELETE SQL for partitions by day."""
+        """Generate PostgreSQL DELETE SQL for partitions by day.
+
+        Month/day values may be zero-padded (new writes) or unpadded (legacy).
+        """
         return f"""DELETE FROM "{schema_name}".{table_name}
 WHERE {source_column} = '{source}'
 AND year = '{year}'
 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-AND day = '{day}'"""
+AND (day = replace(ltrim(replace(lpad('{day}', 2, '0'), '0', ' ')),' ', '0') OR day = lpad('{day}', 2, '0'))"""
 
     def get_delete_by_source_sql(self, schema_name: str, table_name: str, partition_column: str, provider_uuid: str):
         """Generate PostgreSQL DELETE SQL for partitions by source."""

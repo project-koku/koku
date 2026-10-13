@@ -607,7 +607,8 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
+        # Zero-pad to match Hive partition writes; delete SQL also matches legacy unpadded values.
+        days_tup = tuple(f"{day.day:02d}" for day in days)
         self.delete_ocp_hive_partition_by_day(days_tup, source, year, month)
 
         sql = pkgutil.get_data(

@@ -104,6 +104,20 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             mock_execute.assert_called()
 
+    def test_ocp_daily_summary_sql_zero_pads_month_day_partitions(self):
+        """COST-8094: Hive month/day partitions must be zero-padded on write."""
+        sql_template = pkgutil.get_data(
+            "masu.database",
+            "trino_sql/openshift/reporting_ocpusagelineitem_daily_summary.sql",
+        ).decode("utf-8")
+        self.assertIn("lpad(cast(month(pua.usage_start) as varchar), 2, '0') as month", sql_template)
+        self.assertIn("lpad(cast(day(pua.usage_start) as varchar), 2, '0') as day", sql_template)
+        self.assertNotIn("lpad(lids.month, 2, '0') = {{month}}", sql_template)
+        self.assertIn(
+            "lids.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
+            sql_template,
+        )
+
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     def test_populate_line_item_daily_summary_table_trino_exception_warn(self, mock_table_exists):
         """
