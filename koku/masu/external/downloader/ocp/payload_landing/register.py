@@ -48,6 +48,7 @@ def _enqueue_task(request_id, context, task_name, failure_message):
     """Best-effort enqueue. A broker failure must not rewind the Kafka consumer."""
     try:
         celery_app.send_task(task_name, args=[request_id], queue=_staging_celery_queue(context))
+        return True
     except KombuOperationalError as error:
         LOG.warning(
             log_json(
@@ -57,11 +58,12 @@ def _enqueue_task(request_id, context, task_name, failure_message):
                 error=type(error).__name__,
             )
         )
+        return False
 
 
 def _enqueue_staged_ingress(request_id, context):
-    """Enqueue extract. A broker failure must not rewind the Kafka consumer."""
-    _enqueue_task(
+    """Enqueue extract. Returns False when the broker rejects the task."""
+    return _enqueue_task(
         request_id,
         context,
         PROCESS_STAGED_INGRESS_TASK,
@@ -91,10 +93,11 @@ def _save_staging_row(request_id, value, s3_key, cluster_id, assembly_id, now):
         "last_error": None,
     }
     try:
-        row, created = IngressStagingPayload.objects.get_or_create(request_id=request_id, defaults=defaults)
-    except IntegrityError:
-        row = IngressStagingPayload.objects.get(request_id=request_id)
-        created = False
+        try:
+            row, created = IngressStagingPayload.objects.get_or_create(request_id=request_id, defaults=defaults)
+        except IntegrityError:
+            row = IngressStagingPayload.objects.get(request_id=request_id)
+            created = False
     except _DB_ERRORS as error:
         _reset_listener_db_connection()
         raise KafkaMsgHandlerError("Unable to store ingress staging row.") from error
@@ -121,10 +124,11 @@ def _payload_for_marker(document):
 
 
 def _register_staging_document(document, pending_key):
-    """Upsert the staging row, then delete the pending marker.
+    """Upsert the staging row, enqueue extract, then delete the pending marker.
 
-    Returns False when Postgres rejects the upsert. The marker stays so the
-    next beat can retry. A row that already has an ``s3_key`` is not reset.
+    Returns False when Postgres rejects the upsert or Celery enqueue fails. The
+    marker stays so the next beat can retry. A row that already has an
+    ``s3_key`` is not reset.
     """
     request_id = document.get("request_id")
     s3_key = document.get("s3_key")
@@ -153,12 +157,13 @@ def _register_staging_document(document, pending_key):
             )
         )
         return False
+    context = {"org_id": document.get("org_id"), "account": document.get("account")}
+    if not _enqueue_staged_ingress(request_id, context):
+        return False
     if pending_key:
         deleted = delete_s3_objects(request_id, [pending_key], {})
         if not deleted:
             LOG.warning(log_json(request_id, msg="ingress staging marker remains after upsert", s3_key=pending_key))
-    context = {"org_id": document.get("org_id"), "account": document.get("account")}
-    _enqueue_staged_ingress(request_id, context)
     return True
 
 
@@ -176,8 +181,9 @@ def _marker_document_or_none(key):
 def register_ingress_staging_marker(request_id):
     """Insert the staging row for one S3 marker and enqueue extract.
 
-    The pending marker is deleted only after the upsert succeeds. A missing
-    marker falls back to the receipt so a redelivery can still create the row.
+    The pending marker is deleted only after the upsert and enqueue succeed. A
+    missing marker falls back to the receipt so a redelivery can still create
+    the row.
     """
     pending_key = _pending_marker_key(request_id)
     document = _marker_document_or_none(pending_key)

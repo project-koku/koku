@@ -16,6 +16,7 @@ from botocore.exceptions import EndpointConnectionError
 from django.db import OperationalError
 from django.test import SimpleTestCase
 from django.utils import timezone
+from kombu.exceptions import OperationalError as KombuOperationalError
 
 from common.queues import get_customer_queue
 from common.queues import OCPQueue
@@ -163,6 +164,28 @@ class IngressStagingTests(MasuTestCase):
         mock_delete.assert_not_called()
         mock_enqueue.assert_not_called()
         self.assertFalse(IngressStagingPayload.objects.filter(request_id=request_id).exists())
+
+    def test_register_leaves_marker_when_enqueue_fails(self):
+        """Test that a broker error keeps the pending marker so registration can retry."""
+        request_id = "marker-enqueue-down"
+        s3_key = f"data/ingress_staging/{request_id}.tar.gz"
+        document = self._marker_document(request_id, s3_key)
+        with (
+            patch("masu.external.downloader.ocp.payload_landing.register._read_marker_json", return_value=document),
+            patch("masu.external.downloader.ocp.payload_landing.register.delete_s3_objects") as mock_delete,
+            patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue,
+        ):
+            mock_enqueue.side_effect = KombuOperationalError("broker down")
+            register_ingress_staging_marker(request_id)
+
+        row = IngressStagingPayload.objects.get(request_id=request_id)
+        self.assertEqual(row.s3_key, s3_key)
+        mock_delete.assert_not_called()
+        mock_enqueue.assert_called_once_with(
+            PROCESS_STAGED_INGRESS_TASK,
+            args=[request_id],
+            queue=get_customer_queue(self.schema, OCPQueue),
+        )
 
     def test_register_falls_back_to_receipt_when_pending_gone(self):
         """Test that a missing pending marker still registers from the receipt."""
