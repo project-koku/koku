@@ -26,7 +26,6 @@ from django_tenants.utils import tenant_context
 
 from api.currency.utils import build_exchange_rate_case
 from api.currency.utils import get_monthly_exchange_rate_map
-from api.currency.utils import month_starts_for_range
 from api.models import Provider
 from api.report.ocp.capacity.cluster_capacity import calculate_unused
 from api.report.ocp.capacity.cluster_capacity import ClusterCapacity
@@ -311,10 +310,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Build a bounded Case expression for monthly rates on a currency field."""
         whens = []
         for base_currency in base_currencies:
-            for month_start in month_starts_for_range(self.start_datetime.date(), self.end_datetime.date()):
-                rate = self.monthly_exchange_rate_map.get(base_currency, {}).get(month_start)
-                if rate is None:
-                    continue
+            for month_start, rate in sorted(self.monthly_exchange_rate_map.get(base_currency, {}).items()):
                 whens.append(
                     When(
                         **{
@@ -331,10 +327,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Build a bounded Case expression for source UUID to cost-model currency rates."""
         whens = []
         for source_uuid, base_currency in self.request_source_to_currency_map.items():
-            for month_start in month_starts_for_range(self.start_datetime.date(), self.end_datetime.date()):
-                rate = self.monthly_exchange_rate_map.get(base_currency, {}).get(month_start)
-                if rate is None:
-                    continue
+            for month_start, rate in sorted(self.monthly_exchange_rate_map.get(base_currency, {}).items()):
                 whens.append(
                     When(
                         **{

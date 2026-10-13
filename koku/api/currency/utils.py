@@ -5,7 +5,6 @@
 import logging
 from decimal import Decimal
 
-from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.db.models import Case
 from django.db.models import DecimalField
@@ -20,6 +19,7 @@ from api.common import log_json
 from api.currency.currencies import get_enabled_currency_codes
 from api.currency.exceptions import ExchangeRateNotFound
 from api.currency.models import ExchangeRateDictionary
+from api.utils import DateHelper
 from cost_models.models import MonthlyExchangeRate
 
 LOG = logging.getLogger(__name__)
@@ -150,19 +150,6 @@ def get_monthly_exchange_rate(base_currency, target_currency, month_start):
     return rate
 
 
-def month_starts_for_range(start_date, end_date):
-    """Return first-of-month dates covered by the date range."""
-    start_month = start_date.replace(day=1) if hasattr(start_date, "replace") else start_date
-    end_month = end_date.replace(day=1) if hasattr(end_date, "replace") else end_date
-
-    months = []
-    current = start_month
-    while current <= end_month:
-        months.append(current)
-        current += relativedelta(months=1)
-    return months
-
-
 def get_monthly_exchange_rate_map(base_currencies, target_currency, start_date, end_date):
     """Return monthly exchange rates for each base currency and month in range.
 
@@ -171,7 +158,9 @@ def get_monthly_exchange_rate_map(base_currencies, target_currency, start_date, 
     MonthlyExchangeRate. Missing non-identity rows raise ExchangeRateNotFound.
     """
     base_currencies = set(base_currencies) - {None}
-    months = month_starts_for_range(start_date, end_date)
+    date_helper = DateHelper()
+    start_month = date_helper.month_start(start_date)
+    months = [month_start for month_start, _ in date_helper.list_month_tuples(start_month, end_date)]
     rates_by_currency = {
         base: {month: Decimal("1") for month in months} for base in base_currencies if base == target_currency
     }
@@ -180,7 +169,6 @@ def get_monthly_exchange_rate_map(base_currencies, target_currency, start_date, 
     if not bases_needing_conversion:
         return rates_by_currency
 
-    start_month = months[0]
     end_month = months[-1]
     rates = MonthlyExchangeRate.objects.filter(
         effective_date__gte=start_month,
