@@ -40,6 +40,7 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
 from masu.processor import OCP_MARKUP_SKIP_UNCHANGED_FLAG
+from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.util.common import filter_dictionary
 from masu.util.common import SummaryRangeConfig
 from masu.util.common import trino_table_exists
@@ -607,9 +608,10 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        # Zero-pad to match Hive partition writes; delete SQL also matches legacy unpadded values.
-        days_tup = tuple(f"{day.day:02d}" for day in days)
-        self.delete_ocp_hive_partition_by_day(days_tup, source, year, month)
+        # Padded days for delete/write; dual padded+legacy for read filters during transition.
+        days_padded = tuple(f"{day.day:02d}" for day in days)
+        days_for_read = hive_partition_day_values(days)
+        self.delete_ocp_hive_partition_by_day(days_padded, source, year, month)
 
         sql = pkgutil.get_data(
             "masu.database",
@@ -627,7 +629,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "source": str(source),
             "year": year,
             "month": month,
-            "days": days_tup,
+            "days": days_for_read,
             "storage_exists": storage_exists,
         }
 

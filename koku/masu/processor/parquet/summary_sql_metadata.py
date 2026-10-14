@@ -25,6 +25,19 @@ def trino_safe_array_literal(items: list[str | None]) -> str:
     return "[" + ", ".join(escaped) + "]"
 
 
+def hive_partition_day_values(days) -> tuple[str, ...]:
+    """Return zero-padded and legacy unpadded day strings for Hive day filters.
+
+    New OCP writes use zero-padded day partitions (e.g. ``05``). Legacy data may
+    still use unpadded values (``5``). Read-path ``day IN (...)`` filters need both.
+    """
+    values: set[str] = set()
+    for day in days:
+        values.add(str(day.day))
+        values.add(f"{day.day:02d}")
+    return tuple(sorted(values, key=lambda d: (int(d), len(d))))
+
+
 @dataclass
 class SummarySqlMetadata:
     schema: str
@@ -61,7 +74,7 @@ class SummarySqlMetadata:
     def _generate_sql_params(self):
         """Populates additional SQL parameters options"""
         days = DateHelper().list_days(self.start_date, self.end_date)
-        self.days_tup = tuple(f"{day.day:02d}" for day in days)
+        self.days_tup = hive_partition_day_values(days)
         self.year = self.start_date.strftime("%Y")
         self.month = self.start_date.strftime("%m")
 

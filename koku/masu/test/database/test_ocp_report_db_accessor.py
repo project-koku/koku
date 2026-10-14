@@ -121,20 +121,23 @@ class OCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     @patch.object(OCPReportDBAccessor, "delete_ocp_hive_partition_by_day")
     @patch.object(OCPReportDBAccessor, "_execute_trino_multipart_sql_query")
-    def test_populate_line_item_daily_summary_passes_zero_padded_days(self, mock_exec, mock_delete, *_):
-        """COST-8094: days_tup must be zero-padded so cloud SQL day filters match new partitions."""
+    def test_populate_line_item_daily_summary_passes_padded_and_legacy_days(self, mock_exec, mock_delete, *_):
+        """COST-8094: read filters get padded + legacy days; delete keeps padded-only."""
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_start.replace(day=5)
         with self.accessor as acc:
             acc.populate_line_item_daily_summary_table_trino(
                 start_date, end_date, 1, "cluster", "alias", self.provider_uuid
             )
-        _, kwargs = mock_exec.call_args
-        days = kwargs.get("bind_params", {}).get("days") or mock_exec.call_args[1].get("bind_params", {}).get("days")
-        if days is None:
-            days = mock_exec.call_args_list[0][1].get("bind_params", {}).get("days", ())
-        for d in days:
-            self.assertEqual(len(d), 2, f"day '{d}' is not zero-padded")
+        bind_params = mock_exec.call_args.kwargs.get("bind_params") or mock_exec.call_args[1].get("bind_params", {})
+        days = bind_params.get("days")
+        self.assertEqual(
+            days,
+            ("1", "01", "2", "02", "3", "03", "4", "04", "5", "05"),
+        )
+        mock_delete.assert_called_once()
+        delete_days = mock_delete.call_args.args[0]
+        self.assertEqual(delete_days, ("01", "02", "03", "04", "05"))
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     def test_populate_line_item_daily_summary_table_trino_exception_warn(self, mock_table_exists):

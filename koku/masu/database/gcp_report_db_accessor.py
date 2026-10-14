@@ -26,6 +26,7 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import is_tag_processing_disabled
+from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
@@ -373,7 +374,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(f"{day.day:02d}" for day in days)
+        days_tup = hive_partition_day_values(days)
 
         for table_name in tables:
             sql = pkgutil.get_data(
@@ -455,7 +456,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuids": ocp_source_uuids,
             "year": invoice_month_date.strftime("%Y"),
             "month": invoice_month_date.strftime("%m"),
-            "days": tuple(f"{day.day:02d}" for day in days),
+            "days": hive_partition_day_values(days),
         }
 
         results = self._execute_trino_raw_sql_query(
