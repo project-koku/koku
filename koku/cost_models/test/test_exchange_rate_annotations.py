@@ -4,6 +4,7 @@
 #
 """Tests for exchange rate annotation builders and feature-flag gating."""
 from datetime import date
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import patch
 from uuid import uuid4
@@ -182,6 +183,60 @@ class QueryHandlerFeatureFlagTest(MasuTestCase):
 
             self.assertEqual(handler.source_uuids_for_conversion, {self.ocp_provider.uuid})
             self.assertEqual(handler.raw_currencies_for_conversion, {"EUR"})
+
+    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=True)
+    def test_ocp_delta_annotations_include_previous_period_rates(self, _):
+        """Previous-period delta rows use monthly rates instead of the identity default."""
+        handler = self._make_ocp_handler()
+        handler._delta = "cost_total"
+        handler.currency = "EUR"
+        handler.start_datetime = datetime(2026, 10, 1)
+        handler.end_datetime = datetime(2026, 10, 31)
+        source_uuid = self.ocp_provider.uuid
+        previous_id = uuid4()
+        current_id = uuid4()
+        with schema_context(self.schema):
+            for month_start, rate in [(date(2026, 9, 1), Decimal("0.70")), (date(2026, 10, 1), Decimal("0.80"))]:
+                MonthlyExchangeRate.objects.update_or_create(
+                    effective_date=month_start,
+                    base_currency="USD",
+                    target_currency="EUR",
+                    defaults={"exchange_rate": rate, "rate_type": "static"},
+                )
+
+        with tenant_context(handler.tenant):
+            handler.query_table.objects.bulk_create(
+                [
+                    handler.query_table(
+                        id=previous_id,
+                        cluster_id="delta-exchange-rate-test",
+                        usage_start=date(2026, 9, 15),
+                        usage_end=date(2026, 9, 16),
+                        source_uuid_id=source_uuid,
+                        raw_currency="USD",
+                    ),
+                    handler.query_table(
+                        id=current_id,
+                        cluster_id="delta-exchange-rate-test",
+                        usage_start=date(2026, 10, 15),
+                        usage_end=date(2026, 10, 16),
+                        source_uuid_id=source_uuid,
+                        raw_currency="USD",
+                    ),
+                ]
+            )
+
+            handler.query_filter = Q(id=current_id)
+            handler.__dict__["request_source_to_currency_map"] = {source_uuid: "USD"}
+
+            previous_rate = (
+                handler.query_table.objects.filter(id=previous_id)
+                .annotate(**handler.exchange_rate_annotation_dict)
+                .values_list("exchange_rate", flat=True)
+                .get()
+            )
+
+        self.assertEqual(previous_rate, Decimal("0.70"))
 
     @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False)
     def test_flag_off_uses_dict_annotations(self, _):

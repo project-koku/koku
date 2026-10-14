@@ -279,9 +279,29 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return query
 
     @cached_property
+    def include_previous_period_for_conversion(self):
+        """Whether exchange-rate annotations must also cover previous-period delta rows."""
+        return bool(self._delta and "__" not in self._delta)
+
+    @cached_property
+    def previous_conversion_queryset(self):
+        """Return previous-period rows used by normal delta calculations."""
+        if not self.include_previous_period_for_conversion:
+            return self.query_table.objects.none()
+        query = self.query_table.objects.filter(self._get_filter(delta=True))
+        return self._apply_cluster_filter_index_hint(query)
+
+    def _conversion_queryset_values(self, field_name):
+        """Return distinct field values from current and, when needed, previous-period rows."""
+        values = set(self.conversion_queryset.values_list(field_name, flat=True).distinct())
+        if self.include_previous_period_for_conversion:
+            values |= set(self.previous_conversion_queryset.values_list(field_name, flat=True).distinct())
+        return values - {None}
+
+    @cached_property
     def source_uuids_for_conversion(self):
         """Return source UUIDs present in the report-scoped rows."""
-        return set(self.conversion_queryset.values_list("source_uuid", flat=True).distinct()) - {None}
+        return self._conversion_queryset_values("source_uuid")
 
     @cached_property
     def request_source_to_currency_map(self):
@@ -294,16 +314,19 @@ class OCPReportQueryHandler(ReportQueryHandler):
     @cached_property
     def raw_currencies_for_conversion(self):
         """Return raw infrastructure currencies present in the report-scoped rows."""
-        return set(self.conversion_queryset.values_list(self._mapper.cost_units_key, flat=True).distinct()) - {None}
+        return self._conversion_queryset_values(self._mapper.cost_units_key)
 
     @cached_property
     def monthly_exchange_rate_map(self):
         """Return monthly rates for every base currency needed by this request."""
         base_currencies = self.raw_currencies_for_conversion | set(self.request_source_to_currency_map.values())
+        start_datetime = self.start_datetime
+        if self.include_previous_period_for_conversion:
+            start_datetime = start_datetime - self._get_date_delta()
         return get_monthly_exchange_rate_map(
             base_currencies,
             self.currency,
-            self.start_datetime.date(),
+            start_datetime.date(),
             self.end_datetime.date(),
         )
 
