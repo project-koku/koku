@@ -7,7 +7,6 @@ import json
 import logging
 import os
 from collections import defaultdict
-from datetime import timedelta
 from decimal import Decimal
 from decimal import InvalidOperation
 
@@ -17,7 +16,6 @@ from dateutil import parser
 from django.conf import settings
 from django.db import connection
 from django.db.utils import IntegrityError
-from django.utils import timezone
 from django_tenants.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
@@ -71,7 +69,6 @@ from masu.processor.worker_cache import WorkerCache
 from masu.util.common import get_latest_openshift_on_cloud_manifest
 from masu.util.common import set_summary_timestamp
 from reporting.ingress.models import IngressReports
-from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.models import DelayedCeleryTasks
 from reporting_common.states import ManifestState
@@ -615,50 +612,26 @@ def summarize_reports(  # noqa: C901
                 ).apply_async(queue=queue_name or fallback_queue)
 
 
-def _stamp_provider_data_updated(provider, when):
-    """Set Provider.data_updated_timestamp without using timezone.now()."""
-    provider.data_updated_timestamp = when
-    Provider.objects.filter(pk=provider.pk).update(data_updated_timestamp=when)
+def _bump_mapping_apply_freshness(schema, provider):
+    """Stamp sources whose summarized data changed and drop cached cost/tag reports.
 
-
-def _bump_mapping_apply_freshness(schema, provider, start_date):
-    """Mark mapping-only apply complete: source-stats timestamps and report cache.
-
-    Source stats expose data_updated_date (Provider) and ocp_on_cloud_updated_datetime
-    (report period). IQE then requires OCP data_updated_date > ocp_on_cloud (second
-    resolution) as a stand-in for cost distribution completing. Cost/tag views are
-    cached by URL, so they must be dropped here — ReportSummaryUpdater is skipped.
+    Mapping-only apply skips ReportSummaryUpdater, which is what normally
+    invalidates view cache. Linked cloud/OCP sources are stamped too because
+    include_linked_ocp_on_cloud remaps their project tables.
+    Do not touch ocp_on_cloud_updated_datetime; that marks matching, not a remap.
     """
-    now = timezone.now()
-    later = now + timedelta(seconds=1)
-
-    ocp_providers = []
-    cloud_providers = []
+    providers = [provider]
     if provider.type == Provider.PROVIDER_OCP:
-        ocp_providers.append(provider)
         if provider.infrastructure:
             if infra := Provider.objects.filter(uuid=provider.infrastructure.infrastructure_provider_id).first():
-                cloud_providers.append(infra)
+                providers.append(infra)
     else:
-        cloud_providers.append(provider)
-        ocp_providers.extend(Provider.objects.filter(infrastructure__infrastructure_provider_id=provider.uuid))
+        providers.extend(Provider.objects.filter(infrastructure__infrastructure_provider_id=provider.uuid))
 
-    start = to_date(start_date)
-    if ocp_providers:
-        with schema_context(schema):
-            OCPUsageReportPeriod.objects.filter(
-                provider_id__in=[ocp.uuid for ocp in ocp_providers],
-                report_period_start__year=start.year,
-                report_period_start__month=start.month,
-            ).update(ocp_on_cloud_updated_datetime=now)
+    for stamped in providers:
+        stamped.set_data_updated_timestamp()
 
-    for stamped in (*cloud_providers, *ocp_providers):
-        _stamp_provider_data_updated(stamped, later)
-
-    # Mapping-only apply does not go through ReportSummaryUpdater, which is
-    # what normally drops cached cost/tag reports. IQE (and the UI) reuse the
-    # same URLs before and after mapping, so stale responses would hide the remap.
-    source_types = {provider.type, *(p.type for p in (*ocp_providers, *cloud_providers))}
+    source_types = {p.type for p in providers}
     for source_type in source_types:
         invalidate_view_cache_for_tenant_and_source_type(schema, source_type)
     invalidate_cache_for_tenant_and_cache_key(schema, TAG_MAPPING_PREFIX)
@@ -718,7 +691,7 @@ def apply_tag_mappings(
         from masu.processor.tag_mapping import apply_tag_mappings as apply_tag_mappings_for_provider
 
         apply_tag_mappings_for_provider(schema, provider, start_date, end_date, include_linked_ocp_on_cloud=True)
-        _bump_mapping_apply_freshness(schema, provider, start_date)
+        _bump_mapping_apply_freshness(schema, provider)
     finally:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)

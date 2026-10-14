@@ -412,13 +412,22 @@ class ApplyTagMappingsTaskTest(MasuTestCase):
     @patch("masu.processor.tasks.is_source_disabled", return_value=False)
     @patch("masu.processor.tasks.is_summary_processing_disabled", return_value=False)
     @patch("masu.processor.tag_mapping.apply_tag_mappings")
-    def test_task_bumps_linked_cloud_and_ocp_on_cloud(self, mock_apply, _mock_summary, _mock_source):
+    def test_task_bumps_linked_cloud_data_updated_timestamp(self, mock_apply, _mock_summary, _mock_source):
         ocp = self.ocp_on_aws_ocp_provider
         aws = Provider.objects.get(uuid=ocp.infrastructure.infrastructure_provider_id)
         before = timezone.now() - timedelta(hours=1)
         Provider.objects.filter(uuid__in=[ocp.uuid, aws.uuid]).update(data_updated_timestamp=before)
         with schema_context(self.schema):
             OCPUsageReportPeriod.objects.filter(provider_id=ocp.uuid).update(ocp_on_cloud_updated_datetime=before)
+            ocp_on_cloud_before = (
+                OCPUsageReportPeriod.objects.filter(
+                    provider_id=ocp.uuid,
+                    report_period_start__year=self.dh.this_month_start.year,
+                    report_period_start__month=self.dh.this_month_start.month,
+                )
+                .first()
+                .ocp_on_cloud_updated_datetime
+            )
 
         apply_tag_mappings_task(
             self.schema,
@@ -439,8 +448,7 @@ class ApplyTagMappingsTaskTest(MasuTestCase):
                 report_period_start__month=self.dh.this_month_start.month,
             ).first()
             self.assertIsNotNone(rp)
-            self.assertGreater(rp.ocp_on_cloud_updated_datetime, before)
-            self.assertGreater(ocp.data_updated_timestamp, rp.ocp_on_cloud_updated_datetime)
+            self.assertEqual(rp.ocp_on_cloud_updated_datetime, ocp_on_cloud_before)
         mock_apply.assert_called_once()
 
     @patch("masu.processor.tasks.is_source_disabled", return_value=False)
@@ -547,6 +555,17 @@ class ApplyTagMappingsTaskTest(MasuTestCase):
         aws = Provider.objects.get(uuid=ocp.infrastructure.infrastructure_provider_id)
         before = timezone.now() - timedelta(hours=1)
         Provider.objects.filter(uuid__in=[ocp.uuid, aws.uuid]).update(data_updated_timestamp=before)
+        with schema_context(self.schema):
+            OCPUsageReportPeriod.objects.filter(provider_id=ocp.uuid).update(ocp_on_cloud_updated_datetime=before)
+            ocp_on_cloud_before = (
+                OCPUsageReportPeriod.objects.filter(
+                    provider_id=ocp.uuid,
+                    report_period_start__year=self.dh.this_month_start.year,
+                    report_period_start__month=self.dh.this_month_start.month,
+                )
+                .first()
+                .ocp_on_cloud_updated_datetime
+            )
 
         apply_tag_mappings_task(
             self.schema,
@@ -560,6 +579,14 @@ class ApplyTagMappingsTaskTest(MasuTestCase):
         aws.refresh_from_db()
         self.assertGreater(ocp.data_updated_timestamp, before)
         self.assertGreater(aws.data_updated_timestamp, before)
+        with schema_context(self.schema):
+            rp = OCPUsageReportPeriod.objects.filter(
+                provider_id=ocp.uuid,
+                report_period_start__year=self.dh.this_month_start.year,
+                report_period_start__month=self.dh.this_month_start.month,
+            ).first()
+            self.assertIsNotNone(rp)
+            self.assertEqual(rp.ocp_on_cloud_updated_datetime, ocp_on_cloud_before)
         mock_apply.assert_called_once()
 
     @patch("masu.processor.tasks.is_source_disabled", return_value=False)
