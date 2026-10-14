@@ -1817,7 +1817,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 tested = True
             self.assertTrue(tested)
 
-    def test_update_line_item_daily_summary_with_tag_mapping_row_ownership_filters(self):
+    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_update_line_item_daily_summary_with_tag_mapping_row_ownership_filters(self, _mock_flag):
         """OCP and cloud summaries partition tag mapping by infrastructure_raw_cost."""
         with schema_context(self.schema):
             parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
