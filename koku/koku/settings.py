@@ -645,6 +645,7 @@ PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=2
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
 TRINO_PORT = ENVIRONMENT.get_value("TRINO_PORT", default=None)
 TRINO_DATE_STEP = ENVIRONMENT.int("TRINO_DATE_STEP", default=5)
+OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS = ENVIRONMENT.int("OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS", default=28800000)
 TRINO_S3A_OR_S3 = ENVIRONMENT.get_value("TRINO_S3A_OR_S3", default="s3a")
 
 # Time to wait between cold storage retrieval for data export. Default is 3 hours

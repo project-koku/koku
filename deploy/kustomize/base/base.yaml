@@ -491,6 +491,10 @@ parameters:
   name: TRINO_DATE_STEP
   required: true
   value: "5"
+- description: Maximum duration in milliseconds for an enabled OCP tag-mapping UPDATE (default 8 hours)
+  displayName: OCP tag-mapping statement timeout
+  name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+  value: "28800000"
 - description: Number of days to expand the data validation
   displayName: Data validation
   name: VALIDATION_RANGE
