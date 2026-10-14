@@ -231,7 +231,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Set up each test case."""
         super().setUp()
         logging.disable(logging.NOTSET)
-        # dev_fallback turns this flag on when the Unleash environment is development.
         # Keep the legacy listener path unless a test patches the flag itself.
         real_flag = msg_handler.is_feature_flag_enabled_by_schema
 
@@ -773,7 +772,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.assertEqual(
             mock_flag.call_args_list,
             [
-                call(self.schema, INGRESS_STAGING_LISTENER_FLAG, dev_fallback=True),
+                call(self.schema, INGRESS_STAGING_LISTENER_FLAG),
                 call(self.schema, INGRESS_DEAD_LETTER_QUEUE_FLAG),
             ],
         )
@@ -817,7 +816,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.assertEqual(
             mock_flag.call_args_list,
             [
-                call(self.schema, INGRESS_STAGING_LISTENER_FLAG, dev_fallback=True),
+                call(self.schema, INGRESS_STAGING_LISTENER_FLAG),
                 call(self.schema, INGRESS_DEAD_LETTER_QUEUE_FLAG),
             ],
         )
@@ -980,9 +979,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.assertEqual(status, msg_handler.SUCCESS_CONFIRM_STATUS)
         self.assertIsNone(report_metas)
         self.assertIsNone(manifest_uuid)
-        mock_flag.assert_called_once_with(
-            msg_handler.schema_name_for_org("9999999"), INGRESS_STAGING_LISTENER_FLAG, dev_fallback=True
-        )
+        mock_flag.assert_called_once_with(msg_handler.schema_name_for_org("9999999"), INGRESS_STAGING_LISTENER_FLAG)
         mock_extract.assert_called_once()
         mock_copy.assert_not_called()
         self.assertFalse(IngressDeadLetterQueue.objects.filter(request_id=request_id).exists())

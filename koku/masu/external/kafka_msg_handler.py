@@ -328,11 +328,10 @@ def _ingress_download_error_outcome(request_id, context, error, log_preamble):
 def legacy_message_processing(request_id, value, context):
     """Download and extract an ingress payload on the listener thread.
 
-    This is the path used when INGRESS_STAGING_LISTENER_FLAG is off. Production
-    on-prem stays here: MockUnleashClient does not list that flag, and
-    ``dev_fallback=True`` is true only when the Unleash environment is
-    ``development``. Remove this function once the flag is confirmed for every
-    schema that should take the staging path.
+    This is the path used when INGRESS_STAGING_LISTENER_FLAG is off. On-prem and
+    CI stay here until the flag is enabled in Unleash (see
+    ``ONPREM_FLAG_DEFAULTS``). Remove this function once the flag is confirmed
+    for every schema that should take the staging path.
     """
     logged_value = _kafka_upload_value_for_log(value)
     payload_path = None
@@ -405,7 +404,8 @@ def handle_message(kmsg):
     # For this unleash flag we will always have to use org{org_id}
     # while testing this path. The listener does not query Customer.
     derived_schema = schema_name_for_org(org_id)
-    if is_feature_flag_enabled_by_schema(derived_schema, INGRESS_STAGING_LISTENER_FLAG, dev_fallback=True):
+    # dev_fallback=False until the flag is enabled in Unleash (stacked PRs). Matches DLQ gating.
+    if is_feature_flag_enabled_by_schema(derived_schema, INGRESS_STAGING_LISTENER_FLAG):
         context["schema"] = derived_schema
         return stage_ingress_s3_inbox(request_id, value, context), None, None
 
