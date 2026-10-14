@@ -83,6 +83,10 @@ def get_processing_date(
         data_frame[invoice_bill].any() and start_date.month != DateHelper().now_utc.month or ingress_reports
     ) or not check_provider_setup_complete(provider_uuid):
         process_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, start_date)
+    elif data_frame.empty:
+        # Header-only CUR splits produce no archives; do not lock daily_archive_start_date
+        # via the incremental path so a sibling file with InvoiceId can still finalize.
+        process_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id) or start_date
     else:
         process_date = utils.get_or_clear_daily_s3_by_date(
             s3_csv_path, provider_uuid, start_date, end_date, manifest_id, context, tracing_id
