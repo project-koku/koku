@@ -22,7 +22,9 @@ from koku.reportdb_accessor import get_report_db_accessor
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import is_tag_processing_disabled
+from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
 from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -285,7 +287,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(log_json(msg="Preparing tables for OCP on AWS flow", **prepare_params))
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
         self.delete_ocp_on_aws_hive_partition_by_day(
-            sql_metadata.days_tup,
+            sql_metadata.days_delete_tup,
             sql_metadata.cloud_provider_uuid,
             sql_metadata.ocp_provider_uuid,
             sql_metadata.year,
@@ -304,6 +306,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             f"{managed_path}/2_summarize_data_by_cluster.sql",
             {
                 **sql_metadata.build_cost_model_params(),
+                "zero_pad_hive_partitions": is_feature_flag_enabled_by_schema(
+                    self.schema, OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG, dev_fallback=True
+                ),
             },
         )
         LOG.info(log_json(msg="executing data transformations for ocp on aws daily summary", **daily_summary_params))

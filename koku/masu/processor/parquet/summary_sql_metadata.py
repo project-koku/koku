@@ -49,6 +49,7 @@ class SummarySqlMetadata:
     bill_id: int
     report_period_id: int
     days_tup: tuple = field(init=False)
+    days_delete_tup: tuple = field(init=False)
     year: str = field(init=False)
     month: str = field(init=False)
     matched_tag_strs_sql: str = field(init=False)
@@ -74,7 +75,10 @@ class SummarySqlMetadata:
     def _generate_sql_params(self):
         """Populates additional SQL parameters options"""
         days = DateHelper().list_days(self.start_date, self.end_date)
+        # Dual format for read-path day IN filters (legacy + zero-padded).
         self.days_tup = hive_partition_day_values(days)
+        # One entry per calendar day for deletes (SQL matches both formats per value).
+        self.days_delete_tup = tuple(f"{day.day:02d}" for day in days)
         self.year = self.start_date.strftime("%Y")
         self.month = self.start_date.strftime("%m")
 
@@ -117,6 +121,7 @@ class SummarySqlMetadata:
             "cloud_provider_uuid": self.cloud_provider_uuid,
             "days_tup": self.days_tup,
             "days": self.days_tup,
+            "days_delete_tup": self.days_delete_tup,
             "report_period_id": self.report_period_id,
             "bill_id": self.bill_id,
         }
@@ -137,6 +142,7 @@ class SummarySqlMetadata:
             "cloud_provider_uuid": self.cloud_provider_uuid,
             "days_tup": self.days_tup,
             "days": self.days_tup,
+            "days_delete_tup": self.days_delete_tup,
             "report_period_id": self.report_period_id,
             "bill_id": self.bill_id,
         }

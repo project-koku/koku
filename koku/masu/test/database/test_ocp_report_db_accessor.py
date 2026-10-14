@@ -105,23 +105,25 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_execute.assert_called()
 
     def test_ocp_daily_summary_sql_zero_pads_month_day_partitions(self):
-        """COST-8094: Hive month/day partitions must be zero-padded on write."""
+        """COST-8094: Hive month/day writes are flag-gated; reads use dual-format month."""
         sql_template = pkgutil.get_data(
             "masu.database",
             "trino_sql/openshift/reporting_ocpusagelineitem_daily_summary.sql",
         ).decode("utf-8")
+        self.assertIn("zero_pad_hive_partitions", sql_template)
         self.assertIn("lpad(cast(month(pua.usage_start) as varchar), 2, '0') as month", sql_template)
-        self.assertIn("lpad(cast(day(pua.usage_start) as varchar), 2, '0') as day", sql_template)
+        self.assertIn("cast(month(pua.usage_start) as varchar) as month", sql_template)
         self.assertNotIn("lpad(lids.month, 2, '0') = {{month}}", sql_template)
         self.assertIn(
             "lids.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
             sql_template,
         )
 
+    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     @patch.object(OCPReportDBAccessor, "delete_ocp_hive_partition_by_day")
     @patch.object(OCPReportDBAccessor, "_execute_trino_multipart_sql_query")
-    def test_populate_line_item_daily_summary_passes_padded_and_legacy_days(self, mock_exec, mock_delete, *_):
+    def test_populate_line_item_daily_summary_passes_padded_and_legacy_days(self, mock_exec, mock_delete, *_mocks):
         """COST-8094: read filters get padded + legacy days; delete keeps padded-only."""
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_start.replace(day=5)
@@ -135,6 +137,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             days,
             ("1", "01", "2", "02", "3", "03", "4", "04", "5", "05"),
         )
+        self.assertTrue(bind_params.get("zero_pad_hive_partitions"))
         mock_delete.assert_called_once()
         delete_days = mock_delete.call_args.args[0]
         self.assertEqual(delete_days, ("01", "02", "03", "04", "05"))

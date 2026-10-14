@@ -39,6 +39,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
+from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
 from masu.processor import OCP_MARKUP_SKIP_UNCHANGED_FLAG
 from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.util.common import filter_dictionary
@@ -608,10 +609,14 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        # Padded days for delete/write; dual padded+legacy for read filters during transition.
-        days_padded = tuple(f"{day.day:02d}" for day in days)
+        # One delete per calendar day (SQL matches padded + legacy). Dual list for read filters.
+        days_for_delete = tuple(f"{day.day:02d}" for day in days)
         days_for_read = hive_partition_day_values(days)
-        self.delete_ocp_hive_partition_by_day(days_padded, source, year, month)
+        # Gate zero-padded writes so rolling deploys cannot store day=5 and day=05 together.
+        zero_pad_hive_partitions = is_feature_flag_enabled_by_schema(
+            self.schema, OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG, dev_fallback=True
+        )
+        self.delete_ocp_hive_partition_by_day(days_for_delete, source, year, month)
 
         sql = pkgutil.get_data(
             "masu.database",
@@ -631,6 +636,7 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "month": month,
             "days": days_for_read,
             "storage_exists": storage_exists,
+            "zero_pad_hive_partitions": zero_pad_hive_partitions,
         }
 
         try:

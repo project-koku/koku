@@ -566,7 +566,11 @@ SELECT pds.row_uuid,
     {{ocp_provider_uuid}} as ocp_source,
     pds.year as year,
     pds.month as month,
+{%- if zero_pad_hive_partitions %}
+    lpad(cast(day(usage_start) as varchar), 2, '0') as day
+{%- else %}
     cast(day(usage_start) as varchar) as day
+{%- endif %}
 FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
 JOIN cte_rankings as r
     ON pds.row_uuid = r.row_uuid

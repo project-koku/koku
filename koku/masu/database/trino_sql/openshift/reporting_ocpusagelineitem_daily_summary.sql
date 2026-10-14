@@ -255,8 +255,13 @@ SELECT null as uuid,
     pua.cost_category_id,
     {{source}} as source,
     cast(year(pua.usage_start) as varchar) as year,
+{%- if zero_pad_hive_partitions %}
     lpad(cast(month(pua.usage_start) as varchar), 2, '0') as month,
     lpad(cast(day(pua.usage_start) as varchar), 2, '0') as day
+{%- else %}
+    cast(month(pua.usage_start) as varchar) as month,
+    cast(day(pua.usage_start) as varchar) as day
+{%- endif %}
 FROM (
     SELECT date(li.interval_start) as usage_start,
         li.namespace,
@@ -379,8 +384,13 @@ SELECT null as uuid,
     sua.cost_category_id,
     {{source}} as source,
     cast(year(sua.usage_start) as varchar) as year,
+{%- if zero_pad_hive_partitions %}
     lpad(cast(month(sua.usage_start) as varchar), 2, '0') as month,
     lpad(cast(day(sua.usage_start) as varchar), 2, '0') as day
+{%- else %}
+    cast(month(sua.usage_start) as varchar) as month,
+    cast(day(sua.usage_start) as varchar) as day
+{%- endif %}
 FROM (
     SELECT sli.namespace,
         vn.node,
@@ -527,8 +537,13 @@ cte_unallocated_capacity AS (
         lids.source_uuid,
         {{source}} as source,
         cast(year(lids.usage_start) as varchar) as year,
+{%- if zero_pad_hive_partitions %}
         lpad(cast(month(lids.usage_start) as varchar), 2, '0') as month,
         lpad(cast(day(lids.usage_start) as varchar), 2, '0') as day
+{%- else %}
+        cast(month(lids.usage_start) as varchar) as month,
+        cast(day(lids.usage_start) as varchar) as day
+{%- endif %}
     FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
     LEFT JOIN cte_node_role AS nodes
         ON lids.node = nodes.node

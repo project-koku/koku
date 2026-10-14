@@ -100,17 +100,15 @@ class TestPostgresReportDBAccessor(TestCase):
             self.schema_name, self.table_name, "ocp_source", self.source_uuid, "2024", "01", "15"
         )
         self.assertIn("DELETE FROM", sql)
-        # Matches zero-padded and legacy unpadded day partition values
-        self.assertIn("lpad('15', 2, '0')", sql)
-        self.assertIn("OR day = lpad(", sql)
+        self.assertIn("day IN ('15')", sql)
 
     def test_get_delete_by_day_sql_matches_unpadded_and_padded_day(self):
         """COST-8094: day delete must clear both legacy and zero-padded partitions."""
         sql = self.accessor.get_delete_by_day_sql(
             self.schema_name, self.table_name, "source", self.source_uuid, "2024", "08", "5"
         )
-        self.assertIn("lpad('5', 2, '0')", sql)
-        self.assertIn("month = '08'", sql)
+        self.assertIn("day IN ('5', '05')", sql)
+        self.assertIn("month IN ('8', '08')", sql)
 
     def test_get_delete_by_source_sql(self):
         """Test delete by source SQL generation."""
@@ -218,8 +216,8 @@ class TestTrinoReportDBAccessor(TestCase):
             self.schema_name, "reporting_ocpusagelineitem_daily_summary", "source", self.source_uuid, "2024", "08", "5"
         )
         self.assertIn("DELETE FROM hive.", sql)
-        self.assertIn("lpad('5', 2, '0')", sql)
-        self.assertIn("OR day = lpad(", sql)
+        self.assertIn("day IN ('5', '05')", sql)
+        self.assertIn("month IN ('8', '08')", sql)
 
     def test_get_expired_data_ocp_sql_for_day_partitioned_table(self):
         """Test expired data SQL generation for day-partitioned tables."""

@@ -564,8 +564,22 @@ class AWSReportDBAccessorTest(MasuTestCase):
             unattributed,
         )
 
+    def test_matched_tags_sql_uses_prunable_month_predicate(self):
+        """COST-8094: matched-tags lookups must prune month partitions."""
+        for path in (
+            "trino_sql/aws/openshift/reporting_ocpaws_matched_tags.sql",
+            "trino_sql/openshift/ocp_special_matched_tags.sql",
+        ):
+            sql_template = pkgutil.get_data("masu.database", path).decode("utf-8")
+            with self.subTest(path=path):
+                self.assertNotIn("lpad(month, 2, '0') = {{month}}", sql_template)
+                self.assertIn(
+                    "month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
+                    sql_template,
+                )
+
     def test_summary_sql_metadata_days_tup_includes_padded_and_legacy(self):
-        """COST-8094: days_tup must include padded and legacy unpadded day partitions for reads."""
+        """COST-8094: days_tup dual for reads; days_delete_tup one padded value per day."""
         from datetime import date
 
         from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
@@ -584,6 +598,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.assertIn("1", metadata.days_tup)
         self.assertIn("09", metadata.days_tup)
         self.assertIn("9", metadata.days_tup)
+        self.assertEqual(metadata.days_delete_tup, ("01", "02", "03", "04", "05", "06", "07", "08", "09"))
 
     def test_ocp_on_aws_disk_capacity_formula_ignores_provisioned_performance_lines(self):
         """COST-8328: provisioned throughput/IOPS rates must not drive capacity."""
