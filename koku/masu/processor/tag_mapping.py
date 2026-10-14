@@ -25,6 +25,7 @@ from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor import is_feature_cost_4403_ec2_compute_cost_enabled
 from masu.util.common import SummaryRangeConfig
+from reporting.provider.all.models import TagMapping
 from reporting.provider.ocp.models import VM_UI_SUMMARY_TABLE
 
 LOG = logging.getLogger(__name__)
@@ -121,11 +122,14 @@ def _apply_ocp_tag_mappings(schema, provider, start_date, end_date, row_scope):
         if row_scope in (ROW_SCOPE_USAGE, ROW_SCOPE_ALL):
             accessor.populate_pod_label_summary_table(report_period_ids, start_date, end_date)
             accessor.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
-            accessor.populate_ui_summary_tables(
-                SummaryRangeConfig(start_date=start_date, end_date=end_date),
-                provider.uuid,
-                tables=(VM_UI_SUMMARY_TABLE,),
-            )
+            # VM UI hits Trino. Skip when no OCP mappings exist; labels cannot
+            # have changed. Ingest already rebuilt this table before mapping.
+            if TagMapping.objects.filter(child__provider_type=Provider.PROVIDER_OCP).exists():
+                accessor.populate_ui_summary_tables(
+                    SummaryRangeConfig(start_date=start_date, end_date=end_date),
+                    provider.uuid,
+                    tables=(VM_UI_SUMMARY_TABLE,),
+                )
 
 
 def _apply_aws_tag_mappings(schema, provider, start_date, end_date):
@@ -133,6 +137,9 @@ def _apply_aws_tag_mappings(schema, provider, start_date, end_date):
     with schema_context(schema):
         accessor = AWSReportDBAccessor(schema)
         bill_ids = _bill_ids(accessor, provider.uuid, start_date)
+        if not bill_ids:
+            _log_skip_no_bills(schema, provider, start_date)
+            return
         accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
         if is_feature_cost_4403_ec2_compute_cost_enabled(schema):
             month_start = start_date.replace(day=1) if hasattr(start_date, "replace") else start_date
@@ -150,6 +157,9 @@ def _apply_azure_tag_mappings(schema, provider, start_date, end_date):
     with schema_context(schema):
         accessor = AzureReportDBAccessor(schema)
         bill_ids = _bill_ids(accessor, provider.uuid, start_date)
+        if not bill_ids:
+            _log_skip_no_bills(schema, provider, start_date)
+            return
         accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
         accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
 
@@ -159,6 +169,9 @@ def _apply_gcp_tag_mappings(schema, provider, start_date, end_date):
     with schema_context(schema):
         accessor = GCPReportDBAccessor(schema)
         bill_ids = _bill_ids(accessor, provider.uuid, start_date)
+        if not bill_ids:
+            _log_skip_no_bills(schema, provider, start_date)
+            return
         accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
         accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
 
@@ -220,7 +233,21 @@ def _apply_ocp_on_cloud_tag_mappings(schema, ocp_provider, infra_uuid, infra_typ
 
 
 def _bill_ids(accessor, provider_uuid, start_date):
-    """Return bill ids for provider and month, or None if the accessor has none."""
+    """Return bill ids for provider and month. Empty when the provider has no bills."""
     with schema_context(accessor.schema):
         bills = accessor.bills_for_provider_uuid(provider_uuid, start_date)
         return [str(bill.id) for bill in bills]
+
+
+def _log_skip_no_bills(schema, provider, start_date):
+    """Log that mapping was skipped because the provider has no bills for the month."""
+    LOG.info(
+        log_json(
+            msg="no bills; skipping tag mappings",
+            context={
+                "schema": schema,
+                "provider_uuid": str(provider.uuid),
+                "start_date": str(start_date),
+            },
+        )
+    )

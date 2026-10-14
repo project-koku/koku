@@ -16,6 +16,7 @@ from django_tenants.utils import schema_context
 from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
 from api.utils import to_date
+from common.queues import CostModelQueue
 from common.queues import SummaryQueue
 from koku.cache import TAG_MAPPING_PREFIX
 from masu.database import AWS_CUR_TABLE_MAP
@@ -52,8 +53,10 @@ class ApplyTagMappingsTest(MasuTestCase):
         mock_acc.__enter__.return_value = mock_acc
         return mock_acc
 
+    @patch("masu.processor.tag_mapping.TagMapping")
     @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
-    def test_ocp_usage_scope_maps_usage_then_label_summaries(self, mock_ocp_cls):
+    def test_ocp_usage_scope_maps_usage_then_label_summaries(self, mock_ocp_cls, mock_tag_mapping):
+        mock_tag_mapping.objects.filter.return_value.exists.return_value = True
         mock_acc = self._mock_accessor(mock_ocp_cls)
         apply_tag_mappings(
             self.schema,
@@ -73,6 +76,23 @@ class ApplyTagMappingsTest(MasuTestCase):
             self.ocp_provider.uuid,
             tables=(VM_UI_SUMMARY_TABLE,),
         )
+
+    @patch("masu.processor.tag_mapping.TagMapping")
+    @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
+    def test_ocp_skips_vm_ui_rebuild_when_no_mappings(self, mock_ocp_cls, mock_tag_mapping):
+        mock_tag_mapping.objects.filter.return_value.exists.return_value = False
+        mock_acc = self._mock_accessor(mock_ocp_cls)
+        apply_tag_mappings(
+            self.schema,
+            self.ocp_provider,
+            self.start,
+            self.end,
+            row_scope=ROW_SCOPE_USAGE,
+        )
+
+        mock_acc.populate_pod_label_summary_table.assert_called_once_with([7], self.start, self.end)
+        mock_acc.populate_volume_label_summary_table.assert_called_once_with([7], self.start, self.end)
+        mock_acc.populate_ui_summary_tables.assert_not_called()
 
     @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
     def test_ocp_infra_scope_maps_infra_only(self, mock_ocp_cls):
@@ -157,8 +177,10 @@ class ApplyTagMappingsTest(MasuTestCase):
 
         mock_acc.update_line_item_daily_summary_with_tag_mapping.assert_not_called()
 
+    @patch("masu.processor.tag_mapping.TagMapping")
     @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
-    def test_ocp_coerces_datetime_strings_for_summary_range(self, mock_ocp_cls):
+    def test_ocp_coerces_datetime_strings_for_summary_range(self, mock_ocp_cls, mock_tag_mapping):
+        mock_tag_mapping.objects.filter.return_value.exists.return_value = True
         mock_acc = self._mock_accessor(mock_ocp_cls)
         start = "2026-10-01 00:00:00+00:00"
         end = "2026-10-12 00:00:00+00:00"
@@ -350,6 +372,27 @@ class ApplyTagMappingsTest(MasuTestCase):
         mock_gcp.populate_tags_summary_table.assert_called_once_with(["6"], self.start, self.end)
 
     @patch("masu.processor.tag_mapping.AWSReportDBAccessor")
+    def test_aws_skips_when_no_bills(self, mock_aws_cls):
+        mock_acc = self._mock_accessor(mock_aws_cls, bill_ids=[])
+        apply_tag_mappings(self.schema, self.aws_provider, self.start, self.end)
+        mock_acc.update_line_item_daily_summary_with_tag_mapping.assert_not_called()
+        mock_acc.populate_tags_summary_table.assert_not_called()
+
+    @patch("masu.processor.tag_mapping.AzureReportDBAccessor")
+    def test_azure_skips_when_no_bills(self, mock_azure_cls):
+        mock_acc = self._mock_accessor(mock_azure_cls, bill_ids=[])
+        apply_tag_mappings(self.schema, self.azure_provider, self.start, self.end)
+        mock_acc.update_line_item_daily_summary_with_tag_mapping.assert_not_called()
+        mock_acc.populate_tags_summary_table.assert_not_called()
+
+    @patch("masu.processor.tag_mapping.GCPReportDBAccessor")
+    def test_gcp_skips_when_no_bills(self, mock_gcp_cls):
+        mock_acc = self._mock_accessor(mock_gcp_cls, bill_ids=[])
+        apply_tag_mappings(self.schema, self.gcp_provider, self.start, self.end)
+        mock_acc.update_line_item_daily_summary_with_tag_mapping.assert_not_called()
+        mock_acc.populate_tags_summary_table.assert_not_called()
+
+    @patch("masu.processor.tag_mapping.AWSReportDBAccessor")
     @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
     def test_ocp_on_cloud_skips_when_no_report_period(self, mock_ocp_cls, mock_aws_cls):
         mock_ocp = MagicMock()
@@ -368,6 +411,12 @@ class ApplyTagMappingsTest(MasuTestCase):
 
 class ApplyTagMappingsTaskTest(MasuTestCase):
     """Tests for the apply_tag_mappings Celery task."""
+
+    def setUp(self):
+        super().setUp()
+        self.cm_patcher = patch("masu.processor.tasks.update_cost_model_costs.s")
+        self.mock_cm_s = self.cm_patcher.start()
+        self.addCleanup(self.cm_patcher.stop)
 
     @patch("masu.processor.tasks.is_source_disabled", return_value=False)
     @patch("masu.processor.tasks.is_summary_processing_disabled", return_value=False)
@@ -537,6 +586,12 @@ class ApplyTagMappingsTaskTest(MasuTestCase):
         )
         mock_signature.return_value.apply_async.assert_called_once()
         mock_apply.assert_not_called()
+        kwargs = mock_signature.call_args.kwargs
+        self.assertEqual(kwargs["start_date"], str(to_date(self.dh.this_month_start)))
+        self.assertEqual(kwargs["end_date"], str(to_date(self.dh.today)))
+        self.assertIsInstance(kwargs["start_date"], str)
+        self.assertIsInstance(kwargs["end_date"], str)
+        self.mock_cm_s.assert_not_called()
 
     @patch("reporting_common.models.celery_app")
     @patch("masu.processor.tasks.is_celery_task_delay_disabled", return_value=True)
@@ -627,3 +682,42 @@ class ApplyTagMappingsTaskTest(MasuTestCase):
         timeout = mock_cache.lock_single_task.call_args.kwargs["timeout"]
         self.assertEqual(timeout, settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT)
         mock_apply.assert_called_once()
+
+    @patch("masu.processor.tasks.get_customer_queue", return_value=CostModelQueue.DEFAULT)
+    @patch("masu.processor.tasks.is_source_disabled", return_value=False)
+    @patch("masu.processor.tasks.is_summary_processing_disabled", return_value=False)
+    @patch("masu.processor.tag_mapping.apply_tag_mappings")
+    def test_task_queues_cost_model_update_for_ocp(self, mock_apply, _mock_summary, _mock_source, _mock_queue):
+        start = self.dh.this_month_start
+        end = self.dh.today
+        apply_tag_mappings_task(
+            self.schema,
+            str(self.ocp_provider.uuid),
+            str(start),
+            str(end),
+            tracing_id="trace-1",
+            synchronous=True,
+        )
+        mock_apply.assert_called_once()
+        self.mock_cm_s.assert_called_once_with(
+            self.schema,
+            str(self.ocp_provider.uuid),
+            start_date=str(to_date(start)),
+            end_date=str(to_date(end)),
+            tracing_id="trace-1",
+        )
+        self.mock_cm_s.return_value.apply_async.assert_called_once_with(queue=CostModelQueue.DEFAULT)
+
+    @patch("masu.processor.tasks.is_source_disabled", return_value=False)
+    @patch("masu.processor.tasks.is_summary_processing_disabled", return_value=False)
+    @patch("masu.processor.tag_mapping.apply_tag_mappings")
+    def test_task_does_not_queue_cost_model_update_for_cloud(self, mock_apply, _mock_summary, _mock_source):
+        apply_tag_mappings_task(
+            self.schema,
+            str(self.aws_provider.uuid),
+            str(self.dh.this_month_start),
+            str(self.dh.today),
+            synchronous=True,
+        )
+        mock_apply.assert_called_once()
+        self.mock_cm_s.assert_not_called()

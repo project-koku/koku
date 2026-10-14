@@ -637,6 +637,24 @@ def _bump_mapping_apply_freshness(schema, provider):
     invalidate_cache_for_tenant_and_cache_key(schema, TAG_MAPPING_PREFIX)
 
 
+def _queue_cost_model_refresh_after_mapping(schema, provider, start_date, end_date, tracing_id=None):
+    """Recalculate OCP cost-model costs after daily-summary labels are remapped.
+
+    Tag-based rates match pod_labels/volume_labels. Cloud mapping does not remap
+    those OCP rows, so only an OCP source queues this follow-up.
+    """
+    if provider.type != Provider.PROVIDER_OCP:
+        return
+    cost_model_queue = get_customer_queue(schema, CostModelQueue)
+    update_cost_model_costs.s(
+        schema,
+        str(provider.uuid),
+        start_date=str(start_date),
+        end_date=str(end_date),
+        tracing_id=tracing_id,
+    ).apply_async(queue=cost_model_queue)
+
+
 @celery_app.task(name=APPLY_TAG_MAPPINGS_TASK, queue=SummaryQueue.DEFAULT)
 def apply_tag_mappings(
     schema,
@@ -673,8 +691,8 @@ def apply_tag_mappings(
             apply_tag_mappings.s(
                 schema,
                 provider_uuid,
-                start_date=start_date,
-                end_date=end_date,
+                start_date=str(start_date),
+                end_date=str(end_date),
                 tracing_id=tracing_id,
                 queue_name=queue_name,
                 synchronous=synchronous,
@@ -692,6 +710,7 @@ def apply_tag_mappings(
 
         apply_tag_mappings_for_provider(schema, provider, start_date, end_date, include_linked_ocp_on_cloud=True)
         _bump_mapping_apply_freshness(schema, provider)
+        _queue_cost_model_refresh_after_mapping(schema, provider, start_date, end_date, tracing_id=tracing_id)
     finally:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
