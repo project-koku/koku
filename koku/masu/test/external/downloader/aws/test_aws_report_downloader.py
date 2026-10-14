@@ -43,6 +43,7 @@ PREFIX = FAKE.word()
 
 # the cn endpoints aren't supported by moto, so filter them out
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), AWS_REGIONS))
+EMPTY_SPLIT_FLAG_TARGET = "masu.external.downloader.aws.aws_report_downloader.is_feature_flag_enabled_by_schema"
 REGION = random.choice(AWS_REGIONS)
 
 
@@ -677,8 +678,9 @@ class AWSReportDownloaderTest(MasuTestCase):
                     self.assertEqual(process_date, expected_date)
                     os.remove(temp_path)
 
-    def test_get_processing_date_empty_frame_does_not_lock_daily_start(self):
-        """Header-only CUR split must not lock daily_archive_start_date."""
+    @patch(EMPTY_SPLIT_FLAG_TARGET, return_value=True)
+    def test_get_processing_date_empty_frame_does_not_lock_daily_start(self, _mock_flag):
+        """Header-only CUR split must not lock daily_archive_start_date when flag ON."""
         provider = Provider.objects.get(uuid=self.aws_provider_uuid)
         provider.setup_complete = True
         provider.save(update_fields=["setup_complete"])
@@ -717,8 +719,49 @@ class AWSReportDownloaderTest(MasuTestCase):
         self.assertIsNone(manifest.daily_archive_start_date)
         os.remove(temp_path)
 
-    def test_get_processing_date_empty_then_invoice_allows_month_start(self):
-        """Empty split first must not block InvoiceId full-month finalization."""
+    @patch(EMPTY_SPLIT_FLAG_TARGET, return_value=False)
+    def test_get_processing_date_empty_frame_locks_when_flag_off(self, _mock_flag):
+        """Flag OFF keeps legacy incremental path for header-only CUR splits."""
+        provider = Provider.objects.get(uuid=self.aws_provider_uuid)
+        provider.setup_complete = True
+        provider.save(update_fields=["setup_complete"])
+
+        manifest = CostUsageReportManifest.objects.get(id=self.aws_manifest_id)
+        manifest.daily_archive_start_date = None
+        manifest.save(update_fields=["daily_archive_start_date"])
+
+        file_name = "empty_frame.csv"
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+
+        start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
+        end_date = self.dh.this_month_start.replace(year=2023, month=6, day=2).date()
+        incremental_date = start_date.replace(day=15)
+
+        with patch(
+            "masu.external.downloader.aws.aws_report_downloader.utils.get_or_clear_daily_s3_by_date",
+            return_value=incremental_date,
+        ) as mock_get_or_clear:
+            _, _, process_date = get_processing_date(
+                temp_path,
+                "s3_csv_path",
+                self.aws_manifest_id,
+                self.aws_provider_uuid,
+                start_date,
+                end_date,
+                None,
+                "tracing_id",
+            )
+
+        mock_get_or_clear.assert_called_once()
+        self.assertEqual(process_date, incremental_date)
+        os.remove(temp_path)
+
+    @patch(EMPTY_SPLIT_FLAG_TARGET, return_value=True)
+    def test_get_processing_date_empty_then_invoice_allows_month_start(self, _mock_flag):
+        """Empty split first must not block InvoiceId full-month finalization when flag ON."""
         provider = Provider.objects.get(uuid=self.aws_provider_uuid)
         provider.setup_complete = True
         provider.save(update_fields=["setup_complete"])
