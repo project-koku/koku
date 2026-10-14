@@ -76,6 +76,8 @@
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY

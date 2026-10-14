@@ -17,12 +17,14 @@ from unittest.mock import patch
 from django.conf import settings
 from django.db import connection
 from django.db import IntegrityError
+from django.db import OperationalError
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Q
 from django.db.models import Sum
 from django.test import override_settings
+from django.test import SimpleTestCase
 from django.test.utils import CaptureQueriesContext
 from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
@@ -31,6 +33,7 @@ from trino.exceptions import TrinoUserError
 from api.metrics import constants as metric_constants
 from api.provider.models import Provider
 from api.report.test.util.constants import OCP_PVC_LABELS
+from koku.database_exc import ExtendedDBException
 from koku.trino_database import TrinoHiveMetastoreError
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -1615,7 +1618,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.assertNotIn(gpu_call, mock_data_get.call_args_list)
             mock_trino_execute.assert_not_called()
 
-    def test_update_line_item_daily_summary_with_tag_mapping_joins_on_primary_key(self):
+    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_update_line_item_daily_summary_with_tag_mapping_joins_on_primary_key(self, mock_flag):
         """The tag-mapping UPDATE finds rows by (usage_start, uuid), the table's primary key."""
         with schema_context(self.schema):
             parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
@@ -1630,6 +1634,118 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.assertEqual(len(updates), 1)
         self.assertIn("lids.uuid = update_data.uuid", updates[0])
         self.assertIn("lids.usage_start = update_data.usage_start", updates[0])
+
+    def test_tag_mapping_guardrail_flags_are_independent(self):
+        """Each flag changes only its own database work, and the UPDATE runs once."""
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+
+        for diagnostics, timeout in ((False, False), (True, False), (False, True), (True, True)):
+            with self.subTest(diagnostics=diagnostics, timeout=timeout):
+
+                def flag_enabled(schema, flag, dev_fallback=False):
+                    self.assertEqual(schema, self.schema)
+                    self.assertTrue(dev_fallback)
+                    return diagnostics if flag.endswith("ocp_tag_mapping_diagnostics") else timeout
+
+                with (
+                    patch(
+                        "masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema",
+                        side_effect=flag_enabled,
+                    ),
+                    patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as update,
+                    CaptureQueriesContext(connection) as captured,
+                ):
+                    self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                        self.dh.this_month_start, self.dh.today, [1]
+                    )
+                update.assert_called_once()
+                queries = [query["sql"] for query in captured.captured_queries]
+                self.assertEqual(sum("EXPLAIN" in query for query in queries), int(diagnostics))
+                self.assertEqual(sum("set_config('statement_timeout'" in query for query in queries), 2 * int(timeout))
+
+    @override_settings(ONPREM=True)
+    def test_tag_mapping_guardrails_use_shared_postgresql_path_onprem(self):
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+        with (
+            patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=True),
+            patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as update,
+            CaptureQueriesContext(connection) as captured,
+        ):
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+        update.assert_called_once()
+        queries = [query["sql"] for query in captured.captured_queries]
+        self.assertEqual(sum("EXPLAIN" in query for query in queries), 1)
+        self.assertEqual(sum("set_config('statement_timeout'" in query for query in queries), 2)
+
+    def test_tag_mapping_timeout_restores_after_update_error(self):
+        """An UPDATE exception propagates after restoring the connection setting."""
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+        with connection.cursor() as cursor:
+            cursor.execute("SHOW statement_timeout")
+            original = cursor.fetchone()[0]
+
+        def flag_enabled(schema, flag, dev_fallback=False):
+            return flag.endswith("ocp_tag_mapping_statement_timeout")
+
+        with (
+            patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", side_effect=flag_enabled),
+            patch.object(
+                self.accessor, "_prepare_and_execute_raw_sql_query", side_effect=RuntimeError("update failed")
+            ),
+            self.assertLogs("masu.database.ocp_report_db_accessor", level="ERROR"),
+            self.assertRaisesRegex(RuntimeError, "update failed"),
+        ):
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+        with connection.cursor() as cursor:
+            cursor.execute("SHOW statement_timeout")
+            self.assertEqual(cursor.fetchone()[0], original)
+
+    @override_settings(OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS=17)
+    def test_tag_mapping_timeout_uses_configured_value(self):
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+        with (
+            patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema") as flag,
+            patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as update,
+            CaptureQueriesContext(connection) as captured,
+        ):
+            flag.side_effect = lambda schema, name, **kwargs: name.endswith("ocp_tag_mapping_statement_timeout")
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+        update.assert_called_once()
+        self.assertTrue(any("set_config('statement_timeout', '17'" in q["sql"] for q in captured.captured_queries))
+
+    def test_tag_mapping_diagnostics_failure_does_not_skip_update(self):
+        with schema_context(self.schema):
+            parent, child = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)[:2]
+            TagMapping.objects.create(parent=parent, child=child)
+        with (
+            patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema") as flag,
+            patch.object(self.accessor, "prepare_query", return_value=("SELECT * FROM missing_tag_mapping_table", {})),
+            patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as update,
+            self.assertLogs("masu.database.ocp_report_db_accessor", level="WARNING"),
+        ):
+            flag.side_effect = lambda schema, name, **kwargs: name.endswith("ocp_tag_mapping_diagnostics")
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+        update.assert_called_once()
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            self.assertEqual(cursor.fetchone()[0], 1)
+
+    def test_tag_mapping_no_mappings_skips_flags(self):
+        with (
+            patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema") as flag,
+            patch.object(self.accessor, "_prepare_and_execute_raw_sql_query") as update,
+        ):
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+        flag.assert_not_called()
+        update.assert_not_called()
 
     def test_update_line_item_daily_summary_with_tag_mapping(self):
         """
@@ -2566,3 +2682,64 @@ class OCPMarkupSkipUnchangedTest(MasuTestCase):
                 updates = [q["sql"] for q in captured.captured_queries if q["sql"].startswith("UPDATE")]
                 self.assertEqual(len(updates), 1)
                 self.assertEqual('infrastructure_markup_cost" IS NOT NULL' in updates[0], flag_enabled)
+
+
+class OCPTagMappingTimeoutPostgreSQLTest(SimpleTestCase):
+    """Exercise statement cancellation on a real autocommit PostgreSQL connection."""
+
+    databases = {"default"}
+
+    @override_settings(OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS=0)
+    def test_nonpositive_configured_timeout_is_rejected(self):
+        accessor = OCPReportDBAccessor(schema="public")
+        with self.assertRaisesRegex(ValueError, "OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS"):
+            with accessor._tag_mapping_statement_timeout():
+                self.fail("invalid timeout entered the guarded statement")
+
+    @override_settings(OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS=10)
+    def test_cancelled_statement_restores_timeout_and_connection(self):
+        accessor = OCPReportDBAccessor(schema="public")
+        with connection.cursor() as cursor:
+            cursor.execute("SHOW statement_timeout")
+            original = cursor.fetchone()[0]
+        with self.assertRaises(OperationalError):
+            with accessor._tag_mapping_statement_timeout():
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT pg_sleep(0.1)")
+        with connection.cursor() as cursor:
+            cursor.execute("SHOW statement_timeout")
+            self.assertEqual(cursor.fetchone()[0], original)
+            cursor.execute("SELECT 1")
+            self.assertEqual(cursor.fetchone()[0], 1)
+
+    @override_settings(OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS=20)
+    def test_existing_shorter_timeout_is_preserved(self):
+        accessor = OCPReportDBAccessor(schema="public")
+        with connection.cursor() as cursor:
+            cursor.execute("SHOW statement_timeout")
+            original = cursor.fetchone()[0]
+            cursor.execute("SELECT set_config('statement_timeout', %s, false)", ["10ms"])
+        try:
+            with accessor._tag_mapping_statement_timeout() as effective_ms:
+                self.assertEqual(effective_ms, 10)
+                with connection.cursor() as cursor:
+                    cursor.execute("SHOW statement_timeout")
+                    self.assertEqual(cursor.fetchone()[0], "10ms")
+        finally:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT set_config('statement_timeout', %s, false)", [original])
+
+    @override_settings(OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS=10)
+    def test_cancelled_statement_log_excludes_sql(self):
+        accessor = OCPReportDBAccessor(schema="public")
+        with (
+            self.assertLogs("masu.database.report_db_accessor_base", level="WARNING") as captured,
+            self.assertRaises(ExtendedDBException) as raised,
+            accessor._tag_mapping_statement_timeout(),
+        ):
+            accessor._execute_raw_sql_query(
+                "tag mapping", "SELECT pg_sleep(0.1) /* secret-tag-value */", redact_query_on_error=True
+            )
+        self.assertEqual(raised.exception.pgcode, "57014")
+        self.assertNotIn("secret-tag-value", " ".join(captured.output))
+        self.assertIn("57014", " ".join(captured.output))
