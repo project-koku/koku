@@ -608,6 +608,14 @@ parameters:
   displayName: Kafka listener watchdog timeout in seconds
   name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
   value: "900"
+- description: Wall-clock limit for streaming an OCP ingress tarball on the listener.
+  displayName: OCP ingress download timeout in seconds
+  name: OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS
+  value: "900"
+- description: Maximum OCP ingress tarball size in bytes before download is aborted.
+  displayName: OCP ingress download max payload bytes
+  name: OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES
+  value: "5368709120"
 
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH

@@ -9,7 +9,10 @@ report type's default summary table instead of the line-item daily summary.  The
 summary tables are aggregated per cluster and day, so report output must be
 identical with the flag on and off.
 """
+from datetime import date
+from decimal import Decimal
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.db.models import Max
 from django.db.models import Min
@@ -33,6 +36,7 @@ from api.report.test.ocp.test_cluster_filter_index_hint import _ranking
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor import OCP_CLOUD_CLUSTER_SUMMARY_VIEWS_FLAG
 from reporting.models import OCPAllComputeSummaryPT
+from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostSummaryPT
 from reporting.models import OCPAllStorageSummaryPT
 from reporting.models import OCPAWSComputeSummaryP
@@ -42,6 +46,7 @@ from reporting.models import OCPAWSStorageSummaryP
 from reporting.models import OCPAzureComputeSummaryP
 from reporting.models import OCPAzureCostSummaryP
 from reporting.models import OCPAzureStorageSummaryP
+from reporting.models import TenantAPIProvider
 
 FLAG_TARGET = "api.report.provider_map.is_feature_flag_enabled_by_schema"
 
@@ -152,6 +157,86 @@ class OCPCloudClusterSummaryViewsTest(IamTestCase):
                         url = f"?{time_filter}&{cluster_param}"
                         with self.subTest(provider=provider, report_type=report_type, url=url):
                             self._assert_parity(provider, view, url, expect_data=time_filter == self.LAST_MONTH)
+
+    def test_gcp_compute_engine_storage_is_in_cluster_summary(self):
+        """GCP persistent-disk costs survive OCP-on-All storage summary population."""
+        report_date = date.today()
+        cluster_id = "gcp-storage-summary-regression"
+        cluster_alias = "gcp-storage-summary-regression"
+        with tenant_context(self.tenant):
+            provider = TenantAPIProvider.objects.create(name="GCP storage summary regression", type="GCP")
+            for unit, amount, cost in (
+                ("gibibyte month", Decimal("20"), Decimal("12.50")),
+                ("hour", Decimal("2"), Decimal("3.00")),
+            ):
+                OCPAllCostLineItemDailySummaryP.objects.create(
+                    id=uuid4(),
+                    source_type="GCP",
+                    cluster_id=cluster_id,
+                    cluster_alias=cluster_alias,
+                    namespace=[],
+                    node=None,
+                    resource_id="projects/test/disks/persistent-disk",
+                    usage_start=report_date,
+                    usage_end=report_date,
+                    usage_account_id="gcp-storage-test-account",
+                    account_alias=None,
+                    product_code="Compute Engine",
+                    product_family=None,
+                    instance_type=None,
+                    region="us-central1",
+                    availability_zone=None,
+                    tags={},
+                    usage_amount=amount,
+                    unit=unit,
+                    unblended_cost=cost,
+                    markup_cost=Decimal("0"),
+                    currency_code="USD",
+                    shared_projects=1,
+                    source_uuid=provider,
+                )
+
+            with OCPReportDBAccessor(self.schema_name) as accessor:
+                accessor.populate_ocp_on_all_ui_summary_tables(
+                    {
+                        "schema": self.schema_name,
+                        "source_type": "GCP",
+                        "source_uuid": str(provider.uuid),
+                        "cluster_id": cluster_id,
+                        "cluster_alias": cluster_alias,
+                        "start_date": report_date,
+                        "end_date": report_date,
+                    }
+                )
+
+            with tenant_context(self.tenant):
+                storage_row = OCPAllStorageSummaryPT.objects.get(
+                    source_uuid=provider,
+                    cluster_id=cluster_id,
+                    usage_start=report_date,
+                    product_code="Compute Engine",
+                )
+                self.assertEqual(storage_row.usage_amount, Decimal("20"))
+                self.assertEqual(storage_row.unit, "GB-Mo")
+                self.assertEqual(storage_row.unblended_cost, Decimal("12.50"))
+
+        url = (
+            f"?start_date={report_date}&end_date={report_date}&filter[resolution]=daily"
+            f"&group_by[cluster]=*&filter[cluster]={cluster_alias}"
+        )
+        legacy_handler = self._handler("OCP-on-All", OCPAllStorageView, url, False)
+        summary_handler = self._handler("OCP-on-All", OCPAllStorageView, url, True)
+        self.assertNotEqual(legacy_handler.query_table, summary_handler.query_table)
+        with tenant_context(self.tenant):
+            legacy = legacy_handler.execute_query()
+            summary = summary_handler.execute_query()
+        for total_type in ("cost", "infrastructure"):
+            with self.subTest(total_type=total_type):
+                self.assertEqual(
+                    legacy["total"][total_type]["total"]["value"],
+                    summary["total"][total_type]["total"]["value"],
+                )
+        self.assertEqual(legacy["total"]["cost"]["total"]["value"], Decimal("12.50"))
 
     def _assert_parity(self, provider, view, url, expect_data):
         legacy_handler = self._handler(provider, view, url, False)

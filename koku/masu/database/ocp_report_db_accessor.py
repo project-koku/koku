@@ -20,6 +20,7 @@ from django.db import IntegrityError
 from django.db import transaction
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Q
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django_tenants.utils import schema_context
@@ -38,6 +39,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
+from masu.processor import OCP_MARKUP_SKIP_UNCHANGED_FLAG
 from masu.util.common import filter_dictionary
 from masu.util.common import SummaryRangeConfig
 from masu.util.common import trino_table_exists
@@ -701,11 +703,22 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         with schema_context(self.schema), transaction.atomic():
             with connection.cursor() as cursor:
                 cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [cluster_id])
-            OCPUsageLineItemDailySummary.objects.filter(
+            line_items = OCPUsageLineItemDailySummary.objects.filter(
                 cluster_id=cluster_id,
                 usage_start__gte=start_date,
                 usage_start__lte=end_date,
-            ).update(
+            )
+            if markup == 0 and is_feature_flag_enabled_by_schema(
+                self.schema, OCP_MARKUP_SKIP_UNCHANGED_FLAG, dev_fallback=True
+            ):
+                # Markup 0 sets every row to 0. Readers treat NULL as 0, so only rows that
+                # still carry an old non-zero markup need a write; rewriting the rest costs
+                # a new row version and index entries per row.
+                line_items = line_items.filter(
+                    (Q(infrastructure_markup_cost__isnull=False) & ~Q(infrastructure_markup_cost=0))
+                    | (Q(infrastructure_project_markup_cost__isnull=False) & ~Q(infrastructure_project_markup_cost=0))
+                )
+            line_items.update(
                 infrastructure_markup_cost=(
                     (
                         Coalesce(

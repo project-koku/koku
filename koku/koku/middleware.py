@@ -472,6 +472,24 @@ def sentry_before_send(event, hint):
     return event
 
 
+def capture_soft_timeout_exception(exception):
+    """Report a soft timeout to Sentry without serializing frame locals.
+
+    Soft-timeout handling already spent the request budget. Evaluating
+    ``repr()`` on frame locals (the SDK default) can re-run expensive work
+    such as Django QuerySets and push the worker into Gunicorn's hard timeout.
+    """
+    import sentry_sdk
+    from sentry_sdk.utils import event_from_exception
+
+    client = sentry_sdk.get_client()
+    event, hint = event_from_exception(
+        exception,
+        client_options={**client.options, "include_local_variables": False},
+    )
+    sentry_sdk.capture_event(event, hint=hint)
+
+
 def _parse_soft_timeout(default=90):
     raw = os.environ.get("REQUEST_SOFT_TIMEOUT")
     if raw is None:
@@ -537,9 +555,7 @@ class RequestTimeoutMiddleware(MiddlewareMixin):
             return None
 
         try:
-            import sentry_sdk
-
-            sentry_sdk.capture_exception(exception)
+            capture_soft_timeout_exception(exception)
         except Exception:
             LOG.warning("Unable to send request-timeout stack trace to Sentry.", exc_info=True)
 
