@@ -271,16 +271,17 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return source_map
 
     @cached_property
+    def conversion_queryset(self):
+        """Return report-scoped rows used to discover conversion inputs."""
+        query = self._apply_cluster_filter_index_hint(self.query_table.objects.filter(self.query_filter))
+        if self.query_exclusions:
+            query = query.exclude(self.query_exclusions)
+        return query
+
+    @cached_property
     def source_uuids_for_conversion(self):
-        """Return source UUIDs present in the query range."""
-        return set(
-            self.query_table.objects.filter(
-                usage_start__gte=self.start_datetime.date(),
-                usage_start__lte=self.end_datetime.date(),
-            )
-            .values_list("source_uuid", flat=True)
-            .distinct()
-        ) - {None}
+        """Return source UUIDs present in the report-scoped rows."""
+        return set(self.conversion_queryset.values_list("source_uuid", flat=True).distinct()) - {None}
 
     @cached_property
     def request_source_to_currency_map(self):
@@ -292,8 +293,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     @cached_property
     def raw_currencies_for_conversion(self):
-        """Return raw infrastructure currencies present in the query range."""
-        return super()._get_base_currencies_for_conversion()
+        """Return raw infrastructure currencies present in the report-scoped rows."""
+        return set(self.conversion_queryset.values_list(self._mapper.cost_units_key, flat=True).distinct()) - {None}
 
     @cached_property
     def monthly_exchange_rate_map(self):

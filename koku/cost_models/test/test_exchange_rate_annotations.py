@@ -6,8 +6,10 @@
 from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.db.models import Case
+from django.db.models import Q
 from django.db.models import Subquery
 from django.test import TestCase
 from django_tenants.utils import schema_context
@@ -104,17 +106,82 @@ class QueryHandlerFeatureFlagTest(MasuTestCase):
         return AWSReportQueryHandler(self.mocked_query_params("?", AWSCostView, path=self.AWS_PATH))
 
     @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=True)
-    def test_ocp_flag_on_uses_bounded_case_annotations(self, _):
-        """Flag ON → OCP handler returns bounded Case annotations (both keys present)."""
+    def test_ocp_flag_on_applies_monthly_rates_by_source_and_raw_currency(self, _):
+        """Flag ON applies the correct monthly cost-model and infrastructure rates."""
         handler = self._make_ocp_handler()
-        handler.__dict__["request_source_to_currency_map"] = {}
-        handler.__dict__["raw_currencies_for_conversion"] = {"USD"}
-        handler.__dict__["monthly_exchange_rate_map"] = {}
+        source_uuid = self.ocp_provider.uuid
+        september_id = uuid4()
+        october_id = uuid4()
+        with tenant_context(handler.tenant):
+            handler.query_table.objects.bulk_create(
+                [
+                    handler.query_table(
+                        id=september_id,
+                        cluster_id="exchange-rate-test",
+                        usage_start=date(2026, 9, 15),
+                        usage_end=date(2026, 9, 16),
+                        source_uuid_id=source_uuid,
+                        raw_currency="USD",
+                    ),
+                    handler.query_table(
+                        id=october_id,
+                        cluster_id="exchange-rate-test",
+                        usage_start=date(2026, 10, 15),
+                        usage_end=date(2026, 10, 16),
+                        source_uuid_id=source_uuid,
+                        raw_currency="USD",
+                    ),
+                ]
+            )
 
-        ann = handler.exchange_rate_annotation_dict
-        self.assertEqual(set(ann.keys()), {"exchange_rate", "infra_exchange_rate"})
-        self.assertIsInstance(ann["exchange_rate"], Case)
-        self.assertIsInstance(ann["infra_exchange_rate"], Case)
+        handler.__dict__["request_source_to_currency_map"] = {source_uuid: "GBP"}
+        handler.__dict__["raw_currencies_for_conversion"] = {"USD"}
+        handler.__dict__["monthly_exchange_rate_map"] = {
+            "GBP": {date(2026, 9, 1): Decimal("1.10"), date(2026, 10, 1): Decimal("1.20")},
+            "USD": {date(2026, 9, 1): Decimal("0.90"), date(2026, 10, 1): Decimal("0.80")},
+        }
+
+        with tenant_context(handler.tenant):
+            rows = list(
+                handler.query_table.objects.filter(id__in=[september_id, october_id])
+                .annotate(**handler.exchange_rate_annotation_dict)
+                .order_by("usage_start")
+                .values_list("exchange_rate", "infra_exchange_rate")
+            )
+
+        self.assertEqual(rows, [(Decimal("1.10"), Decimal("0.90")), (Decimal("1.20"), Decimal("0.80"))])
+
+    def test_ocp_conversion_inputs_follow_report_filters_and_exclusions(self):
+        """Currency discovery uses the same filtered and access-scoped rows as the report."""
+        handler = self._make_ocp_handler()
+        included_id = uuid4()
+        excluded_id = uuid4()
+        with tenant_context(handler.tenant):
+            handler.query_table.objects.bulk_create(
+                [
+                    handler.query_table(
+                        id=included_id,
+                        cluster_id="included-cluster",
+                        usage_start=handler.start_datetime.date(),
+                        usage_end=handler.start_datetime.date(),
+                        source_uuid_id=self.ocp_provider.uuid,
+                        raw_currency="EUR",
+                    ),
+                    handler.query_table(
+                        id=excluded_id,
+                        cluster_id="excluded-cluster",
+                        usage_start=handler.start_datetime.date(),
+                        usage_end=handler.start_datetime.date(),
+                        source_uuid_id=self.ocp_on_aws_ocp_provider.uuid,
+                        raw_currency="CAD",
+                    ),
+                ]
+            )
+            handler.query_filter = Q(id__in=[included_id, excluded_id])
+            handler.query_exclusions = Q(id=excluded_id)
+
+            self.assertEqual(handler.source_uuids_for_conversion, {self.ocp_provider.uuid})
+            self.assertEqual(handler.raw_currencies_for_conversion, {"EUR"})
 
     @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False)
     def test_flag_off_uses_dict_annotations(self, _):
