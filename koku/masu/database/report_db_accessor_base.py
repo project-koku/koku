@@ -91,7 +91,9 @@ class ReportDBAccessorBase:
         """
         return "self_hosted_sql" if getattr(settings, "ONPREM", False) else "trino_sql"
 
-    def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
+    def _prepare_and_execute_raw_sql_query(
+        self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE", redact_query_on_error=False
+    ):
         """Prepare the sql params and run via a cursor."""
         if tmp_sql_params is None:
             tmp_sql_params = {}
@@ -103,6 +105,10 @@ class ReportDBAccessorBase:
             )
         )
         sql, sql_params = self.prepare_query(tmp_sql, tmp_sql_params)
+        if redact_query_on_error:
+            return self._execute_raw_sql_query(
+                table, sql, sql_params=sql_params, operation=operation, redact_query_on_error=True
+            )
         return self._execute_raw_sql_query(table, sql, sql_params=sql_params, operation=operation)
 
     @retry(
@@ -111,7 +117,7 @@ class ReportDBAccessorBase:
         max_wait=4,
         log_message="Deadlock detected, retrying statement",
     )
-    def _execute_raw_sql_query(self, table, sql, sql_params=None, operation="UPDATE"):
+    def _execute_raw_sql_query(self, table, sql, sql_params=None, operation="UPDATE", redact_query_on_error=False):
         """Run a SQL statement via a cursor. This also returns a result if the operation is VALIDATION_QUERY.
 
         Postgres deadlocks are expected under concurrent writers (e.g. two providers under
@@ -139,7 +145,20 @@ class ReportDBAccessorBase:
 
             except OperationalError as exc:
                 db_exc = get_extended_exception_by_type(exc)
-                LOG.warning(log_json(os.getpid(), msg=str(db_exc), context=db_exc.as_dict()))
+                if redact_query_on_error:
+                    LOG.warning(
+                        log_json(
+                            os.getpid(),
+                            msg="PostgreSQL statement failed",
+                            context={
+                                "exception_type": db_exc.db_exception_type.__name__,
+                                "pgcode": db_exc.pgcode,
+                                "db_backend_pid": db_exc.db_backend_pid,
+                            },
+                        )
+                    )
+                else:
+                    LOG.warning(log_json(os.getpid(), msg=str(db_exc), context=db_exc.as_dict()))
                 raise db_exc from exc
 
         running_time = time.time() - t1
