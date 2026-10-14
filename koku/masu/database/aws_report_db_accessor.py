@@ -170,7 +170,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
+        days_tup = tuple(f"{day.day:02d}" for day in days)
 
         for table_name in tables:
             sql = pkgutil.get_data(
@@ -458,7 +458,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuids": ocp_source_uuids,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
-            "days": tuple(str(day.day) for day in days),
+            "days": tuple(f"{day.day:02d}" for day in days),
         }
 
         results = self._execute_trino_raw_sql_query(

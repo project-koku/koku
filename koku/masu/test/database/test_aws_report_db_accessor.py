@@ -564,6 +564,27 @@ class AWSReportDBAccessorTest(MasuTestCase):
             unattributed,
         )
 
+    def test_summary_sql_metadata_days_tup_is_zero_padded(self):
+        """COST-8094: SummarySqlMetadata.days_tup must be zero-padded to match Hive day partitions."""
+        from datetime import date
+
+        from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
+
+        metadata = SummarySqlMetadata(
+            schema=self.schema,
+            ocp_provider_uuid=str(self.ocp_provider_uuid),
+            cloud_provider_uuid=str(self.aws_provider_uuid),
+            start_date=date(2026, 7, 1),
+            end_date=date(2026, 7, 9),
+            matched_tag_strs=[],
+            bill_id=1,
+            report_period_id=1,
+        )
+        for d in metadata.days_tup:
+            self.assertEqual(len(d), 2, f"day '{d}' must be zero-padded")
+        self.assertIn("01", metadata.days_tup)
+        self.assertIn("09", metadata.days_tup)
+
     def test_ocp_on_aws_disk_capacity_formula_ignores_provisioned_performance_lines(self):
         """COST-8328: provisioned throughput/IOPS rates must not drive capacity."""
         hours_in_month = 720

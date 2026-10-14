@@ -61,7 +61,7 @@ class SummarySqlMetadata:
     def _generate_sql_params(self):
         """Populates additional SQL parameters options"""
         days = DateHelper().list_days(self.start_date, self.end_date)
-        self.days_tup = tuple(str(day.day) for day in days)
+        self.days_tup = tuple(f"{day.day:02d}" for day in days)
         self.year = self.start_date.strftime("%Y")
         self.month = self.start_date.strftime("%m")
 
