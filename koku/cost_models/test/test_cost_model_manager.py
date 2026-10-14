@@ -4,6 +4,7 @@
 #
 """Test the Cost Model Manager."""
 import threading
+from datetime import timedelta
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -249,6 +250,64 @@ class CostModelManagerTest(IamTestCase):
             manifest.delete()
             sources = manager.get_provider_names_uuids()
             self.assertNotIn("operator_update_available", sources[0])
+
+    def test_get_provider_names_uuids_uses_newest_manifest_per_provider(self):
+        """Each OCP source uses its own newest manifest of this or last month."""
+        date_helper = DateHelper()
+        now = date_helper.now_utc
+        providers = []
+        for name in ("ocp_newest_manifest_old", "ocp_newest_manifest_new"):
+            provider_authentication = ProviderAuthentication.objects.create(credentials={"cluster_id": name})
+            with patch("masu.celery.tasks.check_report_updates"):
+                providers.append(
+                    Provider.objects.create(
+                        name=name,
+                        type=Provider.PROVIDER_OCP,
+                        created_by=self.user,
+                        customer=self.customer,
+                        authentication=provider_authentication,
+                    )
+                )
+        outdated, current = providers
+        manifests = [
+            # outdated: its newest manifest in range has an old operator.
+            (outdated, date_helper.last_month_start, "koku-metrics-operator:v4.8.0", now - timedelta(days=3)),
+            (outdated, date_helper.this_month_start, "koku-metrics-operator:v4.7.0", now - timedelta(days=1)),
+            # Ignored: billing period out of range, or no creation time.
+            (outdated, date_helper.next_month_start, "koku-metrics-operator:v4.8.0", now),
+            (outdated, date_helper.this_month_start, "koku-metrics-operator:v4.8.0", None),
+            # current: newest manifest is up to date, an older one is not.
+            (current, date_helper.this_month_start, "koku-metrics-operator:v4.7.0", now - timedelta(days=2)),
+            (current, date_helper.this_month_start, "koku-metrics-operator:v4.8.0", now - timedelta(hours=1)),
+        ]
+        for provider, billing_period_start, operator_version, creation_datetime in manifests:
+            baker.make(
+                CostUsageReportManifest,
+                provider=provider,
+                billing_period_start_datetime=billing_period_start,
+                operator_version=operator_version,
+                creation_datetime=creation_datetime,
+            )
+        cost_model_data = {
+            "name": "Test Cost Model Newest Manifest",
+            "description": "Test",
+            "provider_uuids": [outdated.uuid, current.uuid],
+            "rates": [
+                {
+                    "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR},
+                    "source_type": Provider.PROVIDER_OCP,
+                    "tiered_rates": [{"unit": "USD", "value": 0.22}],
+                }
+            ],
+        }
+        with tenant_context(self.tenant):
+            with patch("cost_models.cost_model_manager.delayed_update_cost_model_costs"):
+                cost_model_obj = CostModelManager().create(**cost_model_data)
+            with patch("cost_models.cost_model_manager.LATEST_OPERATOR_VERSION", new="4.8.0"):
+                sources = CostModelManager(cost_model_obj.uuid).get_provider_names_uuids()
+
+        update_available = {source["uuid"]: source["operator_update_available"] for source in sources}
+        self.assertEqual(update_available, {str(outdated.uuid): True, str(current.uuid): False})
 
     def test_create_with_two_providers(self):
         """Test creating a cost model with multiple providers."""

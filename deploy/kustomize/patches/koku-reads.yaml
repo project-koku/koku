@@ -112,6 +112,12 @@
           value: ${REQUEST_SOFT_TIMEOUT}
         - name: REQUEST_FAULTHANDLER_TIMEOUT
           value: ${REQUEST_FAULTHANDLER_TIMEOUT}
+        - name: TIMEOUT
+          value: ${KOKU_READS_GUNICORN_TIMEOUT}
+        - name: DATABASE_STATEMENT_TIMEOUT_MS
+          value: ${KOKU_READS_DATABASE_STATEMENT_TIMEOUT_MS}
+        - name: DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+          value: ${KOKU_READS_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS}
         - name: OCP_REPORT_THROTTLE_RATE
           value: ${OCP_REPORT_THROTTLE_RATE}
         - name: OCP_REPORT_THROTTLE_TIGHT_RATE
@@ -258,3 +264,27 @@
     name: KOKU_READ_ONLY_DB
     required: true
     value: cost-db-ro
+- op: add
+  path: /parameters/-
+  value:
+    description: Seconds before Gunicorn kills a reads API worker stuck in a request (3scale gives up at ~30 s)
+    displayName: Reads API Gunicorn worker timeout
+    name: KOKU_READS_GUNICORN_TIMEOUT
+    required: true
+    value: "35"
+- op: add
+  path: /parameters/-
+  value:
+    description: PostgreSQL statement_timeout (ms) for reads API connections; 0 keeps the server default
+    displayName: Reads API statement timeout
+    name: KOKU_READS_DATABASE_STATEMENT_TIMEOUT_MS
+    required: true
+    value: "30000"
+- op: add
+  path: /parameters/-
+  value:
+    description: PostgreSQL client_connection_check_interval (ms) so queries of dropped reads API clients are cancelled; 0 disables
+    displayName: Reads API client connection check interval
+    name: KOKU_READS_DATABASE_CLIENT_CONNECTION_CHECK_INTERVAL_MS
+    required: true
+    value: "5000"

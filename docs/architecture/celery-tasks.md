@@ -725,7 +725,7 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 **Task**: `masu.celery.tasks.precreate_upcoming_partitions`
 
-**Schedule**: Every 8 hours (05:30, 13:30, 21:30 UTC) on days 15–31 (`30 5,13,21 15-31 * *`)
+**Schedule**: Every 8 hours (05:30, 13:30, 21:30 UTC) from `PRECREATE_PARTITIONS_START_DAY` through month end. The default is 15 (`30 5,13,21 15-31 * *`); the setting accepts 1–28 so every month has at least one run. Set it on the scheduler deployment to start earlier in an environment.
 
 **Enabled**: Per schema via `cost-management.backend.precreate_partitions`
 
@@ -783,7 +783,7 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 **Enabled**: When `CURRENCY_URL` is a non-empty value (configured via environment / app-interface)
 
-**Description**: Fetches latest currency exchange rates from the configured API and upserts monthly dynamic rates per tenant. When `CURRENCY_URL` is unset/empty (typical on-prem / airgapped), the beat is not registered so the worker does not attempt outbound requests.
+**Description**: Fetches latest currency exchange rates from the configured API and upserts monthly dynamic rates per tenant. When `CURRENCY_URL` is unset/empty (typical on-prem / airgapped), the beat is not registered so the worker does not attempt outbound requests. Newly cloned tenant schemas are filled from the existing shared snapshot at schema creation and do not wait for this beat.
 
 ---
 
@@ -911,7 +911,7 @@ Tag-mapping resummarize continues to use `delayed_summarize_current_month`
 1. If `CURRENCY_URL` is empty, skips the API fetch (logs and continues without dynamic discovery)
 2. Otherwise fetches exchange rates from the external API
 3. Updates `ExchangeRates` model for valid currencies and rebuilds the exchange rate cache
-4. Upserts `MonthlyExchangeRate` dynamic rows per tenant (and may invalidate report view cache)
+4. Upserts `MonthlyExchangeRate` dynamic rows per tenant (and may invalidate report view cache). A newly cloned schema is filled the same way when `Tenant.create_schema` commits, so it does not wait for this beat.
 
 ---
 
