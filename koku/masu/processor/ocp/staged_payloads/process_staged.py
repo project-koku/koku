@@ -35,7 +35,6 @@ from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
 from common.queues import get_customer_queue
-from common.queues import IngressQueue
 from common.queues import OCPQueue
 from koku import celery_app
 from masu.config import Config
@@ -276,7 +275,7 @@ def _run_claimed(request_id, claim_token, work):
         heartbeat.stop()
 
 
-@celery_app.task(name=PROCESS_STAGED_INGRESS_TASK, queue=IngressQueue.DEFAULT, **_TASK_LIMITS)
+@celery_app.task(name=PROCESS_STAGED_INGRESS_TASK, queue=OCPQueue.DEFAULT, **_TASK_LIMITS)
 def process_staged_ingress_payload(request_id):
     """Claim a staged tarball, extract it, and enqueue line items on the OCP queue.
 
