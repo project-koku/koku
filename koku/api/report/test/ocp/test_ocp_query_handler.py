@@ -17,6 +17,7 @@ from urllib.parse import urlencode
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db.models import Max
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models.expressions import OrderBy
 from django.test.utils import CaptureQueriesContext
@@ -33,6 +34,7 @@ from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPExcludeSerializer
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
+from api.report.ocp.view import OCPGpuView
 from api.report.ocp.view import OCPMemoryView
 from api.report.ocp.view import OCPReportVirtualMachinesView
 from api.report.ocp.view import OCPVolumeView
@@ -61,6 +63,16 @@ def _calculate_subtotals(data, cost, infra, sup):
                     else:
                         cost, infra, sup = _calculate_subtotals(item, cost, infra, sup)
             return (cost, infra, sup)
+
+
+def _q_contains_lookup(q_object, lookup, value):
+    """Return True when a composed Q tree contains the requested lookup."""
+    for child in q_object.children:
+        if isinstance(child, tuple) and child == (lookup, value):
+            return True
+        if isinstance(child, Q) and _q_contains_lookup(child, lookup, value):
+            return True
+    return False
 
 
 class OCPReportQueryHandlerTest(IamTestCase):
@@ -190,6 +202,27 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(query_data.get("total"))
                 total = query_data.get("total")
                 self.assertIsNotNone(total.get(order_by))
+
+    def test_gpu_category_filter_applies_to_query_filter(self):
+        """GPU filter[category] is translated into a cost category query predicate."""
+        query_params = self.mocked_query_params("?filter[category]=Platform", OCPGpuView)
+        handler = OCPReportQueryHandler(query_params)
+
+        self.assertTrue(
+            _q_contains_lookup(handler.query_filter, "cost_category__name__icontains", "Platform"),
+            handler.query_filter,
+        )
+
+    def test_gpu_category_filter_returns_success(self):
+        """GPU filter[category] returns a successful response instead of a validation error."""
+        url = reverse("reports-openshift-gpu")
+        params = {"filter[category]": "Platform"}
+        client = APIClient()
+        response = client.get(f"{url}?{urlencode(params)}", **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("category", response.data["meta"]["filter"])
+        self.assertEqual(response.data["meta"]["filter"]["category"], ["Platform"])
 
     def test_storage_class_order_bys(self):
         """Test that we can order by the pvc values."""
