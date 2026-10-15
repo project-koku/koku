@@ -374,7 +374,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         Falls back to the Case/When approach when the flag is off.
         """
-        if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+        if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
             exchange_rate_annotation = self._monthly_source_exchange_rate_case()
             infra_exchange_rate_annotation = self._monthly_exchange_rate_case(
                 self._mapper.cost_units_key, self.raw_currencies_for_conversion
