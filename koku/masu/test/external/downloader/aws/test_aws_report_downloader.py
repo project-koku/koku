@@ -23,6 +23,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
 from masu.external import AWS_REGIONS
 from masu.external import UNCOMPRESSED
+from masu.external.downloader.aws.aws_report_downloader import _aws_empty_split_finalization_enabled
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
@@ -758,6 +759,17 @@ class AWSReportDownloaderTest(MasuTestCase):
         mock_get_or_clear.assert_called_once()
         self.assertEqual(process_date, incremental_date)
         os.remove(temp_path)
+
+    def test_aws_empty_split_finalization_enabled_missing_provider(self):
+        """No provider means no schema; helper returns False (codecov no-schema branch)."""
+        self.assertFalse(_aws_empty_split_finalization_enabled("00000000-0000-0000-0000-000000000000"))
+
+    def test_aws_empty_split_finalization_enabled_provider_without_customer(self):
+        """Provider with no customer means no schema; helper returns False."""
+        provider = Mock(customer=None)
+        with patch("masu.external.downloader.aws.aws_report_downloader.Provider.objects.filter") as mock_filter:
+            mock_filter.return_value.select_related.return_value.first.return_value = provider
+            self.assertFalse(_aws_empty_split_finalization_enabled(self.aws_provider_uuid))
 
     @patch(EMPTY_SPLIT_FLAG_TARGET, return_value=True)
     def test_get_processing_date_empty_then_invoice_allows_month_start(self, _mock_flag):
