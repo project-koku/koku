@@ -113,7 +113,8 @@ def release_for_retry(request_id, claim_token, error):
     """Return a failed claim to pending, or mark it failed at the retry limit.
 
     The update matches ``claim_token``. A worker that lost the row does not write
-    ``pending`` or ``failed``.
+    ``pending`` or ``failed``. ``reconciled_at`` is cleared so the beat can publish
+    again after ``not_before``.
     """
     row = _claim_filter(request_id, claim_token).first()
     if row is None:
@@ -147,6 +148,7 @@ def release_for_retry(request_id, claim_token, error):
         not_before=not_before,
         last_error=message,
         claim_token=None,
+        reconciled_at=None,
     )
     if not updated:
         _log_lost_claim(request_id, "retry")

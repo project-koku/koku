@@ -151,6 +151,21 @@ OCP_PENALTY_BACKLOG = Gauge(
     "Number of celery tasks in the OCP_penalty queue",
     multiprocess_mode="livesum",
 )
+INGRESS_STAGING_PENDING = Gauge(
+    "ingress_staging_pending",
+    "Number of ingress staging rows waiting to be claimed",
+    multiprocess_mode="livemostrecent",
+)
+INGRESS_STAGING_FAILED = Gauge(
+    "ingress_staging_failed",
+    "Number of ingress staging rows that exhausted retries",
+    multiprocess_mode="livemostrecent",
+)
+INGRESS_STAGING_OLDEST_AGE = Gauge(
+    "ingress_staging_oldest_unprocessed_seconds",
+    "Age in seconds of the oldest ingress staging row that is not processed",
+    multiprocess_mode="livemostrecent",
+)
 INGRESS_STAGING_PENDING_MARKERS = Gauge(
     "ingress_staging_pending_markers",
     "Number of ingress staging markers in S3 that do not have a staging row yet",
