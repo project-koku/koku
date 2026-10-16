@@ -5,10 +5,10 @@
 """Read a durable OCP ingress tarball from our bucket and process it.
 
 Download from ingress is already finished. ``process_staged_ingress_payload``
-claims the row, fetches the stored object, and extracts it on the ingress
-queue. Line-item work is a second task on the customer OCP queue, because
-each worker pod has its own emptyDir and xl or penalty customers must not
-share the ingress queue.
+claims the row, fetches the stored object, and extracts it on the customer
+OCP queue. Line-item work is a second task on that same queue family, because
+each worker pod has its own emptyDir and extract must run where the follow-on
+work is scheduled.
 
 This module stays separate from ``processing`` while the listener still calls
 ``extract_payload`` and ``process_extracted_reports`` from
