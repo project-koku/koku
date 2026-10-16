@@ -9,7 +9,7 @@ import time
 from django.utils import timezone
 
 from api.common import log_json
-from common.queues import IngressQueue
+from common.queues import OCPQueue
 from koku import celery_app
 from masu.external.downloader.ocp.payload_landing.constants import EXPIRE_INGRESS_STAGING_TASK
 from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_EXPIRE_TIME_BUDGET
@@ -54,7 +54,7 @@ def _expire_processed_batch(cutoff):
     return deleted_rows, True
 
 
-@celery_app.task(name=EXPIRE_INGRESS_STAGING_TASK, queue=IngressQueue.DEFAULT)
+@celery_app.task(name=EXPIRE_INGRESS_STAGING_TASK, queue=OCPQueue.DEFAULT)
 def expire_ingress_staging():
     """Delete processed staging rows, their tarballs, and their receipts.
 

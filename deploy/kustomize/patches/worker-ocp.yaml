@@ -278,7 +278,7 @@
     displayName: Worker Queue
     name: WORKER_OCP_WORKER_QUEUE
     required: true
-    value: 'ocp,ingress'
+    value: 'ocp'
 - op: add
   path: /parameters/-
   value:

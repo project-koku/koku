@@ -138,6 +138,7 @@ class IngressStagingTests(MasuTestCase):
         row.refresh_from_db()
         self.assertEqual(row.state, IngressStagingState.PENDING)
         self.assertIsNone(row.claim_token)
+        self.assertIsNone(row.reconciled_at)
         self.assertEqual(row.attempts, 1)
         self.assertIn("ValueError", row.last_error)
         self.assertGreaterEqual(row.not_before, before + timedelta(minutes=1) - timedelta(seconds=2))
@@ -162,6 +163,7 @@ class IngressStagingTests(MasuTestCase):
         self.assertEqual(update_kwargs["state"], IngressStagingState.PENDING)
         self.assertEqual(update_kwargs["last_error"], "RuntimeError: race")
         self.assertIsNone(update_kwargs["claim_token"])
+        self.assertIsNone(update_kwargs["reconciled_at"])
         expected_not_before = timezone.now() + timedelta(minutes=2)
         self.assertAlmostEqual(
             update_kwargs["not_before"].timestamp(),
@@ -178,7 +180,7 @@ class IngressStagingTests(MasuTestCase):
             attempts=settings.MAX_UPDATE_RETRIES,
             claim_token=uuid.uuid4(),
         )
-        with patch("masu.external.downloader.ocp.payload_landing.reconcile.celery_app.send_task") as mock_enqueue:
+        with patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue:
             reconcile_ingress_staging()
 
         mock_enqueue.assert_not_called()
@@ -197,7 +199,7 @@ class IngressStagingTests(MasuTestCase):
             attempts=1,
             claim_token=uuid.uuid4(),
         )
-        with patch("masu.external.downloader.ocp.payload_landing.reconcile.celery_app.send_task") as mock_enqueue:
+        with patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue:
             reconcile_ingress_staging()
 
         mock_enqueue.assert_not_called()
@@ -214,6 +216,30 @@ class IngressStagingTests(MasuTestCase):
         row.save(update_fields=["claimed_at"])
         self.assertIsNone(claim_ingress_staging_row(row.request_id))
 
+    def test_reconcile_enqueues_after_release_for_retry(self):
+        """Test that delayed pending rows are published once backoff and grace pass."""
+        row = self._pending_row(
+            "retry-pending",
+            state=IngressStagingState.PROCESSING,
+            attempts=1,
+            claim_token=uuid.uuid4(),
+            claimed_at=timezone.now() - timedelta(minutes=10),
+            reconciled_at=timezone.now() - timedelta(minutes=5),
+        )
+        release_for_retry(row.request_id, row.claim_token, RuntimeError("transient"))
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PENDING)
+        self.assertIsNone(row.reconciled_at)
+        row.not_before = timezone.now() - timedelta(minutes=1)
+        row.save(update_fields=["not_before"])
+        with patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue:
+            reconcile_ingress_staging()
+        mock_enqueue.assert_called_once_with(
+            PROCESS_STAGED_INGRESS_TASK,
+            args=[row.request_id],
+            queue=get_customer_queue(self.schema, OCPQueue),
+        )
+
     def test_reconcile_enqueues_stale_rows_only(self):
         """Test that the beat skips fresh pending rows and rows waiting on backoff."""
         stale = self._pending_row("stale-row")
@@ -225,7 +251,7 @@ class IngressStagingTests(MasuTestCase):
             claimed_at=timezone.now() - timedelta(hours=3),
             attempts=1,
         )
-        with patch("masu.external.downloader.ocp.payload_landing.reconcile.celery_app.send_task") as mock_enqueue:
+        with patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue:
             reconcile_ingress_staging()
 
         enqueued = [enqueued_call.kwargs["args"][0] for enqueued_call in mock_enqueue.call_args_list]
@@ -240,7 +266,7 @@ class IngressStagingTests(MasuTestCase):
             claimed_at=timezone.now() - timedelta(hours=3),
             attempts=1,
         )
-        with patch("masu.external.downloader.ocp.payload_landing.reconcile.celery_app.send_task") as mock_enqueue:
+        with patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task") as mock_enqueue:
             reconcile_ingress_staging()
             reconcile_ingress_staging()
 
@@ -251,7 +277,7 @@ class IngressStagingTests(MasuTestCase):
         """Test that a broker error on one row does not fail the reconciler."""
         self._pending_row("broker-down")
         with patch(
-            "masu.external.downloader.ocp.payload_landing.reconcile.celery_app.send_task",
+            "masu.external.downloader.ocp.payload_landing.register.celery_app.send_task",
             side_effect=KombuOperationalError("broker down"),
         ):
             reconcile_ingress_staging()
@@ -267,7 +293,7 @@ class IngressStagingTests(MasuTestCase):
             attempts=1,
             claim_token=uuid.uuid4(),
         )
-        with patch("masu.external.downloader.ocp.payload_landing.reconcile.celery_app.send_task"):
+        with patch("masu.external.downloader.ocp.payload_landing.register.celery_app.send_task"):
             reconcile_ingress_staging()
 
         row.refresh_from_db()
@@ -607,7 +633,11 @@ class IngressStagingTests(MasuTestCase):
         self.assertEqual(row.cluster_id, "cluster-1")
         self.assertEqual(row.payload["b64_identity"], "secret-identity")
         mock_delete.assert_called_once_with(request_id, [pending_key], {})
-        mock_enqueue.assert_called_once_with(PROCESS_STAGED_INGRESS_TASK, args=[request_id], queue="ingress")
+        mock_enqueue.assert_called_once_with(
+            PROCESS_STAGED_INGRESS_TASK,
+            args=[request_id],
+            queue=get_customer_queue(self.schema, OCPQueue),
+        )
         mock_count.set.assert_called_once_with(1)
         self.assertGreater(mock_age.set.call_args.args[0], 0)
 

@@ -9,17 +9,16 @@ from django.conf import settings
 from django.db.models import Min
 from django.db.models import Q
 from django.utils import timezone
-from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
-from common.queues import IngressQueue
+from common.queues import OCPQueue
 from koku import celery_app
 from masu.external.downloader.ocp.payload_landing.claim import processing_reclaimable_q
 from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_BEAT_GRACE
 from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_LEASE
 from masu.external.downloader.ocp.payload_landing.constants import INGRESS_STAGING_RECONCILE_BATCH
-from masu.external.downloader.ocp.payload_landing.constants import PROCESS_STAGED_INGRESS_TASK
 from masu.external.downloader.ocp.payload_landing.constants import RECONCILE_INGRESS_STAGING_TASK
+from masu.external.downloader.ocp.payload_landing.register import _enqueue_staged_ingress
 from masu.external.downloader.ocp.payload_landing.register import _register_pending_markers
 from masu.prometheus_stats import INGRESS_STAGING_FAILED
 from masu.prometheus_stats import INGRESS_STAGING_OLDEST_AGE
@@ -66,8 +65,8 @@ def _fail_exhausted_expired_leases(now):
     stuck.update(state=IngressStagingState.FAILED, last_error=message, claim_token=None)
 
 
-def _claimable_request_ids(now):
-    """Return request ids the eager enqueue did not finish.
+def _claimable_rows(now):
+    """Return staging rows the eager enqueue did not finish.
 
     Pending rows younger than the beat grace are left for the in-flight task.
     Rows already published by this reconciler stay ineligible for one lease.
@@ -78,12 +77,14 @@ def _claimable_request_ids(now):
     )
     expired_lease = processing_reclaimable_q(now)
     attempts_remaining = Q(attempts__lt=settings.MAX_UPDATE_RETRIES) | Q(attempts__isnull=True)
+    has_tar = Q(s3_key__isnull=False)
     return list(
-        IngressStagingPayload.objects.filter(pending | expired_lease)
+        IngressStagingPayload.objects.filter(has_tar)
+        .filter(pending | expired_lease)
         .filter(attempts_remaining)
         .filter(_recently_reconciled(now))
         .order_by("stored_at")
-        .values_list("request_id", flat=True)[:INGRESS_STAGING_RECONCILE_BATCH]
+        .values("request_id", "org_id", "account")[:INGRESS_STAGING_RECONCILE_BATCH]
     )
 
 
@@ -105,7 +106,7 @@ def _publish_ingress_staging_gauges(now):
     INGRESS_STAGING_OLDEST_AGE.set(max((now - oldest).total_seconds(), 0))
 
 
-@celery_app.task(name=RECONCILE_INGRESS_STAGING_TASK, queue=IngressQueue.DEFAULT)
+@celery_app.task(name=RECONCILE_INGRESS_STAGING_TASK, queue=OCPQueue.DEFAULT)
 def reconcile_ingress_staging():
     """Register pending S3 markers, then enqueue rows the eager handoff did not finish.
 
@@ -113,23 +114,19 @@ def reconcile_ingress_staging():
     that upsert succeeds. A successful row publish sets ``reconciled_at``. That
     row is not published again until the lease passes, which is the same window
     used for a dropped worker. ``enqueued_at`` is reserved for OCP line-item handoff.
+
+    ``claim_ingress_staging_row`` still enforces ``not_before``, attempt limits,
+    and claim tokens when the published task runs.
     """
     now = timezone.now()
     _publish_ingress_staging_gauges(now)
     _register_pending_markers(now)
     _fail_exhausted_expired_leases(now)
-    request_ids = _claimable_request_ids(now)
-    LOG.info(log_json(msg="reconciling staged ingress payloads", count=len(request_ids)))
-    for request_id in request_ids:
-        try:
-            celery_app.send_task(PROCESS_STAGED_INGRESS_TASK, args=[request_id], queue=IngressQueue.DEFAULT)
-        except KombuOperationalError as error:
-            LOG.warning(
-                log_json(
-                    request_id,
-                    msg="failed to enqueue staged ingress reconciler task",
-                    error=type(error).__name__,
-                )
-            )
+    rows = _claimable_rows(now)
+    LOG.info(log_json(msg="reconciling staged ingress payloads", count=len(rows)))
+    for row in rows:
+        request_id = row["request_id"]
+        context = {"org_id": row["org_id"], "account": row["account"]}
+        if not _enqueue_staged_ingress(request_id, context):
             continue
         _record_reconciler_enqueue(request_id, now)

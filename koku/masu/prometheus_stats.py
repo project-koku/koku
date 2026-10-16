@@ -151,11 +151,6 @@ OCP_PENALTY_BACKLOG = Gauge(
     "Number of celery tasks in the OCP_penalty queue",
     multiprocess_mode="livesum",
 )
-INGRESS_BACKLOG = Gauge(
-    "ingress_backlog",
-    "Number of celery tasks in the ingress staging queue",
-    multiprocess_mode="livesum",
-)
 INGRESS_STAGING_PENDING = Gauge(
     "ingress_staging_pending",
     "Number of ingress staging rows waiting to be claimed",
@@ -216,7 +211,6 @@ QUEUES = {
     "ocp": OCP_BACKLOG,
     "ocp_xl": OCP_XL_BACKLOG,
     "ocp_penalty": OCP_PENALTY_BACKLOG,
-    "ingress": INGRESS_BACKLOG,
     "hcs": HCS_BACKLOG,
     "subs_extraction": SUBS_EXTRACTION_BACKLOG,
     "subs_transmission": SUBS_TRANSMISSION_BACKLOG,
