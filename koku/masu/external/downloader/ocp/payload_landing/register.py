@@ -34,7 +34,7 @@ LOG = logging.getLogger(__name__)
 
 
 def _staging_celery_queue(context=None):
-    """Route ingress staging tasks to the same OCP worker pool as report processing."""
+    """Route ingress staging tasks to the customer OCP worker pool."""
     if context:
         schema = context.get("schema")
         if not schema and context.get("org_id"):
