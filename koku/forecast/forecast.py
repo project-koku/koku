@@ -160,7 +160,7 @@ class Forecast:
         """Train on base-currency costs and apply the current month's rate to predictions."""
         return (
             is_feature_flag_enabled_by_schema(
-                self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True
+                self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=False
             )
             and self.currency
         )
