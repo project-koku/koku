@@ -19,7 +19,6 @@ from django_tenants.utils import tenant_context
 from api.currency.exceptions import ExchangeRateNotFound
 from api.currency.utils import build_monthly_rate_annotation
 from api.currency.utils import get_monthly_exchange_rate_map
-from api.currency.utils import validate_exchange_rate_coverage
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.view import AWSCostView
 from api.report.ocp.view import OCPCostView
@@ -39,8 +38,8 @@ class AnnotationBuilderTest(TestCase):
         self.assertIsInstance(result, Subquery)
 
 
-class ValidateExchangeRateCoverageTest(MasuTestCase):
-    """Tests for validate_exchange_rate_coverage()."""
+class GetMonthlyExchangeRateMapTest(MasuTestCase):
+    """Tests for get_monthly_exchange_rate_map()."""
 
     def test_raises_when_currency_completely_missing(self):
         """Raises ExchangeRateNotFound when no MER rows exist for a base currency."""
@@ -48,7 +47,7 @@ class ValidateExchangeRateCoverageTest(MasuTestCase):
             schema_context(self.schema),
             self.assertRaises(ExchangeRateNotFound),
         ):
-            validate_exchange_rate_coverage({"GBP"}, "EUR", date(2026, 1, 1), date(2026, 1, 31))
+            get_monthly_exchange_rate_map({"GBP"}, "EUR", date(2026, 1, 1), date(2026, 1, 31))
 
     def test_raises_when_monthly_gap_exists(self):
         """Raises ExchangeRateNotFound when a month has no rate for a covered currency."""
@@ -61,7 +60,7 @@ class ValidateExchangeRateCoverageTest(MasuTestCase):
                 rate_type="static",
             )
             with self.assertRaises(ExchangeRateNotFound):
-                validate_exchange_rate_coverage({"GBP"}, "EUR", date(2026, 1, 1), date(2026, 2, 1))
+                get_monthly_exchange_rate_map({"GBP"}, "EUR", date(2026, 1, 1), date(2026, 2, 1))
 
     def test_passes_when_all_months_covered(self):
         """No exception when every month in the range has an MER row."""
@@ -74,7 +73,7 @@ class ValidateExchangeRateCoverageTest(MasuTestCase):
                     exchange_rate=Decimal("1.17"),
                     rate_type="static",
                 )
-            validate_exchange_rate_coverage({"GBP"}, "EUR", date(2026, 1, 1), date(2026, 2, 1))
+            get_monthly_exchange_rate_map({"GBP"}, "EUR", date(2026, 1, 1), date(2026, 2, 1))
 
     def test_rate_map_returns_rates_and_identity(self):
         """get_monthly_exchange_rate_map returns DB rates and target-currency identity rates."""
@@ -265,23 +264,25 @@ class QueryHandlerFeatureFlagTest(MasuTestCase):
         mock_flag.assert_called_with(handler.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True)
 
     @patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=True)
-    @patch("api.report.queries.validate_exchange_rate_coverage")
-    def test_initialize_response_output(self, mock_validate, mock_flag):
+    @patch("api.report.queries.get_monthly_exchange_rate_map")
+    def test_initialize_response_output(self, mock_get_monthly_exchange_rate_map, mock_flag):
         """_initialize_response_output includes currency and calls validation (flag ON)."""
         handler = self._make_ocp_handler()
         output = handler._initialize_response_output(handler.parameters)
         self.assertIn("currency", output)
-        mock_validate.assert_called_once()
+        mock_get_monthly_exchange_rate_map.assert_called_once()
         mock_flag.assert_called_with(handler.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True)
 
     @patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=False)
-    @patch("api.report.queries.validate_exchange_rate_coverage")
-    def test_initialize_response_output_skips_validation_when_flag_off(self, mock_validate, mock_flag):
-        """_initialize_response_output skips validate_exchange_rate_coverage when flag is off."""
+    @patch("api.report.queries.get_monthly_exchange_rate_map")
+    def test_initialize_response_output_skips_validation_when_flag_off(
+        self, mock_get_monthly_exchange_rate_map, mock_flag
+    ):
+        """_initialize_response_output skips get_monthly_exchange_rate_map when flag is off."""
         handler = self._make_ocp_handler()
         output = handler._initialize_response_output(handler.parameters)
         self.assertIn("currency", output)
-        mock_validate.assert_not_called()
+        mock_get_monthly_exchange_rate_map.assert_not_called()
         mock_flag.assert_called_with(handler.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True)
 
     @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False)

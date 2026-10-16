@@ -195,13 +195,3 @@ def get_monthly_exchange_rate_map(base_currencies, target_currency, start_date, 
             raise ExchangeRateNotFound([base], target_currency, start_month, end_month, missing_months=gaps)
 
     return rates_by_currency
-
-
-def validate_exchange_rate_coverage(base_currencies, target_currency, start_date, end_date):
-    """Check that MonthlyExchangeRate rows exist for every base currency and every month in the range.
-
-    Raises ExchangeRateNotFound if:
-    - A base currency is completely missing from MER
-    - A base currency has rates for some months but not all months in the range
-    """
-    get_monthly_exchange_rate_map(base_currencies, target_currency, start_date, end_date)
