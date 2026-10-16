@@ -2,13 +2,8 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Parity tests for reading OCP CPU/memory capacity from the by-node summary.
-
-``OCP_CAPACITY_BY_NODE_SUMMARY_FLAG`` reads capacity for CPU and memory reports
-from ``reporting_ocp_pod_summary_by_node_p`` instead of the daily summary when
-every filter can be applied to it.  Report output must be identical with the
-flag on and off.
-"""
+"""Tests for reading OCP CPU/memory capacity from the by-node summary."""
+from contextlib import nullcontext
 from unittest.mock import patch
 
 from django.db import connection
@@ -25,8 +20,6 @@ from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
 from api.report.ocp.view import OCPVolumeView
-from masu.processor import OCP_CAPACITY_BY_NODE_SUMMARY_FLAG
-from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
 from reporting.provider.ocp.models import OCPPodSummaryByNodeP
 
 FLAG_TARGET = "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema"
@@ -35,7 +28,7 @@ DAILY_SUMMARY_TABLE = '"reporting_ocpusagelineitem_daily_summary"'
 
 
 class OCPCapacityByNodeSummaryTest(IamTestCase):
-    """Assert the by-node capacity source never changes CPU/memory report output."""
+    """Assert capacity uses the by-node source only for supported shapes."""
 
     LAST_MONTH = "filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly"
     DAILY = "filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=daily"
@@ -55,32 +48,31 @@ class OCPCapacityByNodeSummaryTest(IamTestCase):
         self.cluster_alias = row["cluster_alias"]
         self.node = row["node"]
 
-    def _run(self, view, url, by_node_enabled, single_scan_enabled=False):
-        def _side_effect(schema, feature_flag, *args, **kwargs):
-            if feature_flag == OCP_CAPACITY_BY_NODE_SUMMARY_FLAG:
-                return by_node_enabled
-            if feature_flag == OCP_CAPACITY_SINGLE_SCAN_FLAG:
-                return single_scan_enabled
-            return False
-
-        with patch(FLAG_TARGET, side_effect=_side_effect):
+    def _run(self, view, url, use_by_node=True):
+        with patch(FLAG_TARGET, return_value=False):
             query_params = self.mocked_query_params(url, view, path=self.OCP_PATH)
             handler = OCPReportQueryHandler(query_params)
-            with CaptureQueriesContext(connection) as captured:
+            table = (
+                nullcontext()
+                if use_by_node
+                else patch.object(handler, "_capacity_query_table", return_value=handler._mapper.query_table)
+            )
+            with table, CaptureQueriesContext(connection) as captured:
                 output = handler.execute_query()
         return output, [query["sql"] for query in captured.captured_queries]
 
-    def _assert_parity(self, view, url, single_scan_enabled=False):
-        legacy, _ = self._run(view, url, by_node_enabled=False, single_scan_enabled=single_scan_enabled)
-        by_node, sql = self._run(view, url, by_node_enabled=True, single_scan_enabled=single_scan_enabled)
-        msg = f"by-node capacity changed output for {view.__name__} {url}"
-        self.assertEqual(legacy.get("data"), by_node.get("data"), msg=msg)
-        self.assertEqual(legacy.get("total"), by_node.get("total"), msg=msg)
-        self.assertTrue(legacy.get("total", {}).get("capacity"), msg=msg)
+    def _assert_capacity_report(self, view, url):
+        report, sql = self._run(view, url)
+        daily_report, _ = self._run(view, url, use_by_node=False)
+        msg = f"by-node capacity report failed for {view.__name__} {url}"
+        self.assertEqual(daily_report.get("data"), report.get("data"), msg=msg)
+        self.assertEqual(daily_report.get("total"), report.get("total"), msg=msg)
+        self.assertIn("data", report, msg=msg)
+        self.assertTrue(report.get("total", {}).get("capacity"), msg=msg)
         return sql
 
-    def test_parity_for_supported_shapes(self):
-        """CPU and memory reports return the same output when capacity reads the by-node summary."""
+    def test_supported_shapes_read_by_node_summary(self):
+        """CPU and memory capacity reads the by-node summary for supported filters."""
         filters = [
             "",
             "&group_by[project]=*",
@@ -94,12 +86,11 @@ class OCPCapacityByNodeSummaryTest(IamTestCase):
         for view in (OCPCpuView, OCPMemoryView):
             for time_filter in (self.LAST_MONTH, self.DAILY):
                 for extra in filters:
-                    for single_scan in (False, True):
-                        url = f"?{time_filter}{extra}"
-                        with self.subTest(view=view.__name__, url=url, single_scan=single_scan):
-                            sql = self._assert_parity(view, url, single_scan_enabled=single_scan)
-                            self.assertTrue(any(BY_NODE_TABLE in q for q in sql), msg=url)
-                            self.assertFalse(any(DAILY_SUMMARY_TABLE in q for q in sql), msg=url)
+                    url = f"?{time_filter}{extra}"
+                    with self.subTest(view=view.__name__, url=url):
+                        sql = self._assert_capacity_report(view, url)
+                        self.assertTrue(any(BY_NODE_TABLE in q for q in sql), msg=url)
+                        self.assertFalse(any(DAILY_SUMMARY_TABLE in q for q in sql), msg=url)
 
     def test_unsupported_filters_keep_daily_summary(self):
         """Filters the by-node summary cannot express keep reading the daily summary."""
@@ -111,10 +102,9 @@ class OCPCapacityByNodeSummaryTest(IamTestCase):
         ]
         for view, url in cases:
             with self.subTest(view=view.__name__, url=url):
-                legacy, _ = self._run(view, url, by_node_enabled=False)
-                by_node, sql = self._run(view, url, by_node_enabled=True)
-                self.assertEqual(legacy.get("data"), by_node.get("data"))
-                self.assertEqual(legacy.get("total"), by_node.get("total"))
+                report, sql = self._run(view, url)
+                self.assertIn("data", report)
+                self.assertTrue(report.get("total", {}).get("capacity"))
                 capacity_sql = [q for q in sql if "capacity" in q]
                 self.assertTrue(capacity_sql, msg=url)
                 self.assertFalse(any(BY_NODE_TABLE in q and "capacity" in q for q in capacity_sql), msg=url)
@@ -122,13 +112,13 @@ class OCPCapacityByNodeSummaryTest(IamTestCase):
     def test_volume_reports_keep_daily_summary(self):
         """Volume capacity is not stored in the by-node summary."""
         url = f"?{self.LAST_MONTH}&group_by[project]=*"
-        _, sql = self._run(OCPVolumeView, url, by_node_enabled=True)
+        _, sql = self._run(OCPVolumeView, url)
         self.assertFalse(any(BY_NODE_TABLE in q for q in sql))
         self.assertTrue(any(DAILY_SUMMARY_TABLE in q and "capacity" in q for q in sql))
 
-    def test_flag_off_reads_daily_summary(self):
-        """With the flag off, capacity reads the daily summary as before."""
-        _, sql = self._run(OCPCpuView, f"?{self.LAST_MONTH}&group_by[project]=*", by_node_enabled=False)
+    def test_project_filter_reads_daily_summary(self):
+        """A project filter cannot be evaluated on the by-node summary."""
+        _, sql = self._run(OCPCpuView, f"?{self.LAST_MONTH}&group_by[project]=*&filter[project]=a")
         self.assertFalse(any(BY_NODE_TABLE in q for q in sql))
         self.assertTrue(any(DAILY_SUMMARY_TABLE in q and "capacity" in q for q in sql))
 
