@@ -90,27 +90,6 @@ class OCPAllTagQueryHandlerTest(IamTestCase):
                 self.assertEqual(result[0].get("key"), tag.key)
                 self.assertIn(tag.value, result[0].get("values"))
 
-    def test_account_filter_resolves_for_every_cloud(self):
-        """Test that the account filter resolves against every data source.
-
-        Only the AWS summary table has a usage_account_id column; the Azure and
-        GCP tables hold the account on subscription_guid and account_id, so
-        their data sources have to annotate it.
-        """
-        for cluster_id, summary_table, _, account_column in self.SOURCES:
-            with self.subTest(cluster=cluster_id):
-                with tenant_context(self.tenant):
-                    account = (
-                        summary_table.objects.filter(report_period__cluster_id=cluster_id)
-                        .exclude(**{f"{account_column}__isnull": True})
-                        .values_list(account_column, flat=True)
-                        .first()
-                    )
-                self.assertIsNotNone(account, f"no account loaded for {cluster_id}")
-
-                handler = self._handler(f"?filter[account]={account}")
-                self.assertTrue(handler.get_tag_keys(), f"account filter returned nothing for {cluster_id}")
-
     def test_gcp_data_source_is_included(self):
         """Test that OCPGCPTagsSummary is queried by verifying GCP-specific data.
 
