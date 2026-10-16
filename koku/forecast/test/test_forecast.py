@@ -1050,10 +1050,10 @@ class ForecastExchangeRateTest(IamTestCase):
         self.assertEqual(len(ocp_ann["infra_exchange_rate"].cases), 2)
         self.assertLess(len(aws_ann["exchange_rate"].cases), len(fat_codes))
 
-    @patch("forecast.forecast.validate_exchange_rate_coverage")
+    @patch("forecast.forecast.get_monthly_exchange_rate_map")
     @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=False)
-    def test_predict_skips_validation_when_flag_off(self, _, mock_validate):
-        """predict() does not call validate_exchange_rate_coverage when flag is disabled."""
+    def test_predict_skips_validation_when_flag_off(self, _, mock_get_monthly_exchange_rate_map):
+        """predict() does not call get_monthly_exchange_rate_map when flag is disabled."""
         dh = DateHelper()
         expected = [
             {
@@ -1071,7 +1071,7 @@ class ForecastExchangeRateTest(IamTestCase):
         with patch("forecast.forecast.AWSForecast.get_data", return_value=mock_qset):
             instance.predict()
 
-        mock_validate.assert_not_called()
+        mock_get_monthly_exchange_rate_map.assert_not_called()
 
 
 class ForecastStaticRateTest(IamTestCase):
