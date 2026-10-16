@@ -2,7 +2,8 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Regression coverage for the flagged OCP ranked-project delta lookup."""
+"""Regression coverage for the OCP ranked-project delta lookup."""
+from decimal import Decimal
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import uuid4
@@ -16,13 +17,11 @@ from api.report.ocp.view import OCPCpuView
 from api.report.queries import ReportQueryHandler
 from api.utils import DateHelper
 from reporting.models import OCPCostSummaryByProjectP
-
-
-LIMITED_DELTA_FLAG = "cost-management.backend.ocp_report_limited_delta"
+from reporting.provider.ocp.models import OCPCluster
 
 
 class OCPRankedProjectDeltaTest(IamTestCase):
-    """The optional optimization must not change report results."""
+    """The bounded lookup must retain selected project deltas."""
 
     cluster = "ranked-delta-cluster"
     url = (
@@ -36,6 +35,9 @@ class OCPRankedProjectDeltaTest(IamTestCase):
         super().setUp()
         dates = DateHelper()
         with tenant_context(self.tenant):
+            source_uuid = OCPCluster.objects.values_list("provider_id", flat=True).first()
+            self.assertIsNotNone(source_uuid, "test data has no OCP source")
+            OCPCluster.objects.create(cluster_id=self.cluster, provider_id=source_uuid)
             for usage_start, namespace, raw_cost in (
                 (dates.this_month_start.date(), "ranked", 100),
                 (dates.this_month_start.date(), "not-ranked", 50),
@@ -52,12 +54,8 @@ class OCPRankedProjectDeltaTest(IamTestCase):
                     usage_end=usage_start,
                     infrastructure_raw_cost=raw_cost,
                     raw_currency="USD",
+                    source_uuid_id=source_uuid,
                 )
-
-    @staticmethod
-    def _flag_enabled(_schema, feature_flag, dev_fallback=False):
-        """Enable only the feature under test at its import-site seam."""
-        return feature_flag == LIMITED_DELTA_FLAG
 
     def _handler(self, url=None, view=OCPCostView, path="/api/cost-management/v1/reports/openshift/costs/"):
         params = self.mocked_query_params(url or self.url, view, path=path)
@@ -66,10 +64,13 @@ class OCPRankedProjectDeltaTest(IamTestCase):
     def _execute(self):
         return self._handler().execute_query()
 
-    def test_flagged_ranked_delta_matches_legacy_and_filters_previous_projects(self):
+    def test_ranked_delta_filters_previous_projects(self):
         """Only returned projects are read for their prior-period row deltas."""
-        with patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False):
-            legacy = self._execute()
+        legacy_handler = self._handler()
+        with patch.object(
+            legacy_handler, "_get_previous_rows_query", side_effect=lambda previous_query, _: previous_query
+        ):
+            legacy = legacy_handler.execute_query()
 
         previous_rows_queries = []
         original_get_previous_rows_query = OCPReportQueryHandler._get_previous_rows_query
@@ -81,7 +82,7 @@ class OCPRankedProjectDeltaTest(IamTestCase):
 
         with patch(
             "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema",
-            side_effect=self._flag_enabled,
+            return_value=False,
         ), patch.object(
             OCPReportQueryHandler,
             "_get_previous_rows_query",
@@ -90,12 +91,19 @@ class OCPRankedProjectDeltaTest(IamTestCase):
         ):
             handler = self._handler()
             self.assertTrue(
-                handler._limited_delta_for_ranked_projects_enabled,
+                handler._is_limited_delta_for_ranked_projects_shape,
                 (handler._report_type, handler.resolution, handler.parameters.parameters, handler._get_group_by()),
             )
             optimized = handler.execute_query()
 
-        self.assertEqual(optimized, legacy)
+        self.assertEqual(legacy, optimized)
+        self.assertTrue(optimized["data"])
+        returned_deltas = {
+            project["project"]: project["values"][0]["delta_value"]
+            for date in optimized["data"]
+            for project in date["projects"]
+        }
+        self.assertEqual(returned_deltas, {"No-project": Decimal("50"), "ranked": Decimal("20")})
         self.assertEqual(1, len(previous_rows_queries))
         with tenant_context(self.tenant):
             self.assertCountEqual(
@@ -104,11 +112,11 @@ class OCPRankedProjectDeltaTest(IamTestCase):
                 "The flagged previous-period lookup must be restricted to the ranked projects.",
             )
 
-    def test_flagged_lookup_includes_null_projects(self):
+    def test_ranked_lookup_includes_null_projects(self):
         """A selected unallocated project must not be lost to SQL ``IN`` null semantics."""
         with patch(
             "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema",
-            side_effect=self._flag_enabled,
+            return_value=False,
         ):
             handler = self._handler()
             limited_query = handler._get_previous_rows_query(
@@ -119,7 +127,7 @@ class OCPRankedProjectDeltaTest(IamTestCase):
         self.assertIn('"namespace" IN', query_sql)
         self.assertIn('"namespace" IS NULL', query_sql)
 
-    def test_flagged_lookup_excludes_legacy_only_request_shapes(self):
+    def test_ranked_lookup_excludes_ineligible_request_shapes(self):
         """Pagination, resolution, and grouping guards keep unsafe shapes unchanged."""
         urls = (
             self.url.replace("&filter[offset]=0", ""),
@@ -128,41 +136,41 @@ class OCPRankedProjectDeltaTest(IamTestCase):
         )
         with patch(
             "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema",
-            side_effect=self._flag_enabled,
+            return_value=False,
         ):
             for url in urls:
                 with self.subTest(url=url):
-                    self.assertFalse(self._handler(url)._limited_delta_for_ranked_projects_enabled)
+                    self.assertFalse(self._handler(url)._is_limited_delta_for_ranked_projects_shape)
 
-    def test_flagged_lookup_excludes_category_and_csv_shapes(self):
+    def test_ranked_lookup_excludes_category_and_csv_shapes(self):
         """Mapped category labels and CSV output retain the legacy lookup."""
         with patch(
             "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema",
-            side_effect=self._flag_enabled,
+            return_value=False,
         ):
             with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as categories:
                 categories.values_list.return_value.distinct.return_value = ["Platform"]
                 category_handler = self._handler(self.url.replace("&order_by", "&category=*&order_by"))
-            self.assertFalse(category_handler._limited_delta_for_ranked_projects_enabled)
+            self.assertFalse(category_handler._is_limited_delta_for_ranked_projects_shape)
 
             with patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock) as accept_type:
                 accept_type.return_value = "text/csv"
                 csv_handler = self._handler()
-            self.assertFalse(csv_handler._limited_delta_for_ranked_projects_enabled)
+            self.assertFalse(csv_handler._is_limited_delta_for_ranked_projects_shape)
 
-    def test_flagged_lookup_excludes_non_cost_reports(self):
+    def test_ranked_lookup_excludes_non_cost_reports(self):
         """OCP capacity reports cannot opt in even when their URL shape matches."""
         cpu_url = self.url.replace("?delta=cost&", "?")
         with patch(
             "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema",
-            side_effect=self._flag_enabled,
+            return_value=False,
         ):
             handler = self._handler(
                 cpu_url,
                 view=OCPCpuView,
                 path="/api/cost-management/v1/reports/openshift/cpu/",
             )
-        self.assertFalse(handler._limited_delta_for_ranked_projects_enabled)
+        self.assertFalse(handler._is_limited_delta_for_ranked_projects_shape)
 
     def test_base_delta_lookup_hook_keeps_the_legacy_queryset(self):
         """Providers which do not opt in retain the pre-existing delta lookup."""
