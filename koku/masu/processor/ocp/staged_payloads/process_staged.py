@@ -251,6 +251,41 @@ def _tracing_id(request_id, report_metas):
     return request_id
 
 
+def _process_staged_line_items(request_id, claim_token, report_metas, heartbeat):
+    """Download CSVs, run line items, and mark the staging row processed when done."""
+    if heartbeat.lost:
+        return None
+    report_dir, local_metas = materialize_report_files(report_metas)
+    if heartbeat.lost:
+        LOG.info(log_json(request_id, msg="ingress staging claim lost during csv download"))
+        return report_dir
+    tracing_id = _tracing_id(request_id, local_metas)
+    outcome = processing.process_extracted_reports(request_id, local_metas, tracing_id)
+    if outcome == processing.ExtractedReportsOutcome.INCOMPLETE:
+        if heartbeat.lost:
+            return report_dir
+        release_for_retry(
+            request_id,
+            claim_token,
+            RuntimeError("staged ingress line items incomplete"),
+        )
+        return report_dir
+    if heartbeat.lost:
+        LOG.info(log_json(request_id, msg="ingress staging claim lost during line items"))
+        return report_dir
+    if mark_processed(request_id, claim_token):
+        if outcome == processing.ExtractedReportsOutcome.DEFERRED:
+            LOG.info(
+                log_json(
+                    request_id,
+                    msg="staged ingress payload processed; manifest line items deferred",
+                )
+            )
+        else:
+            LOG.info(log_json(request_id, msg="staged ingress payload processed"))
+    return report_dir
+
+
 def _run_claimed(request_id, claim_token, work):
     """Run ``work`` while the claim heartbeat is alive. Failures release the token."""
     heartbeat = _ClaimHeartbeat(request_id, claim_token)
@@ -342,27 +377,7 @@ def process_staged_ingress_reports(request_id, claim_token, report_metas):
 
     def work(heartbeat):
         nonlocal report_dir
-        if heartbeat.lost:
-            return
-        report_dir, local_metas = materialize_report_files(report_metas)
-        if heartbeat.lost:
-            LOG.info(log_json(request_id, msg="ingress staging claim lost during csv download"))
-            return
-        tracing_id = _tracing_id(request_id, local_metas)
-        if not processing.process_extracted_reports(request_id, local_metas, tracing_id):
-            if heartbeat.lost:
-                return
-            release_for_retry(
-                request_id,
-                claim_token,
-                RuntimeError("staged ingress line items incomplete"),
-            )
-            return
-        if heartbeat.lost:
-            LOG.info(log_json(request_id, msg="ingress staging claim lost during line items"))
-            return
-        if mark_processed(request_id, claim_token):
-            LOG.info(log_json(request_id, msg="staged ingress payload processed"))
+        report_dir = _process_staged_line_items(request_id, claim_token, report_metas, heartbeat)
 
     try:
         _run_claimed(request_id, claim_token, work)

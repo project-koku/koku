@@ -213,7 +213,7 @@ class ProcessStagedIngressTests(MasuTestCase):
             ),
             patch(
                 "masu.processor.ocp.staged_payloads.processing.process_extracted_reports",
-                return_value=True,
+                return_value=processing.ExtractedReportsOutcome.COMPLETE,
             ) as mock_reports,
         ):
             process_staged_ingress_reports(request_id, str(claimed.claim_token), report_metas)
@@ -252,7 +252,7 @@ class ProcessStagedIngressTests(MasuTestCase):
             ),
             patch(
                 "masu.processor.ocp.staged_payloads.processing.process_extracted_reports",
-                return_value=False,
+                return_value=processing.ExtractedReportsOutcome.INCOMPLETE,
             ),
             patch(
                 "masu.processor.ocp.staged_payloads.process_staged.mark_processed",
@@ -265,6 +265,71 @@ class ProcessStagedIngressTests(MasuTestCase):
         self.assertEqual(row.state, IngressStagingState.PENDING)
         self.assertIsNotNone(row.payload)
         self.assertIsNone(row.claim_token)
+
+    def test_line_item_task_marks_processed_when_manifest_deferred(self):
+        """Test that waiting on manifest files does not consume the failure retry budget."""
+        request_id = "line-items-deferred"
+        row = self._pending_row(request_id)
+        claimed = claim_ingress_staging_row(request_id)
+        report_metas = [
+            {
+                "schema_name": self.schema,
+                "uuid": "manifest-uuid",
+                "split_files": ["pod_usage.2026-01-01.1.abc.csv"],
+                "current_file": "file.csv",
+                "ocp_files_to_process": {
+                    "pod_usage.2026-01-01.1.abc": {"s3_key": "data/csv/pod_usage.2026-01-01.1.abc.csv"}
+                },
+            }
+        ]
+        with (
+            patch(
+                "masu.processor.ocp.staged_payloads.process_staged.heartbeat_ingress_claim",
+                return_value=True,
+            ),
+            patch(
+                "masu.processor.ocp.staged_payloads.process_staged.materialize_report_files",
+                return_value=(None, report_metas),
+            ),
+            patch(
+                "masu.processor.ocp.staged_payloads.processing.process_extracted_reports",
+                return_value=processing.ExtractedReportsOutcome.DEFERRED,
+            ),
+            patch(
+                "masu.processor.ocp.staged_payloads.process_staged.release_for_retry",
+            ) as mock_release,
+        ):
+            process_staged_ingress_reports(request_id, str(claimed.claim_token), report_metas)
+
+        mock_release.assert_not_called()
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PROCESSED)
+        self.assertIsNone(row.payload)
+
+    def test_process_extracted_reports_deferred_when_manifest_files_missing(self):
+        """Test deferred outcome when daily manifest files are not all recorded."""
+        report_metas = [
+            {
+                "daily_reports": True,
+                "manifest_id": 99,
+                "files": ["a.csv", "b.csv"],
+                "process_complete": False,
+            }
+        ]
+        with (
+            patch.object(processing.MANIFEST_ACCESSOR, "number_of_files", return_value=1),
+            patch(
+                "masu.processor.ocp.staged_payloads.processing.process_report",
+            ) as mock_process,
+            patch(
+                "masu.processor.ocp.staged_payloads.processing.summarize_manifest",
+                return_value=None,
+            ),
+        ):
+            outcome = processing.process_extracted_reports("req", report_metas, "trace")
+
+        self.assertEqual(outcome, processing.ExtractedReportsOutcome.DEFERRED)
+        mock_process.assert_not_called()
 
     def test_scheduler_worker_queue_omits_ingress(self):
         """Test that the scheduler pod is not subscribed to the ingress queue."""
