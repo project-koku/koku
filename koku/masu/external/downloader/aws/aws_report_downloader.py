@@ -26,6 +26,8 @@ from masu.exceptions import MasuProviderError
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.processor import AWS_EMPTY_SPLIT_FINALIZATION_FLAG
+from masu.processor import is_feature_flag_enabled_by_schema
 from masu.util import common as com_utils
 from masu.util.aws import common as utils
 
@@ -83,11 +85,24 @@ def get_processing_date(
         data_frame[invoice_bill].any() and start_date.month != DateHelper().now_utc.month or ingress_reports
     ) or not check_provider_setup_complete(provider_uuid):
         process_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, start_date)
+    elif data_frame.empty and _aws_empty_split_finalization_enabled(provider_uuid):
+        # Header-only CUR splits produce no archives; do not lock daily_archive_start_date
+        # via the incremental path so a sibling file with InvoiceId can still finalize.
+        process_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id) or start_date
     else:
         process_date = utils.get_or_clear_daily_s3_by_date(
             s3_csv_path, provider_uuid, start_date, end_date, manifest_id, context, tracing_id
         )
     return use_cols, time_interval, process_date
+
+
+def _aws_empty_split_finalization_enabled(provider_uuid):
+    """Return True when empty CUR splits should skip locking daily_archive_start_date."""
+    provider = Provider.objects.filter(uuid=provider_uuid).select_related("customer").first()
+    schema = provider.customer.schema_name if provider and provider.customer else None
+    if not schema:
+        return False
+    return is_feature_flag_enabled_by_schema(schema, AWS_EMPTY_SPLIT_FINALIZATION_FLAG, dev_fallback=True)
 
 
 def create_daily_archives(  # noqa C901
