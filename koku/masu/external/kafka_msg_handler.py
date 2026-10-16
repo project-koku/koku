@@ -56,6 +56,7 @@ from masu.processor import INGRESS_DEAD_LETTER_QUEUE_FLAG
 from masu.processor import INGRESS_STAGING_LISTENER_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor.ocp.staged_payloads.processing import extract_payload
+from masu.processor.ocp.staged_payloads.processing import ExtractedReportsOutcome
 from masu.processor.ocp.staged_payloads.processing import process_extracted_reports
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.processor.report_processor import ReportProcessorDBError
@@ -437,7 +438,8 @@ def process_messages(msg):
     request_id = value.get("request_id", "no_request_id")
     tracing_id = manifest_uuid or request_id
     if report_metas:
-        process_complete = process_extracted_reports(request_id, report_metas, tracing_id)
+        outcome = process_extracted_reports(request_id, report_metas, tracing_id)
+        process_complete = outcome == ExtractedReportsOutcome.COMPLETE
 
     if status and not settings.DEBUG:
         if report_metas:

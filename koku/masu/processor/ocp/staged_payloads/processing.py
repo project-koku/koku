@@ -14,6 +14,7 @@ import os
 import re
 import shutil
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from tarfile import FilterError
 from tarfile import ReadError
@@ -600,19 +601,43 @@ def report_metas_complete(report_metas):
     return all(report_meta.get("process_complete") for report_meta in report_metas)
 
 
+class ExtractedReportsOutcome(Enum):
+    """Result of line-item processing for one ingress tarball."""
+
+    COMPLETE = "complete"
+    DEFERRED = "deferred"
+    INCOMPLETE = "incomplete"
+
+
+def manifest_line_items_deferred_for_meta(report_meta):
+    """Return True when daily manifest files are not all recorded yet."""
+    if not report_meta.get("daily_reports"):
+        return False
+    manifest_id = report_meta.get("manifest_id")
+    if manifest_id is None:
+        return False
+    files = report_meta.get("files") or []
+    return len(files) != MANIFEST_ACCESSOR.number_of_files(manifest_id)
+
+
+def manifest_line_items_deferred(report_metas):
+    """Return True when line items must wait for more manifest report files."""
+    return any(manifest_line_items_deferred_for_meta(report_meta) for report_meta in report_metas)
+
+
 def process_extracted_reports(request_id, report_metas, tracing_id):
     """Run line-item processing for an extracted tarball and maybe enqueue summarization.
 
-    Returns True when every report meta is marked process_complete. Files already
-    marked complete are not processed again.
+    Returns ``ExtractedReportsOutcome.COMPLETE`` when every report meta is marked
+    process_complete. ``DEFERRED`` means this tarball is done but the manifest
+    still expects more report files (legacy listener commits the Kafka message in
+    that case). ``INCOMPLETE`` means line-item work for this tarball failed.
     """
     if not report_metas:
-        return False
+        return ExtractedReportsOutcome.INCOMPLETE
     valid_report_meta = None
     for report_meta in report_metas:
-        if report_meta.get("daily_reports") and len(report_meta.get("files")) != MANIFEST_ACCESSOR.number_of_files(
-            report_meta.get("manifest_id")
-        ):
+        if manifest_line_items_deferred_for_meta(report_meta):
             # we have not received all of the daily files yet, so don't process them
             break
         if report_meta.get("process_complete"):
@@ -634,4 +659,8 @@ def process_extracted_reports(request_id, report_metas, tracing_id):
     report_meta = valid_report_meta or report_meta
     if summary_task_id := summarize_manifest(report_meta, tracing_id):
         LOG.info(log_json(tracing_id, msg=f"Summarization celery uuid: {summary_task_id}"))
-    return process_complete
+    if process_complete:
+        return ExtractedReportsOutcome.COMPLETE
+    if manifest_line_items_deferred(report_metas):
+        return ExtractedReportsOutcome.DEFERRED
+    return ExtractedReportsOutcome.INCOMPLETE
