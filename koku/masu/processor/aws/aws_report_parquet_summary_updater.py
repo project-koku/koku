@@ -16,6 +16,7 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.processor import is_feature_cost_4403_ec2_compute_cost_enabled
+from masu.processor.tag_mapping import apply_tag_mappings
 from masu.util.common import date_range_pair
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
@@ -105,9 +106,7 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                     start, end, self._provider.uuid, current_bill_id, markup_value
                 )
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
-            accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.populate_category_summary_table(bill_ids, start_date, end_date)
-            accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
 
             # Populate ec2 compute summary table if feature is enabled for schema
             if is_feature_cost_4403_ec2_compute_cost_enabled(self._schema):
@@ -130,10 +129,7 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                     self._provider.uuid, start_date, current_bill_id, markup_value
                 )
 
-                # Update mapped tags in EC2 compute summary table
-                accessor.update_line_item_daily_summary_with_tag_mapping(
-                    month_start_date, end_date, bill_ids, table_name=ec2_compute_summary_table
-                )
+            apply_tag_mappings(self._schema, self._provider, start_date, end_date)
 
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
