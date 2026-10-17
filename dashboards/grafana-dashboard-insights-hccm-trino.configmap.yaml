@@ -866,9 +866,9 @@ data:
             "x": 0,
             "y": 29
           },
-          "id": 10,
+          "id": 28,
           "panels": [],
-          "title": "Hive Metastore",
+          "title": "Trino JVM & Pods",
           "type": "row"
         },
         {
@@ -892,17 +892,17 @@ data:
             "y": 30
           },
           "hiddenSeries": false,
-          "id": 12,
+          "id": 30,
           "legend": {
             "avg": false,
-            "current": false,
+            "current": true,
             "hideEmpty": true,
-            "hideZero": true,
-            "max": false,
+            "hideZero": false,
+            "max": true,
             "min": false,
             "show": true,
             "total": false,
-            "values": false
+            "values": true
           },
           "lines": true,
           "linewidth": 1,
@@ -922,27 +922,36 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "increase(trino_hive_s3_trinos3filesystem_awsrequestcount_totalcount_total{namespace=\"$namespace\"}[$__interval])",
+              "expr": "jvm_threads_current{namespace=\"$namespace\", job=~\"trino-.*\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "requests [{{ pod }}]",
+              "legendFormat": "{{pod}}",
               "refId": "A"
-            },
-            {
-              "expr": "increase(trino_hive_s3_trinos3filesystem_awsretrycount_totalcount_total{namespace=\"$namespace\"}[$__interval])",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "retries [{{ [pod] }}]",
-              "refId": "B"
             }
           ],
-          "thresholds": [],
+          "thresholds": [
+            {
+              "colorMode": "warning",
+              "fill": false,
+              "line": true,
+              "op": "gt",
+              "value": 3500,
+              "yaxis": "left"
+            },
+            {
+              "colorMode": "critical",
+              "fill": true,
+              "line": true,
+              "op": "gt",
+              "value": 4096,
+              "yaxis": "left"
+            }
+          ],
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "AWS S3 Requests/Retries",
+          "title": "JVM threads per pod",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -962,7 +971,225 @@ data:
               "label": null,
               "logBase": 1,
               "max": null,
+              "min": 0,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
               "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          },
+          "description": "Live JVM threads per Trino pod. Pods have a 4,096 process/thread limit (OpenShift podPidsLimit); a worker that reaches it dies with 'unable to create native thread'."
+        },
+        {
+          "aliasColors": {},
+          "bars": true,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$Datasource",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 30
+          },
+          "hiddenSeries": false,
+          "id": 32,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "hideEmpty": true,
+            "hideZero": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": false,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pluginVersion": "7.1.5",
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\", pod=~\"trino-.*\"}[10m])",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Pod restarts",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": 0,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          },
+          "description": "Container restarts per Trino pod (10 m window)."
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$Datasource",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 39
+          },
+          "hiddenSeries": false,
+          "id": 34,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "hideEmpty": true,
+            "hideZero": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pluginVersion": "7.1.5",
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [
+            {
+              "alias": "max (worker -Xmx)",
+              "color": "#F2495C",
+              "dashes": true,
+              "fill": 0,
+              "linewidth": 2
+            }
+          ],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "jvm_memory_used_bytes{namespace=\"$namespace\", job=~\"trino-.*\", area=\"heap\"}",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "used {{pod}}",
+              "refId": "A"
+            },
+            {
+              "expr": "max(jvm_memory_max_bytes{namespace=\"$namespace\", job=\"trino-worker\", area=\"heap\"})",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "max (worker -Xmx)",
+              "refId": "B"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "JVM heap used / max per pod",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "bytes",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": 0,
               "show": true
             },
             {
@@ -997,15 +1224,132 @@ data:
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 30
+            "y": 39
           },
           "hiddenSeries": false,
-          "id": 14,
+          "id": 36,
           "legend": {
             "avg": false,
             "current": false,
             "hideEmpty": true,
-            "hideZero": true,
+            "hideZero": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pluginVersion": "7.1.5",
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [
+            {
+              "alias": "limit (worker)",
+              "color": "#F2495C",
+              "dashes": true,
+              "fill": 0,
+              "linewidth": 2
+            }
+          ],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "max by (pod) (container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"trino-.*\", container=~\"trino-.*\"})",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            },
+            {
+              "expr": "max(kube_pod_container_resource_limits{namespace=\"$namespace\", pod=~\"trino-worker-.*\", resource=\"memory\"})",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "limit (worker)",
+              "refId": "B"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Container memory working set / limit",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "bytes",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": 0,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          },
+          "description": "Includes off-heap memory (threads, buffers, code cache). The kernel OOM-kills the pod at the limit."
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$Datasource",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 48
+          },
+          "hiddenSeries": false,
+          "id": 38,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "hideEmpty": true,
+            "hideZero": false,
             "max": false,
             "min": false,
             "show": true,
@@ -1030,41 +1374,19 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "increase(trino_hive_s3_trinos3filesystem_awsabortedexceptions_totalcount_total{namespace=\"$namespace\"}[$__interval])",
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"trino-.*\", container=~\"trino-.*\"}[5m]))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "aborted [{{ pod }}]",
+              "legendFormat": "{{pod}}",
               "refId": "A"
-            },
-            {
-              "expr": "increase(trino_hive_s3_trinos3filesystem_awsthrottleexceptions_totalcount_total{namespace=\"$namespace\"}[$__interval])",
-              "format": "time_series",
-              "intervalFactor": 1,
-              "legendFormat": "throttled [{{ pod }}]",
-              "refId": "B"
-            },
-            {
-              "expr": "increase(trino_hive_s3_trinos3filesystem_socketexceptions_totalcount_total{namespace=\"$namespace\"}[$__interval])",
-              "format": "time_series",
-              "intervalFactor": 1,
-              "legendFormat": "socket [{{ pod }}]",
-              "refId": "C"
-            },
-            {
-              "expr": "increase(trino_hive_s3_trinos3filesystem_sockettimeoutexceptions_totalcount_total{namespace=\"$namespace\"}[$__interval])",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "socket timeout [{{ pod }}]",
-              "refId": "D"
             }
           ],
           "thresholds": [],
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "AWS S3 Exceptions",
+          "title": "CPU usage per pod (cores)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -1084,7 +1406,7 @@ data:
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": 0,
               "show": true
             },
             {
@@ -1107,7 +1429,6 @@ data:
           "dashLength": 10,
           "dashes": false,
           "datasource": "$Datasource",
-          "description": "Average response times for AWS client requests",
           "fieldConfig": {
             "defaults": {
               "custom": {}
@@ -1119,16 +1440,16 @@ data:
           "gridPos": {
             "h": 9,
             "w": 12,
-            "x": 0,
-            "y": 39
+            "x": 12,
+            "y": 48
           },
           "hiddenSeries": false,
-          "id": 16,
+          "id": 40,
           "legend": {
             "avg": false,
             "current": false,
             "hideEmpty": true,
-            "hideZero": true,
+            "hideZero": false,
             "max": false,
             "min": false,
             "show": true,
@@ -1153,27 +1474,19 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "trino_hive_s3_trinos3filesystem_awsclientexecutetime_alltime_avg_seconds{namespace=\"$namespace\"}",
+              "expr": "sum by (pod) (rate(trino_execution_sqltaskmanager_createdtasks_totalcount_total{namespace=\"$namespace\", job=\"trino-worker\"}[5m]))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "avg. client execution [{{ pod }}]",
+              "legendFormat": "{{pod}}",
               "refId": "A"
-            },
-            {
-              "expr": "trino_hive_s3_trinos3filesystem_awsrequesttime_alltime_avg_seconds{namespace=\"$namespace\"}",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "avg. request [{{ pod }}]",
-              "refId": "B"
             }
           ],
           "thresholds": [],
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "AWS Network Latency (AVG)",
+          "title": "Tasks created per worker (per second)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -1193,7 +1506,7 @@ data:
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": 0,
               "show": true
             },
             {
@@ -1208,7 +1521,8 @@ data:
           "yaxis": {
             "align": false,
             "alignLevel": null
-          }
+          },
+          "description": "Task churn per worker; compare with thread counts to tell load from per-pod leaks."
         }
       ],
       "schemaVersion": 22,

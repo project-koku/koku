@@ -13,6 +13,7 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.currency.models import ExchangeRateDictionary
+from api.currency.utils import ensure_exchange_rate_dictionary
 from api.iam.models import Tenant
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
@@ -124,13 +125,38 @@ def replace_static_to_dynamic_monthly_rates(base_currency, target_currency, star
     populate_dynamic_monthly_rates(code=base_currency, backfill_past_months=True)
 
 
+def populate_monthly_rates_for_schema(schema_name):
+    """Populate dynamic monthly rates for one tenant schema from the shared dictionary.
+
+    ``template0`` is cloned with ``copy_data`` and does not carry a current market
+    snapshot on a fresh database. Call this after the clone commits so the new
+    schema can convert costs without waiting for the daily currency beat.
+    If ``ExchangeRateDictionary`` is empty, fetch rates first (when
+    ``CURRENCY_URL`` is set) before writing MER. Current-month rows are upserted
+    and missing months in the retention window are backfilled, matching
+    ``get_daily_currency_rates``.
+    """
+    ensure_exchange_rate_dictionary()
+    with schema_context(schema_name):
+        updated = populate_dynamic_monthly_rates(backfill_past_months=True)
+    LOG.info(
+        log_json(
+            msg="Populated monthly exchange rates for schema",
+            schema=schema_name,
+            updated=updated,
+        )
+    )
+    return updated
+
+
 def populate_dynamic_monthly_rates(code=None, backfill_past_months=False):  # noqa: C901
     """Populate dynamic MonthlyExchangeRate rows for the current month only.
 
     Past months are finalized and read-only — only the current month is written,
-    unless backfill_past_months is True (daily Celery crawl), in which case each
-    missing month in the retention window is filled from the next later existing
-    MonthlyExchangeRate for that pair. Existing rows are never overwritten.
+    unless backfill_past_months is True (daily currency task, or a new tenant
+    schema). In that case each missing month in the retention window is filled
+    from the next later existing MonthlyExchangeRate for that pair. Existing rows
+    are never overwritten.
 
     Reads the latest rates from ExchangeRateDictionary and writes dynamic
     MonthlyExchangeRate rows for each enabled currency pair. Static overrides are preserved.

@@ -307,6 +307,10 @@ def precreate_schema_partitions(schema_name, month_start):
     LOG.info(log_json(msg="pre-created partitions", schema=schema_name, month_start=month_start, **counts))
 
 
+# Bound connect/read so schema-create and the daily beat cannot hang on a stalled FX service.
+_CURRENCY_RATES_HTTP_TIMEOUT = (5, 30)
+
+
 def _fetch_and_store_exchange_rates(url):
     """Fetch exchange rates from the configured URL. Returns rate_metrics dict (empty on failure)."""
     retries = Retry(
@@ -319,7 +323,7 @@ def _fetch_and_store_exchange_rates(url):
     session.mount("https://", HTTPAdapter(max_retries=retries))
 
     try:
-        response = session.get(url)
+        response = session.get(url, timeout=_CURRENCY_RATES_HTTP_TIMEOUT)
         response.raise_for_status()
     except RequestException as e:
         LOG.error(f"Couldn't pull latest conversion rates from {url}")

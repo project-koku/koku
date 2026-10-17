@@ -9,6 +9,7 @@ import uuid
 from unittest.mock import patch
 
 from django.db import connection as conn
+from django.db import ProgrammingError
 from django.db import transaction
 from django.test import TransactionTestCase
 from django_tenants.utils import schema_context
@@ -1176,9 +1177,12 @@ class TestPrecreateMonthlyPartitions(IamTestCase):
 
     def setUp(self):
         super().setUp()
+        self.create_partitioned_table(self.PARTITIONED_TABLE_NAME)
+
+    def create_partitioned_table(self, table_name):
         _execute(
             f"""
-create table if not exists {self.SCHEMA_NAME}.{self.PARTITIONED_TABLE_NAME} (
+create table if not exists {self.SCHEMA_NAME}.{table_name} (
     id bigserial,
     usage_start date not null,
     primary key (usage_start, id)
@@ -1190,8 +1194,8 @@ partition by range (usage_start);
             ppart.get_or_create_partition(
                 {
                     "schema_name": self.SCHEMA_NAME,
-                    "table_name": f"{self.PARTITIONED_TABLE_NAME}_default",
-                    "partition_of_table_name": self.PARTITIONED_TABLE_NAME,
+                    "table_name": f"{table_name}_default",
+                    "partition_of_table_name": table_name,
                     "partition_type": PartitionedTable.RANGE,
                     "partition_col": "usage_start",
                     "partition_parameters": {"default": True},
@@ -1254,6 +1258,81 @@ partition by range (usage_start);
         self.assertEqual(counts["failed"], 1)
         self.assertEqual(counts["missing"], [f"{self.PARTITIONED_TABLE_NAME}_2031_06"])
         self.assertTrue(any("'outcome': 'failed'" in line and "boom" in line for line in logs.output))
+
+    def test_skips_tracking_record_for_dropped_parent(self):
+        """A stale default record must not prevent a live table's monthly partition from being created."""
+        stale_table = "__pg_partition_precreate_stale"
+        self.create_partitioned_table(stale_table)
+        _execute(f"drop table {self.SCHEMA_NAME}.{stale_table} cascade")
+        self.assertIsNotNone(self.partition_record(f"{stale_table}_default"))
+
+        with self.assertLogs("koku.pg_partition", "WARNING") as logs:
+            counts = ppart.precreate_monthly_partitions(
+                self.SCHEMA_NAME,
+                "2031-06-01",
+                table_names=[stale_table, self.PARTITIONED_TABLE_NAME],
+            )
+        self.assertEqual(counts["created"], 1)
+        self.assertEqual(counts["failed"], 0)
+        self.assertEqual(counts["missing"], [])
+        self.assertIsNotNone(self.partition_record(f"{self.PARTITIONED_TABLE_NAME}_2031_06"))
+        self.assertIsNone(self.partition_record(f"{stale_table}_2031_06"))
+        self.assertEqual(len(logs.output), 1)
+        self.assertIn("skipped stale default tracking records", logs.output[0])
+        self.assertIn(stale_table, logs.output[0])
+
+    def test_skips_tracking_record_when_default_name_is_reused_by_another_parent(self):
+        """A default table name alone is insufficient to identify the tracked parent."""
+        stale_table = "__pg_partition_precreate_old_parent"
+        replacement_table = "__pg_partition_precreate_new_parent"
+        self.create_partitioned_table(stale_table)
+        _execute(f"drop table {self.SCHEMA_NAME}.{stale_table} cascade")
+        _execute(
+            f"create table {self.SCHEMA_NAME}.{replacement_table} (usage_start date not null) "
+            "partition by range (usage_start)"
+        )
+        _execute(
+            f"create table {self.SCHEMA_NAME}.{stale_table}_default "
+            f"partition of {self.SCHEMA_NAME}.{replacement_table} default"
+        )
+
+        with self.assertLogs("koku.pg_partition", "WARNING") as logs:
+            counts = ppart.precreate_monthly_partitions(
+                self.SCHEMA_NAME,
+                "2031-06-01",
+                table_names=[stale_table, self.PARTITIONED_TABLE_NAME],
+            )
+        self.assertEqual(counts["created"], 1)
+        self.assertEqual(counts["failed"], 0)
+        self.assertEqual(counts["missing"], [])
+        self.assertIsNone(self.partition_record(f"{stale_table}_2031_06"))
+        self.assertIsNotNone(self.partition_record(f"{self.PARTITIONED_TABLE_NAME}_2031_06"))
+        self.assertEqual(len(logs.output), 1)
+        self.assertIn(stale_table, logs.output[0])
+
+    def test_default_lookup_error_does_not_abort_other_tables(self):
+        """A default-data lookup failure is reported without stopping another live table."""
+        other_table = "__pg_partition_precreate_after_error"
+        self.create_partitioned_table(other_table)
+        check_default_data = ppart._check_default_partition_data
+
+        def fail_one_lookup(default_partition, part_rec):
+            if default_partition.partition_of_table_name == self.PARTITIONED_TABLE_NAME:
+                raise ProgrammingError("default table missing")
+            return check_default_data(default_partition, part_rec)
+
+        with patch.object(ppart, "_check_default_partition_data", side_effect=fail_one_lookup):
+            with self.assertLogs("koku.pg_partition", "ERROR") as logs:
+                counts = ppart.precreate_monthly_partitions(
+                    self.SCHEMA_NAME,
+                    "2031-08-01",
+                    table_names=[self.PARTITIONED_TABLE_NAME, other_table],
+                )
+        self.assertEqual(counts["failed"], 1)
+        self.assertEqual(counts["created"], 1)
+        self.assertEqual(counts["missing"], [f"{self.PARTITIONED_TABLE_NAME}_2031_08"])
+        self.assertIsNotNone(self.partition_record(f"{other_table}_2031_08"))
+        self.assertTrue(any("default table missing" in line for line in logs.output))
 
     def test_rows_arriving_after_the_check_are_not_moved(self):
         """Rows that reach the default partition after the pre-check make PostgreSQL reject the create.

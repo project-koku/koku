@@ -288,7 +288,7 @@ class CurrencySettingsView(APIView):
         dynamic_codes = get_dynamic_rate_currencies()
 
         static_rates = StaticExchangeRate.objects.all()
-        serialized_rates = StaticExchangeRateSerializer(static_rates, many=True).data
+        serialized_rates = StaticExchangeRateSerializer(static_rates, many=True, context={"request": request}).data
         rates_by_base = defaultdict(list)
         for rate in serialized_rates:
             code = rate["base_currency"]

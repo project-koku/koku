@@ -1923,11 +1923,11 @@ def _precreate_partition(default_partition, part_rec, lock_timeout):
     and the whole transaction rolls back, so there is no detach/move/reattach and no half-created state.
     Rows in the default partition are left to the on-demand path, which moves them.
     """
-    # Cheap early skip: avoids taking the parent-table lock when the default partition already has rows.
-    restore_parameters, _ = _check_default_partition_data(default_partition, copy.deepcopy(part_rec))
-    if restore_parameters:
-        return "skipped_default_data", None
     try:
+        # Cheap early skip: avoids taking the parent-table lock when the default partition already has rows.
+        restore_parameters, _ = _check_default_partition_data(default_partition, copy.deepcopy(part_rec))
+        if restore_parameters:
+            return "skipped_default_data", None
         with _session_lock_timeout(lock_timeout):
             with transaction.atomic():
                 PartitionedTable.objects.create(**part_rec)
@@ -1993,6 +1993,9 @@ def precreate_monthly_partitions(schema_name, month_start, lock_timeout=PRECREAT
 
     A partition counts as existing only when its tracking record is active and has exactly this month's
     range; a record with the same name but another range or detached is reported as mismatched_existing.
+    Stale default tracking records whose tables are no longer attached are skipped with one warning per schema.
+    Errors while checking default data or creating an attached partition become failed outcomes, allowing
+    later tables in the schema to be attempted.
 
     Each outcome is logged as a structured "partition pre-creation" event (outcome: created, skipped_locked,
     skipped_default_data, mismatched_existing, failed; existing at debug level) so runs can be evaluated
@@ -2027,6 +2030,10 @@ def precreate_monthly_partitions(schema_name, month_start, lock_timeout=PRECREAT
         )
 
     with schema_context(schema_name):
+        attached_defaults = {
+            (record["default_partition"], record["partitioned_table"])
+            for record in get_partitioned_tables_with_default(schema_name=schema_name)
+        }
         default_partitions = PartitionedTable.objects.filter(
             schema_name=schema_name,
             partition_type=PartitionedTable.RANGE,
@@ -2035,7 +2042,29 @@ def precreate_monthly_partitions(schema_name, month_start, lock_timeout=PRECREAT
         if table_names is not None:
             default_partitions = default_partitions.filter(partition_of_table_name__in=table_names)
 
-        for default_partition in default_partitions:
+        tracked_defaults = list(default_partitions)
+        live_defaults = [
+            record
+            for record in tracked_defaults
+            if (record.table_name, record.partition_of_table_name) in attached_defaults
+        ]
+        stale_defaults = [
+            record.partition_of_table_name
+            for record in tracked_defaults
+            if (record.table_name, record.partition_of_table_name) not in attached_defaults
+        ]
+        if stale_defaults:
+            LOG.warning(
+                log_json(
+                    msg="partition pre-creation skipped stale default tracking records",
+                    schema=schema_name,
+                    month_start=str(month_start),
+                    count=len(stale_defaults),
+                    tables=sorted(stale_defaults),
+                )
+            )
+
+        for default_partition in live_defaults:
             parent = default_partition.partition_of_table_name
             part_rec = dict(
                 schema_name=schema_name,
