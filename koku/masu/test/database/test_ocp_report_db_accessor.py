@@ -2435,3 +2435,71 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
             # Should use populate_vm_tmp_table.sql (fallback) instead of populate_vm_tmp_table_with_vm_report.sql
             sql_files_used = [str(call) for call in calls]
             self.assertTrue(any("populate_vm_tmp_table.sql" in s for s in sql_files_used))
+
+
+class EnabledKeysCteTest(MasuTestCase):
+    """Tests for the daily-summary enabled-tag CTE keep-list."""
+
+    VM_KEY = "vm_kubevirt_io_name"
+
+    def _enabled_keys(self):
+        """Run the UNION CTE used by daily-summary SQL."""
+        sql = f"""
+            SELECT array_agg(key ORDER BY key)
+            FROM (
+                SELECT '{self.VM_KEY}' AS key
+                UNION ALL
+                SELECT key
+                FROM {self.schema}.reporting_enabledtagkeys
+                WHERE enabled = true
+                  AND provider_type = 'OCP'
+            ) always_include_vm
+        """
+        with connection.cursor() as cur:
+            cur.execute(sql)
+            return cur.fetchone()[0] or []
+
+    def test_array_concat_null_drops_hardcoded_vm_key(self):
+        """The old array || array_agg pattern becomes NULL when no tags are enabled."""
+        with connection.cursor() as cur:
+            cur.execute("SELECT ARRAY['vm_kubevirt_io_name']::text[] || NULL::text[]")
+            self.assertIsNone(cur.fetchone()[0])
+
+    def test_vm_label_kept_when_no_ocp_tags_enabled(self):
+        """The VM label must remain in the allowlist even with zero enabled OCP tags."""
+        with schema_context(self.schema):
+            original = dict(
+                EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).values_list("uuid", "enabled")
+            )
+            try:
+                EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).update(enabled=False)
+                keys = self._enabled_keys()
+                self.assertIn(self.VM_KEY, keys)
+                self.assertEqual(keys.count(self.VM_KEY), 1)
+            finally:
+                for tag in EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP):
+                    tag.enabled = original.get(tag.uuid, False)
+                    tag.save(update_fields=["enabled"])
+
+    def test_vm_label_kept_alongside_enabled_ocp_tags(self):
+        """The VM label must still be present when other OCP tags are enabled."""
+        with schema_context(self.schema):
+            extra, created = EnabledTagKeys.objects.get_or_create(
+                key="app",
+                provider_type=Provider.PROVIDER_OCP,
+                defaults={"enabled": True},
+            )
+            was_enabled = extra.enabled
+            extra.enabled = True
+            extra.save(update_fields=["enabled"])
+            try:
+                keys = self._enabled_keys()
+                self.assertIn(self.VM_KEY, keys)
+                self.assertIn("app", keys)
+            finally:
+                if created:
+                    extra.delete()
+                else:
+                    extra.enabled = was_enabled
+                    extra.save(update_fields=["enabled"])
+
