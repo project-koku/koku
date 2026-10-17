@@ -2579,12 +2579,6 @@ class EnabledKeysCteTest(MasuTestCase):
             cur.execute(sql)
             return cur.fetchone()[0] or []
 
-    def test_array_concat_null_drops_hardcoded_vm_key(self):
-        """The old array || array_agg pattern becomes NULL when no tags are enabled."""
-        with connection.cursor() as cur:
-            cur.execute("SELECT ARRAY['vm_kubevirt_io_name']::text[] || NULL::text[]")
-            self.assertIsNone(cur.fetchone()[0])
-
     def test_vm_label_kept_when_no_ocp_tags_enabled(self):
         """The VM label must remain in the allowlist even with zero enabled OCP tags."""
         with schema_context(self.schema):
