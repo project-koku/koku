@@ -13,6 +13,7 @@ WITH cte_tag_key_mapping AS (
 cte_update_tag_keys as (
     SELECT
         lids.uuid as uuid,
+        lids.usage_start as usage_start,
         CASE
             WHEN EXISTS(
                 SELECT 1 FROM cte_tag_key_mapping
@@ -55,5 +56,6 @@ UPDATE {{schema | sqlsafe}}.{{table | sqlsafe}} AS lids
 SET tags = update_data.update_tags
 FROM cte_update_tag_keys as update_data
 WHERE lids.uuid = update_data.uuid
+AND lids.usage_start = update_data.usage_start
 AND lids.usage_start >= DATE({{start_date}})
 AND lids.usage_start <= DATE({{end_date}});

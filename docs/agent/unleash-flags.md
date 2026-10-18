@@ -1,3 +1,11 @@
+---
+paths:
+  - "koku/masu/processor/__init__.py"
+  - "koku/koku/feature_flags.py"
+  - "koku/hcs/tasks.py"
+  - "koku/subs/tasks.py"
+---
+
 # Agent Guide: Unleash Feature Flags
 
 Compact reference for adding or changing backend Unleash flags. Load when the
@@ -108,6 +116,6 @@ UI Unleash setup differs (proxy client, context). Do not assume backend
 
 ## Related
 
-- Always-on: [`CLAUDE.md`](../../CLAUDE.md), [`AGENTS.md`](../../AGENTS.md)
-- Scoped rules: [`.cursor/rules/unleash-flags.mdc`](../../.cursor/rules/unleash-flags.mdc), [`.claude/rules/unleash-flags.md`](../../.claude/rules/unleash-flags.md)
+- Always-on: [`AGENTS.md`](../../AGENTS.md)
+- Attached automatically when editing flag code (Claude Code, Cursor): see [`docs/agent/README.md`](README.md)
 - Local Unleash creds: [`../devtools.md`](../devtools.md)

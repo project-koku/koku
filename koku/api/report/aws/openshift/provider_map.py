@@ -408,6 +408,7 @@ class OCPAWSProviderMap(ProviderMap):
                 ("account",): OCPAWSNetworkSummaryP,
             },
         }
+        self.add_cluster_summary_views(schema_name)
         super().__init__(provider, report_type, schema_name)
 
     @property

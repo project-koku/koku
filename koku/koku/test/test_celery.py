@@ -19,6 +19,7 @@ from koku import is_task_currently_running
 from koku.celery import app as celery_app
 from koku.celery import CHECK_REPORT_UPDATES_BEAT_NAME
 from koku.celery import CURRENCY_RATES_BEAT_NAME
+from koku.celery import precreate_partitions_schedule
 from koku.celery import register_daily_currency_rates_beat
 from koku.celery import register_report_check_beat
 from koku.celery import register_saas_only_beats
@@ -106,6 +107,28 @@ class CurrencyRatesBeatScheduleTest(SimpleTestCase):
 
                 self.assertFalse(scheduled)
                 self.assertNotIn(CURRENCY_RATES_BEAT_NAME, beat_schedule)
+
+
+class PrecreatePartitionsBeatScheduleTest(SimpleTestCase):
+    """The configurable start day retains three daily retries through month end."""
+
+    def test_default_and_earlier_start_day(self):
+        for start_day in (15, 10):
+            with self.subTest(start_day=start_day):
+                schedule = precreate_partitions_schedule(start_day)
+                self.assertEqual(schedule.day_of_month, set(range(start_day, 32)))
+                self.assertEqual(schedule.hour, {5, 13, 21})
+                self.assertEqual(schedule.minute, {30})
+
+    def test_start_day_must_run_every_month(self):
+        for start_day in (0, 29):
+            with self.subTest(start_day=start_day):
+                with self.assertRaisesRegex(ValueError, "must be between 1 and 28"):
+                    precreate_partitions_schedule(start_day)
+
+    def test_registered_beat_uses_configured_start_day(self):
+        schedule = celery_app.conf.beat_schedule["precreate-upcoming-partitions"]["schedule"]
+        self.assertEqual(schedule, precreate_partitions_schedule(settings.PRECREATE_PARTITIONS_START_DAY))
 
 
 class SaasOnlyBeatScheduleTest(SimpleTestCase):
@@ -258,3 +281,20 @@ class CeleryBrokerSecurityTest(SimpleTestCase):
         unauth = redis.Redis.from_url(open_url, socket_connect_timeout=2, socket_timeout=2)
         with self.assertRaises(AuthenticationError):
             unauth.ping()
+
+
+class CelerySkipChecksTest(SimpleTestCase):
+    """Workers skip Django's system checks at start-up unless overridden."""
+
+    def test_skip_checks_default(self):
+        """Importing koku.celery sets CELERY_SKIP_CHECKS, which Celery's Django fixup honours."""
+        self.assertTrue(os.environ.get("CELERY_SKIP_CHECKS"))
+
+    @patch.dict(os.environ, {"CELERY_SKIP_CHECKS": ""})
+    @patch("django.core.checks.run_checks")
+    def test_empty_value_runs_checks(self, mock_run_checks):
+        """An empty CELERY_SKIP_CHECKS turns the worker checks back on."""
+        from celery.fixups.django import DjangoWorkerFixup
+
+        DjangoWorkerFixup(celery_app).validate_models()
+        mock_run_checks.assert_called_once()

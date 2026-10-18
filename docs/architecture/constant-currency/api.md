@@ -92,6 +92,7 @@ codes remain in the list so they can be disabled.
   "description": "USD ($) - US Dollar",
   "enabled": true,
   "has_dynamic_rate": true,
+  "active_rate_type": "static",
   "static_rates": [
     {
       "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -99,10 +100,13 @@ codes remain in the list so they can be disabled.
       "base_currency": "USD",
       "target_currency": "EUR",
       "exchange_rate": 0.87,
-      "start_date": "2026-04-01",
-      "end_date": "2026-06-30",
-      "created_timestamp": "2026-04-02T10:30:00Z",
-      "updated_timestamp": "2026-04-02T10:30:00Z"
+      "start_date": "2026-10-01",
+      "end_date": "2026-12-31",
+      "status": "active",
+      "can_edit": true,
+      "can_delete": true,
+      "created_timestamp": "2026-10-02T10:30:00Z",
+      "updated_timestamp": "2026-10-02T10:30:00Z"
     }
   ]
 }
@@ -124,7 +128,38 @@ that would always equal `target_currency`.
 |-------|---------|
 | `enabled` | Currency is enabled for the tenant |
 | `has_dynamic_rate` | A dynamic (market) rate exists for this currency code |
-| `static_rates` | Static rates where this currency is the **base** |
+| `active_rate_type` | Rate in force **this UTC month**: `static`, `dynamic`, or `none` |
+| `static_rates` | Static rates where this currency is the **base**. Expired rates remain in the list. |
+
+`active_rate_type` is computed (not stored):
+
+| Value | When |
+|-------|------|
+| `static` | Enabled, and at least one static rate for this base overlaps the current UTC month (wins over dynamic) |
+| `dynamic` | Enabled, no current-month static, and `has_dynamic_rate` is true |
+| `none` | Disabled, or enabled with neither a current-month static nor a dynamic rate |
+
+Each nested static rate includes a computed **`status`** relative to the
+**current UTC month** (not the client clock). This is distinct from
+currency-level `active_rate_type` — do not replace one with the other.
+
+| `status` | Meaning |
+|----------|---------|
+| `expired` | `end_date` is before the first day of the current UTC month |
+| `active` | Validity window includes the current UTC month |
+| `upcoming` | `start_date` is on or after the first day of next month |
+
+`status` is for UI labels (Active / Expired / Upcoming). Past-month windows are
+not blocked by date rules (COST-8378). Edit/delete flags reflect **RBAC** so the
+UI can disable controls without probing PUT/DELETE:
+
+| Field | `true` when |
+|-------|-------------|
+| `can_edit` | Caller can mutate static rates (`cost_model.write: ["*"]`, or enhanced org admin). `base_currency` remains immutable on PUT. |
+| `can_delete` | Same RBAC rule as `can_edit` |
+
+CSV export does **not** include `active_rate_type`, `status`, `can_edit`, or
+`can_delete`.
 
 ### CSV export (`Accept: text/csv`)
 
@@ -249,7 +284,6 @@ Same semantics as on `GET /settings/currency/` (see units note above).
 | `start_date` is the 1st of a month | `400` |
 | `end_date` is the last day of a month | `400` |
 | `end_date >= start_date` | `400` |
-| `start_date` not in a past month (for new rates / non-finalized updates) | `400` |
 | No overlapping window for the same directional pair | `400` |
 
 Note: `base_currency` and `target_currency` do not need to be enabled at the
@@ -274,6 +308,8 @@ currency for end users.
 
 `name` is read-only: `"{base_currency}-{target_currency}"`.
 `exchange_rate` in responses is a JSON number (see settings list note above).
+Create/update responses include the same computed `status`, `can_edit`, and
+`can_delete` fields as the nested list (omitted above).
 
 ### `PUT /settings/currency/static-rates/{uuid}/`
 
@@ -281,20 +317,23 @@ Same body shape as create. Update rules:
 
 - **`base_currency` cannot be changed** on any update (delete and recreate
   instead).
-- When the rate already includes **finalized** months:
-  - `target_currency` cannot change
-  - `start_date` cannot change (shrink `end_date`, then create a new rate for
-    the remaining period)
-  - `end_date` cannot shrink earlier than the last day of the previous month
-- Fully finalized rates (entire window before the current month) cannot be
-  updated — create a new rate starting in the current month instead.
+- Past-month windows are allowed: target, start/end dates, and rate may change.
+  STATIC `MonthlyExchangeRate` rows are rewritten for each affected month from
+  retention through the current month. When a static override is removed or its
+  window shrinks, the current month may be restored from
+  `ExchangeRateDictionary`; missing past months are filled with the next later
+  MER rate for the pair (same rule as the daily backfill). Today's market rate
+  is not written into closed months.
 
 ### `DELETE /settings/currency/static-rates/{uuid}/`
 
 | Outcome | Status |
 |---------|--------|
 | Deleted | `204` |
-| Entire window is finalized | `400` — cannot delete; create a new rate instead |
+
+Past-month rates may be deleted. STATIC monthly overrides in the window are
+removed; current-month dynamic is restored from ERD when possible, and past
+gaps use next-later MER backfill.
 
 ---
 
@@ -381,8 +420,11 @@ static-rate responses). Unknown schema or bad dates → `400`.
 |---------|-----|
 | Target currency dropdown | `GET /currency/` |
 | Settings currency table | `GET /settings/currency/` |
+| Active rate (this month) | If `enabled` is false, show Not enabled. Otherwise use `active_rate_type`: Static / Dynamic / None |
 | Enable / disable toggle | `POST` / `DELETE` …`/enabled/{code}/` |
 | Static rate form create/edit/delete | `POST` / `PUT` / `DELETE` …`/static-rates/…` |
+| Active / expired / upcoming labels | `status` on each nested static rate (server UTC month) |
+| Edit / delete availability | `can_edit` / `can_delete` (RBAC: cost-model write / enhanced org admin) |
 | Show dynamic availability | `has_dynamic_rate` on settings list |
 | Missing conversion | Surface report/forecast `400` `currency` error text |
 | Empty dropdown | No enabled currencies → hide picker or show “No exchange rates available” |

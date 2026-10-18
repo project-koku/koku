@@ -40,7 +40,6 @@ from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
-from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
 from reporting.models import OCPCostSummaryByProjectP
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPGpuSummaryP
@@ -110,11 +109,14 @@ class OCPReportQueryHandlerTest(IamTestCase):
             query
             for query in captured_queries
             if query["sql"].lstrip().startswith("SELECT")
-            and "reporting_ocpusagelineitem_daily_summary" in query["sql"]
+            and (
+                "reporting_ocpusagelineitem_daily_summary" in query["sql"]
+                or "reporting_ocp_pod_summary_by_node_p" in query["sql"]
+            )
         ]
 
-    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=True)
-    def test_cluster_capacity_flag_uses_one_cpu_summary_scan(self, mock_feature_flag):
+    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False)
+    def test_cluster_capacity_uses_one_cpu_summary_scan(self, _mock_feature_flag):
         """Eligible cluster CPU capacity combines count and capacity aggregates."""
         handler = OCPReportQueryHandler(self.mocked_query_params("?", OCPCpuView))
 
@@ -122,26 +124,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
             handler.get_capacity([{"row": 1}])
 
         self.assertEqual(len(self._capacity_summary_selects(captured)), 1)
-        mock_feature_flag.assert_called_once_with(
-            handler.tenant.schema_name, OCP_CAPACITY_SINGLE_SCAN_FLAG, dev_fallback=True
-        )
 
     @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False)
-    def test_cluster_capacity_flag_off_keeps_two_cpu_summary_scans(self, mock_feature_flag):
-        """Flag-off cluster CPU capacity retains the legacy count and capacity reads."""
-        handler = OCPReportQueryHandler(self.mocked_query_params("?", OCPCpuView))
-
-        with CaptureQueriesContext(connection) as captured:
-            handler.get_capacity([{"row": 1}])
-
-        self.assertEqual(len(self._capacity_summary_selects(captured)), 2)
-        mock_feature_flag.assert_called_once_with(
-            handler.tenant.schema_name, OCP_CAPACITY_SINGLE_SCAN_FLAG, dev_fallback=True
-        )
-
-    @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=True)
-    def test_cluster_capacity_flag_ignores_node_and_volume_reports(self, mock_feature_flag):
-        """The cluster-only optimization never evaluates its flag for ineligible reports."""
+    def test_cluster_capacity_ignores_node_and_volume_reports(self, _mock_feature_flag):
+        """The cluster-only optimization leaves node and volume reports on their paths."""
         query_params = (
             ("node CPU", "capacity", self.mocked_query_params("?group_by[node]=*", OCPCpuView)),
             ("volume", "capacity_count", self.mocked_query_params("?", OCPVolumeView)),
@@ -152,8 +138,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 query_data, total_capacity = OCPReportQueryHandler(params).get_capacity([{"row": 1}])
                 self.assertIn(capacity_key, total_capacity)
                 self.assertIn(capacity_key, query_data[0])
-
-        mock_feature_flag.assert_not_called()
 
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""
@@ -1013,7 +997,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_ocp_cpu_query_group_by_cluster(self):
         """Test that group by cluster includes cluster and cluster_alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3&group_by[cluster]=*"  # noqa: E501
-        query_params = self.mocked_query_params(url, OCPCpuView)
+        query_params = self.mocked_query_params(url, OCPCpuView, path="/api/cost-management/v1/reports/openshift/cpu/")
         handler = OCPReportQueryHandler(query_params)
 
         query_data = handler.execute_query()

@@ -40,6 +40,13 @@ SAAS_ONLY_BEAT_NAMES = (
 ONPREM_ONLY_BEAT_NAMES = ("create_source_beat",)
 
 
+def precreate_partitions_schedule(start_day: int) -> crontab:
+    """Run every eight hours from start_day through the end of each month."""
+    if not 1 <= start_day <= 28:
+        raise ValueError(f"PRECREATE_PARTITIONS_START_DAY must be between 1 and 28, got {start_day}")
+    return crontab(hour="5,13,21", minute=30, day_of_month=f"{start_day}-31")
+
+
 def register_daily_currency_rates_beat(beat_schedule, currency_url, schedule=None):
     """Register the daily currency rates beat only when CURRENCY_URL is set.
 
@@ -199,6 +206,11 @@ def validate_cron_expression(expression, default="0 * * * *"):
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
+# Celery's Django fixup runs Django's system checks when a worker starts. The URL check
+# imports every API view and its dependencies (~100 MB per worker process before forecast
+# imported statsmodels lazily, ~12 MB after). The checks still run in CI, migrate and the API.
+# Set CELERY_SKIP_CHECKS to an empty value to run them in workers again.
+os.environ.setdefault("CELERY_SKIP_CHECKS", "1")
 
 print("starting celery")
 # 'app' is the recommended convention from celery docs
@@ -274,6 +286,15 @@ else:
 app.conf.beat_schedule["autovacuum-tune-schemas"] = {
     "task": "masu.celery.tasks.autovacuum_tune_schemas",
     "schedule": autovacuum_schedule,
+    "args": [],
+}
+
+# Create next month's partitions ahead of time (from the configured day, every 8 hours) so the
+# first of the month does not need partition DDL on the processing path. A table that
+# is busy on one run is retried at a different time of day on the next.
+app.conf.beat_schedule["precreate-upcoming-partitions"] = {
+    "task": "masu.celery.tasks.precreate_upcoming_partitions",
+    "schedule": precreate_partitions_schedule(settings.PRECREATE_PARTITIONS_START_DAY),
     "args": [],
 }
 

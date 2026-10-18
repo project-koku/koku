@@ -230,7 +230,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
             msg = f"Downloading key: {key} to file path: {full_file_path}"
             LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-            shutil.copy2(key, full_file_path)
+            shutil.copyfile(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
             if not key.endswith(".json"):

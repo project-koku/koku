@@ -36,7 +36,7 @@ GPU cost tracking is a distinct pipeline layered on top of the standard OCP CSV/
 
 The pipeline supports both **dedicated** GPUs (one pod occupies a whole physical GPU) and **MIG-partitioned** GPUs (NVIDIA Multi-Instance GPU, where a physical GPU is split into compute slices shared by multiple pods/namespaces). Both cases flow through the same stages below; MIG only changes the slice-fraction math inside the cost-model SQL (see [`mig-gpu-support.md`](mig-gpu-support.md)).
 
-Like every OCP feature, this pipeline must work in both execution paths — see [`.cursor/rules/onprem-vs-saas.mdc`](../../.cursor/rules/onprem-vs-saas.mdc):
+Like every OCP feature, this pipeline must work in both execution paths — see [`docs/agent/onprem-vs-saas.md`](../agent/onprem-vs-saas.md):
 
 | Mode | Storage | Aggregation |
 |------|---------|-------------|
@@ -49,8 +49,10 @@ Like every OCP feature, this pipeline must work in both execution paths — see 
 
 ```mermaid
 flowchart TD
-    A["CMMO Operator<br/>gpu_usage CSV<br/>(+ optional MIG fields)"] --> B["kafka_msg_handler.py<br/>download_payload / extract_payload_contents"]
-    B --> C["ocp/common.py<br/>detect_type() → OCPReportTypes.GPU_USAGE"]
+    A["CMMO Operator<br/>gpu_usage CSV<br/>(+ optional MIG fields)"] --> B["kafka_msg_handler.py<br/>orchestrates ingress"]
+    B --> B1["download.py<br/>download_payload"]
+    B1 --> B2["staged_payloads/processing.py<br/>extract_payload"]
+    B2 --> C["ocp/common.py<br/>detect_type() → OCPReportTypes.GPU_USAGE"]
     C --> D["ParquetReportProcessor<br/>+ OCPPostProcessor<br/>(GPU_GROUP_BY / GPU_AGG, MIG derivation)"]
     D --> E["OCPReportParquetProcessor<br/>writes gpu_usage line items"]
 
@@ -86,13 +88,13 @@ GPU usage arrives as a `gpu_usage` CSV inside the standard OCP upload tarball, a
 - Required columns: [`GPU_USAGE_COLUMNS`](../../koku/masu/util/ocp/common.py#L277-L290) — `gpu_uuid`, `gpu_model_name`, `gpu_vendor_name`, `gpu_memory_capacity_mib`, `gpu_pod_uptime`, plus node/namespace/pod/interval fields.
 - Optional MIG columns (older operators may omit them): [`GPU_USAGE_NEWV_COLUMNS_AND_TYPES`](../../koku/masu/util/ocp/common.py#L295-L303) — `mig_instance_id`, `mig_profile`, `mig_strategy` come from the operator; `mig_slice_count`, `mig_memory_capacity_mib`, `gpu_max_slices` are **derived** in the post-processor, not sent by the operator.
 - Registry entry tying the above together: [`OCP_REPORT_TYPES["gpu_usage"]`](../../koku/masu/util/ocp/common.py#L377-L383).
-- Type detection happens in `detect_type()` in the same module, invoked from the Kafka message handler.
+- Type detection happens in `detect_type()` in the same module, invoked during ingress processing in [`staged_payloads/processing.py`](../../koku/masu/processor/ocp/staged_payloads/processing.py).
 
 ---
 
 ## Stage 2 — Kafka Ingestion and Parquet Processing
 
-- Kafka listener downloads and extracts the payload: [`kafka_msg_handler.py`](../../koku/masu/external/kafka_msg_handler.py) — `download_payload()`, `extract_payload_contents()`.
+- Kafka listener orchestrates download and extraction: [`legacy_message_processing()`](../../koku/masu/external/kafka_msg_handler.py) calls [`download_payload()`](../../koku/masu/external/downloader/ocp/download.py) and [`extract_payload()`](../../koku/masu/processor/ocp/staged_payloads/processing.py) (production path; validates `manifest.json` via `read_manifest_from_tarball` before full extract).
 - Conversion to Parquet is orchestrated by [`ParquetReportProcessor`](../../koku/masu/processor/parquet/parquet_report_processor.py).
 - Aggregation, MIG-field derivation, and GPU model-name normalization happen in [`OCPPostProcessor`](../../koku/masu/util/ocp/ocp_post_processor.py):
   - `process_dataframe()` (around [line 338](../../koku/masu/util/ocp/ocp_post_processor.py#L338)) normalizes `gpu_model_name` (strips punctuation so cost-model tag values match regardless of formatting).
@@ -209,7 +211,7 @@ GPU costs also surface implicitly in every other OCP cost report (compute, clust
 
 ## Dual-Path SQL Inventory
 
-Per [`AGENTS.md`](../../AGENTS.md), [`.cursor/rules/onprem-vs-saas.mdc`](../../.cursor/rules/onprem-vs-saas.mdc), and [`CLAUDE.md`](../../CLAUDE.md), every Trino template has a self-hosted PostgreSQL counterpart at the same relative path. GPU-related files:
+Per [`AGENTS.md`](../../AGENTS.md) and [`docs/agent/onprem-vs-saas.md`](../agent/onprem-vs-saas.md), every Trino template has a self-hosted PostgreSQL counterpart at the same relative path. GPU-related files:
 
 | Relative path (under `masu/database/`) | Trino (SaaS) | Self-hosted (on-prem) |
 |---|---|---|
@@ -249,7 +251,7 @@ The self-hosted variants additionally fall back to node labels (`nvidia.com/gpu.
 - [`csv-processing-ocp.md`](csv-processing-ocp.md) — General OCP CSV report-type processing (of which GPU is one report type among several).
 - [`cost-models.md`](cost-models.md) — Cost model JSON structure, metric catalog, distribution mechanism used generically across platform/worker/storage/network/GPU.
 - [`api-serializers-provider-maps.md`](api-serializers-provider-maps.md) — General report API / provider-map / query-handler pattern that the GPU endpoint follows.
-- [`.cursor/rules/onprem-vs-saas.mdc`](../../.cursor/rules/onprem-vs-saas.mdc) — Trino vs self-hosted PostgreSQL conventions referenced throughout this doc.
+- [`docs/agent/onprem-vs-saas.md`](../agent/onprem-vs-saas.md) — Trino vs self-hosted PostgreSQL conventions referenced throughout this doc.
 
 ---
 

@@ -118,7 +118,8 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         return provider
 
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
-    def test_enable_cloud_bill_currencies_enables_missing(self, mock_populate):
+    @patch("masu.processor.report_summary_updater.delete_value_from_cache")
+    def test_enable_cloud_bill_currencies_enables_missing(self, mock_delete_cache, mock_populate):
         """Cloud bill currencies missing from EnabledCurrency are enabled."""
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
@@ -131,6 +132,56 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         with tenant_context(self.tenant):
             self.assertTrue(EnabledCurrency.objects.filter(currency_code="AUD").exists())
         mock_populate.assert_called_once_with(code="AUD")
+        mock_delete_cache.assert_called_once_with(f"enabled-currency-codes-{self.schema}")
+
+    @patch(
+        "masu.processor.report_summary_updater.populate_dynamic_monthly_rates",
+        side_effect=RuntimeError("rate population failed"),
+    )
+    @patch("masu.processor.report_summary_updater.delete_value_from_cache")
+    def test_enable_cloud_bill_currencies_invalidates_cache_on_rate_failure(self, mock_delete_cache, mock_populate):
+        """A newly enabled currency invalidates the cache when rate population fails."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+
+        provider = self._create_aws_summary_with_currency("AUD", provider_name="AWS rate failure")
+
+        with self.assertRaisesRegex(RuntimeError, "rate population failed"):
+            enable_cloud_bill_currencies(self.schema, provider, start_date="2026-01-01", end_date="2026-01-31")
+
+        mock_populate.assert_called_once_with(code="AUD")
+        mock_delete_cache.assert_called_once_with(f"enabled-currency-codes-{self.schema}")
+
+    @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
+    @patch("masu.processor.report_summary_updater.delete_value_from_cache")
+    def test_enable_cloud_bill_currencies_skips_blank_currency(self, mock_delete_cache, mock_populate):
+        """Blank cloud bill currencies are ignored."""
+        provider = self._create_aws_summary_with_currency("", provider_name="AWS blank currency")
+
+        enable_cloud_bill_currencies(self.schema, provider, start_date="2026-01-01", end_date="2026-01-31")
+
+        mock_populate.assert_not_called()
+        mock_delete_cache.assert_not_called()
+
+    @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
+    @patch("masu.processor.report_summary_updater.delete_value_from_cache")
+    @patch("masu.processor.report_summary_updater.EnabledCurrency.objects.get_or_create", return_value=(None, False))
+    def test_enable_cloud_bill_currencies_handles_concurrent_enable(
+        self, mock_get_or_create, mock_delete_cache, mock_populate
+    ):
+        """A currency enabled concurrently does not repopulate rates or invalidate the cache."""
+        with tenant_context(self.tenant):
+            EnabledCurrency.objects.all().delete()
+            EnabledCurrency.objects.create(currency_code="USD")
+
+        provider = self._create_aws_summary_with_currency("AUD", provider_name="AWS concurrent enable")
+
+        enable_cloud_bill_currencies(self.schema, provider, start_date="2026-01-01", end_date="2026-01-31")
+
+        mock_get_or_create.assert_called_once_with(currency_code="AUD")
+        mock_populate.assert_not_called()
+        mock_delete_cache.assert_not_called()
 
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
     def test_enable_cloud_bill_currencies_skips_invalid_iso(self, mock_populate):
@@ -148,7 +199,8 @@ class ReportSummaryUpdaterTest(MasuTestCase):
             self.assertFalse(EnabledCurrency.objects.filter(currency_code="FOO").exists())
 
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
-    def test_enable_cloud_bill_currencies_skips_already_enabled(self, mock_populate):
+    @patch("masu.processor.report_summary_updater.delete_value_from_cache")
+    def test_enable_cloud_bill_currencies_skips_already_enabled(self, mock_delete_cache, mock_populate):
         """Currencies already in EnabledCurrency do not trigger rate population."""
         with tenant_context(self.tenant):
             EnabledCurrency.objects.all().delete()
@@ -160,6 +212,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         enable_cloud_bill_currencies(self.schema, provider, start_date="2026-01-01", end_date="2026-01-31")
 
         mock_populate.assert_not_called()
+        mock_delete_cache.assert_not_called()
 
     @patch("masu.processor.report_summary_updater.populate_dynamic_monthly_rates")
     @patch("masu.processor.report_summary_updater.EnabledCurrency.objects")

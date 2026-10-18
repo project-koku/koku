@@ -72,11 +72,9 @@ This architecture document provides a comprehensive deep-dive into how Koku proc
                  ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │  Koku/MASU (Consumer)                                            │
-│  kafka_msg_handler.py                                            │
-│  - Consumes messages from platform.upload.announce               │
-│  - Downloads tar.gz from quarantine bucket                       │
-│  - Extracts and processes CSV files                              │
-│  - Sends validation confirmation back to Kafka                   │
+│  kafka_msg_handler.py — consume, orchestrate, Kafka confirm      │
+│  downloader/ocp/download.py — download_payload                   │
+│  staged_payloads/processing.py — extract_payload, daily split    │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -200,11 +198,11 @@ report_period_start,report_period_end,interval_start,interval_end,namespace,node
 
 ### **Phase 1: Kafka Message Reception and Download**
 
-**File:** `koku/masu/external/kafka_msg_handler.py`
+**Orchestration:** `koku/masu/external/kafka_msg_handler.py` (`listen_for_messages_loop()` → `handle_message()` → `legacy_message_processing()`). Download and extract live in dedicated modules (below).
 
 #### **Step 1: Consume Kafka Message**
 
-**Implementation:** See [`listen_for_messages_loop()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`listen_for_messages_loop()`](../../koku/masu/external/kafka_msg_handler.py) and [`handle_message()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
 
 **Kafka Configuration:**
 - Consumer group: `hccm-group`
@@ -226,7 +224,7 @@ JSON message containing:
 
 #### **Step 2: Download Tar.gz from Quarantine Bucket**
 
-**Implementation:** See [`download_payload()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`download_payload()`](../../koku/masu/external/downloader/ocp/download.py) in `download.py`
 
 **Process:**
 1. Create temporary directory in `Config.DATA_DIR`
@@ -237,14 +235,16 @@ JSON message containing:
 
 #### **Step 3: Extract Tar.gz and Parse Manifest**
 
-**Implementation:** See [`extract_payload_contents()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`extract_payload()`](../../koku/masu/processor/ocp/staged_payloads/processing.py) in `processing.py` (invoked from [`legacy_message_processing()`](../../koku/masu/external/kafka_msg_handler.py))
 
 **Process:**
-1. Open tar.gz file in read mode
-2. Extract all contents to temporary directory
-3. Search for `manifest.json` in extracted files
-4. Raise error if no manifest found
-5. Return manifest path
+1. Read and validate `manifest.json` from the archive via `read_manifest_from_tarball()` before extracting members
+2. Resolve provider/source for `cluster_id`, apply retention gate
+3. Extract archive members to a temp directory (tarfile data filter)
+4. Create manifest DB records, copy files into local report layout, build report metadata for downstream processing
+5. Return report metadata list and manifest UUID (or skip when cluster unknown / outside retention)
+
+**Note:** [`extract_payload_contents()`](../../koku/masu/processor/ocp/staged_payloads/processing.py) full-extracts then locates the manifest; it is kept for tests, not the production ingress path.
 
 **Manifest Structure:**
 
@@ -262,7 +262,7 @@ JSON file containing:
 
 ### **Phase 2: CSV Splitting and Daily Archives**
 
-**File:** `koku/masu/external/kafka_msg_handler.py`
+**File:** `koku/masu/processor/ocp/staged_payloads/processing.py`
 
 OpenShift reports can contain **multiple days** of data. Koku splits them into **daily CSV files** for consistency with cloud provider processing.
 
@@ -282,7 +282,7 @@ OpenShift reports can contain **multiple days** of data. Koku splits them into *
 
 #### **Step 2: Split by Daily Interval**
 
-**Implementation:** See [`divide_csv_daily()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`divide_csv_daily()`](../../koku/masu/processor/ocp/staged_payloads/processing.py) in `processing.py`
 
 **Process:**
 1. Read CSV with pandas (pyarrow backend for performance)
@@ -298,7 +298,7 @@ OpenShift reports can contain **multiple days** of data. Koku splits them into *
 
 #### **Step 3: Upload Daily CSVs to S3/MinIO**
 
-**Implementation:** See [`create_daily_archives()`](../../koku/masu/external/kafka_msg_handler.py) in `kafka_msg_handler.py`
+**Implementation:** See [`create_daily_archives()`](../../koku/masu/processor/ocp/staged_payloads/processing.py) in `processing.py`
 
 **Process:**
 1. Check operator version and daily_reports flag
@@ -815,12 +815,10 @@ This pattern is repeated for different aggregation levels:
                             │ Kafka message
                             ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│  MASU Kafka Consumer (kafka_msg_handler.py)                            │
-│  1. Download tar.gz from quarantine S3                                 │
-│  2. Extract tar.gz → CSV files + manifest.json                         │
-│  3. Parse manifest, create CostUsageReportManifest                     │
-│  4. Split CSVs by day (divide_csv_daily)                               │
-│  5. Upload daily CSVs to org S3 bucket                                 │
+│  MASU ingress (kafka_msg_handler + download + processing)              │
+│  kafka_msg_handler.py — consume message, confirm to upload service     │
+│  download.py — download_payload from quarantine URL                    │
+│  processing.py — extract_payload, divide_csv_daily, daily archives   │
 └───────────────────────────┬────────────────────────────────────────────┘
                             │ Trigger processing
                             ▼
@@ -984,6 +982,8 @@ For testing OCP processing, generate synthetic CSV reports with realistic data:
 ### **Primary Files**
 
 - **Kafka Message Handler:** `koku/masu/external/kafka_msg_handler.py`
+- **Ingress download:** `koku/masu/external/downloader/ocp/download.py`
+- **Ingress processing:** `koku/masu/processor/ocp/staged_payloads/processing.py`
 - **Parquet Processor:** `koku/masu/processor/ocp/ocp_report_parquet_processor.py`
 - **Summary Updater:** `koku/masu/processor/ocp/ocp_report_parquet_summary_updater.py`
 - **Cost Model Updater:** `koku/masu/processor/ocp/ocp_cost_model_cost_updater.py`

@@ -6,6 +6,7 @@ import logging
 from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.db.models import Case
 from django.db.models import DecimalField
 from django.db.models import OuterRef
@@ -15,6 +16,7 @@ from django.db.models import When
 from django.db.models.functions import ExtractMonth
 from django.db.models.functions import ExtractYear
 
+from api.common import log_json
 from api.currency.currencies import get_enabled_currency_codes
 from api.currency.exceptions import ExchangeRateNotFound
 from api.currency.models import ExchangeRateDictionary
@@ -41,6 +43,31 @@ def exchange_dictionary(rates):
     else:
         current_data.currency_exchange_dictionary = exchange_data
         current_data.save()
+
+
+def ensure_exchange_rate_dictionary():
+    """Ensure the shared ExchangeRateDictionary has rates, fetching if needed.
+
+    Returns True when a non-empty dictionary is available after this call.
+    Does not walk tenant schemas — only fills the public ERD snapshot used as
+    the source for MonthlyExchangeRate population.
+    """
+    erd = ExchangeRateDictionary.objects.first()
+    if erd and erd.currency_exchange_dictionary:
+        return True
+
+    url = (settings.CURRENCY_URL or "").strip()
+    if not url:
+        LOG.info(log_json(msg="Cannot populate empty ExchangeRateDictionary; CURRENCY_URL not configured"))
+        return False
+
+    # Lazy import: masu.celery.tasks imports monthly rate helpers at module load.
+    from masu.celery.tasks import _fetch_and_store_exchange_rates
+
+    LOG.info(log_json(msg="ExchangeRateDictionary empty; fetching rates before MER populate"))
+    _fetch_and_store_exchange_rates(url)
+    erd = ExchangeRateDictionary.objects.first()
+    return bool(erd and erd.currency_exchange_dictionary)
 
 
 def build_exchange_rate_case(cost_units_key, target_currency, exchange_rates, base_currencies=None):
@@ -89,6 +116,38 @@ def build_monthly_rate_annotation(base_currency, target_currency):
             target_currency=target_currency,
         ).values("exchange_rate")[:1]
     )
+
+
+def get_monthly_exchange_rate(base_currency, target_currency, month_start):
+    """Return the MonthlyExchangeRate for a single base/target pair and month.
+
+    Args:
+        base_currency: currency code to convert from
+        target_currency: currency code to convert to
+        month_start: first day of the month (date)
+
+    Returns:
+        Decimal exchange rate
+
+    Raises:
+        ExchangeRateNotFound: if no MER row exists for the pair and month
+    """
+    if base_currency == target_currency:
+        return Decimal("1")
+
+    month_start = month_start.replace(day=1) if hasattr(month_start, "replace") else month_start
+    rate = (
+        MonthlyExchangeRate.objects.filter(
+            effective_date=month_start,
+            base_currency=base_currency,
+            target_currency=target_currency,
+        )
+        .values_list("exchange_rate", flat=True)
+        .first()
+    )
+    if rate is None:
+        raise ExchangeRateNotFound([base_currency], target_currency, month_start, month_start)
+    return rate
 
 
 def validate_exchange_rate_coverage(base_currencies, target_currency, start_date, end_date):

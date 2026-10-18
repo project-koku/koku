@@ -76,8 +76,8 @@ Enabled currencies drive:
 2. Provide `base_currency`, `target_currency`, `exchange_rate`, `start_date`
    (first of a month), and `end_date` (last day of a month).
 3. Update or delete later via
-   `PUT` / `DELETE …/settings/currency/static-rates/{uuid}/`, subject to
-   finalized-month rules (see [design.md](./design.md#static-rate-lifecycle)).
+   `PUT` / `DELETE …/settings/currency/static-rates/{uuid}/`. Past-month
+   windows are allowed; see [design.md](./design.md#static-rate-lifecycle).
 
 Static rates take precedence over dynamic rates for covered months. The reverse
 direction is **not** auto-created as a static rate; unless the reverse pair is

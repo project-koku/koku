@@ -33,6 +33,10 @@
           value: ${KAFKA_CONNECT}
         - name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
           value: ${KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS}
+        - name: OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS
+          value: ${OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS}
+        - name: OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES
+          value: ${OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES}
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -55,6 +59,8 @@
           value: ${DEVELOPMENT}
         - name: ONPREM
           value: ${ONPREM}
+        - name: IQE_TEST_RUN
+          value: ${IQE_TEST_RUN}
         - name: CURRENCY_URL
           value: ${CURRENCY_URL}
         - name: KOKU_LOG_LEVEL

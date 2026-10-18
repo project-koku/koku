@@ -113,7 +113,7 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         if etag != stored_etag:
             msg = f"Downloading {key} to {full_file_path}"
             LOG.info(log_json(self.request_id, msg=msg, context=self.context))
-            shutil.copy2(key, full_file_path)
+            shutil.copyfile(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
         file_names, date_range = create_daily_archives(

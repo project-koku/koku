@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-app-common-python = ">=0.2.3"
+app-common-python = ">=0.3.0"
 azure-identity = "*"
 azure-mgmt-costmanagement = ">=3.0.0"
 azure-mgmt-storage = ">=20.1.0"

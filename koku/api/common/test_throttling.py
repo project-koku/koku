@@ -10,6 +10,7 @@ from django.test import TestCase
 
 from api.common.throttling import AwsTagQueryThrottle
 from api.common.throttling import OcpReportQueryThrottle
+from api.common.throttling import OcpReportQueryTightenThrottle
 from api.common.throttling import OcpTagQueryThrottle
 
 
@@ -251,7 +252,7 @@ class AwsTagQueryThrottleGetCacheKeyTest(TestCase):
 
 
 class OcpReportQueryThrottleGetCacheKeyTest(TestCase):
-    """Tests for OcpReportQueryThrottle.get_cache_key."""
+    """Tests for global OcpReportQueryThrottle."""
 
     def test_get_cache_key_no_customer_returns_none(self):
         """When request.user has no customer, return None."""
@@ -260,10 +261,38 @@ class OcpReportQueryThrottleGetCacheKeyTest(TestCase):
         request.user = type("User", (), {})()
         self.assertIsNone(throttle.get_cache_key(request, None))
 
+    def test_get_cache_key_returns_key_for_any_schema(self):
+        """Global baseline applies without an Unleash flag check."""
+        throttle = OcpReportQueryThrottle()
+        request = Mock()
+        request.user.customer.schema_name = "acct123"
+        key = throttle.get_cache_key(request, None)
+        self.assertEqual(key, "ocp_report_query_throttle:acct123")
+
+    @patch("api.common.throttling.settings")
+    def test_get_rate_uses_settings(self, mock_settings):
+        """Rate is loaded from OCP_REPORT_THROTTLE_RATE."""
+        mock_settings.OCP_REPORT_THROTTLE_RATE = "30/m"
+        throttle = OcpReportQueryThrottle()
+        self.assertEqual(throttle.rate, "30/m")
+        self.assertEqual(throttle.num_requests, 30)
+        self.assertEqual(throttle.duration, 60)
+
+
+class OcpReportQueryTightenThrottleGetCacheKeyTest(TestCase):
+    """Tests for Unleash-gated OcpReportQueryTightenThrottle."""
+
+    def test_get_cache_key_no_customer_returns_none(self):
+        """When request.user has no customer, return None."""
+        throttle = OcpReportQueryTightenThrottle()
+        request = Mock()
+        request.user = type("User", (), {})()
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
     @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=False)
     def test_get_cache_key_flag_disabled_returns_none(self, mock_flag):
         """When Unleash flag is off, return None."""
-        throttle = OcpReportQueryThrottle()
+        throttle = OcpReportQueryTightenThrottle()
         request = Mock()
         request.user.customer.schema_name = "acct123"
         self.assertIsNone(throttle.get_cache_key(request, None))
@@ -271,9 +300,18 @@ class OcpReportQueryThrottleGetCacheKeyTest(TestCase):
 
     @patch("api.common.throttling.is_feature_flag_enabled_by_schema", return_value=True)
     def test_get_cache_key_flag_enabled_returns_key(self, mock_flag):
-        """When flag is on for the schema, return cache key for any report request."""
-        throttle = OcpReportQueryThrottle()
+        """When flag is on for the schema, return tighten cache key."""
+        throttle = OcpReportQueryTightenThrottle()
         request = Mock()
         request.user.customer.schema_name = "acct123"
         key = throttle.get_cache_key(request, None)
-        self.assertEqual(key, "ocp_report_query_throttle:acct123")
+        self.assertEqual(key, "ocp_report_query_tighten_throttle:acct123")
+
+    @patch("api.common.throttling.settings")
+    def test_get_rate_uses_tight_settings(self, mock_settings):
+        """Tighten rate is loaded from OCP_REPORT_THROTTLE_TIGHT_RATE."""
+        mock_settings.OCP_REPORT_THROTTLE_TIGHT_RATE = "5/m"
+        throttle = OcpReportQueryTightenThrottle()
+        self.assertEqual(throttle.rate, "5/m")
+        self.assertEqual(throttle.num_requests, 5)
+        self.assertEqual(throttle.duration, 60)

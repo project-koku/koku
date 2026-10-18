@@ -735,7 +735,7 @@ Platform Sources (User Action)
 
 - [Celery Tasks Architecture](./celery-tasks.md)
 - [API Serializers and Provider Maps](./api-serializers-provider-maps.md)
-- [Data Processing Patterns](./.cursor/rules/data-processing.mdc)
+- [Data Processing Patterns](../agent/file-processing.md)
 - [Provider Models](../../koku/api/provider/models.py)
 - [Sources Storage](../../koku/sources/storage.py)
 

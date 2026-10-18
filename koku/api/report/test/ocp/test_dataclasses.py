@@ -109,17 +109,21 @@ class ClusterCapacityDataclassTest(IamTestCase):
                     )
 
                     for date, total_count_by_date in cluster_capacity.count_by_date.items():
-                        expected_total_count_by_date = 0
-                        node_counts = {}
-                        for node_info in (
-                            cluster_capacity_vals.filter(usage_start=date).values("node", "capacity_count").distinct()
-                        ):
-                            node = node_info["node"]
-                            node_capacity = node_info["capacity_count"]
-                            node_counts[node] = (
-                                max(node_counts[node], node_capacity) if node in node_counts else node_capacity
-                            )
-                            expected_total_count_by_date += node_counts[node]
+                        expected_total_count_by_date = Decimal(0)
+                        for cluster in cluster_capacity.count_by_date_cluster.get(date, {}):
+                            node_counts = {}
+                            for node_info in cluster_capacity_vals.filter(cluster=cluster, usage_start=date).values(
+                                "node", "capacity_count"
+                            ):
+                                node = node_info["node"]
+                                node_capacity = node_info["capacity_count"]
+                                max_node_cap = (
+                                    node_counts[node]
+                                    if node in node_counts and node_counts[node] > node_capacity
+                                    else node_capacity
+                                )
+                                node_counts[node] = max_node_cap
+                            expected_total_count_by_date += sum(node_counts.values())
                         self.assertEqual(expected_total_count_by_date, total_count_by_date)
 
     def test_get_cluster_capacity_count_by_cluster(self):
@@ -196,17 +200,19 @@ class ClusterCapacityDataclassTest(IamTestCase):
                     for date, clusters in cluster_capacity.count_by_date_cluster.items():
                         for cluster, total_cluster_capacity in clusters.items():
 
-                            expected_total_cluster_capacity = 0
                             node_counts = {}
                             for node_info in cluster_capacity_vals.filter(cluster=cluster, usage_start=date).values(
                                 "node", "capacity_count"
                             ):
                                 node = node_info["node"]
                                 node_capacity = node_info["capacity_count"]
-                                node_counts[node] = (
-                                    max(node_counts[node], node_capacity) if node in node_counts else node_capacity
+                                max_node_cap = (
+                                    node_counts[node]
+                                    if node in node_counts and node_counts[node] > node_capacity
+                                    else node_capacity
                                 )
-                                expected_total_cluster_capacity += node_counts[node]
+                                node_counts[node] = max_node_cap
+                            expected_total_cluster_capacity = sum(node_counts.values())
                             self.assertEqual(total_cluster_capacity, expected_total_cluster_capacity)
 
     def test_capacity_aggregations(self):
@@ -483,3 +489,22 @@ class NodeCapacityDataclassTest(IamTestCase):
                         result_value = node_capacity.capacity_by_date_node.get(usage_start, {}).get(node)
                         self.assertEqual(result_value, expected_capacity)
                     self.assertEqual(expected_total_capacity, node_capacity.capacity_total)
+
+
+class CapacityReprTest(IamTestCase):
+    """Rendering a capacity dataclass must not evaluate its QuerySet."""
+
+    def test_repr_does_not_execute_query(self):
+        """repr() is called by Sentry when it serializes frame locals on a request timeout."""
+        with tenant_context(self.tenant):
+            query = OCPUsageLineItemDailySummary.objects.all()
+            report_type_map = OCPProviderMap(Provider.PROVIDER_OCP, "cpu", self.schema_name)._report_type_map
+            for capacity in (
+                ClusterCapacity(report_type_map, query, "daily"),
+                NodeCapacity(report_type_map, query, "daily"),
+            ):
+                with self.subTest(dataclass=type(capacity).__name__):
+                    with CaptureQueriesContext(connection) as captured:
+                        rendered = repr(capacity)
+                    self.assertEqual(len(captured), 0)
+                    self.assertNotIn("query=", rendered)

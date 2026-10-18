@@ -49,4 +49,23 @@ class TestTagMappingUtils(MasuTestCase):
             self.ocp_provider.save()
             uuids = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).values_list("uuid", flat=True)
             resummarize_current_month_by_tag_keys(uuids, self.schema_name)
+            # The cloud source refreshes the OCP-on-cloud tables; the OCP source
+            # remaps its own daily summary.
             self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=self.aws_provider_uuid).exists())
+            self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=self.ocp_provider.uuid).exists())
+
+    @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
+    def test_ocp_on_cloud_resummarize_queues_shared_infra_once(self, mock_delayed_summarize):
+        with tenant_context(self.tenant):
+            infra_map = ProviderInfrastructureMap.objects.create(
+                infrastructure_type=Provider.PROVIDER_AWS, infrastructure_provider=self.aws_provider
+            )
+            ocp_providers = Provider.objects.filter(type=Provider.PROVIDER_OCP)
+            ocp_providers.update(infrastructure=infra_map)
+            uuids = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).values_list("uuid", flat=True)
+            resummarize_current_month_by_tag_keys(uuids, self.schema_name)
+
+        queued = {call.args[2]: call.args[1] for call in mock_delayed_summarize.call_args_list}
+        self.assertEqual(set(queued), {Provider.PROVIDER_OCP, Provider.PROVIDER_AWS})
+        self.assertIn(self.ocp_provider.uuid, queued[Provider.PROVIDER_OCP])
+        self.assertEqual(queued[Provider.PROVIDER_AWS], [self.aws_provider.uuid])

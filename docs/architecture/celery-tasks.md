@@ -339,6 +339,35 @@ This document provides a comprehensive map of all Celery tasks used in the Koku 
 
 ---
 
+### `masu.celery.tasks.precreate_upcoming_partitions`
+
+**Module**: `koku/masu/celery/tasks.py`
+
+**Queue**: `DEFAULT`
+
+**Description**: Scheduled task that queues creation of next month's partitions for all tenant schemas, so the first of the month does not need partition DDL on the processing path.
+
+**Workflow**:
+1. Retrieves all tenant schemas (excluding `public` and the template schema)
+2. Queues `precreate_schema_partitions` for each schema with next month's start date
+
+---
+
+### `masu.celery.tasks.precreate_schema_partitions`
+
+**Module**: `koku/masu/celery/tasks.py`
+
+**Queue**: `DEFAULT`
+
+**Description**: Creates the partitions for one month in one schema via `koku.pg_partition.precreate_monthly_partitions`. Gated by the `cost-management.backend.precreate_partitions` flag.
+
+**Workflow**:
+1. For each range-partitioned table with a default partition, skips the month if its partition already exists
+2. Skips the month if the default partition already holds rows for it (left to the on-demand path, which moves the rows)
+3. Creates the partition with a session `lock_timeout` (5 s); creating a partition needs an `ACCESS EXCLUSIVE` lock on the parent, so a busy table is skipped instead of making every later statement wait, and a later run retries it
+
+---
+
 ### `masu.processor.tasks.remove_stale_tenants`
 
 **Module**: `koku/masu/processor/tasks.py`
@@ -692,6 +721,16 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 ---
 
+### Partition Pre-creation
+
+**Task**: `masu.celery.tasks.precreate_upcoming_partitions`
+
+**Schedule**: Every 8 hours (05:30, 13:30, 21:30 UTC) from `PRECREATE_PARTITIONS_START_DAY` through month end. The default is 15 (`30 5,13,21 15-31 * *`); the setting accepts 1–28 so every month has at least one run. Set it on the scheduler deployment to start earlier in an environment.
+
+**Enabled**: Per schema via `cost-management.backend.precreate_partitions`
+
+---
+
 ### Source Deletion
 
 **Task**: `sources.tasks.delete_source_beat`
@@ -744,7 +783,7 @@ The following tasks are scheduled via Celery Beat in `koku/koku/celery.py`:
 
 **Enabled**: When `CURRENCY_URL` is a non-empty value (configured via environment / app-interface)
 
-**Description**: Fetches latest currency exchange rates from the configured API and upserts monthly dynamic rates per tenant. When `CURRENCY_URL` is unset/empty (typical on-prem / airgapped), the beat is not registered so the worker does not attempt outbound requests.
+**Description**: Fetches latest currency exchange rates from the configured API and upserts monthly dynamic rates per tenant. When `CURRENCY_URL` is unset/empty (typical on-prem / airgapped), the beat is not registered so the worker does not attempt outbound requests. Newly cloned tenant schemas are filled from the existing shared snapshot at schema creation and do not wait for this beat.
 
 ---
 
@@ -872,7 +911,7 @@ Tag-mapping resummarize continues to use `delayed_summarize_current_month`
 1. If `CURRENCY_URL` is empty, skips the API fetch (logs and continues without dynamic discovery)
 2. Otherwise fetches exchange rates from the external API
 3. Updates `ExchangeRates` model for valid currencies and rebuilds the exchange rate cache
-4. Upserts `MonthlyExchangeRate` dynamic rows per tenant (and may invalidate report view cache)
+4. Upserts `MonthlyExchangeRate` dynamic rows per tenant (and may invalidate report view cache). A newly cloned schema is filled the same way when `Tenant.create_schema` commits, so it does not wait for this beat.
 
 ---
 

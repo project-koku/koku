@@ -39,25 +39,101 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
-from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
-from masu.processor import OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG
-from masu.processor import OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG
-from masu.processor import OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG
-from masu.processor import OCP_REPORT_LIMITED_DELTA_FLAG
+from reporting.provider.ocp.models import OCPCluster
+from reporting.provider.ocp.models import OCPCostSummaryP
+from reporting.provider.ocp.models import OCPPodSummaryByNodeP
+from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 LOG = logging.getLogger(__name__)
 
-# Metadata array annotations split out of the heavy aggregation queries when
-# OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG is enabled.  ARRAY_AGG(DISTINCT ...)
-# forces a serial GroupAggregate; computing these separately lets the main
-# aggregation parallelize.
+# Metadata array annotations are split out of the heavy aggregation queries.
+# ARRAY_AGG(DISTINCT ...) forces a serial GroupAggregate; computing these
+# separately lets the main aggregation parallelize.
 DISTINCT_METADATA_FIELDS = ("clusters", "source_uuid")
+
+# Report types whose capacity annotations only read columns that
+# reporting_ocp_pod_summary_by_node_p keeps per day/cluster/node.
+CAPACITY_BY_NODE_SUMMARY_REPORT_TYPES = ("cpu", "memory")
+
+# Filter fields that mean the same thing on reporting_ocp_pod_summary_by_node_p
+# as on the daily summary.  Other columns on the summary are aggregated across
+# namespaces (for example cost_category), so filters on them must keep using
+# the daily summary.
+CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS = frozenset(
+    ("usage_start", "usage_end", "cluster_id", "cluster_alias", "node", "data_source", "source_uuid")
+)
+
+
+def _q_uses_only_fields(q_object, allowed_fields):
+    """Return True if every lookup in q_object is a plain value lookup on allowed_fields."""
+    for child in q_object.children:
+        if isinstance(child, Q):
+            if not _q_uses_only_fields(child, allowed_fields):
+                return False
+            continue
+        if not isinstance(child, tuple) or len(child) != 2:
+            return False
+        lookup, value = child
+        if lookup.split("__", 1)[0] not in allowed_fields or hasattr(value, "resolve_expression"):
+            return False
+    return True
+
+
+CLUSTER_FILTER_FIELDS = ("cluster_alias", "cluster_id")
+# Lookups for which "column matches value" implies "column contains value".
+CLUSTER_FILTER_LOOKUPS = frozenset(
+    ("exact", "iexact", "contains", "icontains", "startswith", "istartswith", "endswith", "iendswith", "in")
+)
+
+
+def _implied_cluster_values(q_object):
+    """Return values that any row matching q_object contains in cluster_alias or cluster_id.
+
+    Returns None when q_object does not guarantee such a match.  An AND node
+    implies what any of its children implies; an OR node only when every
+    branch does.  Negated nodes and other lookups imply nothing.
+    """
+    if q_object.negated:
+        return None
+    implied = []
+    for child in q_object.children:
+        if isinstance(child, Q):
+            values = _implied_cluster_values(child)
+        else:
+            values = _implied_cluster_leaf_values(child)
+        if values is None:
+            if q_object.connector == Q.OR:
+                return None
+            continue
+        implied.append(values)
+    if not implied:
+        return None
+    return set().union(*implied)
+
+
+def _implied_cluster_leaf_values(child):
+    """Return the values a single (lookup, value) condition requires, or None."""
+    if not isinstance(child, tuple) or len(child) != 2:
+        return None
+    lookup, value = child
+    field, _, operation = lookup.partition("__")
+    if field not in CLUSTER_FILTER_FIELDS or (operation or "exact") not in CLUSTER_FILTER_LOOKUPS:
+        return None
+    values = value if operation == "in" else [value]
+    if isinstance(values, str) or not all(isinstance(item, str) and item for item in values):
+        return None
+    return set(values)
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for OCP."""
 
     provider = Provider.PROVIDER_OCP
+
+    @property
+    def _distinct_arrays_split_enabled(self):
+        """OCP metadata arrays use separate parallel-safe queries."""
+        return True
 
     def __init__(self, parameters):
         """Establish OCP report query handler.
@@ -197,7 +273,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency)
         - infra_exchange_rate: cloud bill currency (raw_currency column)
 
-        Falls back to the Case/When approach when the flag is off.
+        Uses a Case/When expression when a source needs currency conversion.
         """
         if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
             cost_model_currency = Subquery(
@@ -211,9 +287,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             )
         else:
             source_to_currency_map = self.source_to_currency_map
-            if is_feature_flag_enabled_by_schema(
-                self.tenant.schema_name, OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG, dev_fallback=True
-            ) and all(currency == self.currency for currency in source_to_currency_map.values()):
+            if all(currency == self.currency for currency in source_to_currency_map.values()):
                 exchange_rate_annotation = Value(1, output_field=DecimalField())
             else:
                 exchange_rate_whens = [
@@ -246,16 +320,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return (base_currencies | cm_currencies) - {None}
 
     @cached_property
-    def _distinct_arrays_split_enabled(self):
-        """Whether to compute clusters/source_uuid via separate (parallel-safe) queries."""
-        return is_feature_flag_enabled_by_schema(self.tenant.schema_name, OCP_REPORT_DISTINCT_ARRAYS_PARALLEL_FLAG)
-
-    @cached_property
     def _is_limited_delta_for_ranked_projects_shape(self):
         """Whether the ranked, paginated, project-only monthly delta shape is safe.
 
-        This describes the request shape only. Independent flags may use it to
-        roll out separate optimizations without enabling one another.
+        This describes the request shape eligible for bounded delta queries.
         """
         filter_params = self.parameters.get("filter") or {}
         return (
@@ -268,22 +336,66 @@ class OCPReportQueryHandler(ReportQueryHandler):
         )
 
     @cached_property
-    def _limited_delta_for_ranked_projects_enabled(self):
-        """Whether prior-period deltas can be limited to the returned projects."""
-        return self._is_limited_delta_for_ranked_projects_shape and is_feature_flag_enabled_by_schema(
-            self.tenant.schema_name, OCP_REPORT_LIMITED_DELTA_FLAG, dev_fallback=True
-        )
+    def _cluster_filter_values(self):
+        """Return values that every row kept by the report filter matches on cluster_alias/cluster_id.
+
+        Read from the composed filter rather than from the request parameters,
+        so the hint follows exactly what the filter applies (wildcards,
+        operators, and group-by handling included).  Empty when the filter does
+        not restrict the cluster.
+        """
+        return _implied_cluster_values(self.query_filter) or set()
+
+    def _cluster_filter_match(self):
+        """Return a Q matching cluster_alias/cluster_id against any cluster filter value."""
+        match = Q()
+        for value in self._cluster_filter_values:
+            match |= Q(cluster_alias__icontains=value) | Q(cluster_id__icontains=value)
+        return match
 
     @cached_property
-    def _combined_distributed_cost_for_limited_delta_enabled(self):
-        """Whether the prior-period distributed cost can use one aggregate expression."""
-        return (
-            self._is_limited_delta_for_ranked_projects_shape
-            and self._delta == "cost_total_distributed"
-            and is_feature_flag_enabled_by_schema(
-                self.tenant.schema_name, OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG, dev_fallback=True
-            )
+    def _cluster_filter_source_uuids(self):
+        """Return the sources whose clusters can match the cluster filter.
+
+        reporting_ocp_cost_summary_p keeps the cluster alias each day was
+        summarized with, so it still matches rows written before a cluster
+        rename; reporting_ocp_clusters adds the current alias.
+        """
+        match = self._cluster_filter_match()
+        sources = set(OCPCostSummaryP.objects.filter(match).values_list("source_uuid", flat=True).distinct())
+        sources |= set(OCPCluster.objects.filter(match).values_list("provider_id", flat=True))
+        sources.discard(None)
+        return sources
+
+    @cached_property
+    def _cluster_filter_report_period_ids(self):
+        """Return the report periods whose rows can match the cluster filter."""
+        match = self._cluster_filter_match()
+        return set(
+            OCPUsageReportPeriod.objects.filter(
+                Q(provider_id__in=self._cluster_filter_source_uuids) | match
+            ).values_list("id", flat=True)
         )
+
+    def _apply_cluster_filter_index_hint(self, queryset):
+        """Add an indexed id filter that is implied by the cluster filter.
+
+        The cluster filter is an unindexable substring match, so every report
+        query reads all rows in its date range.  Restricting to the matching
+        sources (summary tables) or report periods (daily summary table) lets
+        PostgreSQL use an existing index.  The original cluster filter stays in
+        place, so the result is unchanged.
+        """
+        if not self._cluster_filter_values:
+            return queryset
+        field_names = {field.name for field in queryset.model._meta.get_fields()}
+        if "report_period" in field_names:
+            return queryset.filter(
+                Q(report_period_id__in=self._cluster_filter_report_period_ids) | Q(report_period_id__isnull=True)
+            )
+        if "source_uuid" in field_names:
+            return queryset.filter(source_uuid__in=self._cluster_filter_source_uuids)
+        return queryset
 
     def _distinct_metadata_annotations(self):
         """Return the clusters/source_uuid ArrayAgg annotations for this report type."""
@@ -293,11 +405,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
     def _backfill_distinct_group_metadata(self, query, query_group_by, query_data):
         """Backfill clusters/source_uuid onto rows via a separate, cheap query.
 
-        With the split flag enabled the metadata arrays are removed from the main
-        aggregation so it can parallelize.  Recompute them here in a query grouped
-        identically (same filters/joins, no currency math), keyed by the group
-        tuple, and merge them onto each row.  Used for the non-limit path; the
-        limited path sources these arrays from the rank query instead.
+        The metadata arrays are removed from the main aggregation so it can
+        parallelize. Recompute them here in a query grouped identically (same
+        filters/joins, no currency math), keyed by the group tuple, and merge
+        them onto each row. Used for the non-limit path; the limited path
+        sources these arrays from the rank query instead.
         """
         meta_annotations = self._distinct_metadata_annotations()
         if not meta_annotations:
@@ -325,10 +437,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
         if is_grouped_by_node(self.parameters):
             # Add instance counts to node reports without mutating the shared mapper.
             annotations.update(self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {}))
-        if self._distinct_arrays_split_enabled:
-            # The metadata arrays are computed separately so the main aggregation
-            # can parallelize; drop them from the heavy annotation set.
-            annotations = {k: v for k, v in annotations.items() if k not in DISTINCT_METADATA_FIELDS}
+        # The metadata arrays are computed separately so the main aggregation
+        # can parallelize; drop them from the heavy annotation set.
+        annotations = {k: v for k, v in annotations.items() if k not in DISTINCT_METADATA_FIELDS}
         if self.is_csv_output:
             annotations = {
                 **annotations,
@@ -366,7 +477,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             with tenant_context(self.tenant):
                 output["distributed_overhead"] = False
                 if (
-                    self.query_table.objects.filter(self.query_filter)
+                    self._apply_cluster_filter_index_hint(self.query_table.objects.filter(self.query_filter))
                     .filter(cost_model_rate_type__in=["platform_distributed", "worker_distributed"])
                     .exists()
                 ):
@@ -409,7 +520,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
-            query = self.query_table.objects.filter(self.query_filter)
+            query = self._apply_cluster_filter_index_hint(self.query_table.objects.filter(self.query_filter))
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
             query = query.annotate(**self.annotations)
@@ -433,8 +544,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     # therefore others must be at the end.
                     # override implicit ordering when using ranked ordering.
                     query_order_by[-1] = "rank"
-            elif self._distinct_arrays_split_enabled:
-                # The main aggregation dropped the metadata arrays so it could
+            else:
+                # The main aggregation drops the metadata arrays so it can
                 # parallelize; backfill them from a separate cheap query.
                 query_data = self._backfill_distinct_group_metadata(query, query_group_by, query_data)
 
@@ -497,14 +608,33 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     # Capacity Calculations
 
+    def _capacity_query_table(self):
+        """Return the table to read capacity from.
+
+        CPU and memory capacity only need per-day/cluster/node maximums, which
+        reporting_ocp_pod_summary_by_node_p already stores, so it can replace
+        the much larger daily summary when every filter can be applied to it.
+        """
+        q_table = self._mapper.query_table
+        if (
+            self._report_type in CAPACITY_BY_NODE_SUMMARY_REPORT_TYPES
+            and _q_uses_only_fields(self.query_filter, CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS)
+            and (
+                not self.query_exclusions
+                or _q_uses_only_fields(self.query_exclusions, CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS)
+            )
+        ):
+            return OCPPodSummaryByNodeP
+        return q_table
+
     def get_capacity(self, query_data):
         """Calculate capacity & instance count for all nodes over the date range."""
-        q_table = self._mapper.query_table
+        q_table = self._capacity_query_table()
         LOG.debug(f"Using query table: {q_table}")
-        query = q_table.objects.filter(self.query_filter)
-        if self.query_exclusions:
-            query = query.exclude(self.query_exclusions)
         with tenant_context(self.tenant):
+            query = self._apply_cluster_filter_index_hint(q_table.objects.filter(self.query_filter))
+            if self.query_exclusions:
+                query = query.exclude(self.query_exclusions)
             is_node_report = is_grouped_by_node(self.parameters)
             capacity_class = NodeCapacity if is_node_report else ClusterCapacity
             capacity_aggregate = self._mapper.report_type_map.get("capacity_aggregate", {})
@@ -512,9 +642,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 not is_node_report
                 and bool(capacity_aggregate.get("cluster"))
                 and bool(capacity_aggregate.get("cluster_instance_counts"))
-                and is_feature_flag_enabled_by_schema(
-                    self.tenant.schema_name, OCP_CAPACITY_SINGLE_SCAN_FLAG, dev_fallback=True
-                )
             )
             capacity = capacity_class(
                 self._mapper.report_type_map,
@@ -548,9 +675,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
         else:
             return super().add_deltas(query_data, query_sum)
 
+    def _get_previous_query(self, delta_filter):
+        """Apply the cluster filter index hint to row and total previous-period deltas."""
+        return self._apply_cluster_filter_index_hint(super()._get_previous_query(delta_filter))
+
     def _get_previous_rows_query(self, previous_query, query_data):
-        """Limit per-row deltas to ranked projects when the flagged shape is safe."""
-        if not self._limited_delta_for_ranked_projects_enabled or not query_data:
+        """Limit per-row deltas to ranked projects when the request shape is safe."""
+        if not self._is_limited_delta_for_ranked_projects_shape or not query_data:
             return previous_query
 
         projects = {row.get("project") for row in query_data}
@@ -563,8 +694,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return previous_query.filter(project_filter)
 
     def _get_delta_field(self):
-        """Use the single distributed-cost aggregate only for the flagged safe shape."""
-        if self._combined_distributed_cost_for_limited_delta_enabled:
+        """Use the single distributed-cost aggregate for its safe request shape."""
+        if self._is_limited_delta_for_ranked_projects_shape and self._delta == "cost_total_distributed":
             return self._mapper.combined_distributed_cost
         return super()._get_delta_field()
 

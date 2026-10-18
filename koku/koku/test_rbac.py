@@ -146,7 +146,7 @@ class RbacServiceTest(TestCase):
     def test_non_200_error_json(self, mock_get):
         """Test handling of request with non-200 response and json error."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
@@ -155,7 +155,7 @@ class RbacServiceTest(TestCase):
     def test_500_error_json(self, mock_get):
         """Test handling of request with 500 response and json error."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         with self.assertRaises(RbacConnectionError):
             rbac._request_user_access(url, headers={})
 
@@ -163,7 +163,7 @@ class RbacServiceTest(TestCase):
     def test_non_200_error_text(self, mock_get):
         """Test handling of request with non-200 response and non-json error."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
@@ -172,7 +172,7 @@ class RbacServiceTest(TestCase):
     def test_non_200_error_except(self, mock_get):
         """Test handling of request with non-200 response and non-json error."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         logging.disable(logging.NOTSET)
         with self.assertLogs(logger="koku.rbac", level=logging.WARNING):
             access = rbac._request_user_access(url, headers={})
@@ -183,7 +183,7 @@ class RbacServiceTest(TestCase):
     def test_200_text(self, mock_get):
         """Test handling of request with 200 response and non-json error."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
@@ -192,7 +192,7 @@ class RbacServiceTest(TestCase):
     def test_200_exception(self, mock_get):
         """Test handling of request with 200 response and raises a json error."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
@@ -201,7 +201,7 @@ class RbacServiceTest(TestCase):
     def test_200_all_results(self, mock_get):
         """Test handling of request with 200 response with no next link."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [LIMITED_AWS_ACCESS])
         mock_get.assert_called()
@@ -210,7 +210,7 @@ class RbacServiceTest(TestCase):
     def test_200_results_next(self, mock_get):
         """Test handling of request with 200 response with next link."""
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [LIMITED_AWS_ACCESS, LIMITED_AWS_ACCESS])
         mock_get.assert_called()
@@ -220,7 +220,7 @@ class RbacServiceTest(TestCase):
         """Test handling of request with ConnectionError."""
         before = REGISTRY.get_sample_value("rbac_connection_errors_total")
         rbac = RbacService()
-        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        url = f"{rbac.base_url}{rbac.path}"
         with self.assertRaises(RbacConnectionError):
             rbac._request_user_access(url, headers={})
         after = REGISTRY.get_sample_value("rbac_connection_errors_total")
@@ -471,6 +471,25 @@ class RbacServiceTest(TestCase):
         )
         self.assertEqual(access, expected)
         self.assertEqual(mock_get.call_count, 2)
+
+    @override_settings(ONPREM=True)
+    @patch.dict("koku.rbac.RESOURCE_TYPES", {"sources": ["read", "write"]})
+    @patch("koku.rbac.requests.get")
+    def test_get_access_for_user_onprem_sources_failure(self, mock_get):
+        """On-prem, a Sources ACL lookup failure does not discard cost-management access."""
+
+        def side_effect(url, **kwargs):
+            if "application=sources" in url:
+                raise ConnectionError("sources service unavailable")
+            return mocked_requests_get_200_by_application(url, **kwargs)
+
+        mock_get.side_effect = side_effect
+        rbac = RbacService()
+        mock_user = Mock()
+        mock_user.identity_header = {"encoded": "dGVzdCBoZWFkZXIgZGF0YQ=="}
+        access = rbac.get_access_for_user(mock_user)
+        # Cost-management access should still be returned
+        self.assertEqual(access["aws.account"], {"read": ["123456"]})
 
     @patch.dict(os.environ, {"RBAC_CACHE_TTL": "5"})
     def test_get_cache_ttl(self):
