@@ -498,6 +498,10 @@ objects:
           value: ${KAFKA_CONNECT}
         - name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
           value: ${KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS}
+        - name: OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS
+          value: ${OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS}
+        - name: OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES
+          value: ${OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES}
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -2747,6 +2751,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -2946,6 +2952,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -3145,6 +3153,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -4493,6 +4503,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -4703,6 +4715,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -4913,6 +4927,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+          value: ${OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS}
         - name: VALIDATION_RANGE
           value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
@@ -6013,6 +6029,11 @@ parameters:
   name: TRINO_DATE_STEP
   required: true
   value: "5"
+- description: Maximum duration in milliseconds for an enabled OCP tag-mapping UPDATE
+    (default 8 hours)
+  displayName: OCP tag-mapping statement timeout
+  name: OCP_TAG_MAPPING_STATEMENT_TIMEOUT_MS
+  value: "28800000"
 - description: Number of days to expand the data validation
   displayName: Data validation
   name: VALIDATION_RANGE
@@ -6128,6 +6149,14 @@ parameters:
   displayName: Kafka listener watchdog timeout in seconds
   name: KAFKA_LISTENER_WATCHDOG_TIMEOUT_SECONDS
   value: "900"
+- description: Wall-clock limit for streaming an OCP ingress tarball on the listener.
+  displayName: OCP ingress download timeout in seconds
+  name: OCP_INGRESS_DOWNLOAD_TIMEOUT_SECONDS
+  value: "900"
+- description: Maximum OCP ingress tarball size in bytes before download is aborted.
+  displayName: OCP ingress download max payload bytes
+  name: OCP_INGRESS_DOWNLOAD_MAX_PAYLOAD_BYTES
+  value: "5368709120"
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/

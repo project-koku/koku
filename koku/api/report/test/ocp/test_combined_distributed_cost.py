@@ -2,7 +2,7 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Regression coverage for the flagged OCP distributed-cost delta aggregate."""
+"""Regression coverage for the OCP distributed-cost delta aggregate."""
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -22,7 +22,6 @@ from api.report.queries import ReportQueryHandler
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 
-COMBINED_DISTRIBUTED_COST_FLAG = "cost-management.backend.ocp_report_combined_distributed_cost"
 FLAG_TARGET = "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema"
 
 
@@ -34,10 +33,6 @@ class OCPCombinedDistributedCostTest(IamTestCase):
         "&filter[time_scope_value]=-1&filter[time_scope_units]=month"
         "&filter[limit]=10&filter[offset]=0&order_by[distributed_cost]=desc"
     )
-
-    @staticmethod
-    def _feature_flag(_schema, feature_flag, **_kwargs):
-        return feature_flag == COMBINED_DISTRIBUTED_COST_FLAG
 
     def _handler(self, url=None, view=OCPCostView, path="/api/cost-management/v1/reports/openshift/costs/"):
         params = self.mocked_query_params(
@@ -88,25 +83,22 @@ class OCPCombinedDistributedCostTest(IamTestCase):
         self.assertEqual(totals["legacy"], totals["combined"])
         self.assertEqual(1, combined_sql.upper().count("SUM("))
 
-    def test_eligible_schema_flag_selects_combined_delta_aggregate(self):
-        """Only the scoped schema flag selects the single-aggregate delta expression."""
-        seen = []
-
-        def feature_flag(schema, feature_flag, **kwargs):
-            seen.append((schema, feature_flag, kwargs.get("dev_fallback")))
-            return self._feature_flag(schema, feature_flag, **kwargs)
-
-        with patch(FLAG_TARGET, side_effect=feature_flag):
+    def test_eligible_shape_selects_combined_delta_aggregate(self):
+        """The bounded distributed-cost delta shape selects one aggregate."""
+        with patch(FLAG_TARGET, return_value=False):
             handler = self._handler()
-            self.assertTrue(handler._combined_distributed_cost_for_limited_delta_enabled)
+            self.assertTrue(handler._is_limited_delta_for_ranked_projects_shape)
             self.assertIs(handler._get_delta_field(), handler._mapper.combined_distributed_cost)
 
-        self.assertIn((self.schema_name, COMBINED_DISTRIBUTED_COST_FLAG, True), seen)
-
-    def test_enabled_flag_preserves_complete_delta_response(self):
-        """The new aggregate is exactly response-compatible with the legacy path."""
-        with patch(FLAG_TARGET, return_value=False):
-            legacy = self._handler().execute_query()
+    def test_combined_aggregate_preserves_complete_delta_response(self):
+        """The combined aggregate participates in a complete report response."""
+        legacy_handler = self._handler()
+        with patch.object(
+            legacy_handler,
+            "_get_delta_field",
+            side_effect=lambda: ReportQueryHandler._get_delta_field(legacy_handler),
+        ):
+            legacy = legacy_handler.execute_query()
 
         handler = self._handler()
         selected_delta_fields = []
@@ -117,24 +109,22 @@ class OCPCombinedDistributedCostTest(IamTestCase):
             selected_delta_fields.append(delta_field)
             return delta_field
 
-        with patch(FLAG_TARGET, side_effect=self._feature_flag):
+        with patch(FLAG_TARGET, return_value=False):
             with patch.object(handler, "_get_delta_field", side_effect=capture_delta_field):
                 optimized = handler.execute_query()
 
+        self.assertIn("data", optimized)
+        self.assertIn("total", optimized)
         self.assertEqual(legacy, optimized)
         self.assertTrue(
             any(delta_field is handler._mapper.combined_distributed_cost for delta_field in selected_delta_fields)
         )
 
-    def test_disabled_flag_keeps_legacy_delta_aggregate(self):
-        """An eligible request remains on the legacy aggregate until explicitly enabled."""
+    def test_other_delta_keeps_provider_aggregate(self):
+        """An eligible ranked request with another delta uses its provider expression."""
         with patch(FLAG_TARGET, return_value=False):
-            handler = self._handler()
-            self.assertFalse(handler._combined_distributed_cost_for_limited_delta_enabled)
-            self.assertIs(
-                handler._get_delta_field(),
-                handler._mapper.report_type_map["delta_key"]["cost_total_distributed"],
-            )
+            handler = self._handler(self.url.replace("delta=distributed_cost", "delta=cost"))
+            self.assertIs(handler._get_delta_field(), handler._mapper.report_type_map["delta_key"]["cost_total"])
 
     def test_ineligible_requests_keep_legacy_delta_aggregate(self):
         """The flag cannot broaden from the bounded supported report shape."""
@@ -144,11 +134,11 @@ class OCPCombinedDistributedCostTest(IamTestCase):
             self.url.replace("&order_by", "&group_by[cluster]=*&order_by"),
         )
 
-        with patch(FLAG_TARGET, side_effect=self._feature_flag):
+        with patch(FLAG_TARGET, return_value=False):
             for url in ineligible_urls:
                 with self.subTest(url=url):
                     handler = self._handler(url)
-                    self.assertFalse(handler._combined_distributed_cost_for_limited_delta_enabled)
+                    self.assertFalse(handler._is_limited_delta_for_ranked_projects_shape)
                     self.assertIs(
                         handler._get_delta_field(),
                         handler._mapper.report_type_map["delta_key"]["cost_total_distributed"],
@@ -160,17 +150,17 @@ class OCPCombinedDistributedCostTest(IamTestCase):
                 view=OCPCpuView,
                 path="/api/cost-management/v1/reports/openshift/cpu/",
             )
-            self.assertFalse(cpu_handler._combined_distributed_cost_for_limited_delta_enabled)
+            self.assertFalse(cpu_handler._is_limited_delta_for_ranked_projects_shape)
 
             with patch("reporting.provider.ocp.models.OpenshiftCostCategory.objects") as categories:
                 categories.values_list.return_value.distinct.return_value = ["Platform"]
                 category_handler = self._handler(self.url.replace("&order_by", "&category=*&order_by"))
-            self.assertFalse(category_handler._combined_distributed_cost_for_limited_delta_enabled)
+            self.assertFalse(category_handler._is_limited_delta_for_ranked_projects_shape)
 
             with patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock) as accept_type:
                 accept_type.return_value = "text/csv"
                 csv_handler = self._handler()
-            self.assertFalse(csv_handler._combined_distributed_cost_for_limited_delta_enabled)
+            self.assertFalse(csv_handler._is_limited_delta_for_ranked_projects_shape)
 
     def test_base_delta_field_hook_keeps_the_provider_expression(self):
         """Providers without an override retain their existing delta mapping."""

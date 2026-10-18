@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for the bulk provider details of the GET /sources/ list."""
-import copy
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -29,7 +28,7 @@ from sources.api.view import SourcesViewSet
 
 
 class SourcesBulkDetailsTest(IamTestCase):
-    """The bulk path must return exactly what the per-source ProviderManager path returns."""
+    """The bulk path must return full details for linked and unlinked sources."""
 
     def setUp(self):
         super().setUp()
@@ -94,23 +93,17 @@ class SourcesBulkDetailsTest(IamTestCase):
             cost_model = self.baker.make(CostModel, name="bulk-test", source_type=Provider.PROVIDER_OCP)
             self.baker.make(CostModelMap, provider_uuid=self.ocp.uuid, cost_model=cost_model)
 
-    def _details(self, uuids, bulk):
+    def _details(self, uuids):
         sources = [{"uuid": uuid} for uuid in uuids]
         view = SourcesViewSet()
-        # A request runs under the tenant schema (ProviderManager.get_cost_models relies on it).
         with tenant_context(self.tenant):
-            if bulk:
-                view._add_provider_details_bulk(sources, self.tenant)
-            else:
-                view._add_provider_details(sources, self.tenant)
+            view._add_provider_details_bulk(sources, self.tenant)
         return sources
 
-    def test_bulk_matches_per_source_details(self):
-        """Every field matches, including infrastructure, operator context, cost models and unlinked sources."""
+    def test_bulk_details_for_linked_and_unlinked_sources(self):
+        """Details include infrastructure, operator context, cost models and unlinked sources."""
         uuids = [*Provider.objects.values_list("uuid", flat=True), uuid4(), None, "not-a-uuid"]
-        legacy = self._details(copy.deepcopy(uuids), bulk=False)
-        bulk = self._details(copy.deepcopy(uuids), bulk=True)
-        self.assertEqual(bulk, legacy)
+        bulk = self._details(uuids)
 
         by_uuid = {str(source["uuid"]): source for source in bulk}
         ocp = by_uuid[str(self.ocp.uuid)]
@@ -140,31 +133,26 @@ class SourcesBulkDetailsTest(IamTestCase):
         """Unknown or malformed uuids return no details and run a single query at most."""
         self.assertEqual(bulk_source_details([None, "nope", uuid4()], self.tenant), {})
 
+    def test_bulk_removes_client_secret(self):
+        """The list detail helper strips source credentials before returning details."""
+        source = {"uuid": uuid4(), "authentication": {"credentials": {"client_secret": "test-secret"}}}
+        with tenant_context(self.tenant):
+            SourcesViewSet()._add_provider_details_bulk([source], self.tenant)
+        self.assertNotIn("client_secret", source["authentication"]["credentials"])
+        self.assertFalse(source["provider_linked"])
 
-class SourcesListBulkFlagTest(IamTestCase):
-    """The list endpoint chooses the provider-details path by feature flag."""
+
+class SourcesListBulkTest(IamTestCase):
+    """The list endpoint uses bulk provider details."""
 
     def setUp(self):
         super().setUp()
         caches[CacheEnum.api].clear()
         self.addCleanup(caches[CacheEnum.api].clear)
 
-    def _list(self, flag_enabled):
-        with (
-            patch("sources.api.view.is_feature_flag_enabled_by_schema", return_value=flag_enabled),
-            patch.object(SourcesViewSet, "_add_provider_details_bulk") as bulk,
-            patch.object(SourcesViewSet, "_add_provider_details") as legacy,
-        ):
+    def test_list_uses_bulk_details(self):
+        with patch("sources.api.view.bulk_source_details", wraps=bulk_source_details) as bulk:
             response = self.client.get(reverse("sources-list"), **self.request_context["request"].META)
         self.assertEqual(response.status_code, 200)
-        return bulk, legacy
-
-    def test_flag_enabled_uses_bulk_details(self):
-        bulk, legacy = self._list(flag_enabled=True)
         bulk.assert_called_once()
-        legacy.assert_not_called()
-
-    def test_flag_disabled_uses_per_source_details(self):
-        bulk, legacy = self._list(flag_enabled=False)
-        legacy.assert_called_once()
-        bulk.assert_not_called()
+        self.assertIsInstance(response.data["data"], list)
