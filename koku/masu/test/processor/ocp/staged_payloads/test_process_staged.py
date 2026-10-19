@@ -5,6 +5,7 @@
 """Test the worker that processes a staged ingress tarball."""
 import shutil
 import tempfile
+import uuid
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone as dt_timezone
@@ -13,6 +14,7 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.utils import timezone
+from kombu.exceptions import OperationalError as KombuOperationalError
 
 from common.queues import OCPQueue
 from masu.external.downloader.ocp.payload_landing import claim_ingress_staging_row
@@ -185,6 +187,93 @@ class ProcessStagedIngressTests(MasuTestCase):
         self.assertEqual(row.state, IngressStagingState.PROCESSING)
         self.assertIsNotNone(row.payload)
         self.assertIsNotNone(row.enqueued_at)
+
+    def test_extract_releases_when_split_file_object_missing(self):
+        """Test that a missing daily CSV object key returns the row to pending."""
+        request_id = "missing-split-key"
+        row = self._pending_row(request_id)
+        payload_dir = Path(tempfile.mkdtemp())
+        payload_file = payload_dir / "payload.tar.gz"
+        payload_file.write_bytes(b"tar")
+        report_meta = {
+            "process_complete": False,
+            "split_files": [Path("/tmp/pod_usage.2026-01-01.1.abc.csv")],
+            "ocp_files_to_process": {},
+            "schema_name": self.schema,
+        }
+        with (
+            patch(
+                "masu.processor.ocp.staged_payloads.process_staged.download_staged_tarball", return_value=payload_file
+            ),
+            patch(
+                "masu.processor.ocp.staged_payloads.processing.extract_payload",
+                return_value=([report_meta], "manifest-uuid"),
+            ),
+            patch("masu.processor.ocp.staged_payloads.process_staged.celery_app.send_task") as mock_enqueue,
+        ):
+            process_staged_ingress_payload(request_id)
+
+        mock_enqueue.assert_not_called()
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PENDING)
+        self.assertIsNone(row.claim_token)
+        self.assertIsNone(row.enqueued_at)
+
+    def test_extract_releases_when_line_item_enqueue_fails(self):
+        """Test that a broker failure during handoff releases the claim for reconcile."""
+        request_id = "enqueue-broker-down"
+        row = self._pending_row(request_id)
+        payload_dir = Path(tempfile.mkdtemp())
+        payload_file = payload_dir / "payload.tar.gz"
+        payload_file.write_bytes(b"tar")
+        report_meta = {
+            "process_complete": False,
+            "split_files": [Path("/tmp/pod_usage.2026-01-01.1.abc.csv")],
+            "ocp_files_to_process": {
+                "pod_usage.2026-01-01.1.abc": {"s3_key": "data/csv/pod_usage.2026-01-01.1.abc.csv"},
+            },
+            "schema_name": self.schema,
+            "uuid": "manifest-uuid",
+        }
+        with (
+            patch(
+                "masu.processor.ocp.staged_payloads.process_staged.download_staged_tarball", return_value=payload_file
+            ),
+            patch(
+                "masu.processor.ocp.staged_payloads.processing.extract_payload",
+                return_value=([report_meta], "manifest-uuid"),
+            ),
+            patch(
+                "masu.processor.ocp.staged_payloads.process_staged.celery_app.send_task",
+                side_effect=KombuOperationalError("broker down"),
+            ),
+        ):
+            process_staged_ingress_payload(request_id)
+
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PENDING)
+        self.assertIsNone(row.claim_token)
+        self.assertIsNone(row.enqueued_at)
+
+    def test_line_item_task_skips_when_claim_missed(self):
+        """Test that a stale line-item task does not download CSVs or touch the row."""
+        request_id = "line-items-stale"
+        row = self._pending_row(request_id, state=IngressStagingState.PROCESSING)
+        report_metas = [{"schema_name": self.schema, "split_files": ["file.csv"]}]
+        with (
+            patch(
+                "masu.processor.ocp.staged_payloads.process_staged.heartbeat_ingress_claim",
+                return_value=False,
+            ),
+            patch(
+                "masu.processor.ocp.staged_payloads.process_staged.materialize_report_files",
+            ) as mock_materialize,
+        ):
+            process_staged_ingress_reports(request_id, str(uuid.uuid4()), report_metas)
+
+        mock_materialize.assert_not_called()
+        row.refresh_from_db()
+        self.assertEqual(row.state, IngressStagingState.PROCESSING)
 
     def test_line_item_task_marks_processed_after_reports(self):
         """Test that the OCP task marks the row processed only after line items return."""
