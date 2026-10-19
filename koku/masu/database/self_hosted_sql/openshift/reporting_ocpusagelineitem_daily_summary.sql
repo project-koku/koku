@@ -79,7 +79,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_stagin
     day
 )
 WITH cte_pg_enabled_keys as (
-    -- Always keep the VM label; array_agg is NULL when no tags are enabled.
+    -- Always keep the VM label. Postgres already kept it (array || NULL returns the array)
+    -- this matches trino_sql, where array || NULL is NULL and the VM label was lost.
     SELECT array_agg(key ORDER BY key) as keys
     FROM (
         SELECT 'vm_kubevirt_io_name' AS key
