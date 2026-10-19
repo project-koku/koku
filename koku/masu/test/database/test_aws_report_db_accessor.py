@@ -545,6 +545,61 @@ class AWSReportDBAccessorTest(MasuTestCase):
         )[0]
         self.assertIn("lineitem_usagetype LIKE '%EBS:VolumeUsage%'", capacity_section)
 
+    def test_ocp_on_aws_summary_uses_prunable_month_predicate(self):
+        """COST-8094: avoid lpad on partition column so Trino can prune month partitions."""
+        sql_template = pkgutil.get_data(
+            "masu.database",
+            "trino_sql/aws/openshift/populate_daily_summary/2_summarize_data_by_cluster.sql",
+        )
+        sql_template = sql_template.decode("utf-8")
+        self.assertNotIn("lpad(ocp.month, 2, '0') = {{month}}", sql_template)
+        self.assertIn(
+            "ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
+            sql_template,
+        )
+        # Unattributed storage CTE must use the prunable predicate
+        unattributed = sql_template.split("cte_total_pv_capacity as (")[1].split("SELECT  cast(uuid()")[0]
+        self.assertIn(
+            "ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
+            unattributed,
+        )
+
+    def test_matched_tags_sql_uses_prunable_month_predicate(self):
+        """COST-8094: matched-tags lookups must prune month partitions."""
+        for path in (
+            "trino_sql/aws/openshift/reporting_ocpaws_matched_tags.sql",
+            "trino_sql/openshift/ocp_special_matched_tags.sql",
+        ):
+            sql_template = pkgutil.get_data("masu.database", path).decode("utf-8")
+            with self.subTest(path=path):
+                self.assertNotIn("lpad(month, 2, '0') = {{month}}", sql_template)
+                self.assertIn(
+                    "month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
+                    sql_template,
+                )
+
+    def test_summary_sql_metadata_days_tup_includes_padded_and_legacy(self):
+        """COST-8094: days_tup dual for reads; days_delete_tup one padded value per day."""
+        from datetime import date
+
+        from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
+
+        metadata = SummarySqlMetadata(
+            schema=self.schema,
+            ocp_provider_uuid=str(self.ocp_provider_uuid),
+            cloud_provider_uuid=str(self.aws_provider_uuid),
+            start_date=date(2026, 7, 1),
+            end_date=date(2026, 7, 9),
+            matched_tag_strs=[],
+            bill_id=1,
+            report_period_id=1,
+        )
+        self.assertIn("01", metadata.days_tup)
+        self.assertIn("1", metadata.days_tup)
+        self.assertIn("09", metadata.days_tup)
+        self.assertIn("9", metadata.days_tup)
+        self.assertEqual(metadata.days_delete_tup, ("01", "02", "03", "04", "05", "06", "07", "08", "09"))
+
     def test_ocp_on_aws_disk_capacity_formula_ignores_provisioned_performance_lines(self):
         """COST-8328: provisioned throughput/IOPS rates must not drive capacity."""
         hours_in_month = 720

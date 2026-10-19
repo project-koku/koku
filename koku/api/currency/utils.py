@@ -5,7 +5,6 @@
 import logging
 from decimal import Decimal
 
-from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.db.models import Case
 from django.db.models import DecimalField
@@ -20,6 +19,7 @@ from api.common import log_json
 from api.currency.currencies import get_enabled_currency_codes
 from api.currency.exceptions import ExchangeRateNotFound
 from api.currency.models import ExchangeRateDictionary
+from api.utils import DateHelper
 from cost_models.models import MonthlyExchangeRate
 
 LOG = logging.getLogger(__name__)
@@ -150,44 +150,48 @@ def get_monthly_exchange_rate(base_currency, target_currency, month_start):
     return rate
 
 
-def validate_exchange_rate_coverage(base_currencies, target_currency, start_date, end_date):
-    """Check that MonthlyExchangeRate rows exist for every base currency and every month in the range.
+def get_monthly_exchange_rate_map(base_currencies, target_currency, start_date, end_date):
+    """Return monthly exchange rates for each base currency and month in range.
 
-    Raises ExchangeRateNotFound if:
-    - A base currency is completely missing from MER
-    - A base currency has rates for some months but not all months in the range
+    The returned shape is ``{base_currency: {month_start: exchange_rate}}``.
+    Identity conversions are included as ``1`` without reading
+    MonthlyExchangeRate. Missing non-identity rows raise ExchangeRateNotFound.
     """
+    base_currencies = set(base_currencies) - {None}
+    date_helper = DateHelper()
+    start_month = date_helper.month_start(start_date)
+    months = [month_start for month_start, _ in date_helper.list_month_tuples(start_month, end_date)]
+    rates_by_currency = {
+        base: {month: Decimal("1") for month in months} for base in base_currencies if base == target_currency
+    }
+
     bases_needing_conversion = base_currencies - {target_currency}
     if not bases_needing_conversion:
-        return
+        return rates_by_currency
 
-    start_month = start_date.replace(day=1) if hasattr(start_date, "replace") else start_date
-    end_month = end_date.replace(day=1) if hasattr(end_date, "replace") else end_date
-
+    end_month = months[-1]
     rates = MonthlyExchangeRate.objects.filter(
         effective_date__gte=start_month,
         effective_date__lte=end_month,
         base_currency__in=bases_needing_conversion,
         target_currency=target_currency,
-    ).values_list("base_currency", "effective_date")
+    ).values_list("base_currency", "effective_date", "exchange_rate")
 
-    covered_by_currency = {}
-    for base, effective_date in rates:
-        covered_by_currency.setdefault(base, set()).add(effective_date)
+    for base, effective_date, exchange_rate in rates:
+        rates_by_currency.setdefault(base, {})[effective_date] = exchange_rate
 
-    missing = bases_needing_conversion - set(covered_by_currency.keys())
+    missing = bases_needing_conversion - set(rates_by_currency.keys())
     if missing:
         LOG.warning(f"No exchange rates found for {missing} -> {target_currency}")
         raise ExchangeRateNotFound(list(missing), target_currency, start_month, end_month)
 
-    expected_months = set()
-    current = start_month
-    while current <= end_month:
-        expected_months.add(current)
-        current += relativedelta(months=1)
-
-    for base, covered_months in covered_by_currency.items():
-        gaps = expected_months - covered_months
+    expected_months = set(months)
+    for base, covered_months in rates_by_currency.items():
+        if base == target_currency:
+            continue
+        gaps = expected_months - set(covered_months.keys())
         if gaps:
             LOG.warning(f"Exchange rate gap for {base} -> {target_currency}: missing months {sorted(gaps)}")
             raise ExchangeRateNotFound([base], target_currency, start_month, end_month, missing_months=gaps)
+
+    return rates_by_currency

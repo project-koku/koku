@@ -44,8 +44,6 @@ from api.report.constants import URL_ENCODED_SAFE
 from koku.cache import CacheEnum
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import SOURCES_CACHE_PREFIX
-from masu.processor import is_feature_flag_enabled_by_schema
-from masu.processor import SOURCES_LIST_BULK_QUERIES_FLAG
 from masu.util.aws.common import get_available_regions
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError
@@ -294,10 +292,7 @@ class SourcesViewSet(*MIXIN_LIST):
 
         response = super().list(request, *args, **kwargs)
         _, tenant = self._get_account_and_tenant(request)
-        if is_feature_flag_enabled_by_schema(tenant.schema_name, SOURCES_LIST_BULK_QUERIES_FLAG, dev_fallback=True):
-            self._add_provider_details_bulk(response.data["data"], tenant)
-        else:
-            self._add_provider_details(response.data["data"], tenant)
+        self._add_provider_details_bulk(response.data["data"], tenant)
         return response
 
     @staticmethod
@@ -315,31 +310,6 @@ class SourcesViewSet(*MIXIN_LIST):
         for source in sources:
             self._remove_client_secret(source)
             source.update(details.get(str(source["uuid"])) or unlinked_source_details())
-
-    def _add_provider_details(self, sources, tenant):
-        """Add provider details source by source (about a dozen queries per source)."""
-        for source in sources:
-            self._remove_client_secret(source)
-            try:
-                manager = ProviderManager(source["uuid"])
-            except ProviderManagerError:
-                source.update(unlinked_source_details())
-            else:
-                source["provider_linked"] = True
-                source["active"] = manager.get_active_status()
-                source["paused"] = manager.get_paused_status()
-                source["current_month_data"] = manager.get_current_month_data_exists()
-                source["previous_month_data"] = manager.get_previous_month_data_exists()
-                source["last_payload_received_at"] = manager.get_last_received_data_datetime()
-                source["last_polling_time"] = manager.get_last_polling_time()
-                source["created_timestamp"] = manager.get_created_timestamp()
-                source["status"] = manager.get_state()  # This holds the download/processing/summary states
-                source["has_data"] = manager.get_any_data_exists()
-                source["infrastructure"] = manager.get_infrastructure_info()
-                source["cost_models"] = [
-                    {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
-                ]
-                source["additional_context"] = manager.get_additional_context()
 
     @method_decorator(never_cache)
     def retrieve(self, request, *args, **kwargs):
