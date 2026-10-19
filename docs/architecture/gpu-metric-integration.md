@@ -190,7 +190,7 @@ See [`mig-gpu-support.md#gpu-finalization`](mig-gpu-support.md#gpu-finalization)
 | Query handler | [`OCPReportQueryHandler`](../../koku/api/report/ocp/query_handler.py) — packs `cost_gpu_unallocated_distributed` ([line 89](../../koku/api/report/ocp/query_handler.py#L89)), `gpu_memory` ([line 117](../../koku/api/report/ocp/query_handler.py#L117)), `gpu_count` ([line 120](../../koku/api/report/ocp/query_handler.py#L120)) into the response via `PACK_DEFINITIONS` |
 | Serializers | [`OCPGpuQueryParamSerializer`](../../koku/api/report/ocp/serializers.py#L438), [`OCPMigProfilesQueryParamSerializer`](../../koku/api/report/ocp/serializers.py#L484) |
 
-Endpoint: `GET /api/cost-management/v1/reports/openshift/gpu/` — supports `group_by[mig_profile]`, filters on `gpu_vendor`, `gpu_model`, `gpu_mode`, `mig_profile`. See [`mig-gpu-support.md#api-changes`](mig-gpu-support.md#api-changes) for full request/response examples including the `mig_profiles/` sub-endpoint.
+Endpoint: `GET /api/cost-management/v1/reports/openshift/gpu/` — supports `group_by[mig_profile]`, filters on `category`, `gpu_vendor`, `gpu_model`, `gpu_mode`, `mig_profile`. See [`mig-gpu-support.md#api-changes`](mig-gpu-support.md#api-changes) for full request/response examples including the `mig_profiles/` sub-endpoint.
 
 GPU costs also surface implicitly in every other OCP cost report (compute, cluster, project, etc.) because `cost_model_gpu_cost` and `distributed_unallocated_gpu_cost` are added into the shared cost annotations used across those provider-map entries (e.g. [line 92](../../koku/api/report/ocp/provider_map.py#L92), repeated at each cost-summary block).
 
