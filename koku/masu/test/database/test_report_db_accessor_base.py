@@ -157,7 +157,8 @@ class OCPSpecialMatchedTagsSqlTemplateTest(SimpleTestCase):
         self.assertIn("reporting_ocpusagelineitem_daily_summary", sql)
         self.assertNotIn("openshift_pod_usage_line_items_daily", sql)
         self.assertIn("day IN {{days | inclause}}", sql)
-        self.assertIn("lpad(month, 2, '0') = {{month}}", sql)
+        self.assertNotIn("lpad(month, 2, '0') = {{month}}", sql)
+        self.assertIn("month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))", sql)
         self.assertIn("node IS NOT NULL", sql)
         self.assertIn("namespace IS NOT NULL", sql)
 

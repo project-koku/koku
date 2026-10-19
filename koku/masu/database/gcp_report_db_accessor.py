@@ -26,6 +26,8 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import is_tag_processing_disabled
+from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
+from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
@@ -321,7 +323,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(log_json(msg="Preparing tables for OCP on GCP flow", **prepare_params))
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
         self.delete_ocp_on_gcp_hive_partition_by_day(
-            sql_metadata.days_tup,
+            sql_metadata.days_delete_tup,
             sql_metadata.cloud_provider_uuid,
             sql_metadata.ocp_provider_uuid,
             sql_metadata.year,
@@ -343,6 +345,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             {
                 **sql_metadata.build_cost_model_params(),
                 "unattributed_storage": enable_unattributed_storage,
+                "zero_pad_hive_partitions": is_feature_flag_enabled_by_schema(
+                    self.schema, OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG, dev_fallback=True
+                ),
             },
         )
         LOG.info(log_json(msg="executing data transformations for ocp on gcp daily summary", **daily_summary_params))
@@ -373,7 +378,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
+        days_tup = hive_partition_day_values(days)
 
         for table_name in tables:
             sql = pkgutil.get_data(
@@ -455,7 +460,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuids": ocp_source_uuids,
             "year": invoice_month_date.strftime("%Y"),
             "month": invoice_month_date.strftime("%m"),
-            "days": tuple(str(day.day) for day in days),
+            "days": hive_partition_day_values(days),
         }
 
         results = self._execute_trino_raw_sql_query(

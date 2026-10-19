@@ -35,7 +35,7 @@ cte_ocp_filtered_resources as (
     WHERE
         ocp.source_uuid = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
-        AND lpad(ocp.month, 2, '0') = {{month}}
+        AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
         AND aws.ocp_source = {{ocp_provider_uuid}}
         AND aws.source = {{cloud_provider_uuid}}
         AND aws.year = {{year}}
@@ -195,7 +195,7 @@ JOIN hive.{{schema | sqlsafe}}.managed_aws_openshift_disk_capacities_temp AS aws
     AND aws_disk.resource_id = aws.resource_id
 WHERE ocp.source = {{ocp_provider_uuid}}
     AND ocp.year = {{year}}
-    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
     AND ocp.day IN {{days | inclause}}
     AND ocp.persistentvolume is not null
     AND aws.source = {{cloud_provider_uuid}}
@@ -266,7 +266,7 @@ WITH cte_total_pv_capacity as (
             AND ocp.csi_volume_handle is not null
             AND ocp.csi_volume_handle != ''
         WHERE ocp.year = {{year}}
-            AND lpad(ocp.month, 2, '0') = {{month}}
+            AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
             AND ocp.usage_start >= {{start_date}}
             AND ocp.usage_start < date_add('day', 1, {{end_date}})
             AND aws.ocp_source = {{ocp_provider_uuid}}
@@ -323,7 +323,7 @@ LEFT JOIN cte_total_pv_capacity as pv_cap
     ON pv_cap.aws_resource_id = aws.resource_id
 WHERE ocp.source = {{ocp_provider_uuid}}
     AND ocp.year = {{year}}
-    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
     AND ocp.day IN {{days | inclause}}
     AND ocp.persistentvolume is not null
     AND aws.source = {{cloud_provider_uuid}}
@@ -431,7 +431,7 @@ SELECT aws.row_uuid,
         AND aws_disk.ocp_source = aws.ocp_source
     WHERE ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
-        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+        AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
         AND ocp.day IN {{days | inclause}}
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
         AND aws.ocp_source = {{ocp_provider_uuid}}
@@ -545,7 +545,7 @@ SELECT aws.row_uuid,
         AND namespace != 'Network unattributed'
     WHERE ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
-        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+        AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
         AND ocp.day IN {{days | inclause}}
         AND aws.ocp_source = {{ocp_provider_uuid}}
         AND aws.source = {{cloud_provider_uuid}}
@@ -635,7 +635,7 @@ WITH cte_cluster_counts AS (
         AND aws_temp.matched_tag IS NOT NULL
         AND aws_temp.matched_tag != ''
         AND ocp.year = {{year}}
-        AND lpad(ocp.month, 2, '0') = {{month}}
+        AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
         AND ocp.day IN {{days | inclause}}
         -- Don't filter by ocp.source here - we want to count ALL matching OCP sources
     GROUP BY aws_temp.row_uuid
@@ -745,7 +745,11 @@ SELECT pds.row_uuid,
     {{ocp_provider_uuid}} as ocp_source,
     pds.year as year,
     pds.month as month,
+{%- if zero_pad_hive_partitions %}
+    lpad(cast(day(usage_start) as varchar), 2, '0') as day
+{%- else %}
     cast(day(usage_start) as varchar) as day
+{%- endif %}
 FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
 JOIN cte_rankings as r
     ON pds.row_uuid = r.row_uuid
@@ -840,7 +844,7 @@ LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON aws.usage_account_id = aa.account_id
 WHERE ocp.source = {{ocp_provider_uuid}}
     AND ocp.year = {{year}}
-    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar)) -- padded + legacy unpadded month for partition prune
     AND ocp.day IN {{days | inclause}}
     AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
     AND aws.ocp_source = {{ocp_provider_uuid}}

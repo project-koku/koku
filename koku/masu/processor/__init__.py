@@ -34,6 +34,7 @@ INGRESS_DEAD_LETTER_QUEUE_FLAG = "cost-management.backend.ingress-dead-letter-qu
 INGRESS_STAGING_LISTENER_FLAG = "cost-management.backend.ingress-staging-listener"
 OCP_CLOUD_CLUSTER_SUMMARY_VIEWS_FLAG = "cost-management.backend.ocp_cloud_cluster_summary_views"
 OCP_GPU_COST_MODEL_UNLEASH_FLAG = "cost-management.backend.ocp_gpu_cost_model"
+OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG = "cost-management.backend.ocp_hive_zero_pad_partitions"
 OCP_MARKUP_SKIP_UNCHANGED_FLAG = "cost-management.backend.ocp_markup_skip_unchanged"
 OCP_ON_CLOUD_PG_IDEMPOTENT_DELETE_FLAG = "cost-management.backend.ocp_on_cloud_pg_idempotent_delete"
 OCP_POST_WRITE_PARQUET_DEDUP_FLAG = "cost-management.backend.ocp_post_write_parquet_dedup"

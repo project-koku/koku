@@ -41,9 +41,11 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_flag_enabled_by_schema
 from masu.processor import OCP_GPU_COST_MODEL_UNLEASH_FLAG
+from masu.processor import OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG
 from masu.processor import OCP_MARKUP_SKIP_UNCHANGED_FLAG
 from masu.processor import OCP_TAG_MAPPING_DIAGNOSTICS_FLAG
 from masu.processor import OCP_TAG_MAPPING_STATEMENT_TIMEOUT_FLAG
+from masu.processor.parquet.summary_sql_metadata import hive_partition_day_values
 from masu.util.common import filter_dictionary
 from masu.util.common import SummaryRangeConfig
 from masu.util.common import trino_table_exists
@@ -722,8 +724,14 @@ AND (month = {{month_no_zero}} OR month = {{month}})
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
-        self.delete_ocp_hive_partition_by_day(days_tup, source, year, month)
+        # One delete per calendar day (SQL matches padded + legacy). Dual list for read filters.
+        days_for_delete = tuple(f"{day.day:02d}" for day in days)
+        days_for_read = hive_partition_day_values(days)
+        # Gate zero-padded writes so rolling deploys cannot store day=5 and day=05 together.
+        zero_pad_hive_partitions = is_feature_flag_enabled_by_schema(
+            self.schema, OCP_HIVE_ZERO_PAD_PARTITIONS_FLAG, dev_fallback=True
+        )
+        self.delete_ocp_hive_partition_by_day(days_for_delete, source, year, month)
 
         sql = pkgutil.get_data(
             "masu.database",
@@ -741,8 +749,9 @@ AND (month = {{month_no_zero}} OR month = {{month}})
             "source": str(source),
             "year": year,
             "month": month,
-            "days": days_tup,
+            "days": days_for_read,
             "storage_exists": storage_exists,
+            "zero_pad_hive_partitions": zero_pad_hive_partitions,
         }
 
         try:

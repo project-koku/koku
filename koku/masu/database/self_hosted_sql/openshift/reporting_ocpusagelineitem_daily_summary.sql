@@ -30,7 +30,7 @@ $$ LANGUAGE sql IMMUTABLE;
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_staging
 WHERE source = {{source}}
     AND year = {{year}}
-    AND lpad(month, 2, '0') = {{month}}
+    AND month IN ({{month}}, CAST(CAST({{month}} AS integer) AS text))
     AND usage_start >= {{start_date}}
     AND usage_start < {{end_date}} + INTERVAL '1 day';
 
@@ -239,8 +239,13 @@ SELECT null as uuid,
     pua.cost_category_id,
     {{source}} as source,
     EXTRACT(YEAR FROM pua.usage_start)::text as year,
+{%- if zero_pad_hive_partitions %}
+    lpad(EXTRACT(MONTH FROM pua.usage_start)::text, 2, '0') as month,
+    lpad(EXTRACT(DAY FROM pua.usage_start)::text, 2, '0') as day
+{%- else %}
     EXTRACT(MONTH FROM pua.usage_start)::text as month,
     EXTRACT(DAY FROM pua.usage_start)::text as day
+{%- endif %}
 FROM (
     SELECT li.usage_start,
         li.namespace,
@@ -361,8 +366,13 @@ SELECT null as uuid,
     sua.cost_category_id,
     {{source}} as source,
     EXTRACT(YEAR FROM sua.usage_start)::text as year,
+{%- if zero_pad_hive_partitions %}
+    lpad(EXTRACT(MONTH FROM sua.usage_start)::text, 2, '0') as month,
+    lpad(EXTRACT(DAY FROM sua.usage_start)::text, 2, '0') as day
+{%- else %}
     EXTRACT(MONTH FROM sua.usage_start)::text as month,
     EXTRACT(DAY FROM sua.usage_start)::text as day
+{%- endif %}
 FROM (
     SELECT sli.namespace,
         vn.node,
@@ -504,15 +514,20 @@ cte_unallocated_capacity AS (
         lids.source_uuid,
         {{source}} as source,
         EXTRACT(YEAR FROM lids.usage_start)::text as year,
+{%- if zero_pad_hive_partitions %}
+        lpad(EXTRACT(MONTH FROM lids.usage_start)::text, 2, '0') as month,
+        lpad(EXTRACT(DAY FROM lids.usage_start)::text, 2, '0') as day
+{%- else %}
         EXTRACT(MONTH FROM lids.usage_start)::text as month,
         EXTRACT(DAY FROM lids.usage_start)::text as day
+{%- endif %}
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_staging as lids
     LEFT JOIN cte_node_role AS nodes
         ON lids.node = nodes.node
         AND lids.resource_id = nodes.resource_id
     WHERE lids.source = {{source}}
         AND lids.year = {{year}}
-        AND lpad(lids.month, 2, '0') = {{month}}
+        AND lids.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS text))
         AND lids.usage_start >= {{start_date}}
         AND lids.usage_start < {{end_date}} + INTERVAL '1 day'
         AND lids.namespace != 'Platform unallocated'
@@ -636,6 +651,6 @@ SELECT uuid_generate_v4(),
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_staging AS lids
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}
-    AND lpad(lids.month, 2, '0') = {{month}}
+    AND lids.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS text))
     AND lids.day IN {{days | inclause}}
 RETURNING 1;
