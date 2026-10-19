@@ -40,10 +40,16 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_d
     invoice_month
 )
 with cte_pg_enabled_keys as (
-    select array['vm_kubevirt_io_name'] || array_agg(key order by key) as keys
-      from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
-     where enabled = true
-     and provider_type IN ('GCP', 'OCP')
+    -- Always keep the VM label; array_agg is NULL when no tags are enabled.
+    select array_agg(key order by key) as keys
+      from (
+          select 'vm_kubevirt_io_name' as key
+          union all
+          select key
+            from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+           where enabled = true
+             and provider_type IN ('GCP', 'OCP')
+      ) always_include_vm
 )
 SELECT uuid(),
     {{report_period_id}} as report_period_id,
