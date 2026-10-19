@@ -251,7 +251,7 @@ class QueryHandlerFeatureFlagTest(MasuTestCase):
         ann = handler.exchange_rate_annotation_dict
         self.assertEqual(set(ann.keys()), {"exchange_rate"})
         self.assertIsInstance(ann["exchange_rate"], Subquery)
-        mock_flag.assert_called_with(handler.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True)
+        mock_flag.assert_called_with(handler.tenant.schema_name, CONSTANT_CURRENCY_FLAG)
 
     @patch("api.query_handler.is_feature_flag_enabled_by_schema", return_value=False)
     def test_base_handler_flag_off_uses_case(self, mock_flag):
@@ -261,7 +261,7 @@ class QueryHandlerFeatureFlagTest(MasuTestCase):
             ann = handler.exchange_rate_annotation_dict
         self.assertEqual(set(ann.keys()), {"exchange_rate"})
         self.assertIsInstance(ann["exchange_rate"], Case)
-        mock_flag.assert_called_with(handler.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True)
+        mock_flag.assert_called_with(handler.tenant.schema_name, CONSTANT_CURRENCY_FLAG)
 
     @patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=True)
     @patch("api.report.queries.get_monthly_exchange_rate_map")
@@ -271,7 +271,7 @@ class QueryHandlerFeatureFlagTest(MasuTestCase):
         output = handler._initialize_response_output(handler.parameters)
         self.assertIn("currency", output)
         mock_get_monthly_exchange_rate_map.assert_called_once()
-        mock_flag.assert_called_with(handler.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True)
+        mock_flag.assert_called_with(handler.tenant.schema_name, CONSTANT_CURRENCY_FLAG)
 
     @patch("api.report.queries.is_feature_flag_enabled_by_schema", return_value=False)
     @patch("api.report.queries.get_monthly_exchange_rate_map")
@@ -283,7 +283,7 @@ class QueryHandlerFeatureFlagTest(MasuTestCase):
         output = handler._initialize_response_output(handler.parameters)
         self.assertIn("currency", output)
         mock_get_monthly_exchange_rate_map.assert_not_called()
-        mock_flag.assert_called_with(handler.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True)
+        mock_flag.assert_called_with(handler.tenant.schema_name, CONSTANT_CURRENCY_FLAG)
 
     @patch("api.report.ocp.query_handler.is_feature_flag_enabled_by_schema", return_value=False)
     def test_get_base_currencies_returns_set(self, _):
