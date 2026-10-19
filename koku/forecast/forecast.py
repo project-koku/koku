@@ -33,7 +33,7 @@ from api.currency.models import ExchangeRateDictionary
 from api.currency.utils import build_exchange_rate_case
 from api.currency.utils import build_monthly_rate_annotation
 from api.currency.utils import get_monthly_exchange_rate
-from api.currency.utils import validate_exchange_rate_coverage
+from api.currency.utils import get_monthly_exchange_rate_map
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -287,7 +287,7 @@ class Forecast:
                 is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG)
                 and self.currency
             ):
-                validate_exchange_rate_coverage(
+                get_monthly_exchange_rate_map(
                     self._get_base_currencies_for_conversion(),
                     self.currency,
                     self.dh.this_month_start.date(),

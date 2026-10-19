@@ -23,7 +23,7 @@ cte_unnested_ocp_tags AS (
     ) AS pod_tags(pod_key, pod_value, volume_key, volume_value)
     WHERE source IN {{ocp_source_uuids | inclause}}
         AND year = {{year}}
-        AND lpad(month, 2, '0') = {{month}}
+        AND month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
         AND day IN {{days | inclause}}
 )
 SELECT '{"' || key || '": "' || value || '"}' as tag

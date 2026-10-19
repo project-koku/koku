@@ -30,10 +30,13 @@ class MockUnleashClient:
     """Mock Unleash Client for ONPREM mode."""
 
     ONPREM_FLAG_DEFAULTS = {
+        "cost-management.backend.aws_empty_split_finalization": True,
         "cost-management.backend.ocp_gpu_cost_model": True,
         "cost-management.backend.disable-ingress-rate-limit": True,
         "cost-management.backend.override_customer_group_by_limit": False,
         "cost-management.backend.constant-currency": False,
+        # No Hive rolling-deploy race on-prem; keep partition writes aligned with SaaS.
+        "cost-management.backend.ocp_hive_zero_pad_partitions": True,
     }
 
     def __init__(self, app_name, environment, instance_id, **kwargs):
