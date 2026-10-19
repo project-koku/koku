@@ -363,6 +363,23 @@ class IngressStagingTests(MasuTestCase):
         failed.refresh_from_db()
         self.assertEqual(failed.state, IngressStagingState.FAILED)
 
+    def test_expire_leaves_rows_when_s3_delete_fails(self):
+        """Test that a failed object delete keeps processed rows for a later run."""
+        old = self._pending_row(
+            "expire-s3-fail",
+            state=IngressStagingState.PROCESSED,
+            stored_at=timezone.now() - timedelta(days=8),
+        )
+        with patch(
+            "masu.external.downloader.ocp.payload_landing.expire.delete_s3_objects",
+            return_value=[],
+        ) as mock_delete:
+            deleted = expire_ingress_staging()
+
+        self.assertEqual(deleted, 0)
+        mock_delete.assert_called_once()
+        self.assertTrue(IngressStagingPayload.objects.filter(request_id=old.request_id).exists())
+
     def test_expire_loops_until_backlog_drained(self):
         """Test that one hourly run deletes more than a single reconcile batch."""
         old_stored = timezone.now() - timedelta(days=8)
