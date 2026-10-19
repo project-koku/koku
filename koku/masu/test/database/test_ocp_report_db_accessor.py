@@ -107,6 +107,44 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             mock_execute.assert_called()
 
+    def test_ocp_daily_summary_sql_zero_pads_month_day_partitions(self):
+        """COST-8094: Hive month/day writes are flag-gated; reads use dual-format month."""
+        sql_template = pkgutil.get_data(
+            "masu.database",
+            "trino_sql/openshift/reporting_ocpusagelineitem_daily_summary.sql",
+        ).decode("utf-8")
+        self.assertIn("zero_pad_hive_partitions", sql_template)
+        self.assertIn("lpad(cast(month(pua.usage_start) as varchar), 2, '0') as month", sql_template)
+        self.assertIn("cast(month(pua.usage_start) as varchar) as month", sql_template)
+        self.assertNotIn("lpad(lids.month, 2, '0') = {{month}}", sql_template)
+        self.assertIn(
+            "lids.month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))",
+            sql_template,
+        )
+
+    @patch("masu.database.ocp_report_db_accessor.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
+    @patch.object(OCPReportDBAccessor, "delete_ocp_hive_partition_by_day")
+    @patch.object(OCPReportDBAccessor, "_execute_trino_multipart_sql_query")
+    def test_populate_line_item_daily_summary_passes_padded_and_legacy_days(self, mock_exec, mock_delete, *_mocks):
+        """COST-8094: read filters get padded + legacy days; delete keeps padded-only."""
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_start.replace(day=5)
+        with self.accessor as acc:
+            acc.populate_line_item_daily_summary_table_trino(
+                start_date, end_date, 1, "cluster", "alias", self.provider_uuid
+            )
+        bind_params = mock_exec.call_args.kwargs.get("bind_params") or mock_exec.call_args[1].get("bind_params", {})
+        days = bind_params.get("days")
+        self.assertEqual(
+            days,
+            ("1", "01", "2", "02", "3", "03", "4", "04", "5", "05"),
+        )
+        self.assertTrue(bind_params.get("zero_pad_hive_partitions"))
+        mock_delete.assert_called_once()
+        delete_days = mock_delete.call_args.args[0]
+        self.assertEqual(delete_days, ("01", "02", "03", "04", "05"))
+
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     def test_populate_line_item_daily_summary_table_trino_exception_warn(self, mock_table_exists):
         """
@@ -2555,6 +2593,67 @@ class OCPReportDBAccessorGPUUITest(MasuTestCase):
             # Should use populate_vm_tmp_table.sql (fallback) instead of populate_vm_tmp_table_with_vm_report.sql
             sql_files_used = [str(call) for call in calls]
             self.assertTrue(any("populate_vm_tmp_table.sql" in s for s in sql_files_used))
+
+
+class EnabledKeysCteTest(MasuTestCase):
+    """Tests for the daily-summary enabled-tag CTE keep-list."""
+
+    VM_KEY = "vm_kubevirt_io_name"
+
+    def _enabled_keys(self):
+        """Run the UNION CTE used by daily-summary SQL."""
+        sql = f"""
+            SELECT array_agg(key ORDER BY key)
+            FROM (
+                SELECT '{self.VM_KEY}' AS key
+                UNION ALL
+                SELECT key
+                FROM {self.schema}.reporting_enabledtagkeys
+                WHERE enabled = true
+                  AND provider_type = 'OCP'
+            ) always_include_vm
+        """
+        with connection.cursor() as cur:
+            cur.execute(sql)
+            return cur.fetchone()[0] or []
+
+    def test_vm_label_kept_when_no_ocp_tags_enabled(self):
+        """The VM label must remain in the allowlist even with zero enabled OCP tags."""
+        with schema_context(self.schema):
+            original = dict(
+                EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).values_list("uuid", "enabled")
+            )
+            try:
+                EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).update(enabled=False)
+                keys = self._enabled_keys()
+                self.assertIn(self.VM_KEY, keys)
+                self.assertEqual(keys.count(self.VM_KEY), 1)
+            finally:
+                for tag in EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP):
+                    tag.enabled = original.get(tag.uuid, False)
+                    tag.save(update_fields=["enabled"])
+
+    def test_vm_label_kept_alongside_enabled_ocp_tags(self):
+        """The VM label must still be present when other OCP tags are enabled."""
+        with schema_context(self.schema):
+            extra, created = EnabledTagKeys.objects.get_or_create(
+                key="app",
+                provider_type=Provider.PROVIDER_OCP,
+                defaults={"enabled": True},
+            )
+            was_enabled = extra.enabled
+            extra.enabled = True
+            extra.save(update_fields=["enabled"])
+            try:
+                keys = self._enabled_keys()
+                self.assertIn(self.VM_KEY, keys)
+                self.assertIn("app", keys)
+            finally:
+                if created:
+                    extra.delete()
+                else:
+                    extra.enabled = was_enabled
+                    extra.save(update_fields=["enabled"])
 
 
 class OCPMarkupSkipUnchangedTest(MasuTestCase):

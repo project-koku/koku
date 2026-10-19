@@ -3,7 +3,7 @@ WITH cte_array_agg_nodes AS (
     FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE source = {{ocp_provider_uuid}}
         AND year = {{year}}
-        AND lpad(month, 2, '0') = {{month}}
+        AND month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
         AND day IN {{days | inclause}}
         AND node IS NOT NULL
         AND node != ''
@@ -38,7 +38,7 @@ cte_tag_matches AS (
     FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE source = {{ocp_provider_uuid}}
         AND year = {{year}}
-        AND lpad(month, 2, '0') = {{month}}
+        AND month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))
         AND day IN {{days | inclause}}
         AND namespace IS NOT NULL
         AND namespace != ''

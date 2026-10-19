@@ -40,7 +40,7 @@ from django.db.models.functions import RowNumber
 from django_tenants.utils import tenant_context
 from pandas.api.types import CategoricalDtype
 
-from api.currency.utils import validate_exchange_rate_coverage
+from api.currency.utils import get_monthly_exchange_rate_map
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -1085,7 +1085,7 @@ class ReportQueryHandler(QueryHandler):
             output["currency"] = self.currency
             if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG, dev_fallback=True):
                 with tenant_context(self.tenant):
-                    validate_exchange_rate_coverage(
+                    get_monthly_exchange_rate_map(
                         self._get_base_currencies_for_conversion(),
                         self.currency,
                         self.start_datetime.date(),
