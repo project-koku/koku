@@ -6,6 +6,7 @@
 from unittest.mock import patch
 
 from django.db.models import Case
+from django.db.models import Subquery
 from django.db.models import Value
 from django_tenants.utils import tenant_context
 
@@ -15,12 +16,11 @@ from api.report.ocp.view import OCPCostView
 from reporting.models import OCPUsageLineItemDailySummary
 
 
-IDENTITY_EXCHANGE_RATE_FLAG = "cost-management.backend.ocp_report_identity_exchange_rate"
 FLAG_TARGET = "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema"
 
 
 class OCPIdentityExchangeRateTest(IamTestCase):
-    """Verify the source-currency identity conversion rollout path."""
+    """Verify source-currency identity conversion and the independent constant-currency path."""
 
     def _handler(self, source_to_currency_map):
         # USD is the API default. Supplying currency explicitly invokes the
@@ -31,49 +31,43 @@ class OCPIdentityExchangeRateTest(IamTestCase):
         handler.__dict__["exchange_rates"] = {"EUR": {"USD": 1.1}}
         return handler
 
-    @staticmethod
-    def _feature_flag(enabled):
-        def side_effect(_schema, feature_flag, **_kwargs):
-            return enabled if feature_flag == IDENTITY_EXCHANGE_RATE_FLAG else False
-
-        return side_effect
-
-    def _annotations(self, handler, flag_enabled):
+    def _annotations(self, handler, constant_currency=False):
         # The source-side expression is under test. Keep the independent
         # raw-currency builder at its boundary to avoid tenant-currency setup.
         with (
-            patch(FLAG_TARGET, side_effect=self._feature_flag(flag_enabled)),
+            patch(FLAG_TARGET, return_value=constant_currency),
             patch("api.report.ocp.query_handler.build_exchange_rate_case", return_value=Case()),
         ):
             return handler.exchange_rate_annotation_dict
 
-    def test_enabled_flag_uses_constant_for_identity_source_currencies(self):
+    def test_identity_source_currencies_use_constant(self):
         """All source cost-model currencies matching target currency use one."""
         handler = self._handler({"00000000-0000-0000-0000-000000000001": "USD"})
 
-        annotations = self._annotations(handler, flag_enabled=True)
+        annotations = self._annotations(handler)
 
         self.assertIsInstance(annotations["exchange_rate"], Value)
         self.assertEqual(annotations["exchange_rate"].value, 1)
         self.assertIsInstance(annotations["infra_exchange_rate"], Case)
 
-    def test_disabled_flag_keeps_legacy_source_currency_case(self):
-        """Flag off retains the legacy conversion expression."""
+    def test_constant_currency_uses_monthly_rate_annotations(self):
+        """The independent constant-currency path keeps its monthly subqueries."""
         handler = self._handler({"00000000-0000-0000-0000-000000000001": "USD"})
 
-        annotations = self._annotations(handler, flag_enabled=False)
+        annotations = self._annotations(handler, constant_currency=True)
 
-        self.assertIsInstance(annotations["exchange_rate"], Case)
+        self.assertIsInstance(annotations["exchange_rate"], Subquery)
+        self.assertIsInstance(annotations["infra_exchange_rate"], Subquery)
 
-    def test_enabled_flag_keeps_case_when_a_source_needs_conversion(self):
+    def test_non_identity_source_currency_keeps_case(self):
         """Flag on must not replace a non-identity source conversion."""
         handler = self._handler({"00000000-0000-0000-0000-000000000001": "EUR"})
 
-        annotations = self._annotations(handler, flag_enabled=True)
+        annotations = self._annotations(handler)
 
         self.assertIsInstance(annotations["exchange_rate"], Case)
 
-    def _execute_identity_currency_delta_report(self, flag_enabled):
+    def _execute_identity_currency_delta_report(self):
         query_params = self.mocked_query_params(
             "?delta=distributed_cost&filter[resolution]=monthly&"
             "filter[time_scope_units]=month&filter[time_scope_value]=-1&group_by[project]=*",
@@ -90,12 +84,13 @@ class OCPIdentityExchangeRateTest(IamTestCase):
         self.assertTrue(source_uuids, "seeded OCP report data must contain source UUIDs")
         handler.__dict__["source_to_currency_map"] = {source_uuid: "USD" for source_uuid in source_uuids}
 
-        with patch(FLAG_TARGET, side_effect=self._feature_flag(flag_enabled)):
+        with patch(FLAG_TARGET, return_value=False):
             return handler.execute_query()
 
-    def test_identity_source_currency_flag_preserves_delta_report_response(self):
-        """The identity optimization must not change monthly distributed costs."""
-        legacy = self._execute_identity_currency_delta_report(flag_enabled=False)
-        optimized = self._execute_identity_currency_delta_report(flag_enabled=True)
+    def test_identity_source_currency_preserves_delta_report_response(self):
+        """Identity currency uses a constant without losing monthly distributed costs."""
+        response = self._execute_identity_currency_delta_report()
 
-        self.assertEqual(optimized, legacy)
+        self.assertIn("data", response)
+        self.assertIn("total", response)
+        self.assertIsNotNone(response["total"]["cost"]["total"]["value"])

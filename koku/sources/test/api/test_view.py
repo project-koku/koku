@@ -29,7 +29,6 @@ from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
-from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
 from reporting.models import TenantAPIProvider
@@ -270,9 +269,8 @@ class SourcesViewTests(IamTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(body)
 
-    @patch("sources.api.view.is_feature_flag_enabled_by_schema", return_value=False)
-    @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
-    def test_source_list_zerror(self, _, _flag):
+    @patch("sources.api.view.bulk_source_details", return_value={})
+    def test_source_list_zerror(self, _):
         """Test provider_linked is False in list when Provider does not exist."""
         cache.clear()
         url = reverse("sources-list")
@@ -285,12 +283,8 @@ class SourcesViewTests(IamTestCase):
         self.assertIsNone(body.get("data")[0]["created_timestamp"])
         self.assertIsNotNone(body.get("data")[0]["updated_timestamp"])
 
-    @patch("sources.api.view.is_feature_flag_enabled_by_schema", return_value=False)
-    @patch("sources.api.view.ProviderManager")
-    def test_source_list_provider_success(self, mock_provider_manager, _flag):
+    def test_source_list_provider_success(self):
         """Test provider_linked is True in list when Provider exists."""
-        provider_manager = ProviderManager(self.azure_provider.uuid)
-        mock_provider_manager.return_value = provider_manager
         url = reverse("sources-list")
         response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
         body = response.json()
