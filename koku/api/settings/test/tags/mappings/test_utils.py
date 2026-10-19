@@ -124,3 +124,36 @@ class TestTagMappingUtils(MasuTestCase):
             resummarize_current_month_by_tag_keys(uuids, self.schema_name)
         mock_delayed_apply.assert_called()
         mock_delayed_summarize.assert_not_called()
+
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
+    @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
+    @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
+    def test_restore_unmapped_queues_full_summary_when_flag_on(
+        self, mock_delayed_apply, mock_delayed_summarize, _mock_flag
+    ):
+        """Removals rebuild from parquet even when mapping-only apply is enabled."""
+        with tenant_context(self.tenant):
+            uuids = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).values_list("uuid", flat=True)
+            resummarize_current_month_by_tag_keys(uuids, self.schema_name, restore_unmapped=True)
+        mock_delayed_apply.assert_not_called()
+        mock_delayed_summarize.assert_called()
+
+    @patch("api.settings.tags.mapping.utils.is_apply_tag_mappings_enabled", return_value=True)
+    @patch("api.settings.tags.mapping.utils.delayed_summarize_current_month")
+    @patch("api.settings.tags.mapping.utils.delayed_apply_tag_mappings")
+    def test_restore_unmapped_ocp_on_cloud_queues_shared_infra(
+        self, mock_delayed_apply, mock_delayed_summarize, _mock_flag
+    ):
+        with tenant_context(self.tenant):
+            infra_map = ProviderInfrastructureMap.objects.create(
+                infrastructure_type=Provider.PROVIDER_AWS, infrastructure_provider=self.aws_provider
+            )
+            Provider.objects.filter(type=Provider.PROVIDER_OCP).update(infrastructure=infra_map)
+            uuids = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).values_list("uuid", flat=True)
+            resummarize_current_month_by_tag_keys(uuids, self.schema_name, restore_unmapped=True)
+
+        mock_delayed_apply.assert_not_called()
+        queued = {call.args[2]: call.args[1] for call in mock_delayed_summarize.call_args_list}
+        self.assertEqual(set(queued), {Provider.PROVIDER_OCP, Provider.PROVIDER_AWS})
+        self.assertIn(self.ocp_provider.uuid, queued[Provider.PROVIDER_OCP])
+        self.assertEqual(queued[Provider.PROVIDER_AWS], [self.aws_provider.uuid])

@@ -58,20 +58,25 @@ class TagMappingFilters(SettingsFilter):
         return queryset.filter(self._combine_query_filters(q_list))
 
 
-def _queue_tag_mapping_refresh(schema_name, provider_uuids, provider_type):
-    """Queue mapping-only apply when enabled; otherwise a full current-month summary."""
-    if is_apply_tag_mappings_enabled(schema_name):
+def _queue_tag_mapping_refresh(schema_name, provider_uuids, provider_type, *, restore_unmapped=False):
+    """Queue mapping-only apply when enabled; otherwise a full current-month summary.
+
+    Mapping SQL rewrites child keys in place. Removals cannot reverse that, so
+    ``restore_unmapped`` always queues a parquet/Trino rebuild.
+    """
+    if not restore_unmapped and is_apply_tag_mappings_enabled(schema_name):
         delayed_apply_tag_mappings(schema_name, provider_uuids)
         return
     delayed_summarize_current_month(schema_name, provider_uuids, provider_type)
 
 
-def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
+def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name, *, restore_unmapped=False):
     """Creates a mapping to use for resummarizing sources given tag keys
 
     enabled_rows: List of enabled tag keys rows
     schema_name: Str of the schema name to be used
-    start_date: datetime of when to start looking for providers that match the tag key
+    restore_unmapped: When True (mapping removal), always rebuild from source
+        so child keys can be restored. Mapping-only apply cannot reverse a rename.
     """
 
     start_date = DateHelper().this_month_start
@@ -91,7 +96,9 @@ def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
                 .values_list("cost_entry_bill__provider__uuid", flat=True)
                 .distinct()
             )
-            _queue_tag_mapping_refresh(schema_name, list(provider_uuids), provider_type)
+            _queue_tag_mapping_refresh(
+                schema_name, list(provider_uuids), provider_type, restore_unmapped=restore_unmapped
+            )
         elif provider_type == Provider.PROVIDER_OCP:
             clusters = (
                 OCPTagsValues.objects.filter(key__in=key_list)
@@ -104,13 +111,14 @@ def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
                 .values_list("provider__uuid", flat=True)
                 .distinct()
             )
-            if is_apply_tag_mappings_enabled(schema_name):
+            if not restore_unmapped and is_apply_tag_mappings_enabled(schema_name):
                 # Mapping-only job covers OCP daily summary and linked OCP-on-cloud
                 # tables; do not also queue a cloud re-summary.
                 delayed_apply_tag_mappings(schema_name, list(provider_uuids))
                 continue
-            # Legacy: only an OCP summary maps OCP daily summary, and only the
-            # cloud source's summary refreshes OCP-on-cloud tables.
+            # Removals and flag-off: only an OCP summary restores OCP daily
+            # summary from parquet, and only the cloud source's summary
+            # refreshes OCP-on-cloud and OCP-on-All tables.
             infra_sorting = defaultdict(set)
             providers = Provider.objects.filter(uuid__in=provider_uuids)
             for provider in providers:

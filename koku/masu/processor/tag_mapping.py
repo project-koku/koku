@@ -39,6 +39,16 @@ _AWS_TYPES = (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL)
 _AZURE_TYPES = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
 _GCP_TYPES = (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL)
 
+# OCP-on-All SQL uses lowercase platform names and title-case source_type.
+_OCP_ON_ALL_BY_INFRA = {
+    Provider.PROVIDER_AWS: ("aws", "AWS"),
+    Provider.PROVIDER_AWS_LOCAL: ("aws", "AWS"),
+    Provider.PROVIDER_AZURE: ("azure", "Azure"),
+    Provider.PROVIDER_AZURE_LOCAL: ("azure", "Azure"),
+    Provider.PROVIDER_GCP: ("gcp", "GCP"),
+    Provider.PROVIDER_GCP_LOCAL: ("gcp", "GCP"),
+}
+
 
 def apply_tag_mappings(
     schema,
@@ -230,6 +240,44 @@ def _apply_ocp_on_cloud_tag_mappings(schema, ocp_provider, infra_uuid, infra_typ
             if not bill_ids:
                 return
             accessor.populate_ocp_on_gcp_tag_information(bill_ids, start_date, end_date, report_period.id)
+        else:
+            return
+
+        _refresh_ocp_on_all_after_mapping(schema, infra_uuid, infra_type, start_date, end_date, report_period)
+
+
+def _refresh_ocp_on_all_after_mapping(schema, infra_uuid, infra_type, start_date, end_date, report_period):
+    """Copy remapped OCP-on-cloud tags into combined OpenShift (OCP-on-All) tables."""
+    platform_source = _OCP_ON_ALL_BY_INFRA.get(infra_type)
+    if not platform_source:
+        return
+    platform, source_type = platform_source
+    sql_params = {
+        "schema": schema,
+        "start_date": start_date,
+        "end_date": end_date,
+        "source_uuid": str(infra_uuid),
+        "cluster_id": report_period.cluster_id,
+        "cluster_alias": report_period.cluster_alias,
+        "source_type": source_type,
+    }
+    LOG.info(
+        log_json(
+            msg="refreshing OCP-on-All after tag mapping",
+            context={
+                "schema": schema,
+                "source_uuid": str(infra_uuid),
+                "source_type": source_type,
+                "cluster_id": report_period.cluster_id,
+                "start_date": str(start_date),
+                "end_date": str(end_date),
+            },
+        )
+    )
+    ocp_accessor = OCPReportDBAccessor(schema)
+    ocp_accessor.populate_ocp_on_all_project_daily_summary(platform, sql_params)
+    ocp_accessor.populate_ocp_on_all_daily_summary(platform, sql_params)
+    ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
 
 def _bill_ids(accessor, provider_uuid, start_date):

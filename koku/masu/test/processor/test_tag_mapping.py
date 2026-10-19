@@ -44,7 +44,9 @@ class ApplyTagMappingsTest(MasuTestCase):
     def _mock_accessor(self, mock_cls, report_period_id=7, bill_ids=None):
         mock_acc = MagicMock()
         mock_acc.schema = self.schema
-        mock_acc.report_periods_for_provider_uuid.return_value = Mock(id=report_period_id)
+        mock_acc.report_periods_for_provider_uuid.return_value = Mock(
+            id=report_period_id, cluster_id="cluster-1", cluster_alias="alias-1"
+        )
         if bill_ids is None:
             bill_ids = [11]
         bills = [Mock(id=bill_id) for bill_id in bill_ids]
@@ -141,6 +143,14 @@ class ApplyTagMappingsTest(MasuTestCase):
         self.assertEqual(usage_call.kwargs["infrastructure_only"], False)
         self.assertEqual(infra_call.kwargs["infrastructure_only"], True)
         mock_aws.populate_ocp_on_aws_tag_information.assert_called_once_with(["22"], self.start, self.end, 7)
+        mock_ocp.populate_ocp_on_all_project_daily_summary.assert_called_once()
+        mock_ocp.populate_ocp_on_all_daily_summary.assert_called_once()
+        mock_ocp.populate_ocp_on_all_ui_summary_tables.assert_called_once()
+        all_kwargs = mock_ocp.populate_ocp_on_all_daily_summary.call_args.args
+        self.assertEqual(all_kwargs[0], "aws")
+        self.assertEqual(all_kwargs[1]["source_type"], "AWS")
+        self.assertEqual(all_kwargs[1]["source_uuid"], str(self.aws_provider.uuid))
+        self.assertEqual(all_kwargs[1]["cluster_id"], "cluster-1")
 
     @patch(
         "masu.processor.tag_mapping.is_feature_cost_4403_ec2_compute_cost_enabled",
@@ -254,7 +264,7 @@ class ApplyTagMappingsTest(MasuTestCase):
     @patch("masu.processor.tag_mapping.AWSReportDBAccessor")
     @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
     def test_cloud_include_linked_maps_ocp_on_cloud_clusters(self, mock_ocp_cls, mock_aws_cls):
-        self._mock_accessor(mock_ocp_cls)
+        mock_ocp = self._mock_accessor(mock_ocp_cls)
         mock_aws = self._mock_accessor(mock_aws_cls, bill_ids=[9])
         apply_tag_mappings(
             self.schema,
@@ -265,11 +275,13 @@ class ApplyTagMappingsTest(MasuTestCase):
         )
         mock_aws.populate_ocp_on_aws_tag_information.assert_called()
         mock_aws.populate_tags_summary_table.assert_called_once_with(["9"], self.start, self.end)
+        mock_ocp.populate_ocp_on_all_daily_summary.assert_called()
+        self.assertEqual(mock_ocp.populate_ocp_on_all_daily_summary.call_args.args[0], "aws")
 
     @patch("masu.processor.tag_mapping.AzureReportDBAccessor")
     @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
     def test_ocp_on_azure_maps_project_tables(self, mock_ocp_cls, mock_azure_cls):
-        self._mock_accessor(mock_ocp_cls)
+        mock_ocp = self._mock_accessor(mock_ocp_cls)
         mock_azure = self._mock_accessor(mock_azure_cls, bill_ids=[8])
         apply_tag_mappings(
             self.schema,
@@ -280,11 +292,14 @@ class ApplyTagMappingsTest(MasuTestCase):
             include_linked_ocp_on_cloud=True,
         )
         mock_azure.populate_ocp_on_azure_tag_information.assert_called_once_with(["8"], self.start, self.end, 7)
+        mock_ocp.populate_ocp_on_all_daily_summary.assert_called_once()
+        self.assertEqual(mock_ocp.populate_ocp_on_all_daily_summary.call_args.args[0], "azure")
+        self.assertEqual(mock_ocp.populate_ocp_on_all_daily_summary.call_args.args[1]["source_type"], "Azure")
 
     @patch("masu.processor.tag_mapping.GCPReportDBAccessor")
     @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
     def test_ocp_on_gcp_maps_project_tables(self, mock_ocp_cls, mock_gcp_cls):
-        self._mock_accessor(mock_ocp_cls)
+        mock_ocp = self._mock_accessor(mock_ocp_cls)
         mock_gcp = self._mock_accessor(mock_gcp_cls, bill_ids=[6])
         apply_tag_mappings(
             self.schema,
@@ -295,11 +310,14 @@ class ApplyTagMappingsTest(MasuTestCase):
             include_linked_ocp_on_cloud=True,
         )
         mock_gcp.populate_ocp_on_gcp_tag_information.assert_called_once_with(["6"], self.start, self.end, 7)
+        mock_ocp.populate_ocp_on_all_daily_summary.assert_called_once()
+        self.assertEqual(mock_ocp.populate_ocp_on_all_daily_summary.call_args.args[0], "gcp")
+        self.assertEqual(mock_ocp.populate_ocp_on_all_daily_summary.call_args.args[1]["source_type"], "GCP")
 
     @patch("masu.processor.tag_mapping.AWSReportDBAccessor")
     @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
     def test_ocp_on_cloud_skips_when_no_bills(self, mock_ocp_cls, mock_aws_cls):
-        self._mock_accessor(mock_ocp_cls)
+        mock_ocp = self._mock_accessor(mock_ocp_cls)
         mock_aws = self._mock_accessor(mock_aws_cls, bill_ids=[])
         apply_tag_mappings(
             self.schema,
@@ -310,11 +328,12 @@ class ApplyTagMappingsTest(MasuTestCase):
             include_linked_ocp_on_cloud=True,
         )
         mock_aws.populate_ocp_on_aws_tag_information.assert_not_called()
+        mock_ocp.populate_ocp_on_all_daily_summary.assert_not_called()
 
     @patch("masu.processor.tag_mapping.AzureReportDBAccessor")
     @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
     def test_ocp_on_azure_skips_when_no_bills(self, mock_ocp_cls, mock_azure_cls):
-        self._mock_accessor(mock_ocp_cls)
+        mock_ocp = self._mock_accessor(mock_ocp_cls)
         mock_azure = self._mock_accessor(mock_azure_cls, bill_ids=[])
         apply_tag_mappings(
             self.schema,
@@ -325,11 +344,12 @@ class ApplyTagMappingsTest(MasuTestCase):
             include_linked_ocp_on_cloud=True,
         )
         mock_azure.populate_ocp_on_azure_tag_information.assert_not_called()
+        mock_ocp.populate_ocp_on_all_daily_summary.assert_not_called()
 
     @patch("masu.processor.tag_mapping.GCPReportDBAccessor")
     @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
     def test_ocp_on_gcp_skips_when_no_bills(self, mock_ocp_cls, mock_gcp_cls):
-        self._mock_accessor(mock_ocp_cls)
+        mock_ocp = self._mock_accessor(mock_ocp_cls)
         mock_gcp = self._mock_accessor(mock_gcp_cls, bill_ids=[])
         apply_tag_mappings(
             self.schema,
@@ -340,11 +360,12 @@ class ApplyTagMappingsTest(MasuTestCase):
             include_linked_ocp_on_cloud=True,
         )
         mock_gcp.populate_ocp_on_gcp_tag_information.assert_not_called()
+        mock_ocp.populate_ocp_on_all_daily_summary.assert_not_called()
 
     @patch("masu.processor.tag_mapping.AzureReportDBAccessor")
     @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
     def test_azure_cloud_include_linked_maps_ocp_on_azure(self, mock_ocp_cls, mock_azure_cls):
-        self._mock_accessor(mock_ocp_cls)
+        mock_ocp = self._mock_accessor(mock_ocp_cls)
         mock_azure = self._mock_accessor(mock_azure_cls, bill_ids=[8])
         apply_tag_mappings(
             self.schema,
@@ -355,11 +376,13 @@ class ApplyTagMappingsTest(MasuTestCase):
         )
         mock_azure.populate_ocp_on_azure_tag_information.assert_called()
         mock_azure.populate_tags_summary_table.assert_called_once_with(["8"], self.start, self.end)
+        mock_ocp.populate_ocp_on_all_daily_summary.assert_called()
+        self.assertEqual(mock_ocp.populate_ocp_on_all_daily_summary.call_args.args[0], "azure")
 
     @patch("masu.processor.tag_mapping.GCPReportDBAccessor")
     @patch("masu.processor.tag_mapping.OCPReportDBAccessor")
     def test_gcp_cloud_include_linked_maps_ocp_on_gcp(self, mock_ocp_cls, mock_gcp_cls):
-        self._mock_accessor(mock_ocp_cls)
+        mock_ocp = self._mock_accessor(mock_ocp_cls)
         mock_gcp = self._mock_accessor(mock_gcp_cls, bill_ids=[6])
         apply_tag_mappings(
             self.schema,
@@ -370,6 +393,8 @@ class ApplyTagMappingsTest(MasuTestCase):
         )
         mock_gcp.populate_ocp_on_gcp_tag_information.assert_called()
         mock_gcp.populate_tags_summary_table.assert_called_once_with(["6"], self.start, self.end)
+        mock_ocp.populate_ocp_on_all_daily_summary.assert_called()
+        self.assertEqual(mock_ocp.populate_ocp_on_all_daily_summary.call_args.args[0], "gcp")
 
     @patch("masu.processor.tag_mapping.AWSReportDBAccessor")
     def test_aws_skips_when_no_bills(self, mock_aws_cls):
