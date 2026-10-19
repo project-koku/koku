@@ -79,10 +79,17 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary_stagin
     day
 )
 WITH cte_pg_enabled_keys as (
-    SELECT array['vm_kubevirt_io_name'] || array_agg(key ORDER BY key) as keys
-    FROM {{schema | sqlsafe}}.reporting_enabledtagkeys
-    WHERE enabled = true
-    AND provider_type = 'OCP'
+    -- Always keep the VM label. Postgres already kept it (array || NULL returns the array)
+    -- this matches trino_sql, where array || NULL is NULL and the VM label was lost.
+    SELECT array_agg(key ORDER BY key) as keys
+    FROM (
+        SELECT 'vm_kubevirt_io_name' AS key
+        UNION ALL
+        SELECT key
+        FROM {{schema | sqlsafe}}.reporting_enabledtagkeys
+        WHERE enabled = true
+        AND provider_type = 'OCP'
+    ) always_include_vm
 ),
 cte_ocp_node_label_line_item_daily AS (
     SELECT nli.usage_start,
