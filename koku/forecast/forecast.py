@@ -49,7 +49,7 @@ from api.utils import DateHelper
 from api.utils import get_cost_type
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
-from masu.processor import CONSTANT_CURRENCY_FLAG
+from masu.processor import FORECAST_CONSTANT_CURRENCY_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -158,8 +158,14 @@ class Forecast:
     @property
     def use_base_currency_regression(self):
         """Train on base-currency costs and apply the current month's rate to predictions."""
-        return (
-            is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG) and self.currency
+        return self.use_constant_currency_forecast
+
+    @cached_property
+    def use_constant_currency_forecast(self):
+        """Return whether forecast should use monthly constant-currency behavior."""
+        return bool(self.currency) and is_feature_flag_enabled_by_schema(
+            self.params.tenant.schema_name,
+            FORECAST_CONSTANT_CURRENCY_FLAG,
         )
 
     @cached_property
@@ -177,7 +183,7 @@ class Forecast:
         When constant currency is enabled, uses per-month Subquery from
         MonthlyExchangeRate. Otherwise uses ExchangeRateDictionary via Case/When.
         """
-        if is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+        if self.use_constant_currency_forecast:
             exchange_rate_annotation = build_monthly_rate_annotation(
                 OuterRef(self.provider_map.cost_units_key), self.currency
             )
@@ -283,10 +289,7 @@ class Forecast:
         """Define ORM query to run forecast and return prediction."""
         cost_predictions = {}
         with tenant_context(self.params.tenant):
-            if (
-                is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG)
-                and self.currency
-            ):
+            if self.use_constant_currency_forecast:
                 get_monthly_exchange_rate_map(
                     self._get_base_currencies_for_conversion(),
                     self.currency,
@@ -747,7 +750,7 @@ class OCPForecast(Forecast):
         When constant currency is enabled, uses OCP-specific dual annotations.
         Falls back to ExchangeRateDictionary via Case/When when the flag is off.
         """
-        if is_feature_flag_enabled_by_schema(self.params.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
+        if self.use_constant_currency_forecast:
             cost_model_currency = Subquery(
                 CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
                     "currency"

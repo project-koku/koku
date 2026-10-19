@@ -28,6 +28,7 @@ COST_MODEL_WRITE_FREEZE_FLAG = "cost-management.backend.disable-cost-model-write
 CROSS_ORG_CLUSTER_LOOKUP_FLAG = "cost-management.backend.is_cross_org_cluster_lookup_enabled"
 DISABLE_CELERY_TASK_DELAY_FLAG = "cost-management.backend.disable-celery-task-delay"
 DISABLE_PRICE_LIST_UNLEASH_FLAG = "cost-management.backend.disable_price_list"
+FORECAST_CONSTANT_CURRENCY_FLAG = "cost-management.backend.forecast-constant-currency"
 GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
 INGRESS_DEAD_LETTER_QUEUE_FLAG = "cost-management.backend.ingress-dead-letter-queue"
 INGRESS_STAGING_LISTENER_FLAG = "cost-management.backend.ingress-staging-listener"

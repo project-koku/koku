@@ -47,6 +47,8 @@ from forecast.forecast import LinearForecastResult
 from forecast.forecast import ZERO_RESULT
 from koku.cache import build_enabled_currency_codes_key
 from koku.cache import delete_value_from_cache
+from masu.processor import CONSTANT_CURRENCY_FLAG
+from masu.processor import FORECAST_CONSTANT_CURRENCY_FLAG
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.aws.models import AWSCostSummaryP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
@@ -78,6 +80,10 @@ class MockQuerySet:
 
 class ForecastCurrencyTestMixin:
     """Shared helpers for forecast exchange-rate tests."""
+
+    def _flag_side_effect(self, enabled_flags):
+        """Return a feature-flag mock side effect keyed by flag name."""
+        return lambda _schema, feature_flag, *_, **__: feature_flag in enabled_flags
 
     def _set_enabled_currencies(self, *currency_codes):
         """Reset enabled currencies for the tenant schema."""
@@ -1027,6 +1033,43 @@ class LinearForecastResultTest(IamTestCase):
 class ForecastExchangeRateTest(ForecastCurrencyTestMixin, IamTestCase):
     """Tests for exchange rate annotation and validation in forecast classes."""
 
+    @patch("forecast.forecast.is_feature_flag_enabled_by_schema")
+    def test_forecast_flag_off_uses_legacy_annotations_even_when_report_flag_on(self, mock_flag):
+        """Report constant-currency flag does not enable forecast monthly annotations."""
+        mock_flag.side_effect = self._flag_side_effect({CONSTANT_CURRENCY_FLAG})
+
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params)
+        with schema_context(self.schema_name):
+            ann = instance.exchange_rate_annotation_dict
+
+        self.assertIsInstance(ann["exchange_rate"], Case)
+
+    @patch("forecast.forecast.is_feature_flag_enabled_by_schema")
+    def test_ocp_forecast_flag_off_uses_legacy_annotations_even_when_report_flag_on(self, mock_flag):
+        """Report constant-currency flag does not enable OCP forecast monthly annotations."""
+        mock_flag.side_effect = self._flag_side_effect({CONSTANT_CURRENCY_FLAG})
+
+        params = self.mocked_query_params("?", OCPCostForecastView)
+        instance = OCPForecast(params)
+        with schema_context(self.schema_name):
+            ann = instance.exchange_rate_annotation_dict
+
+        self.assertEqual(set(ann.keys()), {"exchange_rate", "infra_exchange_rate"})
+        self.assertIsInstance(ann["exchange_rate"], Case)
+        self.assertIsInstance(ann["infra_exchange_rate"], Case)
+
+    @patch("forecast.forecast.is_feature_flag_enabled_by_schema")
+    def test_forecast_flag_on_uses_monthly_annotations_without_report_flag(self, mock_flag):
+        """Forecast constant-currency flag independently enables monthly annotations."""
+        mock_flag.side_effect = self._flag_side_effect({FORECAST_CONSTANT_CURRENCY_FLAG})
+
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params)
+        ann = instance.exchange_rate_annotation_dict
+
+        self.assertIsInstance(ann["exchange_rate"], Subquery)
+
     @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=True)
     def test_base_forecast_flag_on_uses_subquery(self, _):
         """Flag ON → Forecast.exchange_rate_annotation_dict returns a Subquery annotation."""
@@ -1092,6 +1135,30 @@ class ForecastExchangeRateTest(ForecastCurrencyTestMixin, IamTestCase):
     @patch("forecast.forecast.is_feature_flag_enabled_by_schema", return_value=False)
     def test_predict_skips_validation_when_flag_off(self, _, mock_get_monthly_exchange_rate_map):
         """predict() does not call get_monthly_exchange_rate_map when flag is disabled."""
+        dh = DateHelper()
+        expected = [
+            {
+                "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
+                "total_cost": 5 + (0.01 * n),
+                "infrastructure_cost": 3 + (0.01 * n),
+                "supplementary_cost": 2 + (0.01 * n),
+            }
+            for n in range(10)
+        ]
+        mock_qset = MockQuerySet(expected)
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params)
+
+        with patch("forecast.forecast.AWSForecast.get_data", return_value=mock_qset):
+            instance.predict()
+
+        mock_get_monthly_exchange_rate_map.assert_not_called()
+
+    @patch("forecast.forecast.get_monthly_exchange_rate_map")
+    @patch("forecast.forecast.is_feature_flag_enabled_by_schema")
+    def test_predict_skips_validation_when_only_report_flag_is_on(self, mock_flag, mock_get_monthly_exchange_rate_map):
+        """Report constant-currency flag alone does not enable forecast validation."""
+        mock_flag.side_effect = self._flag_side_effect({CONSTANT_CURRENCY_FLAG})
         dh = DateHelper()
         expected = [
             {
