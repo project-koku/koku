@@ -142,9 +142,7 @@ class SettingsTagMappingChildRemoveView(APIView):
         if not TagMapping.objects.filter(child__uuid__in=children_uuids).exists():
             return Response({"detail": "Invalid children UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
         TagMapping.objects.filter(child__in=children_uuids).delete()
-        resummarize_current_month_by_tag_keys(
-            children_uuids, request.user.customer.schema_name, restore_unmapped=True
-        )
+        resummarize_current_month_by_tag_keys(children_uuids, request.user.customer.schema_name, restore_unmapped=True)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -160,7 +158,5 @@ class SettingsTagMappingParentRemoveView(APIView):
         # We should resummarize based on the child uuids since they were the ones replaced.
         child_uuids = list(TagMapping.objects.filter(parent__in=parents_uuid).values_list("child", flat=True))
         TagMapping.objects.filter(parent__in=parents_uuid).delete()
-        resummarize_current_month_by_tag_keys(
-            child_uuids, request.user.customer.schema_name, restore_unmapped=True
-        )
+        resummarize_current_month_by_tag_keys(child_uuids, request.user.customer.schema_name, restore_unmapped=True)
         return Response(status=status.HTTP_204_NO_CONTENT)
