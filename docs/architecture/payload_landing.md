@@ -162,7 +162,21 @@ The extract task and the line-item task share that token. Each task heartbeats `
 - Unknown cluster, retention skip, or files that are already complete: mark processed. No line-item task.
 - Reports still to process: enqueue `process_staged_ingress_reports` with `get_customer_queue(schema, OCPQueue)`, then record the handoff on the row. A broker failure releases the claim for retry. The row stays `processing` across that handoff. Handoff is not completion.
 
-`process_staged_ingress_reports` downloads the daily CSVs (extract ran on another pod), runs [`process_extracted_reports`](../../koku/masu/processor/ocp/staged_payloads/processing.py), then marks the row processed and nulls `payload`. On SaaS that path still creates Hive tables and syncs partitions. On-prem it writes line items to PostgreSQL. The listener never opens Trino.
+`process_staged_ingress_reports` downloads the daily CSVs (extract ran on another pod), runs [`process_extracted_reports`](../../koku/masu/processor/ocp/staged_payloads/processing.py), then marks the row processed and nulls `payload` when that call returns anything other than `INCOMPLETE`. On SaaS that path still creates Hive tables and syncs partitions. On-prem it writes line items to PostgreSQL. The listener never opens Trino.
+
+### Staging `processed` vs manifest line items
+
+[`IngressStagingState.PROCESSED`](../../koku/reporting_common/models.py) means **this `request_id` is done on the staging worker** (extract ran, the line-item task finished without a retryable failure, `payload` is cleared). It does **not** always mean every report file in the manifest has line items in the warehouse.
+
+[`process_extracted_reports`](../../koku/masu/processor/ocp/staged_payloads/processing.py) returns [`ExtractedReportsOutcome`](../../koku/masu/processor/ocp/staged_payloads/processing.py):
+
+| Outcome | Staging row | Meaning |
+|---------|-------------|---------|
+| `COMPLETE` | `processed` | Every report meta in this tarball has `process_complete`. |
+| `DEFERRED` | `processed` | Same as the legacy listener when operator daily files are not all recorded yet: `manifest_line_items_deferred` skips `process_report` for this tar until `len(manifest.files)` matches [`number_of_files`](../../koku/masu/database/report_manifest_db_accessor.py) on the manifest. Extract and daily CSV upload already ran in the extract task. Remaining line items are tied to **later ingress uploads** for the same manifest assembly (files still incomplete in `CostUsageReportStatus`), not to reclaiming this staging row. |
+| `INCOMPLETE` | `pending` (retry) or `failed` | Line-item work for this tarball failed; [`release_for_retry`](../../koku/masu/external/downloader/ocp/payload_landing/claim.py) backs off and the reconciler can enqueue again. |
+
+Do not treat `DEFERRED` as a staging failure. Retrying the same row would re-extract the same tar and usually hit the same defer gate. Watch manifest report status and later uploads if cost data lags while `ingress_staging` shows `processed`.
 
 Retries use `not_before` with backoff `min(2^(attempts-1), 30)` minutes. At the retry limit, `release_for_retry` sets `failed`, clears the token, and logs `request_id`, `org_id`, `cluster_id`, `s3_key`, and `attempts`. There is no second ingress validation. The object stays in the bucket.
 
@@ -216,5 +230,5 @@ Indexes: `(state, not_before)` for claims, `(state, claimed_at)` for lease recla
 - **Local manual walkthrough** (Kafka decoupled from Postgres/Trino): [`payload-landing-local-test.md`](../../dev/scripts/payload_landing/payload-landing-local-test.md) (`make docker-up-payload-landing`, `make publish-hccm-upload`, `make payload-landing-status`).
 - Listener confirms without `extract_payload` or `process_report` when the flag is on, including a redelivered `request_id`, an S3 failure that rewinds, and a broker error after the objects are stored: [`test_kafka_msg_handler.py`](../../koku/masu/test/external/test_kafka_msg_handler.py).
 - Claim fencing, reconciler publish-once, and retention: [`test_payload_landing.py`](../../koku/masu/test/external/downloader/ocp/test_payload_landing.py).
-- Line items go to the customer OCP queue, a replay of a completed file does not call `process_report` again, and the scheduler queue list omits `ingress`: [`test_process_staged.py`](../../koku/masu/test/processor/ocp/staged_payloads/test_process_staged.py).
+- Line items go to the customer OCP queue, a replay of a completed file does not call `process_report` again, `DEFERRED` from `process_extracted_reports` still marks the row `processed`, and the scheduler queue list omits `ingress`: [`test_process_staged.py`](../../koku/masu/test/processor/ocp/staged_payloads/test_process_staged.py).
 - With the listener flag on, a database error during stage still confirms, a redelivery HEADs the receipt and does not upload again, a failed marker upsert leaves the marker, and a second register does not reset `processed`.

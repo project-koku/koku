@@ -252,7 +252,11 @@ def _tracing_id(request_id, report_metas):
 
 
 def _process_staged_line_items(request_id, claim_token, report_metas, heartbeat):
-    """Download CSVs, run line items, and mark the staging row processed when done."""
+    """Download CSVs, run line items, and close the staging row when the tarball is done.
+
+    ``mark_processed`` runs for ``COMPLETE`` and ``DEFERRED`` outcomes from
+    ``process_extracted_reports``. Only ``INCOMPLETE`` releases the claim for retry.
+    """
     if heartbeat.lost:
         return None
     report_dir, local_metas = materialize_report_files(report_metas)
@@ -366,8 +370,10 @@ def process_staged_ingress_payload(request_id):
 def process_staged_ingress_reports(request_id, claim_token, report_metas):
     """Download extracted CSVs and run line-item processing for one staged payload.
 
-    The row is marked processed only when line items finish successfully. The
-    extract task still holds ``claim_token``; this task does not claim the row again.
+    The row is marked processed when ``process_extracted_reports`` returns
+    ``COMPLETE`` or ``DEFERRED`` (manifest line items intentionally skipped).
+    ``INCOMPLETE`` releases the claim for retry. The extract task still holds
+    ``claim_token``; this task does not claim the row again.
     """
     if not heartbeat_ingress_claim(request_id, claim_token):
         LOG.info(log_json(request_id, msg="ingress staging line-item claim missed"))
