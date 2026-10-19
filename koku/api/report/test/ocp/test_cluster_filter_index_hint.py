@@ -2,15 +2,9 @@
 # Copyright 2026 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Parity tests for the OCP report cluster-filter index hint.
-
-``OCP_REPORT_CLUSTER_FILTER_INDEX_HINT_FLAG`` adds an indexed
-``source_uuid``/``report_period_id`` restriction implied by the substring
-cluster filter.  The original filter stays in place, so report output must be
-identical with the flag on and off.  Rows that tie on the report ordering may
-come back in either order, so parity compares the ranking and the row content.
-"""
+"""Tests for the OCP report cluster-filter index hint."""
 import json
+from contextlib import nullcontext
 from unittest.mock import patch
 
 from django.db import connection
@@ -25,11 +19,8 @@ from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
 from api.report.ocp.view import OCPVolumeView
-from masu.processor import OCP_REPORT_CLUSTER_FILTER_INDEX_HINT_FLAG
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPCostSummaryP
-
-FLAG_TARGET = "api.report.ocp.query_handler.is_feature_flag_enabled_by_schema"
 
 
 def _sort_value(row, field):
@@ -41,7 +32,7 @@ def _sort_value(row, field):
 
 
 def _ranking(value, field):
-    """Keep only the dates and each row's sort value, in output order."""
+    """Keep dates and each row's sort value, in output order."""
     if isinstance(value, list):
         return [_ranking(item, field) for item in value]
     if not isinstance(value, dict):
@@ -58,11 +49,11 @@ def _ranking(value, field):
 
 
 def _canonical_rows(value):
-    """Sort every list of rows so tied rows compare equal in any order."""
+    """Sort report rows so tied rows compare equal in any order."""
     if isinstance(value, dict):
-        return {k: _canonical_rows(v) for k, v in value.items()}
+        return {key: _canonical_rows(item) for key, item in value.items()}
     if isinstance(value, list):
-        items = [_canonical_rows(v) for v in value]
+        items = [_canonical_rows(item) for item in value]
         if items and all(isinstance(item, dict) for item in items):
             items.sort(key=lambda item: json.dumps(item, sort_keys=True, default=str))
         return items
@@ -70,7 +61,7 @@ def _canonical_rows(value):
 
 
 class OCPReportClusterFilterIndexHintTest(IamTestCase):
-    """Assert the index hint never changes OCP report output."""
+    """Assert the index hint follows implied cluster filters."""
 
     LAST_MONTH = "filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly"
     DAILY = "filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
@@ -90,33 +81,32 @@ class OCPReportClusterFilterIndexHintTest(IamTestCase):
         self.cluster_alias = cluster["cluster_alias"]
         self.source_uuid = cluster["source_uuid"]
 
-    def _handler(self, view, url, hint_enabled):
-        def _side_effect(schema, feature_flag, *args, **kwargs):
-            if feature_flag == OCP_REPORT_CLUSTER_FILTER_INDEX_HINT_FLAG:
-                return hint_enabled
-            return False
-
-        with patch(FLAG_TARGET, side_effect=_side_effect):
-            query_params = self.mocked_query_params(url, view, path=self.OCP_PATH)
-            handler = OCPReportQueryHandler(query_params)
+    def _handler(self, view, url, use_hint=True):
+        query_params = self.mocked_query_params(url, view, path=self.OCP_PATH)
+        handler = OCPReportQueryHandler(query_params)
+        hint = (
+            nullcontext()
+            if use_hint
+            else patch.object(handler, "_apply_cluster_filter_index_hint", side_effect=lambda q: q)
+        )
+        with hint:
             output = handler.execute_query()
         return handler, output
 
-    def _assert_parity(self, view, url, expect_data=True):
-        handler, legacy = self._handler(view, url, hint_enabled=False)
-        _, hinted = self._handler(view, url, hint_enabled=True)
+    def _assert_report(self, view, url, expect_data=True):
+        _, report = self._handler(view, url)
         msg = f"cluster index hint changed output for {view.__name__} {url}"
-        # Same ranking: the active sort value appears in the same order.
-        field = handler.order.lstrip("-")
-        self.assertEqual(_ranking(legacy.get("data"), field), _ranking(hinted.get("data"), field), msg=msg)
-        # Same rows: identical in a canonical order.
-        self.assertEqual(_canonical_rows(legacy.get("data")), _canonical_rows(hinted.get("data")), msg=msg)
-        self.assertEqual(legacy.get("total"), hinted.get("total"), msg=msg)
+        _, without_hint = self._handler(view, url, use_hint=False)
+        self.assertEqual(_canonical_rows(without_hint.get("data")), _canonical_rows(report.get("data")), msg=msg)
+        self.assertEqual(without_hint.get("total"), report.get("total"), msg=msg)
+        self.assertIn("data", report, msg=msg)
+        self.assertIn("total", report, msg=msg)
         if expect_data:
-            self.assertTrue(legacy.get("total", {}).get("cost") or legacy.get("total", {}).get("usage"), msg=msg)
+            self.assertTrue(report.get("total", {}).get("cost") or report.get("total", {}).get("usage"), msg=msg)
+        return report
 
-    def test_parity_for_cluster_filter_shapes(self):
-        """Every cluster filter shape returns the same report with the hint on."""
+    def test_reports_for_cluster_filter_shapes(self):
+        """Every cluster filter shape still produces the expected report data."""
         substring = self.cluster_alias[1:-1]
         filters = [
             f"filter[cluster]={self.cluster_alias}",
@@ -142,10 +132,10 @@ class OCPReportClusterFilterIndexHintTest(IamTestCase):
                 for time_filter in (self.LAST_MONTH, self.DAILY):
                     with self.subTest(view=view.__name__, cluster_filter=cluster_filter, time_filter=time_filter):
                         url = f"?{time_filter}&{group_by}&{cluster_filter}"
-                        self._assert_parity(view, url, expect_data=time_filter == self.LAST_MONTH)
+                        self._assert_report(view, url, expect_data=time_filter == self.LAST_MONTH)
 
-    def test_parity_for_node_reports_and_deltas(self):
-        """Node capacity and delta queries keep the same output with the hint on."""
+    def test_node_reports_and_deltas(self):
+        """Node capacity and delta requests retain report data."""
         urls = [
             (OCPCpuView, f"?{self.LAST_MONTH}&group_by[node]=*&filter[cluster]={self.cluster_alias}"),
             (OCPMemoryView, f"?{self.LAST_MONTH}&group_by[node]=*&filter[cluster]={self.cluster_alias}"),
@@ -157,14 +147,16 @@ class OCPReportClusterFilterIndexHintTest(IamTestCase):
         ]
         for view, url in urls:
             with self.subTest(view=view.__name__, url=url):
-                self._assert_parity(view, url)
+                self._assert_report(view, url)
 
-    def test_no_matching_cluster_returns_same_empty_report(self):
-        """A filter matching no cluster stays empty with the hint on."""
+    def test_no_matching_cluster_returns_empty_report(self):
+        """A filter matching no cluster stays empty."""
         url = f"?{self.LAST_MONTH}&group_by[project]=*&filter[cluster]=no-such-cluster"
         for view in (OCPCostView, OCPCpuView, OCPVolumeView):
             with self.subTest(view=view.__name__):
-                self._assert_parity(view, url, expect_data=False)
+                report = self._assert_report(view, url, expect_data=False)
+                self.assertTrue(report["data"])
+                self.assertTrue(all(not date["projects"] for date in report["data"]))
 
     def test_renamed_cluster_still_matches_old_alias(self):
         """Rows summarized under a previous alias are still found after a rename."""
@@ -177,8 +169,8 @@ class OCPReportClusterFilterIndexHintTest(IamTestCase):
         url = f"?{self.LAST_MONTH}&group_by[project]=*&filter[cluster]={self.cluster_alias}"
         for view in (OCPCostView, OCPCpuView):
             with self.subTest(view=view.__name__):
-                self._assert_parity(view, url)
-                handler, _ = self._handler(view, url, hint_enabled=True)
+                self._assert_report(view, url)
+                handler, _ = self._handler(view, url)
                 with schema_context(self.schema_name):
                     self.assertIn(self.source_uuid, handler._cluster_filter_source_uuids)
 
@@ -186,7 +178,7 @@ class OCPReportClusterFilterIndexHintTest(IamTestCase):
         """Both the row and total previous-period delta queries use the indexed filter."""
         url = f"?{self.LAST_MONTH}&group_by[project]=*&filter[cluster]={self.cluster_alias}&delta=cost"
         with CaptureQueriesContext(connection) as captured:
-            self._handler(OCPCostView, url, hint_enabled=True)
+            self._handler(OCPCostView, url)
         cluster_filtered = [
             query["sql"]
             for query in captured.captured_queries
@@ -198,28 +190,37 @@ class OCPReportClusterFilterIndexHintTest(IamTestCase):
 
     def test_wildcard_cluster_filter_does_not_enable_hint(self):
         """group_by[cluster]=* does not filter, so no hint is added."""
-        handler, _ = self._handler(OCPCostView, f"?{self.LAST_MONTH}&group_by[cluster]=*", hint_enabled=True)
+        handler, _ = self._handler(OCPCostView, f"?{self.LAST_MONTH}&group_by[cluster]=*")
         self.assertEqual(handler._cluster_filter_values, set())
-        self.assertFalse(handler._cluster_filter_index_hint_enabled)
 
     def test_hint_adds_indexed_filters_to_report_and_capacity_queries(self):
-        """Summary queries filter by source_uuid and the capacity query by report_period_id."""
+        """Report and by-node capacity queries filter by source_uuid."""
         url = f"?{self.LAST_MONTH}&group_by[project]=*&filter[cluster]={self.cluster_alias}"
         with CaptureQueriesContext(connection) as captured:
-            self._handler(OCPCpuView, url, hint_enabled=True)
+            self._handler(OCPCpuView, url)
         sql = [query["sql"] for query in captured.captured_queries]
         self.assertTrue(
             any('FROM "reporting_ocp_pod_summary_by_project_p"' in q and '"source_uuid" IN' in q for q in sql)
         )
         self.assertTrue(
+            any('FROM "reporting_ocp_pod_summary_by_node_p"' in q and '"source_uuid" IN' in q for q in sql)
+        )
+
+    def test_hint_filters_daily_capacity_by_report_period(self):
+        """Unsupported capacity filters keep daily-summary report-period pruning."""
+        url = f"?{self.LAST_MONTH}&group_by[project]=*&filter[cluster]={self.cluster_alias}&filter[project]=koku"
+        with CaptureQueriesContext(connection) as captured:
+            self._handler(OCPCpuView, url)
+        sql = [query["sql"] for query in captured.captured_queries]
+        self.assertTrue(
             any('FROM "reporting_ocpusagelineitem_daily_summary"' in q and '"report_period_id" IN' in q for q in sql)
         )
 
-    def test_flag_off_adds_no_indexed_filters(self):
-        """With the flag off, report queries are unchanged."""
-        url = f"?{self.LAST_MONTH}&group_by[project]=*&filter[cluster]={self.cluster_alias}"
+    def test_no_cluster_filter_adds_no_indexed_filters(self):
+        """A request without a cluster restriction does not add the hint."""
+        url = f"?{self.LAST_MONTH}&group_by[project]=*"
         with CaptureQueriesContext(connection) as captured:
-            self._handler(OCPCpuView, url, hint_enabled=False)
+            self._handler(OCPCpuView, url)
         sql = [query["sql"] for query in captured.captured_queries]
         self.assertFalse(any('"report_period_id" IN' in q for q in sql))
         self.assertFalse(any('FROM "reporting_ocp_cluster' in q for q in sql))

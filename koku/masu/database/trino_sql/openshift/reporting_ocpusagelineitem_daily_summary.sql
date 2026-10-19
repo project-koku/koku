@@ -93,10 +93,16 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
 )
 -- node label line items by day trino sql
 WITH cte_pg_enabled_keys as (
-    select array['vm_kubevirt_io_name'] || array_agg(key order by key) as keys
-      from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
-     where enabled = true
-     and provider_type = 'OCP'
+    -- Always keep the VM label; array_agg is NULL when no tags are enabled.
+    select array_agg(key order by key) as keys
+      from (
+          select 'vm_kubevirt_io_name' as key
+          union all
+          select key
+            from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+           where enabled = true
+             and provider_type = 'OCP'
+      ) always_include_vm
 ),
 cte_ocp_node_label_line_item_daily AS (
     SELECT date(nli.interval_start) as usage_start,
