@@ -169,6 +169,38 @@ class ReportDBAccessorBaseTest(MasuTestCase):
         self.assertNotIn("days", bind_params)
         self.assertEqual(result, trino_safe_array_literal(['{"openshift_cluster": "cluster-a"}']))
 
+    @patch("masu.database.report_db_accessor_base.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch.object(ReportDBAccessorBase, "_execute_trino_multipart_sql_query")
+    def test_find_openshift_keys_expected_values_empty_summary_no_retry(self, mock_trino, _mock_flag):
+        """Rebuild-gap shape: empty/missing summary rows yield [] once; no retry on empty.
+
+        OCP summary delete-before-populate and OCP-on-cloud use different provider locks, so a
+        cloud matching run can observe a day-partition gap. Document that the lookup does not
+        retry on empty results (flag remains the rollback path).
+        """
+        mock_trino.return_value = [[None]]
+        sql_metadata = self._special_matched_tags_metadata()
+
+        result = self.accessor.find_openshift_keys_expected_values(sql_metadata)
+
+        mock_trino.assert_called_once()
+        self.assertEqual(result, trino_safe_array_literal([]))
+
+    @patch("masu.database.report_db_accessor_base.LOG")
+    @patch("masu.database.report_db_accessor_base.is_feature_flag_enabled_by_schema", return_value=True)
+    @patch.object(ReportDBAccessorBase, "_execute_trino_multipart_sql_query")
+    def test_find_openshift_keys_expected_values_logs_use_summary_lookup(self, mock_trino, _mock_flag, mock_log):
+        """Log line must carry use_summary_lookup so QE can tell which path ran."""
+        mock_trino.return_value = [[['{"openshift_cluster": "cluster-a"}']]]
+        sql_metadata = self._special_matched_tags_metadata()
+
+        self.accessor.find_openshift_keys_expected_values(sql_metadata)
+
+        mock_log.info.assert_called_once()
+        logged = mock_log.info.call_args.args[0]
+        self.assertTrue(logged["use_summary_lookup"])
+        self.assertEqual(logged["message"], "Finding expected values for openshift special tags")
+
 
 class OCPSpecialMatchedTagsSqlTemplateTest(SimpleTestCase):
     """Static checks for the OCP special matched-tags Trino templates."""
@@ -182,6 +214,18 @@ class OCPSpecialMatchedTagsSqlTemplateTest(SimpleTestCase):
         self.assertIn("month IN ({{month}}, CAST(CAST({{month}} AS integer) AS varchar))", sql)
         self.assertIn("node IS NOT NULL", sql)
         self.assertIn("namespace IS NOT NULL", sql)
+
+    def test_summary_template_includes_storage_only_namespaces(self):
+        """Summary path intentionally includes Storage-only projects (no data_source filter).
+
+        reporting_ocpusagelineitem_daily_summary can hold namespaces present only via Storage
+        rows. Legacy pod-usage lookup never saw those; treating the broader set as in-scope for
+        the new path is intentional (PR #6388). Pin that the template does not restrict to Pod.
+        """
+        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/ocp_special_matched_tags.sql").decode("utf-8")
+        self.assertNotIn("data_source", sql)
+        self.assertIn("namespace IS NOT NULL", sql)
+        self.assertIn("namespace != ''", sql)
 
     def test_legacy_pod_usage_template_scans_raw_pod_usage(self):
         sql = pkgutil.get_data("masu.database", "trino_sql/openshift/ocp_special_matched_tags_pod_usage.sql").decode(
