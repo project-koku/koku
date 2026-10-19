@@ -38,12 +38,6 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from masu.processor import CONSTANT_CURRENCY_FLAG
 from masu.processor import is_feature_flag_enabled_by_schema
-from masu.processor import OCP_CAPACITY_BY_NODE_SUMMARY_FLAG
-from masu.processor import OCP_CAPACITY_SINGLE_SCAN_FLAG
-from masu.processor import OCP_REPORT_CLUSTER_FILTER_INDEX_HINT_FLAG
-from masu.processor import OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG
-from masu.processor import OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG
-from masu.processor import OCP_REPORT_LIMITED_DELTA_FLAG
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPCostSummaryP
 from reporting.provider.ocp.models import OCPPodSummaryByNodeP
@@ -372,7 +366,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency map)
         - infra_exchange_rate: cloud bill currency (raw_currency column)
 
-        Falls back to the Case/When approach when the flag is off.
+        Uses a Case/When expression when a source needs currency conversion.
         """
         if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
             exchange_rate_annotation = self._monthly_source_exchange_rate_case()
@@ -381,9 +375,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             )
         else:
             source_to_currency_map = self.source_to_currency_map
-            if is_feature_flag_enabled_by_schema(
-                self.tenant.schema_name, OCP_REPORT_IDENTITY_EXCHANGE_RATE_FLAG, dev_fallback=True
-            ) and all(currency == self.currency for currency in source_to_currency_map.values()):
+            if all(currency == self.currency for currency in source_to_currency_map.values()):
                 exchange_rate_annotation = Value(1, output_field=DecimalField())
             else:
                 exchange_rate_whens = [
@@ -410,8 +402,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
     def _is_limited_delta_for_ranked_projects_shape(self):
         """Whether the ranked, paginated, project-only monthly delta shape is safe.
 
-        This describes the request shape only. Independent flags may use it to
-        roll out separate optimizations without enabling one another.
+        This describes the request shape eligible for bounded delta queries.
         """
         filter_params = self.parameters.get("filter") or {}
         return (
@@ -424,24 +415,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         )
 
     @cached_property
-    def _limited_delta_for_ranked_projects_enabled(self):
-        """Whether prior-period deltas can be limited to the returned projects."""
-        return self._is_limited_delta_for_ranked_projects_shape and is_feature_flag_enabled_by_schema(
-            self.tenant.schema_name, OCP_REPORT_LIMITED_DELTA_FLAG, dev_fallback=True
-        )
-
-    @cached_property
-    def _combined_distributed_cost_for_limited_delta_enabled(self):
-        """Whether the prior-period distributed cost can use one aggregate expression."""
-        return (
-            self._is_limited_delta_for_ranked_projects_shape
-            and self._delta == "cost_total_distributed"
-            and is_feature_flag_enabled_by_schema(
-                self.tenant.schema_name, OCP_REPORT_COMBINED_DISTRIBUTED_COST_FLAG, dev_fallback=True
-            )
-        )
-
-    @cached_property
     def _cluster_filter_values(self):
         """Return values that every row kept by the report filter matches on cluster_alias/cluster_id.
 
@@ -451,13 +424,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         not restrict the cluster.
         """
         return _implied_cluster_values(self.query_filter) or set()
-
-    @cached_property
-    def _cluster_filter_index_hint_enabled(self):
-        """Whether cluster filters also restrict rows by indexed source/report-period ids."""
-        return bool(self._cluster_filter_values) and is_feature_flag_enabled_by_schema(
-            self.tenant.schema_name, OCP_REPORT_CLUSTER_FILTER_INDEX_HINT_FLAG, dev_fallback=True
-        )
 
     def _cluster_filter_match(self):
         """Return a Q matching cluster_alias/cluster_id against any cluster filter value."""
@@ -499,7 +465,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         PostgreSQL use an existing index.  The original cluster filter stays in
         place, so the result is unchanged.
         """
-        if not self._cluster_filter_index_hint_enabled:
+        if not self._cluster_filter_values:
             return queryset
         field_names = {field.name for field in queryset.model._meta.get_fields()}
         if "report_period" in field_names:
@@ -736,9 +702,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 not self.query_exclusions
                 or _q_uses_only_fields(self.query_exclusions, CAPACITY_BY_NODE_SUMMARY_FILTER_FIELDS)
             )
-            and is_feature_flag_enabled_by_schema(
-                self.tenant.schema_name, OCP_CAPACITY_BY_NODE_SUMMARY_FLAG, dev_fallback=True
-            )
         ):
             return OCPPodSummaryByNodeP
         return q_table
@@ -758,9 +721,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 not is_node_report
                 and bool(capacity_aggregate.get("cluster"))
                 and bool(capacity_aggregate.get("cluster_instance_counts"))
-                and is_feature_flag_enabled_by_schema(
-                    self.tenant.schema_name, OCP_CAPACITY_SINGLE_SCAN_FLAG, dev_fallback=True
-                )
             )
             capacity = capacity_class(
                 self._mapper.report_type_map,
@@ -799,8 +759,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return self._apply_cluster_filter_index_hint(super()._get_previous_query(delta_filter))
 
     def _get_previous_rows_query(self, previous_query, query_data):
-        """Limit per-row deltas to ranked projects when the flagged shape is safe."""
-        if not self._limited_delta_for_ranked_projects_enabled or not query_data:
+        """Limit per-row deltas to ranked projects when the request shape is safe."""
+        if not self._is_limited_delta_for_ranked_projects_shape or not query_data:
             return previous_query
 
         projects = {row.get("project") for row in query_data}
@@ -813,8 +773,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return previous_query.filter(project_filter)
 
     def _get_delta_field(self):
-        """Use the single distributed-cost aggregate only for the flagged safe shape."""
-        if self._combined_distributed_cost_for_limited_delta_enabled:
+        """Use the single distributed-cost aggregate for its safe request shape."""
+        if self._is_limited_delta_for_ranked_projects_shape and self._delta == "cost_total_distributed":
             return self._mapper.combined_distributed_cost
         return super()._get_delta_field()
 
