@@ -168,6 +168,10 @@ def release_for_retry(request_id, claim_token, error):
 def mark_processed(request_id, claim_token):
     """Mark the row processed and drop the Kafka payload, including identity.
 
+    ``processed`` means this ``request_id`` finished on the staging workers, not
+    that every manifest report file has line items in the warehouse (see
+    ``ExtractedReportsOutcome.DEFERRED``).
+
     Returns False when this worker no longer holds ``claim_token``.
     """
     updated = _claim_filter(request_id, claim_token).update(
