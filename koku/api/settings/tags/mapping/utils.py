@@ -161,9 +161,7 @@ def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name, *, restore
             provider_uuids = _cloud_providers_for_tag_keys(model, start_date, lookup_keys)
             if restore_unmapped and not provider_uuids:
                 provider_uuids = _cloud_providers_for_tag_keys(model, start_date)
-            _queue_tag_mapping_refresh(
-                schema_name, provider_uuids, provider_type, restore_unmapped=restore_unmapped
-            )
+            _queue_tag_mapping_refresh(schema_name, provider_uuids, provider_type, restore_unmapped=restore_unmapped)
         elif provider_type == Provider.PROVIDER_OCP:
             provider_uuids = _ocp_providers_for_tag_keys(start_date, lookup_keys)
             if restore_unmapped and not provider_uuids:

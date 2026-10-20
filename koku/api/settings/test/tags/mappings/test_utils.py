@@ -180,9 +180,7 @@ class TestTagMappingUtils(MasuTestCase):
         with tenant_context(self.tenant):
             parent, child = self._aws_parent_child_keys()
             self._drop_current_month_aws_tag_summary(child.key)
-            resummarize_current_month_by_tag_keys(
-                [child.uuid, parent.uuid], self.schema_name, restore_unmapped=True
-            )
+            resummarize_current_month_by_tag_keys([child.uuid, parent.uuid], self.schema_name, restore_unmapped=True)
 
         mock_delayed_apply.assert_not_called()
         mock_delayed_summarize.assert_called()
