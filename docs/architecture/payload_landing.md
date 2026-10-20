@@ -6,7 +6,7 @@ The flag defaults off. Stage and production stay on the previous listener until 
 
 Design notes for this change live at [`decouple-kafka-ingress.md`](../../decouple-kafka-ingress.md). The punch list in [`decouple-kafka-ingress-followups.md`](../../decouple-kafka-ingress-followups.md) is implemented in this branch.
 
-Related: [end-to-end workflow walkthrough](payload_landing_workflow.md), [OpenShift CSV processing](csv-processing-ocp.md), [Celery tasks](celery-tasks.md).
+Related: [OpenShift CSV processing](csv-processing-ocp.md), [Celery tasks](celery-tasks.md).
 
 ## Concept
 
