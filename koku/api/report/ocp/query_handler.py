@@ -11,14 +11,13 @@ from decimal import DivisionByZero
 from decimal import InvalidOperation
 from functools import cached_property
 
+from dateutil.relativedelta import relativedelta
 from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
-from django.db.models import OuterRef
 from django.db.models import Q
-from django.db.models import Subquery
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.fields.json import KT
@@ -26,7 +25,7 @@ from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
 from api.currency.utils import build_exchange_rate_case
-from api.currency.utils import build_monthly_rate_annotation
+from api.currency.utils import get_monthly_exchange_rate_map
 from api.models import Provider
 from api.report.ocp.capacity.cluster_capacity import calculate_unused
 from api.report.ocp.capacity.cluster_capacity import ClusterCapacity
@@ -266,24 +265,113 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return source_map
 
     @cached_property
+    def conversion_queryset(self):
+        """Return report-scoped rows used to discover conversion inputs."""
+        query = self._apply_cluster_filter_index_hint(self.query_table.objects.filter(self.query_filter))
+        if self.query_exclusions:
+            query = query.exclude(self.query_exclusions)
+        return query
+
+    @cached_property
+    def include_previous_period_for_conversion(self):
+        """Whether exchange-rate annotations must also cover previous-period delta rows."""
+        return bool(self._delta and "__" not in self._delta)
+
+    @cached_property
+    def previous_conversion_queryset(self):
+        """Return previous-period rows used by normal delta calculations."""
+        if not self.include_previous_period_for_conversion:
+            return self.query_table.objects.none()
+        query = self.query_table.objects.filter(self._get_filter(delta=True))
+        return self._apply_cluster_filter_index_hint(query)
+
+    def _conversion_queryset_values(self, field_name):
+        """Return distinct field values from current and, when needed, previous-period rows."""
+        values = set(self.conversion_queryset.values_list(field_name, flat=True).distinct())
+        if self.include_previous_period_for_conversion:
+            values |= set(self.previous_conversion_queryset.values_list(field_name, flat=True).distinct())
+        return values - {None}
+
+    @cached_property
+    def source_uuids_for_conversion(self):
+        """Return source UUIDs present in the report-scoped rows."""
+        return self._conversion_queryset_values("source_uuid")
+
+    @cached_property
+    def request_source_to_currency_map(self):
+        """Return cost-model currencies for sources present in this request."""
+        mapping = CostModelMap.objects.filter(provider_uuid__in=self.source_uuids_for_conversion).values(
+            "provider_uuid", "cost_model__currency"
+        )
+        return {row["provider_uuid"]: row["cost_model__currency"] for row in mapping if row["cost_model__currency"]}
+
+    @cached_property
+    def raw_currencies_for_conversion(self):
+        """Return raw infrastructure currencies present in the report-scoped rows."""
+        return self._conversion_queryset_values(self._mapper.cost_units_key)
+
+    @cached_property
+    def monthly_exchange_rate_map(self):
+        """Return monthly rates for every base currency needed by this request."""
+        base_currencies = self.raw_currencies_for_conversion | set(self.request_source_to_currency_map.values())
+        start_datetime = self.start_datetime
+        if self.include_previous_period_for_conversion:
+            start_datetime = start_datetime - self._get_date_delta()
+        return get_monthly_exchange_rate_map(
+            base_currencies,
+            self.currency,
+            start_datetime.date(),
+            self.end_datetime.date(),
+        )
+
+    def _monthly_exchange_rate_case(self, field_name, base_currencies):
+        """Build a bounded Case expression for monthly rates on a currency field."""
+        whens = []
+        for base_currency in base_currencies:
+            for month_start, rate in sorted(self.monthly_exchange_rate_map.get(base_currency, {}).items()):
+                whens.append(
+                    When(
+                        **{
+                            field_name: base_currency,
+                            "usage_start__gte": month_start,
+                            "usage_start__lt": month_start + relativedelta(months=1),
+                            "then": Value(rate),
+                        }
+                    )
+                )
+        return Case(*whens, default=1, output_field=DecimalField())
+
+    def _monthly_source_exchange_rate_case(self):
+        """Build a bounded Case expression for source UUID to cost-model currency rates."""
+        whens = []
+        for source_uuid, base_currency in self.request_source_to_currency_map.items():
+            for month_start, rate in sorted(self.monthly_exchange_rate_map.get(base_currency, {}).items()):
+                whens.append(
+                    When(
+                        **{
+                            "source_uuid": source_uuid,
+                            "usage_start__gte": month_start,
+                            "usage_start__lt": month_start + relativedelta(months=1),
+                            "then": Value(rate),
+                        }
+                    )
+                )
+        return Case(*whens, default=1, output_field=DecimalField())
+
+    @cached_property
     def exchange_rate_annotation_dict(self):
-        """Get per-month exchange rate annotations from MonthlyExchangeRate via Subquery.
+        """Get per-month exchange rate annotations.
 
         When constant currency is enabled, OCP needs two annotations:
-        - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency)
+        - exchange_rate: cost model currency (resolved via source_uuid -> CostModel.currency map)
         - infra_exchange_rate: cloud bill currency (raw_currency column)
 
         Uses a Case/When expression when a source needs currency conversion.
         """
         if is_feature_flag_enabled_by_schema(self.tenant.schema_name, CONSTANT_CURRENCY_FLAG):
-            cost_model_currency = Subquery(
-                CostModel.objects.filter(costmodelmap__provider_uuid=OuterRef(OuterRef("source_uuid")),).values(
-                    "currency"
-                )[:1],
-            )
-            exchange_rate_annotation = build_monthly_rate_annotation(cost_model_currency, self.currency)
-            infra_exchange_rate_annotation = build_monthly_rate_annotation(
-                OuterRef(self._mapper.cost_units_key), self.currency
+            exchange_rate_annotation = self._monthly_source_exchange_rate_case()
+            infra_exchange_rate_annotation = self._monthly_exchange_rate_case(
+                self._mapper.cost_units_key, self.raw_currencies_for_conversion
             )
         else:
             source_to_currency_map = self.source_to_currency_map
@@ -308,16 +396,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def _get_base_currencies_for_conversion(self):
         """Return base currencies from both raw_currency and cost model currencies."""
-        base_currencies = super()._get_base_currencies_for_conversion()
-        cm_currencies = set(
-            CostModel.objects.filter(
-                costmodelmap__provider_uuid__in=self.query_table.objects.filter(
-                    usage_start__gte=self.start_datetime.date(),
-                    usage_start__lte=self.end_datetime.date(),
-                ).values("source_uuid"),
-            ).values_list("currency", flat=True)
-        )
-        return (base_currencies | cm_currencies) - {None}
+        return (self.raw_currencies_for_conversion | set(self.request_source_to_currency_map.values())) - {None}
 
     @cached_property
     def _is_limited_delta_for_ranked_projects_shape(self):
